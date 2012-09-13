@@ -399,7 +399,6 @@ contains
 
  ! iterate on the surface temperatire
  if(num_method==itersurf)then
-  call iter_Tsurf(
 
 
 
