@@ -400,6 +400,8 @@ contains
  ! iterate on the surface temperatire
  if(num_method==itersurf)then
 
+  print*, 'hello'
+
 
 
 

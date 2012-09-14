@@ -14,10 +14,11 @@ MODULE var_lookup
   integer(i4b)    :: soilhyd_bc       = 3  ! choice of boundary conditions for soil hydrology
   integer(i4b)    :: thrmdyn_bc       = 4  ! choice of boundary conditions for soil hydrology
   integer(i4b)    :: f_Richards       = 5  ! form of richards' equation
-  integer(i4b)    :: alb_method       = 6  ! choice of albedo representation
+  integer(i4b)    :: bcLowSoilH       = 6  ! type of lower boundary condition for soil hydrology
   integer(i4b)    :: astability       = 7  ! choice of stability function
   integer(i4b)    :: compaction       = 8  ! choice of compaction routine
   integer(i4b)    :: thermlcond       = 9  ! choice of thermal conductivity representation
+  integer(i4b)    :: alb_method       = 10 ! choice of albedo representation
  endtype iLook_decision
  ! ***********************************************************************************************************
  ! (1) define model time
@@ -233,7 +234,7 @@ MODULE var_lookup
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************
  ! define look-up structures
- type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision( 1, 2, 3, 4, 5, 6, 7, 8, 9)
+ type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision( 1, 2, 3, 4, 5, 6, 7, 8, 9,10)
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    ( 1, 2, 3, 4, 5)
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   ( 1, 2, 3, 4, 5, 6, 7, 8)
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10,&
@@ -253,7 +254,7 @@ MODULE var_lookup
                                                                         71,72,73,74,75,76,77)
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10)
  ! define maximum number of variables of each type
- integer(i4b),parameter,public :: maxvarDecisions= 9
+ integer(i4b),parameter,public :: maxvarDecisions= 10
  integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarMpar     = 66

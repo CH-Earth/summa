@@ -24,10 +24,11 @@ contains
   case('soilhyd_bc'      ); get_ixdecisions=iLookDECISIONS%soilhyd_bc  ! choice of boundary condition for soil hydrology
   case('thrmdyn_bc'      ); get_ixdecisions=iLookDECISIONS%thrmdyn_bc  ! choice of boundary condition for thermodynamics
   case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! form of Richards' equation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! choice of albedo representation
+  case('bcLowSoilH'      ); get_ixdecisions=iLookDECISIONS%bcLowSoilH  ! type of lower boundary flux condition for soil hydrology
   case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! choice of stability function
   case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! choice of compaction routine
   case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! choice of albedo representation
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss

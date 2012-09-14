@@ -18,6 +18,10 @@ integer(i4b),parameter :: mixdform=1002            ! look-up value for the mixed
 ! look-up values for the type of boundary conditions
 integer(i4b),parameter :: diriclet=1001            ! look-up value for diriclet boundary conditions
 integer(i4b),parameter :: neumann=1002             ! look-up value for neumann boundary conditions
+! look-up values for the type of lower boundary flux condition for soil hydrology
+integer(i4b),parameter :: drainage=1001            ! free draining
+integer(i4b),parameter :: bottmPsi=1002            ! function of matric head in the bottom soil layer
+integer(i4b),parameter :: not_used=1003            ! not used (e.g., when head condition at lower boundary)
 ! missing value parameter
 real(dp),parameter     :: valueMissing=-9999._dp   ! missing value parameter
 ! surface runoff
@@ -278,6 +282,7 @@ contains
  integer(i4b)                     :: ixRichards               ! index for the form of Richards' equation (moisture or mixdform)
  integer(i4b)                     :: fDerivMeth               ! index for the method used to calculate flux derivatives (numerical or analytical)
  integer(i4b)                     :: bc_upper,bc_lower        ! index defining the boundary conditions (diriclet or neumann)
+ integer(i4b)                     :: bcLowSoilH               ! index for defining the type of flux condition at the lower boundary
  ! trial values for model states
  real(dp),pointer                 :: mLayerMatricHeadTrial(:) ! matric head in each layer at the current iteration (m)
  real(dp),pointer                 :: mLayerVolFracIceTrial(:) ! volumetric fraction of ice at the current iteration (-)
@@ -350,6 +355,18 @@ contains
   case default
    err=10; message=trim(message)//"unknownBoundaryConditionOption[option="//trim(model_decisions(iLookDECISIONS%soilhyd_bc)%decision)//"]"; return
  end select
+
+ ! identify the type of lower boundary flux condition for soil hydrology
+ if(bc_lower==neumann)then
+  select case(trim(model_decisions(iLookDECISIONS%bcLowSoilH)%decision))
+   case('drainage'); bcLowSoilH = drainage  ! free draining
+   case('bottmPsi'); bcLowSoilH = bottmPsi  ! function of matric head in the bottom soil layer)
+   case default
+    err=10; message=trim(message)//"unknownBottomFluxConditionOption[option="//trim(model_decisions(iLookDECISIONS%bcLowSoilH)%decision)//"]"; return
+  end select
+ else
+  bcLowSoilH = not_used ! option not used (e.g., when there is a head condition at the lower boundary)
+ endif
 
  ! check the b/c make sense
  if(nSnow>0 .and. bc_upper==diriclet)then
@@ -476,6 +493,7 @@ contains
                   ! input: model control
                   ixRichards,            & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                   bc_upper,bc_lower,     & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
+                  bcLowSoilH,            & ! intent(in): index defining the type of flux condition used at the lower boundary
                   ! input: model coordinate variables
                   mLayerDepth,           & ! intent(in): depth of the layer (m)
                   mLayerHeight,          & ! intent(in): height of the layer mid-point (m)
@@ -564,6 +582,7 @@ contains
                     ! input: model control
                     fDerivMeth,            & ! intent(in): method used to compute derivatives (analytical or numerical)
                     bc_upper,bc_lower,     & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
+                    bcLowSoilH,            & ! intent(in): index defining the type of flux condition used at the lower boundary
                     ! input: model coordinate variables
                     mLayerDepth,           & ! intent(in): depth of the layer (m)
                     mLayerHeight,          & ! intent(in): height of the layer mid-point (m)
@@ -601,6 +620,7 @@ contains
                     ! input: model control
                     fDerivMeth,            & ! intent(in): method used to compute derivatives (analytical or numerical)
                     bc_upper,bc_lower,     & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
+                    bcLowSoilH,            & ! intent(in): index defining the type of flux condition used at the lower boundary
                     ! input: model coordinate variables
                     mLayerDepth,           & ! intent(in): depth of the layer (m)
                     mLayerHeight,          & ! intent(in): height of the layer mid-point (m)
@@ -676,8 +696,8 @@ contains
     if(iLayer > 0)then
      mLayerVolFracLiqNew(iLayer) = mLayerVolFracLiqIter(iLayer) + mLayerVolFracLiqDiff(iLayer)
      mLayerMatricHeadNew(iLayer) = matricHead(mLayerVolFracLiqNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     if(iLayer < 5) write(*,'(2(a,1x,3(e20.10,1x)))') 'VolFracLiq = ', mLayerVolFracLiqNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqDiff(iLayer), &
-                                                      'matricHead = ', mLayerMatricHeadNew(iLayer), mLayerMatricHeadIter(iLayer), mLayerMatricHeadNew(iLayer) - mLayerMatricHeadIter(iLayer)
+     !if(iLayer < 5) write(*,'(2(a,1x,3(e20.10,1x)))') 'VolFracLiq = ', mLayerVolFracLiqNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqDiff(iLayer), &
+     !                                                 'matricHead = ', mLayerMatricHeadNew(iLayer), mLayerMatricHeadIter(iLayer), mLayerMatricHeadNew(iLayer) - mLayerMatricHeadIter(iLayer)
     endif
    ! ***** mixed form of Richards' equation
    case(mixdform)
@@ -979,6 +999,7 @@ contains
                        ! input: model control
                        ixRichards,            & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                        bc_upper,bc_lower,     & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
+                       bcLowSoilH,            & ! intent(in): index defining the type of flux condition used at the lower boundary
                        ! input: model coordinate variables
                        mLayerDepth,           & ! intent(in): depth of the layer (m)
                        mLayerHeight,          & ! intent(in): height of the layer mid-point (m)
@@ -1018,6 +1039,7 @@ contains
  ! input: model control
  integer(i4b),intent(in)       :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
  integer(i4b),intent(in)       :: bc_upper,bc_lower         ! index defining the type of boundary conditions (neumann or diriclet)
+ integer(i4b),intent(in)       :: bcLowSoilH                ! index defining the type of flux condition used at the lower boundary
  ! model coordinate variables
  real(dp),intent(in)           :: mLayerDepth(:)            ! depth of the layer (m)
  real(dp),intent(in)           :: mLayerHeight(:)           ! height of the layer mid-point (m)
@@ -1059,7 +1081,9 @@ contains
  ! initialize error control
  err=0; message="iLayer_liq/"
 
- ! compute fluxes at the upper boundary -- positive downwards
+ ! -------------------------------------------------------------------------------------------------------------------------------
+ ! 1) compute fluxes at the upper boundary -- positive downwards
+ ! -------------------------------------------------------------------------------------------------------------------------------
  select case(bc_upper)
   case(neumann)
    ! compute the surface runoff (m s-1)
@@ -1080,24 +1104,37 @@ contains
    iLayerLiqFlux(0) = cflux + iLayerHydCond(0)
  endselect
 
- ! compute fluxes at the lower boundary -- positive downwards
+ ! -------------------------------------------------------------------------------------------------------------------------------
+ ! 2) compute fluxes at the lower boundary -- positive downwards
+ ! -------------------------------------------------------------------------------------------------------------------------------
  select case(bc_lower)
-  case(neumann)
-   select case(ixRichards)
-    case(moisture); zWater = mLayerHeight(nSoil) - matricHead(mLayerVolFracLiqTrial(nSoil),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    case(mixdform); zWater = mLayerHeight(nSoil) - mLayerMatricHeadTrial(nSoil)
-   endselect
-   iLayerLiqFlux(nSoil) = kAnisotropic*k_soil * exp(-zWater/zScale)
-   !iLayerLiqFlux(nSoil) = mLayerHydCond(nSoil)
+  ! ***** flux condition
+  case(neumann)  ! flux condition
+   select case(bcLowSoilH)  ! type of flux condition
+    ! function of matric head in the bottom soil layer
+    case(bottmPsi)
+     select case(ixRichards)
+      case(moisture); zWater = mLayerHeight(nSoil) - matricHead(mLayerVolFracLiqTrial(nSoil),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      case(mixdform); zWater = mLayerHeight(nSoil) - mLayerMatricHeadTrial(nSoil)
+     endselect
+     iLayerLiqFlux(nSoil) = kAnisotropic*k_soil * exp(-zWater/zScale)
+    ! free draining
+    case(drainage); iLayerLiqFlux(nSoil) = iLayerHydCond(nSoil)
+    ! error check
+    case default; err=20; message=trim(message)//'cannot identify the type of flux condition used at the lower boundary'; return
+   endselect ; ! (type of flux condition)
+  ! ***** head condition
   case(diriclet)
    select case(ixRichards)
     case(moisture); cflux = -iLayerDiffuse(nSoil)*(lowerBoundTheta - mLayervolFracLiqTrial(nSoil)) / (mLayerDepth(nSoil)*0.5_dp)
     case(mixdform); cflux = -iLayerHydCond(nSoil)*(lowerBoundHead - mLayerMatricHeadTrial(nSoil)) / (mLayerDepth(nSoil)*0.5_dp)
    endselect
    iLayerLiqFlux(nSoil) = cflux + iLayerHydCond(nSoil)
- endselect
+ endselect ! (type of boundary condition -- flux or head)
 
- ! compute fluxes within the domain -- positive downwards
+ ! -------------------------------------------------------------------------------------------------------------------------------
+ ! 3) compute fluxes within the domain -- positive downwards
+ ! -------------------------------------------------------------------------------------------------------------------------------
  do iSoil=1,nSoil-1 ! iSoil=0 is the upper boundary, so flux at iSoil=1 is bottom of the top layer
   ! compute the capillary flux (negative sign means positive downwards)
   select case(ixRichards)
@@ -1123,6 +1160,7 @@ contains
                         ! input: model control
                         dMethod,               & ! intent(in): method used to compute derivatives (analytical or numerical)
                         bc_upper,bc_lower,     & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
+                        bcLowSoilH,            & ! intent(in): index defining the type of flux condition used at the lower boundary
                         ! input: model coordinate variables
                         mLayerDepth,           & ! intent(in): depth of the layer (m)
                         mLayerHeight,          & ! intent(in): height of the layer mid-point (m)
@@ -1165,6 +1203,7 @@ contains
  ! input: model control
  integer(i4b),intent(in)       :: dMethod                    ! method used to compute derivatives (analytical or numerical)
  integer(i4b),intent(in)       :: bc_upper,bc_lower          ! index defining the type of boundary conditions (neumann or diriclet)
+ integer(i4b),intent(in)       :: bcLowSoilH                 ! index defining the type of flux condition used at the lower boundary
  ! model coordinate variables
  real(dp),intent(in)           :: mLayerDepth(:)             ! depth of the layer (m)
  real(dp),intent(in),target    :: mLayerHeight(:)            ! height of the layer mid-point (m)
@@ -1221,7 +1260,10 @@ contains
  ! initialize error control
  err=0; message="dq_dVLiquid/"
 
- ! compute the derivative in hydraulic conductivity (m s-1) and diffusivity (m2 s-1) at layer mid-points w.r.t. volumetric liquid water content (s-1)
+ ! -----------------------------------------------------------------------------------------------------------------------------
+ ! ***** compute the derivative in hydraulic conductivity (m s-1) and diffusivity (m2 s-1) at layer mid-points
+ !        w.r.t. volumetric liquid water content (s-1)
+ ! -----------------------------------------------------------------------------------------------------------------------------
  do iLayer=1,nSoil
   select case(dMethod)
   case(analytical)
@@ -1248,7 +1290,9 @@ contains
  ! compute the derivative in flux at layer interfaces w.r.t. volumetric liquid water content
  do iLayer=0,nSoil  ! loop through interfaces
 
+  ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the upper boundary
+  ! -----------------------------------------------------------------------------------------------------------------------------
   if(iLayer==0)then  ! (upper boundary)
 
    dq_dVolLiqAbove(iLayer) = valueMissing  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
@@ -1285,10 +1329,15 @@ contains
     err=20; message=trim(message)//'unknown upper boundary condition'; return
    endif
 
+  ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the lower boundary
+  ! -----------------------------------------------------------------------------------------------------------------------------
   elseif(iLayer==nSoil)then  ! (lower boundary)
 
    dq_dVolLiqBelow(iLayer) = valueMissing  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
+
+   ! *****
+   ! head boundary
    if(bc_lower==diriclet)then      ! head boundary
     ! derivatives in the flux w.r.t. volumetric liquid water content
     if(dMethod==analytical)then
@@ -1299,23 +1348,45 @@ contains
      flux1 = -iLayerDiffuse(nSoil)*(lowerBoundTheta - (mLayerVolFracLiqTrial(nSoil)+dx)) / (mLayerDepth(nSoil)*0.5_dp) + iLayerHydCond(nSoil)
      dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
     endif
+
+   ! *****
+   ! flux boundary
    elseif(bc_lower==neumann)then  ! flux boundary
-    ! ***** derivatives in the flux w.r.t. volumetric liquid water content
-    bottomHead = matricHead(mLayerVolFracLiqTrial(nSoil),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    ! compute analytical derivatives
-    if(dMethod==analytical)then
-     dq_dVolLiqAbove(iLayer) = kAnisotropic*k_soil * mLayerdPsi_dTheta(nSoil)*exp(-(mLayerHeight(nSoil) - bottomHead)/zScale)/zScale
-    ! compute numerical derivarives
-    else
-     flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) -  bottomHead    )/zScale)
-     flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) - (bottomHead+dx))/zScale)
-     dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
-    endif
+
+    ! determine the type of flux condition
+    select case(bcLowSoilH)  ! type of flux condition
+
+     ! -----
+     ! function of matric head in the bottom soil layer
+     case(bottmPsi)
+      bottomHead = matricHead(mLayerVolFracLiqTrial(nSoil),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      ! compute analytical derivatives
+      if(dMethod==analytical)then
+       dq_dVolLiqAbove(iLayer) = kAnisotropic*k_soil * mLayerdPsi_dTheta(nSoil)*exp(-(mLayerHeight(nSoil) - bottomHead)/zScale)/zScale
+      ! compute numerical derivarives
+      else
+       flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) -  bottomHead    )/zScale)
+       flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) - (bottomHead+dx))/zScale)
+       dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
+      endif
+
+     ! -----
+     ! free draining (analytical vs. numerical switch mage when computing dHydCond_dVolLiq)
+     case(drainage); dq_dVolLiqAbove(iLayer) = dHydCond_dVolLiq(iLayer) 
+
+     ! -----
+     ! error check
+     case default; err=20; message=trim(message)//'cannot identify the type of flux condition used at the lower boundary'; return
+
+    endselect ; ! (type of flux condition)
+
    else  ! (check for the type of boundary conditions)
     err=20; message=trim(message)//'unknown lower boundary condition'; return
    endif
 
+  ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** internal layers
+  ! -----------------------------------------------------------------------------------------------------------------------------
   else
 
    if(dMethod==analytical)then
@@ -1364,6 +1435,7 @@ contains
                         ! input: model control
                         dMethod,               & ! intent(in): method used to compute derivatives (analytical or numerical)
                         bc_upper,bc_lower,     & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
+                        bcLowSoilH,            & ! intent(in): index defining the type of flux condition used at the lower boundary
                         ! input: model coordinate variables
                         mLayerDepth,           & ! intent(in): depth of the layer (m)
                         mLayerHeight,          & ! intent(in): height of the layer mid-point (m)
@@ -1402,6 +1474,7 @@ contains
  ! input: model control
  integer(i4b),intent(in)       :: dMethod                    ! method used to compute derivatives (analytical or numerical)
  integer(i4b),intent(in)       :: bc_upper,bc_lower          ! index defining the type of boundary conditions (neumann or diriclet)
+ integer(i4b),intent(in)       :: bcLowSoilH                 ! index defining the type of flux condition used at the lower boundary
  ! model coordinate variables
  real(dp),intent(in)           :: mLayerDepth(:)             ! depth of the layer (m)
  real(dp),intent(in),target    :: mLayerHeight(:)            ! height of the layer mid-point (m)
@@ -1451,7 +1524,9 @@ contains
  ! initialize error control
  err=0; message="dq_dMatHead/"
 
- ! compute the derivative in hydraulic conductivity at layer mid-points w.r.t. matric head (s-1)
+ ! -----------------------------------------------------------------------------------------------------------------------------
+ ! ***** compute the derivative in hydraulic conductivity at layer mid-points w.r.t. matric head (s-1)
+ ! -----------------------------------------------------------------------------------------------------------------------------
  do iLayer=1,nSoil
   select case(dMethod)
   case(analytical)
@@ -1466,8 +1541,10 @@ contains
 
  ! compute the derivative in flux at layer interfaces w.r.t. matric head
  do iLayer=0,nSoil  ! loop through interfaces
-
+  
+  ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the upper boundary
+  ! -----------------------------------------------------------------------------------------------------------------------------
   if(iLayer==0)then  ! (upper boundary)
 
    dq_dMatricAbove(iLayer) = valueMissing  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
@@ -1505,10 +1582,14 @@ contains
     err=20; message=trim(message)//'unknown upper boundary condition'; return
    endif
 
+  ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the lower boundary
+  ! -----------------------------------------------------------------------------------------------------------------------------
   elseif(iLayer==nSoil)then  ! (lower boundary)
 
    dq_dMatricBelow(iLayer) = valueMissing ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
+
+   ! ***** head boundary
    if(bc_lower==diriclet)then      ! head boundary
     ! derivatives in the flux w.r.t. matric head
     if(dMethod==analytical)then
@@ -1519,18 +1600,44 @@ contains
      flux1 = -iLayerHydCond(nSoil)*(lowerBoundHead - (mLayerMatricHeadTrial(nSoil)+dx)) / (mLayerDepth(nSoil)*0.5_dp) + iLayerHydCond(nSoil)
      dq_dMatricAbove(iLayer) = (flux1 - flux0)/dx
     endif
+
+   ! ***** flux boundary
    elseif(bc_lower==neumann)then  ! flux boundary 
-    ! derivatives in the flux w.r.t. matric head
-    dq_dMatricAbove(iLayer) = kAnisotropic*k_soil * exp(mLayerMatricHeadTrial(nSoil)/zScale - mLayerHeight(nSoil)/zScale)/zScale
-    ! compute numerical derivatives
-    flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) -  mLayerMatricHeadTrial(nSoil)    )/zScale)
-    flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) - (mLayerMatricHeadTrial(nSoil)+dx))/zScale)
-    dq_dMatricAbove(iLayer) = (flux1 - flux0)/dx
+
+    ! determine the type of flux condition
+    select case(bcLowSoilH)  ! type of flux condition
+
+     ! -----
+     ! function of matric head in the bottom soil layer
+     case(bottmPsi)
+      ! compute analytical derivatives
+      if(dMethod==analytical)then
+       dq_dMatricAbove(iLayer) = kAnisotropic*k_soil * exp(mLayerMatricHeadTrial(nSoil)/zScale - mLayerHeight(nSoil)/zScale)/zScale
+      ! compute numerical derivatives
+      else       
+       flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) -  mLayerMatricHeadTrial(nSoil)    )/zScale)
+       flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nSoil) - (mLayerMatricHeadTrial(nSoil)+dx))/zScale)
+       dq_dMatricAbove(iLayer) = (flux1 - flux0)/dx
+      endif
+
+     ! -----
+     ! free draining (analytical vs. numerical switch mage when computing dHydCond_dMatric)
+     case(drainage); dq_dMatricAbove(iLayer) = dHydCond_dMatric(iLayer) 
+
+     ! -----
+     ! error check
+     case default; err=20; message=trim(message)//'cannot identify the type of flux condition used at the lower boundary'; return
+    
+    endselect ; ! (type of flux condition)
+
+   ! ***** error check for type of boundary condition
    else
     err=20; message=trim(message)//'unknown lower boundary condition'; return
    endif
 
+  ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** internal layers
+  ! -----------------------------------------------------------------------------------------------------------------------------
   else
 
    if(dMethod==analytical)then
