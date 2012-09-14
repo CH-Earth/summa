@@ -43,7 +43,7 @@ character(len=32)         :: output_fileSuffix=''           ! suffix for the out
 character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 integer(i4b)              :: err=0                          ! error code
-character(len=256)        :: message=''                     ! error message
+character(len=512)        :: message=''                     ! error message
 integer(i4b),pointer      :: nSnow=>null()                  ! number of snow layers
 integer(i4b),pointer      :: nSoil=>null()                  ! number of soil layers
 integer(i4b),pointer      :: nLayers=>null()                ! total number of layers
@@ -228,9 +228,9 @@ contains
  if(err==0) return
  ! process error messages
  if (err>0) then
-  print*,'FATAL ERROR: '//trim(message)
+  write(*,'(a)') 'FATAL ERROR: '//trim(message)
  else
-  print*,'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
+  write(*,'(a)') 'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
  endif
  ! dump variables
  print*, 'error, variable dump:'
@@ -242,14 +242,15 @@ contains
  endif
  if(associated(mvar_data))then
   print*, 'scalarRainPlusMelt = ', mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)
-  write(*,'(a,100(f10.5,1x))') 'mLayerDepth        = ', mvar_data%var(iLookMVAR%mLayerDepth)%dat
-  write(*,'(a,100(f10.5,1x))') 'mLayerTemp         = ', mvar_data%var(iLookMVAR%mLayerTemp)%dat
-  write(*,'(a,100(f10.5,1x))') 'mLayerVolFracIce   = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat
-  write(*,'(a,100(f10.5,1x))') 'mLayerVolFracLiq   = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', mvar_data%var(iLookMVAR%mLayerDepth)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', mvar_data%var(iLookMVAR%mLayerTemp)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat
   print*, 'mLayerMatricHead   = ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat
  endif
  print*,'error code = ', err
  if(associated(time_data)) print*, time_data%var, nSnow
+ write(*,'(a)') trim(message)
  stop
  end subroutine handle_err
 

@@ -21,9 +21,10 @@ contains
  select case(trim(varName))
   case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! choice of numerical method
   case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! choice of method to calculate flux derivatives
+  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! form of Richards' equation
+  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! choice of groundwater parameterization
   case('soilhyd_bc'      ); get_ixdecisions=iLookDECISIONS%soilhyd_bc  ! choice of boundary condition for soil hydrology
   case('thrmdyn_bc'      ); get_ixdecisions=iLookDECISIONS%thrmdyn_bc  ! choice of boundary condition for thermodynamics
-  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! form of Richards' equation
   case('bcLowSoilH'      ); get_ixdecisions=iLookDECISIONS%bcLowSoilH  ! type of lower boundary flux condition for soil hydrology
   case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! choice of stability function
   case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! choice of compaction routine
@@ -143,10 +144,14 @@ contains
   case('frac_clay'         ); get_ixparam = iLookPARAM%frac_clay          ! fraction of clay (-)
   case('theta_sat'         ); get_ixparam = iLookPARAM%theta_sat          ! soil porosity (-)
   case('theta_res'         ); get_ixparam = iLookPARAM%theta_res          ! volumetric residual water content (-)
-  case('k_soil'            ); get_ixparam = iLookPARAM%k_soil             ! saturated kydraulic conductivity (kg m-2 s-1)
   case('vGn_alpha'         ); get_ixparam = iLookPARAM%vGn_alpha          ! van Genuchten "alpha" parameter (m-1)
   case('vGn_n'             ); get_ixparam = iLookPARAM%vGn_n              ! van Genuchten "n" parameter (-) 
-  case('specficStorage'    ); get_ixparam = iLookPARAM%specficStorage     ! specific storage coefficient (m-1)
+  case('k_soil'            ); get_ixparam = iLookPARAM%k_soil             ! saturated hydraulic conductivity (m s-1)
+  case('kAnisotropic'      ); get_ixparam = iLookPARAM%kAnisotropic       ! anisotropy factor for lateral hydraulic conductivity (-)
+  case('zScale_TOPMODEL'   ); get_ixparam = iLookPARAM%zScale_TOPMODEL    ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+  case('bpar_VIC'          ); get_ixparam = iLookPARAM%bpar_VIC           ! b-parameter in the VIC surface runoff parameterization (-)
+  case('specificYield'     ); get_ixparam = iLookPARAM%specificYield      ! specific yield (-)
+  case('specificStorage'   ); get_ixparam = iLookPARAM%specificStorage    ! specific storage coefficient (m-1)
   case('f_impede'          ); get_ixparam = iLookPARAM%f_impede           ! ice impedence factor (-)
   ! vegetation properties
   case('rootingDepth'      ); get_ixparam = iLookPARAM%rootingDepth       ! rooting depth (m)
@@ -217,6 +222,8 @@ contains
   case('scalarSnowDepth'      ); get_ixmvar = iLookMVAR%scalarSnowDepth       ! total snow depth (m)
   case('scalarSWE'            ); get_ixmvar = iLookMVAR%scalarSWE             ! snow water equivalent (kg m-2)
   case('scalarSfcMeltPond'    ); get_ixmvar = iLookMVAR%scalarSfcMeltPond     ! ponded water caused by melt of the "snow without a layer" (kg m-2)
+  case('scalarAquiferStorage' ); get_ixmvar = iLookMVAR%scalarAquiferStorage  ! relative aquifer storage -- above bottom of the soil profile (m)
+  case('scalarWaterTableDepth'); get_ixmvar = iLookMVAR%scalarWaterTableDepth ! depth of the water table (m)
   case('scalarExCoef'         ); get_ixmvar = iLookMVAR%scalarExCoef          ! turbulent exchange coefficient (-)
   case('scalarExSen'          ); get_ixmvar = iLookMVAR%scalarExSen           ! exchange factor for sensible heat (W m-2 K-1)
   case('scalarExLat'          ); get_ixmvar = iLookMVAR%scalarExLat           ! exchange factor for latent heat (W m-2) 
@@ -232,6 +239,7 @@ contains
   case('scalarSoilInflux'     ); get_ixmvar = iLookMVAR%scalarSoilInflux      ! influx of water at the top of the soil profile (m s-1)
   case('scalarSoilDrainage'   ); get_ixmvar = iLookMVAR%scalarSoilDrainage    ! drainage from the bottom of the soil profile (m s-1)
   case('scalarSoilEjection'   ); get_ixmvar = iLookMVAR%scalarSoilEjection    ! total water ejected from soil layers (m s-1)
+  case('scalarAquiferRcharge' ); get_ixmvar = iLookMVAR%scalarAquiferRcharge  ! aquifer recharge rate (m s-1)
   case('scalarSoilWatBalError'); get_ixmvar = iLookMVAR%scalarSoilWatBalError ! error in the total soil water balance (kg m-2)
   case('scalarTotalSoilLiq'   ); get_ixmvar = iLookMVAR%scalarTotalSoilLiq    ! total mass of liquid water in the soil (kg m-2)
   case('scalarTotalSoilIce'   ); get_ixmvar = iLookMVAR%scalarTotalSoilIce    ! total mass of ice in the soil (kg m-2)

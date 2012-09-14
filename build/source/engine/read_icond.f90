@@ -46,7 +46,7 @@ contains
  integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
- character(LEN=256)             :: namesScalarDesired(4) ! names of desired scalar variables
+ character(LEN=256)             :: namesScalarDesired(5) ! names of desired scalar variables
  logical(lgt),allocatable       :: checkGotVars(:) ! used to check if we have got desired variables
  character(LEN=256),allocatable :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable :: chardata(:)     ! vector of character data
@@ -90,13 +90,14 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
  ! define desired scalar variables
- if(size(namesScalarDesired)/=4)then
-  err=20; message=trim(message)//'expect 4 variables in namesScalarDesired'; return
+ if(size(namesScalarDesired)/=5)then
+  err=20; message=trim(message)//'expect 5 variables in namesScalarDesired'; return
  endif
  namesScalarDesired(1) = 'scalarAlbedo'
  namesScalarDesired(2) = 'scalarSWE'
  namesScalarDesired(3) = 'scalarSnowDepth'
  namesScalarDesired(4) = 'scalarSfcMeltPond'
+ namesScalarDesired(5) = 'scalarAquiferStorage'
 
  ! **********************************************************************************************
  ! (1) open files, etc.

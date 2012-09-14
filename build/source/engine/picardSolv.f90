@@ -15,6 +15,7 @@ contains
  USE phseChange_module,only:phseChange      ! compute change in phase over the time step
  USE snowHydrol_module,only:snowHydrol      ! compute liquid water flow through the snowpack
  USE soilHydrol_module,only:soilHydrol      ! compute change in mass over the time step for the soil
+ USE groundwatr_module,only:groundwatr      ! compute change in water table depth and baseflow
  USE surfAlbedo_module,only:surfAlbedo      ! compute surface albedo
  USE snwDensify_module,only:snwDensify      ! compute densification of snow
  USE soil_utils_module,only:crit_soilT      ! compute the critical temperature above which all water is unfrozen
@@ -45,7 +46,8 @@ contains
  real(dp),pointer                     :: theta_sat                ! soil porosity (-)
  real(dp),pointer                     :: theta_res                ! soil residual volumetric water content (-)
  real(dp),pointer                     :: k_soil                   ! hydraulic conductivity (m s-1)
- real(dp),pointer                     :: specficStorage           ! specific storage coefficient (m-1)
+ real(dp),pointer                     :: specificYield            ! specific yield (-)
+ real(dp),pointer                     :: specificStorage          ! specific storage coefficient (m-1)
  real(dp),pointer                     :: f_impede                 ! ice impedence factor (-)
  ! local pointers to algorithmic control parameters
  real(dp),pointer                     :: wimplicit                ! weight assigned to start-of-step fluxes (-)
@@ -57,21 +59,27 @@ contains
  real(dp),pointer                     :: absConvTol_energy        ! absolute convergence tolerance for energy (J m-3)
  ! local pointers to derived model variables that are constant over the simulation period
  real(dp),pointer                     :: vGn_m                    ! van Genutchen "m" parameter (-)
- ! local pointers to diagnostic scalar variables
+ ! local pointers to scalar state variables
+ real(dp),pointer                     :: scalarSWE                ! SWE (kg m-2)
  real(dp),pointer                     :: surfaceAlbedo            ! surface albedo (-) 
  real(dp),pointer                     :: scalarSfcMeltPond        ! ponded water caused by melt of the "snow without a layer" (kg m-2)
+ real(dp),pointer                     :: scalarAquiferStorage     ! relative aquifer storage above the bottom of the soil profile (m)
+ ! local pointers to diagnostic scalar variables
  real(dp),pointer                     :: scalarRainPlusMelt       ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
  real(dp),pointer                     :: scalarSnowDepth          ! total snow depth (m)
- real(dp),pointer                     :: scalarSWE                ! SWE (kg m-2)
+ real(dp),pointer                     :: scalarWaterTableDepth    ! water table depth (m)
  real(dp),pointer                     :: scalarPotentialET        ! potential ET (kg m-2 s-1)
  real(dp),pointer                     :: scalarMassLiquid         ! evaporation/dew (kg m-2 s-1)
  real(dp),pointer                     :: scalarMassSolid          ! sublimation/frost (kg m-2 s-1)
  real(dp),pointer                     :: scalarSoilInflux         ! influx of water at the top of the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilDrainage       ! drainage from the bottom of the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilEjection       ! total water ejected from soil layers (m s-1)
+ real(dp),pointer                     :: scalarAquiferRcharge     ! aquifer recharge rate (m s-1)
  real(dp),pointer                     :: scalarSoilWatBalError    ! error in the total soil water balance (kg m-2) 
  real(dp),pointer                     :: scalarTotalSoilLiq       ! total mass of liquid water in the soil (kg m-2)
  real(dp),pointer                     :: scalarTotalSoilIce       ! total mass of ice in the soil (kg m-2)
+ ! local pointers to model coordinate variables
+ real(dp),pointer                     :: iLayerHeight(:)          ! height of layer interfaces (m)
  ! local pointers to model state variables -- all layers
  real(dp),pointer                     :: mLayerTemp(:)            ! temperature of each layer (K)
  real(dp),pointer                     :: mLayerDepth(:)           ! depth of each layer (m)
@@ -170,14 +178,15 @@ contains
  Fcapil            => mpar_data%var(iLookPARAM%Fcapil)         ! capillary retention as a fraction of the total pore volume (-)
 
  ! assign pointers to soil parameters
- soilAlbedo        => mpar_data%var(iLookPARAM%soilAlbedo)     ! soil albedo (-)
- vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)      ! van Genutchen "alpha" parameter (m-1)
- vGn_n             => mpar_data%var(iLookPARAM%vGn_n)          ! van Genutchen "n" parameter (-)
- theta_sat         => mpar_data%var(iLookPARAM%theta_sat)      ! soil porosity (-)
- theta_res         => mpar_data%var(iLookPARAM%theta_res)      ! soil residual volumetric water content (-)
- k_soil            => mpar_data%var(iLookPARAM%k_soil)         ! hydraulic conductivity (m s-1)
- specficStorage    => mpar_data%var(iLookPARAM%specficStorage) ! specific storage coefficient (m-1)
- f_impede          => mpar_data%var(iLookPARAM%f_impede)       ! ice impedence factor (-)
+ soilAlbedo        => mpar_data%var(iLookPARAM%soilAlbedo)      ! soil albedo (-)
+ vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)       ! van Genutchen "alpha" parameter (m-1)
+ vGn_n             => mpar_data%var(iLookPARAM%vGn_n)           ! van Genutchen "n" parameter (-)
+ theta_sat         => mpar_data%var(iLookPARAM%theta_sat)       ! soil porosity (-)
+ theta_res         => mpar_data%var(iLookPARAM%theta_res)       ! soil residual volumetric water content (-)
+ k_soil            => mpar_data%var(iLookPARAM%k_soil)          ! hydraulic conductivity (m s-1)
+ specificYield     => mpar_data%var(iLookPARAM%specificYield)   ! specific yield (-)
+ specificStorage   => mpar_data%var(iLookPARAM%specificStorage) ! specific storage coefficient (m-1)
+ f_impede          => mpar_data%var(iLookPARAM%f_impede)        ! ice impedence factor (-)
 
  ! assign pointers to algorithmic control parameters
  wimplicit         => mpar_data%var(iLookPARAM%wimplicit)            ! weight assigned to start-of-step fluxes (-)
@@ -191,21 +200,29 @@ contains
  ! assign pointers to model variables that are constant over the simulation period
  vGn_m             => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)           ! van Genutchen "m" parameter (-)
 
- ! assign local pointers to diagnostic scalar variables
+ ! assign local pointers to scalar state variables
+ scalarSWE            => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)             ! SWE (kg m-2)
  surfaceAlbedo        => mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1)          ! surface albedo (-)
  scalarSfcMeltPond    => mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1)     ! ponded water caused by melt of the "snow without a layer" (kg m-2)
+ scalarAquiferStorage => mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)  ! relative aquifer storage above the bottom of the soil profile (m)
+
+ ! assign local pointers to diagnostic scalar variables
  scalarRainPlusMelt   => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)    ! rain plus melt (m s-1)
  scalarSnowDepth      => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)       ! total snow depth (m)
- scalarSWE            => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)             ! SWE (kg m-2)
+ scalarWaterTableDepth=> mvar_data%var(iLookMVAR%scalarWaterTableDepth)%dat(1) ! water table depth (m)
  scalarPotentialET    => mvar_data%var(iLookMVAR%scalarPotentialET)%dat(1)     ! potential ET (kg m-2 s-1)
  scalarMassLiquid     => mvar_data%var(iLookMVAR%scalarMassLiquid)%dat(1)      ! transpiration (kg m-2 s-1)
  scalarMassSolid      => mvar_data%var(iLookMVAR%scalarMassSolid)%dat(1)       ! sublimation/frost (kg m-2 s-1)
  scalarSoilInflux     => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
  scalarSoilDrainage   => mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1)    ! drainage from the bottom of the soil profile (m s-1)
  scalarSoilEjection   => mvar_data%var(iLookMVAR%scalarSoilEjection)%dat(1)    ! water ejected from soil layers (m s-1)
+ scalarAquiferRcharge => mvar_data%var(iLookMVAR%scalarAquiferRcharge)%dat(1)  ! aquifer recharge rate (m s-1)
  scalarSoilWatBalError=> mvar_data%var(iLookMVAR%scalarSoilWatBalError)%dat(1) ! error in the total soil water balance (kg m-2)
  scalarTotalSoilLiq   => mvar_data%var(iLookMVAR%scalarTotalSoilLiq)%dat(1)    ! total mass of liquid water in the soil (kg m-2)
  scalarTotalSoilIce   => mvar_data%var(iLookMVAR%scalarTotalSoilIce)%dat(1)    ! total mass of ice in the soil (kg m-2)
+
+ ! assign pointers to model cooedinate variables
+ iLayerHeight      => mvar_data%var(iLookMVAR%iLayerHeight)%dat             ! height of layer interfaces (m)
 
  ! assign pointers to model state variables -- all layers
  mLayerTemp        => mvar_data%var(iLookMVAR%mLayerTemp)%dat               ! temperature of each layer (K)
@@ -232,7 +249,6 @@ contains
  mLayerTranspire       => mvar_data%var(iLookMVAR%mLayerTranspire)%dat         ! (soil only) ! transpiration loss from each soil layer (m s-1)
  mLayerInitEjectWater  => mvar_data%var(iLookMVAR%mLayerInitEjectWater)%dat    ! (soil only) ! water ejected from each soil layer at start-of-step (m s-1)
  mLayerEjectWater      => mvar_data%var(iLookMVAR%mLayerEjectWater)%dat        ! (soil only) ! water ejected from each soil layer (m s-1)
- 
 
  ! initialize print flag
  printflag=.false.
@@ -292,6 +308,16 @@ contains
 
  ! initialize temperature
  mLayerTempIter = mLayerTemp
+
+ ! compute the depth to the water table
+ if(scalarAquiferStorage > 0._dp)then ! NOTE: z-coordinate is +ve downwards
+  scalarWaterTableDepth = iLayerHeight(nLayers) - scalarAquiferStorage/theta_sat       ! case1: water table is above the bottom of the soil profile
+ else
+  scalarWaterTableDepth = iLayerHeight(nLayers) - scalarAquiferStorage/specificYield   ! case2: water table is below the bottom of the soil profile
+ endif
+ print*, 'iLayerHeight(nLayers), specificYield, theta_sat = ', iLayerHeight(nLayers), specificYield, theta_sat
+ print*, 'scalarAquiferStorage, scalarWaterTableDepth = ', scalarAquiferStorage, scalarWaterTableDepth
+ pause
 
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then
@@ -511,7 +537,7 @@ contains
  end do  ! (iterating)
  !pause 'after iterations'
 
- ! check matric head
+ ! check matric head is not ridiculous
  do iLayer=1,nSoil
   if(mLayerMatricHeadIter(iLayer) > 100._dp)then
    write(message,'(a,i0,a,f9.1,a)')trim(message)//"matric head > 100 [iLayer=",iLayer,"; matricHead=",&
@@ -520,53 +546,63 @@ contains
   endif
  end do
 
+ ! compute the influx, drainage and ejection of water from the soil profile (m s-1)
+ scalarSoilInflux   = (wimplicit*iLayerInitLiqFluxSoil(0)     + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)    )
+ scalarSoilDrainage = (wimplicit*iLayerInitLiqFluxSoil(nSoil) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nSoil))
+ scalarSoilEjection = (wimplicit*sum(mLayerInitEjectWater)    + (1._dp - wimplicit)*sum(mLayerEjectWater)   )
+
  !print*, 'check volumetric liquid water content...'
  !print*, mLayerVolFracLiqIter(nSnow+1)
 
- ! ** deal with case where total volumetric water (liquid water plus ice) exceeds porosity
+ ! ** check that total volumetric water (liquid water plus ice) does not exceed porosity
  do iLayer=nSnow+1,nLayers
   ! compute total volumetric fraction filled with water (liquid plus ice)
   volFrac_water = mLayerVolFracIceIter(iLayer) + mLayerVolFracLiqIter(iLayer)
   ! check if the total volumetric water (liquid water plus ice) exceeds porosity
-  !print*, 'porosity check...', iLayer, volFrac_water, theta_sat
   if(volFrac_water > theta_sat)then
    write(message,'(a,i0,a,i0,a)')trim(message)//"(liquid + ice) > porosity [iLayer=",iLayer,"; iSoil=",iLayer-nSnow,"]"
    err=20; return
-   ! identify excess water (m s-1), and remove it from the layer
-   !downFlux = (volFrac_water - theta_sat)*mLayerDepth(iLayer)/dt
-   !mLayerVolFracLiqIter(iLayer) = theta_sat - mLayerVolFracIceIter(iLayer)
-   ! check all is a-ok
-   !if(mLayerVolFracLiqIter(iLayer) < theta_res)then
-   ! write(message,'(a,i0,a,i0,a)')trim(message)//"liq < theta_res [iLayer=",iLayer,"; iSoil=",iLayer-nSnow,"]"
-   ! err=20; return
-   !endif
-   ! add water to the layer below
-   ! ***** NOTE: deal with the freezing of the infiltrating liquid water flux at the start of the next time step
-   !if(iLayer < nLayers) &
-   ! mLayerVolFracLiqIter(iLayer+1) = mLayerVolFracLiqIter(iLayer+1) + dt*downFlux/mLayerDepth(iLayer+1)
   endif  ! (if the total volumetric water -- liquid water plus ice -- exceeds porosity)
  end do ! (looping through soil layers)
 
  !print*, 'check volumetric liquid water content again...'
  !print*, mLayerVolFracLiqIter(nSnow+1)
 
-
  ! compute sublimation
  if(nSnow>0)&
   mLayerVolFracIceIter(1) = mLayerVolFracIceIter(1) + scalarPotentialET*dt/(mLayerDepth(1)*iden_ice)
 
  ! compute change in snow density
+ ! NOTE: input "iter" because of copying trick in phase change
  call snwDensify(dt,                  &  ! input:  time step (seconds)
-                 mLayerVolFracLiqIter,&  ! input:  volumetric fraction of liquid water after itertations (-)
-                 mLayerVolFracIceIter,&  ! input:  volumetric fraction of ice after itertations (-)
-                 mLayerVolFracLiqNew, &  ! output: volumetric fraction of liquid water after densification (-)
-                 mLayerVolFracIceNew, &  ! output: volumetric fraction of ice after densification (-)
+                 mLayerVolFracLiqIter(1:nSnow),&  ! input:  volumetric fraction of liquid water after itertations (-)
+                 mLayerVolFracIceIter(1:nSnow),&  ! input:  volumetric fraction of ice after itertations (-)
+                 mLayerVolFracLiqNew(1:nSnow), &  ! output: volumetric fraction of liquid water after densification (-)
+                 mLayerVolFracIceNew(1:nSnow), &  ! output: volumetric fraction of ice after densification (-)
                  err,cmessage)           ! output: error control
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
- ! copy soil layers across
- mLayerVolFracLiqNew(nSnow+1:nLayers) = mLayerVolFracLiqIter(nSnow+1:nLayers)
- mLayerVolFracIceNew(nSnow+1:nLayers) = mLayerVolFracIceIter(nSnow+1:nLayers)
+ ! compute the aquifer re-charge
+ scalarAquiferRcharge = scalarSoilDrainage + scalarSoilEjection
+
+ ! compute rise/fall of the water table
+ ! NOTE: input "iter" because of copying trick in phase change
+ call groundwatr(&
+                 ! input
+                 dt,                                   &  ! input:  time step (seconds) 
+                 scalarAquiferRcharge,                 &  ! input:  aquifer recharge (m s-1)
+                 mLayerMatricHeadIter,                 &  ! input:  matric head (m)
+                 mLayerVolFracLiqIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of liquid water after itertations (-)
+                 mLayerVolFracIceIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of ice after itertations (-)
+                 ! input-output
+                 scalarAquiferStorage,                 &  ! input-output: aquifer storage (m)
+                 ! output
+                 mLayerMatricHeadNew,                  &  ! output: matric head (m)
+                 mLayerVolFracLiqNew(nSnow+1:nLayers), &  ! output: volumetric fraction of liquid water after itertations (-)
+                 mLayerVolFracIceNew(nSnow+1:nLayers), &  ! output: volumetric fraction of ice after itertations (-)
+                 scalarWaterTableDepth,                &  ! output: water table depth at the end of the time step (m)
+                 err,cmessage)                            ! output: error control
+ if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
  ! ***** compute melt for the case of "snow without a layer"
  if(nSnow==0 .and. scalarSWE > 0._dp)then
@@ -600,11 +636,6 @@ contains
  ! compute total soil moisture and ice (kg m-2)
  scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiqNew(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
  scalarTotalSoilIce = sum(iden_ice  *mLayerVolFracIceNew(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
-
- ! compute the influx, drainage and ejection of water from the soil profile (m s-1)
- scalarSoilInflux   = (wimplicit*iLayerInitLiqFluxSoil(0)     + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)    )
- scalarSoilDrainage = (wimplicit*iLayerInitLiqFluxSoil(nSoil) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nSoil))
- scalarSoilEjection = (wimplicit*sum(mLayerInitEjectWater)    + (1._dp - wimplicit)*sum(mLayerEjectWater)   )
 
  ! get the total water in the soil (liquid plus ice) at the end of the time step (kg m-2)
  balanceSoilWater1 = scalarTotalSoilLiq + scalarTotalSoilIce
@@ -649,9 +680,9 @@ contains
 
  ! update the state vectors
  mLayerTemp       = mLayerTempNew         ! New (after heatTransf)
- mLayerVolFracIce = mLayerVolFracIceNew   ! New (after densification)
- mLayerMatricHead = mLayerMatricHeadIter  ! use "*Iter" because of the copying trick in phaseChange
- mLayerVolFracLiq = mLayerVolFracLiqNew   ! New (after densifaction)
+ mLayerVolFracIce = mLayerVolFracIceNew   ! New (after densification [snow] and groundwater [soil])
+ mLayerVolFracLiq = mLayerVolFracLiqNew   ! New (after densifcaction [snow] and groundwater [soil])
+ mLayerMatricHead = mLayerMatricHeadNew   ! New (after groundwater)
 
  ! compuute total snow depth and SWE
  if(nSnow>0)then
