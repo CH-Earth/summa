@@ -315,9 +315,6 @@ contains
  else
   scalarWaterTableDepth = iLayerHeight(nLayers) - scalarAquiferStorage/specificYield   ! case2: water table is below the bottom of the soil profile
  endif
- print*, 'iLayerHeight(nLayers), specificYield, theta_sat = ', iLayerHeight(nLayers), specificYield, theta_sat
- print*, 'scalarAquiferStorage, scalarWaterTableDepth = ', scalarAquiferStorage, scalarWaterTableDepth
- pause
 
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then

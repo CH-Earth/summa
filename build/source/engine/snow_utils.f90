@@ -66,6 +66,7 @@ contains
  USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
  USE data_struc,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ USE mDecisions_module,only:Yen1965,Mellor1977,Jordan1991,Smirnova2000 ! named variables defining thermal conductivity options
  implicit none
  real(dp),intent(in)      :: BulkDenIce     ! bulk density of ice (kg m-3)
  real(dp),intent(out)     :: thermlcond     ! thermal conductivity of snow (W m-1 K-1)
@@ -74,12 +75,12 @@ contains
  ! initialize error control
  err=0; message="f-tcond_snow/"
  ! compute thermal conductivity of snow
- select case(trim(model_decisions(iLookDECISIONS%thermlcond)%decision))
-  case('tyen1965'); thermlcond = 3.217d-6 * BulkDenIce**2._dp               ! Yen (1965)
-  case('melr1977'); thermlcond = 2.576d-6 * BulkDenIce**2._dp + 7.4d-2      ! Mellor (1977)
-  case('jrdn1991'); thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._dp)) &
-                     * (lambda_ice-lambda_air)                              ! Jordan (1991)
-  case('smnv2000'); thermlcond = 0.35_dp                                    ! Smirnova et al. (2000)
+ select case(model_decisions(iLookDECISIONS%thermlcond)%iDecision)
+  case(Yen1965);      thermlcond = 3.217d-6 * BulkDenIce**2._dp               ! Yen (1965)
+  case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2._dp + 7.4d-2      ! Mellor (1977)
+  case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._dp)) &
+                                     * (lambda_ice-lambda_air)                ! Jordan (1991)
+  case(Smirnova2000); thermlcond = 0.35_dp                                    ! Smirnova et al. (2000)
   case default
    err=10; message=trim(message)//"unknownOption"; return
  end select
@@ -129,8 +130,10 @@ contains
  ! *********************************************************************************************************** 
  subroutine astability(RiBulk,dRiBulk_dTemp,computeDerivative, & ! input
                        ExCoef,dExCoef_dTemp,err,message)         ! output
+
  USE data_struc,only:mvar_data,mpar_data,model_decisions ! model structures
  USE var_lookup,only:iLookDECISIONS,iLookPARAM,iLookMVAR ! named variables for structure elements
+ USE mDecisions_module,only:standard,louisInversePower,mahrtExponential ! named variables for different stability functions
  implicit none
  ! declare input variables
  real(dp),intent(in)      :: RiBulk            ! bulk Richardson number (-)
@@ -166,10 +169,10 @@ contains
  endif
 
  ! ***** process stable cases
- select case(trim(model_decisions(iLookDECISIONS%astability)%decision))
+ select case(model_decisions(iLookDECISIONS%astability)%iDecision)
 
   ! ("standard" stability correction, a la Anderson 1976)
-  case('standard')
+  case(standard)
    ! compute surface-atmosphere exchange coefficient (-)   
    if(RiBulk<=0.2_dp) ExCoef = ExNeut * (1._dp - 5._dp*RiBulk)**2._dp
    if(RiBulk> 0.2_dp) ExCoef = 0._dp
@@ -180,7 +183,7 @@ contains
    endif
 
   ! (Louis 1979)
-  case('louisinv')
+  case(louisInversePower)
    ! compute surface-atmosphere exchange coefficient (-)
    ExCoef = ExNeut / ( (1._dp + bprime*RiBulk)**2._dp )
    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
@@ -188,7 +191,7 @@ contains
     dExCoef_dTemp = dRiBulk_dTemp * bprime * (-2._dp)*(1._dp + bprime*RiBulk)**(-3._dp) * ExNeut
 
   ! (Mahrt 1987)
-  case('mahrtexp')
+  case(mahrtExponential)
    ! compute surface-atmosphere exchange coefficient (-)
    ExCoef = ExNeut * exp(-Mahrt_m * RiBulk)
    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)

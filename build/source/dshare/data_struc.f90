@@ -8,8 +8,9 @@ MODULE data_struc
  ! ***********************************************************************************************************
  ! the model decision structure
  type model_options
-  character(len=64)                      :: option
-  character(len=64)                      :: decision
+  character(len=64)                      :: cOption
+  character(len=64)                      :: cDecision
+  integer(i4b)                           :: iDecision
  end type model_options
  type(model_options),pointer,save,public :: model_decisions(:)      ! the decision structure
  ! ***********************************************************************************************************

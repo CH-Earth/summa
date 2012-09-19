@@ -18,6 +18,12 @@ contains
  USE layerMerge_module,only:layerMerge      ! merge snow layers if they are too thin
  USE picardSolv_module,only:picardSolv      ! provide access to the Picard solver
  USE multiconst,only:iden_water,iden_ice    ! intrinsic density of water and icei
+ ! look-up values for the numerical method
+ USE mDecisions_module,only:      &
+  iterative,                      &         ! iterative
+  nonIterative,                   &         ! non-iterative
+  iterSurfEnergyBal                         ! iterate only on the surface energy balance
+
  implicit none
  ! define output
  real(dp),intent(inout)               :: dt_init              ! used to initialize the size of the sub-step
@@ -101,11 +107,11 @@ contains
  dt = forcFileInfo%data_step
 
  ! identify the maximum number of iterations
- select case(trim(model_decisions(iLookDECISIONS%num_method)%decision))
-  case('itertive'); maxiter=nint(mpar_data%var(iLookPARAM%maxiter))  ! iterative
-  case('non_iter'); maxiter=1              ! non-iterative
-  case('itersurf'); maxiter=1              ! iterate only on the surface energy balance
-   err=90; message=trim(message)//'numerical method "itersurf" is not implemented yet'; return
+ select case(model_decisions(iLookDECISIONS%num_method)%iDecision)
+  case(iterative);         maxiter=nint(mpar_data%var(iLookPARAM%maxiter))  ! iterative
+  case(nonIterative);      maxiter=1              ! non-iterative
+  case(iterSurfEnergyBal); maxiter=1              ! iterate only on the surface energy balance
+   err=90; message=trim(message)//'numerical method "iterSurfEnergyBal" is not implemented yet'; return
   case default
    err=10; message=trim(message)//'unknown option for the numerical method'; return
  end select

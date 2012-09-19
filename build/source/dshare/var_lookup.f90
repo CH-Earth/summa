@@ -12,14 +12,15 @@ MODULE var_lookup
   integer(i4b)    :: num_method       = 1  ! choice of numerical method
   integer(i4b)    :: fDerivMeth       = 2  ! method used to calculate flux derivatives
   integer(i4b)    :: f_Richards       = 3  ! form of richards' equation
-  integer(i4b)    :: groundwatr       = 4  !  choice of groundwater parameterization
-  integer(i4b)    :: soilhyd_bc       = 5  ! choice of boundary conditions for soil hydrology
-  integer(i4b)    :: thrmdyn_bc       = 6  ! choice of boundary conditions for soil hydrology
-  integer(i4b)    :: bcLowSoilH       = 7  ! type of lower boundary condition for soil hydrology
-  integer(i4b)    :: astability       = 8  ! choice of stability function
-  integer(i4b)    :: compaction       = 9  ! choice of compaction routine
-  integer(i4b)    :: thermlcond       = 10 ! choice of thermal conductivity representation
-  integer(i4b)    :: alb_method       = 11 ! choice of albedo representation
+  integer(i4b)    :: groundwatr       = 4  ! choice of groundwater parameterization
+  integer(i4b)    :: bcUpprTdyn       = 5  ! type of upper boundary condition for thermodynamics 
+  integer(i4b)    :: bcLowrTdyn       = 6  ! type of lower boundary condition for thermodynamics
+  integer(i4b)    :: bcUpprSoiH       = 7  ! type of upper boundary condition for soil hydrology
+  integer(i4b)    :: bcLowrSoiH       = 8  ! type of lower boundary condition for soil hydrology
+  integer(i4b)    :: astability       = 9  ! choice of stability function
+  integer(i4b)    :: compaction       = 10 ! choice of compaction routine
+  integer(i4b)    :: thermlcond       = 11 ! choice of thermal conductivity representation
+  integer(i4b)    :: alb_method       = 12 ! choice of albedo representation
  endtype iLook_decision
  ! ***********************************************************************************************************
  ! (1) define model time

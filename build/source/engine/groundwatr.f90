@@ -51,12 +51,22 @@ contains
  real(dp),pointer                    :: specificYield            ! specific yield (-)
  ! local pointers to algorithmic control parameters
  real(dp),pointer                    :: wimplicit                ! weight assigned to start-of-step fluxes (-)
- 
-
+ ! local pointers to coordinate variables
+ integer(i4b),pointer                :: nLayers                  ! total number of layers
+ real(dp),pointer                    :: soilDepth                ! soil depth
  ! define local variables
  character(len=256)                  :: cmessage                 ! error message for downwind routine
- real(dp)                            :: baseflowMax              ! maximum baseflow rate (m s-1)
+ real(dp)                            :: baseflowMax              ! maximum baseflow rate from the aquifer (m s-1)
  real(dp)                            :: aquiferStorageTrial      ! trial value for aquifer storage (m)
+ integer(i4b)                        :: iter                     ! iteration index
+ integer(i4b),parameter              :: maxiter=10               ! maximum number of iterations
+ real(dp)                            :: zWater                   ! depth of the water table (m)
+ real(dp)                            :: aquiferBaseflow          ! baseflow from the aquifer (m s-1)
+ real(dp)                            :: dBaseflow_dStorage       ! derivative in the baseflow term w.r.t. aquifer storage (s-1)
+ real(dp)                            :: residual                 ! residual in aquifer storage (m)
+ real(dp)                            :: dStorage                 ! iteration increment for aquifer storage (m)
+ real(dp),parameter                  :: incTol= 1.e-6_dp         ! convergence tolerance for the iteration increment (m)
+ real(dp),parameter                  :: resTol= 1.e-6_dp         ! convergence tolerance for the residual (m)
 
  ! initialize error control
  err=0; message="groundwatr/"
@@ -68,6 +78,12 @@ contains
  theta_sat       => mpar_data%var(iLookPARAM%theta_sat)          ! soil porosity (-)
  specificYield   => mpar_data%var(iLookPARAM%specificYield)      ! specific yield (-)
 
+ ! get the total number of model layers
+ nLayers   => indx_data%var(iLookINDEX%nLayers)%dat(1)           ! total number of layers
+
+ ! assign pointers to soil depth
+ soilDepth => mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers) ! soil depth
+
  ! compute the maximum baseflow rate
  baseflowMax = kAnisotropic*k_soil
 
@@ -77,7 +93,8 @@ contains
  ! iterate
  do iter=1,maxiter
   ! calculate the depth to the water table (m)
-  zWater = iLayerHeight(nSoil) - aquiferStorageTrial/specificYield
+  zWater = soilDepth - aquiferStorageTrial/specificYield
+  if(zWater < soilDepth)then; err=20; message=trim(message)//'have not implemented specific yield within the soil column yet'; return; endif
   ! calculate the baseflow term (m s-1)
   aquiferBaseflow = baseflowMax*exp(-zWater/zScale_TOPMODEL)
   ! calculate the derivative in the baseflow term w.r.t. aquifer storage (s-1)
@@ -93,6 +110,10 @@ contains
   ! check for non-convergence
   if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
  end do  ! (loop through iterations)
+
+ ! clean-up fluxes
+ aquiferBaseflow = aquiferBaseflow + dBaseflow_dStorage*dStorage
+ 
 
  end subroutine groundwatr
 

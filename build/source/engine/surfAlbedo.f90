@@ -12,6 +12,7 @@ contains
                        err,message)  ! output: error control
  USE data_struc,only:mpar_data,mvar_data,model_decisions     ! data structures
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookDECISIONS     ! named variables for structure elements
+ USE mDecisions_module,only:funcSnowAge,BATSlike             ! named variables for albedo options
  ! compute the surface albedo
  implicit none
  ! dummy variables
@@ -57,10 +58,10 @@ contains
  else
   
   ! identify the albedo decay method
-  select case(trim(model_decisions(iLookDECISIONS%alb_method)%decision))
+  select case(model_decisions(iLookDECISIONS%alb_method)%iDecision)
 
    ! method 1: albedo decay a function of snow age
-   case('fsnowage')
+   case(funcSnowAge)
     ! assign pointers to model parameters
     alb_dry   => mpar_data%var(iLookPARAM%alb_dry)           ! minimum snow albedo during winter (-)
     alb_wet   => mpar_data%var(iLookPARAM%alb_wet)           ! minimum snow albedo during spring (-)
@@ -75,7 +76,7 @@ contains
     dAlb_dt = -alb_decay*(surfaceAlbedo - alb_min)
 
    ! method 2: albedo decay based on a BATS-like approach, with destructive metamorphism + soot content
-   case('batslike')
+   case(BATSlike)
     err=10; message=trim(message)//'"batslike" method not implemented yet'; return
 
    ! check for unknown albedo decay method

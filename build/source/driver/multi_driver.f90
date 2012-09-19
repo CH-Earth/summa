@@ -7,7 +7,7 @@ USE nrtype                                                  ! variable types, et
 USE snow_fileManager,only:fuse_SetDirsUndPhiles             ! sets directories and filenames
 USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
-USE readoption_module,only:readoption                       ! module to read model decisions
+USE mDecisions_module,only:mDecisions                       ! module to read model decisions
 USE read_metad_module,only:read_metad                       ! module to populate metadata structures
 USE def_output_module,only:def_output                       ! module to define model output
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
@@ -74,7 +74,7 @@ endif
 ! set directories and files -- fuseFileManager used as command-line argument
 call fuse_SetDirsUndPhiles(fuseFileManager,err,message); call handle_err(err,message)
 ! read model decisions
-call readoption(err,message); call handle_err(err,message)
+call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (2) read model metadata

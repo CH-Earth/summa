@@ -69,6 +69,7 @@ FUSE_SOLVER= \
 		heatTransf.f90 \
 		snowHydrol.f90 \
 		soilHydrol.f90 \
+		groundwatr.f90 \
         picardSolv.f90 \
         coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_SOLVER))
@@ -76,14 +77,14 @@ SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_SOLVER))
 # Define routines for FUSE preliminaries
 FUSE_PRELIM= \
 		conv_funcs.f90 \
+		ascii_util.f90 \
+		get_ixname.f90 \
+		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
 		ConvE2Temp.f90 \
 		time_utils.f90 \
-		ascii_util.f90 \
-		get_ixname.f90 \
 		allocspace.f90 \
-		readoption.f90 \
 		read_metad.f90 \
 		ffile_info.f90 \
 		read_pinit.f90 \

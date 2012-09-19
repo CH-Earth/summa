@@ -39,7 +39,7 @@ contains
  ! ***** define model decisions
  ! **********************************************************************************************************
  do ivar=1,size(model_decisions)
-  call put_attrib(trim(infile),model_decisions(ivar)%option,model_decisions(ivar)%decision,err,cmessage)
+  call put_attrib(trim(infile),model_decisions(ivar)%cOption,model_decisions(ivar)%cDecision,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
  ! **********************************************************************************************************

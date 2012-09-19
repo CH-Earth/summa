@@ -19,17 +19,18 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
-  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! choice of numerical method
-  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! choice of method to calculate flux derivatives
-  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! form of Richards' equation
-  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! choice of groundwater parameterization
-  case('soilhyd_bc'      ); get_ixdecisions=iLookDECISIONS%soilhyd_bc  ! choice of boundary condition for soil hydrology
-  case('thrmdyn_bc'      ); get_ixdecisions=iLookDECISIONS%thrmdyn_bc  ! choice of boundary condition for thermodynamics
-  case('bcLowSoilH'      ); get_ixdecisions=iLookDECISIONS%bcLowSoilH  ! type of lower boundary flux condition for soil hydrology
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! choice of compaction routine
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! choice of albedo representation
+  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! ( 1) choice of numerical method
+  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 2) choice of method to calculate flux derivatives
+  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! ( 3) form of Richards' equation
+  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! ( 4) choice of groundwater parameterization
+  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! ( 5) type of upper boundary condition for thermodynamics
+  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! ( 6) type of lower boundary condition for thermodynamics
+  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! ( 7) type of upper boundary condition for soil hydrology
+  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! ( 8) type of lower boundary condition for soil hydrology
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! ( 9) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (10) choice of compaction routine
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (11) choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (12) choice of albedo representation
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
