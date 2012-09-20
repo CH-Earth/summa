@@ -1,0 +1,125 @@
+! ***************************************************************************************************************
+! ***************************************************************************************************************
+! ***************************************************************************************************************
+! ***************************************************************************************************************
+! ***** DEFINITION OF MODEL VARIABLES ***************************************************************************
+! ***************************************************************************************************************
+! ***************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "| " must be present (format a2), as these are used to check the integrety of the file
+! ***************************************************************************************************************
+! columns are:
+! 1: variable name
+! 2: variable description
+! 3: variable units
+! 4: variable type (scalar, separate parameter for each model layer, separate parameter at the interface of layers)
+! 5: write variable to output file? (T/F)
+! ***************************************************************************************************************
+! define format string for parameter descriptions
+! ***************************************************************************************************************
+'(a22,a2,a63,a2,a11,a2,a8,a2,l1)'    ! format string (must be in single quotes)
+! ***************************************************************************************************************
+! define variables
+! ***************************************************************************************************************
+! ***************************************************************************************************************
+! timestep-average fluxes for a few key variables
+! ***************************************************************************************************************
+averageMassLiquid     | evaporation or dew                                             | kg m-2 s-1 | scalarv | T
+averageMassSolid      | sublimation or frost                                           | kg m-2 s-1 | scalarv | T
+averageRainPlusMelt   | rain plus melt input to soil before calculating surface runoff | m s-1      | scalarv | T
+averageSurfaceRunoff  | surface runoff                                                 | m s-1      | scalarv | T
+averageSoilInflux     | influx of water at the top of the soil profile                 | m s-1      | scalarv | T
+averageSoilDrainage   | drainage from the bottom of the soil profile                   | m s-1      | scalarv | T
+! ***************************************************************************************************************
+! scalar variables
+! ***************************************************************************************************************
+scalarTwetbulb        | wet bulb temperature                                           | K          | scalarv | T
+scalarRainfall        | computed rainfall rate                                         | kg m-2 s-1 | scalarv | T
+scalarSnowfall        | computed snowfall rate                                         | kg m-2 s-1 | scalarv | T
+scalarSnowfallTemp    | temperature of fresh snow                                      | K          | scalarv | T
+scalarSurfaceTemp     | temperature of the top layer (NOTE: not skin temperature)      | K          | scalarv | T
+scalarAlbedo          | albedo of the surface (snow or soil)                           | -          | scalarv | T
+scalarSnowDepth       | total snow depth                                               | m          | scalarv | T
+scalarSWE             | snow water equivalent                                          | kg m-2     | scalarv | T
+scalarSfcMeltPond     | ponded water caused by melt of the "snow without a layer"      | kg m-2     | scalarv | T
+scalarAquiferStorage  | relative aquifer storage (above bottom of the soil profile)    | m          | scalarv | T
+scalarWaterTableDepth | depth of the water table                                       | m          | scalarv | T
+scalarExCoef          | turbulent exchange coefficient                                 | -          | scalarv | T
+scalarExSen           | exchange factor for sensible heat                              | W m-2 K-1  | scalarv | T
+scalarExLat           | exchange factor for latent heat                                | W m-2      | scalarv | T
+scalarSenHeat         | sensible heat flux at the surface                              | W m-2      | scalarv | T
+scalarLatHeat         | latent heat flux at the surface                                | W m-2      | scalarv | T
+scalarTranspireLim    | aggregate soil moist & vegetation limit on transpiration       | -          | scalarv | T
+scalarPotentialET     | potential evapotranspiration                                   | kg m-2 s-1 | scalarv | T
+scalarMassLiquid      | transpiration                                                  | kg m-2 s-1 | scalarv | T
+scalarMassSolid       | sublimation or frost                                           | kg m-2 s-1 | scalarv | T
+scalarHeatPrecip      | sensible heat of precipitation                                 | W m-2      | scalarv | T
+scalarRainPlusMelt    | rain plus melt, used as input to soil before surface runoff    | m s-1      | scalarv | T
+scalarSurfaceRunoff   | surface runoff                                                 | m s-1      | scalarv | T
+scalarSoilInflux      | influx of water at the top of the soil profile                 | m s-1      | scalarv | T
+scalarSoilDrainage    | drainage from the bottom of the soil profile                   | m s-1      | scalarv | T
+scalarSoilEjection    | total water ejected from each soil layer                       | m s-1      | scalarv | T
+scalarAquiferRcharge  | aquifer recharge rate (drainage + ejection)                    | m s-1      | scalarv | T
+scalarSoilWatBalError | error in the total soil water balance                          | kg m-2     | scalarv | T
+scalarTotalSoilLiq    | total mass of liquid water in the soil                         | kg m-2     | scalarv | T 
+scalarTotalSoilIce    | total mass of ice in the soil                                  | kg m-2     | scalarv | T
+! ***************************************************************************************************************
+! variables at the mid-point of each layer -- domain geometry
+! ***************************************************************************************************************
+mLayerDepth           | depth of each layer                                            | m          | midToto | T
+mLayerHeight          | height of the layer mid-point (top of soil = 0)                | m          | midToto | T
+mLayerRootDensity     | fraction of roots in each soil layer                           | -          | midSoil | T
+! ***************************************************************************************************************
+! variables at the mid-point of each layer coupled energy and mass
+! ***************************************************************************************************************
+mLayerTemp            | temperature of each layer                                      | K          | midToto | T
+mLayerVolFracAir      | volumetric fraction of air in each layer                       | -          | midToto | F
+mLayerVolFracIce      | volumetric fraction of ice in each layer                       | -          | midToto | T
+mLayerVolFracLiq      | volumetric fraction of liquid water in each layer              | -          | midToto | T
+mLayerVolHtCapBulk    | volumetric heat capacity in each layer                         | J m-3 K-1  | midToto | F
+mLayerTcrit           | critical soil temperature above which all water is unfrozen    | K          | midSoil | T
+mLayerdTheta_dTk      | derivative in volumetric liquid water content wrt temperature  | K-1        | midToto | F
+mLayerThermalC        | thermal conductivity at the mid-point of each layer            | W m-1 K-1  | midToto | F
+mLayerRadCondFlux     | temporal derivative in energy of radiative and conductive flux | J m-3 s-1  | midToto | F
+mLayerMeltFreeze      | rate of melt/freeze in each layer                              | kg m-3 s-1 | midToto | F
+mLayerMatricHead      | matric head of water in the soil                               | m          | midSoil | T
+mLayerdTheta_dPsi     | derivative in the soil water characteristic w.r.t. psi         | m-1        | midSoil | F
+mLayerdPsi_dTheta     | derivative in the soil water characteristic w.r.t. theta       | m          | midSoil | F
+mLayerThetaResid      | residual volumetric water content in each snow layer           | -          | midSnow | F
+mLayerPoreSpace       | total pore space in each snow layer                            | -          | midSnow | F
+mLayerInfilFreeze     | volumetric ice content increase by freezing infiltrating flux  | -          | midToto | F
+mLayerTranspireLim    | soil moist & veg limit on transpiration for each layer         | -          | midSoil | F
+mLayerInitTranspire   | transpiration loss from each soil layer at the start-of-step   | m s-1      | midSoil | T
+mLayerTranspire       | transpiration loss from each soil layer                        | m s-1      | midSoil | T
+mLayerInitEjectWater  | water ejected from each soil layer at the start-of-step        | m s-1      | midSoil | T
+mLayerEjectWater      | water ejected from each soil layer                             | m s-1      | midSoil | T
+! ***************************************************************************************************************
+! variables at the interface of each layer
+! ***************************************************************************************************************
+iLayerHeight          | height of the layer interface (top of soil = 0)                | m          | ifcToto | T
+iLayerThermalC        | thermal conductivity at the interface of each layer            | W m-1 K-1  | ifcToto | F
+iLayerInitNrgFlux     | energy flux at layer interfaces at the start of the time step  | W m-2      | ifcToto | F
+iLayerNrgFlux         | energy flux at layer interfaces at end of the time step        | W m-2      | ifcToto | F
+iLayerInitLiqFluxSnow | liquid flux at snow layer interfaces at start of the time step | m s-1      | ifcSnow | T
+iLayerInitLiqFluxSoil | liquid flux at soil layer interfaces at start of the time step | m s-1      | ifcSoil | T
+iLayerLiqFluxSnow     | liquid flux at snow layer interfaces at end of the time step   | m s-1      | ifcSnow | T
+iLayerLiqFluxSoil     | liquid flux at soil layer interfaces at end of the time step   | m s-1      | ifcSoil | T
+! ***************************************************************************************************************
+! "short-cut" variables
+! ***************************************************************************************************************
+scalarExNeut          | exchange coefficient in neutral conditions                     | -          | scalarv | F
+scalarBprime          | stable b parameter in Louis (1979) stability function          | -          | scalarv | F
+scalarCparam          | c parameter in Louis (1979) stability function                 | -          | scalarv | F
+scalarVGn_m           | van Genuchten "m" parameter                                    | -          | scalarv | F
+scalarKappa           | constant in the freezing curve function                        | m K-1      | scalarv | F
+scalarVolHtCap_air    | volumetric heat capacity air                                   | J m-3 K-1  | scalarv | F
+scalarVolHtCap_ice    | volumetric heat capacity ice                                   | J m-3 K-1  | scalarv | F
+scalarVolHtCap_soil   | volumetric heat capacity dry soil                              | J m-3 K-1  | scalarv | F
+scalarVolHtCap_water  | volumetric heat capacity liquid wat                            | J m-3 K-1  | scalarv | F
+scalarLambda_drysoil  | thermal conductivity of dry soil                               | W m-1      | scalarv | F
+scalarLambda_wetsoil  | thermal conductivity of wet soil                               | W m-1      | scalarv | F
+scalarVolLatHt_fus    | volumetric latent heat of fusion                               | J m-3      | scalarv | F
+! ***************************************************************************************************************
