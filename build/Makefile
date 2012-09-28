@@ -9,7 +9,7 @@
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = /home/mclark/FUSE_SNOW/
+F_MASTER = /home/wayandn/FUSE_SNOW/
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)build/source/
@@ -123,7 +123,7 @@ FUSE_ALL = $(UTILMS) $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) \
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = gfortran
+FC  = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
