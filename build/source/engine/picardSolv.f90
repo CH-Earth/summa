@@ -127,7 +127,8 @@ contains
  real(dp),allocatable                 :: phseComponent(:)         ! phase component of the energy increment (J m-3)
  real(dp),allocatable                 :: inflComponent(:)         ! infiltration component of the energy increment (J m-3)
  ! define local variables
- character(len=256)                   :: cmessage                 ! error message
+ character(len=256)                   :: cmessage                 ! error message of downwind routine
+ integer(i4b)                         :: nUnsat                   ! number of unsaturated layers (# layers above water table)
  logical(lgt)                         :: freeze_infiltrate        ! .true to freeze infiltrating flux of liquid water
  logical(lgt)                         :: printflag                ! .true. if want to print
  integer(i4b)                         :: minLayer                 ! minimum layer to print
@@ -316,6 +317,9 @@ contains
   scalarWaterTableDepth = iLayerHeight(nLayers) - scalarAquiferStorage/specificYield   ! case2: water table is below the bottom of the soil profile
  endif
 
+ ! identify number of layers above the water table
+ nUnsat = count(where(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth))
+
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then
   call surfAlbedo(dt,&          ! input: time step (seconds)
@@ -436,13 +440,13 @@ contains
   endif
 
   ! compute the matric head at the next iteration (note liquid water and ice vectors are defined for all layers)
-  call soilHydrol(dt,&                                    ! time step (seconds)
-                  iter,&                                  ! current iteration count
-                  mLayerMatricHeadIter,                 & ! matric head in each layer at the current iteration (m)
-                  mLayerVolFracIceIter(nSnow+1:nLayers),& ! volumetric fraction of ice at the current iteration (-)
-                  mLayerVolFracLiqIter(nSnow+1:nLayers),& ! volumetric fraction of liquid water at the current iteration (-)
-                  mLayerMatricHeadNew,                  & ! matric head in each layer at the next iteration (m)
-                  mLayerVolFracLiqNew(nSnow+1:nLayers), & ! volumetric fraction of liquid water at the next iteration (-)
+  call soilHydrol(dt,&                                         ! time step (seconds)
+                  iter,&                                       ! current iteration count
+                  mLayerMatricHeadIter(1:nUnsat),            & ! matric head in each layer at the current iteration (m)
+                  mLayerVolFracIceIter(nSnow+1:nSnow+nUnsat),& ! volumetric fraction of ice at the current iteration (-)
+                  mLayerVolFracLiqIter(nSnow+1:nSnow+nUnsat),& ! volumetric fraction of liquid water at the current iteration (-)
+                  mLayerMatricHeadNew(1:nUnsat),             & ! matric head in each layer at the next iteration (m)
+                  mLayerVolFracLiqNew(nSnow+1:nSnow+nUnsat), & ! volumetric fraction of liquid water at the next iteration (-)
                   err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   !print*, '*** after hydrology'

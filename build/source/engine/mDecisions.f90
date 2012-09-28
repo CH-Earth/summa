@@ -187,7 +187,7 @@ contains
  ! moving boundary gw parameterization must have "groundwaterCouple" as the lower boundary condition
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
   if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= groundwaterCouple)then
-   err=20; message=trim(message)//'moving boundary gw parameterization must use "groundwaterCouple" as the lower model boundary condition'; return
+   err=20; message=trim(message)//'moving boundary gw parameterization must use "gwCouple" as the lower model boundary condition'; return
   endif
  endif
 

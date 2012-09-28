@@ -103,16 +103,30 @@ contains
   residual = aquiferStorageTrial - (scalarAquiferStorage + (scalarAquiferRcharge - aquiferBaseflow)*dt)
   ! compute the iteration increment (m)
   dStorage = -residual/(1._dp + dt*dBaseflow_dStorage)
+  ! check for convergence and update states
+  if(abs(dStorage) < incTol .and. abs(residual) < resTol)then
+   scalarAquiferStorage  = aquiferStorageTrial + dStorage
+   scalarWaterTableDepth = soilDepth - scalarAquiferStorage/specificYield   ! water table depth at the end of the time step (m)
+   exit
   ! update the aquifer storage
-  aquiferStorageTrial = aquiferStorageTrial + dStorage
-  ! check for convergence
-  if(abs(dStorage) < incTol .and. abs(residual) < resTol)exit
+  else
+   aquiferStorageTrial = aquiferStorageTrial + dStorage
+  endif
   ! check for non-convergence
   if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
  end do  ! (loop through iterations)
 
  ! clean-up fluxes
  aquiferBaseflow = aquiferBaseflow + dBaseflow_dStorage*dStorage
+
+ ! assign states
+ if(scalarWaterTableDepth < soilDepth)then
+  err=20; message=trim(message)//'have not implemented specific yield within the soil column yet'; return
+ else
+  mLayerVolFracLiqNew(:) = mLayerVolFracLiqIter(:)  ! new volumetric fraction of liquid water (-)
+  mLayerVolFracIceNew(:) = mLayerVolFracIceIter(:)  ! new volumetric fraction of ice (-)
+  mLayerMatricHeadNew(:) = mLayerMatricHeadIter(:)  ! new matric head after (m)
+ endif
  
 
  end subroutine groundwatr
