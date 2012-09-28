@@ -318,7 +318,8 @@ contains
  endif
 
  ! identify number of layers above the water table
- nUnsat = count(where(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth))
+ nUnsat = count(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth)
+ if(nUnsat < nSoil)then; err=20; message=trim(message)//'have not yet implemented water table within the soil columnn'; return; endif
 
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then
