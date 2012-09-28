@@ -36,7 +36,7 @@ averageSoilDrainage   | drainage from the bottom of the soil profile            
 ! ***************************************************************************************************************
 ! scalar variables
 ! ***************************************************************************************************************
-scalarTwetbulb        | wet bulb temperature                                           | K          | scalarv | T
+scalarTwetbulb        | wet bulb temperature                                           | K          | scalarv | F
 scalarRainfall        | computed rainfall rate                                         | kg m-2 s-1 | scalarv | T
 scalarSnowfall        | computed snowfall rate                                         | kg m-2 s-1 | scalarv | T
 scalarSnowfallTemp    | temperature of fresh snow                                      | K          | scalarv | T
@@ -44,12 +44,12 @@ scalarSurfaceTemp     | temperature of the top layer (NOTE: not skin temperature
 scalarAlbedo          | albedo of the surface (snow or soil)                           | -          | scalarv | T
 scalarSnowDepth       | total snow depth                                               | m          | scalarv | T
 scalarSWE             | snow water equivalent                                          | kg m-2     | scalarv | T
-scalarSfcMeltPond     | ponded water caused by melt of the "snow without a layer"      | kg m-2     | scalarv | T
+scalarSfcMeltPond     | ponded water caused by melt of the "snow without a layer"      | kg m-2     | scalarv | F 
 scalarAquiferStorage  | relative aquifer storage (above bottom of the soil profile)    | m          | scalarv | T
-scalarWaterTableDepth | depth of the water table                                       | m          | scalarv | T
-scalarExCoef          | turbulent exchange coefficient                                 | -          | scalarv | T
-scalarExSen           | exchange factor for sensible heat                              | W m-2 K-1  | scalarv | T
-scalarExLat           | exchange factor for latent heat                                | W m-2      | scalarv | T
+scalarWaterTableDepth | depth of the water table                                       | m          | scalarv | F
+scalarExCoef          | turbulent exchange coefficient                                 | -          | scalarv | F
+scalarExSen           | exchange factor for sensible heat                              | W m-2 K-1  | scalarv | F
+scalarExLat           | exchange factor for latent heat                                | W m-2      | scalarv | F
 scalarSenHeat         | sensible heat flux at the surface                              | W m-2      | scalarv | T
 scalarLatHeat         | latent heat flux at the surface                                | W m-2      | scalarv | T
 scalarTranspireLim    | aggregate soil moist & vegetation limit on transpiration       | -          | scalarv | T
@@ -71,7 +71,7 @@ scalarTotalSoilIce    | total mass of ice in the soil                           
 ! ***************************************************************************************************************
 mLayerDepth           | depth of each layer                                            | m          | midToto | T
 mLayerHeight          | height of the layer mid-point (top of soil = 0)                | m          | midToto | T
-mLayerRootDensity     | fraction of roots in each soil layer                           | -          | midSoil | T
+mLayerRootDensity     | fraction of roots in each soil layer                           | -          | midSoil | F
 ! ***************************************************************************************************************
 ! variables at the mid-point of each layer coupled energy and mass
 ! ***************************************************************************************************************

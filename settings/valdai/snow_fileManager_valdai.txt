@@ -1,9 +1,9 @@
 SNOW_FILEMANAGER_V1.0
 ! Comment line:
 ! *** paths (must be in single quotes)
-'/d1/mclark/FUSE_SNOW/settings/'             ! SETNGS_PATH
-'/d1/mclark/FUSE_SNOW/input/valdai/'         ! INPUT_PATH
-'/d1/mclark/FUSE_SNOW/output/valdai/'        ! OUTPUT_PATH
+'/home/mclark/FUSE_SNOW/settings/'             ! SETNGS_PATH
+'/home/mclark/FUSE_SNOW/input/valdai/'         ! INPUT_PATH
+'/home/mclark/FUSE_SNOW/output/valdai/'        ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
 'valdai/snow_zDecisions_valdai.txt'          ! M_DECISIONS     = definition of model decisions
 'snow_zTimeMeta.txt'                         ! META_TIME       = metadata for time
