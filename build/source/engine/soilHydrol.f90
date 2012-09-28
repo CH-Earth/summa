@@ -30,7 +30,6 @@ public::soilHydrol
 ! number of layers
 integer(i4b)           :: nSoil                    ! number of soil layers
 integer(i4b)           :: nSnow                    ! number of snow layers
-integer(i4b)           :: nLayers                  ! total number of layers
 integer(i4b)           :: nLevels                  ! total number of soil layers to examine
 ! missing value parameter
 real(dp),parameter     :: valueMissing=-9999._dp   ! missing value parameter
@@ -78,11 +77,10 @@ contains
  ! identify the number of layers
  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)  ! number of soil layers
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_snow)  ! number of snow layers
- nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)                   ! total number of layers
 
  ! identify the number of soil layers to include in the vector
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
-  nLevels = count(mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nLayers) < mvar_data%var(iLookMVAR%scalarWaterTableDepth)%dat(1))
+  nLevels = count(mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil) < mvar_data%var(iLookMVAR%scalarWaterTableDepth)%dat(1))
   if(nLevels < nSoil)then; err=20; message=trim(message)//'have not yet implemented water table within the soil columnn'; return; endif
  else
   nLevels = nSoil
@@ -154,8 +152,8 @@ contains
                         ! model diagnostic variables
                         mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(1:nLevels),    & ! intent(out): (soil only) ! derivative in the soil water characteristic w.r.t. psi (m-1)
                         mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(1:nLevels),    & ! intent(out): (soil only) ! derivative in the soil water characteristic w.r.t. theta (m)
-                        mvar_data%var(iLookMVAR%iLayerInitLiqFluxSoil)%dat(1:nLevels),& ! intent(out): (soil only) ! liquid flux at layer interfaces at the start of the time step (m s-1)
-                        mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(1:nLevels),    & ! intent(out): (soil only) ! liquid flux at layer interfaces at the end of the time step (m s-1)
+                        mvar_data%var(iLookMVAR%iLayerInitLiqFluxSoil)%dat(0:nLevels),& ! intent(out): (soil only) ! liquid flux at layer interfaces at the start of the time step (m s-1)
+                        mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0:nLevels),    & ! intent(out): (soil only) ! liquid flux at layer interfaces at the end of the time step (m s-1)
                         mvar_data%var(iLookMVAR%mLayerInitEjectWater)%dat(1:nLevels), & ! intent(out): (soil only) ! water ejected from each soil layer at the start-of-step (m s-1)
                         mvar_data%var(iLookMVAR%mLayerEjectWater)%dat(1:nLevels),     & ! intent(out): (soil only) ! water ejected from each soil layer (m s-1)
                         ! output variables from the soilHydrol routine  -- NOTE: variables are already sized appropriately
@@ -370,7 +368,7 @@ contains
  printflag=.false.
 
  ! check the size of the input arguments
- if(any((/size(mLayerMatricHeadIter),size(mLayerVolFracIceIter),size(mLayerVolFracLiqIter),size(mLayerMatricHeadNew)/) /= nLayers)) then
+ if(any((/size(mLayerMatricHeadIter),size(mLayerVolFracIceIter),size(mLayerVolFracLiqIter),size(mLayerMatricHeadNew)/) /= nLevels)) then
   err=20; message=trim(message)//'size mis-match for the input arguments'; return
  endif
 
@@ -1167,29 +1165,29 @@ contains
  ! ***** moving lower boundary
  case(groundwaterCouple)
   if(ixRichards/=moisture)then; err=20; message=trim(message)//"require moisture-based form of Richards' eqn when using coupled gw"; return; endif
-  cflux = -iLayerDiffuse(nLayers)*(theta_sat - mLayervolFracLiqTrial(nLayers)) / (scalarWaterTableDepth - mLayerDepth(nLayers))
-  iLayerLiqFlux(nLayers) = cflux + iLayerHydCond(nLayers)
+  cflux = -iLayerDiffuse(nLevels)*(theta_sat - mLayervolFracLiqTrial(nLevels)) / (scalarWaterTableDepth - mLayerDepth(nLevels))
+  iLayerLiqFlux(nLevels) = cflux + iLayerHydCond(nLevels)
 
  ! ***** head condition
  case(prescribedHead)
   select case(ixRichards)
-   case(moisture); cflux = -iLayerDiffuse(nLayers)*(lowerBoundTheta - mLayervolFracLiqTrial(nLayers)) / (mLayerDepth(nLayers)*0.5_dp)
-   case(mixdform); cflux = -iLayerHydCond(nLayers)*(lowerBoundHead  - mLayerMatricHeadTrial(nLayers)) / (mLayerDepth(nLayers)*0.5_dp)
+   case(moisture); cflux = -iLayerDiffuse(nLevels)*(lowerBoundTheta - mLayervolFracLiqTrial(nLevels)) / (mLayerDepth(nLevels)*0.5_dp)
+   case(mixdform); cflux = -iLayerHydCond(nLevels)*(lowerBoundHead  - mLayerMatricHeadTrial(nLevels)) / (mLayerDepth(nLevels)*0.5_dp)
   endselect
-  iLayerLiqFlux(nLayers) = cflux + iLayerHydCond(nLayers)
+  iLayerLiqFlux(nLevels) = cflux + iLayerHydCond(nLevels)
 
  ! *****
  ! function of matric head in the bottom layer
  case(funcBottomHead)
   select case(ixRichards)
-   case(moisture); zWater = mLayerHeight(nLayers) - matricHead(mLayerVolFracLiqTrial(nLayers),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   case(mixdform); zWater = mLayerHeight(nLayers) - mLayerMatricHeadTrial(nLayers)
+   case(moisture); zWater = mLayerHeight(nLevels) - matricHead(mLayerVolFracLiqTrial(nLevels),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   case(mixdform); zWater = mLayerHeight(nLevels) - mLayerMatricHeadTrial(nLevels)
   endselect
-  iLayerLiqFlux(nLayers) = kAnisotropic*k_soil * exp(-zWater/zScale_TOPMODEL)
+  iLayerLiqFlux(nLevels) = kAnisotropic*k_soil * exp(-zWater/zScale_TOPMODEL)
 
  ! *****
  ! free drainage
- case(freeDrainage); iLayerLiqFlux(nLayers) = iLayerHydCond(nLayers)
+ case(freeDrainage); iLayerLiqFlux(nLevels) = iLayerHydCond(nLevels)
 
  ! ***** error check
  case default
@@ -1199,7 +1197,7 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! 3) compute fluxes within the domain -- positive downwards
  ! -------------------------------------------------------------------------------------------------------------------------------
- do iSoil=1,nLayers-1 ! iSoil=0 is the upper boundary, so flux at iSoil=1 is bottom of the top layer
+ do iSoil=1,nLevels-1 ! iSoil=0 is the upper boundary, so flux at iSoil=1 is bottom of the top layer
   ! compute the capillary flux (negative sign means positive downwards)
   select case(ixRichards)
    case(moisture); cflux = -iLayerDiffuse(iSoil)*(mLayervolFracLiqTrial(iSoil+1) - mLayervolFracLiqTrial(iSoil)) / &
@@ -1332,7 +1330,7 @@ contains
  ! ***** compute the derivative in hydraulic conductivity (m s-1) and diffusivity (m2 s-1) at layer mid-points
  !        w.r.t. volumetric liquid water content (s-1)
  ! -----------------------------------------------------------------------------------------------------------------------------
- do iLayer=1,nLayers
+ do iLayer=1,nLevels
   select case(dMethod)
   case(analytical)
    ! compute derivative in hydraulic conductivity (m s-1)
@@ -1356,7 +1354,7 @@ contains
  end do
 
  ! compute the derivative in flux at layer interfaces w.r.t. volumetric liquid water content
- do iLayer=0,nLayers  ! loop through interfaces
+ do iLayer=0,nLevels  ! loop through interfaces
 
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the upper boundary
@@ -1411,7 +1409,7 @@ contains
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the lower boundary
   ! -----------------------------------------------------------------------------------------------------------------------------
-  elseif(iLayer==nLayers)then  ! (lower boundary)
+  elseif(iLayer==nLevels)then  ! (lower boundary)
 
    dq_dVolLiqBelow(iLayer) = valueMissing  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
@@ -1422,11 +1420,11 @@ contains
    case(prescribedHead)      ! head boundary
     ! derivatives in the flux w.r.t. volumetric liquid water content
     if(dMethod==analytical)then
-     dq_dVolLiqAbove(iLayer) = iLayerDiffuse(nLayers)/(mLayerDepth(nLayers)/2._dp)
+     dq_dVolLiqAbove(iLayer) = iLayerDiffuse(nLevels)/(mLayerDepth(nLevels)/2._dp)
     ! compute numerical derivatives
     else
-     flux0 = -iLayerDiffuse(nLayers)*(lowerBoundTheta -  mLayerVolFracLiqTrial(nLayers)    ) / (mLayerDepth(nLayers)*0.5_dp) + iLayerHydCond(nLayers)
-     flux1 = -iLayerDiffuse(nLayers)*(lowerBoundTheta - (mLayerVolFracLiqTrial(nLayers)+dx)) / (mLayerDepth(nLayers)*0.5_dp) + iLayerHydCond(nLayers)
+     flux0 = -iLayerDiffuse(nLevels)*(lowerBoundTheta -  mLayerVolFracLiqTrial(nLevels)    ) / (mLayerDepth(nLevels)*0.5_dp) + iLayerHydCond(nLevels)
+     flux1 = -iLayerDiffuse(nLevels)*(lowerBoundTheta - (mLayerVolFracLiqTrial(nLevels)+dx)) / (mLayerDepth(nLevels)*0.5_dp) + iLayerHydCond(nLevels)
      dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
     endif
 
@@ -1438,14 +1436,14 @@ contains
    ! function of matric head in the bottom soil layer
    case(funcBottomHead)
 
-    bottomHead = matricHead(mLayerVolFracLiqTrial(nLayers),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    bottomHead = matricHead(mLayerVolFracLiqTrial(nLevels),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     ! compute analytical derivatives
     if(dMethod==analytical)then
-     dq_dVolLiqAbove(iLayer) = kAnisotropic*k_soil * mLayerdPsi_dTheta(nLayers)*exp(-(mLayerHeight(nLayers) - bottomHead)/zScale_TOPMODEL)/zScale_TOPMODEL
+     dq_dVolLiqAbove(iLayer) = kAnisotropic*k_soil * mLayerdPsi_dTheta(nLevels)*exp(-(mLayerHeight(nLevels) - bottomHead)/zScale_TOPMODEL)/zScale_TOPMODEL
     ! compute numerical derivarives
     else
-     flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLayers) -  bottomHead    )/zScale_TOPMODEL)
-     flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLayers) - (bottomHead+dx))/zScale_TOPMODEL)
+     flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) -  bottomHead    )/zScale_TOPMODEL)
+     flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) - (bottomHead+dx))/zScale_TOPMODEL)
      dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
     endif
 
@@ -1602,7 +1600,7 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------
  ! ***** compute the derivative in hydraulic conductivity at layer mid-points w.r.t. matric head (s-1)
  ! -----------------------------------------------------------------------------------------------------------------------------
- do iLayer=1,nLayers
+ do iLayer=1,nLevels
   select case(dMethod)
   case(analytical)
    dHydCond_dMatric(iLayer) = dHydCond_dPsi(mLayerMatricHeadTrial(iLayer),k_soil,vGn_alpha,vGn_n,vGn_m,iceImpedeFac(iLayer),.true.)  ! analytical
@@ -1615,7 +1613,7 @@ contains
  end do
 
  ! compute the derivative in flux at layer interfaces w.r.t. matric head
- do iLayer=0,nLayers  ! loop through interfaces
+ do iLayer=0,nLevels  ! loop through interfaces
   
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the upper boundary
@@ -1671,7 +1669,7 @@ contains
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! ***** the lower boundary
   ! -----------------------------------------------------------------------------------------------------------------------------
-  elseif(iLayer==nLayers)then  ! (lower boundary)
+  elseif(iLayer==nLevels)then  ! (lower boundary)
 
    dq_dMatricBelow(iLayer) = valueMissing ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
@@ -1682,11 +1680,11 @@ contains
    case(prescribedHead)      ! head boundary
     ! derivatives in the flux w.r.t. matric head
     if(dMethod==analytical)then
-     dq_dMatricAbove(iLayer) = iLayerHydCond(nLayers)/(mLayerDepth(nLayers)/2._dp)
+     dq_dMatricAbove(iLayer) = iLayerHydCond(nLevels)/(mLayerDepth(nLevels)/2._dp)
     ! compute numerical derivatives
     else
-     flux0 = -iLayerHydCond(nLayers)*(lowerBoundHead -  mLayerMatricHeadTrial(nLayers)    ) / (mLayerDepth(nLayers)*0.5_dp) + iLayerHydCond(nLayers)
-     flux1 = -iLayerHydCond(nLayers)*(lowerBoundHead - (mLayerMatricHeadTrial(nLayers)+dx)) / (mLayerDepth(nLayers)*0.5_dp) + iLayerHydCond(nLayers)
+     flux0 = -iLayerHydCond(nLevels)*(lowerBoundHead -  mLayerMatricHeadTrial(nLevels)    ) / (mLayerDepth(nLevels)*0.5_dp) + iLayerHydCond(nLevels)
+     flux1 = -iLayerHydCond(nLevels)*(lowerBoundHead - (mLayerMatricHeadTrial(nLevels)+dx)) / (mLayerDepth(nLevels)*0.5_dp) + iLayerHydCond(nLevels)
      dq_dMatricAbove(iLayer) = (flux1 - flux0)/dx
     endif
 
@@ -1699,11 +1697,11 @@ contains
    case(funcBottomHead)
     ! compute analytical derivatives
     if(dMethod==analytical)then
-     dq_dMatricAbove(iLayer) = kAnisotropic*k_soil * exp(mLayerMatricHeadTrial(nLayers)/zScale_TOPMODEL - mLayerHeight(nLayers)/zScale_TOPMODEL)/zScale_TOPMODEL
+     dq_dMatricAbove(iLayer) = kAnisotropic*k_soil * exp(mLayerMatricHeadTrial(nLevels)/zScale_TOPMODEL - mLayerHeight(nLevels)/zScale_TOPMODEL)/zScale_TOPMODEL
     ! compute numerical derivatives
     else
-     flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLayers) -  mLayerMatricHeadTrial(nLayers)    )/zScale_TOPMODEL)
-     flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLayers) - (mLayerMatricHeadTrial(nLayers)+dx))/zScale_TOPMODEL)
+     flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) -  mLayerMatricHeadTrial(nLevels)    )/zScale_TOPMODEL)
+     flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) - (mLayerMatricHeadTrial(nLevels)+dx))/zScale_TOPMODEL)
      dq_dMatricAbove(iLayer) = (flux1 - flux0)/dx
     endif
 
