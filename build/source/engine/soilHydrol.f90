@@ -619,6 +619,7 @@ contains
                     mLayerVolFracLiqIter,  & ! intent(in): volumetric liquid water content (-)
                     mLayerVolFracIceIter,  & ! intent(in): volumetric fraction of ice (-)
                     mLayerdPsi_dTheta,     & ! intent(in): derivative in the soil water characteritic w.r.t. theta (m)
+                    scalarWaterTableDepth, & ! intent(in): water table depth (m)
                     ! input: boundary conditions for volumetric liquid water content
                     lowerBoundTheta,       & ! intent(in): lower boundary condition (-)
                     upperBoundTheta,       & ! intent(in): upper boundary condition (-)
@@ -1162,7 +1163,7 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------
  select case(bc_lower)
 
- ! ***** moving lower boundary
+ ! ***** coupled to groundwater
  case(groundwaterCouple)
   if(ixRichards/=moisture)then; err=20; message=trim(message)//"require moisture-based form of Richards' eqn when using coupled gw"; return; endif
   cflux = -iLayerDiffuse(nLevels)*(theta_sat - mLayervolFracLiqTrial(nLevels)) / (scalarWaterTableDepth - mLayerDepth(nLevels))
@@ -1229,6 +1230,7 @@ contains
                         mLayerVolFracLiqTrial, & ! intent(in): volumetric liquid water content (-)
                         mLayerVolFracIceTrial, & ! intent(in): volumetric fraction of ice (-)
                         mLayerdPsi_dTheta,     & ! intent(in): derivative in the soil water characteritic w.r.t. theta (m)
+                        scalarWaterTableDepth, & ! intent(in): water table depth (m)
                         ! input: boundary conditions for volumetric liqquid water content
                         lowerBoundTheta,       & ! intent(in): lower boundary condition (-)
                         upperBoundTheta,       & ! intent(in): upper boundary condition (-)
@@ -1274,6 +1276,7 @@ contains
  real(dp),intent(in),target    :: mLayerVolFracLiqTrial(:)   ! volumetric liquid water content (-)
  real(dp),intent(in),target    :: mLayerVolFracIceTrial(:)   ! volumetric fraction of ice in each layer (-)
  real(dp),intent(in)           :: mLayerdPsi_dTheta(:)       ! derivative in the soil water characteritic w.r.t. theta (m)
+ real(dp),intent(in)           :: scalarWaterTableDepth      ! water table depth (m)
  ! input: diriclet boundary conditions for volumetric liquid water content
  real(dp),intent(in)           :: upperBoundTheta            ! upper boundary condition for volumetric liquid water content (-)
  real(dp),intent(in)           :: lowerBoundTheta            ! lower boundary condition for volumetric liquid water content (-)
@@ -1414,6 +1417,19 @@ contains
    dq_dVolLiqBelow(iLayer) = valueMissing  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
    select case(bc_lower)
+
+   ! *****
+   ! coupled to groundwater
+   case(groundwaterCouple)      ! coupled with groundwater
+    ! derivatives in the flux w.r.t. volumetric liquid water content
+    if(dMethod==analytical)then
+     dq_dVolLiqAbove(iLayer) = iLayerDiffuse(nLevels) / (scalarWaterTableDepth - mLayerDepth(nLevels))
+    ! compute numerical derivatives
+    else
+     flux0 = -iLayerDiffuse(nLevels)*(theta_sat -  mLayerVolFracLiqTrial(nLevels)    ) / (scalarWaterTableDepth - mLayerDepth(nLevels)) + iLayerHydCond(nLevels)
+     flux1 = -iLayerDiffuse(nLevels)*(theta_sat - (mLayerVolFracLiqTrial(nLevels)+dx)) / (scalarWaterTableDepth - mLayerDepth(nLevels)) + iLayerHydCond(nLevels)
+     dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
+    endif
 
    ! *****
    ! head boundary
@@ -1623,6 +1639,11 @@ contains
    dq_dMatricAbove(iLayer) = valueMissing  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
    select case(bc_upper)
+
+   ! *****
+   ! coupled to groundwater
+   case(groundwaterCouple)   ! coupled with groundwater
+    err=20; message=trim(message)//"cannot couple mixed form of Richards' eqn with moving groundwater boundary"; return
 
    ! *****
    ! head boundary
