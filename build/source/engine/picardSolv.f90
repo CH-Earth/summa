@@ -26,6 +26,15 @@ contains
                      LH_fus,       & ! latent heat of fusion                (J kg-1)
                      iden_ice,     & ! intrinsic density of ice             (kg m-3)
                      iden_water      ! intrinsic density of liquid water    (kg m-3)
+ ! look-up values for the choice of groundwater parameterization
+ USE mDecisions_module,only:       &
+  movingBoundary,                  & ! moving lower boundary
+  bigBucket,                       & ! a big bucket (lumped aquifer model)
+  noExplicit                         ! no explicit groundwater parameterization
+ ! model decision structures
+ USE data_struc,only:model_decisions ! model decision structure
+ USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
+ ! general data structures
  USE data_struc,only:forcFileInfo                                  ! extract time step of forcing data
  USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow ! data structures
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX               ! named variables for structure elements
@@ -588,23 +597,29 @@ contains
  scalarAquiferRcharge = scalarSoilDrainage + scalarSoilEjection
 
  ! compute rise/fall of the water table
- ! NOTE: input "iter" because of copying trick in phase change
- call groundwatr(&
-                 ! input
-                 dt,                                   &  ! input:  time step (seconds) 
-                 scalarAquiferRcharge,                 &  ! input:  aquifer recharge (m s-1)
-                 mLayerMatricHeadIter,                 &  ! input:  matric head (m)
-                 mLayerVolFracLiqIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of liquid water after itertations (-)
-                 mLayerVolFracIceIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of ice after itertations (-)
-                 ! input-output
-                 scalarAquiferStorage,                 &  ! input-output: aquifer storage (m)
-                 ! output
-                 mLayerMatricHeadNew,                  &  ! output: matric head (m)
-                 mLayerVolFracLiqNew(nSnow+1:nLayers), &  ! output: volumetric fraction of liquid water after itertations (-)
-                 mLayerVolFracIceNew(nSnow+1:nLayers), &  ! output: volumetric fraction of ice after itertations (-)
-                 scalarWaterTableDepth,                &  ! output: water table depth at the end of the time step (m)
-                 err,cmessage)                            ! output: error control
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
+  ! NOTE: input "iter" because of copying trick in phase change
+  call groundwatr(&
+                  ! input
+                  dt,                                   &  ! input:  time step (seconds) 
+                  scalarAquiferRcharge,                 &  ! input:  aquifer recharge (m s-1)
+                  mLayerMatricHeadIter,                 &  ! input:  matric head (m)
+                  mLayerVolFracLiqIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of liquid water after itertations (-)
+                  mLayerVolFracIceIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of ice after itertations (-)
+                  ! input-output
+                  scalarAquiferStorage,                 &  ! input-output: aquifer storage (m)
+                  ! output
+                  mLayerMatricHeadNew,                  &  ! output: matric head (m)
+                  mLayerVolFracLiqNew(nSnow+1:nLayers), &  ! output: volumetric fraction of liquid water after itertations (-)
+                  mLayerVolFracIceNew(nSnow+1:nLayers), &  ! output: volumetric fraction of ice after itertations (-)
+                  scalarWaterTableDepth,                &  ! output: water table depth at the end of the time step (m)
+                  err,cmessage)                            ! output: error control
+  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ else
+  mLayerMatricHeadNew                  = mLayerMatricHeadIter
+  mLayerVolFracLiqNew(nSnow+1:nLayers) = mLayerVolFracLiqIter(nSnow+1:nLayers)
+  mLayerVolFracIceNew(nSnow+1:nLayers) = mLayerVolFracIceIter(nSnow+1:nLayers)
+ endif
 
  ! ***** compute melt for the case of "snow without a layer"
  if(nSnow==0 .and. scalarSWE > 0._dp)then

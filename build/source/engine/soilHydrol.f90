@@ -721,6 +721,11 @@ contains
   select case(ixRichards)
    ! ***** moisture-based form of Richards' equation
    case(moisture)
+    ! (check that soil moisture does not exceed constraints -- negative error code will force time step reduction)
+    if(iLayer > 0)then
+     if(mLayerVolFracLiqDiff(iLayer) > theta_sat - mLayerVolFracLiqIter(iLayer))then; err=-20; message=trim(message)//'soil moisture exceeds saturation'; return; endif
+     if(mLayerVolFracLiqDiff(iLayer) < theta_res - mLayerVolFracLiqIter(iLayer))then; err=-20; message=trim(message)//'soil moisture below residual content'; return; endif
+    endif
     ! (update the fluxes)
     if(iLayer==0)then;           iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dVolLiqBelow(iLayer)*mLayerVolFracLiqDiff(iLayer+1)
     elseif(iLayer==nLevels)then; iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dVolLiqAbove(iLayer)*mLayerVolFracLiqDiff(iLayer)
@@ -766,7 +771,6 @@ contains
    case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
   endselect
  end do  ! (loop through layers)
-
 
  end subroutine soilHydrol_muster
 
@@ -884,32 +888,33 @@ contains
  end do
 
  ! if prescribed head, compute hydraulic conductivity at the boundaries (m s-1)
- select case(ixRichards)
-  ! ***** moisture-based form of Richards' equation
-  case(moisture)
-   ! (upper boundary conditions)
-   if(bc_upper==prescribedHead)then
-    iLayerHydCond(0) = hydCond_liq(upperBoundTheta,k_soil,theta_res,theta_sat,vGn_m) * iceImpedeFac(1)
-    iLayerDiffuse(0) = dPsi_dTheta(upperBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(0)
-   endif
-   ! (lower boundary conditions)
-   if(bc_lower==prescribedHead)then
-    iLayerHydCond(nLevels) = hydCond_liq(lowerBoundTheta,k_soil,theta_res,theta_sat,vGn_m) * iceImpedeFac(nLevels)
-    iLayerDiffuse(nLevels) = dPsi_dTheta(lowerBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(nLevels)
-   endif
-  ! ***** mixed form of Richards' equation
-  case(mixdform)
-   if(bc_upper==prescribedHead) iLayerHydCond(0)       = hydCond_psi(upperBoundHead,k_soil,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(1)
-   if(bc_lower==prescribedHead) iLayerHydCond(nLevels) = hydCond_psi(lowerBoundHead,k_soil,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nLevels)
-  case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
- end select
+ if(bc_upper==prescribedHead .or. bc_lower==prescribedHead)then
+  select case(ixRichards)
+   ! ***** moisture-based form of Richards' equation
+   case(moisture)
+    ! (upper boundary conditions)
+    if(bc_upper==prescribedHead)then
+     iLayerHydCond(0) = hydCond_liq(upperBoundTheta,k_soil,theta_res,theta_sat,vGn_m) * iceImpedeFac(1)
+     iLayerDiffuse(0) = dPsi_dTheta(upperBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(0)
+    endif
+    ! (lower boundary conditions)
+    if(bc_lower==prescribedHead)then
+     iLayerHydCond(nLevels) = hydCond_liq(lowerBoundTheta,k_soil,theta_res,theta_sat,vGn_m) * iceImpedeFac(nLevels)
+     iLayerDiffuse(nLevels) = dPsi_dTheta(lowerBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(nLevels)
+    endif
+   ! ***** mixed form of Richards' equation
+   case(mixdform)
+    if(bc_upper==prescribedHead) iLayerHydCond(0)       = hydCond_psi(upperBoundHead,k_soil,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(1)
+    if(bc_lower==prescribedHead) iLayerHydCond(nLevels) = hydCond_psi(lowerBoundHead,k_soil,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nLevels)
+   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
+  end select
+ endif  ! (if boundary conditions are prescribed head)
 
  ! if NOT prescribed head, then set hydraulic conductivity at boundaries to the layer conductivity
  if(bc_upper/=prescribedHead) iLayerHydCond(0)       = mLayerHydCond(1)
  if(bc_lower/=prescribedHead) iLayerHydCond(nLevels) = mLayerHydCond(nLevels)
 
  end subroutine hydCond_all
-
 
 
  ! ************************************************************************************************
@@ -1119,6 +1124,7 @@ contains
  ! local variables
  real(dp)                      :: satArea                   ! saturated area (-)
  real(dp)                      :: infUnsat                  ! infiltration over unsaturated areas (m s-1)
+ real(dp)                      :: psiBot                    ! matric head in the lowest layer (m)
  real(dp)                      :: cflux                     ! capillary flux (m s-1)
  integer(i4b)                  :: iSoil                     ! index of soil layer
  real(dp)                      :: zWater                    ! depth to the water table (m)
@@ -1166,7 +1172,9 @@ contains
  ! ***** coupled to groundwater
  case(groundwaterCouple)
   if(ixRichards/=moisture)then; err=20; message=trim(message)//"require moisture-based form of Richards' eqn when using coupled gw"; return; endif
-  cflux = -iLayerDiffuse(nLevels)*(theta_sat - mLayervolFracLiqTrial(nLevels)) / (scalarWaterTableDepth - mLayerDepth(nLevels))
+  if(scalarWaterTableDepth < mLayerHeight(nLevels))then; err=20; message=trim(message)//'water table is above the mid-point of the lowest soil layer'; return; endif
+  psiBot = matricHead(mLayerVolFracLiqTrial(nLevels),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+  cflux  = -iLayerHydCond(nLevels)*(0._dp - psiBot) / (scalarWaterTableDepth - mLayerHeight(nLevels))
   iLayerLiqFlux(nLevels) = cflux + iLayerHydCond(nLevels)
 
  ! ***** head condition
@@ -1320,6 +1328,8 @@ contains
  real(dp)                      :: dInfRate                   ! derivative in the infiltration rate w.r.t matric head (s-1)
  real(dp)                      :: func0,func1                ! function evaluations used to compute numerical derivatives (general)
  real(dp)                      :: bottomHead                 ! matric head in the lowest soil layer (m)
+ real(dp)                      :: dHeight                    ! height difference between water table and bottom soil layer (m) 
+ real(dp)                      :: spat0,spat1                ! spatial operators (-)
  real(dp)                      :: dLiq,dz                    ! spatial differenes in volumetric liquid water content and height
  real(dp),pointer              :: iceAbove,iceBelow          ! volumetric ice content in the layer above and the layer below
  real(dp),pointer              :: liqAbove,liqBelow          ! volumetric liquid water content in the layer above and the layer below
@@ -1421,13 +1431,22 @@ contains
    ! *****
    ! coupled to groundwater
    case(groundwaterCouple)      ! coupled with groundwater
+    ! compute intermediate variables
+    dHeight = scalarWaterTableDepth - mLayerHeight(nLevels) ! height difference (m)
+    if(dHeight < 0._dp)then; err=20; message=trim(message)//'water table is above the mid-point of the lowest soil layer'; return; endif
     ! derivatives in the flux w.r.t. volumetric liquid water content
     if(dMethod==analytical)then
-     dq_dVolLiqAbove(iLayer) = iLayerDiffuse(nLevels) / (scalarWaterTableDepth - mLayerDepth(nLevels))
+     bottomHead  = matricHead(mLayerVolFracLiqTrial(nLevels),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! matric head (m)
+     dq_dVolLiqAbove(iLayer) = (dHydCond_dVolLiq(iLayer)*bottomHead + mLayerHydCond(iLayer)*mLayerdPsi_dTheta(iLayer))/dHeight + dHydCond_dVolLiq(iLayer)
     ! compute numerical derivatives
     else
-     flux0 = -iLayerDiffuse(nLevels)*(theta_sat -  mLayerVolFracLiqTrial(nLevels)    ) / (scalarWaterTableDepth - mLayerDepth(nLevels)) + iLayerHydCond(nLevels)
-     flux1 = -iLayerDiffuse(nLevels)*(theta_sat - (mLayerVolFracLiqTrial(nLevels)+dx)) / (scalarWaterTableDepth - mLayerDepth(nLevels)) + iLayerHydCond(nLevels)
+     ! (spatial operators)
+     spat0 = (0._dp - matricHead(mLayerVolFracLiqTrial(nLevels),   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m))/dHeight
+     spat1 = (0._dp - matricHead(mLayerVolFracLiqTrial(nLevels)+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m))/dHeight
+     ! (fluxes)
+     flux0 = -iLayerHydCond(nLevels)*spat0 + hydCond_liq(mLayerVolFracLiqTrial(nLevels),   k_soil,theta_res,theta_sat,vGn_m)*iceImpedeFac(nLevels)
+     flux1 = -iLayerHydCond(nLevels)*spat1 + hydCond_liq(mLayerVolFracLiqTrial(nLevels)+dx,k_soil,theta_res,theta_sat,vGn_m)*iceImpedeFac(nLevels)
+     ! (derivative)
      dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
     endif
 

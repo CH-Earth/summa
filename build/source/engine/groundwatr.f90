@@ -78,40 +78,145 @@ contains
  theta_sat       => mpar_data%var(iLookPARAM%theta_sat)          ! soil porosity (-)
  specificYield   => mpar_data%var(iLookPARAM%specificYield)      ! specific yield (-)
 
- ! get the total number of model layers
+ ! get the number of layers
  nLayers   => indx_data%var(iLookINDEX%nLayers)%dat(1)           ! total number of layers
+
+ ! identify the number of snow and soil layers
+ nSnow = count(indx_data%var(iLookINDEX%layerType)%dat == ix_snow)
+ nSoil = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)
 
  ! assign pointers to soil depth
  soilDepth => mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers) ! soil depth
 
+ ! assign pointers to the height vector
+ layerHeight => mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nLayers)
+
+ ! identify the maximum and minimum height
+ zmin = layerHeight(nUnsat)
+ if(nUnsat < nSoil)then; zmax = layerHeight(nUnsat+1)
+ else;                   zmax = huge(soilDepth)
+ endif
+
  ! compute the maximum baseflow rate
  baseflowMax = kAnisotropic*k_soil
 
- ! save the aquifer storage at the start of the step (m)
- aquiferStorageTrial = scalarAquiferStorage
- 
- ! iterate
+ ! compute the drainable porosity
+ if(nUnsat == nSoil)  ! (below the soil column)
+  dPorosity = specificYield
+ else                 ! (within the soil column)
+  dPorosity = theta_sat - mLayerVolFracLiqIter(nUnsat+1) - mLayerVolFracIceIter(nUnsat+1)
+ endif
+
+ ! *****
+ ! * start iterations...
+ ! *********************
  do iter=1,maxiter
-  ! calculate the depth to the water table (m)
-  zWater = soilDepth - aquiferStorageTrial/specificYield
-  if(zWater < soilDepth)then; err=20; message=trim(message)//'have not implemented specific yield within the soil column yet'; return; endif
+
+  ! -----
+  ! compute iteration increment...
+  ! ------------------------------
   ! calculate the baseflow term (m s-1)
-  aquiferBaseflow = baseflowMax*exp(-zWater/zScale_TOPMODEL)
-  ! calculate the derivative in the baseflow term w.r.t. aquifer storage (s-1)
-  dBaseflow_dStorage = aquiferBaseflow/(zScale_TOPMODEL*specificYield)
-  ! compute the residual (m)
-  residual = aquiferStorageTrial - (scalarAquiferStorage + (scalarAquiferRcharge - aquiferBaseflow)*dt)
-  ! compute the iteration increment (m)
-  dStorage = -residual/(1._dp + dt*dBaseflow_dStorage)
+  aquiferBaseflow = baseflowMax*exp(-zWaterTrial/zScale_TOPMODEL)
+  ! compute the net flux (m s-1)
+  netFlux = scalarAquiferRcharge - aquiferBaseflow
+  ! compute the residual in the depth to the water table (-)
+  residual = zWaterTrial - (zWaterInit - dt*netFlux/dPorosity)
+  ! compute the derivative in the baseflow flux w.r.t. depth to the water table (s-1)
+  dBaseflow_dWaterTable = -aquiferBaseflow/zScale_TOPMODEL
+  ! compute the iteration increment in the depth to the water table (m)
+  dWaterTable = residual/(-1._dp + dt*dBaseflow_dWaterTable/dPorosity)
+
+  ! -----
+  ! update water table depth...
+  ! ---------------------------
+  ! compute a temporary value for testing
+  zTemp = zWaterTrial + dWaterTable
+
+  ! identify movement of water table across layers
+  if    (zTemp  > zMin .and. zTemp < zMax)then; iWaterCross = noCrossing ! water table does not cross a layer
+  elseif(zTemp <= zMin)then;                    iWaterCross = iWaterRise ! water table rises into the layer above
+  elseif(zTemp >= zMax)then;                    iWaterCross = iWaterFall ! water table falls into the layer below
+  else; err=20; message=trim(message)//'cannot identify the type of water movement'; return; endif
+
+  ! handle various cases associated with water table corssing soil layers
+  select case(iWaterCross)
+
+   ! ***** most common case, where water table does not cross a layer
+   case(noCrossing)
+    zWaterTrial = zTemp
+
+   ! ***** case where water table rises into the next layer
+   case(iWaterRise)   
+    ! (update water table depth and liquid water content)
+    zWaterTrial = layerHeight(nUnsat)  ! stop on the layer interface
+    mLayerVolFracLiqNew(nUnsat) = theta_sat - mLayerVolFracIceIter(nUnsat) 
+    ! (update number of unsaturated layers)
+    nUnsat = nUnsat-1                  ! reduce the number of unsaturated layers
+    if(nUnsat == 0)then; err=20; message=trim(message)//'soil column is completely saturated!'
+    ! (update drainable porisity)
+    dPorosity = theta_sat - mLayerVolFracLiqIter(nUnsat+1) - mLayerVolFracIceIter(nUnsat+1)
+
+
+   ! ***** case where water table falls into the layer below
+   case(iWaterFall)
+
+
+
+ 
+
+    ! (get an initial estimate of the water table)
+    zTemp = zWater + dStorage/fracAir
+
+    ! (check that we did not cross a layer)
+    do iAbsorb=1,maxAbsorb  ! (only absorb a certain number of layers [usually 2])
+     if(zTemp < layerHeight(nUnsat)then
+      err=20; message=trim(message)//'have not implemented specific yield within the soil column yet'; return; endif
+     else
+      zWater = zTemp
+      exit
+     endif
+    end do
+
+   endif  ! ** updating the water table depth
+
+
   ! check for convergence and update states
   if(abs(dStorage) < incTol .and. abs(residual) < resTol)then
    scalarAquiferStorage  = aquiferStorageTrial + dStorage
    scalarWaterTableDepth = soilDepth - scalarAquiferStorage/specificYield   ! water table depth at the end of the time step (m)
+   print*, 'baseflowMax, zScale_TOPMODEL = ', baseflowMax, zScale_TOPMODEL
+   write(*,'(a)')            'scalarAquiferStorage, scalarWaterTableDepth, aquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage = '
+   write(*,'(10(e20.10,1x))') scalarAquiferStorage, scalarWaterTableDepth, aquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage
    exit
-  ! update the aquifer storage
+  ! ***** non-convergence -- update the aquifer storage and water table depth
   else
+   ! ** update the aquifer storage (m) 
    aquiferStorageTrial = aquiferStorageTrial + dStorage
-  endif
+   ! ** update the water table depth (m)
+   if(dStorage < 0._dp)then
+    ! water table drops according to specific yield -- same specific yield in all layers
+    zWater = zWater + dStorage/specificYield
+   else
+    ! water table rises according to the fraction of air in the soil -- different for all layers
+    ! (compute fraction of air at the current water table position)
+    if(nUnsat == nSoil)then
+     fracAir = specificYield
+    else
+     fracAir = theta_sat - mLayerVolFracLiqIter(nUnsat+1) - mLayerVolFracIceIter(nUnsat+1)
+    endif
+    ! (get an initial estimate of the water table)
+    zTemp = zWater + dStorage/fracAir
+    ! (check that we did not cross a layer)
+    do iAbsorb=1,maxAbsorb  ! (only absorb a certain number of layers [usually 2])
+     if(zTemp < layerHeight(nUnsat)then
+      err=20; message=trim(message)//'have not implemented specific yield within the soil column yet'; return; endif
+     else
+      zWater = zTemp
+      exit
+     endif
+    end do
+   endif  ! ** updating the water table depth
+  endif  ! ***** non-convergence -- update
   ! check for non-convergence
   if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
  end do  ! (loop through iterations)
