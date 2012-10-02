@@ -102,9 +102,9 @@ contains
 
  ! compute the drainable porosity
  if(nUnsat == nSoil)  ! (below the soil column)
-  dPorosity = specificYield
+  drainablePorosity = specificYield
  else                 ! (within the soil column)
-  dPorosity = theta_sat - mLayerVolFracLiqIter(nUnsat+1) - mLayerVolFracIceIter(nUnsat+1)
+  drainablePorosity = theta_sat - mLayerVolFracLiqIter(nUnsat+1) - mLayerVolFracIceIter(nUnsat+1)
  endif
 
  ! *****
@@ -120,17 +120,80 @@ contains
   ! compute the net flux (m s-1)
   netFlux = scalarAquiferRcharge - aquiferBaseflow
   ! compute the residual in the depth to the water table (-)
-  residual = zWaterTrial - (zWaterInit - dt*netFlux/dPorosity)
+  residual = zWaterTrial - (zWaterInit - dt*netFlux/drainablePorosity)
   ! compute the derivative in the baseflow flux w.r.t. depth to the water table (s-1)
   dBaseflow_dWaterTable = -aquiferBaseflow/zScale_TOPMODEL
   ! compute the iteration increment in the depth to the water table (m)
-  dWaterTable = residual/(-1._dp + dt*dBaseflow_dWaterTable/dPorosity)
+  dWaterTable = residual/(-1._dp + dt*dBaseflow_dWaterTable/drainablePorosity)
 
   ! -----
   ! update water table depth...
   ! ---------------------------
   ! compute a temporary value for testing
   zTemp = zWaterTrial + dWaterTable
+
+  ! -----
+  ! update the aquifer storage...
+  ! -----------------------------
+  if(nUnsat == nSoil .and. zTemp > iLayerHeight(nSoil))then
+   aquiferStorage = aquiferStorage + dWaterTable*drainablePorosity
+
+  ! -----
+  ! update the soil moisture and aquifer storage...
+  ! -----------------------------------------------
+  else
+
+   ! ***** water table rises above the top layer interface...
+   ! ********************************************************
+   if(zTemp < iLayerHeight(nUnsat))then
+    ! (correct change in water table and storage)
+    dWaterTable = zWaterTrial - iLayerHeight(nUnsat)
+    dStorage    = dWaterTable*drainablePorosity
+    zWaterTrial = iLayerHeight(nUnsat)
+    ! (update aquifer storage)
+    if(nUnsat == nSoil)then
+     aquiferStorage = aquiferStorage + dStorage
+     if(abs(aquiferStorage) > epsilon(aquiferStorage))then; err=20; message=trim(message)//'expect aquifer storage to be zero'; return; endif
+    ! (update volumetric liquid water content and matric head)
+    else
+     mLayerVolFracLiqNew(nUnsat+1) = theta_sat
+     checkVolFracLiq = mLayerVolFracLiqIter(nUnsat+1) + dStorage/mLayerDepth(nUnsat+1)
+     if(abs(checkVolFracLiq - theta_sat) > epsilon(checkVolFracLiq))then; err=20; message=trim(message)//'expect net flux to result in layer saturation'; return; endif
+     mLayerMatricHeadNew(nUnsat+1) = matricHead(mLayerVolFracLiqNew(nUnsat+1),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     if(mLayerVolFracIceIter(nUnsat+1) > 0._dp)then; err=20; message=trim(message)//'have not yet addressed situation of the impact of ice'; return; endif
+    endif
+    ! (update the number of unsaturated layers and the drainable porosity)
+    drainablePorosity = theta_sat - mLayerVolFracLiqIter(nUnsat) - mLayerVolFracIceIter(nUnsat)
+    nUnsat = nUnsat - 1
+
+   ! ***** water table falls below the bottom layer interface...
+   ! ***********************************************************
+   elseif(zTemp > iLayerHeight(nUnsat+1))then
+    ! (correct change in water table and storage)
+    dWaterTable = zWaterTrial - iLayerHeight(nUnsat+1)
+    dStorage    = dWaterTable*drainablePorosity
+    zWaterTrial = iLayerHeight(nUnsat+1)
+    ! (update volumetric liquid water content and matric head)
+    mLayerVolFracLiqNew(nUnsat+1) = mLayerVolFracLiqIter(nUnsat+1) + dStorage/mLayerDepth(nUnsat+1)
+
+
+
+
+
+    ! (update aquifer storage)
+    if(zTemp > iLayerHeight(nSoil))then
+     
+
+
+
+
+
+
+
+    zWaterTrial = layerHeight(nUnsat)  ! stop on the layer interface
+     
+
+
 
   ! identify movement of water table across layers
   if    (zTemp  > zMin .and. zTemp < zMax)then; iWaterCross = noCrossing ! water table does not cross a layer
@@ -144,6 +207,7 @@ contains
    ! ***** most common case, where water table does not cross a layer
    case(noCrossing)
     zWaterTrial = zTemp
+
 
    ! ***** case where water table rises into the next layer
    case(iWaterRise)   
