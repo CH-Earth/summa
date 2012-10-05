@@ -593,6 +593,11 @@ contains
                  err,cmessage)           ! output: error control
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
+ ! copy over state variables for soil layers
+ mLayerMatricHeadNew                  = mLayerMatricHeadIter
+ mLayerVolFracLiqNew(nSnow+1:nLayers) = mLayerVolFracLiqIter(nSnow+1:nLayers)
+ mLayerVolFracIceNew(nSnow+1:nLayers) = mLayerVolFracIceIter(nSnow+1:nLayers)
+
  ! compute the aquifer re-charge
  scalarAquiferRcharge = scalarSoilDrainage + scalarSoilEjection
 
@@ -603,22 +608,14 @@ contains
                   ! input
                   dt,                                   &  ! input:  time step (seconds) 
                   scalarAquiferRcharge,                 &  ! input:  aquifer recharge (m s-1)
-                  mLayerMatricHeadIter,                 &  ! input:  matric head (m)
                   mLayerVolFracLiqIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of liquid water after itertations (-)
                   mLayerVolFracIceIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of ice after itertations (-)
                   ! input-output
                   scalarAquiferStorage,                 &  ! input-output: aquifer storage (m)
                   ! output
-                  mLayerMatricHeadNew,                  &  ! output: matric head (m)
-                  mLayerVolFracLiqNew(nSnow+1:nLayers), &  ! output: volumetric fraction of liquid water after itertations (-)
-                  mLayerVolFracIceNew(nSnow+1:nLayers), &  ! output: volumetric fraction of ice after itertations (-)
                   scalarWaterTableDepth,                &  ! output: water table depth at the end of the time step (m)
                   err,cmessage)                            ! output: error control
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
- else
-  mLayerMatricHeadNew                  = mLayerMatricHeadIter
-  mLayerVolFracLiqNew(nSnow+1:nLayers) = mLayerVolFracLiqIter(nSnow+1:nLayers)
-  mLayerVolFracIceNew(nSnow+1:nLayers) = mLayerVolFracIceIter(nSnow+1:nLayers)
  endif
 
  ! ***** compute melt for the case of "snow without a layer"
