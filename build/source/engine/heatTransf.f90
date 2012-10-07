@@ -28,7 +28,11 @@ USE mDecisions_module,only:      &
  energyFlux,                     & ! energy flux
  zeroFlux,                       & ! zero flux
  ! look-up values for choice of boundary conditions for soil hydrology
- prescribedHead                    ! prescribed head
+ prescribedHead,                 & ! prescribed head
+ ! look-up values for the choice of groundwater parameterization
+ movingBoundary,                 & ! moving lower boundary
+ bigBucket,                      & ! a big bucket (lumped aquifer model)
+ noExplicit                        ! no explicit groundwater parameterization
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -100,81 +104,90 @@ contains
  !  2) "protect" variables through the use of the intent attribute
  call heatTransf_muster(&
                         ! input variables from heatTransf routine
-                        dt,                                                   & ! intent(in): time step (seconds)
-                        iter,                                                 & ! intent(in): current iteration count
-                        mLayerTempIter,                                       & ! intent(in): trial temperature at the current iteration (K)
-                        mLayerVolFracIceIter,                                 & ! intent(in): volumetric fraction of ice at the current iteration (-)
-                        mLayerVolFracLiqIter,                                 & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
-                        mLayerMatricHeadIter,                                 & ! intent(in): matric head at the current iteration (m)
-                        mLayerTempDiffOld,                                    & ! intent(in): iteration increment for temperature at the last iteration (K)
+                        dt,                                                    & ! intent(in): time step (seconds)
+                        iter,                                                  & ! intent(in): current iteration count
+                        mLayerTempIter,                                        & ! intent(in): trial temperature at the current iteration (K)
+                        mLayerVolFracIceIter,                                  & ! intent(in): volumetric fraction of ice at the current iteration (-)
+                        mLayerVolFracLiqIter,                                  & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
+                        mLayerMatricHeadIter,                                  & ! intent(in): matric head at the current iteration (m)
+                        mLayerTempDiffOld,                                     & ! intent(in): iteration increment for temperature at the last iteration (K)
                         ! model decisions
-                        model_decisions(iLookDECISIONS%num_method)%iDecision, & ! intent(in): choice of numerical method
-                        model_decisions(iLookDECISIONS%fDerivMeth)%iDecision, & ! intent(in): method used to calculate flux derivatives
-                        model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in): type of upper boundary condition for thermodynamics
-                        model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in): type of lower boundary condition for thermodynamics
-                        model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision, & ! intent(in): type of upper boundary condition for soil hydrology
+                        model_decisions(iLookDECISIONS%num_method)%iDecision,  & ! intent(in): choice of numerical method
+                        model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,  & ! intent(in): method used to calculate flux derivatives
+                        model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,  & ! intent(in): type of upper boundary condition for thermodynamics
+                        model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision,  & ! intent(in): type of lower boundary condition for thermodynamics
+                        model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,  & ! intent(in): type of upper boundary condition for soil hydrology
+                        model_decisions(iLookDECISIONS%groundwatr)%iDecision,  & ! intent(in): groundwater parameterization
                         ! index variables
-                        indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in): number of layers
-                        indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in): layer type (ix_soil or ix_snow)
+                        indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! intent(in): number of layers
+                        indx_data%var(iLookINDEX%layerType)%dat,               & ! intent(in): layer type (ix_soil or ix_snow)
                         ! general model parameters
-                        mpar_data%var(iLookPARAM%mheight),                    & ! intent(in): measurement height (m)
-                        mpar_data%var(iLookPARAM%wimplicit),                  & ! intent(in): weight assigned to start-of-step fluxes (-)
-                        mpar_data%var(iLookPARAM%snowfrz_scale),              & ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                        mpar_data%var(iLookPARAM%lowerBoundTemp),             & ! intent(in): temperature of the lower boundary (K)
+                        mpar_data%var(iLookPARAM%mheight),                     & ! intent(in): measurement height (m)
+                        mpar_data%var(iLookPARAM%wimplicit),                   & ! intent(in): weight assigned to start-of-step fluxes (-)
+                        mpar_data%var(iLookPARAM%snowfrz_scale),               & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                        mpar_data%var(iLookPARAM%lowerBoundTemp),              & ! intent(in): temperature of the lower boundary (K)
                         ! soil parameters
-                        mpar_data%var(iLookPARAM%vGn_alpha),                  & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                        mpar_data%var(iLookPARAM%vGn_n),                      & ! intent(in): van Genutchen "n" parameter (-)
-                        mpar_data%var(iLookPARAM%theta_sat),                  & ! intent(in): soil porosity (-)
-                        mpar_data%var(iLookPARAM%theta_res),                  & ! intent(in): soil residual volumetric water content (-)
+                        mpar_data%var(iLookPARAM%vGn_alpha),                   & ! intent(in): van Genutchen "alpha" parameter (m-1)
+                        mpar_data%var(iLookPARAM%vGn_n),                       & ! intent(in): van Genutchen "n" parameter (-)
+                        mpar_data%var(iLookPARAM%theta_sat),                   & ! intent(in): soil porosity (-)
+                        mpar_data%var(iLookPARAM%theta_res),                   & ! intent(in): soil residual volumetric water content (-)
                         ! vegetation parameters
-                        mpar_data%var(iLookPARAM%LAI),                        & ! intent(in): leaf area index (m2 m-2)
-                        mpar_data%var(iLookPARAM%minStomatalResist),          & ! intent(in): minimum stomatal resistance (s m-1)
-                        mpar_data%var(iLookPARAM%plantWiltPsi),               & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
-                        mpar_data%var(iLookPARAM%plantWiltExp),               & ! intent(in): empirical exponent in plant wilting factor expression (-)
+                        mpar_data%var(iLookPARAM%LAI),                         & ! intent(in): leaf area index (m2 m-2)
+                        mpar_data%var(iLookPARAM%minStomatalResist),           & ! intent(in): minimum stomatal resistance (s m-1)
+                        mpar_data%var(iLookPARAM%maxStomatalResist),           & ! intent(in): maximum stomatal resistance (s m-1)
+                        mpar_data%var(iLookPARAM%plantWiltPsi),                & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
+                        mpar_data%var(iLookPARAM%plantWiltExp),                & ! intent(in): empirical exponent in plant wilting factor expression (-)
+                        mpar_data%var(iLookPARAM%rootingDepth),                & ! intent(in): maximum rooting depth (m)
+                        mpar_data%var(iLookPARAM%rootDistExp),                 & ! intent(in): empirical exponent in the vertical distribution of root density (-)
                         ! model variables that are constant over the simulation period
-                        mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1),          & ! intent(in): van Genutchen "m" parameter (-)
-                        mvar_data%var(iLookMVAR%mLayerRootDensity)%dat,       & ! intent(in): fraction of roots in each soil layer (-)
+                        mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1),           & ! intent(in): van Genutchen "m" parameter (-)
+                        mvar_data%var(iLookMVAR%mLayerRootDensity)%dat,        & ! intent(in): fraction of roots in each soil layer (-)
+                        mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1), & ! intent(in): fraction of roots below the soil profile (-)
                         ! model forcing variables
-                        forc_data%var(iLookFORCE%sw_down),                    & ! intent(in): downward shortwave radiation (W m-2)
-                        forc_data%var(iLookFORCE%lw_down),                    & ! intent(in): downward longwave radiation (W m-2)
-                        forc_data%var(iLookFORCE%airtemp),                    & ! intent(in): air temperature at 2 meter height (K)
-                        forc_data%var(iLookFORCE%windspd),                    & ! intent(in): wind speed at 10 meter height (m s-1)
-                        forc_data%var(iLookFORCE%airpres),                    & ! intent(in): air pressure at 2 meter height (Pa)
-                        forc_data%var(iLookFORCE%spechum),                    & ! intent(in): specific humidity at 2 meter height (g g-1)
+                        forc_data%var(iLookFORCE%sw_down),                     & ! intent(in): downward shortwave radiation (W m-2)
+                        forc_data%var(iLookFORCE%lw_down),                     & ! intent(in): downward longwave radiation (W m-2)
+                        forc_data%var(iLookFORCE%airtemp),                     & ! intent(in): air temperature at 2 meter height (K)
+                        forc_data%var(iLookFORCE%windspd),                     & ! intent(in): wind speed at 10 meter height (m s-1)
+                        forc_data%var(iLookFORCE%airpres),                     & ! intent(in): air pressure at 2 meter height (Pa)
+                        forc_data%var(iLookFORCE%spechum),                     & ! intent(in): specific humidity at 2 meter height (g g-1)
                         ! model state variables
-                        mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1),         & ! intent(in): surface albedo (-)
-                        mvar_data%var(iLookMVAR%mLayerTemp)%dat,              & ! intent(in): temperature of each layer (K)
-                        mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,        & ! intent(in): volumetric fraction of ice in each layer (-)
-                        mvar_data%var(iLookMVAR%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
+                        mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1),          & ! intent(in): surface albedo (-)
+                        mvar_data%var(iLookMVAR%mLayerTemp)%dat,               & ! intent(in): temperature of each layer (K)
+                        mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,         & ! intent(in): volumetric fraction of ice in each layer (-)
+                        mvar_data%var(iLookMVAR%scalarWaterTableDepth)%dat(1), & ! intent(in): water table depth (m), used to compute soil stress for transpiration
+                        ! model cooordinate variables (input)
+                        mvar_data%var(iLookMVAR%mLayerDepth)%dat,              & ! intent(in): depth of each layer (m)
+                        mvar_data%var(iLookMVAR%mLayerHeight)%dat,             & ! intent(in): height at the mid-point of each layer (m)
+                        mvar_data%var(iLookMVAR%iLayerHeight)%dat,             & ! intent(in): height at the interface of each layer (m)
                         ! model diagnostic variables (input)
-                        mvar_data%var(iLookMVAR%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
-                        mvar_data%var(iLookMVAR%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
-                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,      & ! intent(in): bulk volumetric heat capacity (J m-3 K-1)
-                        mvar_data%var(iLookMVAR%mLayerTcrit)%dat,             & ! intent(in): critical soil temperature above which all water is unfrozen (K)
+                        mvar_data%var(iLookMVAR%iLayerThermalC)%dat,           & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
+                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,       & ! intent(in): bulk volumetric heat capacity (J m-3 K-1)
+                        mvar_data%var(iLookMVAR%mLayerTcrit)%dat,              & ! intent(in): critical soil temperature above which all water is unfrozen (K)
                         ! model diagnostic variables (output)
-                        mvar_data%var(iLookMVAR%mLayerdTheta_dTk)%dat,        & ! intent(out): derivative in the freezing curve (K-1)
-                        mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat,      & ! intent(out): soil moist & veg limit on transpiration for each layer (-) 
-                        mvar_data%var(iLookMVAR%mLayerInitTranspire)%dat,     & ! intent(out): transpiration loss from each soil layer at the start of the step (m s-1)
-                        mvar_data%var(iLookMVAR%mLayerTranspire)%dat,         & ! intent(out): transpiration loss from each soil layer (m s-1)
-                        mvar_data%var(iLookMVAR%iLayerInitNrgFlux)%dat,       & ! intent(out): energy flux at layer interfaces at the start of the time step (W m-2)
-                        mvar_data%var(iLookMVAR%iLayerNrgFlux)%dat,           & ! intent(out): energy flux at layer interfaces at the end of the time step (W m-2)
+                        mvar_data%var(iLookMVAR%mLayerdTheta_dTk)%dat,         & ! intent(out): derivative in the freezing curve (K-1)
+                        mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat,       & ! intent(out): soil moist & veg limit on transpiration for each layer (-) 
+                        mvar_data%var(iLookMVAR%mLayerInitTranspire)%dat,      & ! intent(out): transpiration loss from each soil layer at the start of the step (m s-1)
+                        mvar_data%var(iLookMVAR%mLayerTranspire)%dat,          & ! intent(out): transpiration loss from each soil layer (m s-1)
+                        mvar_data%var(iLookMVAR%iLayerInitNrgFlux)%dat,        & ! intent(out): energy flux at layer interfaces at the start of the time step (W m-2)
+                        mvar_data%var(iLookMVAR%iLayerNrgFlux)%dat,            & ! intent(out): energy flux at layer interfaces at the end of the time step (W m-2)
                         ! diagnostic scalar variables (output)
-                        mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),   & ! intent(out): aggregate soil moist & veg limit on transpiration, weighted by root density (-)
-                        mvar_data%var(iLookMVAR%scalarPotentialET)%dat(1),    & ! intent(out): potential ET (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarMassLiquid)%dat(1),     & ! intent(out): transpiration (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarMassSolid)%dat(1),      & ! intent(out): sublimation/frost (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarSenHeat)%dat(1),        & ! intent(out): sensible heat flux at the surface (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLatHeat)%dat(1),        & ! intent(out): latent heat flux at the surface (W m-2)
-                        mvar_data%var(iLookMVAR%scalarExCoef)%dat(1),         & ! intent(out): turbulent exchange coefficient (-)
-                        mvar_data%var(iLookMVAR%scalarExSen)%dat(1),          & ! intent(out): exchange factor for sensible heat (J m-2 s-1 K-1)
-                        mvar_data%var(iLookMVAR%scalarExLat)%dat(1),          & ! intent(out): exchange factor for latent heat (J m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),    & ! intent(out): aggregate soil moist & veg limit on transpiration, weighted by root density (-)
+                        mvar_data%var(iLookMVAR%scalarTranspireLimAqfr)%dat(1),& ! intent(out): soil moist & veg limit on transpiration in the aquifer (-)
+                        mvar_data%var(iLookMVAR%scalarPotentialET)%dat(1),     & ! intent(out): potential ET (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarMassLiquid)%dat(1),      & ! intent(out): transpiration (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarMassSolid)%dat(1),       & ! intent(out): sublimation/frost (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarSenHeat)%dat(1),         & ! intent(out): sensible heat flux at the surface (W m-2)
+                        mvar_data%var(iLookMVAR%scalarLatHeat)%dat(1),         & ! intent(out): latent heat flux at the surface (W m-2)
+                        mvar_data%var(iLookMVAR%scalarExCoef)%dat(1),          & ! intent(out): turbulent exchange coefficient (-)
+                        mvar_data%var(iLookMVAR%scalarExSen)%dat(1),           & ! intent(out): exchange factor for sensible heat (J m-2 s-1 K-1)
+                        mvar_data%var(iLookMVAR%scalarExLat)%dat(1),           & ! intent(out): exchange factor for latent heat (J m-2 s-1)
                         ! output variables from heatTransf subroutine
-                        mLayerTempDiff,                                       & ! intent(out): iteration increment for temperature (K)
-                        mLayerTempNew,                                        & ! intent(out): new temperature (K)
-                        mLayerVolFracIceNew,                                  & ! intent(out): new volumetric fraction of ice (-)
-                        mLayerVolFracLiqNew,                                  & ! intent(out): new volumetric fraction of liquid water (-)
-                        mLayerMatricHeadNew,                                  & ! intent(out): new matric head (m)
-                        err,cmessage)                                           ! intent(out): error control
+                        mLayerTempDiff,                                        & ! intent(out): iteration increment for temperature (K)
+                        mLayerTempNew,                                         & ! intent(out): new temperature (K)
+                        mLayerVolFracIceNew,                                   & ! intent(out): new volumetric fraction of ice (-)
+                        mLayerVolFracLiqNew,                                   & ! intent(out): new volumetric fraction of liquid water (-)
+                        mLayerMatricHeadNew,                                   & ! intent(out): new matric head (m)
+                        err,cmessage)                                            ! intent(out): error control
  ! check for errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -209,6 +222,7 @@ contains
                               bcUpprTdyn,                 & ! intent(in): type of upper boundary condition for thermodynamics
                               bcLowrTdyn,                 & ! intent(in): type of lower boundary condition for thermodynamics
                               bcUpprSoiH,                 & ! intent(in): type of upper boundary condition for soil hydrology
+                              ixGroundwater,              & ! intent(in): choice of groundwater parameterization
                               ! index variables
                               nLayers,                    & ! intent(in): number of layers
                               layerType,                  & ! intent(in): layer type (ix_soil or ix_snow)
@@ -225,11 +239,15 @@ contains
                               ! vegetation parameters
                               LAI,                        & ! intent(in): leaf area index (m2 m-2)
                               minStomatalResist,          & ! intent(in): minimum stomatal resistance (s m-1)
+                              maxStomatalResist,          & ! intent(in): maximum stomatal resistance (s m-1)
                               plantWiltPsi,               & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
                               plantWiltExp,               & ! intent(in): empirical exponent in plant wilting factor expression (-)
+                              rootingDepth,               & ! intent(in): maximum rooting depth (m)
+                              rootDistExp,                & ! intent(in): empirical exponent in the vertical distribution of root density (-)
                               ! model variables that are constant over the simulation period
                               vGn_m,                      & ! intent(in): van Genutchen "m" parameter (-)
                               mLayerRootDensity,          & ! intent(in): fraction of roots in each soil layer (-)
+                              scalarAquiferRootFrac,      & ! intent(in): fraction of roots below the soil profile (-)
                               ! model forcing variables
                               sw_down,                    & ! intent(in): downward shortwave radiation (W m-2)
                               lw_down,                    & ! intent(in): downward longwave radiation (W m-2)
@@ -241,9 +259,12 @@ contains
                               scalarAlbedo,               & ! intent(in): surface albedo (-)
                               mLayerTemp,                 & ! intent(in): temperature of each layer (K)
                               mLayerVolFracIce,           & ! intent(in): volumetric fraction of ice in each layer (-)
+                              scalarWaterTableDepth,      & ! intent(in): water table depth (m), used to compute soil stress for transpiration
+                              ! model cooordinate variables (input)
                               mLayerDepth,                & ! intent(in): depth of each layer (m)
-                              ! model diagnostic variables (input)
                               mLayerHeight,               & ! intent(in): height at the mid-point of each layer (m)
+                              iLayerHeight,               & ! intent(in): height at the interface of each layer (m)
+                              ! model diagnostic variables (input)
                               iLayerThermalC,             & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
                               mLayerVolHtCapBulk,         & ! intent(in): bulk volumetric heat capacity (J m-3 K-1)
                               mLayerTcrit,                & ! intent(in): critical soil temperature above which all water is unfrozen (K)
@@ -256,6 +277,7 @@ contains
                               iLayerNrgFlux,              & ! intent(out): energy flux at layer interfaces at the end of the time step (W m-2)
                               ! diagnostic scalar variables (output)
                               scalarTranspireLim,         & ! intent(out): aggregate soil moist & veg limit on transpiration, weighted by root density (-)
+                              scalarTranspireLimAqfr,     & ! intent(out): soil moist & veg limit on transpiration in the aquifer (-)
                               scalarPotentialET,          & ! intent(out): potential ET (kg m-2 s-1)
                               scalarMassLiquid,           & ! intent(out): transpiration (kg m-2 s-1)
                               scalarMassSolid,            & ! intent(out): sublimation/frost (kg m-2 s-1)
@@ -292,6 +314,7 @@ contains
  integer(i4b),intent(in)        :: bcUpprTdyn               ! type of upper boundary condition for thermodynamics
  integer(i4b),intent(in)        :: bcLowrTdyn               ! type of lower boundary condition for thermodynamics
  integer(i4b),intent(in)        :: bcUpprSoiH               ! type of upper boundary condition for soil hydrology
+ integer(i4b),intent(in)        :: ixGroundwater            ! choice of groundwater parameterization
  ! model index variables
  integer(i4b),intent(in)        :: nLayers                  ! number of layers
  integer(i4b),intent(in)        :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
@@ -308,11 +331,15 @@ contains
  ! vegetation parameters
  real(dp),intent(in)            :: LAI                      ! leaf area index (m2 m-2)
  real(dp),intent(in)            :: minStomatalResist        ! minimum stomatal resistance (s m-1)
+ real(dp),intent(in)            :: maxStomatalResist        ! maximum stomatal resistance (s m-1)
  real(dp),intent(in)            :: plantWiltPsi             ! critical matric head when stomatal resitance 2 x min (m)
  real(dp),intent(in)            :: plantWiltExp             ! empirical exponent in plant wilting factor expression (-)
+ real(dp),intent(in)            :: rootingDepth             ! maximum rooting depth (m)
+ real(dp),intent(in)            :: rootDistExp              ! empirical exponent in the vertical distribution of root density (-)
  ! derived model variables that are constant over the simulation period
  real(dp),intent(in)            :: vGn_m                    ! van Genutchen "m" parameter (-)
  real(dp),intent(in)            :: mLayerRootDensity(:)     ! fraction of roots in each soil layer (-)
+ real(dp),intent(in)            :: scalarAquiferRootFrac    ! fraction of roots below the soil profile (-)
  ! model forcing data
  real(dp),intent(in)            :: sw_down                  ! downward shortwave radiation (W m-2)
  real(dp),intent(in)            :: lw_down                  ! downward longwave radiation (W m-2)
@@ -324,9 +351,12 @@ contains
  real(dp),intent(in)            :: scalarAlbedo             ! surface albedo (-)
  real(dp),intent(in)            :: mLayerTemp(:)            ! temperature of each layer (K)
  real(dp),intent(in)            :: mLayerVolFracIce(:)      ! volumetric fraction of ice in each layer (-)
+ real(dp),intent(in)            :: scalarWaterTableDepth    ! water table depth (m), used to compute soil stress for transpiration
+ ! model coordinate variables (intent in)
  real(dp),intent(in)            :: mLayerDepth(:)           ! depth of each layer (m)
- ! model diagnostic variables (intent in)
  real(dp),intent(in)            :: mLayerHeight(:)          ! height at the mid-point of each layer (m)
+ real(dp),intent(in)            :: iLayerHeight(0:)         ! height at the interface of each layer (m)
+ ! model diagnostic variables (intent in)
  real(dp),intent(in)            :: mLayerVolHtCapBulk(:)    ! bulk volumetric heat capacity (J m-3 K-1)
  real(dp),intent(in)            :: iLayerThermalC(0:)       ! thermal conductivity at the interface of each layer (W m-1 K-1)
  real(dp),intent(in)            :: mLayerTcrit(:)           ! critical soil temperature above which all water is unfrozen (K)
@@ -339,6 +369,7 @@ contains
  real(dp),intent(out)           :: iLayerNrgFlux(0:)        ! energy flux at layer interfaces at the end of the time step (W m-2)
  ! diagnostic scalar variables
  real(dp),intent(out)           :: scalarTranspireLim       ! aggregate soil moist & veg limit on transpiration, weighted by root density (-)
+ real(dp),intent(out)           :: scalarTranspireLimAqfr   ! soil moist & veg limit on transpiration in the aquifer (-)
  real(dp),intent(out)           :: scalarPotentialET        ! potential ET (kg m-2 s-1)
  real(dp),intent(out)           :: scalarMassLiquid         ! evaporation/dew (kg m-2 s-1)
  real(dp),intent(out)           :: scalarMassSolid          ! sublimation/frost (kg m-2 s-1)
@@ -367,6 +398,8 @@ contains
  real(dp)                       :: critDiff                 ! temperature difference from critical temperature (K)
  real(dp)                       :: maxdiffTemp(1)           ! maximum difference between temperature input and start-of-step temperature (K)
  real(dp),parameter             :: epsT=1.d-10              ! offset from Tcrit when re-setting iterations at the critical temperature (K)
+ real(dp),dimension(size(mLayerMatricHeadIter)) :: effectiveMatricHead ! the "effective" matric head, to account for the depth to the water table
+ integer(i4b)                   :: nUnsat                   ! number of unsaturated layers
  ! define the local variables for the solution
  real(dp)                       :: totalSurfaceFlux         ! total surface flux (W m-2)
  real(dp)                       :: dTotalSurfaceFlux_dTemp  ! derivative in total surface flux w.r.t. temperature (W m-2 K-1)
@@ -404,10 +437,18 @@ contains
   err=20; message=trim(message)//'option "iterSurfEnergyBal" not implemented yet';return
  endif
 
+ ! compute the "effective" matric head, to account for the depth to the water table
+ effectiveMatricHead = mLayerMatricHeadIter
+ if(ixGroundwater == movingBoundary)then ! (choice of gw parameterization is moving lower boundary)
+  nUnsat = count(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth)
+  if(nUnsat < nSoil) effectiveMatricHead(nUnsat+1:nSoil) = 0._dp
+ endif
+
  ! ***** compute fluxes at the surface
  call surfaceFlx(&
                  ! (model control variables)
                  fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
+                 ixGroundwater,           & ! intent(in): choice of groundwater representation
                  ! (model forcing variables)
                  airtemp,                 & ! intent(in): air temperature (K)
                  spechum,                 & ! intent(in): specific humidity (g g-1)
@@ -418,18 +459,24 @@ contains
                  ! (model parameters)
                  mheight,                 & ! intent(in): measurement height (m)
                  mLayerRootDensity,       & ! intent(in): root density in each layer (-)
+                 scalarAquiferRootFrac,   & ! intent(in): fraction of roots below the soil profile (-)
+                 rootingDepth,            & ! intent(in): maximum rooting depth (m)
+                 rootDistExp,             & ! intent(in): empirical exponent in root density distribution (-)
                  plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
                  plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
                  minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
+                 maxStomatalResist,       & ! intent(in): maximum stomatal resistance (s m-1)
                  LAI,                     & ! intent(in): leaf area index (m2 m-2)
                  ! (model state variables)
                  scalarAlbedo,            & ! intent(in): surface albedo (-)
-                 mLayerTempIter(1),       & ! intent(in): trial surface temperature at the current iteration (K)
-                 mLayerMatricHeadIter,    & ! intent(in): trial matric head in all layers at the current iteration (m)
+                 mLayerTempIter(1),       & ! intent(in): surface temperature (K)
+                 effectiveMatricHead,     & ! intent(in): matric head at the current iteration (m)
+                 scalarWaterTableDepth,   & ! intent(in): depth of the water table (m)
                  ! (diagnostic variables)
                  scalarExCoef,            & ! intent(out): surface-atmosphere exchange coeffcient (-)
                  scalarTranspireLim,      & ! intent(out): resistance to evaporation at the surface (-)
                  mLayerTranspireLim,      & ! intent(out): resistance to evaporation in each layer (-)
+                 scalarTranspireLimAqfr,  & ! intent(out): resistance to evaporation for the aquifer (-)
                  scalarExSen,             & ! intent(out): exchange factor for sensible heat (W m-2 K-1)
                  scalarExLat,             & ! intent(out): exchange factor for latent heat (W m-2)
                  scalarSenHeat,           & ! intent(out): sensible heat flux at the surface (W m-2)
@@ -596,6 +643,7 @@ contains
               ! (model control variables)
               dt,                      & ! intent(in): time step (seconds)
               fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
+              ixGroundwater,           & ! intent(in): choice of groundwater representation
               ! (model forcing variables)
               airtemp,                 & ! intent(in): air temperature (K)
               spechum,                 & ! intent(in): specific humidity (g g-1)
@@ -607,9 +655,13 @@ contains
               ! (model parameters)
               mheight,                 & ! intent(in): measurement height (m)
               mLayerRootDensity,       & ! intent(in): root density in each layer (-)
+              scalarAquiferRootFrac,   & ! intent(in): fraction of roots below the soil profile (-)
+              rootingDepth,            & ! intent(in): maximum rooting depth (m)
+              rootDistExp,             & ! intent(in): empirical exponent in root density distribution (-)
               plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
               plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
               minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
+              maxStomatalResist,       & ! intent(in): maximum stomatal resistance (s m-1)
               LAI,                     & ! intent(in): leaf area index (m2 m-2)
               wimplicit,               & ! intent(in): weight assigned to start-of-step values (-)
               ! (coordinate variables)
@@ -623,6 +675,7 @@ contains
               scalarAlbedo,            & ! intent(in): surface albedo (-)
               mLayerTemp,              & ! intent(in): temperature in all layers (K)
               mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in all layers (-)
+              scalarWaterTableDepth,         & ! intent(in): depth of the water table (m)
               ! (trial state variables)
               mLayerTempIter,          & ! intent(in): trial temperature vector (K)
               mLayerMatricHeadIter,    & ! intent(in): matric head at the current iteration (m)
@@ -656,9 +709,10 @@ contains
  end do ! (looping through layers)
 
  ! ***** compute un-stressed ET (kg m-2 s-1)
+ ! NOTE: shouldn't this be a weighted combination of start-of-step and end-of-step values????????
  scalarPotentialET = iden_air * windspd * scalarExCoef * (spechum - relhm2sphm(RHsurf,airpres,mLayerTempNew(1)))
 
- ! ***** compute transpiration (m s-1)
+ ! ***** compute transpiration (m s-1)  -- NOTE: this includes transpiration from the aquifer (this is OK)
  if(fTranspire)then
   ! ** compute actual transpiration from each soil layer (m s-1)
   mLayerTranspire(1:nSoil) =  (mLayerTranspireLim(1:nSoil)*mLayerRootDensity(1:nSoil)*scalarPotentialET)/iden_water
@@ -690,6 +744,7 @@ contains
  subroutine surfaceFlx(&
                        ! (model control variables)
                        fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
+                       ixGroundwater,           & ! intent(in): choice of groundwater representation
                        ! (model forcing variables)
                        airtemp,                 & ! intent(in): air temperature (K)
                        spechum,                 & ! intent(in): specific humidity (g g-1)
@@ -700,18 +755,24 @@ contains
                        ! (model parameters)
                        mheight,                 & ! intent(in): measurement height (m)
                        mLayerRootDensity,       & ! intent(in): root density in each layer (-)
+                       scalarAquiferRootFrac,   & ! intent(in): fraction of roots below the soil profile (-)
+                       rootingDepth,            & ! intent(in): maximum rooting depth (m)
+                       rootDistExp,             & ! intent(in): empirical exponent in root density distribution (-)
                        plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
                        plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
                        minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
+                       maxStomatalResist,       & ! intent(in): maximum stomatal resistance (s m-1)
                        LAI,                     & ! intent(in): leaf area index (m2 m-2)
                        ! (model state variables)
                        scalarAlbedo,            & ! intent(in): surface albedo (-)
                        surfaceTempInput,        & ! intent(in): surface temperature (K)
                        mLayerMatricHeadTrial,   & ! intent(in): matric head at the current iteration (m)
+                       scalarWaterTableDepth,   & ! intent(in): depth of the water table (m)
                        ! (diagnostic variables)
                        scalarExCoef,            & ! intent(out): surface-atmosphere exchange coeffcient (-)
                        scalarTranspireLim,      & ! intent(out): resistance to evaporation at the surface (-)
                        mLayerTranspireLim,      & ! intent(out): resistance to evaporation in each layer (-)
+                       aquiferTranspireLim,     & ! intent(out): resistance to evaporation for the aquifer (-)
                        scalarExSen,             & ! intent(out): exchange factor for sensible heat (W m-2 K-1)
                        scalarExLat,             & ! intent(out): exchange factor for latent heat (W m-2)
                        scalarSenHeat,           & ! intent(out): sensible heat flux at the surface (W m-2)
@@ -723,7 +784,8 @@ contains
  USE conv_funcs_module,only:relhm2sphm            ! compute specific humidity
  implicit none
  ! input (control)
- integer(i4b),intent(in)       :: fDerivMeth               ! intent(in): method used to calculate derivatives
+ integer(i4b),intent(in)       :: fDerivMeth               ! method used to calculate derivatives
+ integer(i4b),intent(in)       :: ixGroundwater            ! choice of groundwater representation
  ! input (forcing)
  real(dp),intent(in)           :: airtemp                  ! air temperature (K)
  real(dp),intent(in)           :: spechum                  ! specific humidity (g g-1)
@@ -733,19 +795,25 @@ contains
  real(dp),intent(in)           :: lw_down                  ! downwelling long wave radiation (W m-2)   
  ! input (parameters)
  real(dp),intent(in)           :: mheight                  ! measurement height (m)
- real(dp),intent(in)           :: mLayerRootDensity(:)     ! intent(in): root density in each layer (-)
- real(dp),intent(in)           :: plantWiltPsi             ! intent(in): critical matric head when stomatal resitance 2 x min (m)
- real(dp),intent(in)           :: plantWiltExp             ! intent(in): empirical exponent in plant wilting factor expression (-)
- real(dp),intent(in)           :: minStomatalResist        ! intent(in): minimum stomatal resistance (s m-1)
- real(dp),intent(in)           :: LAI                      ! intent(in): leaf area index (m2 m-2)
+ real(dp),intent(in)           :: mLayerRootDensity(:)     ! root density in each layer (-)
+ real(dp),intent(in)           :: scalarAquiferRootFrac    ! fraction of roots below the soil profile (-)
+ real(dp),intent(in)           :: rootingDepth             ! maximum rooting depth (m)
+ real(dp),intent(in)           :: rootDistExp              ! empirical exponent in root density distribution (-)
+ real(dp),intent(in)           :: plantWiltPsi             ! critical matric head when stomatal resitance 2 x min (m)
+ real(dp),intent(in)           :: plantWiltExp             ! empirical exponent in plant wilting factor expression (-)
+ real(dp),intent(in)           :: minStomatalResist        ! minimum stomatal resistance (s m-1)
+ real(dp),intent(in)           :: maxStomatalResist        ! maximum stomatal resistance (s m-1)
+ real(dp),intent(in)           :: LAI                      ! leaf area index (m2 m-2)
  ! input (state variables)
  real(dp),intent(in)           :: scalarAlbedo             ! surface albedo (-)
  real(dp),intent(in)           :: surfaceTempInput         ! input surface temperature (K)
  real(dp),intent(in)           :: mLayerMatricHeadTrial(:) ! matric head at the current iteration (m)
+ real(dp),intent(in)           :: scalarWaterTableDepth    ! depth of the water table (m)
  ! output
  real(dp),intent(out)          :: scalarExCoef             ! surface-atmosphere exchange coeffcient (-)
  real(dp),intent(out)          :: scalarTranspireLim       ! resistance to evaporation at the surface (-)
  real(dp),intent(out)          :: mLayerTranspireLim(:)    ! resistance to evaporation in each soil layer (-)
+ real(dp),intent(out)          :: aquiferTranspireLim      ! resistance to evaporation for the aquifer (-)
  real(dp),intent(out)          :: scalarExSen              ! exchange factor for sensible heat (W m-2 K-1)
  real(dp),intent(out)          :: scalarExLat              ! exchange factor for latent heat (W m-2)
  real(dp),intent(out)          :: scalarSenHeat            ! sensible heat flux at the surface (W m-2)
@@ -800,16 +868,28 @@ contains
   aerodynResist = 1._dp / (scalarExCoef*windspd)
 
   ! compute the ratio of actual:potential evapotranspiration
-  call evapResist(aerodynResist,           & ! intent(in): aerodynamic resistance (s m-1)
-                  mLayerMatricHeadTrial,   & ! intent(in): trial matric head in each layer (m)
-                  mLayerRootDensity,       & ! intent(in): root density in each layer (-)
-                  plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
-                  plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
-                  minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
-                  LAI,                     & ! intent(in): leaf area index (m2 m-2)
-                  scalarTranspireLim,      & ! intent(out): resistance to evaporation at the surface (-)
-                  mLayerTranspireLim,      & ! intent(out): resistance to evaporation in each layer (-)
-                  err,cmessage)              ! intent(out): error control
+  call evapResist(&
+                  ! input (model decisions)
+                  ixGroundwater,        & ! intent(in): choice of groundwater representation
+                  ! input (variables)
+                  aerodynResist,        &  ! intent(in): aerodynamic resistance (s m-1)
+                  mLayerMatricHeadTrial,&  ! intent(in): matric head in each layer (m)
+                  scalarWaterTableDepth,&  ! intent(in): depth of the water table (m)
+                  mLayerRootDensity,    &  ! intent(in): root density in each layer (-)
+                  scalarAquiferRootFrac,&  ! intent(in): fraction of roots below the soil profile (-)
+                  ! input (parameters)
+                  rootingDepth,         &  ! intent(in): maximum rooting depth (m)
+                  rootDistExp,          &  ! intent(in): empirical exponent in root density distribution (-)
+                  plantWiltPsi,         &  ! intent(in): critical matric head when stomatal resitance 2 x min (m)
+                  plantWiltExp,         &  ! intent(in): empirical exponent in plant wilting factor expression (-)
+                  minStomatalResist,    &  ! intent(in): minimum stomatal resistance (s m-1)
+                  maxStomatalResist,    &  ! intent(in): maximum stomatal resistance (s m-1)
+                  LAI,                  &  ! intent(in): leaf area index (m2 m-2)
+                  ! output
+                  scalarTranspireLim,   & ! intent(out): resistance to evaporation at the surface (-)
+                  mLayerTranspireLim,   & ! intent(out): resistance to evaporation in each layer (-)
+                  aquiferTranspireLim,  & ! intent(out): resistance to evaporation for the aquifer (-)
+                  err,cmessage)           ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! ***** compute the surface energy flux
@@ -967,6 +1047,7 @@ contains
                        ! (model control variables)
                        dt,                      & ! intent(in): time step (seconds)
                        fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
+                       ixGroundwater,           & ! intent(in): choice of groundwater representation
                        ! (model forcing variables)
                        airtemp,                 & ! intent(in): air temperature (K)
                        spechum,                 & ! intent(in): specific humidity (g g-1)
@@ -978,9 +1059,13 @@ contains
                        ! (model parameters)
                        mheight,                 & ! intent(in): measurement height (m)
                        mLayerRootDensity,       & ! intent(in): root density in each layer (-)
+                       scalarAquiferRootFrac,   & ! intent(in): fraction of roots below the soil profile (-)
+                       rootingDepth,            & ! intent(in): maximum rooting depth (m)
+                       rootDistExp,             & ! intent(in): empirical exponent in root density distribution (-)
                        plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
                        plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
                        minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
+                       maxStomatalResist,       & ! intent(in): maximum stomatal resistance (s m-1)
                        LAI,                     & ! intent(in): leaf area index (m2 m-2)
                        wimplicit,               & ! intent(in): weight assigned to start-of-step values (-)
                        ! (coordinate variables)
@@ -994,6 +1079,7 @@ contains
                        scalarAlbedo,            & ! intent(in): surface albedo (-)
                        mLayerTemp,              & ! intent(in): temperature in all layers (K)
                        mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in all layers (-)
+                       scalarWaterTableDepth,   & ! intent(in): depth of the water table (m)
                        ! (trial state variables)
                        mLayerTempTrial,         & ! intent(in): trial temperature in all layers at the current iteration (K)
                        mLayerVolFracIceTrial,   & ! intent(in): trial volumetric fraction of ice in all layers at the current iteration (-)
@@ -1006,6 +1092,7 @@ contains
  ! input (control)
  real(dp),intent(in)           :: dt                       ! intent(in): time step (seconds)
  integer(i4b),intent(in)       :: fDerivMeth               ! intent(in): method used to calculate derivatives
+ integer(i4b),intent(in)       :: ixGroundwater            ! intent(in): choice of groundwater representation
  ! input (forcing)
  real(dp),intent(in)           :: airtemp                  ! intent(in): air temperature (K)
  real(dp),intent(in)           :: spechum                  ! intent(in): specific humidity (g g-1)
@@ -1017,9 +1104,13 @@ contains
  ! input (parameters)
  real(dp),intent(in)           :: mheight                  ! intent(in): measurement height (m)
  real(dp),intent(in)           :: mLayerRootDensity(:)     ! intent(in): root density in each layer (-)
+ real(dp),intent(in)           :: scalarAquiferRootFrac    ! intent(in): fraction of roots below the soil profile (-) 
+ real(dp),intent(in)           :: rootingDepth             ! intent(in): maximum rooting depth (m)
+ real(dp),intent(in)           :: rootDistExp              ! intent(in): empirical exponent in root density distribution (-)
  real(dp),intent(in)           :: plantWiltPsi             ! intent(in): critical matric head when stomatal resitance 2 x min (m)
  real(dp),intent(in)           :: plantWiltExp             ! intent(in): empirical exponent in plant wilting factor expression (-)
  real(dp),intent(in)           :: minStomatalResist        ! intent(in): minimum stomatal resistance (s m-1)
+ real(dp),intent(in)           :: maxStomatalResist        ! intent(in): maximum stomatal resistance (s m-1)
  real(dp),intent(in)           :: LAI                      ! intent(in): leaf area index (m2 m-2)
  real(dp),intent(in)           :: wimplicit                ! intent(in): weight assigned to start-of-step values (-)
  ! input (coordinate variables)
@@ -1033,6 +1124,7 @@ contains
  real(dp),intent(in)           :: scalarAlbedo             ! intent(in): surface albedo (-)
  real(dp),intent(in)           :: mLayerTemp(:)            ! intent(in): temperature in all layers (K)
  real(dp),intent(in)           :: mLayerVolFracIce(:)      ! intent(in): volumetric fraction of ice in all layers (-)
+ real(dp),intent(in)           :: scalarWaterTableDepth    ! intent(in): depth of the water table (m)
  ! input (trial state variables)
  real(dp),intent(in)           :: mLayerTempTrial(:)       ! intent(in): trial temperature at the current iteration (K)
  real(dp),intent(in)           :: mLayerVolFracIceTrial(:) ! intent(in): trial volumetric fraction of ice in all layers at the current iteration (-)
@@ -1049,6 +1141,7 @@ contains
  real(dp)                      :: scalarExCoef             ! surface-atmosphere exchange coeffcient (-)
  real(dp)                      :: scalarTranspireLim       ! resistance to evaporation at the surface (-)
  real(dp),dimension(nLayers)   :: mLayerTranspireLim       ! resistance to evaporation in each soil layer (-)
+ real(dp)                      :: aquiferTranspireLim      ! resistance to evaporation for the aquifer (-)
  real(dp)                      :: scalarExSen              ! exchange factor for sensible heat (W m-2 K-1)
  real(dp)                      :: scalarExLat              ! exchange factor for latent heat (W m-2)
  real(dp)                      :: scalarSenHeat            ! sensible heat flux at the surface (W m-2)
@@ -1069,37 +1162,44 @@ contains
 
  ! ***** compute fluxes at the surface
  call surfaceFlx(&
-                ! (model control variables)
-                fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
-                ! (model forcing variables)
-                airtemp,                 & ! intent(in): air temperature (K)
-                spechum,                 & ! intent(in): specific humidity (g g-1)
-                windspd,                 & ! intent(in): wind speed (m s-1)
-                airpres,                 & ! intent(in): air pressure (Pa)
-                sw_down,                 & ! intent(in): downwelling shortwave radiation (W m-2)   
-                lw_down,                 & ! intent(in): downwelling long wave radiation (W m-2)   
-                ! (model parameters)
-                mheight,                 & ! intent(in): measurement height (m)
-                mLayerRootDensity,       & ! intent(in): root density in each layer (-)
-                plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
-                plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
-                minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
-                LAI,                     & ! intent(in): leaf area index (m2 m-2)
-                ! (model state variables)
-                scalarAlbedo,            & ! intent(in): surface albedo (-)
-                mLayerTempTrial(1),      & ! intent(in): trial surface temperature at the current iteration (K)
-                mLayerMatricHeadTrial,   & ! intent(in): trial matric head in all layers at the current iteration (m)
-                ! (diagnostic variables)
-                scalarExCoef,            & ! intent(out): surface-atmosphere exchange coeffcient (-)
-                scalarTranspireLim,      & ! intent(out): resistance to evaporation at the surface (-)
-                mLayerTranspireLim,      & ! intent(out): resistance to evaporation in each layer (-)
-                scalarExSen,             & ! intent(out): exchange factor for sensible heat (W m-2 K-1)
-                scalarExLat,             & ! intent(out): exchange factor for latent heat (W m-2)
-                scalarSenHeat,           & ! intent(out): sensible heat flux at the surface (W m-2)
-                scalarLatHeat,           & ! intent(out): latent heat flux at the surface (W m-2)
-                totalSurfaceFlux,        & ! intent(out): total surface flux (W m-2)
-                dTotalSurfaceFlux_dTemp, & ! intent(out): derivative in total surface flux w.r.t. temperature (W m-2 K-1)
-                err,cmessage)              ! intent(out): error control
+                 ! (model control variables)
+                 fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
+                 ixGroundwater,           & ! intent(in): choice of groundwater representation
+                 ! (model forcing variables)
+                 airtemp,                 & ! intent(in): air temperature (K)
+                 spechum,                 & ! intent(in): specific humidity (g g-1)
+                 windspd,                 & ! intent(in): wind speed (m s-1)
+                 airpres,                 & ! intent(in): air pressure (Pa)
+                 sw_down,                 & ! intent(in): downwelling shortwave radiation (W m-2)   
+                 lw_down,                 & ! intent(in): downwelling long wave radiation (W m-2)   
+                 ! (model parameters)
+                 mheight,                 & ! intent(in): measurement height (m)
+                 mLayerRootDensity,       & ! intent(in): root density in each layer (-)
+                 scalarAquiferRootFrac,   & ! intent(in): fraction of roots below the soil profile (-)
+                 rootingDepth,            & ! intent(in): maximum rooting depth (m)
+                 rootDistExp,             & ! intent(in): empirical exponent in root density distribution (-)
+                 plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
+                 plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
+                 minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
+                 maxStomatalResist,       & ! intent(in): maximum stomatal resistance (s m-1)
+                 LAI,                     & ! intent(in): leaf area index (m2 m-2)
+                 ! (model state variables)
+                 scalarAlbedo,            & ! intent(in): surface albedo (-)
+                 mLayerTempTrial(1),      & ! intent(in): surface temperature (K)
+                 mLayerMatricHeadTrial,   & ! intent(in): matric head at the current iteration (m)
+                 scalarWaterTableDepth,   & ! intent(in): depth of the water table (m)
+                 ! (diagnostic variables)
+                 scalarExCoef,            & ! intent(out): surface-atmosphere exchange coeffcient (-)
+                 scalarTranspireLim,      & ! intent(out): resistance to evaporation at the surface (-)
+                 mLayerTranspireLim,      & ! intent(out): resistance to evaporation in each layer (-)
+                 aquiferTranspireLim,     & ! intent(out): resistance to evaporation for the aquifer (-)
+                 scalarExSen,             & ! intent(out): exchange factor for sensible heat (W m-2 K-1)
+                 scalarExLat,             & ! intent(out): exchange factor for latent heat (W m-2)
+                 scalarSenHeat,           & ! intent(out): sensible heat flux at the surface (W m-2)
+                 scalarLatHeat,           & ! intent(out): latent heat flux at the surface (W m-2)
+                 totalSurfaceFlux,        & ! intent(out): total surface flux (W m-2)
+                 dTotalSurfaceFlux_dTemp, & ! intent(out): derivative in total surface flux w.r.t. temperature (W m-2 K-1)
+                 err,cmessage)              ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ***** compute fluxes at layer interfaces and their derivatives (J m-2 s-1)
@@ -1195,52 +1295,102 @@ contains
  ! ************************************************************************************************
  ! private subroutine: compute the resistance to evaporation (-)
  ! ************************************************************************************************
- subroutine evapResist(aerodynResist,        &  ! intent(in): aerodynamic resistance (s m-1)
+ subroutine evapResist(&
+                       ! input (model decisions)
+                       ixGroundwater,        &  ! intent(in): choice of groundwater representation
+                       ! input (variables)
+                       aerodynResist,        &  ! intent(in): aerodynamic resistance (s m-1)
                        mLayerMatricHeadIter, &  ! intent(in): matric head in each layer (m)
+                       scalarWaterTableDepth,&  ! intent(in): depth of the water table (m)
                        mLayerRootDensity,    &  ! intent(in): root density in each layer (-)
+                       scalarAquiferRootFrac,&  ! intent(in): fraction of roots below the soil profile (-)
+                       ! input (parameters)
+                       rootingDepth,         &  ! intent(in): maximum rooting depth (m)
+                       rootDistExp,          &  ! intent(in): empirical exponent in root density distribution (-)
                        plantWiltPsi,         &  ! intent(in): critical matric head when stomatal resitance 2 x min (m)
                        plantWiltExp,         &  ! intent(in): empirical exponent in plant wilting factor expression (-)
                        minStomatalResist,    &  ! intent(in): minimum stomatal resistance (s m-1)
+                       maxStomatalResist,    &  ! intent(in): maximum stomatal resistance (s m-1)
                        LAI,                  &  ! intent(in): leaf area index (m2 m-2)
+                       ! output
                        evapResistance,       &  ! intent(out): resistance to evaporation at the surface (-)
                        mLayerEvapResistance, &  ! intent(out): resistance to evaporation in each layer (-)
+                       aquiferEvapResistance,&  ! intent(out): resistance to evaporation for the aquifer (-)
                        err,message)             ! intent(out): error control
  implicit none
- ! input
+ ! input (model decisions)
+ integer(i4b),intent(in)       :: ixGroundwater            ! choice of groundwater representation
+ ! input (variables)
  real(dp),intent(in)           :: aerodynResist            ! aerodynamic resistance
  real(dp),intent(in)           :: mLayerMatricHeadIter(:)  ! matric head in each layer (m)
- real(dp),intent(in)           :: mLayerRootDensity(:)     ! intent(in): root density in each layer (-)
- real(dp),intent(in)           :: plantWiltPsi             ! intent(in): critical matric head when stomatal resitance 2 x min (m)
- real(dp),intent(in)           :: plantWiltExp             ! intent(in): empirical exponent in plant wilting factor expression (-)
- real(dp),intent(in)           :: minStomatalResist        ! intent(in): minimum stomatal resistance (s m-1)
- real(dp),intent(in)           :: LAI                      ! intent(in): leaf area index (m2 m-2)
+ real(dp),intent(in)           :: scalarWaterTableDepth    ! depth of the water table (m)
+ real(dp),intent(in)           :: mLayerRootDensity(:)     ! root density in each layer (-)
+ real(dp),intent(in)           :: scalarAquiferRootFrac    ! fraction of roots below the soil profile (-)
+ ! input (parameters)
+ real(dp),intent(in)           :: rootingDepth             ! maximum rooting depth (m)
+ real(dp),intent(in)           :: rootDistExp              ! empirical exponent in root density distribution (-)
+ real(dp),intent(in)           :: plantWiltPsi             ! critical matric head when stomatal resitance 2 x min (m)
+ real(dp),intent(in)           :: plantWiltExp             ! empirical exponent in plant wilting factor expression (-)
+ real(dp),intent(in)           :: minStomatalResist        ! minimum stomatal resistance (s m-1)
+ real(dp),intent(in)           :: maxStomatalResist        ! maximum stomatal resistance (s m-1)
+ real(dp),intent(in)           :: LAI                      ! leaf area index (m2 m-2)
  ! output
  real(dp),intent(out)          :: evapResistance           ! resistance to evaporation at the surface (-) 
  real(dp),intent(out)          :: mLayerEvapResistance(:)  ! resistance to evaporation in each soil layer (-)
+ real(dp),intent(out)          :: aquiferEvapResistance    ! resistance to evaporation for the aquifer (-)
  integer(i4b),intent(out)      :: err                      ! error code
  character(*),intent(out)      :: message                  ! error message
  ! local variables
+ integer(i4b)                  :: iLayer                   ! index of model layers
  real(dp)                      :: stomatalResist           ! stomatal resistance (s m-1)
  real(dp)                      :: plantWiltFactor          ! plant wilting factor (-) 
- integer(i4b)                  :: iLayer                   ! index of model layers
+ real(dp)                      :: fracSaturatedRoots       ! fraction of total roots below the water table (-)
  ! initialize error control
  err=0; message='evapResist/'
  ! compute the ratio of actual:potential evapotranspiration
+
+ ! no soil resistance if there is snow present (no soil evaporation at all in this case)
  if(nSnow>0)then
   evapResistance = 1._dp
+
+ ! snow free conditions
  else
+
   ! ** compute the factor limiting evaporation for each soil layer (-)
   evapResistance = 0._dp  ! (initialize the weighted average)
   do iLayer=1,nSoil
    ! compute the stomatal resistance of the canopy (m s-1)
    plantWiltFactor = 1._dp + ( min(mLayerMatricHeadIter(iLayer),0._dp) / plantWiltPsi )**plantWiltExp
    stomatalResist  = (minStomatalResist/LAI)*plantWiltFactor
+   if(stomatalResist > maxStomatalResist/LAI) stomatalResist = maxStomatalResist/LAI
    ! compute the factor limiting evaporation for a given soil layer (-)
    mLayerEvapResistance(iLayer) = aerodynResist / (stomatalResist + aerodynResist)
    ! commpute the weighted average (weighted by root density)
    evapResistance = evapResistance + mLayerEvapResistance(iLayer)*mLayerRootDensity(iLayer)
   end do ! (looping through soil layers)
+
+  ! ** compute the factor limiting evaporation in the aquifer
+  if(scalarAquiferRootFrac > 0._dp)then
+   ! (aquifer transpiration depends on gwoundwater parameterization)
+   select case(ixGroundwater)
+    ! case of the moving groundwater boundary
+    case(movingBoundary)
+     ! get the fraction of roots below the water table (-)
+     if(scalarWaterTableDepth < rootingDepth)then
+      fracSaturatedRoots = 1._dp - (scalarWaterTableDepth/rootingDepth)**rootDistExp  ! fraction of roots below the water table
+     else
+      fracSaturatedRoots = 0._dp
+     endif
+     write(*,'(a,10(f11.7,1x))') 'scalarWaterTableDepth, rootingDepth, rootDistExp, fracSaturatedRoots, scalarAquiferRootFrac = ', &
+                                  scalarWaterTableDepth, rootingDepth, rootDistExp, fracSaturatedRoots, scalarAquiferRootFrac
+     pause ' in evapResist'
+     aquiferEvapResistance = fracSaturatedRoots
+    case default; err=20; message=trim(message)//'aquifer evaporation not implemented yet'; return
+   end select  ! choice for the groundwater representation
+  endif  ! (if there are roots in the aquifer)
+
  endif  ! (if surface is snow-free)
+
  end subroutine evapResist
 
 
@@ -1285,6 +1435,7 @@ contains
                    ! (model control variables)
                    dt,                      & ! intent(in): time step (seconds)
                    fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
+                   ixGroundwater,           & ! intent(in): choice of groundwater representation
                    ! (model forcing variables)
                    airtemp,                 & ! intent(in): air temperature (K)
                    spechum,                 & ! intent(in): specific humidity (g g-1)
@@ -1296,9 +1447,13 @@ contains
                    ! (model parameters)
                    mheight,                 & ! intent(in): measurement height (m)
                    mLayerRootDensity,       & ! intent(in): root density in each layer (-)
+                   scalarAquiferRootFrac,   & ! intent(in): fraction of roots below the soil profile (-)
+                   rootingDepth,            & ! intent(in): maximum rooting depth (m)
+                   rootDistExp,             & ! intent(in): empirical exponent in root density distribution (-)
                    plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
                    plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
                    minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
+                   maxStomatalResist,       & ! intent(in): maximum stomatal resistance (s m-1)
                    LAI,                     & ! intent(in): leaf area index (m2 m-2)
                    wimplicit,               & ! intent(in): weight assigned to start-of-step values (-)
                    ! (coordinate variables)
@@ -1312,6 +1467,7 @@ contains
                    scalarAlbedo,            & ! intent(in): surface albedo (-)
                    mLayerTemp,              & ! intent(in): temperature in all layers (K)
                    mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in all layers (-)
+                   scalarWaterTableDepth,   & ! intent(in): depth of the water table (m)
                    ! (trial state variables)
                    xold,                    & ! intent(in): trial temperature vector (K)
                    mLayerMatricHeadIter,    & ! intent(in): matric head at the current iteration (m)
@@ -1335,6 +1491,7 @@ contains
  ! input (control)
  real(dp),intent(in)           :: dt                       ! intent(in): time step (seconds)
  integer(i4b),intent(in)       :: fDerivMeth               ! intent(in): method used to calculate derivatives
+ integer(i4b),intent(in)       :: ixGroundwater            ! choice of groundwater representation
  ! input (forcing)
  real(dp),intent(in)           :: airtemp                  ! intent(in): air temperature (K)
  real(dp),intent(in)           :: spechum                  ! intent(in): specific humidity (g g-1)
@@ -1346,9 +1503,13 @@ contains
  ! input (parameters)
  real(dp),intent(in)           :: mheight                  ! intent(in): measurement height (m)
  real(dp),intent(in)           :: mLayerRootDensity(:)     ! intent(in): root density in each layer (-)
+ real(dp),intent(in)           :: scalarAquiferRootFrac    ! intent(in): fraction of roots below the soil profile (-) 
+ real(dp),intent(in)           :: rootingDepth             ! intent(in): maximum rooting depth (m)
+ real(dp),intent(in)           :: rootDistExp              ! intent(in): empirical exponent in root density distribution (-)
  real(dp),intent(in)           :: plantWiltPsi             ! intent(in): critical matric head when stomatal resitance 2 x min (m)
  real(dp),intent(in)           :: plantWiltExp             ! intent(in): empirical exponent in plant wilting factor expression (-)
  real(dp),intent(in)           :: minStomatalResist        ! intent(in): minimum stomatal resistance (s m-1)
+ real(dp),intent(in)           :: maxStomatalResist        ! intent(in): maximum stomatal resistance (s m-1)
  real(dp),intent(in)           :: LAI                      ! intent(in): leaf area index (m2 m-2)
  real(dp),intent(in)           :: wimplicit                ! intent(in): weight assigned to start-of-step values (-)
  ! input (coordinate variables)
@@ -1362,6 +1523,7 @@ contains
  real(dp),intent(in)           :: scalarAlbedo             ! intent(in): surface albedo (-)
  real(dp),intent(in)           :: mLayerTemp(:)            ! intent(in): temperature in all layers (K)
  real(dp),intent(in)           :: mLayerVolFracIce(:)      ! intent(in): volumetric fraction of ice in all layers (-)
+ real(dp),intent(in)           :: scalarWaterTableDepth    ! intent(in): depth of the water table (m)
  ! input (trial state variables)
  real(dp),intent(in)           :: xold(:)                  ! intent(in): trial temperature vector (K)      
  real(dp),intent(in)           :: mLayerMatricHeadIter(:)  ! intent(in): before phase change: matric head (m)
@@ -1419,6 +1581,7 @@ contains
                   ! (model control variables)
                   dt,                      & ! intent(in): time step (seconds)
                   fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
+                  ixGroundwater,           & ! intent(in): choice of groundwater representation
                   ! (model forcing variables)
                   airtemp,                 & ! intent(in): air temperature (K)
                   spechum,                 & ! intent(in): specific humidity (g g-1)
@@ -1430,9 +1593,13 @@ contains
                   ! (model parameters)
                   mheight,                 & ! intent(in): measurement height (m)
                   mLayerRootDensity,       & ! intent(in): root density in each layer (-)
+                  scalarAquiferRootFrac,   & ! intent(in): fraction of roots below the soil profile (-)
+                  rootingDepth,            & ! intent(in): maximum rooting depth (m)
+                  rootDistExp,             & ! intent(in): empirical exponent in root density distribution (-)
                   plantWiltPsi,            & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
                   plantWiltExp,            & ! intent(in): empirical exponent in plant wilting factor expression (-)
                   minStomatalResist,       & ! intent(in): minimum stomatal resistance (s m-1)
+                  maxStomatalResist,       & ! intent(in): maximum stomatal resistance (s m-1)
                   LAI,                     & ! intent(in): leaf area index (m2 m-2)
                   wimplicit,               & ! intent(in): weight assigned to start-of-step values (-)
                   ! (coordinate variables)
@@ -1446,6 +1613,7 @@ contains
                   scalarAlbedo,            & ! intent(in): surface albedo (-)
                   mLayerTemp,              & ! intent(in): temperature in all layers (K)
                   mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in all layers (-)
+                  scalarWaterTableDepth,   & ! intent(in): depth of the water table (m)
                   ! (trial state variables)
                   x,                       & ! intent(in): trial temperature in all layers at the current iteration (K)
                   mLayerVolFracIceNew,     & ! intent(in): trial volumetric fraction of ice in all layers at the current iteration (-)

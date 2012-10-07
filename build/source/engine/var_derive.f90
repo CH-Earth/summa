@@ -102,46 +102,60 @@ contains
  ! new subroutine: compute vertical distribution of root density
  ! **********************************************************************************************************
  subroutine rootDensty(err,message)
+ ! model decision structures
+ USE data_struc,only:model_decisions        ! model decision structure
+ USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ ! look-up values for the choice of groundwater parameterization
+ USE mDecisions_module,only: &
+ movingBoundary,             & ! moving lower boundary
+ bigBucket,                  & ! a big bucket (lumped aquifer model)
+ noExplicit                    ! no explicit groundwater parameterization
+ ! model variables, parameters, forcing data, etc.
  USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
  implicit none
  ! declare dummy variables
- integer(i4b),intent(out) :: err                  ! error code
- character(*),intent(out) :: message              ! error message
+ integer(i4b),intent(out) :: err                   ! error code
+ character(*),intent(out) :: message               ! error message
  ! declare pointers to data in parameter structures
- real(dp),pointer         :: rootingDepth         ! rooting depth (m)
- real(dp),pointer         :: rootDistExp          ! exponent for the vertical distriution of root density (-)
+ real(dp),pointer         :: rootingDepth          ! rooting depth (m)
+ real(dp),pointer         :: rootDistExp           ! exponent for the vertical distriution of root density (-)
  ! declare pointers to data in model variable structures
- real(dp),pointer         :: mLayerRootDensity(:) ! fraction of roots in each soil layer (-)
- real(dp),pointer         :: iLayerHeight(:)      ! height of the layer interface (m)
+ real(dp),pointer         :: scalarAquiferRootFrac ! fraction of roots below the soil profile (-)
+ real(dp),pointer         :: mLayerRootDensity(:)  ! fraction of roots in each soil layer (-)
+ real(dp),pointer         :: iLayerHeight(:)       ! height of the layer interface (m)
  ! declare pointers to model index variables
- integer(i4b),pointer     :: nLayers              ! number of layers
- integer(i4b),pointer     :: layerType(:)         ! type of the layer (ix_soil or ix_snow)
+ integer(i4b),pointer     :: nLayers               ! number of layers
+ integer(i4b),pointer     :: layerType(:)          ! type of the layer (ix_soil or ix_snow)
  ! declare local variables
- integer(i4b)             :: nSoil,nSnow          ! number of soil and snow layers
- integer(i4b)             :: iLayer               ! loop through layers
- real(dp)                 :: fracRootLower        ! fraction of the rooting depth at the lower interface
- real(dp)                 :: fracRootUpper        ! fraction of the rooting depth at the upper interface
+ integer(i4b)             :: nSoil,nSnow           ! number of soil and snow layers
+ integer(i4b)             :: iLayer                ! loop through layers
+ real(dp)                 :: fracRootLower         ! fraction of the rooting depth at the lower interface
+ real(dp)                 :: fracRootUpper         ! fraction of the rooting depth at the upper interface
+ real(dp)                 :: checkCalcs            ! check the root density calculations
  ! initialize error control
  err=0; message='rootDensty/'
 
  ! assign local pointers to the values in the parameter structures
- rootingDepth      =>mpar_data%var(iLookPARAM%rootingDepth)            ! rooting depth (m)
- rootDistExp       =>mpar_data%var(iLookPARAM%rootDistExp)             ! root distribution exponent (-)
+ rootingDepth          =>mpar_data%var(iLookPARAM%rootingDepth)                ! rooting depth (m)
+ rootDistExp           =>mpar_data%var(iLookPARAM%rootDistExp)                 ! root distribution exponent (-)
  ! assign local pointers to the values in the model variable structures
- mLayerRootDensity =>mvar_data%var(iLookMVAR%mLayerRootDensity)%dat    ! fraction of roots in each soil layer (-)
- iLayerHeight      =>mvar_data%var(iLookMVAR%iLayerHeight)%dat         ! height of the layer interface (m)
+ scalarAquiferRootFrac =>mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1) ! fraction of roots below the soil profile (in the aquifer)
+ mLayerRootDensity     =>mvar_data%var(iLookMVAR%mLayerRootDensity)%dat        ! fraction of roots in each soil layer (-)
+ iLayerHeight          =>mvar_data%var(iLookMVAR%iLayerHeight)%dat             ! height of the layer interface (m)
  ! assign local pointers to the model index structures
- nLayers           =>indx_data%var(iLookINDEX%nLayers)%dat(1)          ! number of layers
- layerType         =>indx_data%var(iLookINDEX%layerType)%dat           ! layer type (ix_soil or ix_snow)
+ nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1)              ! number of layers
+ layerType             =>indx_data%var(iLookINDEX%layerType)%dat               ! layer type (ix_soil or ix_snow)
  ! identify the number of snow and soil layers
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
 
- ! check that the rooting depth is less than the soil depth
- if(rootingDepth>iLayerHeight(nLayers))then; err=10; message=trim(message)//'rooting depth > soil depth'; return; endif
+ ! for case of no explicit groundwater parameterization, check that the rooting depth is less than the soil depth
+ if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == noExplicit)then
+  if(rootingDepth>iLayerHeight(nLayers))then; err=10; message=trim(message)//'rooting depth cannot exceed soil depth when there is no explicit gw representation'; return; endif
+ endif
 
- ! compute the fraction of roots in each layer
+ ! compute the fraction of roots in each soil layer
  do iLayer=nSnow+1,nLayers
   if(iLayerHeight(iLayer-1)<rootingDepth)then
    ! compute the fraction of the rooting depth at the lower and upper interfaces
@@ -153,7 +167,18 @@ contains
   else
    mLayerRootDensity(iLayer-nSnow) = 0._dp
   endif
+  !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp = ', &
+  !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp
  end do  ! (looping thru layers)
+
+ ! compute the fraction of roots below the soil profile (-)
+ scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
+
+ ! check everything is OK
+ checkCalcs = 1._dp - ( min(iLayerHeight(nLayers),rootingDepth) / rootingDepth)**rootDistExp
+ if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then; err=20; message=trim(message)//'problem with the root density calculations'; return; endif
+ !write(*,'(a,10(f11.5,1x))') 'scalarAquiferRootFrac, checkCalcs = ', scalarAquiferRootFrac, checkCalcs
+
  end subroutine rootDensty
 
 

@@ -69,7 +69,6 @@ FUSE_SOLVER= \
 		heatTransf.f90 \
 		snowHydrol.f90 \
 		soilHydrol.f90 \
-		groundwatr.f90 \
         picardSolv.f90 \
         coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_SOLVER))
@@ -82,6 +81,7 @@ FUSE_PRELIM= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
+		groundwatr.f90 \
 		ConvE2Temp.f90 \
 		time_utils.f90 \
 		allocspace.f90 \

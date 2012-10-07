@@ -319,16 +319,12 @@ contains
  ! initialize temperature
  mLayerTempIter = mLayerTemp
 
- ! compute the depth to the water table
- if(scalarAquiferStorage > 0._dp)then ! NOTE: z-coordinate is +ve downwards
-  scalarWaterTableDepth = iLayerHeight(nLayers) - scalarAquiferStorage/theta_sat       ! case1: water table is above the bottom of the soil profile
- else
-  scalarWaterTableDepth = iLayerHeight(nLayers) - scalarAquiferStorage/specificYield   ! case2: water table is below the bottom of the soil profile
- endif
-
  ! identify number of layers above the water table
  nUnsat = count(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth)
- if(nUnsat < nSoil)then; err=20; message=trim(message)//'have not yet implemented water table within the soil columnn'; return; endif
+ if(nUnsat > nSoil)then; err=20; message=trim(message)//'cannot have a greater number of unsaturated layers than soil layers'; return; endif
+ if(nUnsat == 0)then;    err=20; message=trim(message)//'all layers are saturated: need at least one saturated layer (have not implemented exfiltration yet)'; return; endif
+ print*, 'scalarWaterTableDepth = ', scalarWaterTableDepth
+ print*, 'nUnsat = ', nUnsat
 
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then
@@ -433,7 +429,7 @@ contains
   !if(iter > 1)then
    mLayerMatricHeadIter = mLayerMatricHeadNew
    mLayerVolFracLiqIter = mLayerVolFracLiqNew
-   mLayerVolFracIceIter = mLayerVolFracIceNew
+   !mLayerVolFracIceIter = mLayerVolFracIceNew
   !endif
 
   !print*, 'after heat transfer, nSnow, nSoil, nLayers, ice(nLayers) = ', nSnow, nSoil, nLayers, mLayerVolFracIceIter(nLayers)
@@ -459,17 +455,21 @@ contains
                   mLayerVolFracLiqNew(nSnow+1:nSnow+nUnsat), & ! volumetric fraction of liquid water at the next iteration (-)
                   err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! copy across "saturated" layers
+  if(nUnSat < nSoil)then
+   mLayerMatricHeadNew(nUnsat+1:nSoil)         = mLayerMatricHeadIter(nUnsat+1:nSoil)
+   mLayerVolFracLiqNew(nSnow+nUnsat+1:nLayers) = mLayerVolFracLiqIter(nSnow+nUnsat+1:nLayers)
+  endif
   !print*, '*** after hydrology'
   !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
   !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
-
-
 
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
 
   ! calculate the critical soil temperature above which all water is unfrozen (K)
+  ! NOTE: use of "Iter" for ice, since not modified in the hydrology routines
   do iLayer=nSnow+1,nLayers
    theta = mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqNew(iLayer)
    mLayerTcrit(iLayer-nSnow) = crit_soilT(theta,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
@@ -601,20 +601,34 @@ contains
  ! compute the aquifer re-charge
  scalarAquiferRcharge = scalarSoilDrainage + scalarSoilEjection
 
- ! compute rise/fall of the water table
+
+
+ !if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
+
+
+
+ ! compute surface-water gw interactions
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
-  ! NOTE: input "iter" because of copying trick in phase change
+  ! compute change in aquifer storage and update the depth to the water table
   call groundwatr(&
-                  ! input
-                  dt,                                   &  ! input:  time step (seconds) 
-                  scalarAquiferRcharge,                 &  ! input:  aquifer recharge (m s-1)
-                  mLayerVolFracLiqIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of liquid water after itertations (-)
-                  mLayerVolFracIceIter(nSnow+1:nLayers),&  ! input:  volumetric fraction of ice after itertations (-)
+                  ! input (variables)
+                  dt,                                       & ! input:  time step (seconds) 
+                  scalarAquiferRcharge,                     & ! input:  aquifer recharge (m s-1)
+                  mLayerVolFracLiqIter(nSnow+1:nLayers),    & ! input:  volumetric fraction of liquid water after itertations (-)
+                  mLayerVolFracIceIter(nSnow+1:nLayers),    & ! input:  volumetric fraction of ice after itertations (-)
+                  iLayerHeight(nSnow:nLayers),              & ! input:  height of each interface (m), NOTE: include height of soil (iLayer=nSnow)
+                  mLayerDepth(nSnow+1:nLayers),             & ! input:  depth of each soil layer (m)
+                  ! input (parameters)
+                  mpar_data%var(iLookPARAM%theta_sat),      & ! input: soil porosity (-)
+                  mpar_data%var(iLookPARAM%specificYield),  & ! input: specific yield (-)
+                  mpar_data%var(iLookPARAM%k_soil),         & ! input: hydraulic conductivity (m s-1)
+                  mpar_data%var(iLookPARAM%kAnisotropic),   & ! input: anisotropy factor for lateral hydraulic conductivity (-)
+                  mpar_data%var(iLookPARAM%zScale_TOPMODEL),& ! input: scale factor for TOPMODEL-ish baseflow parameterization (m)
                   ! input-output
-                  scalarAquiferStorage,                 &  ! input-output: aquifer storage (m)
+                  scalarAquiferStorage,                     &  ! input-output: aquifer storage (m)
                   ! output
-                  scalarWaterTableDepth,                &  ! output: water table depth at the end of the time step (m)
-                  err,cmessage)                            ! output: error control
+                  scalarWaterTableDepth,                    &  ! output: water table depth at the end of the time step (m)
+                  err,cmessage)                                ! output: error control
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
  endif
 

@@ -16,6 +16,7 @@ contains
                        iden_water,&  ! intrinsic density of liquid water    (kg m-3)
                        gravity,   &  ! gravitational acceleration           (m s-2)
                        Tfreeze       ! freezing point of pure water         (K)
+ USE groundwatr_module,only:waterTableHeight       ! compute the height of the water table
  USE snow_utils_module,only:fracliquid             ! compute volumetric fraction of liquid water
  USE soil_utils_module,only:volFracLiq             ! compute volumetric fraction of liquid water based on matric head
  USE soil_utils_module,only:crit_soilT             ! compute temperature above which all water is unfrozen
@@ -328,6 +329,21 @@ contains
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
   endselect
  end do  ! (looping through layers)
+ ! compute the depth to the water table
+ call waterTableHeight(&
+                       ! (input: model variables)
+                       mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers),      & ! intent(in):  volumetric liquid water content in each soil layer (-)
+                       mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(nSnow+1:nLayers),      & ! intent(in):  volumetric ice content in each soil layer (-)
+                       mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),                & ! intent(in):  aquifer storage (m)
+                       mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow:nLayers),            & ! intent(in):  height of each interface (m)
+                       mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nLayers),           & ! intent(in):  depth of each soil layer (m)
+                       ! (input: model parameters)
+                       mpar_data%var(iLookPARAM%theta_sat),                                 & ! intent(in): soil porosity (-)
+                       mpar_data%var(iLookPARAM%specificYield),                             & ! intent(in): specific yield (-)
+                       ! (output)
+                       mvar_data%var(iLookMVAR%scalarWaterTableDepth)%dat(1),               & ! intent(out): water table depth (m)
+                       err,cmessage)                                                          ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! **********************************************************************************************
  ! deallocate variable names vector
  deallocate(varnames,chardata,stat=err)

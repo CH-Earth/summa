@@ -81,7 +81,7 @@ contains
  ! identify the number of soil layers to include in the vector
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
   nLevels = count(mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil) < mvar_data%var(iLookMVAR%scalarWaterTableDepth)%dat(1))
-  if(nLevels < nSoil)then; err=20; message=trim(message)//'have not yet implemented water table within the soil columnn'; return; endif
+  if(nLevels == 0)then; err=20; message=trim(message)//'all soil layers are saturated: need at least one unsaturated soil layer'; return; endif
  else
   nLevels = nSoil
  endif
@@ -381,20 +381,6 @@ contains
  if(ixGroundwater==movingBoundary)then
   if(ixRichards/=moisture)then; err=20; message=trim(message)//"moving boundary gw parameterization only allowed with the moisture-based from of Richards' equation"; return; endif
  endif
-
- ! if moving lower boundary for groundwater, check that all soil layers below the water table are saturated
- if(ixGroundwater==movingBoundary)then
-  do iLayer=1,nSoil
-   ! check if the height of the top of the layer is deeper than the depth of the water table
-   if(iLayerHeight(iLayer-1) > scalarWaterTableDepth)then 
-    if(mLayerMatricHeadIter(iLayer) < 0._dp .or. mLayerVolFracLiqIter(iLayer) < theta_sat)then
-     err=20; write(message,'(a,i0,3(a,e20.10),a)')trim(message)//'soil layers are unsaturated below the water table depth [iLayer=', iLayer, &
-             ', mLayerMatricHeadIter(iLayer) = ', mLayerMatricHeadIter(iLayer), ', mLayerVolFracLiqIter(iLayer) = ', mLayerVolFracLiqIter(iLayer),&
-             ', theta_sat = ', theta_sat, ']'; return
-    endif    ! (if a layer below the water table depth is unsaturated)
-   endif    ! (if the height of the top of the layer is deeper than the depth of the water table)
-  end do  ! (looping through soil layers)
- endif   ! (if the model option is a moving lower boundary for groundwater)
 
  ! define upper boundary fluxes (m s-1)
  if(ixBcUpperSoilHydrology==liquidFlux)then
