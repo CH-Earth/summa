@@ -15,11 +15,11 @@
 ! 4: variable type (scalar, separate parameter for each model layer, separate parameter at the interface of layers)
 ! 5: write parameter to output file? (T/F)
 ! ***************************************************************************************************************************
-'(a15,a2,a56,a2,a37,a2,a8,a2,l1)'  ! format of the descriptions that follow (must be in single quotes)
+'(a10,(1x,a1,1x),a10,(1x,a1,1x),a8,(1x,a1,1x),a7,(1x,a1,1x),l1)'  ! format of the descriptions that follow (must be in single quotes)
 ! ***************************************************************************************************************************
-iyyy           | year                                                    | -                                    | scalarv | F
-im             | month                                                   | -                                    | scalarv | F
-id             | day                                                     | -                                    | scalarv | F
-ih             | hour                                                    | -                                    | scalarv | F
-imin           | minute                                                  | -                                    | scalarv | F
+iyyy       | year       | -        | scalarv | F
+im         | month      | -        | scalarv | F
+id         | day        | -        | scalarv | F
+ih         | hour       | -        | scalarv | F
+imin       | minute     | -        | scalarv | F
 ! ***************************************************************************************************************************
