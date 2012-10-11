@@ -7,44 +7,44 @@ public::mDecisions
 ! ***** define look-up values for different model decisions *****
 ! -----------------------------------------------------------------------------------------------------------
 ! look-up values for the choice of numerical method
-integer(i4b),parameter,public :: iterative         =1001  ! iterative
-integer(i4b),parameter,public :: nonIterative      =1002  ! non-iterative
-integer(i4b),parameter,public :: iterSurfEnergyBal =1003  ! iterate only on the surface energy balance
+integer(i4b),parameter,public :: iterative         =11    ! iterative
+integer(i4b),parameter,public :: nonIterative      =12    ! non-iterative
+integer(i4b),parameter,public :: iterSurfEnergyBal =13    ! iterate only on the surface energy balance
 ! look-up values for method used to compute derivative
-integer(i4b),parameter,public :: numerical         =1001  ! numerical solution
-integer(i4b),parameter,public :: analytical        =1002  ! analytical solution
+integer(i4b),parameter,public :: numerical         =21    ! numerical solution
+integer(i4b),parameter,public :: analytical        =22    ! analytical solution
 ! look-up values for the form of Richards' equation
-integer(i4b),parameter,public :: moisture          =1001  ! moisture-based form of Richards' equation
-integer(i4b),parameter,public :: mixdform          =1002  ! mixed form of Richards' equation
+integer(i4b),parameter,public :: moisture          =31    ! moisture-based form of Richards' equation
+integer(i4b),parameter,public :: mixdform          =32    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
-integer(i4b),parameter,public :: movingBoundary    =1001  ! moving lower boundary
-integer(i4b),parameter,public :: bigBucket         =1002  ! a big bucket (lumped aquifer model)
-integer(i4b),parameter,public :: noExplicit        =1003  ! no explicit groundwater parameterization
+integer(i4b),parameter,public :: movingBoundary    =41    ! moving lower boundary
+integer(i4b),parameter,public :: bigBucket         =42    ! a big bucket (lumped aquifer model)
+integer(i4b),parameter,public :: noExplicit        =43    ! no explicit groundwater parameterization
 ! look-up values for the choice of boundary conditions for thermodynamics
-integer(i4b),parameter,public :: prescribedTemp    =1001  ! prescribed temperature
-integer(i4b),parameter,public :: energyFlux        =1002  ! energy flux
-integer(i4b),parameter,public :: zeroFlux          =1003  ! zero flux
+integer(i4b),parameter,public :: prescribedTemp    =51    ! prescribed temperature
+integer(i4b),parameter,public :: energyFlux        =52    ! energy flux
+integer(i4b),parameter,public :: zeroFlux          =53    ! zero flux
 ! look-up values for the choice of boundary conditions for hydrology
-integer(i4b),parameter,public :: liquidFlux        =1001  ! liquid water flux
-integer(i4b),parameter,public :: prescribedHead    =1002  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-integer(i4b),parameter,public :: funcBottomHead    =1003  ! function of matric head in the lower-most layer
-integer(i4b),parameter,public :: freeDrainage      =1004  ! free drainage
-integer(i4b),parameter,public :: groundwaterCouple =1005  ! coupled to the groundwater sub-model (matric head=0 as a moving lower boundary)
+integer(i4b),parameter,public :: liquidFlux        =61    ! liquid water flux
+integer(i4b),parameter,public :: prescribedHead    =62    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+integer(i4b),parameter,public :: funcBottomHead    =63    ! function of matric head in the lower-most layer
+integer(i4b),parameter,public :: freeDrainage      =64    ! free drainage
+integer(i4b),parameter,public :: groundwaterCouple =65    ! coupled to the groundwater sub-model (matric head=0 as a moving lower boundary)
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard          =1001  ! standard MO similarity, a la Anderson (1976) 
-integer(i4b),parameter,public :: louisInversePower =1002  ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential  =1003  ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard          =71    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: louisInversePower =72    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential  =73    ! Mahrt (1987) exponential
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement=1001  ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical =1002  ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement=81    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical =82    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of thermal conductivity
-integer(i4b),parameter,public :: Yen1965           =1001  ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977        =1002  ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991        =1003  ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000      =1004  ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965           =91    ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977        =92    ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991        =93    ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000      =94    ! Smirnova et al. (2000)
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: funcSnowAge       =1001  ! function of snow age
-integer(i4b),parameter,public :: BATSlike          =1002  ! BATS-like approach, with destructive metamorphism + soot content
+integer(i4b),parameter,public :: funcSnowAge       =101   ! function of snow age
+integer(i4b),parameter,public :: BATSlike          =102   ! BATS-like approach, with destructive metamorphism + soot content
 ! -----------------------------------------------------------------------------------------------------------
 contains
 

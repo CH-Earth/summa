@@ -24,24 +24,24 @@ contains
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables
- character(len=128)                   :: cmessage    ! error message for downstream routine
+ character(len=1024)                  :: cmessage    ! error message for downstream routine
  ! initialize errors
  err=0; message="f-read_metad/"
  ! populate time structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_TIME),ix_time,time_meta,err,cmessage)
- if(err/=0)then; err=40; message=trim(message)//trim(cmessage)//'/time'; return; endif
+ if(err/=0)then; err=40; message=trim(message)//'time/'//trim(cmessage); return; endif
  ! populate forcing structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_FORCE),ix_force,forc_meta,err,cmessage)
- if(err/=0)then; err=40; message=trim(message)//trim(cmessage)//'/forc'; return; endif
+ if(err/=0)then; err=40; message=trim(message)//'forc/'//trim(cmessage); return; endif
  ! populate parameter structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_PARAM),ix_param,mpar_meta,err,cmessage)
- if(err/=0)then; err=40; message=trim(message)//trim(cmessage)//'/param'; return; endif
+ if(err/=0)then; err=40; message=trim(message)//'param/'//trim(cmessage); return; endif
  ! populate model variable structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_MVAR),ix_mvar, mvar_meta,err,cmessage)
- if(err/=0)then; err=40; message=trim(message)//trim(cmessage)//'/mvar'; return; endif
+ if(err/=0)then; err=40; message=trim(message)//'mvar/'//trim(cmessage); return; endif
  ! populate model variable structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_INDEX),ix_index, indx_meta,err,cmessage)
- if(err/=0)then; err=40; message=trim(message)//trim(cmessage)//'/indx'; return; endif
+ if(err/=0)then; err=40; message=trim(message)//'indx/'//trim(cmessage); return; endif
  end subroutine read_metad
 
 
@@ -71,7 +71,7 @@ contains
  integer(i4b)                         :: iend           ! check for the end of the file
  character(LEN=256)                   :: ffmt           ! file format
  type(var_info)                       :: metaTemp       ! temporary metadata structure
- character(len=2)                     :: dLim           ! column delimiter
+ character(len=1)                     :: dLim(4)        ! column delimiter
  integer(i4b)                         :: ivar           ! index of model variable
  ! Start procedure here
  err=0; message="v_metadata/"
@@ -92,9 +92,14 @@ contains
   ! check that the line is not a comment
   if (temp(1:1)=='!')cycle
   ! save data into a temporary structure
-  read(temp,trim(ffmt),iostat=err) metaTemp%varname,dLim,metaTemp%vardesc,dLim,metaTemp%varunit,dLim,&
-                                   metaTemp%vartype,dLim,metaTemp%v_write
+  read(temp,trim(ffmt),iostat=err) metaTemp%varname,dLim(1),metaTemp%vardesc,dLim(2),metaTemp%varunit,dLim(3),&
+                                   metaTemp%vartype,dLim(4),metaTemp%v_write
   if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; endif
+  ! check that the delimiters are in the correct place
+  if(any(dLim /= '|'))then
+   message=trim(message)//'delimiter is not in the correct place; line = ['//trim(temp)//']; filename = '//trim(infile)
+   err=32; return
+  endif
   ! identify the index of the named variable
   select case(ivar_lookup)
    case(ix_time);  ivar = get_ixtime(metaTemp%varname)

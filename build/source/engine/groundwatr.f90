@@ -11,27 +11,30 @@ contains
  ! ************************************************************************************************
  subroutine groundwatr(&
                        ! input
-                       dt,                                   &  ! input:  time step (seconds) 
-                       scalarAquiferRcharge,                 &  ! input:  aquifer recharge (m s-1)
-                       mLayerVolFracLiqIter,                 &  ! input:  volumetric fraction of liquid water after itertations (-)
-                       mLayerVolFracIceIter,                 &  ! input:  volumetric fraction of ice after itertations (-)
-                       iLayerHeight,                         &  ! input:  height of each interface (m)
-                       mLayerDepth,                          &  ! input:  depth of each soil layer (m)
-                       theta_sat,                            &  ! input:  soil porosity (-)
-                       specificYield,                        &  ! input:  fraction of water volume drained by gravity in an unconfined aquifer (-)
-                       k_soil,                               &  ! input:  hydraulic conductivity (m s-1) 
-                       kAnisotropic,                         &  ! input:  anisotropy factor for lateral hydraulic conductivity (-)
-                       zScale_TOPMODEL,                      &  ! input:  scale factor for TOPMODEL-ish baseflow parameterization (m)
+                       dt,                                     & ! input:  time step (seconds) 
+                       scalarAquiferRcharge,                   & ! input:  aquifer recharge (m s-1)
+                       scalarAquiferTranspire,                 & ! input:  aquifer transpiration (m s-1)
+                       mLayerVolFracLiqIter,                   & ! input:  volumetric fraction of liquid water after itertations (-)
+                       mLayerVolFracIceIter,                   & ! input:  volumetric fraction of ice after itertations (-)
+                       iLayerHeight,                           & ! input:  height of each interface (m)
+                       mLayerDepth,                            & ! input:  depth of each soil layer (m)
+                       theta_sat,                              & ! input:  soil porosity (-)
+                       specificYield,                          & ! input:  fraction of water volume drained by gravity in an unconfined aquifer (-)
+                       k_soil,                                 & ! input:  hydraulic conductivity (m s-1) 
+                       kAnisotropic,                           & ! input:  anisotropy factor for lateral hydraulic conductivity (-)
+                       zScale_TOPMODEL,                        & ! input:  scale factor for TOPMODEL-ish baseflow parameterization (m)
                        ! input-output
-                       scalarAquiferStorage,                 &  ! input-output: aquifer storage (m)
+                       scalarAquiferStorage,                   & ! input-output: aquifer storage (m)
                        ! output
-                       scalarWaterTableDepth,                &  ! output: water table depth at the end of the time step (m)
-                       err,message)                             ! output: error control
+                       scalarWaterTableDepth,                  & ! output: water table depth at the end of the time step (m)
+                       scalarAquiferBaseflow,                  & ! output: baseflow from the aquifer (m s-1)
+                       err,message)                              ! output: error control
  ! compute change in aquifer storage over the time step
  implicit none
  ! input variables
  real(dp),intent(in)                 :: dt                       ! time step (seconds)
  real(dp),intent(in)                 :: scalarAquiferRcharge     ! aquifer recharge averaged over the time step (m s-1)
+ real(dp),intent(in)                 :: scalarAquiferTranspire   ! aquifer transpiration averaged over the time step (m s-1)
  real(dp),intent(in)                 :: mLayerVolFracLiqIter(:)  ! volumetric fraction of liquid water after itertations (-)
  real(dp),intent(in)                 :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice after itertations (-)
  real(dp),intent(in)                 :: iLayerHeight(0:)         ! height at each layer interface (m)
@@ -45,6 +48,7 @@ contains
  real(dp),intent(inout)              :: scalarAquiferStorage     ! aquifer storage (m)
  ! output variables
  real(dp),intent(out)                :: scalarWaterTableDepth    ! water table depth at the end of the time step (m)
+ real(dp),intent(out)                :: scalarAquiferBaseflow    ! baseflow from the aquifer (m s-1)
  integer(i4b),intent(out)            :: err                      ! error code
  character(*),intent(out)            :: message                  ! error message
  ! algorithmic control parameters
@@ -63,7 +67,6 @@ contains
  real(dp)                            :: drainablePorosity        ! drainable porosity (-)
  real(dp)                            :: aquiferStorageTrial      ! trial value for aquifer storage (m)
  real(dp)                            :: zWaterTrial              ! depth of the water table (m)
- real(dp)                            :: aquiferBaseflow          ! baseflow from the aquifer (m s-1)
  real(dp)                            :: dBaseflow_dStorage       ! derivative in the baseflow term w.r.t. aquifer storage (s-1)
  real(dp)                            :: netFlux                  ! recharge minus baseflow (m s-1)
  real(dp)                            :: residual                 ! residual in aquifer storage (m)
@@ -115,15 +118,17 @@ contains
   ! compute iteration increment...
   ! ------------------------------
   ! calculate the baseflow term (m s-1)
-  aquiferBaseflow = baseflowMax*exp(-zWaterTrial/zScale_TOPMODEL)
+  scalarAquiferBaseflow = baseflowMax*exp(-zWaterTrial/zScale_TOPMODEL)
   ! compute the net flux (m s-1)
-  netFlux = scalarAquiferRcharge - aquiferBaseflow
+  netFlux = (scalarAquiferRcharge + scalarAquiferTranspire) - scalarAquiferBaseflow
   ! compute the residual in aquifer storage (m)
   residual = aquiferStorageTrial - (scalarAquiferStorage + netFlux*dt)
   ! compute the derivative in baseflow w.r.t. storage (s-1)
-  dBaseflow_dStorage = aquiferBaseflow/(zScale_TOPMODEL*drainablePorosity)
+  dBaseflow_dStorage = scalarAquiferBaseflow/(zScale_TOPMODEL*drainablePorosity)
   ! compute the iteration increment (m)
   dStorage = -residual/(1._dp + dBaseflow_dStorage*dt)
+  write(*,'(a)')            'aquiferStorageTrial, scalarWaterTableDepth, scalarAquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage = '
+  write(*,'(10(e20.10,1x))') aquiferStorageTrial, scalarWaterTableDepth, scalarAquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage
  
   ! check for convergence and update states
   if(abs(dStorage) < incTol .and. abs(residual) < resTol)then
@@ -133,7 +138,7 @@ contains
    call waterTablePosition(mLayerVolFracLiqIter, & ! intent(in):  volumetric liquid water content in each soil layer (-)
                            mLayerVolFracIceIter, & ! intent(in):  volumetric ice content in each soil layer (-)
                            scalarAquiferStorage, & ! intent(in):  aquifer storage (m)
-                           waterReq2FillPore,    & ! intent(in):  water required to fill pore space up to the level of each layer interface (m(
+                           waterReq2FillPore,    & ! intent(in):  water required to fill pore space up to the level of each layer interface (m)
                            iLayerHeight,         & ! intent(in):  height of each interface (m)
                            mLayerDepth,          & ! intent(in):  depth of each soil layer (m)
                            theta_sat,            & ! intent(in):  soil porosity (-)
@@ -143,9 +148,6 @@ contains
                            scalarWaterTableDepth,& ! intent(out): water table depth (m)
                            err,cmessage)           ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   print*, 'baseflowMax, zScale_TOPMODEL = ', baseflowMax, zScale_TOPMODEL
-   write(*,'(a)')            'scalarAquiferStorage, scalarWaterTableDepth, aquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage = '
-   write(*,'(10(e20.10,1x))') scalarAquiferStorage, scalarWaterTableDepth, aquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage
    exit
   ! ***** non-convergence -- update the aquifer storage and water table depth
   else
@@ -157,7 +159,7 @@ contains
  end do  ! (loop through iterations)
 
  ! clean-up fluxes
- aquiferBaseflow = aquiferBaseflow + dBaseflow_dStorage*dStorage
+ scalarAquiferBaseflow = scalarAquiferBaseflow + dBaseflow_dStorage*dStorage
 
  end subroutine groundwatr
 
