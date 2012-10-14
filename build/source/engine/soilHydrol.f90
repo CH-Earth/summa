@@ -114,7 +114,8 @@ contains
   if(nLevels < nSoil)then
    ! define temporary variables (save typing)
    waterTableDepth        => mvar_data%var(iLookMVAR%scalarWaterTableDepth)%dat(1)  ! depth to the water table (m)
-   iLowerPartiallySat     => mvar_data%var(iLookMVAR%iLayerHeight)%dat(iend+1)      ! height at the upper interface of the layer that contains the water table (m)
+   iUpperPartiallySat     => mvar_data%var(iLookMVAR%iLayerHeight)%dat(iend)        ! height at the upper interface of the layer that contains the water table (m)
+   iLowerPartiallySat     => mvar_data%var(iLookMVAR%iLayerHeight)%dat(iend+1)      ! height at the lower interface of the layer that contains the water table (m)
    mDepthPartiallySat     => mvar_data%var(iLookMVAR%mLayerDepth)%dat(iend+1)       ! depth of the layer that contains the water table (m)
    volFracLiqPartiallySat => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iend+1)  ! volumetric fraction of liquid water in the unsaturated portion of the partially saturated layer (-)
    if(waterTableDepth > iLowerPartiallySat .or. waterTableDepth < iUpperPartiallySat)then
@@ -127,8 +128,8 @@ contains
 
   ! ** water table is below the soil profile...
   else
-   lowerBoundaryTheta  = mLayerVolFracLiqIter(nSoil)    ! (vector already reduced in size) volumetric liquid water content of the lowest soil layer considered (-)
-   lowerBoundaryHeight = mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+nSoil) ! height at the bottom of the soil profile
+   lowerBoundaryTheta  = valueMissing     ! don't expect this to be used, so set to a ridiculous value just in case it is used inadvertently
+   lowerBoundaryHeight = valueMissing     ! don't expect this to be used, so set to a ridiculous value just in case it is used inadvertently
   endif
 
   ! -----
@@ -430,12 +431,14 @@ contains
  real(dp),dimension(nLevels)      :: mLayerMatricHeadDiff     ! iteration increment for matric head (m)
  real(dp),dimension(nLevels)      :: mLayerVolFracLiqDiff     ! iteration increment for volumetric fraction of liquid water (m)
  ! Jacobian matrix (used for testing) 
+ real(dp),dimension(nLevels)         :: mLayerTempEjectWater  ! water ejected because pore volume is close to capacity (m s-1)
+ real(dp),dimension(0:nLevels)       :: iLayerTempLiqFluxSoil ! liquid fluxes at layer interfaces at the start of the time step (m s-1)
  real(dp),dimension(nLevels,nLevels) :: jmat                  ! jacobian matrix
  real(dp),dimension(nLevels)         :: ftest,xsav,xtry       ! compute jacobian: function vector and dependent variables
  real(dp),dimension(nLevels)         :: xph,h                 ! compute jacobian: perturbed vector and finite difference increment
  real(dp),parameter                  :: eps=-1.0e-8_dp        ! compute jacobian: finite difference increment
  integer(i4b)                        :: ijac                  ! compute jacobian: index of columns
- logical(lgt),parameter              :: calcJacobian=.true.   ! flag to compute the Jacobian matrix
+ logical(lgt),parameter              :: calcJacobian=.false.   ! flag to compute the Jacobian matrix
  integer(i4b),parameter              :: minLayer=45           ! minimum layer to print
  integer(i4b),parameter              :: maxLayer=50           ! minimum layer to print
  ! initialize error control
@@ -502,7 +505,6 @@ contains
                     ! output: error control
                     err=err,message=cmessage) ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   print*, 'init, mLayerHydCond = ', mLayerHydCond
 
   ! ***** process trial vectors
   else
@@ -533,8 +535,6 @@ contains
                     ! output: error control
                     err,cmessage)             ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   print*, 'trial, mLayerHydCond = ', mLayerHydCond
-   pause
 
   endif
 
@@ -747,7 +747,7 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! populate the jacobian matrix and update x
-   jmat(:,ijac)=(ftest(:)-rvec(:))/h(ijac)
+   jmat(:,ijac)=(ftest(:)-rVec(:))/h(ijac)
    xtry(ijac)=xsav(ijac)
 
   end do  ! looping through soil layers
@@ -760,6 +760,7 @@ contains
   write(*,'(a,1x,10(e20.10,1x))') 'diag = ', diag(minLayer:maxLayer)
   write(*,'(a,1x,10(e20.10,1x))') 'd_m1 = ', d_m1(minLayer:maxLayer)
   write(*,'(a,1x,10(e20.10,1x))') 'd_p1 = ', d_p1(minLayer:maxLayer)
+  pause ' computing Jacobian'
 
  endif  ! (if computing the Jacobian)
 
@@ -1007,7 +1008,7 @@ contains
                   iLayerLiqFluxSoil,            & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                   local__scalarSurfaceRunoff,   & ! intent(out): surface runoff (m s-1)
                   ! output: error control
-                  err,cmessage)           ! intent(out): error control
+                  err,cmessage)                   ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! *****
@@ -1074,7 +1075,7 @@ contains
  real(dp),intent(in)          :: mLayerInitEjectWater(:)   ! intent(in): initial water ejected from each layer because volumetric liquid water is approaching porosity (m s-1)
  real(dp),intent(in)          :: mLayerInitTranspire(:)    ! intent(in): initial transpiration from each layer -- from energy routine (m s-1)
  ! trial flux vectors
- real(dp),intent(in)          :: iLayerTrialLiqFluxSoil(:) ! intent(in): trial liquid flux at layer interfaces (m s-1)
+ real(dp),intent(in)          :: iLayerTrialLiqFluxSoil(0:) ! intent(in): trial liquid flux at layer interfaces (m s-1)
  real(dp),intent(in)          :: mLayerTrialEjectWater(:)  ! intent(in): trial water ejected from each layer because volumetric liquid water is approaching porosity (m s-1)
  real(dp),intent(in)          :: mLayerTrialTranspire(:)   ! intent(in): trial transpiration from each layer -- from energy routine (m s-1)
  ! initial state vectors (start of the time step)
@@ -1114,10 +1115,10 @@ contains
   ! phase change (-)
   mPhse = (iden_ice/iden_water)*(mLayerTrialVolFracIce(iLayer)-mLayerInitVolFracIce(iLayer))
   ! residual (-)
-  rvec(iLayer) = mLayerTrialVolFracLiq(iLayer) - (mLayerInitVolFracLiq(iLayer) + mFlux + mEvap - mEjct - mPhse)
+  residualVec(iLayer) = mLayerTrialVolFracLiq(iLayer) - (mLayerInitVolFracLiq(iLayer) + mFlux + mEvap - mEjct - mPhse)
   ! print progress
-  if(iLayer==1)  print*, 'rvec(iLayer), mFlux, mEvap, mEjct, mPhse'
-  if(iLayer > 45) write(*,'(i4,1x,10(e20.10,1x))') iLayer, rvec(iLayer), mFlux, mEvap, mEjct, mPhse
+  !if(iLayer==1)  print*, 'rvec(iLayer), mFlux, mEvap, mEjct, mPhse'
+  !if(iLayer > 45) write(*,'(i4,1x,10(e20.10,1x))') iLayer, residualVec(iLayer), mFlux, mEvap, mEjct, mPhse
  end do  ! (looping through soil layers)
 
  end subroutine liqResidual
@@ -1239,8 +1240,9 @@ contains
     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
    end select  ! (form of Richards' eqn)
   ! ***** all other cases, set hydraulic conductivity at boundaries to the layer conductivity
-  case default
+  case(liquidFlux)
    iLayerHydCond(0)   = mLayerHydCond(1)
+  case default; err=10; message=trim(message)//"unknown upper  boundary condition"; return
  end select
 
  ! compute hydraulic conductivity at the lower boundaries
@@ -1249,17 +1251,24 @@ contains
   case(prescribedHead,groundwaterCouple)
    select case(ixRichards)  ! (moisture-based form of Richards' equation)
     case(moisture)
-     iLayerHydCond(nLevels) = hydCond_liq(lowerBoundTheta,k_soil,theta_res,theta_sat,vGn_m) * iceImpedeFac(nLevels)
-     iLayerDiffuse(nLevels) = dPsi_dTheta(lowerBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(nLevels)
+     ! (special case of groundwater table below the soil profile)
+     if(bc_lower == groundwaterCouple .and. nLevels == nSoil)then 
+      iLayerHydCond(nLevels) = mLayerHydCond(nLevels)
+     ! (other cases -- note: in gw couple: lowerBoundTheta = weighted average of the saturated and unsat portions of layer that contains water table)
+     else
+      iLayerHydCond(nLevels) = hydCond_liq(lowerBoundTheta,k_soil,theta_res,theta_sat,vGn_m) * iceImpedeFac(nLevels)
+      iLayerDiffuse(nLevels) = dPsi_dTheta(lowerBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(nLevels)
+     endif
     case(mixdform)
      iLayerHydCond(nLevels) = hydCond_psi(lowerBoundHead,k_soil,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nLevels)
     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
    end select  ! (form of Richards' eqn)
   ! ***** all other cases, set hydraulic conductivity at boundaries to the layer conductivity
-  case default
+  case(funcBottomHead,freeDrainage)
    iLayerHydCond(nLevels)   = mLayerHydCond(nLevels)
+  case default; err=10; message=trim(message)//"unknown lower boundary condition"; return
  end select
-
+ 
  end subroutine hydCond_all
 
 
@@ -1526,11 +1535,12 @@ contains
    cflux = -iLayerDiffuse(nLevels)*(lowerBoundTheta - mLayervolFracLiqTrial(nLevels)) / (lowerBoundaryHeight  - mLayerHeight(nLevels))
   ! (case 2: water table is below the soil profile)
   else
-   psiBot = matricHead(lowerBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   cflux  = -iLayerHydCond(nLevels)*(0._dp - psiBot) / (scalarWaterTableDepth - lowerBoundaryHeight)
+   psiBot = matricHead(mLayervolFracLiqTrial(nLevels),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   cflux  = -iLayerHydCond(nLevels)*(0._dp - psiBot) / (scalarWaterTableDepth - mLayerHeight(nLevels))
   endif
   ! compute the total flux
   iLayerLiqFlux(nLevels) = cflux + iLayerHydCond(nLevels)
+
 
  ! ***** head condition
  case(prescribedHead)
@@ -1805,6 +1815,7 @@ contains
       flux1 = -iLayerDiffuse(nLevels)*(lowerBoundTheta - (mLayerVolFracLiqTrial(nLevels)+dx)) / dHeight + iLayerHydCond(nLevels)
       dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
      endif
+
 
     ! -----
     ! case 2: water table is below the soil profile

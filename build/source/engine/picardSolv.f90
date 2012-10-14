@@ -111,6 +111,7 @@ contains
  real(dp),pointer                     :: mLayerInitEjectWater(:)  ! water ejected from each soil layer at start-of-step (m s-1)
  real(dp),pointer                     :: mLayerEjectWater(:)      ! water ejected from each soil layer (m s-1)
  ! local pointers to model diagnostic variables -- aquifer only
+ real(dp),pointer                     :: scalarAquiferRootFrac    ! fraction of roots below the unsaturated zone (-)
  real(dp),pointer                     :: scalarInitTranspireAqfr  ! transpiration loss from the aquifer at the start-of-step (m s-1)
  real(dp),pointer                     :: scalarTranspireAqfr      ! transpiration loss from the aquifer at the end-of-step (m s-1)
  real(dp),pointer                     :: scalarAquiferTranspire   ! time step average: transpiration from the aquifer (m s-1)
@@ -159,6 +160,7 @@ contains
  real(dp),dimension(1)                :: energy_max               ! maximum change in energy for a given iteration
  real(dp)                             :: theta                    ! volumetric fraction of total water, liquid plus ice (-)
  real(dp),parameter                   :: eps   = 1.d-10           ! small increment used to define ice content at the freezing point
+ real(dp)                             :: checkCalcs               ! check the aquifer root density calculations
  real(dp)                             :: nrgRequired              ! case of "snow without a layer": energy required to melt all the snow (J m-2)
  real(dp)                             :: nrgAvailable             ! case of "snow without a layer": energy available to melt the snow (J m-2)
  real(dp)                             :: snwDensity               ! case of "snow without a layer": snow density (kg m-3)
@@ -267,6 +269,7 @@ contains
  mLayerEjectWater      => mvar_data%var(iLookMVAR%mLayerEjectWater)%dat        ! (soil only) ! water ejected from each soil layer (m s-1)
 
  ! assign pointers to model diagnostic variables -- aquifer only 
+ scalarAquiferRootFrac   => mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1)   ! fraction of roots below the lowest unsatured layer (-)
  scalarInitTranspireAqfr => mvar_data%var(iLookMVAR%scalarInitTranspireAqfr)%dat(1) ! transpiration loss from the aquifer at the start-of-step (m s-1)
  scalarTranspireAqfr     => mvar_data%var(iLookMVAR%scalarTranspireAqfr)%dat(1)     ! transpiration loss from the aquifer at the end-of-step (m s-1)
  scalarAquiferTranspire  => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)  ! time step average: transpiration from the aquifer (m s-1)
@@ -345,6 +348,16 @@ contains
  else
   nLevels = nSoil
  endif
+
+ ! compute the fraction of roots below layers that are completely unsaturated (-)
+ scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity(1:nLevels))
+
+ ! check the aquifer root fraction is OK
+ checkCalcs = 1._dp - ( min(iLayerHeight(nSnow+nLevels),rootingDepth) / rootingDepth)**rootDistExp
+ if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then; err=20; message=trim(message)//'problem with the aquifer root density calculations'; return; endif
+
+ ! temporary stop
+ err=20; message=trim(message)//'need to restrict root fraction to the fraction below the water table'; return
 
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then

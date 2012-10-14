@@ -132,7 +132,6 @@ contains
  integer(i4b)             :: iLayer                ! loop through layers
  real(dp)                 :: fracRootLower         ! fraction of the rooting depth at the lower interface
  real(dp)                 :: fracRootUpper         ! fraction of the rooting depth at the upper interface
- real(dp)                 :: checkCalcs            ! check the root density calculations
  ! initialize error control
  err=0; message='rootDensty/'
 
@@ -170,13 +169,6 @@ contains
   !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp = ', &
   !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp
  end do  ! (looping thru layers)
-
- ! compute the fraction of roots below the soil profile (-)
- scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
-
- ! check everything is OK
- checkCalcs = 1._dp - ( min(iLayerHeight(nLayers),rootingDepth) / rootingDepth)**rootDistExp
- if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then; err=20; message=trim(message)//'problem with the root density calculations'; return; endif
  !write(*,'(a,10(f11.5,1x))') 'scalarAquiferRootFrac, checkCalcs = ', scalarAquiferRootFrac, checkCalcs
 
  end subroutine rootDensty
