@@ -23,14 +23,15 @@ contains
   case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 2) choice of method to calculate flux derivatives
   case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! ( 3) form of Richards' equation
   case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! ( 4) choice of groundwater parameterization
-  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! ( 5) type of upper boundary condition for thermodynamics
-  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! ( 6) type of lower boundary condition for thermodynamics
-  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! ( 7) type of upper boundary condition for soil hydrology
-  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! ( 8) type of lower boundary condition for soil hydrology
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! ( 9) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (10) choice of compaction routine
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (11) choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (12) choice of albedo representation
+  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! ( 5) choice of hydraulic conductivity profile
+  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! ( 6) type of upper boundary condition for thermodynamics
+  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! ( 7) type of lower boundary condition for thermodynamics
+  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! ( 8) type of upper boundary condition for soil hydrology
+  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! ( 9) type of lower boundary condition for soil hydrology
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (10) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (11) choice of compaction routine
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (12) choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (13) choice of albedo representation
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -150,6 +151,7 @@ contains
   case('k_soil'            ); get_ixparam = iLookPARAM%k_soil             ! saturated hydraulic conductivity (m s-1)
   case('kAnisotropic'      ); get_ixparam = iLookPARAM%kAnisotropic       ! anisotropy factor for lateral hydraulic conductivity (-)
   case('zScale_TOPMODEL'   ); get_ixparam = iLookPARAM%zScale_TOPMODEL    ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+  case('compactedDepth'    ); get_ixparam = iLookPARAM%compactedDepth     ! depth where k_soil reaches the compacted value given by CH78 (m)
   case('bpar_VIC'          ); get_ixparam = iLookPARAM%bpar_VIC           ! b-parameter in the VIC surface runoff parameterization (-)
   case('specificYield'     ); get_ixparam = iLookPARAM%specificYield      ! specific yield (-)
   case('specificStorage'   ); get_ixparam = iLookPARAM%specificStorage    ! specific storage coefficient (m-1)
@@ -266,6 +268,7 @@ contains
   case('mLayerThermalC'         ); get_ixmvar = iLookMVAR%mLayerThermalC          ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('mLayerRadCondFlux'      ); get_ixmvar = iLookMVAR%mLayerRadCondFlux       ! temporal derivative in energy from radiative and conductive flux (J m-2 s-1)
   case('mLayerMeltFreeze'       ); get_ixmvar = iLookMVAR%mLayerMeltFreeze        ! melt/freeze in each layer (kg m-3 s-1)
+  case('mLayerSatHydCond'       ); get_ixmvar = iLookMVAR%mLayerSatHydCond        ! saturated hydraulic conductivity in each layer (m s-1)
   case('mLayerMatricHead'       ); get_ixmvar = iLookMVAR%mLayerMatricHead        ! matric head of water in the soil (m)
   case('mLayerdTheta_dPsi'      ); get_ixmvar = iLookMVAR%mLayerdTheta_dPsi       ! analytical derivative in the soil water characteristic w.r.t. psi (m-1)
   case('mLayerdPsi_dTheta'      ); get_ixmvar = iLookMVAR%mLayerdPsi_dTheta       ! analytical derivative in the soil water characteristic w.r.t. theta (m)
@@ -291,6 +294,7 @@ contains
   case('scalarBprime'           ); get_ixmvar = iLookMVAR%scalarBprime            ! stable b parameter in Louis (1979) stability function (-)
   case('scalarCparam'           ); get_ixmvar = iLookMVAR%scalarCparam            ! c parameter in Louis (1979) stability function 
   case('scalarVGn_m'            ); get_ixmvar = iLookMVAR%scalarVGn_m             ! van Genuchten "m" parameter (-) 
+  case('scalarKsurf'            ); get_ixmvar = iLookMVAR%scalarKsurf             ! hydraulic conductivity at the surface (m s-1) 
   case('scalarKappa'            ); get_ixmvar = iLookMVAR%scalarKappa             ! constant in the freezing curve function (m K-1)
   case('scalarVolHtCap_air'     ); get_ixmvar = iLookMVAR%scalarVolHtCap_air      ! volumetric heat capacity air         (J m-3 K-1)
   case('scalarVolHtCap_ice'     ); get_ixmvar = iLookMVAR%scalarVolHtCap_ice      ! volumetric heat capacity ice         (J m-3 K-1)

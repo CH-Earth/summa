@@ -20,31 +20,36 @@ integer(i4b),parameter,public :: mixdform          =32    ! mixed form of Richar
 integer(i4b),parameter,public :: movingBoundary    =41    ! moving lower boundary
 integer(i4b),parameter,public :: bigBucket         =42    ! a big bucket (lumped aquifer model)
 integer(i4b),parameter,public :: noExplicit        =43    ! no explicit groundwater parameterization
+! look-up values for the choice of hydraulic conductivity profile
+integer(i4b),parameter,public :: constant          =51     ! constant hydraulic conductivity with depth
+integer(i4b),parameter,public :: exp_profile       =52     ! exponential profile
+integer(i4b),parameter,public :: powerLaw_profile  =53     ! power-law profile
+integer(i4b),parameter,public :: linear_profile    =54     ! linear profile
 ! look-up values for the choice of boundary conditions for thermodynamics
-integer(i4b),parameter,public :: prescribedTemp    =51    ! prescribed temperature
-integer(i4b),parameter,public :: energyFlux        =52    ! energy flux
-integer(i4b),parameter,public :: zeroFlux          =53    ! zero flux
+integer(i4b),parameter,public :: prescribedTemp    =61    ! prescribed temperature
+integer(i4b),parameter,public :: energyFlux        =62    ! energy flux
+integer(i4b),parameter,public :: zeroFlux          =63    ! zero flux
 ! look-up values for the choice of boundary conditions for hydrology
-integer(i4b),parameter,public :: liquidFlux        =61    ! liquid water flux
-integer(i4b),parameter,public :: prescribedHead    =62    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-integer(i4b),parameter,public :: funcBottomHead    =63    ! function of matric head in the lower-most layer
-integer(i4b),parameter,public :: freeDrainage      =64    ! free drainage
-integer(i4b),parameter,public :: groundwaterCouple =65    ! coupled to the groundwater sub-model (matric head=0 as a moving lower boundary)
+integer(i4b),parameter,public :: liquidFlux        =71    ! liquid water flux
+integer(i4b),parameter,public :: prescribedHead    =72    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+integer(i4b),parameter,public :: funcBottomHead    =73    ! function of matric head in the lower-most layer
+integer(i4b),parameter,public :: freeDrainage      =74    ! free drainage
+integer(i4b),parameter,public :: groundwaterCouple =75    ! coupled to the groundwater sub-model (matric head=0 as a moving lower boundary)
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard          =71    ! standard MO similarity, a la Anderson (1976) 
-integer(i4b),parameter,public :: louisInversePower =72    ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential  =73    ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard          =81    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: louisInversePower =82    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential  =83    ! Mahrt (1987) exponential
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement=81    ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical =82    ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement=91    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical =92    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of thermal conductivity
-integer(i4b),parameter,public :: Yen1965           =91    ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977        =92    ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991        =93    ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000      =94    ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965           =101   ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977        =102   ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991        =103   ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000      =104   ! Smirnova et al. (2000)
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: funcSnowAge       =101   ! function of snow age
-integer(i4b),parameter,public :: BATSlike          =102   ! BATS-like approach, with destructive metamorphism + soot content
+integer(i4b),parameter,public :: funcSnowAge       =111   ! function of snow age
+integer(i4b),parameter,public :: BATSlike          =112   ! BATS-like approach, with destructive metamorphism + soot content
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -105,7 +110,17 @@ contains
    err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
  end select
 
- ! (5) identify the upper boundary conditions for thermodynamics
+ ! (5) identify the hydraulic conductivity profile
+ select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
+  case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
+  case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = exp_profile         ! exponential profile
+  case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
+  case('lin_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = linear_profile      ! linear profile
+  case default
+   err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
+ end select
+
+ ! (6) identify the upper boundary conditions for thermodynamics
  select case(trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision))
   case('presTemp'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = prescribedTemp      ! prescribed temperature
   case('nrg_flux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = energyFlux          ! energy flux
@@ -113,7 +128,7 @@ contains
    err=10; message=trim(message)//"unknown upper boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision)//"]"; return
  end select
 
- ! (6) identify the lower boundary conditions for thermodynamics
+ ! (7) identify the lower boundary conditions for thermodynamics
  select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
   case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
   case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
@@ -121,7 +136,7 @@ contains
    err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
  end select
 
- ! (7) identify the upper boundary conditions for soil hydrology
+ ! (8) identify the upper boundary conditions for soil hydrology
  select case(trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision))
   case('presHead'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   case('liq_flux'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = liquidFlux          ! liquid water flux
@@ -129,7 +144,7 @@ contains
    err=10; message=trim(message)//"unknown upper boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision)//"]"; return
  end select
 
- ! (8) identify the lower boundary conditions for soil hydrology
+ ! (9) identify the lower boundary conditions for soil hydrology
  select case(trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision))
   case('presHead'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   case('bottmPsi'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = funcBottomHead      ! function of matric head in the lower-most layer
@@ -139,7 +154,7 @@ contains
    err=10; message=trim(message)//"unknown lower boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision)//"]"; return
  end select
 
- ! (9) identify the choice of atmospheric stability function
+ ! (10) identify the choice of atmospheric stability function
  select case(trim(model_decisions(iLookDECISIONS%astability)%cDecision))
   case('standard'); model_decisions(iLookDECISIONS%astability)%iDecision = standard            ! standard MO similarity, a la Anderson (1976)
   case('louisinv'); model_decisions(iLookDECISIONS%astability)%iDecision = louisInversePower   ! Louis (1979) inverse power function
@@ -148,7 +163,7 @@ contains
    err=10; message=trim(message)//"unknown stability function [option="//trim(model_decisions(iLookDECISIONS%astability)%cDecision)//"]"; return
  end select
 
- ! (10) choice of compaction routine
+ ! (11) choice of compaction routine
  select case(trim(model_decisions(iLookDECISIONS%compaction)%cDecision))
   case('consettl'); model_decisions(iLookDECISIONS%compaction)%iDecision = constantSettlement  ! constant settlement rate
   case('anderson'); model_decisions(iLookDECISIONS%compaction)%iDecision = andersonEmpirical   ! semi-empirical method of Anderson (1976)
@@ -156,7 +171,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
  end select
 
- ! (11) choice of thermal conductivity
+ ! (12) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
   case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
@@ -166,7 +181,7 @@ contains
    err=10; message=trim(message)//"unknown option for thermal conductivity [option="//trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision)//"]"; return
  end select
 
- ! (12) choice of albedo representation
+ ! (13) choice of albedo representation
  select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
   case('fsnowage'); model_decisions(iLookDECISIONS%alb_method)%iDecision = funcSnowAge         ! function of snow age
   case('BATSlike'); model_decisions(iLookDECISIONS%alb_method)%iDecision = BATSlike            ! BATS-like approach, with destructive metamorphism + soot content

@@ -19,6 +19,7 @@ USE var_derive_module,only:calcHeight                       ! module to calculat
 USE var_derive_module,only:turbExchng                       ! module to calculate turbulaent exchange coefficients for neutral conditons
 USE var_derive_module,only:v_shortcut                       ! module to calculate "short-cut" variables
 USE var_derive_module,only:rootDensty                       ! module to calculate the vertical distribution of roots
+USE var_derive_module,only:satHydCond                       ! module to calculate the saturated hydraulic conductivity in each soil layer
 USE read_force_module,only:read_force                       ! module to read model forcing data
 USE derivforce_module,only:derivforce                       ! module to compute derived forcing data
 USE modelwrite_module,only:writeParam,writeForce,writeModel ! module to write model output
@@ -105,9 +106,10 @@ do iParSet=1,nParSets
  call read_icond(err,message); call handle_err(err,message)
  ! compute derived model variables that are pretty much constant
  call E2T_lookup(err,message); call handle_err(err,message) ! calculate a look-up table for the temperature-enthalpy conversion
- call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
  call turbExchng(err,message); call handle_err(err,message) ! calculate turbulent exchange coefficients under neutral conditions
  call rootDensty(err,message); call handle_err(err,message) ! calculate vertical distribution of root density
+ call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
+ call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
  call v_shortcut(err,message); call handle_err(err,message) ! calculate "short-cut" variables such as volumetric heat capacity
  ! define the filename for model spinup
  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'

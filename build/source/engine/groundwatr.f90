@@ -24,9 +24,9 @@ contains
                        kAnisotropic,                           & ! input:  anisotropy factor for lateral hydraulic conductivity (-)
                        zScale_TOPMODEL,                        & ! input:  scale factor for TOPMODEL-ish baseflow parameterization (m)
                        ! input-output
-                       scalarAquiferStorage,                   & ! input-output: aquifer storage (m)
+                       scalarAquiferStorage,                   & ! input-output: aquifer storage at the start/end of the time step (m)
+                       scalarWaterTableDepth,                  & ! input-output: water table depth at the start/end of the time step (m)
                        ! output
-                       scalarWaterTableDepth,                  & ! output: water table depth at the end of the time step (m)
                        scalarAquiferBaseflow,                  & ! output: baseflow from the aquifer (m s-1)
                        err,message)                              ! output: error control
  ! compute change in aquifer storage over the time step
@@ -45,9 +45,9 @@ contains
  real(dp),intent(in)                 :: kAnisotropic             ! anisotropy factor for lateral hydraulic conductivity (-)
  real(dp),intent(in)                 :: zScale_TOPMODEL          ! scale factor for TOPMODEL-ish baseflow parameterization (m)
  ! input-output variables
- real(dp),intent(inout)              :: scalarAquiferStorage     ! aquifer storage (m)
+ real(dp),intent(inout)              :: scalarAquiferStorage     ! aquifer storage at the start/end of the time step (m)
+ real(dp),intent(inout)              :: scalarWaterTableDepth    ! water table depth at the start/end of the time step (m)
  ! output variables
- real(dp),intent(out)                :: scalarWaterTableDepth    ! water table depth at the end of the time step (m)
  real(dp),intent(out)                :: scalarAquiferBaseflow    ! baseflow from the aquifer (m s-1)
  integer(i4b),intent(out)            :: err                      ! error code
  character(*),intent(out)            :: message                  ! error message
@@ -62,6 +62,7 @@ contains
  integer(i4b)                        :: iSoil                    ! index of each soil layer
  integer(i4b)                        :: nSoil                    ! number of soil layers
  integer(i4b)                        :: nUnsat                   ! number of unsaturated layers
+ integer(i4b)                        :: nUnsat_init              ! number of unsaturated layers at the start of the iterations
  real(dp)                            :: baseflowMax              ! maximum baseflow rate from the aquifer (m s-1)
  real(dp),dimension(0:size(mLayerVolFracLiqIter)) :: waterReq2FillPore  ! water required to fill pore space (m)
  real(dp)                            :: drainablePorosity        ! drainable porosity (-)
@@ -78,7 +79,7 @@ contains
  ! compute the maximum baseflow rate
  baseflowMax = kAnisotropic*k_soil
 
- ! initialize the aquifer storage (m)
+ ! initialize the aquifer storage and the water table depth (m)
  aquiferStorageTrial = scalarAquiferStorage
 
  ! compute the water required to fill pore space up to the level of each layer interface (m)
@@ -90,29 +91,26 @@ contains
                          err,cmessage)           ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ ! compute the number of unsaturated layers, the drainable porosity, and the depth to the water table
+ call waterTablePosition(mLayerVolFracLiqIter, & ! intent(in):  volumetric liquid water content in each soil layer (-)
+                         mLayerVolFracIceIter, & ! intent(in):  volumetric ice content in each soil layer (-)
+                         aquiferStorageTrial,  & ! intent(in):  aquifer storage (m)
+                         waterReq2FillPore,    & ! intent(in):  water required to fill pore space up to the level of each layer interface (m(
+                         iLayerHeight,         & ! intent(in):  height of each interface (m)
+                         mLayerDepth,          & ! intent(in):  depth of each soil layer (m)
+                         theta_sat,            & ! intent(in):  soil porosity (-)
+                         specificYield,        & ! intent(in):  fraction of water volume drained by gravity in an unconfined aquifer (-)
+                         nUnsat_init,          & ! intent(out): number of unsaturated layers at the start of the iterations
+                         drainablePorosity,    & ! intent(out): drainable porosity (-)
+                         zWaterTrial,          & ! intent(out): water table depth (m)
+                         err,cmessage)           ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
 
  ! *****
  ! * start iterations...
  ! *********************
  do iter=1,maxiter
-
-  ! -----
-  ! compute the depth to the water table and the drainable porosity...
-  ! ---------------------------------------
-  ! compute the number of unsaturated layers, the drainable porosity, and the depth to the water table
-  call waterTablePosition(mLayerVolFracLiqIter, & ! intent(in):  volumetric liquid water content in each soil layer (-)
-                          mLayerVolFracIceIter, & ! intent(in):  volumetric ice content in each soil layer (-)
-                          aquiferStorageTrial,  & ! intent(in):  aquifer storage (m)
-                          waterReq2FillPore,    & ! intent(in):  water required to fill pore space up to the level of each layer interface (m(
-                          iLayerHeight,         & ! intent(in):  height of each interface (m)
-                          mLayerDepth,          & ! intent(in):  depth of each soil layer (m)
-                          theta_sat,            & ! intent(in):  soil porosity (-)
-                          specificYield,        & ! intent(in):  fraction of water volume drained by gravity in an unconfined aquifer (-)
-                          nUnsat,               & ! intent(out): number of unsaturated layers
-                          drainablePorosity,    & ! intent(out): drainable porosity (-)
-                          zWaterTrial,          & ! intent(out): water table depth (m)
-                          err,cmessage)           ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! -----
   ! compute iteration increment...
@@ -127,33 +125,40 @@ contains
   dBaseflow_dStorage = scalarAquiferBaseflow/(zScale_TOPMODEL*drainablePorosity)
   ! compute the iteration increment (m)
   dStorage = -residual/(1._dp + dBaseflow_dStorage*dt)
-  write(*,'(a)')            'aquiferStorageTrial, scalarWaterTableDepth, scalarAquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage = '
-  write(*,'(10(e20.10,1x))') aquiferStorageTrial, scalarWaterTableDepth, scalarAquiferBaseflow, scalarAquiferRcharge, dBaseflow_dStorage, dStorage
- 
-  ! check for convergence and update states
+  !write(*,'(a)')            'aquiferStorageTrial, zWaterTrial, scalarAquiferBaseflow, scalarAquiferRcharge, scalarAquiferTranspire, dBaseflow_dStorage, residual, dStorage = '
+  !write(*,'(10(e20.10,1x))') aquiferStorageTrial, zWaterTrial, scalarAquiferBaseflow, scalarAquiferRcharge, scalarAquiferTranspire, dBaseflow_dStorage, residual, dStorage
+
+  ! ** update the aquifer storage (m) 
+  aquiferStorageTrial = aquiferStorageTrial + dStorage
+
+  ! ** update the number of unsaturated layers, the drainable porosity, and the depth to the water table
+  call waterTablePosition(mLayerVolFracLiqIter, & ! intent(in):  volumetric liquid water content in each soil layer (-)
+                          mLayerVolFracIceIter, & ! intent(in):  volumetric ice content in each soil layer (-)
+                          aquiferStorageTrial,  & ! intent(in):  aquifer storage (m)
+                          waterReq2FillPore,    & ! intent(in):  water required to fill pore space up to the level of each layer interface (m(
+                          iLayerHeight,         & ! intent(in):  height of each interface (m)
+                          mLayerDepth,          & ! intent(in):  depth of each soil layer (m)
+                          theta_sat,            & ! intent(in):  soil porosity (-)
+                          specificYield,        & ! intent(in):  fraction of water volume drained by gravity in an unconfined aquifer (-)
+                          nUnsat,               & ! intent(out): number of unsaturated layers
+                          drainablePorosity,    & ! intent(out): drainable porosity (-)
+                          zWaterTrial,          & ! intent(out): water table depth (m)
+                          err,cmessage)           ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! ** check for convergence and return desired quantities
   if(abs(dStorage) < incTol .and. abs(residual) < resTol)then
+   ! (test that the rise/rall in the water table depth is tolerable)
+   if(zWaterTrial < iLayerHeight(nUnsat_init) - mLayerDepth(nUnsat_init)/2._dp)then
+    write(message,'(a,2(f12.5,a))')trim(message)//'rise/fall in water table is intolerable [water table depth = ', zWaterTrial,&
+                                   '; height of recharge point = ', iLayerHeight(nUnsat_init) - mLayerDepth(nUnsat_init)/2._dp, ']'
+    err=-20; return  ! will cause a reduction in the time step and another trial
+   endif
    ! update aquifer storage (m)
-   scalarAquiferStorage  = aquiferStorageTrial + dStorage
-   ! update the depth to the water table (m)
-   call waterTablePosition(mLayerVolFracLiqIter, & ! intent(in):  volumetric liquid water content in each soil layer (-)
-                           mLayerVolFracIceIter, & ! intent(in):  volumetric ice content in each soil layer (-)
-                           scalarAquiferStorage, & ! intent(in):  aquifer storage (m)
-                           waterReq2FillPore,    & ! intent(in):  water required to fill pore space up to the level of each layer interface (m)
-                           iLayerHeight,         & ! intent(in):  height of each interface (m)
-                           mLayerDepth,          & ! intent(in):  depth of each soil layer (m)
-                           theta_sat,            & ! intent(in):  soil porosity (-)
-                           specificYield,        & ! intent(in):  fraction of water volume drained by gravity in an unconfined aquifer (-)
-                           nUnsat,               & ! intent(out): number of unsaturated layers
-                           drainablePorosity,    & ! intent(out): drainable porosity (-)
-                           scalarWaterTableDepth,& ! intent(out): water table depth (m)
-                           err,cmessage)           ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   scalarAquiferStorage  = aquiferStorageTrial
+   scalarWaterTableDepth = zWaterTrial
    exit
-  ! ***** non-convergence -- update the aquifer storage and water table depth
-  else
-   ! ** update the aquifer storage (m) 
-   aquiferStorageTrial = aquiferStorageTrial + dStorage
-  endif  ! ***** non-convergence -- update
+  endif  ! convergence check
   ! check for non-convergence
   if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
  end do  ! (loop through iterations)

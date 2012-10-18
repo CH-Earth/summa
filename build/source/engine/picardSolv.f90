@@ -48,7 +48,7 @@ contains
  ! local pointers to snow parameters
  real(dp),pointer                     :: Fcapil                   ! capillary retention as a fraction of the total pore volume (-)
  real(dp),pointer                     :: snowfrz_scale            ! scaling parameter for the snow freezing curve (K-1)
- ! local pointers to soil parameters
+ ! local pointers to soil/veg parameters
  real(dp),pointer                     :: soilAlbedo               ! soil albedo (-)
  real(dp),pointer                     :: vGn_alpha                ! van Genutchen "alpha" parameter
  real(dp),pointer                     :: vGn_n                    ! van Genutchen "n" parameter
@@ -58,6 +58,8 @@ contains
  real(dp),pointer                     :: specificYield            ! specific yield (-)
  real(dp),pointer                     :: specificStorage          ! specific storage coefficient (m-1)
  real(dp),pointer                     :: f_impede                 ! ice impedence factor (-)
+ real(dp),pointer                     :: rootingDepth             ! rooting depth (m)
+ real(dp),pointer                     :: rootDistExp              ! exponent for the vertical distriution of root density (-)
  ! local pointers to algorithmic control parameters
  real(dp),pointer                     :: wimplicit                ! weight assigned to start-of-step fluxes (-)
  real(dp),pointer                     :: relConvTol_liquid        ! relative convergence tolerance for vol frac liq water (-)
@@ -68,6 +70,7 @@ contains
  real(dp),pointer                     :: absConvTol_energy        ! absolute convergence tolerance for energy (J m-3)
  ! local pointers to derived model variables that are constant over the simulation period
  real(dp),pointer                     :: vGn_m                    ! van Genutchen "m" parameter (-)
+ real(dp),pointer                     :: mLayerRootDensity(:)     ! fraction of roots in each soil layer (-)
  ! local pointers to scalar state variables
  real(dp),pointer                     :: scalarSWE                ! SWE (kg m-2)
  real(dp),pointer                     :: surfaceAlbedo            ! surface albedo (-) 
@@ -196,7 +199,7 @@ contains
  snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)  ! scaling parameter for the snow freezing curve (K-1)
  Fcapil            => mpar_data%var(iLookPARAM%Fcapil)         ! capillary retention as a fraction of the total pore volume (-)
 
- ! assign pointers to soil parameters
+ ! assign pointers to soil/veg parameters
  soilAlbedo        => mpar_data%var(iLookPARAM%soilAlbedo)      ! soil albedo (-)
  vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)       ! van Genutchen "alpha" parameter (m-1)
  vGn_n             => mpar_data%var(iLookPARAM%vGn_n)           ! van Genutchen "n" parameter (-)
@@ -206,6 +209,8 @@ contains
  specificYield     => mpar_data%var(iLookPARAM%specificYield)   ! specific yield (-)
  specificStorage   => mpar_data%var(iLookPARAM%specificStorage) ! specific storage coefficient (m-1)
  f_impede          => mpar_data%var(iLookPARAM%f_impede)        ! ice impedence factor (-)
+ rootingDepth      => mpar_data%var(iLookPARAM%rootingDepth)    ! rooting depth (m)
+ rootDistExp       => mpar_data%var(iLookPARAM%rootDistExp)     ! root distribution exponent (-)
 
  ! assign pointers to algorithmic control parameters
  wimplicit         => mpar_data%var(iLookPARAM%wimplicit)            ! weight assigned to start-of-step fluxes (-)
@@ -218,6 +223,7 @@ contains
 
  ! assign pointers to model variables that are constant over the simulation period
  vGn_m             => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)           ! van Genutchen "m" parameter (-)
+ mLayerRootDensity => mvar_data%var(iLookMVAR%mLayerRootDensity)%dat        ! fraction of roots in each soil layer (-)
 
  ! assign local pointers to scalar state variables
  scalarSWE            => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)             ! SWE (kg m-2)
@@ -239,7 +245,7 @@ contains
  scalarTotalSoilLiq   => mvar_data%var(iLookMVAR%scalarTotalSoilLiq)%dat(1)    ! total mass of liquid water in the soil (kg m-2)
  scalarTotalSoilIce   => mvar_data%var(iLookMVAR%scalarTotalSoilIce)%dat(1)    ! total mass of ice in the soil (kg m-2)
 
- ! assign pointers to model cooedinate variables
+ ! assign pointers to model coordinate variables
  iLayerHeight      => mvar_data%var(iLookMVAR%iLayerHeight)%dat             ! height of layer interfaces (m)
 
  ! assign pointers to model state variables -- all layers
@@ -284,8 +290,8 @@ contains
  freeze_infiltrate = .true.
 
  ! define the maximum number of layers to print
- minLayer=40
- maxLayer=50
+ minLayer=1
+ maxLayer=10
 
  ! allocate space for state variables at the start and end of the iteration
  allocate(mLayerTempIter(nLayers),      mLayerTempNew(nLayers),       &  ! all layers
@@ -355,9 +361,6 @@ contains
  ! check the aquifer root fraction is OK
  checkCalcs = 1._dp - ( min(iLayerHeight(nSnow+nLevels),rootingDepth) / rootingDepth)**rootDistExp
  if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then; err=20; message=trim(message)//'problem with the aquifer root density calculations'; return; endif
-
- ! temporary stop
- err=20; message=trim(message)//'need to restrict root fraction to the fraction below the water table'; return
 
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then
@@ -433,6 +436,8 @@ contains
   !write(*,'(a,10(f10.5,1x))') 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
   !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceIter = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
   !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceNew =  ', mLayerVolFracIceNew(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
 
   if(printflag) print*, 'mLayerTempIter =       ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
   if(printflag) print*, 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
@@ -468,21 +473,23 @@ contains
   !print*, 'after heat transfer, nSnow, nSoil, nLayers, ice(nLayers) = ', nSnow, nSoil, nLayers, mLayerVolFracIceIter(nLayers)
 
   ! compute the volumetric liquid water content at the next iteration (note: only use snow vectors)
+  ! NOTE: ice not modified in the snow hydrology routines, so can stay as "New"
   if(nSnow > 0)then
    call snowHydrol(dt,                               & ! time step (seconds)
                    iter,                             & ! iteration index
                    mLayerVolFracLiqIter(1:nSnow),    & ! volumetric fraction of liquid water at the current iteration (-)
-                   mLayerVolFracIceIter(1:nSnow),    & ! volumetric fraction of ice at the current iteration (-)
+                   mLayerVolFracIceNew(1:nSnow),     & ! volumetric fraction of ice at the current iteration (-)
                    mLayerVolFracLiqNew(1:nSnow),     & ! volumetric fraction of liquid water at the next iteration (-)
                    err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
 
   ! compute the matric head at the next iteration (note liquid water and ice vectors are defined for all layers)
+  ! NOTE: ice not modified in the soil hydrology routines, so can stay as "New"
   call soilHydrol(dt,&                                          ! time step (seconds)
                   iter,&                                        ! current iteration count
                   mLayerMatricHeadIter(1:nLevels),            & ! matric head in each layer at the current iteration (m)
-                  mLayerVolFracIceIter(nSnow+1:nSnow+nLevels),& ! volumetric fraction of ice at the current iteration (-)
+                  mLayerVolFracIceNew(nSnow+1:nSnow+nLevels), & ! volumetric fraction of ice at the current iteration (-)
                   mLayerVolFracLiqIter(nSnow+1:nSnow+nLevels),& ! volumetric fraction of liquid water at the current iteration (-)
                   mLayerMatricHeadNew(1:nLevels),             & ! matric head in each layer at the next iteration (m)
                   mLayerVolFracLiqNew(nSnow+1:nSnow+nLevels), & ! volumetric fraction of liquid water at the next iteration (-)
@@ -494,17 +501,16 @@ contains
    mLayerVolFracLiqNew(nSnow+nLevels+1:nLayers) = mLayerVolFracLiqIter(nSnow+nLevels+1:nLayers)
   endif
   !print*, '*** after hydrology'
-  write(*,'(a,11(f10.7,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
-  write(*,'(a,11(f10.7,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,50(f10.7,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))*100._dp
+  !write(*,'(a,50(f10.7,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))*100._dp
 
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
 
   ! calculate the critical soil temperature above which all water is unfrozen (K)
-  ! NOTE: use of "Iter" for ice, since not modified in the hydrology routines
   do iLayer=nSnow+1,nLayers
-   theta = mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqNew(iLayer)
+   theta = mLayerVolFracIceNew(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqNew(iLayer)
    mLayerTcrit(iLayer-nSnow) = crit_soilT(theta,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
   end do
 
@@ -550,17 +556,17 @@ contains
   liquid_max = maxval(abs(mLayerLiqIncr))
   matric_max = maxval(abs(mLayerMatIncr))
   energy_max = maxval(abs(mLayerNrgIncr))
-  print*, 'iter, maxiter = ', iter, maxiter
-  write(*,'(a,1x,2(e20.10,1x))') 'liquid_max, absConvTol_liquid = ', liquid_max, absConvTol_liquid
-  write(*,'(a,1x,2(e20.10,1x))') 'matric_max, absConvTol_matric = ', matric_max, absConvTol_matric
-  write(*,'(a,1x,2(e20.10,1x))') 'energy_max, absConvTol_energy = ', energy_max, absConvTol_energy
+  !print*, 'iter, maxiter = ', iter, maxiter
+  !write(*,'(a,1x,2(e20.10,1x))') 'liquid_max, absConvTol_liquid = ', liquid_max, absConvTol_liquid
+  !write(*,'(a,1x,2(e20.10,1x))') 'matric_max, absConvTol_matric = ', matric_max, absConvTol_matric
+  !write(*,'(a,1x,2(e20.10,1x))') 'energy_max, absConvTol_energy = ', energy_max, absConvTol_energy
   !pause
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs(mLayerNrgIncr))
-  print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
 
   ! print current values
   !print*, 'mLayerTempIter       = ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
@@ -654,12 +660,12 @@ contains
                   mpar_data%var(iLookPARAM%kAnisotropic),   & ! input: anisotropy factor for lateral hydraulic conductivity (-)
                   mpar_data%var(iLookPARAM%zScale_TOPMODEL),& ! input: scale factor for TOPMODEL-ish baseflow parameterization (m)
                   ! input-output
-                  scalarAquiferStorage,                     & ! input-output: aquifer storage (m)
+                  scalarAquiferStorage,                     & ! input-output: aquifer storage at the start/end of the time step (m)
+                  scalarWaterTableDepth,                    & ! input-output: water table depth at the start/end of the time step (m)
                   ! output
-                  scalarWaterTableDepth,                    & ! output: water table depth at the end of the time step (m)
                   scalarAquiferBaseflow,                    & ! output: baseflow from the aquifer (m s-1)
                   err,cmessage)                               ! output: error control
-  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
  ! ***** compute melt for the case of "snow without a layer"

@@ -5,6 +5,7 @@ private
 public::calcHeight
 public::turbExchng
 public::rootDensty
+public::satHydCond
 public::v_shortcut
 contains
 
@@ -166,12 +167,98 @@ contains
   else
    mLayerRootDensity(iLayer-nSnow) = 0._dp
   endif
+  !print*, 'iLayerHeight(iLayer-1:iLayer) = ', iLayerHeight(iLayer-1:iLayer)
   !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp = ', &
   !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp
  end do  ! (looping thru layers)
- !write(*,'(a,10(f11.5,1x))') 'scalarAquiferRootFrac, checkCalcs = ', scalarAquiferRootFrac, checkCalcs
+ ! check everything is OK
+ if(rootingDepth < iLayerHeight(nLayers))then
+  if(abs(sum(mLayerRootDensity) - 1._dp) > epsilon(rootingDepth))then
+   message=trim(message)//'root density does not sum to one when rooting depth is within the soil profile'
+   err=20; return
+  endif
+ endif
 
  end subroutine rootDensty
+
+ ! **********************************************************************************************************
+ ! new subroutine: compute vertical profile of saturated hydraulic conductivity
+ ! **********************************************************************************************************
+ subroutine satHydCond(err,message)
+ ! model decision structures
+ USE data_struc,only:model_decisions        ! model decision structure
+ USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ ! look-up values for the choice of groundwater parameterization
+ USE mDecisions_module,only: &
+  constant,                  & ! constant hydraulic conductivity with depth
+  exp_profile,               & ! exponential profile
+  powerLaw_profile,          & ! power-law profile
+  linear_profile               ! linear profile
+ ! model variables, parameters, forcing data, etc.
+ USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
+ USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
+ implicit none
+ ! declare dummy variables
+ integer(i4b),intent(out) :: err                   ! error code
+ character(*),intent(out) :: message               ! error message
+ ! declare pointers to data in parameter structures
+ real(dp),pointer         :: k_soil                ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ real(dp),pointer         :: compactedDepth        ! the depth at which k_soil reaches the compacted value given by CH78 (m)
+ real(dp),pointer         :: zScale_TOPMODEL       ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+ ! declare pointers to data in model variable structures
+ real(dp),pointer         :: mLayerSatHydCond(:)   ! saturated hydraulic conductivity in each layer (m s-1)
+ real(dp),pointer         :: mLayerHeight(:)       ! height at the mid-point of each layer (m)
+ real(dp),pointer         :: k_surf                ! hydraulic conductivity at the surface (m s-1)
+ ! declare pointers to model index variables
+ integer(i4b),pointer     :: nLayers               ! number of layers
+ integer(i4b),pointer     :: layerType(:)          ! type of the layer (ix_soil or ix_snow)
+ ! declare local variables
+ integer(i4b)             :: nSoil,nSnow           ! number of soil and snow layers
+ integer(i4b)             :: iLayer                ! loop through layers
+ ! initialize error control
+ err=0; message='satHydCond/'
+
+ ! assign local pointers to the values in the parameter structures
+ k_soil           => mpar_data%var(iLookPARAM%k_soil)              ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ compactedDepth   => mpar_data%var(iLookPARAM%compactedDepth)      ! the depth at which k_soil reaches the compacted value given by CH78 (m)
+ zScale_TOPMODEL  => mpar_data%var(iLookPARAM%zScale_TOPMODEL)     ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+ ! assign local pointers to the values in the model variable structures
+ mLayerSatHydCond => mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat ! saturated hydraulic conductivity in each layer (m s-1)
+ mLayerHeight     => mvar_data%var(iLookMVAR%mLayerHeight)%dat     ! height at the mid-point of each layer (m)
+ k_surf           => mvar_data%var(iLookMVAR%scalarKsurf)%dat(1)   ! hydraulic conductivity at the surface (m s-1)
+ ! assign local pointers to the model index structures
+ nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)      ! number of layers
+ layerType        => indx_data%var(iLookINDEX%layerType)%dat       ! layer type (ix_soil or ix_snow)
+ ! identify the number of snow and soil layers
+ nSnow = count(layerType==ix_snow)
+ nSoil = count(layerType==ix_soil)
+
+ ! loop through soil layers
+ do iLayer=nSnow+1,nLayers
+  select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
+   ! constant hydraulic conductivity with depth
+   case(constant)
+    k_surf = k_soil
+    mLayerSatHydCond(iLayer-nSnow) = k_soil
+   ! exponential profile
+   case(exp_profile)
+    k_surf                         = k_soil * exp(-(0._dp - compactedDepth)/zScale_TOPMODEL)
+    mLayerSatHydCond(iLayer-nSnow) = k_soil * exp(-(mLayerHeight(iLayer) - compactedDepth)/zScale_TOPMODEL)
+   ! power-law and linear profile (not implemented yet)
+   case(powerLaw_profile,linear_profile)
+    message=trim(message)//"hydraulic conductivity profile not implemented yet [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
+    err=10; return
+   ! error check (errors checked earlier also, so should not get here)
+   case default
+    message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
+    err=10; return
+  end select
+  write(*,'(i4,1x,f11.5,1x,e20.10)') iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow)
+ end do  ! looping through soil layers
+ print*, k_soil
+ pause
+
+ end subroutine satHydCond
 
 
  ! **********************************************************************************************************

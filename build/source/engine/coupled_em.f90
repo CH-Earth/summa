@@ -177,7 +177,7 @@ contains
    ! get the new solution
    call picardSolv(dt_sub,maxiter,niter,err,cmessage)
    if(err>0)then; message=trim(message)//trim(cmessage); return; endif
-   if(err<0)then; print*, trim(message)//trim(cmessage); pause; endif 
+   !if(err<0)then; print*, trim(message)//trim(cmessage); print*, 'dt_sub, minstep = ', dt_sub, minstep; pause; endif 
    ! exit do loop if all is a-ok
    if(err==0) exit
    ! if not ok, reduce time step and try again
@@ -215,7 +215,7 @@ contains
 
   ! increment the time step increment
   dt_done = dt_done + dt_sub
-  print*, '***** ', dt_done, dt_sub, niter
+  !print*, '***** ', dt_done, dt_sub, niter
 
   ! modify the length of the time step
   if(niter<n_inc) dt_sub = dt_sub*F_inc

@@ -92,6 +92,8 @@ contains
     mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
    ! ** soil
    case(ix_soil)
+    ! check that total volumetric water (liquid + ice) does not exceed soil porosity
+    if(theta > theta_sat)then; err=20; message=trim(message)//'volumetric (liquid + ice) content exceeds soil porosity'; return; endif 
     ! compute the matric head (m) volumetric fraction of liquid water and ice (-)
     if(mLayerTempNew(iLayer)<mLayerTcrit(iLayer-nSnow))then
      mLayerMatricHeadNew(iLayer-nSnow) = kappa*(mLayerTempNew(iLayer) - Tfreeze)

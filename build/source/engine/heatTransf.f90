@@ -404,7 +404,6 @@ contains
  real(dp)                       :: critDiff                 ! temperature difference from critical temperature (K)
  real(dp)                       :: maxdiffTemp(1)           ! maximum difference between temperature input and start-of-step temperature (K)
  real(dp),parameter             :: epsT=1.d-10              ! offset from Tcrit when re-setting iterations at the critical temperature (K)
- real(dp),dimension(size(mLayerMatricHeadIter)) :: effectiveMatricHead ! the "effective" matric head, to account for the depth to the water table
  integer(i4b)                   :: nUnsat                   ! number of unsaturated layers
  ! define the local variables for the solution
  real(dp)                       :: totalSurfaceFlux         ! total surface flux (W m-2)
@@ -443,13 +442,6 @@ contains
   err=20; message=trim(message)//'option "iterSurfEnergyBal" not implemented yet';return
  endif
 
- ! compute the "effective" matric head, to account for the depth to the water table
- effectiveMatricHead = mLayerMatricHeadIter
- if(ixGroundwater == movingBoundary)then ! (choice of gw parameterization is moving lower boundary)
-  nUnsat = count(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth)
-  if(nUnsat < nSoil) effectiveMatricHead(nUnsat+1:nSoil) = 0._dp
- endif
-
  ! ***** compute fluxes at the surface
  call surfaceFlx(&
                  ! (model control variables)
@@ -480,7 +472,7 @@ contains
                  ! (model state variables)
                  scalarAlbedo,            & ! intent(in): surface albedo (-)
                  mLayerTempIter(1),       & ! intent(in): surface temperature (K)
-                 effectiveMatricHead,     & ! intent(in): matric head at the current iteration (m)
+                 mLayerMatricHeadIter,    & ! intent(in): matric head at the current iteration (m)
                  ! (diagnostic variables)
                  scalarExCoef,            & ! intent(out): surface-atmosphere exchange coeffcient (-)
                  scalarTranspireLim,      & ! intent(out): resistance to evaporation at the surface (-)
@@ -690,7 +682,7 @@ contains
               scalarAlbedo,            & ! intent(in): surface albedo (-)
               mLayerTemp,              & ! intent(in): temperature in all layers (K)
               mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in all layers (-)
-              scalarWaterTableDepth,         & ! intent(in): depth of the water table (m)
+              scalarWaterTableDepth,   & ! intent(in): depth of the water table (m)
               ! (trial state variables)
               mLayerTempIter,          & ! intent(in): trial temperature vector (K)
               mLayerMatricHeadIter,    & ! intent(in): matric head at the current iteration (m)
@@ -1336,8 +1328,8 @@ contains
                        mLayerRootDensity,        &  ! intent(in): root density in each layer (-)
                        scalarAquiferRootFrac,    &  ! intent(in): fraction of roots below the lowest unsaturated layer (-)
                        ! (model coordinate variables)
-                       mLayerHeight,             & ! intent(in): height at the mid-point of each soil layer (m)
-                       iLayerHeight,             & ! intent(in): height at layer interfaces (m)
+                       mLayerHeight,             &  ! intent(in): height at the mid-point of each soil layer (m)
+                       iLayerHeight,             &  ! intent(in): height at layer interfaces (m)
                        scalarWaterTableDepth,    &  ! intent(in): depth of the water table (m)
                        ! input (parameters)
                        rootingDepth,             &  ! intent(in): maximum rooting depth (m)
@@ -1374,13 +1366,14 @@ contains
  real(dp),intent(in)           :: LAI                      ! leaf area index (m2 m-2)
  ! output
  real(dp),intent(out)          :: wAvgTranspireLimitFac    ! intent(out): weighted average of the transpiration limiting factor (-)
- real(dp),intent(out)          :: mLayerTranspireLimitFac  ! intent(out): transpiration limiting factor in each layer (-)
+ real(dp),intent(out)          :: mLayerTranspireLimitFac(:)  ! intent(out): transpiration limiting factor in each layer (-)
  real(dp),intent(out)          :: aquiferTranspireLimitFac ! intent(out): transpiration limiting factor for the aquifer (-)
  integer(i4b),intent(out)      :: err                      ! error code
  character(*),intent(out)      :: message                  ! error message
  ! local variables
  character(len=256)            :: cmessage                 ! error message of downwind routine
  integer(i4b)                  :: iLayer                   ! index of model layers
+ integer(i4b)                  :: nLevels                  ! number of levels to consider in the soil profile
  real(dp)                      :: stomatalResist           ! stomatal resistance (s m-1)
  real(dp)                      :: plantWiltFactor          ! plant wilting factor (-) 
  real(dp)                      :: fracSaturatedRoots       ! fraction of total roots below the water table (-)
@@ -1399,12 +1392,19 @@ contains
  ! snow free conditions
  else
 
+  ! identify the number of unsaturated soil levels
+  if(ixGroundwater == movingBoundary)then
+   nLevels = count(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth)
+  else
+   nLevels = nSoil
+  endif
+
   ! ** compute the factor limiting transpiration for each soil layer (-)
   wAvgTranspireLimitFac = 0._dp  ! (initialize the weighted average)
   do iLayer=1,nSoil
 
    ! ** special case: water table within the soil profile
-   if(ixGroundwater == movingBoundary .and. scalarWaterTableDepth < iLayerHeight(iLayer))then
+   if(iLayer > nLevels)then
     ! (assume that transpiration loss for soil layers BELOW the water table comes from the aquifer)
     mLayerTranspireLimitFac(iLayer) = 0._dp
 
@@ -1434,39 +1434,30 @@ contains
     ! ------------------------------------------
     case(movingBoundary)
 
-     ! ***** compute the plant wilt factor
-     ! if water table is within the soil profile (below-profile zone is completely saturated)
-     if(scalarWaterTableDepth < heightBottomSoilProfile)then
+     ! compute the fraction of total roots below the water table
+     if(scalarWaterTableDepth < rootingDepth)then; fracSaturatedRoots = 1._dp - (scalarWaterTableDepth/rootingDepth)**rootDistExp
+                                             else; fracSaturatedRoots = 0._dp
+     endif
+     ! sanity check
+     if(fracSaturatedRoots > scalarAquiferRootFrac)then
+      message=trim(message)//'total fraction of roots below the water table cannot exceed the total fraction of roots below the soil profile'
+      err=20; return
+     endif
 
-      plantWiltFactor = 1._dp ! no reduction in transpiration for these roots!      
-
-     ! case when water table is below the soil profile
-     else
-      ! compute the fraction of total roots below the water table
-      if(scalarWaterTableDepth < rootingDepth)then; fracSaturatedRoots = 1._dp - (scalarWaterTableDepth/rootingDepth)**rootDistExp
-                                              else; fracSaturatedRoots = 0._dp
-      endif
-      ! sanity check
-      if(fracSaturatedRoots > scalarAquiferRootFrac)then
-       message=trim(message)//'total fraction of roots below the water table cannot exceed the total fraction of roots below the soil profile'
-       err=20; return
-      endif
-      ! compute the water availability factor for the unsaturated region below the soil profile
-      call unsatPlantWiltFactor(heightBottomSoilProfile,    & ! intent(in): height at the bottom of the soil profile (m)
-                                rootingDepth,               & ! intent(in): height at the bottom of the root zone (m)
-                                scalarWaterTableDepth,      & ! intent(in): height of the water table (m)
-                                midHeightBottomSoilLayer,   & ! intent(in): height of the mid-point of the lowest soil layer (m)
-                                mLayerMatricHeadIter(nSoil),& ! intent(in): matric head at the mid-point of the lowest soil layer (m)
-                                plantWiltPsi,               & ! intent(in): scaling factor used in the plant wilt function (m)
-                                plantWiltExp,               & ! intent(in): empirical exponent in the plant wilt function (-) 
-                                plantWiltFactorUnsatZone,   & ! intent(out): plant wilt factor (-)
-                                err,message)                  ! intent(out): error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif 
-      ! compute the weighted average of saturated and unsaturated portions
-      ratioSatRoots   = fracSaturatedRoots/scalarAquiferRootFrac
-      plantWiltFactor = ratioSatRoots*1._dp + (1._dp - ratioSatRoots)*plantWiltFactorUnsatZone
-
-     endif ! (if water table is below the soil profile)
+     ! compute the water availability factor for the unsaturated region below the soil profile
+     call unsatPlantWiltFactor(iLayerHeight(nSnow+nLevels),& ! intent(in): height at the bottom of the unsaturated zone (m)
+                               rootingDepth,               & ! intent(in): height at the bottom of the root zone (m)
+                               scalarWaterTableDepth,      & ! intent(in): height of the water table (m)
+                               mLayerHeight(nSnow+nLevels),& ! intent(in): height of the mid-point of the lowest soil layer (m)
+                               mLayerMatricHeadIter(nSoil),& ! intent(in): matric head at the mid-point of the lowest soil layer (m)
+                               plantWiltPsi,               & ! intent(in): scaling factor used in the plant wilt function (m)
+                               plantWiltExp,               & ! intent(in): empirical exponent in the plant wilt function (-) 
+                               plantWiltFactorUnsatZone,   & ! intent(out): plant wilt factor (-)
+                               err,message)                  ! intent(out): error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif 
+     ! compute the weighted average of saturated and unsaturated portions
+     ratioSatRoots   = fracSaturatedRoots/scalarAquiferRootFrac
+     plantWiltFactor = ratioSatRoots*1._dp + (1._dp - ratioSatRoots)*plantWiltFactorUnsatZone
 
      ! compute the stomatal resistance
      stomatalResist  = (minStomatalResist/LAI)*plantWiltFactor
