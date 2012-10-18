@@ -91,6 +91,7 @@ mLayerdTheta_dTk          | derivative in volumetric liquid water content wrt te
 mLayerThermalC            | thermal conductivity at the mid-point of each layer               | W m-1 K-1  | midToto | F
 mLayerRadCondFlux         | temporal derivative in energy of radiative and conductive flux    | J m-3 s-1  | midToto | F
 mLayerMeltFreeze          | rate of melt/freeze in each layer                                 | kg m-3 s-1 | midToto | F
+mLayerSatHydCond          | saturated hydraulic conductivity in each layer                    | m s-1      | midSoil | F
 mLayerMatricHead          | matric head of water in the soil                                  | m          | midSoil | T
 mLayerdTheta_dPsi         | derivative in the soil water characteristic w.r.t. psi            | m-1        | midSoil | F
 mLayerdPsi_dTheta         | derivative in the soil water characteristic w.r.t. theta          | m          | midSoil | F
@@ -119,6 +120,7 @@ iLayerLiqFluxSoil         | liquid flux at soil layer interfaces at end of the t
 scalarExNeut              | exchange coefficient in neutral conditions                        | -          | scalarv | F
 scalarBprime              | stable b parameter in Louis (1979) stability function             | -          | scalarv | F
 scalarCparam              | c parameter in Louis (1979) stability function                    | -          | scalarv | F
+scalarKsurf               | hydraulic conductivity at the surface                             | m s-1      | scalarv | F
 scalarVGn_m               | van Genuchten "m" parameter                                       | -          | scalarv | F
 scalarKappa               | constant in the freezing curve function                           | m K-1      | scalarv | F
 scalarVolHtCap_air        | volumetric heat capacity air                                      | J m-3 K-1  | scalarv | F

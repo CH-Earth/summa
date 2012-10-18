@@ -80,6 +80,7 @@ vGn_n                | van Genuchten "n" parameter                              
 k_soil               | saturated hydraulic conductivity                             | m s-1      | scalarv | T
 kAnisotropic         | anisotropy factor for lateral hydraulic conductivity         | -          | scalarv | T
 zScale_TOPMODEL      | scale factor for TOPMODEL-ish baseflow parameterization      | m          | scalarv | T
+compactedDepth       | depth where k_soil reaches the compacted value given by CH78 | m          | scalarv | T
 bpar_VIC             | b-parameter in the VIC surface runoff parameterization       | -          | scalarv | T
 specificYield        | specific yield                                               | -          | scalarv | T
 specificStorage      | specific storage coefficient                                 | m-1        | scalarv | T
