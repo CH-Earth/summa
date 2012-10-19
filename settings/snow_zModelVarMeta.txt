@@ -110,6 +110,7 @@ iLayerHeight              | height of the layer interface (top of soil = 0)     
 iLayerThermalC            | thermal conductivity at the interface of each layer               | W m-1 K-1  | ifcToto | F
 iLayerInitNrgFlux         | energy flux at layer interfaces at the start of the time step     | W m-2      | ifcToto | F
 iLayerNrgFlux             | energy flux at layer interfaces at end of the time step           | W m-2      | ifcToto | F
+iLayerSatHydCond          | saturated hydraulic conductivity in each layer interface          | m s-1      | ifcSoil | F
 iLayerInitLiqFluxSnow     | liquid flux at snow layer interfaces at start of the time step    | m s-1      | ifcSnow | T
 iLayerInitLiqFluxSoil     | liquid flux at soil layer interfaces at start of the time step    | m s-1      | ifcSoil | T
 iLayerLiqFluxSnow         | liquid flux at snow layer interfaces at end of the time step      | m s-1      | ifcSnow | T
@@ -120,7 +121,6 @@ iLayerLiqFluxSoil         | liquid flux at soil layer interfaces at end of the t
 scalarExNeut              | exchange coefficient in neutral conditions                        | -          | scalarv | F
 scalarBprime              | stable b parameter in Louis (1979) stability function             | -          | scalarv | F
 scalarCparam              | c parameter in Louis (1979) stability function                    | -          | scalarv | F
-scalarKsurf               | hydraulic conductivity at the surface                             | m s-1      | scalarv | F
 scalarVGn_m               | van Genuchten "m" parameter                                       | -          | scalarv | F
 scalarKappa               | constant in the freezing curve function                           | m K-1      | scalarv | F
 scalarVolHtCap_air        | volumetric heat capacity air                                      | J m-3 K-1  | scalarv | F
