@@ -215,16 +215,16 @@ MODULE var_lookup
   integer(i4b)    :: iLayerThermalC         = 69 ! thermal conductivity at the interface of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerInitNrgFlux      = 70 ! energy flux at layer interfaces at the start of the time step (W m-2) 
   integer(i4b)    :: iLayerNrgFlux          = 71 ! energy flux at layer interfaces at the end of the time step (W m-2) 
-  integer(i4b)    :: iLayerInitLiqFluxSnow  = 72 ! liquid flux at snow layer interfaces at the start of the time step (m s-1) 
-  integer(i4b)    :: iLayerInitLiqFluxSoil  = 73 ! liquid flux at soil layer interfaces at the start of the time step (m s-1) 
-  integer(i4b)    :: iLayerLiqFluxSnow      = 74 ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
-  integer(i4b)    :: iLayerLiqFluxSoil      = 75 ! liquid flux at soil layer interfaces at the end of the time step (m s-1) 
+  integer(i4b)    :: iLayerSatHydCond       = 72 ! saturated hydraulic conductivity at each layer interface (m s-1)
+  integer(i4b)    :: iLayerInitLiqFluxSnow  = 73 ! liquid flux at snow layer interfaces at the start of the time step (m s-1) 
+  integer(i4b)    :: iLayerInitLiqFluxSoil  = 74 ! liquid flux at soil layer interfaces at the start of the time step (m s-1) 
+  integer(i4b)    :: iLayerLiqFluxSnow      = 75 ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
+  integer(i4b)    :: iLayerLiqFluxSoil      = 76 ! liquid flux at soil layer interfaces at the end of the time step (m s-1) 
   ! define derived variables
-  integer(i4b)    :: scalarExNeut           = 76 ! exchange coefficient in neutral conditions
-  integer(i4b)    :: scalarBprime           = 77 ! stable b parameter in Louis (1979) stability function
-  integer(i4b)    :: scalarCparam           = 78 ! c parameter in Louis (1979) stability function
-  integer(i4b)    :: scalarVGn_m            = 79 ! van Genuchten "m" parameter (-)
-  integer(i4b)    :: scalarKsurf            = 80 ! hydraulic conductivity at the surface (m s-1)
+  integer(i4b)    :: scalarExNeut           = 77 ! exchange coefficient in neutral conditions
+  integer(i4b)    :: scalarBprime           = 78 ! stable b parameter in Louis (1979) stability function
+  integer(i4b)    :: scalarCparam           = 79 ! c parameter in Louis (1979) stability function
+  integer(i4b)    :: scalarVGn_m            = 80 ! van Genuchten "m" parameter (-)
   integer(i4b)    :: scalarKappa            = 81 ! constant in the freezing curve function (m K-1)
   integer(i4b)    :: scalarVolHtCap_air     = 82 ! volumetric heat capacity air         (J m-3 K-1)
   integer(i4b)    :: scalarVolHtCap_ice     = 83 ! volumetric heat capacity ice         (J m-3 K-1)

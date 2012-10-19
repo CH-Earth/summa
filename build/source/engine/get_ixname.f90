@@ -285,6 +285,7 @@ contains
   case('iLayerThermalC'         ); get_ixmvar = iLookMVAR%iLayerThermalC          ! thermal conductivity at the interface of each layer (W m-1 K-1)
   case('iLayerInitNrgFlux'      ); get_ixmvar = iLookMVAR%iLayerInitNrgFlux       ! energy flux at layer interfaces at the start of the time step (W m-2)
   case('iLayerNrgFlux'          ); get_ixmvar = iLookMVAR%iLayerNrgFlux           ! energy flux at layer interfaces at the end of the time step (W m-2)
+  case('iLayerSatHydCond'       ); get_ixmvar = iLookMVAR%iLayerSatHydCond        ! saturated hydraulic conductivity in each layer (m s-1)
   case('iLayerInitLiqFluxSnow'  ); get_ixmvar = iLookMVAR%iLayerInitLiqFluxSnow   ! liquid flux at snow layer interfaces at the start of the time step (m s-1)
   case('iLayerInitLiqFluxSoil'  ); get_ixmvar = iLookMVAR%iLayerInitLiqFluxSoil   ! liquid flux at soil layer interfaces at the start of the time step (m s-1)
   case('iLayerLiqFluxSnow'      ); get_ixmvar = iLookMVAR%iLayerLiqFluxSnow       ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
@@ -294,7 +295,6 @@ contains
   case('scalarBprime'           ); get_ixmvar = iLookMVAR%scalarBprime            ! stable b parameter in Louis (1979) stability function (-)
   case('scalarCparam'           ); get_ixmvar = iLookMVAR%scalarCparam            ! c parameter in Louis (1979) stability function 
   case('scalarVGn_m'            ); get_ixmvar = iLookMVAR%scalarVGn_m             ! van Genuchten "m" parameter (-) 
-  case('scalarKsurf'            ); get_ixmvar = iLookMVAR%scalarKsurf             ! hydraulic conductivity at the surface (m s-1) 
   case('scalarKappa'            ); get_ixmvar = iLookMVAR%scalarKappa             ! constant in the freezing curve function (m K-1)
   case('scalarVolHtCap_air'     ); get_ixmvar = iLookMVAR%scalarVolHtCap_air      ! volumetric heat capacity air         (J m-3 K-1)
   case('scalarVolHtCap_ice'     ); get_ixmvar = iLookMVAR%scalarVolHtCap_ice      ! volumetric heat capacity ice         (J m-3 K-1)

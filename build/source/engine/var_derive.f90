@@ -206,9 +206,10 @@ contains
  real(dp),pointer         :: compactedDepth        ! the depth at which k_soil reaches the compacted value given by CH78 (m)
  real(dp),pointer         :: zScale_TOPMODEL       ! scale factor for TOPMODEL-ish baseflow parameterization (m)
  ! declare pointers to data in model variable structures
- real(dp),pointer         :: mLayerSatHydCond(:)   ! saturated hydraulic conductivity in each layer (m s-1)
+ real(dp),pointer         :: mLayerSatHydCond(:)   ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ real(dp),pointer         :: iLayerSatHydCond(:)   ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  real(dp),pointer         :: mLayerHeight(:)       ! height at the mid-point of each layer (m)
- real(dp),pointer         :: k_surf                ! hydraulic conductivity at the surface (m s-1)
+ real(dp),pointer         :: iLayerHeight(:)       ! height at the interface of each layer (m)
  ! declare pointers to model index variables
  integer(i4b),pointer     :: nLayers               ! number of layers
  integer(i4b),pointer     :: layerType(:)          ! type of the layer (ix_soil or ix_snow)
@@ -223,9 +224,10 @@ contains
  compactedDepth   => mpar_data%var(iLookPARAM%compactedDepth)      ! the depth at which k_soil reaches the compacted value given by CH78 (m)
  zScale_TOPMODEL  => mpar_data%var(iLookPARAM%zScale_TOPMODEL)     ! scale factor for TOPMODEL-ish baseflow parameterization (m)
  ! assign local pointers to the values in the model variable structures
- mLayerSatHydCond => mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat ! saturated hydraulic conductivity in each layer (m s-1)
+ mLayerSatHydCond => mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ iLayerSatHydCond => mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  mLayerHeight     => mvar_data%var(iLookMVAR%mLayerHeight)%dat     ! height at the mid-point of each layer (m)
- k_surf           => mvar_data%var(iLookMVAR%scalarKsurf)%dat(1)   ! hydraulic conductivity at the surface (m s-1)
+ iLayerHeight     => mvar_data%var(iLookMVAR%iLayerHeight)%dat     ! height at the interface of each layer (m)
  ! assign local pointers to the model index structures
  nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)      ! number of layers
  layerType        => indx_data%var(iLookINDEX%layerType)%dat       ! layer type (ix_soil or ix_snow)
@@ -234,16 +236,18 @@ contains
  nSoil = count(layerType==ix_soil)
 
  ! loop through soil layers
- do iLayer=nSnow+1,nLayers
+ do iLayer=nSnow,nLayers
   select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
    ! constant hydraulic conductivity with depth
    case(constant)
-    k_surf = k_soil
-    mLayerSatHydCond(iLayer-nSnow) = k_soil
+    iLayerSatHydCond(iLayer-nSnow) = k_soil
+    if(iLayer > nSnow)& ! avoid layer 0
+     mLayerSatHydCond(iLayer-nSnow) = k_soil
    ! exponential profile
    case(exp_profile)
-    k_surf                         = k_soil * exp(-(0._dp - compactedDepth)/zScale_TOPMODEL)
-    mLayerSatHydCond(iLayer-nSnow) = k_soil * exp(-(mLayerHeight(iLayer) - compactedDepth)/zScale_TOPMODEL)
+    iLayerSatHydCond(iLayer-nSnow) = k_soil * exp(-(iLayerHeight(iLayer) - compactedDepth)/zScale_TOPMODEL)
+    if(iLayer > nSnow)& ! avoid layer 0
+     mLayerSatHydCond(iLayer-nSnow) = k_soil * exp(-(mLayerHeight(iLayer) - compactedDepth)/zScale_TOPMODEL)
    ! power-law and linear profile (not implemented yet)
    case(powerLaw_profile,linear_profile)
     message=trim(message)//"hydraulic conductivity profile not implemented yet [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
@@ -253,10 +257,9 @@ contains
     message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
     err=10; return
   end select
-  write(*,'(i4,1x,f11.5,1x,e20.10)') iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow)
+  !if(iLayer > nSnow)& ! avoid layer 0
+  ! write(*,'(i4,1x,2(f11.5,1x,e20.10,1x))') iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow), iLayerHeight(iLayer), iLayerSatHydCond(iLayer-nSnow)
  end do  ! looping through soil layers
- print*, k_soil
- pause
 
  end subroutine satHydCond
 

@@ -216,8 +216,8 @@ contains
                         mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(1:nLevels),     & ! intent(in): matric head in each layer (m)
                         mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1),            & ! intent(in): (scalar) ponded water caused by melt of the "snow without a layer" (kg m-2)
                         ! saturated hydraulic conductivity
-                        mvar_data%var(iLookMVAR%scalarKsurf)%dat(1),                  & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                        mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat,                & ! intent(in): saturated hydraulic conductivity in each layer (m s-1)
+                        mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat,                & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+                        mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat,                & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
                         ! transpiration (from energy routines)
                         mvar_data%var(iLookMVAR%mLayerInitTranspire)%dat,             & ! intent(in): transpiration loss from each soil layer at start-of-step (m s-1)
                         mvar_data%var(iLookMVAR%mLayerTranspire)%dat,                 & ! intent(in): transpiration loss from each soil layer (m s-1)
@@ -311,8 +311,8 @@ contains
                               mLayerMatricHead,           & ! intent(in): matric head in each layer (m)
                               scalarSfcMeltPond,          & ! intent(in): (scalar)    ! ponded water caused by melt of the "snow without a layer" (kg m-2)
                               ! saturated hydraulic conductivity in each layer
-                              k_surf,                     & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                              mLayerSatHydCond,           & ! intent(in): saturated hydraulic conductivity in each layer (m s-1)
+                              mLayerSatHydCond,           & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+                              iLayerSatHydCond,           & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
                               ! transpiration (from energy routines)
                               mLayerInitTranspire,        & ! intent(in): transpiration loss from each soil layer at start-of-step (m s-1)
                               mLayerTranspire,            & ! intent(in): transpiration loss from each soil layer (m s-1)
@@ -388,8 +388,8 @@ contains
  real(dp),intent(in)              :: mLayerMatricHead(:)      ! matric head in each layer at the start of the time step (m)
  real(dp),intent(in)              :: scalarSfcMeltPond        ! ponded water caused by melt of the "snow without a layer" (kg m-2)
  ! saturated hydraulic conductivity
- real(dp),intent(in)              :: k_surf                   ! saturated hydraulic conductivity at the surface (m s-1)
- real(dp),intent(in)              :: mLayerSatHydCond(:)      ! saturated hydraulic conductivity in each layer (m s-1)
+ real(dp),intent(in)              :: mLayerSatHydCond(:)      ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ real(dp),intent(in)              :: iLayerSatHydCond(0:)     ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  ! transpiration (from energy routines)
  real(dp),intent(in)              :: mLayerInitTranspire(:)   ! transpiration loss from each soil layer at the start of the time step (m s-1)
  real(dp),intent(in)              :: mLayerTranspire(:)       ! transpiration loss from each soil layer (m s-1)
@@ -608,6 +608,8 @@ contains
                     ! input: flux at the upper boundary
                     scalarRainPlusMelt,    & ! intent(in): rain plus melt (m s-1)
                     ! input: transmittance
+                    mLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity in each layer (m s-1)
+                    iLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity at layer interfaces (m s-1)
                     mLayerHydCond,         & ! intent(in): hydraulic conductivity in each layer (m s-1)
                     mLayerDiffuse,         & ! intent(in): hydraulic diffusivity in each layer (m s-1)
                     iLayerHydCond,         & ! intent(in): hydraulic conductivity at layer interfaces (m s-1)
@@ -648,6 +650,8 @@ contains
                     ! input: flux at the upper boundary
                     scalarRainPlusMelt,    & ! intent(in): rain plus melt (m s-1)
                     ! input: transmittance
+                    mLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity in each layer (m s-1)
+                    iLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity at layer interfaces (m s-1)
                     mLayerHydCond,         & ! intent(in): hydraulic conductivity in each layer (m s-1)
                     iLayerHydCond,         & ! intent(in): hydraulic conductivity at layer interfaces (m s-1)
                     iceImpedeFac,          & ! intent(in): ice impedence factor in each layer (-)
@@ -953,8 +957,8 @@ contains
                    theta_res,                    & ! intent(in): soil residual volumetric water content (-)
                    f_impede,                     & ! intent(in): ice impedence factor (-)
                    ! saturated hydraulic conductivity
-                   k_surf,                       & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                   mLayerSatHydCond,             & ! intent(in):  saturated hydraulic conductivity in each layer (m s-1)
+                   mLayerSatHydCond,             & ! intent(in):  saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+                   iLayerSatHydCond,             & ! intent(in):  saturated hydraulic conductivity at the interface of each layer (m s-1)
                    ! output: transmittance
                    local__mLayerHydCond,         & ! intent(out): hydraulic conductivity at layer mid-points (m s-1)
                    local__mLayerDiffuse,         & ! intent(out): diffusivity at layer mid-points (m2 s-1)
@@ -1019,6 +1023,7 @@ contains
                   lowerBoundaryHeight,          & ! intent(in): height of the lower boundary (m)
                   scalarWaterTableDepth,        & ! intent(in): water table depth (m)
                   ! input: transmittance
+                  iLayerSatHydCond,             & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                   local__iLayerHydCond,         & ! intent(in): hydraulic conductivity at layer interfaces (m s-1)
                   local__iLayerDiffuse,         & ! intent(in): hydraulic diffusivity at layer interfaces (m2 s-1)
                   local__iceImpedeFac,          & ! intent(in): ice impedence factor in each layer (-)
@@ -1177,8 +1182,8 @@ contains
                         theta_res,             & ! intent(in): soil residual volumetric water content (-)
                         f_impede,              & ! intent(in): ice impedence factor (-)
                         ! input: saturated hydraulic conductivity
-                        k_surf,                & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                        mLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity in each layer (m s-1)
+                        mLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+                        iLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
                         ! output: transmittance
                         mLayerHydCond,         & ! intent(out): hydraulic conductivity at layer mid-points (m s-1)
                         mLayerDiffuse,         & ! intent(out): diffusivity at layer mid-points (m2 s-1)
@@ -1215,8 +1220,8 @@ contains
  real(dp),intent(in)           :: theta_res                 ! soil residual volumetric water content (-)
  real(dp),intent(in)           :: f_impede                  ! ice impedence factor (-)
  ! input: saturated hydraulic conductivity
- real(dp),intent(in)           :: k_surf                    ! saturated hydraulic conductivity at the surface (m s-1)
- real(dp),intent(in)           :: mLayerSatHydCond(:)       ! saturated hydraulic conductivity in each layer (m s-1)
+ real(dp),intent(in)           :: mLayerSatHydCond(:)       ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ real(dp),intent(in)           :: iLayerSatHydCond(0:)      ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  ! output: transmittance
  real(dp),intent(out)          :: mLayerHydCond(:)          ! hydraulic conductivity at layer mid-points (m s-1)
  real(dp),intent(out)          :: mLayerDiffuse(:)          ! diffusivity at layer mid-points (m2 s-1)
@@ -1264,10 +1269,10 @@ contains
   case(prescribedHead)
    select case(ixRichards)  ! (moisture-based form of Richards' equation)
     case(moisture)
-     iLayerHydCond(0) = hydCond_liq(upperBoundTheta,k_surf,theta_res,theta_sat,vGn_m) * iceImpedeFac(1)
+     iLayerHydCond(0) = hydCond_liq(upperBoundTheta,iLayerSatHydCond(0),theta_res,theta_sat,vGn_m) * iceImpedeFac(1)
      iLayerDiffuse(0) = dPsi_dTheta(upperBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(0)
     case(mixdform)
-     iLayerHydCond(0) = hydCond_psi(upperBoundHead,k_surf,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(1)
+     iLayerHydCond(0) = hydCond_psi(upperBoundHead,iLayerSatHydCond(0),vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(1)
     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
    end select  ! (form of Richards' eqn)
   ! ***** all other cases, set hydraulic conductivity at boundaries to the layer conductivity
@@ -1287,11 +1292,11 @@ contains
       iLayerHydCond(nLevels) = mLayerHydCond(nLevels)
      ! (other cases -- note: in gw couple: lowerBoundTheta = weighted average of the saturated and unsat portions of layer that contains water table)
      else
-      iLayerHydCond(nLevels) = hydCond_liq(lowerBoundTheta,k_deep,theta_res,theta_sat,vGn_m) * iceImpedeFac(nLevels)
+      iLayerHydCond(nLevels) = hydCond_liq(lowerBoundTheta,iLayerSatHydCond(nLevels),theta_res,theta_sat,vGn_m) * iceImpedeFac(nLevels)
       iLayerDiffuse(nLevels) = dPsi_dTheta(lowerBoundTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * iLayerHydCond(nLevels)
      endif
     case(mixdform)
-     iLayerHydCond(nLevels) = hydCond_psi(lowerBoundHead,k_deep,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nLevels)
+     iLayerHydCond(nLevels) = hydCond_psi(lowerBoundHead,iLayerSatHydCond(nLevels),vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nLevels)
     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
    end select  ! (form of Richards' eqn)
   ! ***** all other cases, set hydraulic conductivity at boundaries to the layer conductivity
@@ -1448,6 +1453,7 @@ contains
                        lowerBoundaryHeight,   & ! intent(in): height of the lower boundary (m)
                        scalarWaterTableDepth, & ! intent(in): water table depth (m)
                        ! input: transmittance
+                       iLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity at the layer interfaces (m s-1)
                        iLayerHydCond,         & ! intent(in): hydraulic conductivity at layer interfaces (m s-1)
                        iLayerDiffuse,         & ! intent(in): hydraulic diffusivity at layer interfaces (m2 s-1)
                        iceImpedeFac,          & ! intent(in): ice impedence factor in each layer (-)
@@ -1460,8 +1466,6 @@ contains
                        kAnisotropic,          & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                        zScale_TOPMODEL,       & ! intent(in): scale factor for TOPMODEL-ish baseflow parameterization (m)
                        bpar_VIC,              & ! intent(in): b-parameter in the VIC surface runoff parameterization (-)
-                       ! input: saturated hydraulic conductivity
-                       k_surf,                & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                        ! output: fluxes at layer interfaces and surface runoff
                        iLayerLiqFlux,         & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                        scalarSurfaceRunoff,   & ! intent(out): surface runoff (m s-1)
@@ -1494,6 +1498,7 @@ contains
  real(dp),intent(in)           :: lowerBoundaryHeight       ! height of the lower boundary (m)
  real(dp),intent(in)           :: scalarWaterTableDepth     ! water table depth (m)
  ! input: transmittance
+ real(dp),intent(in)           :: iLayerSatHydCond(0:)      ! saturated hydraulic conductivity at the layer interfaces (m s-1)
  real(dp),intent(in)           :: iLayerHydCond(0:)         ! hydraulic conductivity at layer interfaces (m s-1)
  real(dp),intent(in)           :: iLayerDiffuse(0:)         ! hydraulic diffusivity at layer interfaces (m s-1)
  real(dp),intent(in)           :: iceImpedeFac(:)           ! ice impedence factor in each layer (-)
@@ -1506,8 +1511,6 @@ contains
  real(dp),intent(in)           :: kAnisotropic              ! anisotropy factor for lateral hydraulic conductivity (-)
  real(dp),intent(in)           :: zScale_TOPMODEL           ! scale factor for TOPMODEL-ish baseflow parameterization (m)
  real(dp),intent(in)           :: bpar_VIC                  ! b-parameter in the VIC surface runoff parameterization (-)
- ! input: saturated hydraulic conductivity
- real(dp),intent(in)           :: k_surf                    ! saturated hydraulic conductivity at the surface (m s-1)
  ! output: fluxes at layer interfaces and surface runoff
  real(dp),intent(out)          :: iLayerLiqFlux(0:)         ! liquid fluxes at layer interfaces (m s-1)
  real(dp),intent(out)          :: scalarSurfaceRunoff       ! surface runoff (m s-1)
@@ -1547,7 +1550,7 @@ contains
    case(moisture); satArea = satArea_liquid(mLayerVolFracLiqTrial(1),mLayerVolFracIceTrial(1),theta_sat,bpar_VIC)
    case(mixdform); satArea = satArea_matric(mLayerMatricHeadTrial(1),mLayerVolFracIceTrial(1),theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,bpar_VIC)
   endselect
-  infUnsat= min(k_surf,scalarRainPlusMelt) * iceImpedeFac(1)   ! infiltration over unsaturated areas (m s-1)
+  infUnsat= min(iLayerSatHydCond(0),scalarRainPlusMelt) * iceImpedeFac(1)   ! infiltration over unsaturated areas (m s-1)
   scalarSurfaceRunoff = satArea*scalarRainPlusMelt + (1._dp - satArea)*(scalarRainPlusMelt - infUnsat)
   ! compute the flux at the upper boundary
   iLayerLiqFlux(0) = scalarRainPlusMelt - scalarSurfaceRunoff
@@ -1593,7 +1596,7 @@ contains
    case(moisture); zWater = mLayerHeight(nLevels) - matricHead(mLayerVolFracLiqTrial(nLevels),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    case(mixdform); zWater = mLayerHeight(nLevels) - mLayerMatricHeadTrial(nLevels)
   endselect
-  iLayerLiqFlux(nLevels) = kAnisotropic*k_surf * exp(-zWater/zScale_TOPMODEL)
+  iLayerLiqFlux(nLevels) = kAnisotropic*iLayerSatHydCond(0) * exp(-zWater/zScale_TOPMODEL)
 
  ! *****
  ! free drainage
@@ -1648,6 +1651,8 @@ contains
                         ! input: flux at the upper boundary
                         scalarRainPlusMelt,    & ! intent(in): rain plus melt (m s-1)
                         ! input: transmittance
+                        mLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity in each layer (m s-1)
+                        iLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity at layer interfaces (m s-1)
                         mLayerHydCond,         & ! intent(in): hydraulic conductivity in each layer (m s-1)
                         mLayerDiffuse,         & ! intent(in): hydraulic diffusivity in each layer (m s-1)
                         iLayerHydCond,         & ! intent(in): hydraulic conductivity at layer interfaces (m s-1)
@@ -1659,7 +1664,6 @@ contains
                         VGn_m,                 & ! intent(in): van Genutchen "m" parameter (-)
                         theta_sat,             & ! intent(in): soil porosity (-)
                         theta_res,             & ! intent(in): soil residual volumetric water content (-)
-                        k_soil,                & ! intent(in): hydraulic conductivity (m s-1)
                         kAnisotropic,          & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                         zScale_TOPMODEL,       & ! intent(in): scale factor for TOPMODEL-ish baseflow parameterization (m)
                         bpar_VIC,              & ! intent(in): b-parameter in the VIC surface runoff parameterization (-)
@@ -1696,6 +1700,8 @@ contains
  ! input: flux at the upper boundary
  real(dp),intent(in)           :: scalarRainPlusMelt         ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
  ! input: transmittance
+ real(dp),intent(in),target    :: mLayerSatHydCond(:)        ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ real(dp),intent(in)           :: iLayerSatHydCond(0:)       ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  real(dp),intent(in)           :: mLayerHydCond(:)           ! hydraulic conductivity in each layer (m s-1)
  real(dp),intent(in)           :: mLayerDiffuse(:)           ! hydraulic diffusivity in each layer (m s-1)
  real(dp),intent(in)           :: iLayerHydCond(0:)          ! hydraulic conductivity at layer interfaces (m s-1)
@@ -1707,7 +1713,6 @@ contains
  real(dp),intent(in)           :: vGn_m                      ! van Genutchen "m" parameter (-)
  real(dp),intent(in)           :: theta_sat                  ! soil porosity (-)
  real(dp),intent(in)           :: theta_res                  ! soil residual volumetric water content (-)
- real(dp),intent(in)           :: k_soil                     ! saturated hydraulic conductivity (m s-1)
  real(dp),intent(in)           :: kAnisotropic               ! anisotropy factor for lateral hydraulic conductivity (-)
  real(dp),intent(in)           :: zScale_TOPMODEL            ! scale factor for TOPMODEL-ish baseflow parameterization (m)
  real(dp),intent(in)           :: bpar_VIC                   ! b-parameter in the VIC surface runoff parameterization (-)
@@ -1739,6 +1744,7 @@ contains
  real(dp)                      :: hCnd0,hCnd1                ! hydraulic conductivity in a given layer (m s-1)
  real(dp),pointer              :: iceAbove,iceBelow          ! volumetric ice content in the layer above and the layer below
  real(dp),pointer              :: liqAbove,liqBelow          ! volumetric liquid water content in the layer above and the layer below
+ real(dp),pointer              :: sHcAbove,sHcBelow          ! saturated hydraulic conductivity in the layer above and the layer below
  real(dp),pointer              :: zAbove,zBelow              ! height of the layer mid-point in the layer above and the layer below
  real(dp)                      :: flux0,flux1,flux2          ! used to test the numerical derivatives
  integer(i4b)                  :: iLayer                     ! index of layer
@@ -1753,7 +1759,7 @@ contains
   select case(dMethod)
   case(analytical)
    ! compute derivative in hydraulic conductivity (m s-1)
-   dHydCond_dVolLiq(iLayer) = dHydCond_dLiq(mLayerVolFracLiqTrial(iLayer),k_soil,theta_res,theta_sat,vGn_m,iceImpedeFac(iLayer),.true.)  ! analytical
+   dHydCond_dVolLiq(iLayer) = dHydCond_dLiq(mLayerVolFracLiqTrial(iLayer),mLayerSatHydCond(iLayer),theta_res,theta_sat,vGn_m,iceImpedeFac(iLayer),.true.)  ! analytical
    ! compute derivative in dPsi_dTheta (m)
    dPsi_dTheta2a = dPsi_dTheta2(mLayerVolFracLiqTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.true.)   ! analytical
    !dPsi_dTheta2n = dPsi_dTheta2(mLayerVolFracLiqTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.false.)  ! numerical
@@ -1762,10 +1768,10 @@ contains
    dDiffuse_dVolLiq(iLayer) = dHydCond_dVolLiq(iLayer)*mLayerdPsi_dTheta(iLayer) + mLayerHydCond(iLayer)*dPsi_dTheta2a
   case(numerical)
    ! compute derivative in hydraulic conductivity (m s-1)
-   dHydCond_dVolLiq(iLayer) = dHydCond_dLiq(mLayerVolFracLiqTrial(iLayer),k_soil,theta_res,theta_sat,vGn_m,iceImpedeFac(iLayer),.false.) ! numerical
+   dHydCond_dVolLiq(iLayer) = dHydCond_dLiq(mLayerVolFracLiqTrial(iLayer),mLayerSatHydCond(iLayer),theta_res,theta_sat,vGn_m,iceImpedeFac(iLayer),.false.) ! numerical
    ! compute derivative in hydraulic diffusivity (m2 s-1)
-   func0 = hydCond_liq(mLayerVolFracLiqTrial(iLayer),   k_soil,theta_res,theta_sat,vGn_m) * dPsi_dTheta(mLayerVolFracLiqTrial(iLayer),   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   func1 = hydCond_liq(mLayerVolFracLiqTrial(iLayer)+dx,k_soil,theta_res,theta_sat,vGn_m) * dPsi_dTheta(mLayerVolFracLiqTrial(iLayer)+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   func0 = hydCond_liq(mLayerVolFracLiqTrial(iLayer),   mLayerSatHydCond(iLayer),theta_res,theta_sat,vGn_m) * dPsi_dTheta(mLayerVolFracLiqTrial(iLayer),   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   func1 = hydCond_liq(mLayerVolFracLiqTrial(iLayer)+dx,mLayerSatHydCond(iLayer),theta_res,theta_sat,vGn_m) * dPsi_dTheta(mLayerVolFracLiqTrial(iLayer)+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    dDiffuse_dVolLiq(iLayer) = (func1 - func0)/dx
   case default
    err=10; message=trim(message)//"unknown option to compute derivative in hydraulic conductivity at layer mid-points"; return
@@ -1807,15 +1813,15 @@ contains
      fInfArea = (1._dp - fracCap)**bpar_VIC                                         ! area of the landscape where water infiltrates (-)
      dInfArea = (-1._dp/theta_sat) * bpar_VIC*(1._dp - fracCap)**(bpar_VIC - 1._dp) ! derivative in the infiltrating area w.r.t. volumetric liquid water content (-)
      ! compute the function and derivative of the infiltration rate
-     fInfRate = min(k_soil,scalarRainPlusMelt)*iceImpedeFac(1)
+     fInfRate = min(iLayerSatHydCond(0),scalarRainPlusMelt)*iceImpedeFac(1)
      dInfRate = 0._dp
      ! ...finally, compute analytical derivatives
      ! NOTE, only first term is used currently, but keep in this form to make life simpler once infiltration depends on volumetric liquid water content
      dq_dVolliqBelow(iLayer) = dInfArea*fInfRate + fInfArea*dInfRate
     ! * compute numerical derivatives
     else
-     flux0 = (1._dp - satArea_liquid(mLayerVolFracLiqTrial(1),   mLayerVolFracIceTrial(1),theta_sat,bpar_VIC)) * min(k_soil,scalarRainPlusMelt)*iceImpedeFac(1)
-     flux1 = (1._dp - satArea_liquid(mLayerVolFracLiqTrial(1)+dx,mLayerVolFracIceTrial(1),theta_sat,bpar_VIC)) * min(k_soil,scalarRainPlusMelt)*iceImpedeFac(1)
+     flux0 = (1._dp - satArea_liquid(mLayerVolFracLiqTrial(1),   mLayerVolFracIceTrial(1),theta_sat,bpar_VIC)) * min(iLayerSatHydCond(0),scalarRainPlusMelt)*iceImpedeFac(1)
+     flux1 = (1._dp - satArea_liquid(mLayerVolFracLiqTrial(1)+dx,mLayerVolFracIceTrial(1),theta_sat,bpar_VIC)) * min(iLayerSatHydCond(0),scalarRainPlusMelt)*iceImpedeFac(1)
      dq_dVolliqBelow(iLayer) = (flux1 - flux0)/dx
     endif
 
@@ -1869,8 +1875,8 @@ contains
       spat0 = (0._dp - matricHead(mLayerVolFracLiqTrial(nLevels),   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m))/dHeight
       spat1 = (0._dp - matricHead(mLayerVolFracLiqTrial(nLevels)+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m))/dHeight
       ! (hydraulic conductivity)
-      hCnd0 = hydCond_liq(mLayerVolFracLiqTrial(nLevels),   k_soil,theta_res,theta_sat,vGn_m)*iceImpedeFac(nLevels)
-      hCnd1 = hydCond_liq(mLayerVolFracLiqTrial(nLevels)+dx,k_soil,theta_res,theta_sat,vGn_m)*iceImpedeFac(nLevels)
+      hCnd0 = hydCond_liq(mLayerVolFracLiqTrial(nLevels),   iLayerSatHydCond(nLevels),theta_res,theta_sat,vGn_m)*iceImpedeFac(nLevels)
+      hCnd1 = hydCond_liq(mLayerVolFracLiqTrial(nLevels)+dx,iLayerSatHydCond(nLevels),theta_res,theta_sat,vGn_m)*iceImpedeFac(nLevels)
       ! (fluxes)
       flux0 = -hCnd0*spat0 + hCnd0 
       flux1 = -hCnd1*spat1 + hCnd1
@@ -1904,11 +1910,11 @@ contains
     bottomHead = matricHead(mLayerVolFracLiqTrial(nLevels),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     ! compute analytical derivatives
     if(dMethod==analytical)then
-     dq_dVolLiqAbove(iLayer) = kAnisotropic*k_soil * mLayerdPsi_dTheta(nLevels)*exp(-(mLayerHeight(nLevels) - bottomHead)/zScale_TOPMODEL)/zScale_TOPMODEL
+     dq_dVolLiqAbove(iLayer) = kAnisotropic*iLayerSatHydCond(0) * mLayerdPsi_dTheta(nLevels)*exp(-(mLayerHeight(nLevels) - bottomHead)/zScale_TOPMODEL)/zScale_TOPMODEL
     ! compute numerical derivarives
     else
-     flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) -  bottomHead    )/zScale_TOPMODEL)
-     flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) - (bottomHead+dx))/zScale_TOPMODEL)
+     flux0 = kAnisotropic*iLayerSatHydCond(0) * exp(-(mLayerHeight(nLevels) -  bottomHead    )/zScale_TOPMODEL)
+     flux1 = kAnisotropic*iLayerSatHydCond(0) * exp(-(mLayerHeight(nLevels) - (bottomHead+dx))/zScale_TOPMODEL)
      dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
     endif
 
@@ -1942,12 +1948,14 @@ contains
     iceBelow => mLayerVolFracIceTrial(iLayer+1)
     liqAbove => mLayerVolFracLiqTrial(iLayer)
     liqBelow => mLayerVolFracLiqTrial(iLayer+1)
+    sHcAbove => mLayerSatHydCond(iLayer)
+    sHcBelow => mLayerSatHydCond(iLayer+1)
     zAbove   => mLayerHeight(iLayer)
     zBelow   => mLayerHeight(iLayer+1)
     ! compute numerical derivatives -- note, DarcyFlux computes new hydraulic conductivity and diffusivity
-    flux0 = darcyFlux_liquid(iceAbove,iceBelow,liqAbove,   liqBelow,   zAbove,zBelow,k_soil,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
-    flux1 = darcyFlux_liquid(iceAbove,iceBelow,liqAbove+dx,liqBelow,   zAbove,zBelow,k_soil,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
-    flux2 = darcyFlux_liquid(iceAbove,iceBelow,liqAbove   ,liqBelow+dx,zAbove,zBelow,k_soil,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
+    flux0 = darcyFlux_liquid(iceAbove,iceBelow,liqAbove,   liqBelow,   sHcAbove,sHcBelow,zAbove,zBelow,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
+    flux1 = darcyFlux_liquid(iceAbove,iceBelow,liqAbove+dx,liqBelow,   sHcAbove,sHcBelow,zAbove,zBelow,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
+    flux2 = darcyFlux_liquid(iceAbove,iceBelow,liqAbove   ,liqBelow+dx,sHcAbove,sHcBelow,zAbove,zBelow,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
     dq_dVolLiqAbove(iLayer) = (flux1 - flux0)/dx
     dq_dVolLiqBelow(iLayer) = (flux2 - flux0)/dx
    endif  ! case for the numerical method
@@ -1982,6 +1990,8 @@ contains
                         ! input: flux at the upper boundary
                         scalarRainPlusMelt,    & ! intent(in): rain plus melt (m s-1)
                         ! input: transmittance
+                        mLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity in each layer (m s-1)
+                        iLayerSatHydCond,      & ! intent(in): saturated hydraulic conductivity at layer interfaces (m s-1)
                         mLayerHydCond,         & ! intent(in): hydraulic conductivity in each layer (m s-1)
                         iLayerHydCond,         & ! intent(in): hydraulic conductivity at layer interfaces (m s-1)
                         iceImpedeFac,          & ! intent(in): ice impedence factor in each layer (-)
@@ -1991,7 +2001,6 @@ contains
                         VGn_m,                 & ! intent(in): van Genutchen "m" parameter (-)
                         theta_sat,             & ! intent(in): soil porosity (-)
                         theta_res,             & ! intent(in): soil residual volumetric water content (-)
-                        k_soil,                & ! intent(in): hydraulic conductivity (m s-1)
                         kAnisotropic,          & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                         zScale_TOPMODEL,       & ! intent(in): scale factor for TOPMODEL-ish baseflow parameterization (m)
                         bpar_VIC,              & ! intent(in): b-parameter in the VIC surface runoff parameterization (-)
@@ -2023,6 +2032,8 @@ contains
  ! input: flux at the upper boundary
  real(dp),intent(in)           :: scalarRainPlusMelt         ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
  ! input: transmittance
+ real(dp),intent(in),target    :: mLayerSatHydCond(:)        ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ real(dp),intent(in)           :: iLayerSatHydCond(0:)       ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  real(dp),intent(in)           :: mLayerHydCond(:)           ! hydraulic conductivity in each layer (m s-1)
  real(dp),intent(in)           :: iLayerHydCond(0:)          ! hydraulic conductivity at layer interfaces (m s-1)
  real(dp),intent(in)           :: iceImpedeFac(:)            ! ice impedence factor in each layer (-)
@@ -2032,7 +2043,6 @@ contains
  real(dp),intent(in)           :: vGn_m                      ! van Genutchen "m" parameter (-)
  real(dp),intent(in)           :: theta_sat                  ! soil porosity (-)
  real(dp),intent(in)           :: theta_res                  ! soil residual volumetric water content (-)
- real(dp),intent(in)           :: k_soil                     ! saturated hydraulic conductivity (m s-1)
  real(dp),intent(in)           :: kAnisotropic               ! anisotropy factor for lateral hydraulic conductivity (-)
  real(dp),intent(in)           :: zScale_TOPMODEL            ! scale factor for TOPMODEL-ish baseflow parameterization (m)
  real(dp),intent(in)           :: bpar_VIC                   ! b-parameter in the VIC surface runoff parameterization (-)
@@ -2056,8 +2066,10 @@ contains
  real(dp)                      :: dPsi,dz                    ! spatial differenes in matric head and height
  real(dp),pointer              :: iceAbove,iceBelow          ! volumetric ice content in the layer above and the layer below
  real(dp),pointer              :: psiAbove,psiBelow          ! matric head in the layer above and the layer below
+ real(dp),pointer              :: sHcAbove,sHcBelow          ! saturated hydraulic conductivity in the layer above and the layer below
  real(dp),pointer              :: zAbove,zBelow              ! height of the layer mid-point in the layer above and the layer below
  real(dp)                      :: flux0,flux1,flux2          ! used to test the numerical derivatives
+ real(dp)                      :: infil                      ! infiltration at the surface (m s-1)
  integer(i4b)                  :: iLayer                     ! layer index
  ! initialize error control
  err=0; message="dq_dMatHead/"
@@ -2068,9 +2080,9 @@ contains
  do iLayer=1,nLevels
   select case(dMethod)
   case(analytical)
-   dHydCond_dMatric(iLayer) = dHydCond_dPsi(mLayerMatricHeadTrial(iLayer),k_soil,vGn_alpha,vGn_n,vGn_m,iceImpedeFac(iLayer),.true.)  ! analytical
+   dHydCond_dMatric(iLayer) = dHydCond_dPsi(mLayerMatricHeadTrial(iLayer),mLayerSatHydCond(iLayer),vGn_alpha,vGn_n,vGn_m,iceImpedeFac(iLayer),.true.)  ! analytical
   case(numerical)
-   dHydCond_dMatric(iLayer) = dHydCond_dPsi(mLayerMatricHeadTrial(iLayer),k_soil,vGn_alpha,vGn_n,vGn_m,iceImpedeFac(iLayer),.false.) ! numerical
+   dHydCond_dMatric(iLayer) = dHydCond_dPsi(mLayerMatricHeadTrial(iLayer),mLayerSatHydCond(iLayer),vGn_alpha,vGn_n,vGn_m,iceImpedeFac(iLayer),.false.) ! numerical
   case default
    err=10; message=trim(message)//"unknown option to compute derivative in hydraulic conductivity at layer mid-points w.r.t. matric head"; return
   end select
@@ -2118,22 +2130,23 @@ contains
      fInfArea = (1._dp - fracCap)**bpar_VIC                                                        ! area of the landscape where water infiltrates (-)
      dInfArea = (-mLayerdTheta_dPsi(1)/theta_sat) * bpar_VIC*(1._dp - fracCap)**(bpar_VIC - 1._dp) ! derivative in the infiltrating area w.r.t. matric head (m-1)
      ! compute the function and derivative of the infiltration rate
-     fInfRate = min(k_soil,scalarRainPlusMelt)*iceImpedeFac(1)  ! (m s-1)
+     fInfRate = min(iLayerSatHydCond(0),scalarRainPlusMelt)*iceImpedeFac(1)  ! (m s-1)
      dInfRate = 0._dp  ! (s-1)
      ! ...finally, compute analytical derivatives
      ! NOTE, only first term is used currently, but keep in this form to make life simpler once infiltration depends on matric head
      dq_dMatricBelow(iLayer) = dInfArea*fInfRate + fInfArea*dInfRate
     ! * compute numerical derivatives
     else
-     flux0 = (1._dp - satArea_matric(mLayerMatricHeadTrial(1),   mLayerVolFracIceTrial(1),theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,bpar_VIC)) * min(k_soil,scalarRainPlusMelt)*iceImpedeFac(1)
-     flux1 = (1._dp - satArea_matric(mLayerMatricHeadTrial(1)+dx,mLayerVolFracIceTrial(1),theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,bpar_VIC)) * min(k_soil,scalarRainPlusMelt)*iceImpedeFac(1)
+     infil = min(iLayerSatHydCond(0),scalarRainPlusMelt)*iceImpedeFac(1)  ! infiltration at the surface
+     flux0 = (1._dp - satArea_matric(mLayerMatricHeadTrial(1),   mLayerVolFracIceTrial(1),theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,bpar_VIC)) * infil 
+     flux1 = (1._dp - satArea_matric(mLayerMatricHeadTrial(1)+dx,mLayerVolFracIceTrial(1),theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,bpar_VIC)) * infil
      dq_dMatricBelow(iLayer) = (flux1 - flux0)/dx
     endif
 
    ! *****
    ! error check
    case default;
-    err=20; message=trim(message)//'unknown lower boundary condition'; return
+    err=20; message=trim(message)//'unknown upper boundary condition'; return
    endselect ; ! (lower boundary condition)
 
   ! -----------------------------------------------------------------------------------------------------------------------------
@@ -2167,11 +2180,11 @@ contains
    case(funcBottomHead)
     ! compute analytical derivatives
     if(dMethod==analytical)then
-     dq_dMatricAbove(iLayer) = kAnisotropic*k_soil * exp(mLayerMatricHeadTrial(nLevels)/zScale_TOPMODEL - mLayerHeight(nLevels)/zScale_TOPMODEL)/zScale_TOPMODEL
+     dq_dMatricAbove(iLayer) = kAnisotropic*iLayerSatHydCond(0) * exp(mLayerMatricHeadTrial(nLevels)/zScale_TOPMODEL - mLayerHeight(nLevels)/zScale_TOPMODEL)/zScale_TOPMODEL
     ! compute numerical derivatives
     else
-     flux0 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) -  mLayerMatricHeadTrial(nLevels)    )/zScale_TOPMODEL)
-     flux1 = kAnisotropic*k_soil * exp(-(mLayerHeight(nLevels) - (mLayerMatricHeadTrial(nLevels)+dx))/zScale_TOPMODEL)
+     flux0 = kAnisotropic*iLayerSatHydCond(0) * exp(-(mLayerHeight(nLevels) -  mLayerMatricHeadTrial(nLevels)    )/zScale_TOPMODEL)
+     flux1 = kAnisotropic*iLayerSatHydCond(0) * exp(-(mLayerHeight(nLevels) - (mLayerMatricHeadTrial(nLevels)+dx))/zScale_TOPMODEL)
      dq_dMatricAbove(iLayer) = (flux1 - flux0)/dx
     endif
 
@@ -2202,12 +2215,14 @@ contains
     iceBelow => mLayerVolFracIceTrial(iLayer+1)
     psiAbove => mLayerMatricHeadTrial(iLayer)
     psiBelow => mLayerMatricHeadTrial(iLayer+1)
+    sHcAbove => mLayerSatHydCond(iLayer)
+    sHcBelow => mLayerSatHydCond(iLayer+1)
     zAbove   => mLayerHeight(iLayer)
     zBelow   => mLayerHeight(iLayer+1)
     ! compute numerical derivatives
-    flux0 = darcyFlux_matric(iceAbove,iceBelow,psiAbove,   psiBelow,   zAbove,zBelow,theta_res,theta_sat,k_soil,vGn_alpha,vGn_n,vGn_m,f_impede)
-    flux1 = darcyFlux_matric(iceAbove,iceBelow,psiAbove+dx,psiBelow,   zAbove,zBelow,theta_res,theta_sat,k_soil,vGn_alpha,vGn_n,vGn_m,f_impede)
-    flux2 = darcyFlux_matric(iceAbove,iceBelow,psiAbove,   psiBelow+dx,zAbove,zBelow,theta_res,theta_sat,k_soil,vGn_alpha,vGn_n,vGn_m,f_impede)
+    flux0 = darcyFlux_matric(iceAbove,iceBelow,psiAbove,   psiBelow,   sHcAbove,sHcBelow,zAbove,zBelow,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
+    flux1 = darcyFlux_matric(iceAbove,iceBelow,psiAbove+dx,psiBelow,   sHcAbove,sHcBelow,zAbove,zBelow,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
+    flux2 = darcyFlux_matric(iceAbove,iceBelow,psiAbove,   psiBelow+dx,sHcAbove,sHcBelow,zAbove,zBelow,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m,f_impede)
     dq_dMatricAbove(iLayer) = (flux1 - flux0)/dx
     dq_dMatricBelow(iLayer) = (flux2 - flux0)/dx
    endif  ! case for the numerical method

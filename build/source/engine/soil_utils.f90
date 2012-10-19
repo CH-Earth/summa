@@ -402,7 +402,8 @@ contains
  ! ***********************************************************************************************************
  ! new function: compute Darcy's flux as a function of matric head
  ! ***********************************************************************************************************
- function darcyFlux_matric(ice_above,ice_below,psi_above,psi_below,z_above,z_below,theta_res,theta_sat,k_sat,alpha,n,m,f_impede)
+ function darcyFlux_matric(ice_above,ice_below,psi_above,psi_below,sHc_above,sHc_below,z_above,z_below,&
+                           theta_res,theta_sat,alpha,n,m,f_impede)
  ! computes Darcy's flux (m s-1)
  implicit none
  ! dummy variables
@@ -410,11 +411,12 @@ contains
  real(dp),intent(in) :: ice_below   ! volumetric ice content in the layer below (-)
  real(dp),intent(in) :: psi_above   ! matric head in the layer above the interface (m)
  real(dp),intent(in) :: psi_below   ! matric head in the layer below the interface (m)
+ real(dp),intent(in) :: sHc_above   ! saturated hydraulic conductivity in the layer above the interface (m s-1)
+ real(dp),intent(in) :: sHc_below   ! saturated hydraulic conductivity in the layer below the interface (m s-1) 
  real(dp),intent(in) :: z_above     ! height in the layer above the interface (m)
  real(dp),intent(in) :: z_below     ! height in the layer below the interface (m)
  real(dp),intent(in) :: theta_res   ! soil residual volumetric water content (-)
  real(dp),intent(in) :: theta_sat   ! soil porosity (-)
- real(dp),intent(in) :: k_sat       ! saturated hydraulic conductivity (m s-1)
  real(dp),intent(in) :: alpha       ! scaling parameter (m-1)
  real(dp),intent(in) :: n           ! vGn "n" parameter (-)
  real(dp),intent(in) :: m           ! vGn "m" parameter (-)
@@ -432,8 +434,8 @@ contains
  imp_above = iceImpede(ice_above,theta_res,theta_sat,f_impede)
  imp_below = iceImpede(ice_below,theta_res,theta_sat,f_impede)
  ! compute hydraulic conductivity at layer mid-points (m s-1)
- mHC_above = hydCond_psi(psi_above,k_sat,alpha,n,m) * imp_above
- mHC_below = hydCond_psi(psi_below,k_sat,alpha,n,m) * imp_below
+ mHC_above = hydCond_psi(psi_above,sHc_above,alpha,n,m) * imp_above
+ mHC_below = hydCond_psi(psi_below,sHc_below,alpha,n,m) * imp_below
  ! compute hydraulic conductivity at layer interface (m s-1)
  iHC   = (mHC_above*mHC_below)**0.5_dp
  ! compute the spatial differences in matric head and height
@@ -447,17 +449,19 @@ contains
  ! ***********************************************************************************************************
  ! new function: compute Darcy's flux as a function of volumetric liquid water content
  ! ***********************************************************************************************************
- function darcyFlux_liquid(ice_above,ice_below,liq_above,liq_below,z_above,z_below,k_sat,theta_res,theta_sat,alpha,n,m,f_impede)
+ function darcyFlux_liquid(ice_above,ice_below,liq_above,liq_below,sHc_above,sHc_below,z_above,z_below,&
+                           theta_res,theta_sat,alpha,n,m,f_impede)
  ! computes Darcy's flux (m s-1)
  implicit none
  ! dummy variables
  real(dp),intent(in) :: ice_above   ! volumetric ice content in the layer above (-)
  real(dp),intent(in) :: ice_below   ! volumetric ice content in the layer below (-)
  real(dp),intent(in) :: liq_above   ! matric head in the layer above the interface (m)
- real(dp),intent(in) :: liq_below   ! matric head in the layer beloe the interface (m)
+ real(dp),intent(in) :: liq_below   ! matric head in the layer below the interface (m)
+ real(dp),intent(in) :: sHc_above   ! saturated hydraulic conductivity in the layer above the interface (m s-1)
+ real(dp),intent(in) :: sHc_below   ! saturated hydraulic conductivity in the layer below the interface (m s-1) 
  real(dp),intent(in) :: z_above     ! height in the layer above the interface (m)
  real(dp),intent(in) :: z_below     ! height in the layer below the interface (m)
- real(dp),intent(in) :: k_sat       ! saturated hydraulic conductivity (m s-1)
  real(dp),intent(in) :: theta_res   ! soil residual volumetric water content (-)
  real(dp),intent(in) :: theta_sat   ! soil porosity (-)
  real(dp),intent(in) :: alpha       ! scaling parameter (m-1)
@@ -480,8 +484,8 @@ contains
  imp_above = iceImpede(ice_above,theta_res,theta_sat,f_impede)
  imp_below = iceImpede(ice_below,theta_res,theta_sat,f_impede)
  ! compute hydraulic conductivity at the layer mid-points (m s-1)
- mHC_above = hydCond_liq(liq_above,k_sat,theta_res,theta_sat,m) * imp_above
- mHC_below = hydCond_liq(liq_below,k_sat,theta_res,theta_sat,m) * imp_below
+ mHC_above = hydCond_liq(liq_above,sHc_above,theta_res,theta_sat,m) * imp_above
+ mHC_below = hydCond_liq(liq_below,sHc_below,theta_res,theta_sat,m) * imp_below
  ! compute hydraulic diffusivity at layer mid-points (m2 s-1)
  mD_above = dPsi_dTheta(liq_above,alpha,theta_res,theta_sat,n,m) * mHC_above
  mD_below = dPsi_dTheta(liq_below,alpha,theta_res,theta_sat,n,m) * mHC_below
