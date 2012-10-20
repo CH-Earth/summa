@@ -54,7 +54,6 @@ contains
  real(dp),pointer                     :: vGn_n                    ! van Genutchen "n" parameter
  real(dp),pointer                     :: theta_sat                ! soil porosity (-)
  real(dp),pointer                     :: theta_res                ! soil residual volumetric water content (-)
- real(dp),pointer                     :: k_soil                   ! hydraulic conductivity (m s-1)
  real(dp),pointer                     :: specificYield            ! specific yield (-)
  real(dp),pointer                     :: specificStorage          ! specific storage coefficient (m-1)
  real(dp),pointer                     :: f_impede                 ! ice impedence factor (-)
@@ -113,6 +112,7 @@ contains
  real(dp),pointer                     :: mLayerTranspire(:)       ! transpiration loss from each soil layer (m s-1)
  real(dp),pointer                     :: mLayerInitEjectWater(:)  ! water ejected from each soil layer at start-of-step (m s-1)
  real(dp),pointer                     :: mLayerEjectWater(:)      ! water ejected from each soil layer (m s-1)
+ real(dp),pointer                     :: iLayerSatHydCond(:)      ! saturated hydraulic conductivity at layer interfaces (m s-1)
  ! local pointers to model diagnostic variables -- aquifer only
  real(dp),pointer                     :: scalarAquiferRootFrac    ! fraction of roots below the unsaturated zone (-)
  real(dp),pointer                     :: scalarInitTranspireAqfr  ! transpiration loss from the aquifer at the start-of-step (m s-1)
@@ -205,7 +205,6 @@ contains
  vGn_n             => mpar_data%var(iLookPARAM%vGn_n)           ! van Genutchen "n" parameter (-)
  theta_sat         => mpar_data%var(iLookPARAM%theta_sat)       ! soil porosity (-)
  theta_res         => mpar_data%var(iLookPARAM%theta_res)       ! soil residual volumetric water content (-)
- k_soil            => mpar_data%var(iLookPARAM%k_soil)          ! hydraulic conductivity (m s-1)
  specificYield     => mpar_data%var(iLookPARAM%specificYield)   ! specific yield (-)
  specificStorage   => mpar_data%var(iLookPARAM%specificStorage) ! specific storage coefficient (m-1)
  f_impede          => mpar_data%var(iLookPARAM%f_impede)        ! ice impedence factor (-)
@@ -273,6 +272,7 @@ contains
  mLayerTranspire       => mvar_data%var(iLookMVAR%mLayerTranspire)%dat         ! (soil only) ! transpiration loss from each soil layer (m s-1)
  mLayerInitEjectWater  => mvar_data%var(iLookMVAR%mLayerInitEjectWater)%dat    ! (soil only) ! water ejected from each soil layer at start-of-step (m s-1)
  mLayerEjectWater      => mvar_data%var(iLookMVAR%mLayerEjectWater)%dat        ! (soil only) ! water ejected from each soil layer (m s-1)
+ iLayerSatHydCond      => mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat        ! (soil only) ! saturated hydraulic conductivity at layer interfaces (m s-1)
 
  ! assign pointers to model diagnostic variables -- aquifer only 
  scalarAquiferRootFrac   => mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1)   ! fraction of roots below the lowest unsatured layer (-)
@@ -549,6 +549,42 @@ contains
   !write(*,'(a,1x,10(e20.10,1x))') 'phseComponent(1:9) = ', phseComponent(1:9)
   !write(*,'(a,1x,10(e20.10,1x))') 'inflComponent(1:9) = ', inflComponent(1:9)
 
+  ! compute the influx, drainage and ejection of water from the soil profile (m s-1)
+  scalarSoilInflux       = (wimplicit*iLayerInitLiqFluxSoil(0)       + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)      )
+  scalarSoilDrainage     = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
+  scalarSoilEjection     = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
+  scalarAquiferTranspire = (wimplicit*scalarInitTranspireAqfr        + (1._dp - wimplicit)*scalarTranspireAqfr       )
+
+  ! compute the aquifer re-charge
+  scalarAquiferRcharge = scalarSoilDrainage + scalarSoilEjection
+
+  ! compute surface-water gw interactions
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
+   ! compute change in aquifer storage and update the depth to the water table
+   call groundwatr(&
+                   ! input (variables)
+                   dt,                                              & ! input: time step (seconds) 
+                   scalarAquiferRcharge,                            & ! input: aquifer recharge (m s-1)
+                   scalarAquiferTranspire,                          & ! input: aquifer transpiration (m s-1)
+                   mLayerVolFracLiqIter(nSnow+1:nLayers),           & ! input: volumetric fraction of liquid water after itertations (-)
+                   mLayerVolFracIceIter(nSnow+1:nLayers),           & ! input: volumetric fraction of ice after itertations (-)
+                   iLayerHeight(nSnow:nLayers),                     & ! input: height of each interface (m), NOTE: include height of soil (iLayer=nSnow)
+                   mLayerDepth(nSnow+1:nLayers),                    & ! input: depth of each soil layer (m)
+                   mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat(0),& ! input: hydraulic conductivity at the surface (m s-1)
+                   ! input (parameters )
+                   mpar_data%var(iLookPARAM%theta_sat),             & ! input: soil porosity (-)
+                   mpar_data%var(iLookPARAM%specificYield),         & ! input: specific yield (-)
+                   mpar_data%var(iLookPARAM%kAnisotropic),          & ! input: anisotropy factor for lateral hydraulic conductivity (-)
+                   mpar_data%var(iLookPARAM%zScale_TOPMODEL),       & ! input: scale factor for TOPMODEL-ish baseflow parameterization (m)
+                   ! input-output
+                   scalarAquiferStorage,                            & ! input-output: aquifer storage at the start/end of the time step (m)
+                   scalarWaterTableDepth,                           & ! input-output: water table depth at the start/end of the time step (m)
+                   ! output
+                   scalarAquiferBaseflow,                           & ! output: baseflow from the aquifer (m s-1)
+                   err,cmessage)                                      ! output: error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
   ! non-iterative check (do not expect convergence)
   if(maxiter==1) exit  ! NOTE: exit loop here to avoid return statement with error code
 
@@ -596,12 +632,6 @@ contains
   endif
  end do
 
- ! compute the influx, drainage and ejection of water from the soil profile (m s-1)
- scalarSoilInflux       = (wimplicit*iLayerInitLiqFluxSoil(0)       + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)      )
- scalarSoilDrainage     = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
- scalarSoilEjection     = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
- scalarAquiferTranspire = (wimplicit*scalarInitTranspireAqfr        + (1._dp - wimplicit)*scalarTranspireAqfr       )
-
  !print*, 'check volumetric liquid water content...'
  !print*, mLayerVolFracLiqIter(nSnow+1)
 
@@ -637,36 +667,6 @@ contains
  mLayerMatricHeadNew                  = mLayerMatricHeadIter
  mLayerVolFracLiqNew(nSnow+1:nLayers) = mLayerVolFracLiqIter(nSnow+1:nLayers)
  mLayerVolFracIceNew(nSnow+1:nLayers) = mLayerVolFracIceIter(nSnow+1:nLayers)
-
- ! compute the aquifer re-charge
- scalarAquiferRcharge = scalarSoilDrainage + scalarSoilEjection
-
- ! compute surface-water gw interactions
- if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
-  ! compute change in aquifer storage and update the depth to the water table
-  call groundwatr(&
-                  ! input (variables)
-                  dt,                                       & ! input: time step (seconds) 
-                  scalarAquiferRcharge,                     & ! input: aquifer recharge (m s-1)
-                  scalarAquiferTranspire,                   & ! input: aquifer transpiration (m s-1)
-                  mLayerVolFracLiqIter(nSnow+1:nLayers),    & ! input: volumetric fraction of liquid water after itertations (-)
-                  mLayerVolFracIceIter(nSnow+1:nLayers),    & ! input: volumetric fraction of ice after itertations (-)
-                  iLayerHeight(nSnow:nLayers),              & ! input: height of each interface (m), NOTE: include height of soil (iLayer=nSnow)
-                  mLayerDepth(nSnow+1:nLayers),             & ! input: depth of each soil layer (m)
-                  ! input (parameters)
-                  mpar_data%var(iLookPARAM%theta_sat),      & ! input: soil porosity (-)
-                  mpar_data%var(iLookPARAM%specificYield),  & ! input: specific yield (-)
-                  mpar_data%var(iLookPARAM%k_soil),         & ! input: hydraulic conductivity (m s-1)
-                  mpar_data%var(iLookPARAM%kAnisotropic),   & ! input: anisotropy factor for lateral hydraulic conductivity (-)
-                  mpar_data%var(iLookPARAM%zScale_TOPMODEL),& ! input: scale factor for TOPMODEL-ish baseflow parameterization (m)
-                  ! input-output
-                  scalarAquiferStorage,                     & ! input-output: aquifer storage at the start/end of the time step (m)
-                  scalarWaterTableDepth,                    & ! input-output: water table depth at the start/end of the time step (m)
-                  ! output
-                  scalarAquiferBaseflow,                    & ! output: baseflow from the aquifer (m s-1)
-                  err,cmessage)                               ! output: error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- endif
 
  ! ***** compute melt for the case of "snow without a layer"
  if(nSnow==0 .and. scalarSWE > 0._dp)then
