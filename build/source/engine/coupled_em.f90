@@ -223,8 +223,8 @@ contains
 
   ! save the time step to initialize the subsequent step
   if(dt_done<dt .or. nsub==1) dt_init = dt_sub
-  if(dt_init < 0.001_dp .and. nsub > 1000) then
-   write(message,'(a,f13.10,a,f9.2,a,i0,a)')trim(message)//"dt < 0.001 and nsub > 1000 [dt=",dt_init,"; dt_done=",&
+  if(dt_init < 0.001_dp .and. nsub > 100) then
+   write(message,'(a,f13.10,a,f9.2,a,i0,a)')trim(message)//"dt < 0.001 and nsub > 100 [dt=",dt_init,"; dt_done=",&
          dt_done,"; nsub=",nsub,"]"
    err=20; return
   endif
@@ -255,8 +255,8 @@ contains
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
  print*, 'nsub = ', nsub
- if(nsub>1000)then
-  message=trim(message)//'number of sub-steps > 1000'
+ if(nsub>100)then
+  message=trim(message)//'number of sub-steps > 100'
   err=20; return
  endif
  

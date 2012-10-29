@@ -51,6 +51,7 @@ contains
  ! ************************************************************************************************
  subroutine heatTransf(dt,                   & ! intent(in): time step (seconds)
                        iter,                 & ! intent(in): current iteration count
+                       nLevels,&               ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                        mLayerTempIter,       & ! intent(in): trial temperature at the current iteration (K)
                        mLayerVolFracIceIter, & ! intent(in): volumetric fraction of ice at the current iteration (-)
                        mLayerVolFracLiqIter, & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
@@ -73,6 +74,7 @@ contains
  ! input
  real(dp),intent(in)           :: dt                       ! time step (seconds)
  integer(i4b),intent(in)       :: iter                     ! iteration count
+ integer(i4b),intent(in)       :: nLevels                  ! number of levels considered to be unsaturated (constant over iterations)
  real(dp),intent(in)           :: mLayerTempIter(:)        ! trial temperature at the current iteration (K)
  real(dp),intent(in)           :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice at the current iteration (-)
  real(dp),intent(in)           :: mLayerVolFracLiqIter(:)  ! volumetric fraction of liquid water at the current iteration (-)
@@ -106,6 +108,7 @@ contains
                         ! input variables from heatTransf routine
                         dt,                                                     & ! intent(in): time step (seconds)
                         iter,                                                   & ! intent(in): current iteration count
+                        nLevels,                                                & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                         mLayerTempIter,                                         & ! intent(in): trial temperature at the current iteration (K)
                         mLayerVolFracIceIter,                                   & ! intent(in): volumetric fraction of ice at the current iteration (-)
                         mLayerVolFracLiqIter,                                   & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
@@ -213,6 +216,7 @@ contains
                               ! input variables from heatTransf routine
                               dt,                         & ! intent(in): time step (seconds)
                               iter,                       & ! intent(in): current iteration count
+                              nLevels,                    & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                               mLayerTempIter,             & ! intent(in): trial temperature at the current iteration (K)
                               mLayerVolFracIceIter,       & ! intent(in): volumetric fraction of ice at the current iteration (-)
                               mLayerVolFracLiqIter,       & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
@@ -307,6 +311,7 @@ contains
  ! input variables from the heatTransf subroutine
  real(dp),intent(in)            :: dt                       ! time step (seconds)
  integer(i4b),intent(in)        :: iter                     ! iteration count
+ integer(i4b),intent(in)        :: nLevels                  ! number of levels considered to be unsaturated (constant over iterations)
  real(dp),intent(in)            :: mLayerTempIter(:)        ! trial temperature at the current iteration (K)
  real(dp),intent(in)            :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice at the current iteration (-)
  real(dp),intent(in)            :: mLayerVolFracLiqIter(:)  ! volumetric fraction of liquid water at the current iteration (-)
@@ -445,6 +450,7 @@ contains
  ! ***** compute fluxes at the surface
  call surfaceFlx(&
                  ! (model control variables)
+                 nLevels,                 & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                  fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
                  ixGroundwater,           & ! intent(in): choice of groundwater representation
                  ! (model forcing variables)
@@ -648,6 +654,7 @@ contains
   call lnsrch(&
               ! (model control variables)
               dt,                      & ! intent(in): time step (seconds)
+              nLevels,                 & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
               fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
               ixGroundwater,           & ! intent(in): choice of groundwater representation
               ! (model forcing variables)
@@ -753,6 +760,7 @@ contains
  ! ************************************************************************************************
  subroutine surfaceFlx(&
                        ! (model control variables)
+                       nLevels,                 & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                        fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
                        ixGroundwater,           & ! intent(in): choice of groundwater representation
                        ! (model forcing variables)
@@ -797,6 +805,7 @@ contains
  USE conv_funcs_module,only:relhm2sphm            ! compute specific humidity
  implicit none
  ! input (control)
+ integer(i4b),intent(in)       :: nLevels                  ! number of levels considered to be unsaturated (constant over iterations)
  integer(i4b),intent(in)       :: fDerivMeth               ! method used to calculate derivatives
  integer(i4b),intent(in)       :: ixGroundwater            ! choice of groundwater representation
  ! input (forcing)
@@ -885,6 +894,8 @@ contains
 
   ! compute the ratio of actual:potential evapotranspiration
   call evapResist(&
+                  ! input (control)
+                  nLevels,                  & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                   ! input (model decisions)
                   ixGroundwater,            &  ! intent(in): choice of groundwater representation
                   ! input (variables)
@@ -1065,6 +1076,7 @@ contains
  subroutine nrg_residl(&
                        ! (model control variables)
                        dt,                      & ! intent(in): time step (seconds)
+                       nLevels,                 & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                        fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
                        ixGroundwater,           & ! intent(in): choice of groundwater representation
                        ! (model forcing variables)
@@ -1111,6 +1123,7 @@ contains
  implicit none
  ! input (control)
  real(dp),intent(in)           :: dt                       ! intent(in): time step (seconds)
+ integer(i4b),intent(in)       :: nLevels                  ! intent(in): number of levels considered to be unsaturated (constant over iterations)
  integer(i4b),intent(in)       :: fDerivMeth               ! intent(in): method used to calculate derivatives
  integer(i4b),intent(in)       :: ixGroundwater            ! intent(in): choice of groundwater representation
  ! input (forcing)
@@ -1184,6 +1197,7 @@ contains
  ! ***** compute fluxes at the surface
  call surfaceFlx(&
                  ! (model control variables)
+                 nLevels,                 & ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                  fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
                  ixGroundwater,           & ! intent(in): choice of groundwater representation
                  ! (model forcing variables)
@@ -1320,6 +1334,8 @@ contains
  ! private subroutine: compute the resistance to evaporation (-)
  ! ************************************************************************************************
  subroutine evapResist(&
+                       ! input (control)
+                       nLevels,                  &  ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                        ! input (model decisions)
                        ixGroundwater,            &  ! intent(in): choice of groundwater representation
                        ! input (variables)
@@ -1345,6 +1361,8 @@ contains
                        aquiferTranspireLimitFac, &  ! intent(out): transpiration limiting factor for the aquifer (-)
                        err,message)                 ! intent(out): error control
  implicit none
+ ! input (control)
+ integer(i4b),intent(in)       :: nLevels                  ! number of levels considered to be unsaturated (constant over iterations)
  ! input (model decisions)
  integer(i4b),intent(in)       :: ixGroundwater            ! choice of groundwater representation
  ! input (variables)
@@ -1373,9 +1391,9 @@ contains
  ! local variables
  character(len=256)            :: cmessage                 ! error message of downwind routine
  integer(i4b)                  :: iLayer                   ! index of model layers
- integer(i4b)                  :: nLevels                  ! number of levels to consider in the soil profile
  real(dp)                      :: stomatalResist           ! stomatal resistance (s m-1)
  real(dp)                      :: plantWiltFactor          ! plant wilting factor (-) 
+ real(dp)                      :: consideredDepth          ! depth considered in fractional aquifer roots (-)
  real(dp)                      :: fracSaturatedRoots       ! fraction of total roots below the water table (-)
  real(dp)                      :: plantWiltFactorUnsatZone ! average plant wilting factor in the unsaturated zone below the soil profile (-)
  real(dp)                      :: ratioSatRoots            ! ratio of saturated roots below the soil profile to the total roots below the soil profile (-)
@@ -1391,13 +1409,6 @@ contains
 
  ! snow free conditions
  else
-
-  ! identify the number of unsaturated soil levels
-  if(ixGroundwater == movingBoundary)then
-   nLevels = count(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth)
-  else
-   nLevels = nSoil
-  endif
 
   ! ** compute the factor limiting transpiration for each soil layer (-)
   wAvgTranspireLimitFac = 0._dp  ! (initialize the weighted average)
@@ -1435,8 +1446,11 @@ contains
     case(movingBoundary)
 
      ! compute the fraction of total roots below the water table
-     if(scalarWaterTableDepth < rootingDepth)then; fracSaturatedRoots = 1._dp - (scalarWaterTableDepth/rootingDepth)**rootDistExp
-                                             else; fracSaturatedRoots = 0._dp
+     if(scalarWaterTableDepth < rootingDepth)then
+      consideredDepth    = max(iLayerHeight(nLevels),scalarWaterTableDepth)   ! water table can be in the layer during iterations 
+      fracSaturatedRoots = 1._dp - (consideredDepth/rootingDepth)**rootDistExp
+     else
+      fracSaturatedRoots = 0._dp
      endif
      ! sanity check
      if(fracSaturatedRoots > scalarAquiferRootFrac)then
@@ -1445,15 +1459,15 @@ contains
      endif
 
      ! compute the water availability factor for the unsaturated region below the soil profile
-     call unsatPlantWiltFactor(iLayerHeight(nSnow+nLevels),& ! intent(in): height at the bottom of the unsaturated zone (m)
-                               rootingDepth,               & ! intent(in): height at the bottom of the root zone (m)
-                               scalarWaterTableDepth,      & ! intent(in): height of the water table (m)
-                               mLayerHeight(nSnow+nLevels),& ! intent(in): height of the mid-point of the lowest soil layer (m)
-                               mLayerMatricHeadIter(nSoil),& ! intent(in): matric head at the mid-point of the lowest soil layer (m)
-                               plantWiltPsi,               & ! intent(in): scaling factor used in the plant wilt function (m)
-                               plantWiltExp,               & ! intent(in): empirical exponent in the plant wilt function (-) 
-                               plantWiltFactorUnsatZone,   & ! intent(out): plant wilt factor (-)
-                               err,message)                  ! intent(out): error control
+     call unsatPlantWiltFactor(iLayerHeight(nSnow+nLevels),  & ! intent(in): height at the bottom of the unsaturated zone (m)
+                               rootingDepth,                 & ! intent(in): height at the bottom of the root zone (m)
+                               scalarWaterTableDepth,        & ! intent(in): height of the water table (m)
+                               mLayerHeight(nSnow+nLevels),  & ! intent(in): height of the mid-point of the lowest soil layer (m)
+                               mLayerMatricHeadIter(nLevels),& ! intent(in): matric head at the mid-point of the lowest unsaturated soil layer (m)
+                               plantWiltPsi,                 & ! intent(in): scaling factor used in the plant wilt function (m)
+                               plantWiltExp,                 & ! intent(in): empirical exponent in the plant wilt function (-) 
+                               plantWiltFactorUnsatZone,     & ! intent(out): plant wilt factor (-)
+                               err,cmessage)                   ! intent(out): error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif 
      ! compute the weighted average of saturated and unsaturated portions
      ratioSatRoots   = fracSaturatedRoots/scalarAquiferRootFrac
@@ -1499,7 +1513,7 @@ contains
  real(dp), intent(in)         :: rootingDepth              ! height at the bottom of the root zone (m)
  real(dp), intent(in)         :: scalarWaterTableDepth     ! height of the water table (m)
  real(dp), intent(in)         :: mLayerHeight              ! height of the mid-point of the lowest soil layer (m)
- real(dp), intent(in)         :: matricHeadSoil            ! matric head at the mid-point of the lowest soil layer (m)
+ real(dp), intent(in)         :: matricHeadSoil            ! matric head at the mid-point of the lowest unsaturated soil layer (m)
  ! input (parameters)
  real(dp), intent(in)         :: plantWiltPsi              ! scaling factor used in the plant wilt function (m)
  real(dp), intent(in)         :: plantWiltExp              ! empirical exponent in the plant wilt function (-)
@@ -1525,7 +1539,7 @@ contains
  err=0; message='unsatPlantWiltFactor/'
  ! identify the height used at the lower limit of integration
  heightLower = min(rootingDepth,scalarWaterTableDepth)
- if(heightLower < soilDepth)then; err=20; message=trim(message)//'lower limit of integration must be deeper than the bottom of the soil profile'; return; endif
+ if(heightLower < soilDepth)then; plantWiltFactor = 1._dp; return; endif
  ! compute matric head at the bottom of soil profile and at the bottom of the root profile (linear interpolation)
  dist2waterTable = scalarWaterTableDepth - mLayerHeight  ! distance between mid-point of the lowest layer and the water table
  matricHeadUpper = ( (scalarWaterTableDepth - soilDepth)   / dist2waterTable ) * matricHeadSoil ! matric head at the bottom of the soil profile
@@ -1591,6 +1605,7 @@ contains
  SUBROUTINE lnsrch(&
                    ! (model control variables)
                    dt,                      & ! intent(in): time step (seconds)
+                   nLevels,                  &  ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                    fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
                    ixGroundwater,           & ! intent(in): choice of groundwater representation
                    ! (model forcing variables)
@@ -1648,8 +1663,9 @@ contains
  IMPLICIT NONE
  ! input (control)
  real(dp),intent(in)           :: dt                       ! intent(in): time step (seconds)
+ integer(i4b),intent(in)       :: nLevels                  ! intent(in): number of levels considered to be unsaturated (constant over iterations)
  integer(i4b),intent(in)       :: fDerivMeth               ! intent(in): method used to calculate derivatives
- integer(i4b),intent(in)       :: ixGroundwater            ! choice of groundwater representation
+ integer(i4b),intent(in)       :: ixGroundwater            ! intent(in): choice of groundwater representation
  ! input (forcing)
  real(dp),intent(in)           :: airtemp                  ! intent(in): air temperature (K)
  real(dp),intent(in)           :: spechum                  ! intent(in): specific humidity (g g-1)
@@ -1739,6 +1755,7 @@ contains
   call nrg_residl(&
                   ! (model control variables)
                   dt,                      & ! intent(in): time step (seconds)
+                  nLevels,                 &  ! intent(in): number of levels considered to be unsaturated (constant over iterations)
                   fDerivMeth,              & ! intent(in): method used to compute derivatives (numerical or analytical)
                   ixGroundwater,           & ! intent(in): choice of groundwater representation
                   ! (model forcing variables)

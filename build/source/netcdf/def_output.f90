@@ -104,8 +104,8 @@ contains
  ! define local variables
  integer(i4b)                :: ncid                       ! NetCDF file ID
  integer(i4b)                :: dimID
- integer(i4b),parameter      :: maxLength=2500000         ! maximum length of the variable vector
- !integer(i4b),parameter      :: maxLength=100000         ! maximum length of the variable vector
+ integer(i4b),parameter      :: maxLength=100000         ! maximum length of the variable vector
+ !integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
  integer(i4b),parameter      :: maxParSets=1               ! maximum number of parameter sets
  ! initialize error control
  err=0;message="f-iniCreate/"
