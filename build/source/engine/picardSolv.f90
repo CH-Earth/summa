@@ -10,15 +10,15 @@ contains
  ! ************************************************************************************************
  subroutine picardSolv(dt,maxiter,niter,err,message)
  ! provide access to subroutines
- USE diagn_evar_module,only:diagn_evar      ! compute diagnostic energy variables -- thermal conductivity and heat capacity
- USE heatTransf_module,only:heatTransf      ! compute change in temperature over the time step
- USE phseChange_module,only:phseChange      ! compute change in phase over the time step
- USE snowHydrol_module,only:snowHydrol      ! compute liquid water flow through the snowpack
- USE soilHydrol_module,only:soilHydrol      ! compute change in mass over the time step for the soil
- USE groundwatr_module,only:groundwatr      ! compute change in water table depth and baseflow
- USE surfAlbedo_module,only:surfAlbedo      ! compute surface albedo
- USE snwDensify_module,only:snwDensify      ! compute densification of snow
- USE soil_utils_module,only:crit_soilT      ! compute the critical temperature above which all water is unfrozen
+ USE diagn_evar_module,only:diagn_evar          ! compute diagnostic energy variables -- thermal conductivity and heat capacity
+ USE heatTransf_module,only:heatTransf          ! compute change in temperature over the time step
+ USE phseChange_module,only:phseChange          ! compute change in phase over the time step
+ USE snowHydrol_module,only:snowHydrol          ! compute liquid water flow through the snowpack
+ USE soilHydrol_module,only:soilHydrol          ! compute change in mass over the time step for the soil
+ USE soilHydrol_module,only:waterTablePosition  ! compute the height of the water table
+ USE surfAlbedo_module,only:surfAlbedo          ! compute surface albedo
+ USE snwDensify_module,only:snwDensify          ! compute densification of snow
+ USE soil_utils_module,only:crit_soilT          ! compute the critical temperature above which all water is unfrozen
  ! provide access to data
  USE multiconst,only:&
                      gravity,      & ! acceleration of gravity              (m s-2)
@@ -115,11 +115,12 @@ contains
  real(dp),pointer                     :: iLayerSatHydCond(:)      ! saturated hydraulic conductivity at layer interfaces (m s-1)
  ! local pointers to model diagnostic variables -- aquifer only
  real(dp),pointer                     :: scalarAquiferRootFrac    ! fraction of roots below the unsaturated zone (-)
- real(dp),pointer                     :: scalarInitTranspireAqfr  ! transpiration loss from the aquifer at the start-of-step (m s-1)
- real(dp),pointer                     :: scalarTranspireAqfr      ! transpiration loss from the aquifer at the end-of-step (m s-1)
- real(dp),pointer                     :: scalarAquiferTranspire   ! time step average: transpiration from the aquifer (m s-1)
- real(dp),pointer                     :: scalarAquiferRcharge     ! aquifer recharge rate (m s-1)
- real(dp),pointer                     :: scalarAquiferBaseflow    ! aquifer baseflow rate (m s-1)
+ real(dp),pointer                     :: scalarInitAquiferTranspire ! initial aquifer transpiration rate (m s-1)
+ real(dp),pointer                     :: scalarInitAquiferBaseflow  ! initial aquifer baseflow rate (m s-1)
+ real(dp),pointer                     :: scalarInitAquiferRcharge   ! initial aquifer recharge rate (m s-1)
+ real(dp),pointer                     :: scalarAquiferTranspire     ! aquifer tramspiration rate (m s-1)
+ real(dp),pointer                     :: scalarAquiferBaseflow      ! aquifer baseflow rate (m s-1)
+ real(dp),pointer                     :: scalarAquiferRcharge       ! aquifer recharge rate (m s-1)
  real(dp),pointer                     :: scalarAquiferBalError    ! error in the aquifer water balance (kg m-2) 
  ! local pointers to model index variables
  integer(i4b),pointer                 :: nLayers                  ! number of layers
@@ -137,7 +138,6 @@ contains
  real(dp)                             :: scalarAquiferStorageNew  ! aquifer storage at the end of the time step (m)
  ! define local model diagnostic variables
  real(dp),allocatable                 :: mLayerInfilFreezeNew(:)  ! increase in volumetric ice content caused by freezing infiltrating flux (-)
- real(dp),allocatable                 :: waterReq2FillPore(:)     ! water required to fill pore space (m)
  ! define local error monitoring variables
  real(dp),allocatable                 :: mLayerTempIncr(:)        ! change in temperature from one iteration to the next (K)
  real(dp),allocatable                 :: mLayerTempIncrOld(:)     ! change in temperature from one iteration to the next -- previous iteration (K)
@@ -171,7 +171,7 @@ contains
  real(dp)                             :: nrgAvailable             ! case of "snow without a layer": energy available to melt the snow (J m-2)
  real(dp)                             :: snwDensity               ! case of "snow without a layer": snow density (kg m-3)
  real(dp)                             :: volFrac_water            ! total volumetric fraction of water (liquid water plus ice) 
- real(dp)                             :: downFlux                 ! excess water in each layer, converted to a flux (m s-1)
+ real(dp)                             :: drainablePorosity        ! drainable porosity (-)
  integer(i4b)                         :: iLayer                   ! loop through model layers
  ! define balance check variables
  real(dp)                             :: totalChange              ! total change in volumetric liquid water content over a layer 
@@ -280,13 +280,14 @@ contains
  iLayerSatHydCond      => mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat        ! (soil only) ! saturated hydraulic conductivity at layer interfaces (m s-1)
 
  ! assign pointers to model diagnostic variables -- aquifer only 
- scalarAquiferRootFrac   => mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1)   ! fraction of roots below the lowest unsatured layer (-)
- scalarInitTranspireAqfr => mvar_data%var(iLookMVAR%scalarInitTranspireAqfr)%dat(1) ! transpiration loss from the aquifer at the start-of-step (m s-1)
- scalarTranspireAqfr     => mvar_data%var(iLookMVAR%scalarTranspireAqfr)%dat(1)     ! transpiration loss from the aquifer at the end-of-step (m s-1)
- scalarAquiferTranspire  => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)  ! time step average: transpiration from the aquifer (m s-1)
- scalarAquiferRcharge    => mvar_data%var(iLookMVAR%scalarAquiferRcharge)%dat(1)    ! aquifer recharge rate (m s-1)
- scalarAquiferBaseflow   => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)   ! aquifer baseflow rate (m s-1)
- scalarAquiferBalError   => mvar_data%var(iLookMVAR%scalarAquiferBalError)%dat(1)   ! error in the aquifer water balance (kg m-2)
+ scalarAquiferRootFrac      => mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1)   ! fraction of roots below the lowest unsatured layer (-)
+ scalarInitAquiferTranspire => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)  ! initial transpiration from the aquifer (m s-1)
+ scalarInitAquiferRcharge   => mvar_data%var(iLookMVAR%scalarAquiferRcharge)%dat(1)    ! initial aquifer recharge rate (m s-1)
+ scalarInitAquiferBaseflow  => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)   ! initial aquifer baseflow rate (m s-1)
+ scalarAquiferTranspire     => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)  ! transpiration from the aquifer (m s-1)
+ scalarAquiferRcharge       => mvar_data%var(iLookMVAR%scalarAquiferRcharge)%dat(1)    ! aquifer recharge rate (m s-1)
+ scalarAquiferBaseflow      => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)   ! aquifer baseflow rate (m s-1)
+ scalarAquiferBalError      => mvar_data%var(iLookMVAR%scalarAquiferBalError)%dat(1)   ! error in the aquifer water balance (kg m-2)
 
  ! initialize print flag
  printflag=.false.
@@ -307,7 +308,7 @@ contains
  if(err/=0)then; err=20; message='problem allocating space for state variable vectors - 1'; return; endif
 
  ! allocate space for diagnostic variables
- allocate(mLayerInfilFreezeNew(nLayers),waterReq2FillPore(0:nSoil),stat=err)
+ allocate(mLayerInfilFreezeNew(nLayers),stat=err)
  if(err/=0)then; err=20; message='problem allocating space for diagnostic variable vectors - 1'; return; endif
 
  ! allocate space for error monitoring
@@ -353,16 +354,25 @@ contains
  ! initialize aquifer storage
  scalarAquiferStorageIter = scalarAquiferStorage
 
- ! compute the water required to fill pore space up to the level of each layer interface (m)
- call waterReq2FillLayer(theta_sat,                  & ! intent(in):  total porosity (-)
-                         mLayerDepth,                & ! intent(in):  depth of each soil layer (m)
-                         mLayerVolFracLiqIter,       & ! intent(in):  volumetric liquid water content in each soil layer (-)
-                         mLayerVolFracIceIter,       & ! intent(in):  volumetric ice content in each soil layer (-)
-                         waterReq2FillPore,          & ! intent(out): water required to fill pore space at each layer interface (m)
-                         err,cmessage)                 ! intent(out): error control
+ ! compute the depth to the water table
+ call waterTablePosition(&
+                         ! (input: model variables)
+                         mLayerVolFracLiq(nSnow+1:nLayers),      & ! intent(in):  volumetric liquid water content in each soil layer (-)
+                         mLayerVolFracIce(nSnow+1:nLayers),      & ! intent(in):  volumetric ice content in each soil layer (-)
+                         scalarAquiferStorage,                   & ! intent(in):  aquifer storage (m)
+                         iLayerHeight(nSnow:nLayers),            & ! intent(in):  height of each interface (m)
+                         mLayerDepth(nSnow+1:nLayers),           & ! intent(in):  depth of each soil layer (m)
+                         ! (input: model parameters)
+                         theta_sat,                              & ! intent(in): soil porosity (-)
+                         specificYield,                          & ! intent(in): specific yield (-)
+                         ! (output)
+                         drainablePorosity,                      & ! intent(out): drainable porosity (-)
+                         scalarWaterTableDepth,                  & ! intent(out): water table depth (m)
+                         err,cmessage)                             ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! identify the number of soil layers to use in the soil hydrology routine
+ ! NOTE: use water table depth at end of previous time step (start of current time step)
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
   ! identify number of layers above the water table
   nLevels = count(iLayerHeight(nSnow+1:nLayers) < scalarWaterTableDepth)
@@ -504,13 +514,18 @@ contains
 
   ! compute the matric head at the next iteration (note liquid water and ice vectors are defined for all layers)
   ! NOTE: ice not modified in the soil hydrology routines, so can stay as "New"
-  call soilHydrol(dt,&                                          ! time step (seconds)
+  call soilHydrol(&
+                  ! input
+                  dt,&                                          ! time step (seconds)
                   iter,&                                        ! current iteration count
                   mLayerMatricHeadIter(1:nLevels),            & ! matric head in each layer at the current iteration (m)
-                  mLayerVolFracIceNew(nSnow+1:nSnow+nLevels), & ! volumetric fraction of ice at the current iteration (-)
                   mLayerVolFracLiqIter(nSnow+1:nSnow+nLevels),& ! volumetric fraction of liquid water at the current iteration (-)
+                  mLayerVolFracIceNew(nSnow+1:nSnow+nLevels), & ! volumetric fraction of ice at the current iteration (-)
+                  scalarAquiferStorageIter,                   & ! aquifer storage (m)
+                  !output
                   mLayerMatricHeadNew(1:nLevels),             & ! matric head in each layer at the next iteration (m)
                   mLayerVolFracLiqNew(nSnow+1:nSnow+nLevels), & ! volumetric fraction of liquid water at the next iteration (-)
+                  scalarAquiferStorageNew,                    & ! aquifer storage (m)
                   err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! copy across "saturated" layers
@@ -573,42 +588,6 @@ contains
   scalarSoilInflux       = (wimplicit*iLayerInitLiqFluxSoil(0)       + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)      )
   scalarSoilDrainage     = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
   scalarSoilEjection     = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
-  scalarAquiferTranspire = (wimplicit*scalarInitTranspireAqfr        + (1._dp - wimplicit)*scalarTranspireAqfr       )
-
-  ! compute the aquifer re-charge
-  scalarAquiferRcharge = scalarSoilDrainage + scalarSoilEjection
-
-  ! compute surface-water gw interactions
-  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
-   ! compute change in aquifer storage and update the depth to the water table
-   call groundwatr(&
-                   dt,                                              & ! input: time step (seconds) 
-                   ! input (state variables)
-                   scalarAquiferStorage,                            & ! input: aquifer storage at the start of the time step (m)
-                   scalarAquiferStorageIter,                        & ! input: trial value of aquifer storage (m)
-                   ! input (fluxes)
-                   scalarAquiferRcharge,                            & ! input: aquifer recharge (m s-1)
-                   scalarAquiferTranspire,                          & ! input: aquifer transpiration (m s-1)
-                   ! input (available depth)
-                   mLayerVolFracLiqIter(nSnow+1:nLayers),           & ! input: volumetric fraction of liquid water after itertations (-)
-                   mLayerVolFracIceIter(nSnow+1:nLayers),           & ! input: volumetric fraction of ice after itertations (-)
-                   iLayerHeight(nSnow:nLayers),                     & ! input: height of each interface (m), NOTE: include height of soil (iLayer=nSnow)
-                   mLayerDepth(nSnow+1:nLayers),                    & ! input: depth of each soil layer (m)
-                   ! input (diagnostic variables)
-                   mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat(0),& ! input: hydraulic conductivity at the surface (m s-1)
-                   ! input (parameters)
-                   mpar_data%var(iLookPARAM%theta_sat),             & ! input: soil porosity (-)
-                   mpar_data%var(iLookPARAM%specificYield),         & ! input: specific yield (-)
-                   mpar_data%var(iLookPARAM%kAnisotropic),          & ! input: anisotropy factor for lateral hydraulic conductivity (-)
-                   mpar_data%var(iLookPARAM%zScale_TOPMODEL),       & ! input: scale factor for TOPMODEL-ish baseflow parameterization (m)
-                   ! output (states)
-                   scalarAquiferStorageNew,                         & ! output: aquifer storage at the end of the time step (m)
-                   ! output (diagnostic variables and error control)
-                   scalarWaterTableDepth,                           & ! output: water table depth at the start/end of the time step (m)
-                   scalarAquiferBaseflow,                           & ! output: baseflow from the aquifer (m s-1)
-                   err,cmessage)                                      ! output: error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
 
   ! get ready for the next iteration
   scalarAquiferStorageIter = scalarAquiferStorageNew
@@ -745,7 +724,7 @@ contains
  balanceSoilInflux        = scalarSoilInflux*iden_water*dt
  balanceSoilDrainage      = scalarSoilDrainage*iden_water*dt
  balanceSoilEjection      = scalarSoilEjection*iden_water*dt
- balanceSoilTranspiration = scalarMassLiquid*dt - scalarAquiferTranspire*iden_water*dt
+ balanceSoilTranspiration = scalarMassLiquid*dt - (wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*iden_water*dt
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilDrainage - balanceSoilEjection) )
@@ -780,14 +759,16 @@ contains
  endif
 
  ! check the aquifer water balance
- scalarAquiferBalError = balanceAquifer1 - (balanceAquifer0 + iden_water*(scalarAquiferRcharge + scalarAquiferTranspire - scalarAquiferBaseflow)*dt)
+ scalarAquiferBalError = balanceAquifer1 - (balanceAquifer0 + iden_water*( (wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire) + &
+                                                                           (wimplicit*scalarInitAquiferRcharge   + (1._dp - wimplicit)*scalarAquiferRcharge)   - &
+                                                                           (wimplicit*scalarInitAquiferBaseflow  + (1._dp - wimplicit)*scalarAquiferBaseflow) )*dt )
  if(abs(scalarAquiferBalError) > 1.d-3)then
   write(*,'(a,f20.10)') 'scalarAquiferBalError  = ', scalarAquiferBalError
   write(*,'(a,f20.10)') 'balanceAquifer1        = ', balanceAquifer1
   write(*,'(a,f20.10)') 'balanceAquifer0        = ', balanceAquifer0
-  write(*,'(a,f20.10)') 'scalarAquiferRcharge   = ', iden_water*scalarAquiferRcharge*dt
-  write(*,'(a,f20.10)') 'scalarAquiferTranspire = ', iden_water*scalarAquiferTranspire*dt
-  write(*,'(a,f20.10)') 'scalarAquiferBaseflow  = ', iden_water*scalarAquiferBaseflow*dt
+  write(*,'(a,f20.10)') 'scalarAquiferTranspire = ', iden_water*(wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*dt
+  write(*,'(a,f20.10)') 'scalarAquiferRcharge   = ', iden_water*(wimplicit*scalarInitAquiferRcharge   + (1._dp - wimplicit)*scalarAquiferRcharge)  *dt
+  write(*,'(a,f20.10)') 'scalarAquiferBaseflow  = ', iden_water*(wimplicit*scalarInitAquiferBaseflow  + (1._dp - wimplicit)*scalarAquiferBaseflow) *dt
   write(message,'(a,e20.10,a)')trim(message)//"abs(scalarAquiferBalError) > 1.d-3 [error = ",scalarAquiferBalError," ]"
   err=10; return
  endif
