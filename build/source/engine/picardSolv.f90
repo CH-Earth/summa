@@ -534,10 +534,11 @@ contains
    mLayerVolFracLiqNew(nSnow+nLevels+1:nLayers) = mLayerVolFracLiqIter(nSnow+nLevels+1:nLayers)
   endif
   !print*, '*** after hydrology'
-  write(*,'(a,50(f12.9,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))*100._dp
-  write(*,'(a,50(f12.9,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))*100._dp
-  write(*,'(a,50(f12.9,1x))') 'mLayerMatricHeadIter = ', mLayerMatricHeadIter(minLayer:min(maxLayer,nLayers))
-  write(*,'(a,50(f12.9,1x))') 'mLayerMatricHeadNew =  ', mLayerMatricHeadNew(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,50(e20.10,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,50(e20.10,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,50(e20.10,1x))') 'mLayerMatricHeadIter = ', mLayerMatricHeadIter(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,50(e20.10,1x))') 'mLayerMatricHeadNew =  ', mLayerMatricHeadNew(minLayer:min(maxLayer,nLayers))
+  write(*,'(a, 1(e20.10,1x))') 'scalarAquiferStorageNew = ', scalarAquiferStorageNew
 
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
@@ -634,7 +635,7 @@ contains
  ! ***** END OF ITERATIONS *****************************************************************************************************************
  ! *****************************************************************************************************************************************
  ! *****************************************************************************************************************************************
- !pause 'after iterations'
+ pause 'after iterations'
 
  ! check matric head is not ridiculous
  do iLayer=1,nSoil
