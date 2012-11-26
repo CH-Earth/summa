@@ -9,12 +9,12 @@
 num_method   itertive  ! ( 1) choice of numerical method
 fDerivMeth   analytic  ! ( 2) method used to calculate flux derivatives
 f_Richards   moisture  ! ( 3) form of Richard's equation
-groundwatr   movBound  ! ( 4) choice of groundwater parameterization
+groundwatr   pseudoWT  ! ( 4) choice of groundwater parameterization
 hc_profile   exp_prof  ! ( 5) choice of hydraulic conductivity profile
 bcUpprTdyn   nrg_flux  ! ( 6) type of upper boundary condition for thermodynamics
 bcLowrTdyn   presTemp  ! ( 7) type of lower boundary condition for thermodynamics
 bcUpprSoiH   liq_flux  ! ( 8) type of upper boundary condition for soil hydrology
-bcLowrSoiH   gwCouple  ! ( 9) type of lower boundary condition for soil hydrology
+bcLowrSoiH   zeroFlux  ! ( 9) type of lower boundary condition for soil hydrology
 astability   louisinv  ! (10) choice of stability function
 compaction   anderson  ! (11) choice of compaction routine
 thermlcond   jrdn1991  ! (12) choice of thermal conductivity representation
@@ -36,7 +36,8 @@ alb_method   fsnowage  ! (13) choice of albedo representation
 ! mixdform  ! mixed form of Richards' equation
 ! -----------------------------------------------------------------------------------------------
 ! (4) choice of groundwater parameterization
-! movBound  ! moving lower boundary
+! zEquilWT  ! equilibrium water table
+! pseudoWT  ! pseudo water table
 ! bigBuckt  ! a big bucket (lumped aquifer model)
 ! noXplict  ! no explicit groundwater parameterization
 ! -----------------------------------------------------------------------------------------------
@@ -61,7 +62,7 @@ alb_method   fsnowage  ! (13) choice of albedo representation
 ! (9) choice of lower boundary conditions for soil hydrology
 ! drainage  ! free draining
 ! bottmPsi  ! function of matric head in the lower-most layer
-! gwCouple  ! coupled to the groundwater sub-model (matric head=0 as a moving lower boundary)
+! zeroFlux  ! zero flux
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of stability function
 ! standard  ! standard MO similarity, a la Anderson (1979)
