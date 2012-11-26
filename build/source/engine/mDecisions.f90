@@ -17,9 +17,10 @@ integer(i4b),parameter,public :: analytical        =22    ! analytical solution
 integer(i4b),parameter,public :: moisture          =31    ! moisture-based form of Richards' equation
 integer(i4b),parameter,public :: mixdform          =32    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
-integer(i4b),parameter,public :: movingBoundary    =41    ! moving lower boundary
-integer(i4b),parameter,public :: bigBucket         =42    ! a big bucket (lumped aquifer model)
-integer(i4b),parameter,public :: noExplicit        =43    ! no explicit groundwater parameterization
+integer(i4b),parameter,public :: equilWaterTable   =41    ! equilibrium water table
+integer(i4b),parameter,public :: pseudoWaterTable  =42    ! pseudo water table
+integer(i4b),parameter,public :: bigBucket         =43    ! a big bucket (lumped aquifer model)
+integer(i4b),parameter,public :: noExplicit        =44    ! no explicit groundwater parameterization
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant          =51     ! constant hydraulic conductivity with depth
 integer(i4b),parameter,public :: exp_profile       =52     ! exponential profile
@@ -34,7 +35,6 @@ integer(i4b),parameter,public :: liquidFlux        =71    ! liquid water flux
 integer(i4b),parameter,public :: prescribedHead    =72    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 integer(i4b),parameter,public :: funcBottomHead    =73    ! function of matric head in the lower-most layer
 integer(i4b),parameter,public :: freeDrainage      =74    ! free drainage
-integer(i4b),parameter,public :: groundwaterCouple =75    ! coupled to the groundwater sub-model (matric head=0 as a moving lower boundary)
 ! look-up values for the choice of stability function
 integer(i4b),parameter,public :: standard          =81    ! standard MO similarity, a la Anderson (1976) 
 integer(i4b),parameter,public :: louisInversePower =82    ! Louis (1979) inverse power function
@@ -103,7 +103,8 @@ contains
 
  ! (4) identify the groundwater parameterization
  select case(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision))
-  case('movBound'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = movingBoundary      ! moving lower boundary
+  case('zEquilET'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = equilWaterTable     ! equilibrium water table
+  case('pseudoWT'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = pseudoWaterTable    ! pseudo water table
   case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
   case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
   case default
@@ -149,7 +150,7 @@ contains
   case('presHead'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   case('bottmPsi'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = funcBottomHead      ! function of matric head in the lower-most layer
   case('drainage'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = freeDrainage        ! free drainage
-  case('gwCouple'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = groundwaterCouple   ! coupled to the groundwater sub-model (matric head=0 as a moving lower boundary)
+  case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = zeroFlux            ! zero flux
   case default
    err=10; message=trim(message)//"unknown lower boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision)//"]"; return
  end select
@@ -189,22 +190,15 @@ contains
    err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
  end select
 
- ! *****
- ! check for unrealistic options
-
- ! only allow the moving boundary gw parameterization with the moisture-based form of Richards' equation
- if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
-  if(model_decisions(iLookDECISIONS%f_Richards)%iDecision /= moisture)then
-   err=20; message=trim(message)//"moving boundary gw parameterization only allowed with the moisture-based from of Richards' equation"; return
-  endif
- endif
-
- ! moving boundary gw parameterization must have "groundwaterCouple" as the lower boundary condition
- if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == movingBoundary)then
-  if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= groundwaterCouple)then
-   err=20; message=trim(message)//'moving boundary gw parameterization must use "gwCouple" as the lower model boundary condition'; return
-  endif
- endif
+ ! -----------------------------------------------------------------------------------------------------------------------------------------------
+ ! check for consistency among options
+ select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
+  case(equilWaterTable,pseudoWaterTable)
+   if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
+    message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with (zEquilWT or pseudoWT) options for groundwater'
+    err=20; return 
+   endif
+ end select
 
  end subroutine mDecisions
 

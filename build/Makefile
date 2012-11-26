@@ -41,7 +41,8 @@ NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(FUSE_NRUTIL))
 #
 # Numerical recipes procedures
 FUSE_NRPROC= \
-		spline_int.f90
+		spline_int.f90 \
+		intgr8func.f90
 NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(FUSE_NRPROC))
 
 # Hook-up modules (set files and directory paths)

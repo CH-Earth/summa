@@ -60,6 +60,7 @@ contains
  real(dp),pointer                     :: scalarRainPlusMelt   ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  real(dp),pointer                     :: scalarSurfaceRunoff  ! surface runoff (m s-1) 
  real(dp),pointer                     :: scalarSoilInflux     ! influx of water at the top of the soil profile (m s-1)
+ real(dp),pointer                     :: scalarSoilBaseflow   ! total baseflow from throughout the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilDrainage   ! drainage from the bottom of the soil profile (m s-1)
  ! local pointers to timestep-average flux variables
  real(dp),pointer                     :: averageMassLiquid    ! evaporation or dew (kg m-2 s-1)
@@ -67,6 +68,7 @@ contains
  real(dp),pointer                     :: averageRainPlusMelt  ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  real(dp),pointer                     :: averageSurfaceRunoff ! surface runoff (m s-1) 
  real(dp),pointer                     :: averageSoilInflux    ! influx of water at the top of the soil profile (m s-1)
+ real(dp),pointer                     :: averageSoilBaseflow  ! total baseflow from throughout the soil profile (m s-1)
  real(dp),pointer                     :: averageSoilDrainage  ! drainage from the bottom of the soil profile (m s-1)
  ! local pointers to algorithmic control parameters
  real(dp),pointer                     :: minstep              ! minimum time step length (s)
@@ -88,6 +90,7 @@ contains
  averageRainPlusMelt   => mvar_data%var(iLookMVAR%averageRainPlusMelt)%dat(1)    ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  averageSurfaceRunoff  => mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)   ! surface runoff (m s-1)
  averageSoilInflux     => mvar_data%var(iLookMVAR%averageSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
+ averageSoilBaseflow   => mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)    ! total baseflow from throughout the soil profile (m s-1)
  averageSoilDrainage   => mvar_data%var(iLookMVAR%averageSoilDrainage)%dat(1)    ! drainage from the bottom of the soil profile (m s-1)
 
  ! assign pointers to algorithmic control parameters
@@ -101,6 +104,7 @@ contains
  averageMassSolid      = 0._dp  ! sublimation or frost (kg m-2 s-1)
  averageRainPlusMelt   = 0._dp  ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  averageSoilInflux     = 0._dp  ! influx of water at the top of the soil profile (m s-1)
+ averageSoilBaseflow   = 0._dp  ! total baseflow from throughout the soil profile (m s-1)
  averageSoilDrainage   = 0._dp  ! drainage from the bottom of the soil profile (m s-1)
 
  ! get the length of the time step (seconds)
@@ -163,6 +167,7 @@ contains
   scalarRainPlusMelt  => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)    ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   scalarSurfaceRunoff => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)   ! surface runoff (m s-1)
   scalarSoilInflux    => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
+  scalarSoilBaseflow  => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)    ! total baseflow from throughout the soil profile (m s-1)
   scalarSoilDrainage  => mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1)    ! drainage from the bottom of the soil profile (m s-1)
 
   ! allocate temporary array
@@ -183,6 +188,7 @@ contains
    ! if not ok, reduce time step and try again
    dt_sub = dt_sub*0.1_dp
    print*, dt_sub, minstep, trim(message)//trim(cmessage)
+   pause
    ! check that the step size is still appropriate -- if not, use non-iterative solution
    if(dt_sub < minstep)then
     if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
@@ -199,6 +205,7 @@ contains
   averageRainPlusMelt   = averageRainPlusMelt  + scalarRainPlusMelt*dt_sub  ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   averageSurfaceRunoff  = averageSurfaceRunoff + scalarSurfaceRunoff*dt_sub ! surface runoff (m s-1)
   averageSoilInflux     = averageSoilInflux    + scalarSoilInflux*dt_sub    ! influx of water at the top of the soil profile (m s-1)
+  averageSoilBaseflow   = averageSoilBaseflow  + scalarSoilBaseflow*dt_sub  ! total baseflow from throughout the soil profile (m s-1)
   averageSoilDrainage   = averageSoilDrainage  + scalarSoilDrainage*dt_sub  ! drainage from the bottom of the soil profile (m s-1)
 
   ! check that snow depth is decreasing (can only increase in the top layer)
@@ -215,7 +222,7 @@ contains
 
   ! increment the time step increment
   dt_done = dt_done + dt_sub
-  print*, '***** ', dt_done, dt_sub, niter
+  !print*, '***** ', dt_done, dt_sub, niter
 
   ! modify the length of the time step
   if(niter<n_inc) dt_sub = dt_sub*F_inc
@@ -247,6 +254,7 @@ contains
  averageRainPlusMelt   = averageRainPlusMelt  /dt ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  averageSurfaceRunoff  = averageSurfaceRunoff /dt ! surface runoff (m s-1)
  averageSoilInflux     = averageSoilInflux    /dt ! influx of water at the top of the soil profile (m s-1)
+ averageSoilBaseflow   = averageSoilBaseflow  /dt ! total baseflow from throughout the soil profile (m s-1)
  averageSoilDrainage   = averageSoilDrainage  /dt ! drainage from the bottom of the soil profile (m s-1)
 
  ! save the surface temperature (just to make things easier to visualize)

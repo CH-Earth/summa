@@ -1,5 +1,8 @@
 module read_icond_module
 USE nrtype
+USE mDecisions_module,only:  &
+ moisture,                   & ! moisture-based form of Richards' equation
+ mixdform                      ! mixed form of Richards' equation
 implicit none
 private
 public::read_icond
@@ -16,8 +19,10 @@ contains
                        iden_water,&  ! intrinsic density of liquid water    (kg m-3)
                        gravity,   &  ! gravitational acceleration           (m s-2)
                        Tfreeze       ! freezing point of pure water         (K)
+ ! modules
  USE snow_utils_module,only:fracliquid             ! compute volumetric fraction of liquid water
  USE soil_utils_module,only:volFracLiq             ! compute volumetric fraction of liquid water based on matric head
+ USE soil_utils_module,only:matricHead             ! compute matric head based on volumetric fraction of liquid water
  USE soil_utils_module,only:crit_soilT             ! compute temperature above which all water is unfrozen
  USE snow_fileManager,only:SETNGS_PATH             ! path for metadata files
  USE snow_fileManager,only:MODEL_INITCOND          ! model initial conditions file
@@ -26,6 +31,9 @@ contains
  USE ascii_util_module,only:get_vlines             ! get a list of character strings from non-comment lines
  USE allocspace_module,only:alloc_mvar             ! allocate space for model variables
  USE allocspace_module,only:alloc_indx             ! allocate space for model variables
+ ! data structures
+ USE data_struc,only:model_decisions               ! model decision structure
+ USE var_lookup,only:iLookDECISIONS                ! named variables for elements of the decision structure
  USE data_struc,only:mpar_data                     ! data for model parameetrs
  USE data_struc,only:mvar_data,mvar_meta           ! data/metadata for model variables
  USE data_struc,only:indx_data,indx_meta           ! data/metadata for model indices
@@ -46,7 +54,7 @@ contains
  integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
- character(LEN=256)             :: namesScalarDesired(5) ! names of desired scalar variables
+ character(LEN=256)             :: namesScalarDesired(6) ! names of desired scalar variables
  logical(lgt),allocatable       :: checkGotVars(:) ! used to check if we have got desired variables
  character(LEN=256),allocatable :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable :: chardata(:)     ! vector of character data
@@ -80,6 +88,7 @@ contains
  real(dp)                       :: Tcrit               ! temperature above which all water is unfrozen (K)
  real(dp)                       :: vGn_m               ! van Genutchen "m" parameter (-)
  real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1) 
+ real(dp)                       :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -90,14 +99,15 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
  ! define desired scalar variables
- if(size(namesScalarDesired)/=5)then
-  err=20; message=trim(message)//'expect 5 variables in namesScalarDesired'; return
+ if(size(namesScalarDesired)/=6)then
+  err=20; message=trim(message)//'expect 6 variables in namesScalarDesired'; return
  endif
  namesScalarDesired(1) = 'scalarAlbedo'
  namesScalarDesired(2) = 'scalarSWE'
  namesScalarDesired(3) = 'scalarSnowDepth'
  namesScalarDesired(4) = 'scalarSfcMeltPond'
  namesScalarDesired(5) = 'scalarAquiferStorage'
+ namesScalarDesired(6) = 'scalarWaterTableDepth'
 
  ! **********************************************************************************************
  ! (1) open files, etc.
@@ -290,6 +300,8 @@ contains
  vGn_n               => mpar_data%var(iLookPARAM%vGn_n)                      ! van Genutchen "n" parameter (-)
  theta_sat           => mpar_data%var(iLookPARAM%theta_sat)                  ! soil porosity (-)
  theta_res           => mpar_data%var(iLookPARAM%theta_res)                  ! soil residual volumetric water content (-)
+ ! compute the maximum volumetric fraction of liquid water -- used to avoid problems of super-saturation in the moisture-based form of Richards' equation
+ maxVolFracLiq = theta_sat - 1.e-4_dp
  ! compute the van Genutchen "m" parameter (-)
  vGn_m = 1._dp - 1._dp/vGn_n
  ! compute the constant in the freezing curve function (m K-1)
@@ -322,7 +334,14 @@ contains
      scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)
     ! compute volumetric fraction of liquid water and ice (-) for cases of unfrozen soil
     else
-     scalarVolFracLiq = volFracLiq(scalarMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     select case(model_decisions(iLookDECISIONS%f_Richards)%iDecision)
+      case(moisture)
+       scalarVolFracLiq = min(scalarVolFracLiq,maxVolFracLiq)
+       scalarMatricHead = matricHead(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      case(mixdform)
+       scalarVolFracLiq = volFracLiq(scalarMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      case default; err=20; message=trim(message)//"unknown form of Richards' equation"; return
+     end select
      scalarVolFracIce = 0._dp
     endif
    case default; err=10; message=trim(message)//'unknown case for model layer'; return

@@ -108,7 +108,8 @@ contains
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  ! look-up values for the choice of groundwater parameterization
  USE mDecisions_module,only: &
- movingBoundary,             & ! moving lower boundary
+ equilWaterTable,            & ! equilibrium water table
+ pseudoWaterTable,           & ! pseudo water table
  bigBucket,                  & ! a big bucket (lumped aquifer model)
  noExplicit                    ! no explicit groundwater parameterization
  ! model variables, parameters, forcing data, etc.
@@ -150,9 +151,9 @@ contains
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
 
- ! for case of no explicit groundwater parameterization, check that the rooting depth is less than the soil depth
- if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == noExplicit)then
-  if(rootingDepth>iLayerHeight(nLayers))then; err=10; message=trim(message)//'rooting depth cannot exceed soil depth when there is no explicit gw representation'; return; endif
+ ! check that the rooting depth is less than the soil depth
+ if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+  if(rootingDepth>iLayerHeight(nLayers))then; err=10; message=trim(message)//'rooting depth can ONLY exceed soil depth for the big bucket gw parameterization'; return; endif
  endif
 
  ! compute the fraction of roots in each soil layer

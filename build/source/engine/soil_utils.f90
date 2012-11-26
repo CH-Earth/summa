@@ -7,6 +7,7 @@ public::hydCond_psi
 public::hydCond_liq
 public::dHydCond_dPsi
 public::dHydCond_dLiq
+public::satDeficit
 public::volFracLiq
 public::matricHead
 public::dTheta_dPsi
@@ -82,6 +83,38 @@ contains
   hydCond_liq = k_sat
  endif
  end function hydCond_liq
+
+
+ ! ***********************************************************************************************************
+ ! new function: compute the saturation deficit -- amount of water required to bring soil to saturation (-)
+ ! ***********************************************************************************************************
+ function satDeficit(psi)
+ ! model variables and parameters
+ USE data_struc,only:mpar_data,mvar_data    ! data structures
+ USE var_lookup,only:iLookPARAM,iLookMVAR   ! named variables for structure elements
+ implicit none
+ ! define dummy variables
+ real(dp),dimension(:),intent(in)    :: psi
+ real(dp),dimension(size(psi))       :: satDeficit
+ ! define diagnostic variables and paramaters
+ real(dp),pointer                     :: alpha
+ real(dp),pointer                     :: n
+ real(dp),pointer                     :: m
+ real(dp),pointer                     :: theta_sat
+ real(dp),pointer                     :: theta_res
+ ! define local variables
+ real(dp),dimension(size(psi))        :: volFracLiq
+ ! assign pointers
+ alpha     => mpar_data%var(iLookPARAM%vGn_alpha)          ! van Genutchen "alpha" parameter (m-1)
+ n         => mpar_data%var(iLookPARAM%vGn_n)              ! van Genutchen "n" parameter (-)
+ m         => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)  ! van Genutchen "m" parameter (-)
+ theta_sat => mpar_data%var(iLookPARAM%theta_sat)          ! soil porosity (-)
+ theta_res => mpar_data%var(iLookPARAM%theta_res)          ! soil residual volumetric water content (-)
+ ! define function value
+ volFracLiq = theta_res + (theta_sat - theta_res) / (1._dp + (psi*alpha)**n)**(m)
+ satDeficit = theta_sat - volFracLiq
+ end function satDeficit
+
 
 
  ! ***********************************************************************************************************
