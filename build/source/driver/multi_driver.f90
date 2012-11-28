@@ -198,7 +198,7 @@ do iParSet=1,nParSets
 
   ! write the model output to the NetCDF file
   call writeModel(fileout,iParSet,jstep,err,message); call handle_err(err,message)
-  !if(istep>650) call handle_err(20,'stopping on a specified step: after call to writeModel')
+  !if(istep>13) call handle_err(20,'stopping on a specified step: after call to writeModel')
   
   ! increment the model indices
   midSnowStartIndex = midSnowStartIndex + nSnow

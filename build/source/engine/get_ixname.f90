@@ -106,89 +106,94 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! boundary conditions
-  case('upperBoundHead'    ); get_ixparam = iLookPARAM%upperBoundHead     ! matric head of the upper boundary (m)
-  case('lowerBoundHead'    ); get_ixparam = iLookPARAM%lowerBoundHead     ! matric head of the lower boundary (m)
-  case('upperBoundTheta'   ); get_ixparam = iLookPARAM%upperBoundTheta    ! volumetric liquid water content at the upper boundary (-)
-  case('lowerBoundTheta'   ); get_ixparam = iLookPARAM%lowerBoundTheta    ! volumetric liquid water content at the lower boundary (-)
-  case('upperBoundTemp'    ); get_ixparam = iLookPARAM%upperBoundTemp     ! temperature of the upper boundary (K)
-  case('lowerBoundTemp'    ); get_ixparam = iLookPARAM%lowerBoundTemp     ! temperature of the lower boundary (K)
+  case('upperBoundHead'      ); get_ixparam = iLookPARAM%upperBoundHead       ! matric head of the upper boundary (m)
+  case('lowerBoundHead'      ); get_ixparam = iLookPARAM%lowerBoundHead       ! matric head of the lower boundary (m)
+  case('upperBoundTheta'     ); get_ixparam = iLookPARAM%upperBoundTheta      ! volumetric liquid water content at the upper boundary (-)
+  case('lowerBoundTheta'     ); get_ixparam = iLookPARAM%lowerBoundTheta      ! volumetric liquid water content at the lower boundary (-)
+  case('upperBoundTemp'      ); get_ixparam = iLookPARAM%upperBoundTemp       ! temperature of the upper boundary (K)
+  case('lowerBoundTemp'      ); get_ixparam = iLookPARAM%lowerBoundTemp       ! temperature of the lower boundary (K)
   ! precipitation partitioning
-  case('tempCritRain'      ); get_ixparam = iLookPARAM%tempCritRain       ! critical temperature where precipitation is rain (K)
-  case('tempRangeTimestep' ); get_ixparam = iLookPARAM%tempRangeTimestep  ! temperature range over the time step (K)
+  case('tempCritRain'        ); get_ixparam = iLookPARAM%tempCritRain         ! critical temperature where precipitation is rain (K)
+  case('tempRangeTimestep'   ); get_ixparam = iLookPARAM%tempRangeTimestep    ! temperature range over the time step (K)
   ! freezing curve for snow
-  case('snowfrz_scale'     ); get_ixparam = iLookPARAM%snowfrz_scale      ! scaling parameter for the freezing curve for snow (K-1)
+  case('snowfrz_scale'       ); get_ixparam = iLookPARAM%snowfrz_scale        ! scaling parameter for the freezing curve for snow (K-1)
   ! snow albedo
-  case('snw_crit'          ); get_ixparam = iLookPARAM%snw_crit           ! critical mass necessary for albedo refreshment (kg m-2)
-  case('alb_fresh'         ); get_ixparam = iLookPARAM%alb_fresh          ! fresh snow albedo (-)
-  case('alb_dry'           ); get_ixparam = iLookPARAM%alb_dry            ! minimum snow albedo during winter (-)
-  case('alb_wet'           ); get_ixparam = iLookPARAM%alb_wet            ! minimum snow albedo during spring (-)
-  case('alb_decay'         ); get_ixparam = iLookPARAM%alb_decay          ! temporal decay factor for snow albedo (s-1)
-  case('alb_scale'         ); get_ixparam = iLookPARAM%alb_scale          ! albedo scaling factor (s)
-  case('soot_load'         ); get_ixparam = iLookPARAM%soot_load          ! temporal decay in snow albedo associated with the soot load (days-1)
+  case('snw_crit'            ); get_ixparam = iLookPARAM%snw_crit             ! critical mass necessary for albedo refreshment (kg m-2)
+  case('alb_fresh'           ); get_ixparam = iLookPARAM%alb_fresh            ! fresh snow albedo (-)
+  case('alb_dry'             ); get_ixparam = iLookPARAM%alb_dry              ! minimum snow albedo during winter (-)
+  case('alb_wet'             ); get_ixparam = iLookPARAM%alb_wet              ! minimum snow albedo during spring (-)
+  case('alb_decay'           ); get_ixparam = iLookPARAM%alb_decay            ! temporal decay factor for snow albedo (s-1)
+  case('alb_scale'           ); get_ixparam = iLookPARAM%alb_scale            ! albedo scaling factor (s)
+  case('soot_load'           ); get_ixparam = iLookPARAM%soot_load            ! temporal decay in snow albedo associated with the soot load (days-1)
   ! radiation transfer within snow
-  case('rad_ext'           ); get_ixparam = iLookPARAM%rad_ext            ! extinction coefficient for radiation penetration (m-1)
-  case('Fabs_vis'          ); get_ixparam = iLookPARAM%Fabs_vis           ! fraction of absorbed radiation in the visible part of the spectrum (-)
+  case('rad_ext'             ); get_ixparam = iLookPARAM%rad_ext              ! extinction coefficient for radiation penetration (m-1)
+  case('Fabs_vis'            ); get_ixparam = iLookPARAM%Fabs_vis             ! fraction of absorbed radiation in the visible part of the spectrum (-)
   ! turbulent heat fluxes
-  case('mheight'           ); get_ixparam = iLookPARAM%mheight            ! measurement height (m)
-  case('zon'               ); get_ixparam = iLookPARAM%zon                ! roughness length (m)
-  case('c_star'            ); get_ixparam = iLookPARAM%c_star             ! parameter in Louis (1979) stability function
-  case('bparam'            ); get_ixparam = iLookPARAM%bparam             ! parameter in Louis (1979) stability function
-  case('Mahrt_m'           ); get_ixparam = iLookPARAM%Mahrt_m            ! the m parameter from the Mahrt (1987) stability function
+  case('mheight'             ); get_ixparam = iLookPARAM%mheight              ! measurement height (m)
+  case('zon'                 ); get_ixparam = iLookPARAM%zon                  ! roughness length (m)
+  case('c_star'              ); get_ixparam = iLookPARAM%c_star               ! parameter in Louis (1979) stability function
+  case('bparam'              ); get_ixparam = iLookPARAM%bparam               ! parameter in Louis (1979) stability function
+  case('Mahrt_m'             ); get_ixparam = iLookPARAM%Mahrt_m              ! the m parameter from the Mahrt (1987) stability function
   ! water flow through snow
-  case('Fcapil'            ); get_ixparam = iLookPARAM%Fcapil             ! capillary retention as a fraction of the total pore volume (-)
-  case('k_snow'            ); get_ixparam = iLookPARAM%k_snow             ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-  case('mw_exp'            ); get_ixparam = iLookPARAM%mw_exp             ! exponent for meltwater flow (-)
+  case('Fcapil'              ); get_ixparam = iLookPARAM%Fcapil               ! capillary retention as a fraction of the total pore volume (-)
+  case('k_snow'              ); get_ixparam = iLookPARAM%k_snow               ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
+  case('mw_exp'              ); get_ixparam = iLookPARAM%mw_exp               ! exponent for meltwater flow (-)
   ! soil properties
-  case('soilAlbedo'        ); get_ixparam = iLookPARAM%soilAlbedo         ! soil albedo (-)
-  case('soil_dens_intr'    ); get_ixparam = iLookPARAM%soil_dens_intr     ! intrinsic soil density (kg m-3)
-  case('frac_sand'         ); get_ixparam = iLookPARAM%frac_sand          ! fraction of sand (-)
-  case('frac_silt'         ); get_ixparam = iLookPARAM%frac_silt          ! fraction of silt (-)
-  case('frac_clay'         ); get_ixparam = iLookPARAM%frac_clay          ! fraction of clay (-)
-  case('theta_sat'         ); get_ixparam = iLookPARAM%theta_sat          ! soil porosity (-)
-  case('theta_res'         ); get_ixparam = iLookPARAM%theta_res          ! volumetric residual water content (-)
-  case('vGn_alpha'         ); get_ixparam = iLookPARAM%vGn_alpha          ! van Genuchten "alpha" parameter (m-1)
-  case('vGn_n'             ); get_ixparam = iLookPARAM%vGn_n              ! van Genuchten "n" parameter (-) 
-  case('k_soil'            ); get_ixparam = iLookPARAM%k_soil             ! saturated hydraulic conductivity (m s-1)
-  case('kAnisotropic'      ); get_ixparam = iLookPARAM%kAnisotropic       ! anisotropy factor for lateral hydraulic conductivity (-)
-  case('zScale_TOPMODEL'   ); get_ixparam = iLookPARAM%zScale_TOPMODEL    ! scale factor for TOPMODEL-ish baseflow parameterization (m)
-  case('compactedDepth'    ); get_ixparam = iLookPARAM%compactedDepth     ! depth where k_soil reaches the compacted value given by CH78 (m)
-  case('bpar_VIC'          ); get_ixparam = iLookPARAM%bpar_VIC           ! b-parameter in the VIC surface runoff parameterization (-)
-  case('specificYield'     ); get_ixparam = iLookPARAM%specificYield      ! specific yield (-)
-  case('specificStorage'   ); get_ixparam = iLookPARAM%specificStorage    ! specific storage coefficient (m-1)
-  case('f_impede'          ); get_ixparam = iLookPARAM%f_impede           ! ice impedence factor (-)
+  case('soilAlbedo'          ); get_ixparam = iLookPARAM%soilAlbedo           ! soil albedo (-)
+  case('soil_dens_intr'      ); get_ixparam = iLookPARAM%soil_dens_intr       ! intrinsic soil density (kg m-3)
+  case('frac_sand'           ); get_ixparam = iLookPARAM%frac_sand            ! fraction of sand (-)
+  case('frac_silt'           ); get_ixparam = iLookPARAM%frac_silt            ! fraction of silt (-)
+  case('frac_clay'           ); get_ixparam = iLookPARAM%frac_clay            ! fraction of clay (-)
+  case('theta_sat'           ); get_ixparam = iLookPARAM%theta_sat            ! soil porosity (-)
+  case('theta_res'           ); get_ixparam = iLookPARAM%theta_res            ! volumetric residual water content (-)
+  case('vGn_alpha'           ); get_ixparam = iLookPARAM%vGn_alpha            ! van Genuchten "alpha" parameter (m-1)
+  case('vGn_n'               ); get_ixparam = iLookPARAM%vGn_n                ! van Genuchten "n" parameter (-) 
+  case('k_soil'              ); get_ixparam = iLookPARAM%k_soil               ! saturated hydraulic conductivity (m s-1)
+  case('kAnisotropic'        ); get_ixparam = iLookPARAM%kAnisotropic         ! anisotropy factor for lateral hydraulic conductivity (-)
+  case('zScale_TOPMODEL'     ); get_ixparam = iLookPARAM%zScale_TOPMODEL      ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+  case('compactedDepth'      ); get_ixparam = iLookPARAM%compactedDepth       ! depth where k_soil reaches the compacted value given by CH78 (m)
+  case('bpar_VIC'            ); get_ixparam = iLookPARAM%bpar_VIC             ! b-parameter in the VIC surface runoff parameterization (-)
+  case('specificYield'       ); get_ixparam = iLookPARAM%specificYield        ! specific yield (-)
+  case('specificStorage'     ); get_ixparam = iLookPARAM%specificStorage      ! specific storage coefficient (m-1)
+  case('aquiferScaleFactor'  ); get_ixparam = iLookPARAM%aquiferScaleFactor   ! scaling factor for aquifer storage in the big bucket (m)
+  case('bucketBaseflowExp'   ); get_ixparam = iLookPARAM%bucketBaseflowExp    ! baseflow exponent for the big bucket (-)
+  case('f_impede'            ); get_ixparam = iLookPARAM%f_impede             ! ice impedence factor (-)
   ! vegetation properties
-  case('rootingDepth'      ); get_ixparam = iLookPARAM%rootingDepth       ! rooting depth (m)
-  case('rootDistExp'       ); get_ixparam = iLookPARAM%rootDistExp        ! exponent for the vertical distriution of root density (-)
-  case('LAI'               ); get_ixparam = iLookPARAM%LAI                ! leaf area index (m2 m-2)
-  case('minStomatalResist' ); get_ixparam = iLookPARAM%minStomatalResist  ! minimum stomatal resistance (s m-1)
-  case('maxStomatalResist' ); get_ixparam = iLookPARAM%maxStomatalResist  ! maximum stomatal resistance (s m-1)
-  case('plantWiltPsi'      ); get_ixparam = iLookPARAM%plantWiltPsi       ! critical matric head when stomatal resitance 2 x min (m)
-  case('plantWiltExp'      ); get_ixparam = iLookPARAM%plantWiltExp       ! empirical exponent in plant wilting factor expression (-)
+  case('rootingDepth'        ); get_ixparam = iLookPARAM%rootingDepth         ! rooting depth (m)
+  case('rootDistExp'         ); get_ixparam = iLookPARAM%rootDistExp          ! exponent for the vertical distriution of root density (-)
+  case('LAI'                 ); get_ixparam = iLookPARAM%LAI                  ! leaf area index (m2 m-2)
+  case('minStomatalResist'   ); get_ixparam = iLookPARAM%minStomatalResist    ! minimum stomatal resistance (s m-1)
+  case('maxStomatalResist'   ); get_ixparam = iLookPARAM%maxStomatalResist    ! maximum stomatal resistance (s m-1)
+  case('plantWiltPsi'        ); get_ixparam = iLookPARAM%plantWiltPsi         ! critical matric head when stomatal resitance 2 x min (m)
+  case('plantWiltExp'        ); get_ixparam = iLookPARAM%plantWiltExp         ! empirical exponent in plant wilting factor expression (-)
+  case('critAquiferTranspire'); get_ixparam = iLookPARAM%critAquiferTranspire ! critical aquifer storage value when transpiration is limited (m)
   ! new snow density
-  case('newSnowDenMin'     ); get_ixparam = iLookPARAM%newSnowDenMin      ! minimum new snow density (kg m-3)
-  case('newSnowDenMult'    ); get_ixparam = iLookPARAM%newSnowDenMult     ! multiplier for new snow density (kg m-3)
-  case('newSnowDenScal'    ); get_ixparam = iLookPARAM%newSnowDenScal     ! scaling factor for new snow density (K)
+  case('newSnowDenMin'       ); get_ixparam = iLookPARAM%newSnowDenMin        ! minimum new snow density (kg m-3)
+  case('newSnowDenMult'      ); get_ixparam = iLookPARAM%newSnowDenMult       ! multiplier for new snow density (kg m-3)
+  case('newSnowDenScal'      ); get_ixparam = iLookPARAM%newSnowDenScal       ! scaling factor for new snow density (K)
   ! snow compaction
-  case('densScalGrowth'    ); get_ixparam = iLookPARAM%densScalGrowth     ! density scaling factor for grain growth (kg-1 m3)
-  case('tempScalGrowth'    ); get_ixparam = iLookPARAM%tempScalGrowth     ! temperature scaling factor for grain growth (K-1)
-  case('grainGrowthRate'   ); get_ixparam = iLookPARAM%grainGrowthRate    ! rate of grain growth (s-1)
-  case('densScalOvrbdn'    ); get_ixparam = iLookPARAM%densScalOvrbdn     ! density scaling factor for overburden pressure (kg-1 m3)
-  case('tempScalOvrbdn'    ); get_ixparam = iLookPARAM%tempScalOvrbdn     ! temperature scaling factor for overburden pressure (K-1)
-  case('base_visc'         ); get_ixparam = iLookPARAM%base_visc          ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
+  case('densScalGrowth'      ); get_ixparam = iLookPARAM%densScalGrowth       ! density scaling factor for grain growth (kg-1 m3)
+  case('tempScalGrowth'      ); get_ixparam = iLookPARAM%tempScalGrowth       ! temperature scaling factor for grain growth (K-1)
+  case('grainGrowthRate'     ); get_ixparam = iLookPARAM%grainGrowthRate      ! rate of grain growth (s-1)
+  case('densScalOvrbdn'      ); get_ixparam = iLookPARAM%densScalOvrbdn       ! density scaling factor for overburden pressure (kg-1 m3)
+  case('tempScalOvrbdn'      ); get_ixparam = iLookPARAM%tempScalOvrbdn       ! temperature scaling factor for overburden pressure (K-1)
+  case('base_visc'           ); get_ixparam = iLookPARAM%base_visc            ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
   ! algorithmic control parameters
-  case('minwind'           ); get_ixparam = iLookPARAM%minwind            ! minimum wind speed (m s-1)
-  case('minstep'           ); get_ixparam = iLookPARAM%minstep            ! minimum length of the time step
-  case('maxstep'           ); get_ixparam = iLookPARAM%maxstep            ! maximum length of the time step
-  case('wimplicit'         ); get_ixparam = iLookPARAM%wimplicit          ! weight assigned to start-of-step fluxes
-  case('maxiter'           ); get_ixparam = iLookPARAM%maxiter            ! maximum number of iterations
-  case('relConvTol_liquid' ); get_ixparam = iLookPARAM%relConvTol_liquid  ! relative convergence tolerance for vol frac liq water (-)
-  case('absConvTol_liquid' ); get_ixparam = iLookPARAM%absConvTol_liquid  ! absolute convergence tolerance for vol frac liq water (-)
-  case('relConvTol_matric' ); get_ixparam = iLookPARAM%relConvTol_matric  ! relative convergence tolerance for matric head (-)
-  case('absConvTol_matric' ); get_ixparam = iLookPARAM%absConvTol_matric  ! absolute convergence tolerance for matric head (m)
-  case('relConvTol_energy' ); get_ixparam = iLookPARAM%relConvTol_energy  ! relative convergence tolerance for energy (-)
-  case('absConvTol_energy' ); get_ixparam = iLookPARAM%absConvTol_energy  ! absolute convergence tolerance for energy (J m-3)
-  case('zmin'              ); get_ixparam = iLookPARAM%zmin               ! minimum layer depth (m)
-  case('zmax'              ); get_ixparam = iLookPARAM%zmax               ! maximum layer depth (m)
+  case('minwind'             ); get_ixparam = iLookPARAM%minwind              ! minimum wind speed (m s-1)
+  case('minstep'             ); get_ixparam = iLookPARAM%minstep              ! minimum length of the time step
+  case('maxstep'             ); get_ixparam = iLookPARAM%maxstep              ! maximum length of the time step
+  case('wimplicit'           ); get_ixparam = iLookPARAM%wimplicit            ! weight assigned to start-of-step fluxes
+  case('maxiter'             ); get_ixparam = iLookPARAM%maxiter              ! maximum number of iterations
+  case('relConvTol_liquid'   ); get_ixparam = iLookPARAM%relConvTol_liquid    ! relative convergence tolerance for vol frac liq water (-)
+  case('absConvTol_liquid'   ); get_ixparam = iLookPARAM%absConvTol_liquid    ! absolute convergence tolerance for vol frac liq water (-)
+  case('relConvTol_matric'   ); get_ixparam = iLookPARAM%relConvTol_matric    ! relative convergence tolerance for matric head (-)
+  case('absConvTol_matric'   ); get_ixparam = iLookPARAM%absConvTol_matric    ! absolute convergence tolerance for matric head (m)
+  case('relConvTol_energy'   ); get_ixparam = iLookPARAM%relConvTol_energy    ! relative convergence tolerance for energy (-)
+  case('absConvTol_energy'   ); get_ixparam = iLookPARAM%absConvTol_energy    ! absolute convergence tolerance for energy (J m-3)
+  case('relConvTol_aquifr'   ); get_ixparam = iLookPARAM%relConvTol_aquifr    ! relative convergence tolerance for aquifer storage (-)
+  case('absConvTol_aquifr'   ); get_ixparam = iLookPARAM%absConvTol_aquifr    ! absolute convergence tolerance for aquifer storage (m)
+  case('zmin'                ); get_ixparam = iLookPARAM%zmin                 ! minimum layer depth (m)
+  case('zmax'                ); get_ixparam = iLookPARAM%zmax                 ! maximum layer depth (m)
   ! get to here if cannot find the variable
   case default
    get_ixparam = imiss

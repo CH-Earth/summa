@@ -146,6 +146,8 @@ contains
                         mpar_data%var(iLookPARAM%bpar_VIC),                           & ! intent(in): b-parameter in the VIC surface runoff parameterization (-)
                         mpar_data%var(iLookPARAM%specificYield),                      & ! intent(in): specific yield (-)
                         mpar_data%var(iLookPARAM%specificStorage),                    & ! intent(in): specific storage coefficient (m-1)
+                        mpar_data%var(iLookPARAM%aquiferScaleFactor),                 & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
+                        mpar_data%var(iLookPARAM%bucketBaseflowExp),                  & ! intent(in): baseflow exponent for the big bucket (-)
                         mpar_data%var(iLookPARAM%f_impede),                           & ! intent(in): ice impedence factor (-)
                         ! model state variables -- NOTE: use of ibeg and iend
                         mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(ibeg:iend),     & ! intent(in): volumetric fraction of ice in each layer (-)
@@ -251,6 +253,8 @@ contains
                               bpar_VIC,                    & ! intent(in): b-parameter in the VIC surface runoff parameterization (-)
                               specificYield,               & ! intent(in): specific yield (-)
                               specificStorage,             & ! intent(in): specific storage coefficient (m-1)
+                              aquiferScaleFactor,          & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
+                              bucketBaseflowExp,           & ! intent(in): baseflow exponent for the big bucket (-)
                               f_impede,                    & ! intent(in): ice impedence factor (-)
                               ! model state variables -- NOTE: use of ibeg and iend
                               mLayerVolFracIce,            & ! intent(in): volumetric fraction of ice in each layer (-)
@@ -338,6 +342,8 @@ contains
  real(dp),intent(in)              :: bpar_VIC                 ! b-parameter in the VIC surface runoff parameterization (-)
  real(dp),intent(in)              :: specificYield            ! specific yield (-)
  real(dp),intent(in)              :: specificStorage          ! specific storage coefficient (m-1)
+ real(dp),intent(in)              :: aquiferScaleFactor       ! scaling factor for aquifer storage in the big bucket (m)
+ real(dp),intent(in)              :: bucketBaseflowExp        ! baseflow exponent for the big bucket (-)
  real(dp),intent(in)              :: f_impede                 ! ice impedence factor (-)
  ! state variables
  real(dp),intent(in)              :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the start of the time step (-)
@@ -389,6 +395,7 @@ contains
  logical(lgt),parameter           :: calcJacobian=.false.     ! flag to compute the Jacobian matrix
  real(dp)                         :: availPorosity            ! pore space available to fill
  real(dp)                         :: availLiqWater            ! liquid water available to drain (negative) 
+ real(dp)                         :: aquiferStorageTest       ! trial value for aquifer storage (m)
  ! check need to compute initial fluxes
  integer(i4b)                     :: nFlux                    ! index for flux calculation
  integer(i4b)                     :: ifluxInit                ! starting index for flux calculations (0 or 1)
@@ -580,6 +587,7 @@ contains
                   ! output: error control
                   err,cmessage)                 ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ !print*, 'mLayerVolFracLiqResidual = ', mLayerVolFracLiqResidual
 
  ! *****
  ! compute the residual for the groundwater store
@@ -672,22 +680,22 @@ contains
  if(nState==nLevels+1) scalarAquiferStorageDiff = sInc(nLevels+1)
 
  ! *****
+ ! check that the soil moisture does not exceed constraints
+ if(ixRichards == moisture)then
+  do iLayer=1,nLevels
+   availPorosity = theta_sat - mLayerVolFracLiqIter(iLayer) - mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water)
+   availLiqWater = theta_res - mLayerVolFracLiqIter(iLayer)
+   if(mLayerVolFracLiqDiff(iLayer) > availPorosity) mLayerVolFracLiqDiff(iLayer) = availPorosity/2._dp
+   if(mLayerVolFracLiqDiff(iLayer) < availLiqWater) mLayerVolFracLiqDiff(iLayer) = availLiqWater/2._dp
+  end do
+ endif
+
+ ! *****
  ! update the fluxes and state variables for the soil layers
  do iLayer=0,nLevels
   select case(ixRichards)
    ! ***** moisture-based form of Richards' equation
    case(moisture)
-    ! (check that soil moisture does not exceed constraints)
-    if(iLayer > 0)then
-     ! (negative error code will force time step reduction)
-     !if(mLayerVolFracLiqDiff(iLayer) > theta_sat - mLayerVolFracLiqIter(iLayer))then; err=-20; message=trim(message)//'soil moisture exceeds saturation'; return; endif
-     !if(mLayerVolFracLiqDiff(iLayer) < theta_res - mLayerVolFracLiqIter(iLayer))then; err=-20; message=trim(message)//'soil moisture below residual content'; return; endif
-     ! (use simplified bi-section method)
-     availPorosity = theta_sat - mLayerVolFracLiqIter(iLayer) - mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water)
-     availLiqWater = theta_res - mLayerVolFracLiqIter(iLayer)
-     if(mLayerVolFracLiqDiff(iLayer) > availPorosity) mLayerVolFracLiqDiff(iLayer) = availPorosity/2._dp
-     if(mLayerVolFracLiqDiff(iLayer) < availLiqWater) mLayerVolFracLiqDiff(iLayer) = availLiqWater/2._dp
-    endif
     ! (update the fluxes)
     if(iLayer==0)then;           iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dStateBelow(iLayer)*mLayerVolFracLiqDiff(iLayer+1)
     elseif(iLayer==nLevels)then; iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dStateAbove(iLayer)*mLayerVolFracLiqDiff(iLayer)
@@ -739,11 +747,17 @@ contains
 
 
  ! *****
- ! update the aquifer storage
+ ! update the aquifer storage and fluxes
  if(nState==nLevels+1)then
+  ! (update storage)
   scalarAquiferStorageNew = scalarAquiferStorageIter + scalarAquiferStorageDiff
+  ! (update fluxes)
+  scalarAquiferRecharge = scalarAquiferRecharge + scalarAquiferRechargeDeriv*scalarAquiferStorageDiff  ! recharge to the aquifer   (m s-1)
+  scalarAquiferBaseflow = scalarAquiferBaseflow + scalarAquiferBaseflowDeriv*scalarAquiferStorageDiff  ! baseflow from the aquifer (m s-1)
  else
   scalarAquiferStorageNew = 0._dp
+  scalarAquiferRecharge   = 0._dp
+  scalarAquiferBaseflow   = 0._dp
  endif
 
 
@@ -1064,6 +1078,7 @@ contains
                    ! output: error control
                    err,cmessage)                 ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   !print*, 'scalarSurfaceRunoff, iLayerLiqFluxSoil(0) = ', scalarSurfaceRunoff, iLayerLiqFluxSoil(0)
 
    ! =====
    ! compute water ejected from the layer below...
@@ -1202,7 +1217,7 @@ contains
                     theta_sat,                        & ! intent(in): soil porosity (-)
                     theta_res,                        & ! intent(in): soil residual volumetric water content (-)
                     ! input: saturated hydraulic conductivity at the surface
-                    iLayerSatHydCond(iLayer),         & ! intent(in):  saturated hydraulic conductivity at the layer interface (m s-1)
+                    iLayerHydCond(iLayer),            & ! intent(in): hydraulic conductivity at the layer interface (m s-1)
                     ! output: ejected water flux and derivative
                     mLayerEjectWater(iLayer+1),       & ! intent(out): water ejected because pore volume is filled (m s-1)
                     mLayerEjectWaterDeriv(iLayer+1),  & ! intent(out): derivative in ejected water flux (m s-1 [moisture form] s-1 [mixed form])
@@ -1428,6 +1443,7 @@ contains
       case(moisture); scalarMatricHeadTrial = matricHead(mLayerVolFracLiqTrial(nUnsat),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
       case(mixdform); scalarMatricHeadTrial = mLayerMatricHeadTrial(nUnsat) 
      end select
+     !print*, 'mLayerVolFracLiqTrial(nUnsat) = ', mLayerVolFracLiqTrial(nUnsat)
      
      ! * compute the recharge to the aquifer (m s-1) and its derivative w.r.t. water table depth (s-1)
      call rechargeWT(&
@@ -1485,7 +1501,6 @@ contains
    case(bigBucket)
     scalarAquiferRecharge      = iLayerLiqFluxSoil(nLevels)  ! recharge = drainage flux from the bottom of the soil profile (m s-1)
     scalarAquiferRechargeDeriv = 0._dp                       ! recharge does not depend on aquifer storage
-    err=10; message=trim(message)//'need to ensure that recharge depends on bucket overflow'; return
 
    ! =====
    ! no explicit aquifer...
@@ -1517,6 +1532,9 @@ contains
    ! *****
    ! case of no explicit deep groundwater
    case(noExplicit)
+    ! (baseflow flux from each soil layer)
+    mLayerBaseflow = 0._dp
+    ! (baseflow flux from the aquifer)
     scalarAquiferBaseflow      = 0._dp  ! baseflow from the aquifer (m s-1)
     scalarAquiferBaseflowDeriv = 0._dp  ! derivative in baseflow w.r.t. aquifer storage (s-1)
 
@@ -1592,7 +1610,55 @@ contains
    ! ------------------------------------------------------------------------------------------------------------------------------------------------
    ! ***** the big bucket
    case(bigBucket)
-    err=20; message=trim(message)//'big bucket gw parameterization is not implemented yet'; return
+
+    ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
+    do itry=nFlux,1,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
+
+     ! * identify the type of perturbation
+     select case(itry)
+      case(unperturbed);       aquiferStorageTest = scalarAquiferStorageTrial
+      case(perturbStateAbove); aquiferStorageTest = scalarAquiferStorageTrial + dx
+      case(perturbStateBelow); cycle
+      case default; err=10; message=trim(message)//"unknown perturbation"; return
+     end select ! (type of perturbation)
+
+     ! * compute the total baseflow (m s-1)
+     call QBbigbuckt(&
+                     deriv_desired,               & ! input: flag indicating if derivatives are desired
+                     aquiferStorageTest,          & ! input: trial value of aquifer storage (m)
+                     aquiferScaleFactor,          & ! input: scaling factor for aquifer storage in the big bucket (m)
+                     iLayerSatHydCond(0),         & ! input: saturated hydraulic conductivity at the surface (m s-1)
+                     kAnisotropic,                & ! input: anisotropy factor for lateral hydraulic conductivity (-)
+                     bucketBaseflowExp,           & ! input: exponent in bucket baseflow parameterization
+                     scalarAquiferBaseflow,       & ! output: total baseflow (m s-1)
+                     scalarAquiferBaseflowDeriv,  & ! output: derivative in baseflow flux w.r.t. water table depth (m s-1)
+                     err,cmessage)                  ! output: error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+     ! * get copies of baseflow flux to compute derivatives
+     if(deriv_desired .and. ixDerivMethod==numerical)then
+      select case(itry)
+       case(unperturbed);       scalarFlux             = scalarAquiferBaseflow
+       case(perturbStateAbove); scalarFlux_dStateAbove = scalarAquiferBaseflow
+       case(perturbStateBelow); err=10; message=trim(message)//'only perturb water table depth when computing baseflow flux -- should not get here'; return
+       case default; err=10; message=trim(message)//'unknown perturbation'; return
+      end select
+     endif
+
+    end do  ! (multiple flux calls for computing  numerical derivatives
+
+    ! * compute derivatives
+    ! NOTE: baseflow derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
+    if(deriv_desired)then
+     if(ixDerivMethod==numerical) scalarAquiferBaseflowDeriv = (scalarFlux_dStateAbove - scalarFlux)/dx
+    else
+     scalarAquiferBaseflowDeriv = valueMissing
+    endif
+    !print*, 'scalarAquiferBaseflowDeriv = ', scalarAquiferBaseflowDeriv
+    !pause
+
+    ! (baseflow flux from each soil layer)
+    mLayerBaseflow = 0._dp
 
    ! ------------------------------------------------------------------------------------------------------------------------------------------------
    ! ***** error check
@@ -2430,7 +2496,7 @@ contains
  scalarRecharge = cflux + iHydCond
  !write(*,'(a,10(e20.10,1x))') 'scalarWaterTableDepth, hc_depth, nodeHydCond, iHydCond, cflux, scalarRecharge = ',&
  !                              scalarWaterTableDepth, hc_depth, nodeHydCond, iHydCond, cflux, scalarRecharge
-
+ !pause
 
  ! ** compute change in recharge flux w.r.t. change in the aquifer storage
  if(deriv_desired)then
@@ -2721,6 +2787,8 @@ contains
  integer(i4b),intent(out)  :: err                     ! error code
  character(*),intent(out)  :: message                 ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message='QBtopmodel/'
  ! compute the baseflow (m s-1)
  select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
   ! (exponential transmissivity profile)
@@ -2741,8 +2809,12 @@ contains
    endif
   ! (constant transmissivity profile)
   case(constant)
-   message=trim(message)//"hydraulic conductivity profile not allowed for topmodel-ish baseflow parameterization [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
-   err=20; return
+   scalarBaseflow = k_surf*kAnisotropic*exp(-scalarWaterTableDepth/zScale_TOPMODEL)
+   if(deriv_desired)then
+    scalarBaseflowDeriv = -scalarBaseflow/zScale_TOPMODEL
+   else
+    scalarBaseflowDeriv = valueMissing
+   endif
   ! (power-law transmissivity profile)
   case(powerLaw_profile)
    message=trim(message)//"hydraulic conductivity profile not implemented yet [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
@@ -2753,6 +2825,55 @@ contains
    err=20; return
  end select
  end subroutine QBtopmodel
+
+
+
+
+ ! ************************************************************************************************
+ ! private subroutine: compute baseflow flux using a conceptual bog bucket
+ ! ************************************************************************************************
+ subroutine QBbigbuckt(&
+                       deriv_desired,               &    ! input: flag indicating if derivatives are desired
+                       scalarAquiferStorageTrial,   &    ! input: trial value of aquifer storage (m)
+                       aquiferScaleFactor,          &    ! input: scaling factor for aquifer storage in the big bucket (m)
+                       k_surf,                      &    ! input: saturated hydraulic conductivity at the surface (m s-1)
+                       kAnisotropic,                &    ! input: anisotropy factor for lateral hydraulic conductivity (-)
+                       bucketBaseflowExp,           &    ! input: exponent in bucket baseflow parameterization
+                       scalarAquiferBaseflow,       &    ! output: total baseflow (m s-1)
+                       scalarAquiferBaseflowDeriv,  &    ! output: derivative in baseflow flux w.r.t. aquifer storage (s-1)
+                       err,message)                      ! output: error control
+ implicit none
+ ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! input
+ logical(lgt),intent(in)   :: deriv_desired              ! flag to indicate if derivatives are desired
+ real(dp),intent(in)       :: scalarAquiferStorageTrial  ! trial value of water table depth (m)
+ real(dp),intent(in)       :: aquiferScaleFactor         ! scaling factor for aquifer storage in the big bucket (m)
+ real(dp),intent(in)       :: k_surf                     ! saturated hydraulic conductivity at the surface (m s-1) 
+ real(dp),intent(in)       :: kAnisotropic               ! anisotropy factor for lateral hydraulic conductivity (-)
+ real(dp),intent(in)       :: bucketBaseflowExp          ! exponent in bucket baseflow parameterization
+ ! output
+ real(dp),intent(out)      :: scalarAquiferBaseflow      ! baseflow flux (m s-1)
+ real(dp),intent(out)      :: scalarAquiferBaseflowDeriv ! derivative in baseflow flux w.r.t. water table depth (s-1)
+ integer(i4b),intent(out)  :: err                        ! error code
+ character(*),intent(out)  :: message                    ! error message
+ ! local
+ real(dp)                  :: scaledStorage              ! scaled storage (-)
+ real(dp)                  :: maxBaseflowRate            ! maximum baseflow rate (m s-1)
+ ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message='QBbigbuckt/'
+ ! get temporary variables
+ scaledStorage    = scalarAquiferStorageTrial/aquiferScaleFactor
+ maxBaseflowRate  = kAnisotropic*k_surf
+ ! compute baseflow flux (m s-1)
+ scalarAquiferBaseflow = maxBaseflowRate*scaledStorage**bucketBaseflowExp
+ ! compute derivative in baseflow flux w.r.t. aquifer storage (s-1)
+ if(deriv_desired)then
+  scalarAquiferBaseflowDeriv = (maxBaseflowRate/aquiferScaleFactor)*bucketBaseflowExp*scaledStorage**(bucketBaseflowExp - 1._dp)
+ else
+  scalarAquiferBaseflowDeriv = valueMissing
+ endif
+ end subroutine QBbigbuckt
 
 
 
@@ -2777,7 +2898,7 @@ contains
                        theta_sat,             & ! intent(in): soil porosity (-)
                        theta_res,             & ! intent(in): soil residual volumetric water content (-)
                        ! input: saturated hydraulic conductivity
-                       scalarSatHydCond,      & ! intent(in): saturated hydraulic conductivity at the layer interface (m s-1)
+                       scalarSatHydCond,      & ! intent(in): hydraulic conductivity at the layer interface (m s-1)
                        ! output: ejected water flux and derivative
                        scalarEjectWater,      & ! intent(out): water ejected because pore volume is filled (m s-1)
                        scalarEjectWaterDeriv, & ! intent(out): derivative in ejected water flux (m s-1 [moisture form] s-1 [mixed form])
@@ -2823,6 +2944,8 @@ contains
 
  ! define threshold in the super-saturation function (-)
  supersatThresh = supersatScale * log(1._dp/xMatch - 1._dp) + xMatch
+ !print*, 'supersatThresh = ', supersatThresh
+ !pause
 
  ! define minimum value for calculations
  fracMin = -supersatScale*log(1._dp/fSmall - 1._dp) + supersatThresh
@@ -2957,8 +3080,8 @@ contains
   ! residual (-)
   residualVec(iLayer) = mLayerTrialVolFracLiq(iLayer) - (mLayerInitVolFracLiq(iLayer) + mFlux + mEvap - mEjct - mBase - mPhse)
   ! print progress
-  !if(iLayer==1)   print*, 'iLayer, residualVec(iLayer), bottom flux, mFlux, mEvap, mEjct, mPhse'
-  !if(iLayer > 45) write(*,'(i4,1x,10(e20.10,1x))') iLayer, residualVec(iLayer), iLayerTrialLiqFluxSoil(iLayer)*dt_dz, mFlux, mEvap, mEjct, mPhse
+  !if(iLayer==1)    write(*,'(a)') 'iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), bottom flux, mFlux, mEvap, mEjct, mBase, mPhse'
+  !if(iLayer < 5) write(*,'(i4,1x,10(e20.10,1x))') iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), iLayerTrialLiqFluxSoil(iLayer)*dt_dz, mFlux, mEvap, mEjct, mBase, mPhse
  end do  ! (looping through soil layers)
 
  end subroutine liqResidual

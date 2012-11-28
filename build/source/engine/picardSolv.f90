@@ -67,6 +67,8 @@ contains
  real(dp),pointer                     :: absConvTol_matric        ! absolute convergence tolerance for matric head (m)
  real(dp),pointer                     :: relConvTol_energy        ! relative convergence tolerance for energy (-)
  real(dp),pointer                     :: absConvTol_energy        ! absolute convergence tolerance for energy (J m-3)
+ real(dp),pointer                     :: relConvTol_aquifr        ! relative convergence tolerance for aquifer storage (-)
+ real(dp),pointer                     :: absConvTol_aquifr        ! absolute convergence tolerance for aquifer storage (J m-3)
  ! local pointers to derived model variables that are constant over the simulation period
  real(dp),pointer                     :: vGn_m                    ! van Genutchen "m" parameter (-)
  real(dp),pointer                     :: mLayerRootDensity(:)     ! fraction of roots in each soil layer (-)
@@ -147,6 +149,7 @@ contains
  real(dp),allocatable                 :: mLayerMatIncr(:)         ! change in matric head from one iteration to the next (m)
  real(dp),allocatable                 :: mLayerLiqIncr(:)         ! change in volumetric liquid water content from one iteration to the next (-)
  real(dp),allocatable                 :: mLayerNrgIncr(:)         ! change in energy from one iteration to the next (J m-3)
+ real(dp)                             :: scalarAqiIncr            ! change in aquifer storage from one iteration to the next (m)
  real(dp),allocatable                 :: mLayerNrgError(:)        ! energy error in each layer (J m-3)
  real(dp),allocatable                 :: tempComponent(:)         ! temperature component of the energy increment (J m-3)
  real(dp),allocatable                 :: phseComponent(:)         ! phase component of the energy increment (J m-3)
@@ -164,9 +167,10 @@ contains
  integer(i4b),dimension(1)            :: liquid_pos               ! position of maximum error
  integer(i4b),dimension(1)            :: matric_pos               ! position of maximum error
  integer(i4b),dimension(1)            :: energy_pos               ! position of maximum error
- real(dp),dimension(1)                :: liquid_max               ! maximum change in volumetric liquid water content for a given iteration
- real(dp),dimension(1)                :: matric_max               ! maximum change in matric head for a given iteration
- real(dp),dimension(1)                :: energy_max               ! maximum change in energy for a given iteration
+ real(dp),dimension(1)                :: liquid_max               ! maximum absolute change in volumetric liquid water content for a given iteration (-)
+ real(dp),dimension(1)                :: matric_max               ! maximum absolute change in matric head for a given iteration (m)
+ real(dp),dimension(1)                :: energy_max               ! maximum absolute change in energy for a given iteration (J m-3)
+ real(dp)                             :: aquifr_max               ! absolute change in aquifer storage for a given iteration (m)
  real(dp)                             :: theta                    ! volumetric fraction of total water, liquid plus ice (-)
  real(dp),parameter                   :: eps   = 1.d-10           ! small increment used to define ice content at the freezing point
  real(dp)                             :: checkCalcs               ! check the aquifer root density calculations
@@ -227,6 +231,8 @@ contains
  absConvTol_matric => mpar_data%var(iLookPARAM%absConvTol_matric)    ! absolute convergence tolerance for matric head (m)
  relConvTol_energy => mpar_data%var(iLookPARAM%relConvTol_energy)    ! relative convergence tolerance for energy (-)
  absConvTol_energy => mpar_data%var(iLookPARAM%absConvTol_energy)    ! absolute convergence tolerance for energy (J m-3)
+ relConvTol_aquifr => mpar_data%var(iLookPARAM%relConvTol_aquifr)    ! relative convergence tolerance for aquifer storage (-)
+ absConvTol_aquifr => mpar_data%var(iLookPARAM%absConvTol_aquifr)    ! absolute convergence tolerance for aquifer storage (m)
 
  ! assign pointers to model variables that are constant over the simulation period
  vGn_m             => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)           ! van Genutchen "m" parameter (-)
@@ -304,8 +310,8 @@ contains
  freeze_infiltrate = .true.
 
  ! define the maximum number of layers to print
- minLayer=41
- maxLayer=50
+ minLayer=1
+ maxLayer=10
 
  ! allocate space for state variables at the start and end of the iteration
  allocate(mLayerTempIter(nLayers),      mLayerTempNew(nLayers),       &  ! all layers
@@ -425,19 +431,20 @@ contains
   !print*, 'before heatTransf: mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
 
   ! compute the temperature and ice content at the next iteration
-  call heatTransf(dt,&                    ! time step (seconds)
-                  iter,&                  ! current iteration count
-                  mLayerTempIter,       & ! trial temperature at the current iteration (K)
-                  mLayerVolFracIceIter, & ! volumetric fraction of ice at the current iteration (-)
-                  mLayerVolFracLiqIter, & ! volumetric fraction of liquid water at the current iteration (-)
-                  mLayerMatricHeadIter, & ! matric head at the current iteration (m)
-                  mLayerTempIncrOld,    & ! iteration increment for temperature from the previous iteration (K)
-                  mLayerTempIncr,       & ! iteration increment for temperature (K)
-                  mLayerTempNew,        & ! new temperature (K)
-                  mLayerVolFracIceNew,  & ! new volumetric fraction of ice (-)
-                  mLayerVolFracLiqNew,  & ! new volumetric fraction of liquid water (-)
-                  mLayerMatricHeadNew,  & ! new matric head (m)
-                  err,cmessage)           ! error control
+  call heatTransf(dt,&                        ! time step (seconds)
+                  iter,&                      ! current iteration count
+                  mLayerTempIter,           & ! trial temperature at the current iteration (K)
+                  mLayerVolFracIceIter,     & ! volumetric fraction of ice at the current iteration (-)
+                  mLayerVolFracLiqIter,     & ! volumetric fraction of liquid water at the current iteration (-)
+                  mLayerMatricHeadIter,     & ! matric head at the current iteration (m)
+                  scalarAquiferStorageIter, & ! aquifer storage at the current iteration (m)
+                  mLayerTempIncrOld,        & ! iteration increment for temperature from the previous iteration (K)
+                  mLayerTempIncr,           & ! iteration increment for temperature (K)
+                  mLayerTempNew,            & ! new temperature (K)
+                  mLayerVolFracIceNew,      & ! new volumetric fraction of ice (-)
+                  mLayerVolFracLiqNew,      & ! new volumetric fraction of liquid water (-)
+                  mLayerMatricHeadNew,      & ! new matric head (m)
+                  err,cmessage)               ! error control
   ! negative error code requires convergence check, so just check positive errors
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
   !print*, '*** after heatTransf'
@@ -526,6 +533,9 @@ contains
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
 
+  ! compute the iteration increment for aquifer storage
+  scalarAqiIncr = scalarAquiferStorageNew - scalarAquiferStorageIter
+
   ! calculate the critical soil temperature above which all water is unfrozen (K)
   do iLayer=nSnow+1,nLayers
    theta = mLayerVolFracIceNew(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqNew(iLayer)
@@ -577,6 +587,7 @@ contains
   liquid_max = maxval(abs(mLayerLiqIncr))
   matric_max = maxval(abs(mLayerMatIncr))
   energy_max = maxval(abs(mLayerNrgIncr))
+  aquifr_max = abs(scalarAqiIncr)
   !print*, 'iter, maxiter = ', iter, maxiter
   !write(*,'(a,1x,2(e20.10,1x))') 'liquid_max, absConvTol_liquid = ', liquid_max, absConvTol_liquid
   !write(*,'(a,1x,2(e20.10,1x))') 'matric_max, absConvTol_matric = ', matric_max, absConvTol_matric
@@ -600,7 +611,8 @@ contains
   ! convergence check: 
   if(liquid_max(1) < absConvTol_liquid .and. &   ! volumetric fraction of liquid water (-)
      matric_max(1) < absConvTol_matric .and. &   ! matric head (m)
-     energy_max(1) < absConvTol_energy)      &   ! energy (J m-3)
+     energy_max(1) < absConvTol_energy .and. &   ! energy (J m-3)
+     aquifr_max    < absConvTol_aquifr)      &   ! aquifer storage (m)
    exit
 
   ! check for lack of convergence
