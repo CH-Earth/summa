@@ -645,6 +645,8 @@ contains
   volFrac_water = mLayerVolFracIceIter(iLayer) + mLayerVolFracLiqIter(iLayer)
   ! check if the total volumetric water (liquid water plus ice) exceeds porosity
   if(volFrac_water > theta_sat)then
+   write(*,'(a,i4,1x,2(f15.10,1x))') 'iLayer, mLayerVolFracIceIter(iLayer), mLayerVolFracLiqIter(iLayer) = ',&
+                                      iLayer, mLayerVolFracIceIter(iLayer), mLayerVolFracLiqIter(iLayer)
    write(message,'(a,i0,a,i0,a)')trim(message)//"(liquid + ice) > porosity [iLayer=",iLayer,"; iSoil=",iLayer-nSnow,"]"
    err=20; return
   endif  ! (if the total volumetric water -- liquid water plus ice -- exceeds porosity)
@@ -721,7 +723,7 @@ contains
  balanceSoilInflux        = scalarSoilInflux*iden_water*dt
  balanceSoilBaseflow      = scalarSoilBaseflow*iden_water*dt
  balanceSoilDrainage      = scalarSoilDrainage*iden_water*dt
- balanceSoilEjection      = 0._dp !scalarSoilEjection*iden_water*dt
+ balanceSoilEjection      = scalarSoilEjection*iden_water*dt
  balanceSoilTranspiration = scalarMassLiquid*dt - (wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*iden_water*dt
 
  ! check the soil water balance
@@ -736,7 +738,7 @@ contains
    phaseChange = -(iden_ice/iden_water)*(mLayerVolFracIceNew(iLayer+nSnow) - mLayerVolFracIce(iLayer+nSnow))  ! change in liquid water content associated with freezing
    evap_Change = dt*mLayerTranspire(iLayer)/mLayerDepth(iLayer)
    qbaseChange = dt*mLayerBaseflow(iLayer)/mLayerDepth(iLayer)
-   ejectChange = 0._dp !dt*mLayerEjectWater(iLayer)/mLayerDepth(iLayer)
+   ejectChange = dt*mLayerEjectWater(iLayer)/mLayerDepth(iLayer)
    flux_Change = dt*(iLayerLiqFluxSoil(iLayer-1) - iLayerLiqFluxSoil(iLayer))/mLayerDepth(iLayer) ! change in volumetric liquid water content from the interface fluxes
    write(*,'(i4,1x,2(f15.8,1x),20(e15.5,1x))') iLayer, mLayerTemp(iLayer+nSnow), mLayerTempNew(iLayer+nSnow), &
                                                         mLayerVolFracLiq(iLayer+nSnow), mLayerVolFracLiqNew(iLayer+nSnow), &

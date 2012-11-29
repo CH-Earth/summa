@@ -620,11 +620,11 @@ contains
  d_p1(1:nLevels-1) = (wtim/mLayerDepth(1:nLevels-1))*( dq_dStateBelow(1:nLevels-1) )
  ! (get diagonal elements)
  select case(ixRichards)
-  case(moisture); diag(1:nLevels) = (wtim/mLayerDepth(1:nLevels))*(-dq_dStateBelow(0:nLevels-1) + dq_dStateAbove(1:nLevels) ) + 1._dp
-  case(mixdform); diag(1:nLevels) = (wtim/mLayerDepth(1:nLevels))*(-dq_dStateBelow(0:nLevels-1) + dq_dStateAbove(1:nLevels) ) + mLayerdTheta_dPsi(1:nLevels)
+  case(moisture); diag(1:nLevels) = (wtim/mLayerDepth(1:nLevels))*(-dq_dStateBelow(0:nLevels-1) + dq_dStateAbove(1:nLevels) + mLayerEjectWaterDeriv(1:nLevels) ) + 1._dp
+  case(mixdform); diag(1:nLevels) = (wtim/mLayerDepth(1:nLevels))*(-dq_dStateBelow(0:nLevels-1) + dq_dStateAbove(1:nLevels) + mLayerEjectWaterDeriv(1:nLevels) ) + mLayerdTheta_dPsi(1:nLevels)
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  endselect
- ! (add volumetric liquid water content to the residual vector)
+ ! (populate the volumetric liquid water content portion of the residual vector)
  rVec(1:nLevels) = mLayerVolFracLiqResidual
 
  ! *****
@@ -735,7 +735,7 @@ contains
      if(mLayerMatricHeadNew(1) > 0._dp)then
       print*, 'mLayerMatricHeadNew(1:5) = ', mLayerMatricHeadNew(1:5)
       print*, 'iLayerLiqFluxSoil(0:1) = ', iLayerLiqFluxSoil(0:1)
-      err=20; message=trim(message)//'ponding on the soil surface'; return
+      err=-20; message=trim(message)//'ponding on the soil surface'; return
      endif
      !if(iLayer < 5) write(*,'(2(a,1x,3(e20.10,1x)))') 'VolFracLiq = ', mLayerVolFracLiqNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqNew(iLayer) - mLayerVolFracLiqIter(iLayer), &
      !                                                 'matricHead = ', mLayerMatricHeadNew(iLayer), mLayerMatricHeadIter(iLayer), mLayerMatricHeadDiff(iLayer)
@@ -1083,8 +1083,34 @@ contains
    ! =====
    ! compute water ejected from the layer below...
    ! =============================================
-   mLayerEjectWater(1)      = 0._dp
-   mLayerEjectWaterDeriv(1) = 0._dp
+   call ejectWater(&
+                   ! input: model control
+                   desireAnal,                       & ! intent(in): flag indicating if derivatives are desired
+                   ixRichards,                       & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
+                   ! input: state variables
+                   scalarMatricHeadTrial,            & ! intent(in): matric head in each layer (m)
+                   scalarVolFracLiqTrial,            & ! intent(in): volumetric liquid water content (-)
+                   mLayerVolFracIceTrial(1),         & ! intent(in): volumetric ice content in each layer (-)
+                   ! input: derivative in the soil water characteristic w.r.t. psi
+                   mLayerdTheta_dPsi(1),             & ! intent(in): derivative in the soil water characteristic w.r.t. psi (m-1)
+                   ! input: soil parameters
+                   vGn_alpha,                        & ! intent(in): van Genutchen "alpha" parameter (m-1)
+                   vGn_n,                            & ! intent(in): van Genutchen "n" parameter (-)
+                   VGn_m,                            & ! intent(in): van Genutchen "m" parameter (-)
+                   theta_sat,                        & ! intent(in): soil porosity (-)
+                   theta_res,                        & ! intent(in): soil residual volumetric water content (-)
+                   ! input: saturated hydraulic conductivity at the surface
+                   iLayerSatHydCond(0),              & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
+                   ! output: ejected water flux and derivative
+                   mLayerEjectWater(1),              & ! intent(out): water ejected because pore volume is filled (m s-1)
+                   mLayerEjectWaterDeriv(1),         & ! intent(out): derivative in ejected water flux (m s-1 [moisture form] s-1 [mixed form])
+                   ! output: error control
+                   err,cmessage)                       ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! include ejected water in the flux and analytical derivatives
+   !iLayerLiqFluxSoil(0) = iLayerLiqFluxSoil(0) - mLayerEjectWater(1)
+   !if(desireAnal) dq_dStateBelow(0) = dq_dStateBelow(0) - mLayerEjectWaterDeriv(1)
 
    ! set derivative w.r.t. state above to missing (does not exist)
    dq_dStateAbove(0) = valueMissing
@@ -1217,7 +1243,7 @@ contains
                     theta_sat,                        & ! intent(in): soil porosity (-)
                     theta_res,                        & ! intent(in): soil residual volumetric water content (-)
                     ! input: saturated hydraulic conductivity at the surface
-                    iLayerHydCond(iLayer),            & ! intent(in): hydraulic conductivity at the layer interface (m s-1)
+                    iLayerSatHydCond(0),              & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                     ! output: ejected water flux and derivative
                     mLayerEjectWater(iLayer+1),       & ! intent(out): water ejected because pore volume is filled (m s-1)
                     mLayerEjectWaterDeriv(iLayer+1),  & ! intent(out): derivative in ejected water flux (m s-1 [moisture form] s-1 [mixed form])
@@ -1226,8 +1252,8 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! include ejected water in the flux and analytical derivatives
-    iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) - mLayerEjectWater(iLayer+1)
-    if(desireAnal) dq_dStateBelow(iLayer) = dq_dStateBelow(iLayer) - mLayerEjectWaterDeriv(iLayer+1)
+    !iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) - mLayerEjectWater(iLayer+1)
+    !if(desireAnal) dq_dStateBelow(iLayer) = dq_dStateBelow(iLayer) - mLayerEjectWaterDeriv(iLayer+1)
 
     ! compute total vertical flux, to compute derivatives
     ! NOTE: push ejected water into the top layer
@@ -1248,8 +1274,11 @@ contains
     dq_dStateAbove(iLayer) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
     dq_dStateBelow(iLayer) = (scalarFlux_dStateBelow - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
    endif
-   !if(iLayer==1)      write(*,'(a)') 'ixDerivMethod, iLayer, dq_dStateBelow(iLayer), dq_dStateAbove(iLayer), mLayerVolFracLiqTrial(iLayer+1), mLayerEjectWater(iLayer+1), mLayerEjectWaterDeriv(iLayer+1) = '
-   !write(*,'(2(i4,1x),10(e15.7,1x))') ixDerivMethod, iLayer, dq_dStateBelow(iLayer), dq_dStateAbove(iLayer), mLayerVolFracLiqTrial(iLayer+1), mLayerEjectWater(iLayer+1), mLayerEjectWaterDeriv(iLayer+1)
+   !if(iLayer==1) write(*,'(a)') 'ixDerivMethod, iLayer, dq_dStateBelow(iLayer), dq_dStateAbove(iLayer), mLayerVolFracLiqTrial(iLayer+1), mLayerEjectWater(iLayer+1), mLayerEjectWaterDeriv(iLayer+1) = '
+   !if(iLayer< 5) write(*,'(2(i4,1x),10(e15.7,1x))') ixDerivMethod, iLayer, dq_dStateBelow(iLayer), dq_dStateAbove(iLayer), mLayerVolFracLiqTrial(iLayer+1), mLayerEjectWater(iLayer+1), mLayerEjectWaterDeriv(iLayer+1)
+   !if(iLayer==1) write(*,'(a)') 'ixDerivMethod, iLayer+1, mLayerVolFracLiqTrial(iLayer+1), mLayerVolFracIceTrial(iLayer+1), mLayerEjectWater(iLayer+1)'
+   !if(iLayer< 5) write(*,'(2(i4,1x),10(e15.7,1x))') ixDerivMethod, iLayer+1, mLayerVolFracLiqTrial(iLayer+1), mLayerVolFracIceTrial(iLayer+1), mLayerEjectWater(iLayer+1)
+
 
   end do  ! (looping through soil layers)
 
@@ -2898,7 +2927,7 @@ contains
                        theta_sat,             & ! intent(in): soil porosity (-)
                        theta_res,             & ! intent(in): soil residual volumetric water content (-)
                        ! input: saturated hydraulic conductivity
-                       scalarSatHydCond,      & ! intent(in): hydraulic conductivity at the layer interface (m s-1)
+                       scalarSatHydCond,      & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                        ! output: ejected water flux and derivative
                        scalarEjectWater,      & ! intent(out): water ejected because pore volume is filled (m s-1)
                        scalarEjectWaterDeriv, & ! intent(out): derivative in ejected water flux (m s-1 [moisture form] s-1 [mixed form])
@@ -2931,7 +2960,7 @@ contains
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
  ! local variables
- real(dp),parameter            :: supersatScale=0.001_dp    ! scaling factor for the water ejection function (-)
+ real(dp),parameter            :: supersatScale=0.01_dp    ! scaling factor for the water ejection function (-)
  real(dp),parameter            :: xMatch = 0.999_dp         ! point where x-value and function value match (-)
  real(dp),parameter            :: fSmall = epsilon(xMatch)  ! smallest possible value to test
  real(dp)                      :: supersatThresh            ! threshold in super-saturation function (-)
@@ -2959,12 +2988,14 @@ contains
    case(mixdform); fracCap = (volFracLiq(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) + scalarVolFracIceTrial)/theta_sat
    case default; err=10; message=trim(message)//"unable to identify option for Richards' equation"; return
   endselect
+
   if(fracCap > fracMin)then  ! (check if the fractional capacity is greater than the minimum value)
 
    ! ***** calculate the upward flux associated with water ejected (m s-1)
    expFunc = exp((supersatThresh - fracCap)/supersatScale)
    scalarEjectWater = scalarSatHydCond/(1._dp + expFunc)
-   !write(*,'(a,10(e20.10,1x))') 'scalarVolFracLiqTrial, fracCap, scalarEjectWater = ', scalarVolFracLiqTrial, fracCap, scalarEjectWater
+   !write(*,'(a,10(e20.10,1x))') 'scalarVolFracLiqTrial, scalarVolFracIceTrial, fracCap, scalarEjectWater = ', &
+   !                              scalarVolFracLiqTrial, scalarVolFracIceTrial, fracCap, scalarEjectWater
 
    ! ***** calculate the derivative in upward ejected flux (m s-1 [moisture form] or s-1 [mixed form])
    if(deriv_desired)then
@@ -3072,7 +3103,7 @@ contains
   ! transpiration (-)
   mEvap = wimplicit*mLayerInitTranspire(iLayer)*dt_dz + (1._dp - wimplicit)*mLayerTrialTranspire(iLayer)*dt_dz
   ! ejected water (-)
-  mEjct = 0._dp  ! wimplicit*mLayerInitEjectWater(iLayer)*dt_dz + (1._dp - wimplicit)*mLayerTrialEjectWater(iLayer)*dt_dz
+  mEjct = wimplicit*mLayerInitEjectWater(iLayer)*dt_dz + (1._dp - wimplicit)*mLayerTrialEjectWater(iLayer)*dt_dz
   ! baseflow (-)
   mBase = wimplicit*mLayerInitBaseflow(iLayer)*dt_dz + (1._dp - wimplicit)*mLayerTrialBaseflow(iLayer)*dt_dz
   ! phase change (-)

@@ -187,8 +187,8 @@ contains
    if(err==0) exit
    ! if not ok, reduce time step and try again
    dt_sub = dt_sub*0.1_dp
-   print*, dt_sub, minstep, trim(message)//trim(cmessage)
-   pause
+   !print*, dt_sub, minstep, trim(message)//trim(cmessage)
+   !pause
    ! check that the step size is still appropriate -- if not, use non-iterative solution
    if(dt_sub < minstep)then
     if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
