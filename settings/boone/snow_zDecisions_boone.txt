@@ -7,14 +7,14 @@
 ! (2) the name of the decision is followed by the character string defining the decision
 ! ***********************************************************************************************************************
 num_method   itertive  ! ( 1) choice of numerical method
-fDerivMeth   analytic  ! ( 2) method used to calculate flux derivatives
-f_Richards   moisture  ! ( 3) form of Richard's equation
-groundwatr   pseudoWT  ! ( 4) choice of groundwater parameterization
-hc_profile   exp_prof  ! ( 5) choice of hydraulic conductivity profile
+fDerivMeth   numericl  ! ( 2) method used to calculate flux derivatives
+f_Richards   mixdform  ! ( 3) form of Richard's equation
+groundwatr   bigBuckt  ! ( 4) choice of groundwater parameterization
+hc_profile   constant  ! ( 5) choice of hydraulic conductivity profile
 bcUpprTdyn   nrg_flux  ! ( 6) type of upper boundary condition for thermodynamics
 bcLowrTdyn   presTemp  ! ( 7) type of lower boundary condition for thermodynamics
 bcUpprSoiH   liq_flux  ! ( 8) type of upper boundary condition for soil hydrology
-bcLowrSoiH   zeroFlux  ! ( 9) type of lower boundary condition for soil hydrology
+bcLowrSoiH   drainage  ! ( 9) type of lower boundary condition for soil hydrology
 astability   louisinv  ! (10) choice of stability function
 compaction   anderson  ! (11) choice of compaction routine
 thermlcond   jrdn1991  ! (12) choice of thermal conductivity representation

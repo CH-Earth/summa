@@ -84,6 +84,8 @@ compactedDepth       | depth where k_soil reaches the compacted value given by C
 bpar_VIC             | b-parameter in the VIC surface runoff parameterization       | -          | scalarv | T
 specificYield        | specific yield                                               | -          | scalarv | T
 specificStorage      | specific storage coefficient                                 | m-1        | scalarv | T
+aquiferScaleFactor   | scaling factor for aquifer storage in the big bucket         | m          | scalarv | T
+bucketBaseflowExp    | baseflow exponent for the big bucket                         | -          | scalarv | T
 f_impede             | ice impedence factor                                         | -          | scalarv | T
 ! ************************************************************************************************************
 ! vegetation properties
@@ -95,6 +97,7 @@ minStomatalResist    | minimum stomatal resistance                              
 maxStomatalResist    | maximum stomatal resistance                                  | s m-1      | scalarv | T
 plantWiltPsi         | critical matric head when stomatal resitance 2 x min         | m          | scalarv | T
 plantWiltExp         | empirical exponent in plant wilting factor expression        | -          | scalarv | T
+critAquiferTranspire | critical aquifer storage value when transpiration is limited | m          | scalarv | T
 ! ************************************************************************************************************
 ! new snow density
 ! ************************************************************************************************************
@@ -124,6 +127,8 @@ relConvTol_matric    | relative convergence tolerance for matric head           
 absConvTol_matric    | absolute convergence tolerance for matric head               | m          | scalarv | T
 relConvTol_energy    | relative convergence tolerance for energy                    | -          | scalarv | T
 absConvTol_energy    | absolute convergence tolerance for energy                    | J m-3      | scalarv | T
+relConvTol_aquifr    | relative convergence tolerance for aquifer storage           | -          | scalarv | T
+absConvTol_aquifr    | absolute convergence tolerance for aquifer storage           | m          | scalarv | T
 zmin                 | minimum layer depth                                          | m          | scalarv | T
 zmax                 | maximum layer depth                                          | m          | scalarv | T
 ! ************************************************************************************************************
