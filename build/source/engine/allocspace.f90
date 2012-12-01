@@ -146,6 +146,7 @@ contains
  integer(i4b)                         :: ivar        ! loop throough variables
  integer(i4b)                         :: nVar        ! number of variables
  integer(i4b)                         :: nLayers     ! total number of layers
+ integer(i4b),parameter               :: nTimeDelay=1000  ! number of elements in the time delay histogram
  ! initialize errors
  err=0; message="f-alloc_mvar/"
  ! check that the metadata structure is allocated
@@ -174,6 +175,7 @@ contains
    case('ifcSnow'); allocate(mvar_data%var(ivar)%dat(0:nSnow),stat=err)
    case('ifcSoil'); allocate(mvar_data%var(ivar)%dat(0:nSoil),stat=err)
    case('ifcToto'); allocate(mvar_data%var(ivar)%dat(0:nLayers),stat=err)
+   case('routing'); allocate(mvar_data%var(ivar)%dat(nTimeDelay),stat=err)
    case default
     err=40; message=trim(message)//"unknownVariableType[name='"//trim(mvar_meta(ivar)%varname)//"'; &
                                    &type='"//trim(mvar_meta(ivar)%vartype)//"']"; return

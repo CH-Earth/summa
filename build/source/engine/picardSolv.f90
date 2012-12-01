@@ -310,8 +310,8 @@ contains
  freeze_infiltrate = .true.
 
  ! define the maximum number of layers to print
- minLayer=1
- maxLayer=10
+ minLayer=40
+ maxLayer=50
 
  ! allocate space for state variables at the start and end of the iteration
  allocate(mLayerTempIter(nLayers),      mLayerTempNew(nLayers),       &  ! all layers
@@ -592,6 +592,7 @@ contains
   !write(*,'(a,1x,2(e20.10,1x))') 'liquid_max, absConvTol_liquid = ', liquid_max, absConvTol_liquid
   !write(*,'(a,1x,2(e20.10,1x))') 'matric_max, absConvTol_matric = ', matric_max, absConvTol_matric
   !write(*,'(a,1x,2(e20.10,1x))') 'energy_max, absConvTol_energy = ', energy_max, absConvTol_energy
+  !write(*,'(a,1x,1(e20.10,1x))') 'aquifr_max = ', aquifr_max
   !pause
 
   ! get position of maximum iteration increment
@@ -718,6 +719,13 @@ contains
  scalarSoilBaseflow     = (wimplicit*sum(mLayerInitBaseflow)        + (1._dp - wimplicit)*sum(mLayerBaseflow)       )
  scalarSoilDrainage     = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
  scalarSoilEjection     = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
+
+ ! check ejected water
+ if(scalarSoilEjection < 0._dp)then
+  print*, 'mLayerInitEjectWater = ', mLayerInitEjectWater
+  print*, 'mLayerEjectWater = ', mLayerEjectWater
+  message=trim(message)//'ejected water < 0'; err=20; return
+ endif
 
  ! get the input and output to/from the soil zone (kg m-2)
  balanceSoilInflux        = scalarSoilInflux*iden_water*dt

@@ -20,6 +20,7 @@ USE var_derive_module,only:turbExchng                       ! module to calculat
 USE var_derive_module,only:v_shortcut                       ! module to calculate "short-cut" variables
 USE var_derive_module,only:rootDensty                       ! module to calculate the vertical distribution of roots
 USE var_derive_module,only:satHydCond                       ! module to calculate the saturated hydraulic conductivity in each soil layer
+USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
 USE read_force_module,only:read_force                       ! module to read model forcing data
 USE derivforce_module,only:derivforce                       ! module to compute derived forcing data
 USE modelwrite_module,only:writeParam,writeForce,writeModel ! module to write model output
@@ -110,6 +111,7 @@ do iParSet=1,nParSets
  call rootDensty(err,message); call handle_err(err,message) ! calculate vertical distribution of root density
  call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
  call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
+ call fracFuture(err,message); call handle_err(err,message) ! calculate the fraction of runoff in future time steps
  call v_shortcut(err,message); call handle_err(err,message) ! calculate "short-cut" variables such as volumetric heat capacity
  ! define the filename for model spinup
  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
@@ -198,8 +200,9 @@ do iParSet=1,nParSets
 
   ! write the model output to the NetCDF file
   call writeModel(fileout,iParSet,jstep,err,message); call handle_err(err,message)
-  !if(istep>13) call handle_err(20,'stopping on a specified step: after call to writeModel')
+  !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
   
+
   ! increment the model indices
   midSnowStartIndex = midSnowStartIndex + nSnow
   midSoilStartIndex = midSoilStartIndex + nSoil

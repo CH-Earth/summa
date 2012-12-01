@@ -100,7 +100,8 @@ FUSE_MODRUN = \
 		newsnwfall.f90 \
 		layerMerge.f90 \
 		surfAlbedo.f90 \
-		snwDensify.f90
+		snwDensify.f90 \
+		qTimeDelay.f90
 MODRUN = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODRUN))
 
 # Define routines for the solver

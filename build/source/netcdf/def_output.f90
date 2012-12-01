@@ -7,6 +7,7 @@ public :: def_output
 ! define dimension names
 character(len=32),parameter :: parSet_DimName='parSet'                 ! dimension name for the parameter sets (unlimited)
 character(len=32),parameter :: timestep_DimName='time'                 ! dimension name for the time step (unlimited)
+character(len=32),parameter :: routing_DimName='timeDelayRouting'      ! dimension name for thetime delay routing vectors     
 character(len=32),parameter :: midSnowAndTime_DimName='midSnowAndTime' ! dimension name for midSnow-time (unlimited)
 character(len=32),parameter :: midSoilAndTime_DimName='midSoilAndTime' ! dimension name for midSoil-time (unlimited)
 character(len=32),parameter :: midTotoAndTime_DimName='midTotoAndTime' ! dimension name for midToto-time (unlimited)
@@ -71,6 +72,7 @@ contains
    case('ifcSnow'); call def_variab(trim(infile),(/parSet_DimName,ifcSnowAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
    case('ifcSoil'); call def_variab(trim(infile),(/parSet_DimName,ifcSoilAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
    case('ifcToto'); call def_variab(trim(infile),(/parSet_DimName,ifcTotoAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('routing'); call def_variab(trim(infile),(/parSet_DimName,routing_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
    case default; err=35; message="f-fuse/def_output/varTypeNotFound"; return
   endselect
   ! check variable definition was OK
@@ -104,6 +106,7 @@ contains
  ! define local variables
  integer(i4b)                :: ncid                       ! NetCDF file ID
  integer(i4b)                :: dimID
+ integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
  integer(i4b),parameter      :: maxLength=2500000         ! maximum length of the variable vector
  !integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
  integer(i4b),parameter      :: maxParSets=1               ! maximum number of parameter sets
@@ -117,6 +120,9 @@ contains
  call netcdf_err(err,message); if (err/=0) return
  ! create time dimension (unlimited)
  err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, dimId)
+ call netcdf_err(err,message); if (err/=0) return
+ ! create dimension for the time-delay routing variables
+ err = nf90_def_dim(ncid, trim(routing_DimName), maxRouting, dimId)
  call netcdf_err(err,message); if (err/=0) return
  ! create dimension for midSnow+time (unlimited)
  err = nf90_def_dim(ncid, trim(midSnowAndTime_DimName), maxLength, dimId)

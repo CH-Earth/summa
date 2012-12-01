@@ -32,6 +32,7 @@ contains
   case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (11) choice of compaction routine
   case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (12) choice of thermal conductivity representation
   case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (13) choice of albedo representation
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (14) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -128,16 +129,36 @@ contains
   ! radiation transfer within snow
   case('rad_ext'             ); get_ixparam = iLookPARAM%rad_ext              ! extinction coefficient for radiation penetration (m-1)
   case('Fabs_vis'            ); get_ixparam = iLookPARAM%Fabs_vis             ! fraction of absorbed radiation in the visible part of the spectrum (-)
+  ! new snow density
+  case('newSnowDenMin'       ); get_ixparam = iLookPARAM%newSnowDenMin        ! minimum new snow density (kg m-3)
+  case('newSnowDenMult'      ); get_ixparam = iLookPARAM%newSnowDenMult       ! multiplier for new snow density (kg m-3)
+  case('newSnowDenScal'      ); get_ixparam = iLookPARAM%newSnowDenScal       ! scaling factor for new snow density (K)
+  ! snow compaction
+  case('densScalGrowth'      ); get_ixparam = iLookPARAM%densScalGrowth       ! density scaling factor for grain growth (kg-1 m3)
+  case('tempScalGrowth'      ); get_ixparam = iLookPARAM%tempScalGrowth       ! temperature scaling factor for grain growth (K-1)
+  case('grainGrowthRate'     ); get_ixparam = iLookPARAM%grainGrowthRate      ! rate of grain growth (s-1)
+  case('densScalOvrbdn'      ); get_ixparam = iLookPARAM%densScalOvrbdn       ! density scaling factor for overburden pressure (kg-1 m3)
+  case('tempScalOvrbdn'      ); get_ixparam = iLookPARAM%tempScalOvrbdn       ! temperature scaling factor for overburden pressure (K-1)
+  case('base_visc'           ); get_ixparam = iLookPARAM%base_visc            ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
+  ! water flow through snow
+  case('Fcapil'              ); get_ixparam = iLookPARAM%Fcapil               ! capillary retention as a fraction of the total pore volume (-)
+  case('k_snow'              ); get_ixparam = iLookPARAM%k_snow               ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
+  case('mw_exp'              ); get_ixparam = iLookPARAM%mw_exp               ! exponent for meltwater flow (-)
   ! turbulent heat fluxes
   case('mheight'             ); get_ixparam = iLookPARAM%mheight              ! measurement height (m)
   case('zon'                 ); get_ixparam = iLookPARAM%zon                  ! roughness length (m)
   case('c_star'              ); get_ixparam = iLookPARAM%c_star               ! parameter in Louis (1979) stability function
   case('bparam'              ); get_ixparam = iLookPARAM%bparam               ! parameter in Louis (1979) stability function
   case('Mahrt_m'             ); get_ixparam = iLookPARAM%Mahrt_m              ! the m parameter from the Mahrt (1987) stability function
-  ! water flow through snow
-  case('Fcapil'              ); get_ixparam = iLookPARAM%Fcapil               ! capillary retention as a fraction of the total pore volume (-)
-  case('k_snow'              ); get_ixparam = iLookPARAM%k_snow               ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-  case('mw_exp'              ); get_ixparam = iLookPARAM%mw_exp               ! exponent for meltwater flow (-)
+  ! vegetation properties
+  case('rootingDepth'        ); get_ixparam = iLookPARAM%rootingDepth         ! rooting depth (m)
+  case('rootDistExp'         ); get_ixparam = iLookPARAM%rootDistExp          ! exponent for the vertical distriution of root density (-)
+  case('LAI'                 ); get_ixparam = iLookPARAM%LAI                  ! leaf area index (m2 m-2)
+  case('minStomatalResist'   ); get_ixparam = iLookPARAM%minStomatalResist    ! minimum stomatal resistance (s m-1)
+  case('maxStomatalResist'   ); get_ixparam = iLookPARAM%maxStomatalResist    ! maximum stomatal resistance (s m-1)
+  case('plantWiltPsi'        ); get_ixparam = iLookPARAM%plantWiltPsi         ! critical matric head when stomatal resitance 2 x min (m)
+  case('plantWiltExp'        ); get_ixparam = iLookPARAM%plantWiltExp         ! empirical exponent in plant wilting factor expression (-)
+  case('critAquiferTranspire'); get_ixparam = iLookPARAM%critAquiferTranspire ! critical aquifer storage value when transpiration is limited (m)
   ! soil properties
   case('soilAlbedo'          ); get_ixparam = iLookPARAM%soilAlbedo           ! soil albedo (-)
   case('soil_dens_intr'      ); get_ixparam = iLookPARAM%soil_dens_intr       ! intrinsic soil density (kg m-3)
@@ -158,26 +179,9 @@ contains
   case('aquiferScaleFactor'  ); get_ixparam = iLookPARAM%aquiferScaleFactor   ! scaling factor for aquifer storage in the big bucket (m)
   case('bucketBaseflowExp'   ); get_ixparam = iLookPARAM%bucketBaseflowExp    ! baseflow exponent for the big bucket (-)
   case('f_impede'            ); get_ixparam = iLookPARAM%f_impede             ! ice impedence factor (-)
-  ! vegetation properties
-  case('rootingDepth'        ); get_ixparam = iLookPARAM%rootingDepth         ! rooting depth (m)
-  case('rootDistExp'         ); get_ixparam = iLookPARAM%rootDistExp          ! exponent for the vertical distriution of root density (-)
-  case('LAI'                 ); get_ixparam = iLookPARAM%LAI                  ! leaf area index (m2 m-2)
-  case('minStomatalResist'   ); get_ixparam = iLookPARAM%minStomatalResist    ! minimum stomatal resistance (s m-1)
-  case('maxStomatalResist'   ); get_ixparam = iLookPARAM%maxStomatalResist    ! maximum stomatal resistance (s m-1)
-  case('plantWiltPsi'        ); get_ixparam = iLookPARAM%plantWiltPsi         ! critical matric head when stomatal resitance 2 x min (m)
-  case('plantWiltExp'        ); get_ixparam = iLookPARAM%plantWiltExp         ! empirical exponent in plant wilting factor expression (-)
-  case('critAquiferTranspire'); get_ixparam = iLookPARAM%critAquiferTranspire ! critical aquifer storage value when transpiration is limited (m)
-  ! new snow density
-  case('newSnowDenMin'       ); get_ixparam = iLookPARAM%newSnowDenMin        ! minimum new snow density (kg m-3)
-  case('newSnowDenMult'      ); get_ixparam = iLookPARAM%newSnowDenMult       ! multiplier for new snow density (kg m-3)
-  case('newSnowDenScal'      ); get_ixparam = iLookPARAM%newSnowDenScal       ! scaling factor for new snow density (K)
-  ! snow compaction
-  case('densScalGrowth'      ); get_ixparam = iLookPARAM%densScalGrowth       ! density scaling factor for grain growth (kg-1 m3)
-  case('tempScalGrowth'      ); get_ixparam = iLookPARAM%tempScalGrowth       ! temperature scaling factor for grain growth (K-1)
-  case('grainGrowthRate'     ); get_ixparam = iLookPARAM%grainGrowthRate      ! rate of grain growth (s-1)
-  case('densScalOvrbdn'      ); get_ixparam = iLookPARAM%densScalOvrbdn       ! density scaling factor for overburden pressure (kg-1 m3)
-  case('tempScalOvrbdn'      ); get_ixparam = iLookPARAM%tempScalOvrbdn       ! temperature scaling factor for overburden pressure (K-1)
-  case('base_visc'           ); get_ixparam = iLookPARAM%base_visc            ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
+  ! sub-grid routing
+  case('routingGammaShape'   ); get_ixparam = iLookPARAM%routingGammaShape    ! shape parameter in Gamma distribution used for sub-grid routing (-)
+  case('routingGammaScale'   ); get_ixparam = iLookPARAM%routingGammaScale    ! scale parameter in Gamma distribution used for sub-grid routing (s)
   ! algorithmic control parameters
   case('minwind'             ); get_ixparam = iLookPARAM%minwind              ! minimum wind speed (m s-1)
   case('minstep'             ); get_ixparam = iLookPARAM%minstep              ! minimum length of the time step
@@ -222,6 +226,9 @@ contains
   case('averageSoilInflux'           ); get_ixmvar = iLookMVAR%averageSoilInflux           ! influx of water at the top of the soil profile (m s-1)
   case('averageSoilBaseflow'         ); get_ixmvar = iLookMVAR%averageSoilBaseflow         ! total baseflow from throughout the soil profile (m s-1)
   case('averageSoilDrainage'         ); get_ixmvar = iLookMVAR%averageSoilDrainage         ! drainage from the bottom of the soil profile (m s-1)
+  case('averageSoilEjection'         ); get_ixmvar = iLookMVAR%averageSoilEjection         ! ejected water from the soil matrix (m s-1)
+  case('averageAquiferRecharge'      ); get_ixmvar = iLookMVAR%averageAquiferRecharge      ! recharge to the aquifer (m s-1)
+  case('averageAquiferBaseflow'      ); get_ixmvar = iLookMVAR%averageAquiferBaseflow      ! baseflow from the aquifer (m s-1)
   ! scalar variables
   case('scalarTwetbulb'              ); get_ixmvar = iLookMVAR%scalarTwetbulb              ! wetbulb temperature (K)
   case('scalarRainfall'              ); get_ixmvar = iLookMVAR%scalarRainfall              ! computed rainfall rate (kg m-2 s-1)
@@ -300,6 +307,11 @@ contains
   case('iLayerInitLiqFluxSoil'       ); get_ixmvar = iLookMVAR%iLayerInitLiqFluxSoil       ! liquid flux at soil layer interfaces at the start of the time step (m s-1)
   case('iLayerLiqFluxSnow'           ); get_ixmvar = iLookMVAR%iLayerLiqFluxSnow           ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('iLayerLiqFluxSoil'           ); get_ixmvar = iLookMVAR%iLayerLiqFluxSoil           ! liquid flux at soil layer interfaces at the end of the time step (m s-1)
+  ! variables to compute runoff
+  case('routingRunoffFuture'         ); get_ixmvar = iLookMVAR%routingRunoffFuture         ! runoff in future time steps (m s-1)
+  case('routingFractionFuture'       ); get_ixmvar = iLookMVAR%routingFractionFuture       ! fraction of runoff in future time steps (-)
+  case('averageInstantRunoff'        ); get_ixmvar = iLookMVAR%averageInstantRunoff        ! instantaneous runoff (m s-1)
+  case('averageRoutedRunoff'         ); get_ixmvar = iLookMVAR%averageRoutedRunoff         ! routed runoff (m s-1)
   ! "short-cut" variables
   case('scalarExNeut'                ); get_ixmvar = iLookMVAR%scalarExNeut                ! exchange coefficient in neutral conditions (-)
   case('scalarBprime'                ); get_ixmvar = iLookMVAR%scalarBprime                ! stable b parameter in Louis (1979) stability function (-)

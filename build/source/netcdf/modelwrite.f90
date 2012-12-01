@@ -196,6 +196,10 @@ contains
    case('ifcSnow'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,ifcSnowStartIndex/),count=(/1,nSnow+1/))
    case('ifcSoil'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,ifcSoilStartIndex/),count=(/1,nSoil+1/))
    case('ifcToto'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,ifcTotoStartIndex/),count=(/1,nLayers+1/))
+   case('routing')
+    if(istep==1)then
+     err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,1/),count=(/1,1000/))
+    endif
    case default
     err=40; message=trim(message)//"unknownVariableType[name='"//trim(mvar_meta(imodel)%varname)//"'; &
                                    &type='"//trim(mvar_meta(imodel)%vartype)//"']"; return

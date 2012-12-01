@@ -39,17 +39,20 @@ integer(i4b),parameter,public :: freeDrainage      =74    ! free drainage
 integer(i4b),parameter,public :: standard          =81    ! standard MO similarity, a la Anderson (1976) 
 integer(i4b),parameter,public :: louisInversePower =82    ! Louis (1979) inverse power function
 integer(i4b),parameter,public :: mahrtExponential  =83    ! Mahrt (1987) exponential
-! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement=91    ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical =92    ! semi-empirical method of Anderson (1976)
-! look-up values for the choice of thermal conductivity
-integer(i4b),parameter,public :: Yen1965           =101   ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977        =102   ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991        =103   ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000      =104   ! Smirnova et al. (2000)
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: funcSnowAge       =111   ! function of snow age
-integer(i4b),parameter,public :: BATSlike          =112   ! BATS-like approach, with destructive metamorphism + soot content
+integer(i4b),parameter,public :: funcSnowAge       =91    ! function of snow age
+integer(i4b),parameter,public :: BATSlike          =92    ! BATS-like approach, with destructive metamorphism + soot content
+! look-up values for the choice of compaction routine
+integer(i4b),parameter,public :: constantSettlement=101   ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical =102   ! semi-empirical method of Anderson (1976)
+! look-up values for the choice of thermal conductivity
+integer(i4b),parameter,public :: Yen1965           =111   ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977        =112   ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991        =113   ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000      =114   ! Smirnova et al. (2000)
+! look-up values for the choice of routing method
+integer(i4b),parameter,public :: timeDelay         =121   ! time-delay histogram
+integer(i4b),parameter,public :: qInstant          =122   ! instantaneous routing
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -103,7 +106,7 @@ contains
 
  ! (4) identify the groundwater parameterization
  select case(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision))
-  case('zEquilET'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = equilWaterTable     ! equilibrium water table
+  case('zEquilWT'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = equilWaterTable     ! equilibrium water table
   case('pseudoWT'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = pseudoWaterTable    ! pseudo water table
   case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
   case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
@@ -164,7 +167,15 @@ contains
    err=10; message=trim(message)//"unknown stability function [option="//trim(model_decisions(iLookDECISIONS%astability)%cDecision)//"]"; return
  end select
 
- ! (11) choice of compaction routine
+ ! (11) choice of albedo representation
+ select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
+  case('fsnowage'); model_decisions(iLookDECISIONS%alb_method)%iDecision = funcSnowAge         ! function of snow age
+  case('BATSlike'); model_decisions(iLookDECISIONS%alb_method)%iDecision = BATSlike            ! BATS-like approach, with destructive metamorphism + soot content
+  case default
+   err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
+ end select
+
+ ! (12) choice of compaction routine
  select case(trim(model_decisions(iLookDECISIONS%compaction)%cDecision))
   case('consettl'); model_decisions(iLookDECISIONS%compaction)%iDecision = constantSettlement  ! constant settlement rate
   case('anderson'); model_decisions(iLookDECISIONS%compaction)%iDecision = andersonEmpirical   ! semi-empirical method of Anderson (1976)
@@ -172,7 +183,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
  end select
 
- ! (12) choice of thermal conductivity
+ ! (13) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
   case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
@@ -182,12 +193,12 @@ contains
    err=10; message=trim(message)//"unknown option for thermal conductivity [option="//trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision)//"]"; return
  end select
 
- ! (13) choice of albedo representation
- select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
-  case('fsnowage'); model_decisions(iLookDECISIONS%alb_method)%iDecision = funcSnowAge         ! function of snow age
-  case('BATSlike'); model_decisions(iLookDECISIONS%alb_method)%iDecision = BATSlike            ! BATS-like approach, with destructive metamorphism + soot content
+ ! (14) choice of routing method
+ select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
+  case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
+  case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing
   case default
-   err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown option for sub-grid routing [option="//trim(model_decisions(iLookDECISIONS%subRouting)%cDecision)//"]"; return
  end select
 
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
