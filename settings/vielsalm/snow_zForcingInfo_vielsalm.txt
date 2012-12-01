@@ -27,5 +27,5 @@ windspd   | 10                    ! windspeed                       (m/s)
 airpres   | 11                    ! pressure                        (Pa)
 spechum   | 12                    ! specific humidity               (g/g)
 istart    | 1                     ! start of the simulation period
-numtim    | 113976                ! number of time steps (17500)
+numtim    | 113976                ! number of time steps (113976)
 data_step | 3600                  ! length of time step (seconds)

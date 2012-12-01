@@ -34,6 +34,9 @@ averageSurfaceRunoff           | surface runoff                                 
 averageSoilInflux              | influx of water at the top of the soil profile                    | m s-1      | scalarv | T
 averageSoilBaseflow            | total baseflow from throughout the soil profile                   | m s-1      | scalarv | T
 averageSoilDrainage            | drainage from the bottom of the soil profile                      | m s-1      | scalarv | T
+averageSoilEjection            | ejected water from the soil matrix                                | m s-1      | scalarv | T
+averageAquiferRecharge         | recharge to the aquifer                                           | m s-1      | scalarv | T
+averageAquiferBaseflow         | baseflow from the aquifer                                         | m s-1      | scalarv | T
 ! ***************************************************************************************************************************
 ! scalar variables
 ! ***************************************************************************************************************************
@@ -120,6 +123,13 @@ iLayerInitLiqFluxSnow          | liquid flux at snow layer interfaces at start o
 iLayerInitLiqFluxSoil          | liquid flux at soil layer interfaces at start of the time step    | m s-1      | ifcSoil | T
 iLayerLiqFluxSnow              | liquid flux at snow layer interfaces at end of the time step      | m s-1      | ifcSnow | T
 iLayerLiqFluxSoil              | liquid flux at soil layer interfaces at end of the time step      | m s-1      | ifcSoil | T
+! ***************************************************************************************************************************
+! runoff
+! ***************************************************************************************************************************
+routingRunoffFuture            | runoff in future time steps                                       | m s-1      | routing | F
+routingFractionFuture          | fraction of runoff in future time steps                           | -          | routing | T
+averageInstantRunoff           | instantaneous runoff                                              | m s-1      | scalarv | T
+averageRoutedRunoff            | routed runoff                                                     | m s-1      | scalarv | T
 ! ***************************************************************************************************************************
 ! "short-cut" variables
 ! ***************************************************************************************************************************
