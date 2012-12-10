@@ -41,11 +41,11 @@ averageAquiferBaseflow         | baseflow from the aquifer                      
 ! scalar variables
 ! ***************************************************************************************************************************
 scalarTwetbulb                 | wet bulb temperature                                              | K          | scalarv | F
-scalarRainfall                 | computed rainfall rate                                            | kg m-2 s-1 | scalarv | T
-scalarSnowfall                 | computed snowfall rate                                            | kg m-2 s-1 | scalarv | T
-scalarSnowfallTemp             | temperature of fresh snow                                         | K          | scalarv | T
-scalarSurfaceTemp              | temperature of the top layer (NOTE: not skin temperature)         | K          | scalarv | T
-scalarAlbedo                   | albedo of the surface (snow or soil)                              | -          | scalarv | T
+scalarRainfall                 | computed rainfall rate                                            | kg m-2 s-1 | scalarv | F
+scalarSnowfall                 | computed snowfall rate                                            | kg m-2 s-1 | scalarv | F
+scalarSnowfallTemp             | temperature of fresh snow                                         | K          | scalarv | F
+scalarSurfaceTemp              | temperature of the top layer (NOTE: not skin temperature)         | K          | scalarv | F
+scalarAlbedo                   | albedo of the surface (snow or soil)                              | -          | scalarv | F
 scalarSnowDepth                | total snow depth                                                  | m          | scalarv | T
 scalarSWE                      | snow water equivalent                                             | kg m-2     | scalarv | T
 scalarSfcMeltPond              | ponded water caused by melt of the "snow without a layer"         | kg m-2     | scalarv | F 
@@ -57,27 +57,27 @@ scalarExLat                    | exchange factor for latent heat                
 scalarSenHeat                  | sensible heat flux at the surface                                 | W m-2      | scalarv | T
 scalarLatHeat                  | latent heat flux at the surface                                   | W m-2      | scalarv | T
 scalarPotentialET              | potential evapotranspiration                                      | kg m-2 s-1 | scalarv | T
-scalarTranspireLim             | aggregate soil moist & vegetation limit on transpiration          | -          | scalarv | T
-scalarTranspireLimAqfr         | soil moist & vegetation limit on transpiration in the aquifer     | -          | scalarv | T
-scalarMassLiquid               | transpiration                                                     | kg m-2 s-1 | scalarv | T
-scalarMassSolid                | sublimation or frost                                              | kg m-2 s-1 | scalarv | T
-scalarHeatPrecip               | sensible heat of precipitation                                    | W m-2      | scalarv | T
-scalarRainPlusMelt             | rain plus melt, used as input to soil before surface runoff       | m s-1      | scalarv | T
-scalarSurfaceRunoff            | surface runoff                                                    | m s-1      | scalarv | T
-scalarInitAquiferRecharge      | recharge to the aquifer at the start-of-step                      | m s-1      | scalarv | T
-scalarAquiferRecharge          | recharge to the aquifer at the end-of-step                        | m s-1      | scalarv | T
-scalarInitAquiferTranspire     | transpiration loss from the aquifer at the start-of-step          | m s-1      | scalarv | T
-scalarAquiferTranspire         | transpiration loss from the aquifer at the end-of-step            | m s-1      | scalarv | T
-scalarInitAquiferBaseflow      | baseflow from the aquifer at the start-of-step                    | m s-1      | scalarv | T 
-scalarAquiferBaseflow          | baseflow from the aquifer at the end-of-step                      | m s-1      | scalarv | T 
-scalarSoilInflux               | sub-step average: influx of water at the top of the soil profile  | m s-1      | scalarv | T
-scalarSoilBaseflow             | sub-step average: total baseflow from the soil profile            | m s-1      | scalarv | T
-scalarSoilDrainage             | sub-step average: drainage from the bottom of the soil profile    | m s-1      | scalarv | T
-scalarSoilEjection             | sub-step average: total water ejected from each soil layer        | m s-1      | scalarv | T
-scalarSoilWatBalError          | error in the total soil water balance                             | kg m-2     | scalarv | T
+scalarTranspireLim             | aggregate soil moist & vegetation limit on transpiration          | -          | scalarv | F
+scalarTranspireLimAqfr         | soil moist & vegetation limit on transpiration in the aquifer     | -          | scalarv | F
+scalarMassLiquid               | transpiration                                                     | kg m-2 s-1 | scalarv | F
+scalarMassSolid                | sublimation or frost                                              | kg m-2 s-1 | scalarv | F
+scalarHeatPrecip               | sensible heat of precipitation                                    | W m-2      | scalarv | F
+scalarRainPlusMelt             | rain plus melt, used as input to soil before surface runoff       | m s-1      | scalarv | F
+scalarSurfaceRunoff            | surface runoff                                                    | m s-1      | scalarv | F
+scalarInitAquiferRecharge      | recharge to the aquifer at the start-of-step                      | m s-1      | scalarv | F
+scalarAquiferRecharge          | recharge to the aquifer at the end-of-step                        | m s-1      | scalarv | F
+scalarInitAquiferTranspire     | transpiration loss from the aquifer at the start-of-step          | m s-1      | scalarv | F
+scalarAquiferTranspire         | transpiration loss from the aquifer at the end-of-step            | m s-1      | scalarv | F
+scalarInitAquiferBaseflow      | baseflow from the aquifer at the start-of-step                    | m s-1      | scalarv | F 
+scalarAquiferBaseflow          | baseflow from the aquifer at the end-of-step                      | m s-1      | scalarv | F 
+scalarSoilInflux               | sub-step average: influx of water at the top of the soil profile  | m s-1      | scalarv | F
+scalarSoilBaseflow             | sub-step average: total baseflow from the soil profile            | m s-1      | scalarv | F
+scalarSoilDrainage             | sub-step average: drainage from the bottom of the soil profile    | m s-1      | scalarv | F
+scalarSoilEjection             | sub-step average: total water ejected from each soil layer        | m s-1      | scalarv | F
+scalarSoilWatBalError          | error in the total soil water balance                             | kg m-2     | scalarv | F
 scalarAquiferBalError          | error in the aquifer water balance                                | kg m-2     | scalarv | T
-scalarTotalSoilLiq             | total mass of liquid water in the soil                            | kg m-2     | scalarv | T 
-scalarTotalSoilIce             | total mass of ice in the soil                                     | kg m-2     | scalarv | T
+scalarTotalSoilLiq             | total mass of liquid water in the soil                            | kg m-2     | scalarv | F 
+scalarTotalSoilIce             | total mass of ice in the soil                                     | kg m-2     | scalarv | F
 ! ***************************************************************************************************************************
 ! variables at the mid-point of each layer -- domain geometry
 ! ***************************************************************************************************************************
@@ -92,7 +92,7 @@ mLayerVolFracAir               | volumetric fraction of air in each layer       
 mLayerVolFracIce               | volumetric fraction of ice in each layer                          | -          | midToto | T
 mLayerVolFracLiq               | volumetric fraction of liquid water in each layer                 | -          | midToto | T
 mLayerVolHtCapBulk             | volumetric heat capacity in each layer                            | J m-3 K-1  | midToto | F
-mLayerTcrit                    | critical soil temperature above which all water is unfrozen       | K          | midSoil | T
+mLayerTcrit                    | critical soil temperature above which all water is unfrozen       | K          | midSoil | F
 mLayerdTheta_dTk               | derivative in volumetric liquid water content wrt temperature     | K-1        | midToto | F
 mLayerThermalC                 | thermal conductivity at the mid-point of each layer               | W m-1 K-1  | midToto | F
 mLayerRadCondFlux              | temporal derivative in energy of radiative and conductive flux    | J m-3 s-1  | midToto | F
@@ -105,12 +105,12 @@ mLayerThetaResid               | residual volumetric water content in each snow 
 mLayerPoreSpace                | total pore space in each snow layer                               | -          | midSnow | F
 mLayerInfilFreeze              | volumetric ice content increase by freezing infiltrating flux     | -          | midToto | F
 mLayerTranspireLim             | soil moist & veg limit on transpiration for each layer            | -          | midSoil | F
-mLayerInitTranspire            | transpiration loss from each soil layer at the start-of-step      | m s-1      | midSoil | T
-mLayerTranspire                | transpiration loss from each soil layer                           | m s-1      | midSoil | T
-mLayerInitEjectWater           | water ejected from each soil layer at the start-of-step           | m s-1      | midSoil | T
-mLayerEjectWater               | water ejected from each soil layer                                | m s-1      | midSoil | T
-mLayerInitBaseflow             | baseflow from each soil layer at the start of the time step       | m s-1      | midSoil | T
-mLayerBaseflow                 | baseflow from each soil layer                                     | m s-1      | midSoil | T
+mLayerInitTranspire            | transpiration loss from each soil layer at the start-of-step      | m s-1      | midSoil | F
+mLayerTranspire                | transpiration loss from each soil layer                           | m s-1      | midSoil | F
+mLayerInitEjectWater           | water ejected from each soil layer at the start-of-step           | m s-1      | midSoil | F
+mLayerEjectWater               | water ejected from each soil layer                                | m s-1      | midSoil | F
+mLayerInitBaseflow             | baseflow from each soil layer at the start of the time step       | m s-1      | midSoil | F
+mLayerBaseflow                 | baseflow from each soil layer                                     | m s-1      | midSoil | F
 ! ***************************************************************************************************************************
 ! variables at the interface of each layer
 ! ***************************************************************************************************************************
@@ -119,20 +119,21 @@ iLayerThermalC                 | thermal conductivity at the interface of each l
 iLayerInitNrgFlux              | energy flux at layer interfaces at the start of the time step     | W m-2      | ifcToto | F
 iLayerNrgFlux                  | energy flux at layer interfaces at end of the time step           | W m-2      | ifcToto | F
 iLayerSatHydCond               | saturated hydraulic conductivity in each layer interface          | m s-1      | ifcSoil | F
-iLayerInitLiqFluxSnow          | liquid flux at snow layer interfaces at start of the time step    | m s-1      | ifcSnow | T
-iLayerInitLiqFluxSoil          | liquid flux at soil layer interfaces at start of the time step    | m s-1      | ifcSoil | T
-iLayerLiqFluxSnow              | liquid flux at snow layer interfaces at end of the time step      | m s-1      | ifcSnow | T
-iLayerLiqFluxSoil              | liquid flux at soil layer interfaces at end of the time step      | m s-1      | ifcSoil | T
+iLayerInitLiqFluxSnow          | liquid flux at snow layer interfaces at start of the time step    | m s-1      | ifcSnow | F
+iLayerInitLiqFluxSoil          | liquid flux at soil layer interfaces at start of the time step    | m s-1      | ifcSoil | F
+iLayerLiqFluxSnow              | liquid flux at snow layer interfaces at end of the time step      | m s-1      | ifcSnow | F
+iLayerLiqFluxSoil              | liquid flux at soil layer interfaces at end of the time step      | m s-1      | ifcSoil | F
 ! ***************************************************************************************************************************
 ! runoff
 ! ***************************************************************************************************************************
 routingRunoffFuture            | runoff in future time steps                                       | m s-1      | routing | F
-routingFractionFuture          | fraction of runoff in future time steps                           | -          | routing | T
+routingFractionFuture          | fraction of runoff in future time steps                           | -          | routing | F
 averageInstantRunoff           | instantaneous runoff                                              | m s-1      | scalarv | T
 averageRoutedRunoff            | routed runoff                                                     | m s-1      | scalarv | T
 ! ***************************************************************************************************************************
 ! "short-cut" variables
 ! ***************************************************************************************************************************
+scalarLAI                      | leaf area index                                                   | m2 m-2     | scalarv | T
 scalarExNeut                   | exchange coefficient in neutral conditions                        | -          | scalarv | F
 scalarBprime                   | stable b parameter in Louis (1979) stability function             | -          | scalarv | F
 scalarCparam                   | c parameter in Louis (1979) stability function                    | -          | scalarv | F
