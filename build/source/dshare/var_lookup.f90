@@ -50,6 +50,15 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  ! (3) define model parameters
  ! ***********************************************************************************************************
+ type, public  ::  iLook_site
+  integer(i4b)    :: latitude         = 1  ! latitude    (degrees north)
+  integer(i4b)    :: longitude        = 2  ! longitude   (degrees east)
+  integer(i4b)    :: elevation        = 3  ! elevation   (m)
+  integer(i4b)    :: LAI_monthly      = 4  ! monthly values of the leaf area index (m2 m-2)
+ end type iLook_site
+ ! ***********************************************************************************************************
+ ! (4) define model parameters
+ ! ***********************************************************************************************************
  type, public  ::  iLook_param
   ! boundary conditions
   integer(i4b)    :: upperBoundHead       = 1 ! matric head of the upper boundary (m)
@@ -98,56 +107,55 @@ MODULE var_lookup
   ! vegetation properties
   integer(i4b)    :: rootingDepth         = 36 ! rooting depth (m)
   integer(i4b)    :: rootDistExp          = 37 ! exponent controlling the vertical distribution of root density (-)
-  integer(i4b)    :: LAI                  = 38 ! leaf area index (m2 m-2) 
-  integer(i4b)    :: minStomatalResist    = 39 ! minimum stomatal resistance (s m-1)
-  integer(i4b)    :: maxStomatalResist    = 40 ! maximum stomatal resistance (s m-1)
-  integer(i4b)    :: plantWiltPsi         = 41 ! critical matric head when stomatal resitance 2 x min (m)
-  integer(i4b)    :: plantWiltExp         = 42 ! empirical exponent in plant wilting factor expression (-)
-  integer(i4b)    :: critAquiferTranspire = 43 ! critical aquifer storage value when transpiration is limited (m)
+  integer(i4b)    :: minStomatalResist    = 38 ! minimum stomatal resistance (s m-1)
+  integer(i4b)    :: maxStomatalResist    = 39 ! maximum stomatal resistance (s m-1)
+  integer(i4b)    :: plantWiltPsi         = 40 ! critical matric head when stomatal resitance 2 x min (m)
+  integer(i4b)    :: plantWiltExp         = 41 ! empirical exponent in plant wilting factor expression (-)
+  integer(i4b)    :: critAquiferTranspire = 42 ! critical aquifer storage value when transpiration is limited (m)
   ! soil properties
-  integer(i4b)    :: soilAlbedo           = 44 ! soil albedo (-)
-  integer(i4b)    :: soil_dens_intr       = 45 ! intrinsic soil density (kg m-3)
-  integer(i4b)    :: frac_sand            = 46 ! fraction of sand (-)
-  integer(i4b)    :: frac_silt            = 47 ! fraction of silt (-)
-  integer(i4b)    :: frac_clay            = 48 ! fraction of clay (-)
-  integer(i4b)    :: theta_sat            = 49 ! porosity (-)
-  integer(i4b)    :: theta_res            = 50 ! volumetric residual water content (-)
-  integer(i4b)    :: vGn_alpha            = 51 ! van Genuchten "alpha" parameter (m-1)
-  integer(i4b)    :: vGn_n                = 52 ! van Genuchten "n" parameter (-)
-  integer(i4b)    :: k_soil               = 53 ! hydraulic conductivity of soil (m s-1) 
-  integer(i4b)    :: kAnisotropic         = 54 ! anisotropy factor for lateral hydraulic conductivity (-)
-  integer(i4b)    :: zScale_TOPMODEL      = 55 ! scale factor for TOPMODEL-ish baseflow parameterization (m)
-  integer(i4b)    :: compactedDepth       = 56 ! depth where k_soil reaches the compacted value given by CH78 (m)
-  integer(i4b)    :: bpar_VIC             = 57 ! b-parameter in the VIC surface runoff parameterization (-)
-  integer(i4b)    :: specificYield        = 58 ! specific yield (-)
-  integer(i4b)    :: specificStorage      = 59 ! specific storage coefficient (m-1)
-  integer(i4b)    :: aquiferScaleFactor   = 60 ! scaling factor for aquifer storage in the big bucket (m)
-  integer(i4b)    :: bucketBaseflowExp    = 61 ! baseflow exponent for the big bucket (-)
-  integer(i4b)    :: f_impede             = 62 ! ice impedence factor (-)
+  integer(i4b)    :: soilAlbedo           = 43 ! soil albedo (-)
+  integer(i4b)    :: soil_dens_intr       = 44 ! intrinsic soil density (kg m-3)
+  integer(i4b)    :: frac_sand            = 45 ! fraction of sand (-)
+  integer(i4b)    :: frac_silt            = 46 ! fraction of silt (-)
+  integer(i4b)    :: frac_clay            = 47 ! fraction of clay (-)
+  integer(i4b)    :: theta_sat            = 48 ! porosity (-)
+  integer(i4b)    :: theta_res            = 49 ! volumetric residual water content (-)
+  integer(i4b)    :: vGn_alpha            = 50 ! van Genuchten "alpha" parameter (m-1)
+  integer(i4b)    :: vGn_n                = 51 ! van Genuchten "n" parameter (-)
+  integer(i4b)    :: k_soil               = 52 ! hydraulic conductivity of soil (m s-1) 
+  integer(i4b)    :: kAnisotropic         = 53 ! anisotropy factor for lateral hydraulic conductivity (-)
+  integer(i4b)    :: zScale_TOPMODEL      = 54 ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+  integer(i4b)    :: compactedDepth       = 55 ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: bpar_VIC             = 56 ! b-parameter in the VIC surface runoff parameterization (-)
+  integer(i4b)    :: specificYield        = 57 ! specific yield (-)
+  integer(i4b)    :: specificStorage      = 58 ! specific storage coefficient (m-1)
+  integer(i4b)    :: aquiferScaleFactor   = 59 ! scaling factor for aquifer storage in the big bucket (m)
+  integer(i4b)    :: bucketBaseflowExp    = 60 ! baseflow exponent for the big bucket (-)
+  integer(i4b)    :: f_impede             = 61 ! ice impedence factor (-)
   ! within-grid routing
-  integer(i4b)    :: routingGammaShape    = 63 ! shape parameter in Gamma distribution used for sub-grid routing (-)
-  integer(i4b)    :: routingGammaScale    = 64 ! scale parameter in Gamma distribution used for sub-grid routing (s)
+  integer(i4b)    :: routingGammaShape    = 62 ! shape parameter in Gamma distribution used for sub-grid routing (-)
+  integer(i4b)    :: routingGammaScale    = 63 ! scale parameter in Gamma distribution used for sub-grid routing (s)
   ! algorithmic control parameters
-  integer(i4b)    :: minwind              = 65 ! minimum wind speed (m s-1)
-  integer(i4b)    :: minstep              = 66 ! minimum length of the time step
-  integer(i4b)    :: maxstep              = 67 ! maximum length of the time step
-  integer(i4b)    :: wimplicit            = 68 ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter              = 69 ! maximum number of iteration 
-  integer(i4b)    :: relConvTol_liquid    = 70 ! relative convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: absConvTol_liquid    = 71 ! absolute convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: relConvTol_matric    = 72 ! relative convergence tolerance for matric head (-)
-  integer(i4b)    :: absConvTol_matric    = 73 ! absolute convergence tolerance for matric head (m)
-  integer(i4b)    :: relConvTol_energy    = 74 ! relative convergence tolerance for energy (-)
-  integer(i4b)    :: absConvTol_energy    = 75 ! absolute convergence tolerance for energy (J m-3)
-  integer(i4b)    :: relConvTol_aquifr    = 76 ! relative convergence tolerance for aquifer storage (-)
-  integer(i4b)    :: absConvTol_aquifr    = 77 ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: zmin                 = 78 ! minimum layer depth (m)
-  integer(i4b)    :: zmax                 = 79 ! maximum layer depth (m)
+  integer(i4b)    :: minwind              = 64 ! minimum wind speed (m s-1)
+  integer(i4b)    :: minstep              = 65 ! minimum length of the time step
+  integer(i4b)    :: maxstep              = 66 ! maximum length of the time step
+  integer(i4b)    :: wimplicit            = 67 ! weight assigned to the start-of-step fluxes
+  integer(i4b)    :: maxiter              = 68 ! maximum number of iteration 
+  integer(i4b)    :: relConvTol_liquid    = 69 ! relative convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: absConvTol_liquid    = 70 ! absolute convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: relConvTol_matric    = 71 ! relative convergence tolerance for matric head (-)
+  integer(i4b)    :: absConvTol_matric    = 72 ! absolute convergence tolerance for matric head (m)
+  integer(i4b)    :: relConvTol_energy    = 73 ! relative convergence tolerance for energy (-)
+  integer(i4b)    :: absConvTol_energy    = 74 ! absolute convergence tolerance for energy (J m-3)
+  integer(i4b)    :: relConvTol_aquifr    = 75 ! relative convergence tolerance for aquifer storage (-)
+  integer(i4b)    :: absConvTol_aquifr    = 76 ! absolute convergence tolerance for aquifer storage (J m-3)
+  integer(i4b)    :: zmin                 = 77 ! minimum layer depth (m)
+  integer(i4b)    :: zmax                 = 78 ! maximum layer depth (m)
  endtype ilook_param
 
 
  ! ***********************************************************************************************************
- ! (4) define model variables
+ ! (5) define model variables
  ! ***********************************************************************************************************
  type, public :: iLook_mvar
   ! define timestep-average fluxes for a few key variables
@@ -245,23 +253,24 @@ MODULE var_lookup
   integer(i4b)    :: averageInstantRunoff         = 87  ! instantaneous runoff (m s-1)
   integer(i4b)    :: averageRoutedRunoff          = 88  ! routed runoff (m s-1)
   ! define derived variables
-  integer(i4b)    :: scalarExNeut                 = 89  ! exchange coefficient in neutral conditions
-  integer(i4b)    :: scalarBprime                 = 90  ! stable b parameter in Louis (1979) stability function
-  integer(i4b)    :: scalarCparam                 = 91  ! c parameter in Louis (1979) stability function
-  integer(i4b)    :: scalarVGn_m                  = 92  ! van Genuchten "m" parameter (-)
-  integer(i4b)    :: scalarKappa                  = 93  ! constant in the freezing curve function (m K-1)
-  integer(i4b)    :: scalarVolHtCap_air           = 94  ! volumetric heat capacity air         (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_ice           = 95  ! volumetric heat capacity ice         (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_soil          = 96  ! volumetric heat capacity dry soil    (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_water         = 97  ! volumetric heat capacity liquid wat  (J m-3 K-1)
-  integer(i4b)    :: scalarLambda_drysoil         = 98  ! thermal conductivity of dry soil     (W m-1)
-  integer(i4b)    :: scalarLambda_wetsoil         = 99  ! thermal conductivity of wet soil     (W m-1)
-  integer(i4b)    :: scalarVolLatHt_fus           = 100 ! volumetric latent heat of fusion     (J m-3)
-  integer(i4b)    :: scalarAquiferRootFrac        = 101 ! fraction of roots below the soil profile (-)
+  integer(i4b)    :: scalarLAI                    = 89  ! leaf area index (m2 m-2)
+  integer(i4b)    :: scalarExNeut                 = 90  ! exchange coefficient in neutral conditions
+  integer(i4b)    :: scalarBprime                 = 91  ! stable b parameter in Louis (1979) stability function
+  integer(i4b)    :: scalarCparam                 = 92  ! c parameter in Louis (1979) stability function
+  integer(i4b)    :: scalarVGn_m                  = 93  ! van Genuchten "m" parameter (-)
+  integer(i4b)    :: scalarKappa                  = 94  ! constant in the freezing curve function (m K-1)
+  integer(i4b)    :: scalarVolHtCap_air           = 95  ! volumetric heat capacity air         (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_ice           = 96  ! volumetric heat capacity ice         (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_soil          = 97  ! volumetric heat capacity dry soil    (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_water         = 98  ! volumetric heat capacity liquid wat  (J m-3 K-1)
+  integer(i4b)    :: scalarLambda_drysoil         = 99  ! thermal conductivity of dry soil     (W m-1)
+  integer(i4b)    :: scalarLambda_wetsoil         = 100  ! thermal conductivity of wet soil     (W m-1)
+  integer(i4b)    :: scalarVolLatHt_fus           = 101 ! volumetric latent heat of fusion     (J m-3)
+  integer(i4b)    :: scalarAquiferRootFrac        = 102 ! fraction of roots below the soil profile (-)
  endtype iLook_mvar
 
  ! ***********************************************************************************************************
- ! (5) define model indices
+ ! (6) define model indices
  ! ***********************************************************************************************************
  type, public :: iLook_index
   integer(i4b)    :: nSnow                 = 1  ! number of snow layers
@@ -283,6 +292,7 @@ MODULE var_lookup
                                                                         11,12,13,14)
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    ( 1, 2, 3, 4, 5)
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   ( 1, 2, 3, 4, 5, 6, 7, 8)
+ type(iLook_site),    public,parameter :: iLookSITE     =iLook_site    ( 1, 2, 3, 4)
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10,&
                                                                         11,12,13,14,15,16,17,18,19,20,&
                                                                         21,22,23,24,25,26,27,28,29,30,&
@@ -290,7 +300,7 @@ MODULE var_lookup
                                                                         41,42,43,44,45,46,47,48,49,50,&
                                                                         51,52,53,54,55,56,57,58,59,60,&
                                                                         61,62,63,64,65,66,67,68,69,70,&
-                                                                        71,72,73,74,75,76,77,78,79)
+                                                                        71,72,73,74,75,76,77,78)
  type(iLook_mvar),    public,parameter :: iLookMVAR     =ilook_mvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
@@ -301,14 +311,15 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101)
+                                                                        101,102)
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   ( 1, 2, 3, 4, 5, 6, 7, 8, 9,10)
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions= 14
  integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
- integer(i4b),parameter,public :: maxvarMpar     = 79
- integer(i4b),parameter,public :: maxvarMvar     = 101
+ integer(i4b),parameter,public :: maxvarSite     = 4
+ integer(i4b),parameter,public :: maxvarMpar     = 78
+ integer(i4b),parameter,public :: maxvarMvar     = 102
  integer(i4b),parameter,public :: maxvarIndx     = 10
  ! ***********************************************************************************************************
 END MODULE var_lookup

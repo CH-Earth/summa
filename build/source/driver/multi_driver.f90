@@ -26,10 +26,15 @@ USE derivforce_module,only:derivforce                       ! module to compute 
 USE modelwrite_module,only:writeParam,writeForce,writeModel ! module to write model output
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
 USE data_struc,only:forcFileInfo                            ! information on forcing data file
+USE data_struc,only:site_data                               ! site characteristix data structure
 USE data_struc,only:time_data,forc_data                     ! time and forcing data structures
-USE data_struc,only:mpar_meta,mpar_data,mpar_sets           ! model parameter information
+USE data_struc,only:mpar_data,mpar_sets                     ! model parameter information
+USE data_struc,only:mvar_data                               ! model variable data
 USE data_struc,only:indx_data,indx_meta                     ! index data structures
-USE var_lookup,only:iLookTIME,iLookINDEX,iLookFORCE         ! identifies element of the index and forcing structures
+USE var_lookup,only:iLookSITE                               ! look-up values for the site characteristix
+USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
+USE var_lookup,only:iLookMVAR                               ! look-up values for model variables
+USE var_lookup,only:iLookINDEX                              ! look-up values for index variables
 implicit none
 
 ! *****************************************************************************
@@ -39,6 +44,7 @@ integer(i4b)              :: iParSet=0                      ! loop through param
 integer(i4b)              :: nParSets=0                     ! number of parameter sets
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
+integer(i4b)              :: iMonth                         ! index of the current month
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
 character(len=32)         :: output_fileSuffix=''           ! suffix for the output file 
@@ -124,7 +130,7 @@ do iParSet=1,nParSets
 
 
  ! initialize time step length
- dt_init = 10._dp ! seconds
+ dt_init = 900._dp ! seconds
 
  ! initialize time step index
  jstep=1
@@ -147,17 +153,18 @@ do iParSet=1,nParSets
   ifcSoilStartIndex => indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1)
   ifcTotoStartIndex => indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1)
 
-  ! re-compute turbulent exchange coefficients for neutral conditions (the height of the surface may change)
-  call turbExchng(err,message); call handle_err(err,message)
-
-
   ! ***************************************************************************
-  ! (6) read/write forcing data
+  ! (6) read forcing data
   ! ***************************************************************************
   ! read a line of forcing data (if not already opened, open file, and get to the correct place)
   call read_force(istep,err,message); call handle_err(err,message)
   ! compute derived forcing variables
   call derivforce(err,message); call handle_err(err,message)
+  ! re-compute turbulent exchange coefficients for neutral conditions (the height of the surface may change)
+  call turbExchng(err,message); call handle_err(err,message)
+  ! extract the appropriate value for leaf area index
+  iMonth = time_data%var(iLookTIME%im)    ! index for the current month
+  mvar_data%var(iLookMVAR%scalarLAI)%dat(1) = site_data%var(iLookSITE%LAI_monthly)%dat(iMonth)
 
   ! *****************************************************************************
   ! (7) create a new NetCDF output file, and write parameters and forcing data

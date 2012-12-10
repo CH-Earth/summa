@@ -46,7 +46,7 @@ contains
  err=0; message='qOverland/'
 
  ! compute instantaneous runoff (m s-1)
- averageInstantRunoff = averageSurfaceRunoff + averageSoilEjection + averageAquiferBaseflow
+ averageInstantRunoff = averageSurfaceRunoff + averageSoilEjection + averageAquiferBaseflow + averageSoilBaseflow
  ! check errors
  if(averageSoilEjection < 0._dp)then
   message=trim(message)//'ejected water from the soil matrix is less than zero'

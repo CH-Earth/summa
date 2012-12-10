@@ -100,8 +100,8 @@ contains
    kerstenNum = log10( (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat ) + 1._dp
    ! ...and, compute the thermal conductivity
    mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._dp - kerstenNum)*lambda_drysoil
-   !print*, 'iLayer, mLayerVolFracLiq(iLayer), lambda_wet, lambda_drysoil, kerstenNum, mLayerThermalC(iLayer) = ', &
-   !         iLayer, mLayerVolFracLiq(iLayer), lambda_wet, lambda_drysoil, kerstenNum, mLayerThermalC(iLayer)
+   !if(iLayer==1) write(*,'(a)')    'iLayer, mLayerVolFracLiq(iLayer), lambda_wet, lambda_drysoil, kerstenNum, mLayerThermalC(iLayer) = '
+   !write(*,'(i4,1x,10(f20.9,1x))')  iLayer, mLayerVolFracLiq(iLayer), lambda_wet, lambda_drysoil, kerstenNum, mLayerThermalC(iLayer)
   endif
   ! compute the thermal conductivity of snow at the mid-point of each layer
   if(layerType(iLayer)==ix_snow)then
@@ -126,8 +126,10 @@ contains
   TCp => mLayerThermalC(iLayer+1)  ! thermal conductivity above the layer interface (W m-1 K-1)
   zdn =  iLayerHeight(iLayer)   - mLayerHeight(iLayer) ! height difference between interface and lower value (m)
   zdp =  mLayerHeight(iLayer+1) - iLayerHeight(iLayer) ! height difference between interface and upper value (m)
-  iLayerThermalC(iLayer) = (TCn*TCp*(zdn + zdp)) / (TCn*zdp + TCp*zdn)
+  !iLayerThermalC(iLayer) = (TCn*TCp*(zdn + zdp)) / (TCn*zdp + TCp*zdn)
+  iLayerThermalC(iLayer) = 0.1_dp
  end do
+ !pause ' computing thermal conductivity'
  ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
  iLayerThermalC(0)       = mLayerThermalC(1)
  iLayerThermalC(nLayers) = mLayerThermalC(nLayers)

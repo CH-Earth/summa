@@ -14,6 +14,7 @@ CHARACTER(LEN=fusePathLen)  :: OUTPUT_PATH='/d1/mclark/FUSE_SNOW/output/default/
 ! define name of control files    (and default values)
 CHARACTER(LEN=fusePathLen)  :: M_DECISIONS    ='snow_zDecisions.txt'      ! definition of model decisions
 CHARACTER(LEN=fusePathLen)  :: META_TIME      ='snow_zTimeMeta.txt'       ! metadata for time
+CHARACTER(LEN=fusePathLen)  :: META_SITE      ='snow_zSiteMeta.txt'       ! metadata for site characteristics
 CHARACTER(LEN=fusePathLen)  :: META_FORCE     ='snow_zForceMeta.txt'      ! metadata for model forcing variables
 CHARACTER(LEN=fusePathLen)  :: META_PARAM     ='snow_zParamMeta.txt'      ! metadata for model parameters
 CHARACTER(LEN=fusePathLen)  :: META_MVAR      ='snow_zModelVarMeta.txt'   ! metadata for model variables
@@ -42,7 +43,7 @@ character(*),intent(out)::message
 ! locals
 logical(lgt)::xist
 integer(i4b),parameter::unt=99 !DK: need to either define units globally, or use getSpareUnit
-character(*),parameter::fuseFileManagerHeader="SNOW_FILEMANAGER_V1.0"
+character(*),parameter::fuseFileManagerHeader="SNOW_FILEMANAGER_V1.1"
 character(LEN=100)::temp
 integer(i4b)::ierr ! temporary error code
 integer(i4b),parameter :: runinfo_fileunit=67 ! file unit for run time information
@@ -81,6 +82,7 @@ read(unt,*)OUTPUT_PATH    ; call checkLineRead(OUTPUT_PATH,    err,message); if(
 read(unt,'(a)')temp
 read(unt,*)M_DECISIONS    ; call checkLineRead(M_DECISIONS,    err,message); if(err/=0)return
 read(unt,*)META_TIME      ; call checkLineRead(META_TIME,      err,message); if(err/=0)return
+read(unt,*)META_SITE      ; call checkLineRead(META_SITE,      err,message); if(err/=0)return
 read(unt,*)META_FORCE     ; call checkLineRead(META_FORCE,     err,message); if(err/=0)return
 read(unt,*)META_PARAM     ; call checkLineRead(META_PARAM,     err,message); if(err/=0)return
 read(unt,*)META_MVAR      ; call checkLineRead(META_MVAR,      err,message); if(err/=0)return

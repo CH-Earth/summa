@@ -9,7 +9,7 @@
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = /d1/mclark/FUSE_SNOW/
+F_MASTER = /home/mclark/FUSE_SNOW/
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)build/source/
@@ -132,12 +132,12 @@ ifeq "$(FC)" "gfortran"
  INCNETCDF = -I/opt/netcdf-4.1.3/gcc-4.4.5/include
 endif
 ifeq "$(FC)" "ifort"
- HDF_PATH  = /usr/local/hdf5-1.8.7
- NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
- LOCL_PATH = /usr/local
- #HDF_PATH  = /opt/hdf5-1.8.7
- #NCDF_PATH = /opt/netcdf-4.1.3/ifort-12.0.5
- #LOCL_PATH = /opt
+ #HDF_PATH  = /usr/local/hdf5-1.8.7
+ #NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
+ #LOCL_PATH = /usr/local
+ HDF_PATH  = /opt/hdf5-1.8.7
+ NCDF_PATH = /opt/netcdf-4.1.3/ifort-12.0.5
+ LOCL_PATH = /opt
  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(HDF_PATH)/lib -lhdf5_hl -lhdf5 -L$(LOCL_PATH)/lib -lsz -lz
  INCNETCDF = -I$(NCDF_PATH)/include -I/$(HDF_PATH)/include
 endif

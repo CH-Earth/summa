@@ -3,7 +3,13 @@ module get_ixname_module
 USE nrtype                                          ! variable types, etc.
 implicit none
 private
-public::get_ixdecisions,get_ixtime,get_ixforce,get_ixparam,get_ixmvar,get_ixindex
+public::get_ixdecisions
+public::get_ixTime
+public::get_ixSite
+public::get_ixForce
+public::get_ixParam
+public::get_ixMvar
+public::get_ixIndex
 contains
 
  ! *******************************************************************************************************************
@@ -94,6 +100,30 @@ contains
 
 
  ! *******************************************************************************************************************
+ ! new function: get the index of the named variables for the site characteristics
+ ! *******************************************************************************************************************
+ function get_ixSite(varName)
+ USE var_lookup,only:iLookSITE                       ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! variable name
+ integer(i4b)             :: get_ixSite              ! index of the named variable
+ ! define local variables
+ integer(i4b), parameter  :: imiss = -999            ! missing value
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('latitude'   ); get_ixSite = iLookSITE%latitude       ! latitude    (degrees north)
+  case('longitude'  ); get_ixSite = iLookSITE%longitude      ! longitude   (degrees east)
+  case('elevation'  ); get_ixSite = iLookSITE%elevation      ! elevation   (m)
+  case('LAI_monthly'); get_ixSite = iLookSITE%LAI_monthly    ! monthly values of the leaf area index (m2 m-2)
+  ! get to here if cannot find the variable
+  case default
+   get_ixSite = imiss
+ endselect
+ end function get_ixSite
+
+
+ ! *******************************************************************************************************************
  ! new function: get the index of the named variables for the model parameters
  ! *******************************************************************************************************************
  function get_ixparam(varName)
@@ -153,7 +183,6 @@ contains
   ! vegetation properties
   case('rootingDepth'        ); get_ixparam = iLookPARAM%rootingDepth         ! rooting depth (m)
   case('rootDistExp'         ); get_ixparam = iLookPARAM%rootDistExp          ! exponent for the vertical distriution of root density (-)
-  case('LAI'                 ); get_ixparam = iLookPARAM%LAI                  ! leaf area index (m2 m-2)
   case('minStomatalResist'   ); get_ixparam = iLookPARAM%minStomatalResist    ! minimum stomatal resistance (s m-1)
   case('maxStomatalResist'   ); get_ixparam = iLookPARAM%maxStomatalResist    ! maximum stomatal resistance (s m-1)
   case('plantWiltPsi'        ); get_ixparam = iLookPARAM%plantWiltPsi         ! critical matric head when stomatal resitance 2 x min (m)
@@ -313,6 +342,7 @@ contains
   case('averageInstantRunoff'        ); get_ixmvar = iLookMVAR%averageInstantRunoff        ! instantaneous runoff (m s-1)
   case('averageRoutedRunoff'         ); get_ixmvar = iLookMVAR%averageRoutedRunoff         ! routed runoff (m s-1)
   ! "short-cut" variables
+  case('scalarLAI'                   ); get_ixmvar = iLookMVAR%scalarLAI                   ! leaf area index (m2 m-2)
   case('scalarExNeut'                ); get_ixmvar = iLookMVAR%scalarExNeut                ! exchange coefficient in neutral conditions (-)
   case('scalarBprime'                ); get_ixmvar = iLookMVAR%scalarBprime                ! stable b parameter in Louis (1979) stability function (-)
   case('scalarCparam'                ); get_ixmvar = iLookMVAR%scalarCparam                ! c parameter in Louis (1979) stability function 

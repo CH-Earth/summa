@@ -136,7 +136,7 @@ contains
                         mpar_data%var(iLookPARAM%theta_sat),                       & ! intent(in): soil porosity (-)
                         mpar_data%var(iLookPARAM%theta_res),                       & ! intent(in): soil residual volumetric water content (-)
                         ! vegetation parameters
-                        mpar_data%var(iLookPARAM%LAI),                             & ! intent(in): leaf area index (m2 m-2)
+                        mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                 & ! intent(in): leaf area index (m2 m-2)
                         mpar_data%var(iLookPARAM%minStomatalResist),               & ! intent(in): minimum stomatal resistance (s m-1)
                         mpar_data%var(iLookPARAM%maxStomatalResist),               & ! intent(in): maximum stomatal resistance (s m-1)
                         mpar_data%var(iLookPARAM%plantWiltPsi),                    & ! intent(in): critical matric head when stomatal resitance 2 x min (m)
@@ -579,6 +579,8 @@ contains
              mLayerTempDiff,          & ! intent(out): temperature increment (K)
              err,cmessage)              ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ !write(*,'(a,1x,10(f15.8,1x))') 'mLayerTempDiff = ', mLayerTempDiff
+ !pause 'after solve'
 
  ! check for oscillations (borrowed from the SHAW model)
  !if(iter > 10)then
@@ -684,7 +686,7 @@ contains
               iLayerHeight,            & ! intent(in): height of layer interfaces (m)
               ! (diagnostic variables)
               iLayerThermalC,          & ! intent(in): thermal conductivity at layer interfaces (W m-1)
-              mLayerVolHtCapBulk,      & ! intent(in): volumetric heat capacity in each layer (J m-3)
+              mLayerVolHtCapBulk,      & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1)
               iLayerInitNrgFlux,       & ! intent(in): energy flux at layer interfaces at the start of the step (W m-2)
               ! (state variables at start of step)
               scalarAlbedo,            & ! intent(in): surface albedo (-)
@@ -935,6 +937,9 @@ contains
   ! compute the surface energy flux -- positive downwards
   if(itry==1) totalSurfaceFlux    = sw_down*(1._dp - scalarAlbedo) + lw_down - Em_Sno*sigma*surfaceTempTrial**4._dp + scalarSenHeat + scalarLatHeat
   if(itry==2) totalSurfaceFlux_dx = sw_down*(1._dp - scalarAlbedo) + lw_down - Em_Sno*sigma*surfaceTempTrial**4._dp + scalarSenHeat + scalarLatHeat
+  !print*, 'sw_down*(1._dp - scalarAlbedo), lw_down - Em_Sno*sigma*surfaceTempTrial**4._dp, scalarSenHeat, scalarLatHeat = '
+  !print*,  sw_down*(1._dp - scalarAlbedo), lw_down - Em_Sno*sigma*surfaceTempTrial**4._dp, scalarSenHeat, scalarLatHeat
+  !print*, 'totalSurfaceFlux = ', totalSurfaceFlux
 
  end do  ! computing surface flux for the base and perturbed case
 
@@ -1016,10 +1021,9 @@ contains
                                                                                 (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
   endif ! (the type of layer)
   ! print progress
-  !if(iLayer < 10) write(*,'(a,1x,i4,1x,10(f10.5,1x))') trim(message)//'iLayer, iLayerThermalC(iLayer), iLayerNrgFlux(iLayer) = ', &
-  !                                                                     iLayer, iLayerThermalC(iLayer), iLayerNrgFlux(iLayer)
+  !if(iLayer < 10) write(*,'(a,1x,i4,1x,10(f10.5,1x))') trim(message)//'iLayer, iLayerThermalC(iLayer), iLayerNrgFlux(iLayer), mLayerTempTrial(iLayer:iLayer+1) = ', &
+  !                                                                     iLayer, iLayerThermalC(iLayer), iLayerNrgFlux(iLayer), mLayerTempTrial(iLayer:iLayer+1)
  end do
-
  ! -------------------------------------------------------------------------------------------------------------------------
  ! ***** compute the derivative in fluxes at layer interfaces w.r.t temperature in the layer above and the layer below *****
  ! -------------------------------------------------------------------------------------------------------------------------

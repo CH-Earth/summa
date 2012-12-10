@@ -1505,77 +1505,79 @@ contains
    ! using the pseudo water table for the groundwater parameterization...
    ! ====================================================================
    case(pseudoWaterTable)
+    scalarAquiferRecharge      = iLayerLiqFluxSoil(nUnsat)   ! recharge = drainage flux from the bottom of the soil profile (m s-1)
+    scalarAquiferRechargeDeriv = 0._dp                       ! recharge does not depend on aquifer storage
 
-    ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
-    do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
- 
-     ! * perturb state variables
-     select case(itry)  ! (identify the type of perturbation)
-      ! (skip undesired perturbations)
-      case(perturbStateAbove); cycle  ! (only perturb recharge flux w.r.t. water table depth)
-      case(perturbState); cycle       ! (only perturb recharge flux w.r.t. water table depth)
-      ! (perturb away, baby)
-      case(unperturbed);       scalarWaterTableDepthTrial = scalarWaterTableDepth       ! un-perturbed case
-      case(perturbStateBelow); scalarWaterTableDepthTrial = scalarWaterTableDepth + dx  ! perturb aquifer (one-sided finite differences)
-      case default; err=10; message=trim(message)//"unknown perturbation"; return
-     end select ! (type of perturbation)
- 
-     ! * retrieve the matric head of the lowest unsaturated node
-     select case(ixRichards)
-      case(moisture); scalarMatricHeadTrial = matricHead(mLayerVolFracLiqTrial(nUnsat),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      case(mixdform); scalarMatricHeadTrial = mLayerMatricHeadTrial(nUnsat) 
-     end select
-     !print*, 'mLayerVolFracLiqTrial(nUnsat) = ', mLayerVolFracLiqTrial(nUnsat)
-     
-     ! * compute the recharge to the aquifer (m s-1) and its derivative w.r.t. water table depth (s-1)
-     call rechargeWT(&
-                     ! input: model control
-                     desireAnal,                & ! intent(in): flag indicating if derivatives are desired
-                     hc_profile,                & ! intent(in): index defining the decrease of hydraulic conductivity with depth
-                     ! input: state variables
-                     scalarMatricHeadTrial,     & ! intent(in): matric head in the lowest unsaturated node (m)
-                     scalarWaterTableDepthTrial,& ! intent(in): depth to the water table (m)
-                     ! input: diagnostic variables and parameters
-                     mLayerHeight(nUnsat),      & ! intent(in): height of the lowest unsaturated soil node (m)
-                     mLayerHydCond(nUnsat),     & ! intent(in): hydraulic conductivity at the node itself (m s-1)
-                     iLayerSatHydCond(0),       & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                     zScale_TOPMODEL,           & ! intent(in): TOPMODEL scaling factor (m)
-                     ! output: recharge flux and its derivative w.r.t. aquifer storage
-                     scalarAquiferRecharge,     & ! intent(out): recharge flux (m s-1)
-                     dq_dWaterTable,            & ! intent(out): change in recharge flux w.r.t. change in the water table depth (s-1)
-                     ! output: error control
-                     err,cmessage)                ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     if(deriv_desired)then
-      !write(*,'(a,3(i4,1x),e20.10)') 'itry, unperturbed, perturbStateBelow, scalarAquiferRecharge = ',&
-      !                                itry, unperturbed, perturbStateBelow, scalarAquiferRecharge
-     endif 
-
-     ! * get copies of recharge flux to compute derivatives
-     if(deriv_desired .and. ixDerivMethod==numerical)then
-      select case(itry)
-       case(unperturbed);       scalarFlux             = scalarAquiferRecharge
-       case(perturbStateBelow); scalarFlux_dStateBelow = scalarAquiferRecharge
-       case(perturbStateAbove,perturbState); err=10; message=trim(message)//'only perturb water table depth when computing recharge flux -- should not get here'; return
-       case default; err=10; message=trim(message)//'unknown perturbation'; return
-      end select
-     endif
- 
-    end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
- 
-    ! compute derivatives
-    ! NOTE: recharge derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
-    if(deriv_desired)then
-     select case(ixDerivMethod)
-      case(numerical);  scalarAquiferRechargeDeriv = -(scalarFlux_dStateBelow - scalarFlux)/dx/specificYield ! change in drainage flux w.r.t. change in the aquifer storage (s-1)
-      case(analytical); scalarAquiferRechargeDeriv = -dq_dWaterTable/specificYield
-      case default; err=10; message=trim(message)//'unknown numerical method'; return
-     end select
-     !write(*,'(a,e20.10)') 'dq_dWaterTable = ', dq_dWaterTable
-     !write(*,'(a,e20.10)') 'scalarAquiferRechargeDeriv*specificYield = ', scalarAquiferRechargeDeriv*specificYield
-    else
-     scalarAquiferRechargeDeriv = valueMissing
-    endif
+!    ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
+!    do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
+! 
+!     ! * perturb state variables
+!     select case(itry)  ! (identify the type of perturbation)
+!      ! (skip undesired perturbations)
+!      case(perturbStateAbove); cycle  ! (only perturb recharge flux w.r.t. water table depth)
+!      case(perturbState); cycle       ! (only perturb recharge flux w.r.t. water table depth)
+!      ! (perturb away, baby)
+!      case(unperturbed);       scalarWaterTableDepthTrial = scalarWaterTableDepth       ! un-perturbed case
+!      case(perturbStateBelow); scalarWaterTableDepthTrial = scalarWaterTableDepth + dx  ! perturb aquifer (one-sided finite differences)
+!      case default; err=10; message=trim(message)//"unknown perturbation"; return
+!     end select ! (type of perturbation)
+! 
+!     ! * retrieve the matric head of the lowest unsaturated node
+!     select case(ixRichards)
+!      case(moisture); scalarMatricHeadTrial = matricHead(mLayerVolFracLiqTrial(nUnsat),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+!      case(mixdform); scalarMatricHeadTrial = mLayerMatricHeadTrial(nUnsat) 
+!     end select
+!     !print*, 'mLayerVolFracLiqTrial(nUnsat) = ', mLayerVolFracLiqTrial(nUnsat)
+!     
+!     ! * compute the recharge to the aquifer (m s-1) and its derivative w.r.t. water table depth (s-1)
+!     call rechargeWT(&
+!                     ! input: model control
+!                     desireAnal,                & ! intent(in): flag indicating if derivatives are desired
+!                     hc_profile,                & ! intent(in): index defining the decrease of hydraulic conductivity with depth
+!                     ! input: state variables
+!                     scalarMatricHeadTrial,     & ! intent(in): matric head in the lowest unsaturated node (m)
+!                     scalarWaterTableDepthTrial,& ! intent(in): depth to the water table (m)
+!                     ! input: diagnostic variables and parameters
+!                     mLayerHeight(nUnsat),      & ! intent(in): height of the lowest unsaturated soil node (m)
+!                     mLayerHydCond(nUnsat),     & ! intent(in): hydraulic conductivity at the node itself (m s-1)
+!                     iLayerSatHydCond(0),       & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
+!                     zScale_TOPMODEL,           & ! intent(in): TOPMODEL scaling factor (m)
+!                     ! output: recharge flux and its derivative w.r.t. aquifer storage
+!                     scalarAquiferRecharge,     & ! intent(out): recharge flux (m s-1)
+!                     dq_dWaterTable,            & ! intent(out): change in recharge flux w.r.t. change in the water table depth (s-1)
+!                     ! output: error control
+!                     err,cmessage)                ! intent(out): error control
+!     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+!     if(deriv_desired)then
+!      !write(*,'(a,3(i4,1x),e20.10)') 'itry, unperturbed, perturbStateBelow, scalarAquiferRecharge = ',&
+!      !                                itry, unperturbed, perturbStateBelow, scalarAquiferRecharge
+!     endif 
+!
+!     ! * get copies of recharge flux to compute derivatives
+!     if(deriv_desired .and. ixDerivMethod==numerical)then
+!      select case(itry)
+!       case(unperturbed);       scalarFlux             = scalarAquiferRecharge
+!       case(perturbStateBelow); scalarFlux_dStateBelow = scalarAquiferRecharge
+!       case(perturbStateAbove,perturbState); err=10; message=trim(message)//'only perturb water table depth when computing recharge flux -- should not get here'; return
+!       case default; err=10; message=trim(message)//'unknown perturbation'; return
+!      end select
+!     endif
+! 
+!    end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
+! 
+!    ! compute derivatives
+!    ! NOTE: recharge derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
+!    if(deriv_desired)then
+!     select case(ixDerivMethod)
+!      case(numerical);  scalarAquiferRechargeDeriv = -(scalarFlux_dStateBelow - scalarFlux)/dx/specificYield ! change in drainage flux w.r.t. change in the aquifer storage (s-1)
+!      case(analytical); scalarAquiferRechargeDeriv = -dq_dWaterTable/specificYield
+!      case default; err=10; message=trim(message)//'unknown numerical method'; return
+!     end select
+!     !write(*,'(a,e20.10)') 'dq_dWaterTable = ', dq_dWaterTable
+!     !write(*,'(a,e20.10)') 'scalarAquiferRechargeDeriv*specificYield = ', scalarAquiferRechargeDeriv*specificYield
+!    else
+!     scalarAquiferRechargeDeriv = valueMissing
+!    endif
 
    ! =====
    ! using the big bucket...
@@ -2595,9 +2597,9 @@ contains
 
  ! compute the total flux
  scalarRecharge = cflux + iHydCond
- !write(*,'(a,10(e20.10,1x))') 'scalarWaterTableDepth, hc_depth, nodeHydCond, iHydCond, cflux, scalarRecharge = ',&
- !                              scalarWaterTableDepth, hc_depth, nodeHydCond, iHydCond, cflux, scalarRecharge
- !pause
+ write(*,'(a,10(e20.10,1x))') 'scalarWaterTableDepth, hc_depth, nodeHydCond, iHydCond, cflux, scalarRecharge = ',&
+                               scalarWaterTableDepth, hc_depth, nodeHydCond, iHydCond, cflux, scalarRecharge
+ pause
 
  ! ** compute change in recharge flux w.r.t. change in the aquifer storage
  if(deriv_desired)then
@@ -2817,13 +2819,13 @@ contains
   case(freeDrainage)
 
    ! compute flux
-   scalarDrainage = nodeHydCond
+   scalarDrainage = nodeHydCond*kAnisotropic
 
    ! compute derivatives
    if(deriv_desired)then
     select case(ixRichards)  ! (form of Richards' equation)
-     case(moisture); dq_dStateUnsat = dHydCond_dVolLiq
-     case(mixdform); dq_dStateUnsat = dHydCond_dMatric
+     case(moisture); dq_dStateUnsat = dHydCond_dVolLiq*kAnisotropic
+     case(mixdform); dq_dStateUnsat = dHydCond_dMatric*kAnisotropic
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
     ! no dependency on aquifer storage
@@ -2835,7 +2837,7 @@ contains
 
 
   ! ---------------------------------------------------------------------------------------------
-  ! * free drainage
+  ! * zero flux
   ! ---------------------------------------------------------------------------------------------
   case(zeroFlux)
    scalarDrainage = 0._dp
@@ -2877,7 +2879,7 @@ contains
  implicit none
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! input
- logical(lgt),intent(in)   :: deriv_desired              ! flag to indicate if derivatives are desired
+ logical(lgt),intent(in)   :: deriv_desired           ! flag to indicate if derivatives are desired
  real(dp),intent(in)       :: scalarWaterTableDepth   ! trial value of water table depth (m)
  real(dp),intent(in)       :: k_surf                  ! saturated hydraulic conductivity at the surface (m s-1) 
  real(dp),intent(in)       :: kAnisotropic            ! anisotropy factor for lateral hydraulic conductivity (-)
