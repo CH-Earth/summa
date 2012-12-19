@@ -15,7 +15,7 @@ bcUpprTdyn   nrg_flux  ! ( 6) type of upper boundary condition for thermodynamic
 bcLowrTdyn   zeroFlux  ! ( 7) type of lower boundary condition for thermodynamics
 bcUpprSoiH   liq_flux  ! ( 8) type of upper boundary condition for soil hydrology
 bcLowrSoiH   drainage  ! ( 9) type of lower boundary condition for soil hydrology
-astability   louisinv  ! (10) choice of stability function
+astability   mahrtexp  ! (10) choice of stability function
 alb_method   fsnowage  ! (11) choice of albedo representation
 compaction   anderson  ! (12) choice of compaction routine
 thermlcond   jrdn1991  ! (13) choice of thermal conductivity representation
