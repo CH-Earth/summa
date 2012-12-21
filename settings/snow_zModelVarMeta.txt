@@ -40,6 +40,25 @@ averageAquiferBaseflow         | baseflow from the aquifer                      
 ! ***************************************************************************************************************************
 ! scalar variables
 ! ***************************************************************************************************************************
+scalarSwDownVis                | downwelling shortwave radiation in visible part of spectrum       | W m-2      | scalarv | F
+scalarSwDownNir                | downwelling shortwave radiation in near-infrared part of spectrum | W m-2      | scalarv | F
+scalarAlbedoVis                | 
+
+
+= soilAlbedoVis
+  surfaceAlbedoNir = soilAlbedoNir
+  surfaceAlbedo    = Frad_vis*(soilAlbedoVis) + (1._dp - Frad_vis)*soilAlbedoNir
+ endif
+ ! compute radiation in the visible and near-infra-red part of the spectrum
+ swradVis = Frad_vis*sw_down
+ swradNir = (1._dp - Frad_vis)*sw_down
+ ! compute the radiation absorbed at the ground surface
+ swradAbsGroundVis = swradVis*(1._dp - surfaceAlbedoVis)
+ swradAbsGroundNir = swradNir*(1._dp - surfaceAlbedoNir)
+ swradAbsGround    = swradAbsGroundVis + swradAbsGroundNir
+
+
+
 scalarTwetbulb                 | wet bulb temperature                                              | K          | scalarv | F
 scalarRainfall                 | computed rainfall rate                                            | kg m-2 s-1 | scalarv | F
 scalarSnowfall                 | computed snowfall rate                                            | kg m-2 s-1 | scalarv | F

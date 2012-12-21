@@ -47,10 +47,10 @@ alb_decay            | temporal decay factor for snow albedo                    
 alb_scale            | albedo scaling factor                                             | s          | scalarv | F
 soot_load            | albedo decay associated with soot load                            | -          | scalarv | F
 ! *****************************************************************************************************************
-! radiation transfer within snow
+! radiation transfer
 ! *****************************************************************************************************************
-rad_ext              | extinction coefficient for radiation penetration                  | m-1        | scalarv | F
-Fabs_vis             | fraction radiation absorbed in visible part of spectrum           | -          | scalarv | F
+radExt_snow          | extinction coefficient for radiation penetration into snowpack    | m-1        | scalarv | F
+Frad_vis             | fraction radiation in visible part of spectrum                    | -          | scalarv | F
 ! *****************************************************************************************************************
 ! new snow density
 ! *****************************************************************************************************************

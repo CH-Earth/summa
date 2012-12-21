@@ -18,7 +18,7 @@ bcLowrSoiH   drainage  ! ( 9) type of lower boundary condition for soil hydrolog
 astability   mahrtexp  ! (10) choice of stability function
 alb_method   fsnowage  ! (11) choice of albedo representation
 compaction   anderson  ! (12) choice of compaction routine
-thermlcond   jrdn1991  ! (13) choice of thermal conductivity representation
+thermlcond   melr1977  ! (13) choice of thermal conductivity representation
 subRouting   timeDlay  ! (14) choice of method for sub-grid routing
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
