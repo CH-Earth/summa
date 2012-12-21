@@ -174,18 +174,19 @@ contains
   ! ("standard" stability correction, a la Anderson 1976)
   case(standard)
    ! compute surface-atmosphere exchange coefficient (-)   
-   if(RiBulk<=0.2_dp) ExCoef = ExNeut * (1._dp - 5._dp*RiBulk)**2._dp
-   if(RiBulk> 0.2_dp) ExCoef = 0._dp
+   if(RiBulk < 0.2_dp) ExCoef = ExNeut * (1._dp - 5._dp*RiBulk)**2._dp
+   if(RiBulk > 0.2_dp) ExCoef = epsilon(ExCoef)
    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
    if(computeDerivative)then
-    if(RiBulk<=0.2_dp) dExCoef_dTemp = dRiBulk_dTemp * (-5._dp) * 2._dp*(1._dp - 5._dp*RiBulk) * ExNeut 
-    if(RiBulk> 0.2_dp) dExCoef_dTemp = 0._dp
+    if(RiBulk < 0.2_dp) dExCoef_dTemp = dRiBulk_dTemp * (-5._dp) * 2._dp*(1._dp - 5._dp*RiBulk) * ExNeut 
+    if(RiBulk > 0.2_dp) dExCoef_dTemp = 0._dp
    endif
 
   ! (Louis 1979)
   case(louisInversePower)
    ! compute surface-atmosphere exchange coefficient (-)
    ExCoef = ExNeut / ( (1._dp + bprime*RiBulk)**2._dp )
+   if(ExCoef < epsilon(ExCoef)) ExCoef = epsilon(ExCoef)
    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
    if(computeDerivative)&
     dExCoef_dTemp = dRiBulk_dTemp * bprime * (-2._dp)*(1._dp + bprime*RiBulk)**(-3._dp) * ExNeut
@@ -194,6 +195,7 @@ contains
   case(mahrtExponential)
    ! compute surface-atmosphere exchange coefficient (-)
    ExCoef = ExNeut * exp(-Mahrt_m * RiBulk)
+   if(ExCoef < epsilon(ExCoef)) ExCoef = epsilon(ExCoef)
    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
    if(computeDerivative)&
     dExCoef_dTemp = dRiBulk_dTemp * (-Mahrt_m) * exp(-Mahrt_m * RiBulk) * ExNeut

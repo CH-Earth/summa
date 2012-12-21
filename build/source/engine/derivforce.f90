@@ -21,6 +21,7 @@ contains
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
  ! local pointers to model parameters
+ real(dp),pointer              :: Fabs_vis                  ! fraction radiation absorbed in visible part of spectrum (-)
  real(dp),pointer              :: minwind                   ! minimum windspeed (m s-1)
  real(dp),pointer              :: fc_param                  ! freeezing curve parameter for snow (K-1)
  real(dp),pointer              :: tempCritRain              ! critical temperature where precipitation is rain (K)
@@ -34,6 +35,8 @@ contains
  real(dp),pointer              :: spechum                   ! specific humidity at 2 meter height (g g-1)
  real(dp),pointer              :: pptrate                   ! precipitation rate (kg m-2 s-1)
  ! local pointers to model variables
+ real(dp),pointer              :: swDownVis                 ! downwelling shortwave raadiation in the visible part of the spectrum (W m-2
+ real(dp),pointer              :: swDownNir                 ! downwelling shortwave raadiation in the near-infrared part of the spectrum (W m-2)
  real(dp),pointer              :: twetbulb                  ! wet bulb temperature (K)
  real(dp),pointer              :: rainfall                  ! computed rainfall rate (kg m-2 s-1)
  real(dp),pointer              :: snowfall                  ! computed snowfall rate (kg m-2 s-1)
@@ -48,6 +51,7 @@ contains
  ! initialize error control
  err=0; message="f-derivforce/"
  ! assign pointers to model parameters
+ Fabs_vis          => mpar_data%var(iLookPARAM%Fabs_vis)            ! fraction radiation absorbed in visible part of spectrum (-)
  minwind           => mpar_data%var(iLookPARAM%minwind)             ! minimum windspeed (m s-1)
  fc_param          => mpar_data%var(iLookPARAM%snowfrz_scale)       ! freezing curve parameter for snow (K-1)
  tempCritRain      => mpar_data%var(iLookPARAM%tempCritRain)        ! critical temperature where precipitation is rain (K)
@@ -61,12 +65,17 @@ contains
  spechum  => forc_data%var(iLookFORCE%spechum)                      ! specific humidity at 2 meter height (g g-1)
  pptrate  => forc_data%var(iLookFORCE%pptrate)                      ! precipitation rate (kg m-2 s-1)
  ! assign pointers to model variables
+ swDownVis    => mvar_data%var(iLookMVAR%scalarSwDownVis)%dat(1)    ! downwelling shortwave raadiation in the visible part of the spectrum (W m-2)
+ swDownNir    => mvar_data%var(iLookMVAR%scalarSwDownNir)%dat(1)    ! downwelling shortwave raadiation in the near-infrared part of the spectrum (W m-2)
  twetbulb     => mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1)     ! wet bulb temperature (K)
  rainfall     => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)     ! computed rainfall rate (kg m-2 s-1)
  snowfall     => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)     ! computed snowfall rate (kg m-2 s-1)
  snowfallTemp => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1) ! computed temperature of fresh snow (K)
+ ! compute shortwave radiation in the visible and near-infra-red part of the spectrum
+ swDownVis = Fabs_vis*sw_down
+ swDownNir = sw_down - swDownVis
  ! ensure wind speed is above a prescribed minimum value
- if(windspd<minwind) windspd=minwind
+ if(windspd < minwind) windspd=minwind
  ! compute relative humidity (-)
  relhum   = SPHM2RELHM(spechum, airpres, airtemp)
  ! if relative humidity exceeds saturation, then set relative and specific humidity to saturation

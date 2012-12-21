@@ -156,9 +156,9 @@ contains
   case('alb_decay'           ); get_ixparam = iLookPARAM%alb_decay            ! temporal decay factor for snow albedo (s-1)
   case('alb_scale'           ); get_ixparam = iLookPARAM%alb_scale            ! albedo scaling factor (s)
   case('soot_load'           ); get_ixparam = iLookPARAM%soot_load            ! temporal decay in snow albedo associated with the soot load (days-1)
-  ! radiation transfer within snow
-  case('rad_ext'             ); get_ixparam = iLookPARAM%rad_ext              ! extinction coefficient for radiation penetration (m-1)
-  case('Fabs_vis'            ); get_ixparam = iLookPARAM%Fabs_vis             ! fraction of absorbed radiation in the visible part of the spectrum (-)
+  ! radiation transfer
+  case('radExt_snow'         ); get_ixparam = iLookPARAM%radExt_snow          ! extinction coefficient for radiation penetration within the snowpack (m-1)
+  case('Frad_vis'            ); get_ixparam = iLookPARAM%Frad_vis             ! fraction of radiation in the visible part of the spectrum (-)
   ! new snow density
   case('newSnowDenMin'       ); get_ixparam = iLookPARAM%newSnowDenMin        ! minimum new snow density (kg m-3)
   case('newSnowDenMult'      ); get_ixparam = iLookPARAM%newSnowDenMult       ! multiplier for new snow density (kg m-3)
@@ -259,6 +259,8 @@ contains
   case('averageAquiferRecharge'      ); get_ixmvar = iLookMVAR%averageAquiferRecharge      ! recharge to the aquifer (m s-1)
   case('averageAquiferBaseflow'      ); get_ixmvar = iLookMVAR%averageAquiferBaseflow      ! baseflow from the aquifer (m s-1)
   ! scalar variables
+  case('scalarSwDownVis'             ); get_ixmvar = iLookMVAR%scalarSwDownVis             ! downwelling shortwave radiation in visible part of spectrum (W m-2)
+  case('scalarSwDownNir'             ); get_ixmvar = iLookMVAR%scalarSwDownNir             ! downwelling shortwave radiation in near-infrared part of spectrum (W m-2)
   case('scalarTwetbulb'              ); get_ixmvar = iLookMVAR%scalarTwetbulb              ! wetbulb temperature (K)
   case('scalarRainfall'              ); get_ixmvar = iLookMVAR%scalarRainfall              ! computed rainfall rate (kg m-2 s-1)
   case('scalarSnowfall'              ); get_ixmvar = iLookMVAR%scalarSnowfall              ! computed snowfall rate (kg m-2 s-1)

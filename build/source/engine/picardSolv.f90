@@ -378,6 +378,13 @@ contains
  checkCalcs = 1._dp - ( min(iLayerHeight(nSnow+nLevels),rootingDepth) / rootingDepth)**rootDistExp
  if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then; err=20; message=trim(message)//'problem with the aquifer root density calculations'; return; endif
 
+ ! compute the radiation absorbtion by the vegetation and the ground
+ call radTransfr(dt,&          ! input: time step (seconds)
+                 err,cmessage) ! output: error control
+ if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+
+
+
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then
   call surfAlbedo(dt,&          ! input: time step (seconds)
@@ -386,6 +393,14 @@ contains
  else
   surfaceAlbedo = soilAlbedo
  endif
+
+ ! compute the radiation absorbed by the vegetation
+
+ ! compute the radiation absorbed by the ground
+ 
+
+
+
 
  ! compute diagnostic energy variables (thermal conductivity and volumetric heat capacity)
  ! (constant over the iterations)
