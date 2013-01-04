@@ -5,12 +5,16 @@ program multi_driver
 ! *****************************************************************************
 USE nrtype                                                  ! variable types, etc.
 USE snow_fileManager,only:fuse_SetDirsUndPhiles             ! sets directories and filenames
+USE snow_fileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
 USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
+USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
+use module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
 USE read_metad_module,only:read_metad                       ! module to populate metadata structures
 USE def_output_module,only:def_output                       ! module to define model output
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
+USE read_attrb_module,only:read_attrb                       ! module to read local attributes
 USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
 USE read_icond_module,only:read_icond                       ! module to read initial conditions
 USE read_param_module,only:read_param                       ! module to read model parameter sets
@@ -23,35 +27,39 @@ USE var_derive_module,only:satHydCond                       ! module to calculat
 USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
 USE read_force_module,only:read_force                       ! module to read model forcing data
 USE derivforce_module,only:derivforce                       ! module to compute derived forcing data
+USE modelwrite_module,only:writeAttrb                       ! module to write model attributes
 USE modelwrite_module,only:writeParam,writeForce,writeModel ! module to write model output
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
 USE data_struc,only:forcFileInfo                            ! information on forcing data file
-USE data_struc,only:site_data                               ! site characteristix data structure
 USE data_struc,only:time_data,forc_data                     ! time and forcing data structures
+USE data_struc,only:type_data                               ! classification of veg, soils etc.
 USE data_struc,only:mpar_data,mpar_sets                     ! model parameter information
 USE data_struc,only:mvar_data                               ! model variable data
 USE data_struc,only:indx_data,indx_meta                     ! index data structures
-USE var_lookup,only:iLookSITE                               ! look-up values for the site characteristix
+USE data_struc,only:model_decisions                         ! model decisions
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
+USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookMVAR                               ! look-up values for model variables
 USE var_lookup,only:iLookINDEX                              ! look-up values for index variables
+USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 implicit none
 
 ! *****************************************************************************
 ! (0) variable definitions
 ! *****************************************************************************
+! define counters
 integer(i4b)              :: iParSet=0                      ! loop through parameter sets
 integer(i4b)              :: nParSets=0                     ! number of parameter sets
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
 integer(i4b)              :: iMonth                         ! index of the current month
+! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
 character(len=32)         :: output_fileSuffix=''           ! suffix for the output file 
 character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
-integer(i4b)              :: err=0                          ! error code
-character(len=512)        :: message=''                     ! error message
+! define pointers for model indices
 integer(i4b),pointer      :: nSnow=>null()                  ! number of snow layers
 integer(i4b),pointer      :: nSoil=>null()                  ! number of soil layers
 integer(i4b),pointer      :: nLayers=>null()                ! total number of layers
@@ -62,6 +70,12 @@ integer(i4b),pointer      :: ifcSnowStartIndex=>null()      ! start index of the
 integer(i4b),pointer      :: ifcSoilStartIndex=>null()      ! start index of the ifcSoil vector for a given timestep
 integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the ifcToto vector for a given timestep
 real(dp)                  :: dt_init=0._dp                  ! used to initialize the length of the sub-step
+! general local variables
+integer(i4b)              :: urbanVegCategory=1             ! vegetation category for urban areas
+real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
+! error control
+integer(i4b)              :: err=0                          ! error code
+character(len=512)        :: message=''                     ! error message
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -83,6 +97,21 @@ endif
 call fuse_SetDirsUndPhiles(fuseFileManager,err,message); call handle_err(err,message)
 ! read model decisions
 call mDecisions(err,message); call handle_err(err,message)
+! read Noah soil and vegetation tables
+call soil_veg_gen_parm(trim(SETNGS_PATH)//'VEGPARM.TBL',                              & ! filename for vegetation table
+                       trim(SETNGS_PATH)//'SOILPARM.TBL',                             & ! filename for soils table
+                       trim(SETNGS_PATH)//'GENPARM.TBL',                              & ! filename for general table
+                       trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision),    & ! classification system used for vegetation
+                       trim(model_decisions(iLookDECISIONS%soilCatTbl)%cDecision))      ! classification system used for soils
+! read Noah-MP vegetation tables
+call read_mp_veg_parameters(trim(SETNGS_PATH)//'MPTABLE.TBL',                         & ! filename for Noah-MP table
+                            trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision)) ! classification system used for vegetation
+! define urban vegetation category
+select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
+ case('USGS');                     urbanVegCategory=1
+ case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory=13
+ case default; call handle_err(30,'unable to identify vegetation category')
+end select
 
 ! *****************************************************************************
 ! (2) read model metadata
@@ -93,6 +122,8 @@ call init_metad(err,message); call handle_err(err,message)
 call read_metad(err,message); call handle_err(err,message)
 ! read description of model forcing datafile
 call ffile_info(err,message); call handle_err(err,message)
+! read local attributes
+call read_attrb(err,message); call handle_err(err,message)
 ! read default values and constraints for model parameters
 call read_pinit(err,message); call handle_err(err,message) 
 
@@ -124,10 +155,16 @@ do iParSet=1,nParSets
  ! define the file if the first parameter set
  if(iParSet==1) then
   call def_output(fileout,err,message); call handle_err(err,message)
+  call writeAttrb(fileout,err,message); call handle_err(err,message)
  endif
  ! write model parameters to the model output file
  call writeParam(fileout,iParSet,err,message); call handle_err(err,message)
 
+ ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
+ nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
+ allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problemAllocate')
+ zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
 
  ! initialize time step length
  dt_init = 900._dp ! seconds
@@ -153,6 +190,15 @@ do iParSet=1,nParSets
   ifcSoilStartIndex => indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1)
   ifcTotoStartIndex => indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1)
 
+  ! get NOAH-MP parameters
+  call REDPRM(type_data%var(iLookTYPE%vegTypeIndex),                           & ! vegetation type index
+              type_data%var(iLookTYPE%soilTypeIndex),                          & ! soil type
+              type_data%var(iLookTYPE%slopeTypeIndex),                         & ! slope type index
+              mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nSnow+nSoil),   & ! * not used: depth of each layer (m)
+              zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
+              nSoil,                                                           & ! number of soil layers
+              urbanVegCategory)                                                  ! vegetation category for urban areas
+
   ! ***************************************************************************
   ! (6) read forcing data
   ! ***************************************************************************
@@ -162,9 +208,6 @@ do iParSet=1,nParSets
   call derivforce(err,message); call handle_err(err,message)
   ! re-compute turbulent exchange coefficients for neutral conditions (the height of the surface may change)
   call turbExchng(err,message); call handle_err(err,message)
-  ! extract the appropriate value for leaf area index
-  iMonth = time_data%var(iLookTIME%im)    ! index for the current month
-  mvar_data%var(iLookMVAR%scalarLAI)%dat(1) = site_data%var(iLookSITE%LAI_monthly)%dat(iMonth)
 
   ! *****************************************************************************
   ! (7) create a new NetCDF output file, and write parameters and forcing data
@@ -181,6 +224,7 @@ do iParSet=1,nParSets
    ! define the file if the first parameter set
    if(iParSet==1) then
     call def_output(fileout,err,message); call handle_err(err,message)
+    call writeAttrb(fileout,err,message); call handle_err(err,message)
    endif
    ! write model parameters to the model output file
    call writeParam(fileout,iParSet,err,message); call handle_err(err,message)
@@ -203,7 +247,7 @@ do iParSet=1,nParSets
   print*, time_data%var, nSnow
   ! run the model for a single parameter set and time step
   call coupled_em(dt_init,err,message); call handle_err(err,message) 
-  !if(istep>8332) stop 'FORTRAN STOP: after call to coupled_em'
+  if(istep>0) stop 'FORTRAN STOP: after call to coupled_em'
 
   ! write the model output to the NetCDF file
   call writeModel(fileout,iParSet,jstep,err,message); call handle_err(err,message)
@@ -222,7 +266,11 @@ do iParSet=1,nParSets
   jstep = jstep+1
 
  end do  ! (looping through time)
+
+ ! deallocate height at bottom of each soil layer(used in Noah MP)
+ deallocate(zSoilReverseSign,stat=err); call handle_err(err,'problemDeallocate')
  call stop_program('end of first parameter set')
+
 end do  ! (looping through model parameter sets)
 call stop_program('finished looping through parameter sets')
 
@@ -288,3 +336,244 @@ contains
  end subroutine
 
 end program multi_driver
+
+
+
+!-----------------------------------------------------------------
+SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GENERAL, MMINLU, MMINSL)
+!-----------------------------------------------------------------
+  use module_sf_noahlsm, only : shdtbl, nrotbl, rstbl, rgltbl, &
+       &                        hstbl, snuptbl, maxalb, laimintbl, &
+       &                        bb, drysmc, f11, maxsmc, laimaxtbl, &
+       &                        emissmintbl, emissmaxtbl, albedomintbl, &
+       &                        albedomaxtbl, wltsmc, qtz, refsmc, &
+       &                        z0mintbl, z0maxtbl, &
+       &                        satpsi, satdk, satdw, &
+       &                        fxexp_data, lvcoef_data, &
+       &                        lutype, maxalb, &
+       &                        slope_data, frzk_data, bare, cmcmax_data, &
+       &                        cfactr_data, csoil_data, czil_data, &
+       &                        refkdt_data, natural, refdk_data, &
+       &                        rsmax_data, salp_data, sbeta_data, &
+       &                        zbot_data, smhigh_data, smlow_data, &
+       &                        lucats, topt_data, slcats, slpcats, sltype
+
+  IMPLICIT NONE
+
+  CHARACTER(LEN=*), INTENT(IN) :: FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GENERAL
+  CHARACTER(LEN=*), INTENT(IN) :: MMINLU, MMINSL
+  integer :: LUMATCH, IINDEX, LC, NUM_SLOPE
+  integer :: ierr
+  INTEGER , PARAMETER :: OPEN_OK = 0
+
+  character*128 :: mess , message
+
+!-----SPECIFY VEGETATION RELATED CHARACTERISTICS :
+!             ALBBCK: SFC albedo (in percentage)
+!                 Z0: Roughness length (m)
+!             SHDFAC: Green vegetation fraction (in percentage)
+!  Note: The ALBEDO, Z0, and SHDFAC values read from the following table
+!          ALBEDO, amd Z0 are specified in LAND-USE TABLE; and SHDFAC is
+!          the monthly green vegetation data
+!             CMXTBL: MAX CNPY Capacity (m)
+!             NROTBL: Rooting depth (layer)
+!              RSMIN: Mimimum stomatal resistance (s m-1)
+!              RSMAX: Max. stomatal resistance (s m-1)
+!                RGL: Parameters used in radiation stress function
+!                 HS: Parameter used in vapor pressure deficit functio
+!               TOPT: Optimum transpiration air temperature. (K)
+!             CMCMAX: Maximum canopy water capacity
+!             CFACTR: Parameter used in the canopy inteception calculati
+!               SNUP: Threshold snow depth (in water equivalent m) that
+!                     implies 100% snow cover
+!                LAI: Leaf area index (dimensionless)
+!             MAXALB: Upper bound on maximum albedo over deep snow
+!
+!-----READ IN VEGETAION PROPERTIES FROM VEGPARM.TBL
+!
+
+  OPEN(19, FILE=trim(FILENAME_VEGTABLE),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
+  IF(ierr .NE. OPEN_OK ) THEN
+     WRITE(message,FMT='(A)') &
+          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening VEGPARM.TBL'
+     CALL wrf_error_fatal ( message )
+  END IF
+
+
+  LUMATCH=0
+
+  FIND_LUTYPE : DO WHILE (LUMATCH == 0)
+     READ (19,*,END=2002)
+     READ (19,*,END=2002)LUTYPE
+     READ (19,*)LUCATS,IINDEX
+
+     IF(LUTYPE.EQ.MMINLU)THEN
+        WRITE( mess , * ) 'LANDUSE TYPE = ' // TRIM ( LUTYPE ) // ' FOUND', LUCATS,' CATEGORIES'
+        ! CALL wrf_message( mess )
+        LUMATCH=1
+     ELSE
+        call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        DO LC = 1, LUCATS+12
+           read(19,*)
+        ENDDO
+     ENDIF
+  ENDDO FIND_LUTYPE
+! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
+  IF ( SIZE(SHDTBL)       < LUCATS .OR. &
+       SIZE(NROTBL)       < LUCATS .OR. &
+       SIZE(RSTBL)        < LUCATS .OR. &
+       SIZE(RGLTBL)       < LUCATS .OR. &
+       SIZE(HSTBL)        < LUCATS .OR. &
+       SIZE(SNUPTBL)      < LUCATS .OR. &
+       SIZE(MAXALB)       < LUCATS .OR. &
+       SIZE(LAIMINTBL)    < LUCATS .OR. &
+       SIZE(LAIMAXTBL)    < LUCATS .OR. &
+       SIZE(Z0MINTBL)     < LUCATS .OR. &
+       SIZE(Z0MAXTBL)     < LUCATS .OR. &
+       SIZE(ALBEDOMINTBL) < LUCATS .OR. &
+       SIZE(ALBEDOMAXTBL) < LUCATS .OR. &
+       SIZE(EMISSMINTBL ) < LUCATS .OR. &
+       SIZE(EMISSMAXTBL ) < LUCATS ) THEN
+     CALL wrf_error_fatal('Table sizes too small for value of LUCATS in module_sf_noahdrv.F')
+  ENDIF
+
+  IF(LUTYPE.EQ.MMINLU)THEN
+     DO LC=1,LUCATS
+        READ (19,*)IINDEX,SHDTBL(LC),                        &
+             NROTBL(LC),RSTBL(LC),RGLTBL(LC),HSTBL(LC), &
+             SNUPTBL(LC),MAXALB(LC), LAIMINTBL(LC),     &
+             LAIMAXTBL(LC),EMISSMINTBL(LC),             &
+             EMISSMAXTBL(LC), ALBEDOMINTBL(LC),         &
+             ALBEDOMAXTBL(LC), Z0MINTBL(LC), Z0MAXTBL(LC)
+     ENDDO
+!
+     READ (19,*)
+     READ (19,*)TOPT_DATA
+     READ (19,*)
+     READ (19,*)CMCMAX_DATA
+     READ (19,*)
+     READ (19,*)CFACTR_DATA
+     READ (19,*)
+     READ (19,*)RSMAX_DATA
+     READ (19,*)
+     READ (19,*)BARE
+     READ (19,*)
+     READ (19,*)NATURAL
+  ENDIF
+!
+2002 CONTINUE
+
+  CLOSE (19)
+  IF (LUMATCH == 0) then
+     CALL wrf_error_fatal ("Land Use Dataset '"//MMINLU//"' not found in VEGPARM.TBL.")
+  ENDIF
+
+!
+!-----READ IN SOIL PROPERTIES FROM SOILPARM.TBL
+!
+  OPEN(19, FILE=trim(FILENAME_SOILTABLE),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
+  IF(ierr .NE. OPEN_OK ) THEN
+     WRITE(message,FMT='(A)') &
+          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening SOILPARM.TBL'
+     CALL wrf_error_fatal ( message )
+  END IF
+
+  WRITE(mess,*) 'INPUT SOIL TEXTURE CLASSIFICATION = ', TRIM ( MMINSL )
+  ! CALL wrf_message( mess )
+
+  LUMATCH=0
+
+  READ (19,*)
+  READ (19,2000,END=2003)SLTYPE
+2000 FORMAT (A4)
+  READ (19,*)SLCATS,IINDEX
+  IF(SLTYPE.EQ.MMINSL)THEN
+     WRITE( mess , * ) 'SOIL TEXTURE CLASSIFICATION = ', TRIM ( SLTYPE ) , ' FOUND', &
+          SLCATS,' CATEGORIES'
+     ! CALL wrf_message ( mess )
+     LUMATCH=1
+  ENDIF
+! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
+  IF ( SIZE(BB    ) < SLCATS .OR. &
+       SIZE(DRYSMC) < SLCATS .OR. &
+       SIZE(F11   ) < SLCATS .OR. &
+       SIZE(MAXSMC) < SLCATS .OR. &
+       SIZE(REFSMC) < SLCATS .OR. &
+       SIZE(SATPSI) < SLCATS .OR. &
+       SIZE(SATDK ) < SLCATS .OR. &
+       SIZE(SATDW ) < SLCATS .OR. &
+       SIZE(WLTSMC) < SLCATS .OR. &
+       SIZE(QTZ   ) < SLCATS  ) THEN
+     CALL wrf_error_fatal('Table sizes too small for value of SLCATS in module_sf_noahdrv.F')
+  ENDIF
+  IF(SLTYPE.EQ.MMINSL)THEN
+     DO LC=1,SLCATS
+        READ (19,*) IINDEX,BB(LC),DRYSMC(LC),F11(LC),MAXSMC(LC),&
+             REFSMC(LC),SATPSI(LC),SATDK(LC), SATDW(LC),   &
+             WLTSMC(LC), QTZ(LC)
+     ENDDO
+  ENDIF
+
+2003 CONTINUE
+
+  CLOSE (19)
+
+  IF(LUMATCH.EQ.0)THEN
+     CALL wrf_message( 'SOIl TEXTURE IN INPUT FILE DOES NOT ' )
+     CALL wrf_message( 'MATCH SOILPARM TABLE'                 )
+     CALL wrf_error_fatal ( 'INCONSISTENT OR MISSING SOILPARM FILE' )
+  ENDIF
+
+!
+!-----READ IN GENERAL PARAMETERS FROM GENPARM.TBL
+!
+  OPEN(19, FILE=trim(FILENAME_GENERAL),FORM='FORMATTED',STATUS='OLD',IOSTAT=ierr)
+  IF(ierr .NE. OPEN_OK ) THEN
+     WRITE(message,FMT='(A)') &
+          'module_sf_noahlsm.F: soil_veg_gen_parm: failure opening GENPARM.TBL'
+     CALL wrf_error_fatal ( message )
+  END IF
+
+  READ (19,*)
+  READ (19,*)
+  READ (19,*) NUM_SLOPE
+
+  SLPCATS=NUM_SLOPE
+! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
+  IF ( SIZE(slope_data) < NUM_SLOPE ) THEN
+     CALL wrf_error_fatal('NUM_SLOPE too large for slope_data array in module_sf_noahdrv')
+  ENDIF
+
+  DO LC=1,SLPCATS
+     READ (19,*)SLOPE_DATA(LC)
+  ENDDO
+
+  READ (19,*)
+  READ (19,*)SBETA_DATA
+  READ (19,*)
+  READ (19,*)FXEXP_DATA
+  READ (19,*)
+  READ (19,*)CSOIL_DATA
+  READ (19,*)
+  READ (19,*)SALP_DATA
+  READ (19,*)
+  READ (19,*)REFDK_DATA
+  READ (19,*)
+  READ (19,*)REFKDT_DATA
+  READ (19,*)
+  READ (19,*)FRZK_DATA
+  READ (19,*)
+  READ (19,*)ZBOT_DATA
+  READ (19,*)
+  READ (19,*)CZIL_DATA
+  READ (19,*)
+  READ (19,*)SMLOW_DATA
+  READ (19,*)
+  READ (19,*)SMHIGH_DATA
+  READ (19,*)
+  READ (19,*)LVCOEF_DATA
+  CLOSE (19)
+
+!-----------------------------------------------------------------
+END SUBROUTINE SOIL_VEG_GEN_PARM
+!-----------------------------------------------------------------
