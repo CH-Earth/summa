@@ -15,7 +15,6 @@ contains
  USE phseChange_module,only:phseChange          ! compute change in phase over the time step
  USE snowHydrol_module,only:snowHydrol          ! compute liquid water flow through the snowpack
  USE soilHydrol_module,only:soilHydrol          ! compute change in mass over the time step for the soil
- USE surfAlbedo_module,only:surfAlbedo          ! compute surface albedo
  USE snwDensify_module,only:snwDensify          ! compute densification of snow
  USE soil_utils_module,only:crit_soilT          ! compute the critical temperature above which all water is unfrozen
  ! provide access to data
@@ -378,26 +377,16 @@ contains
  checkCalcs = 1._dp - ( min(iLayerHeight(nSnow+nLevels),rootingDepth) / rootingDepth)**rootDistExp
  if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then; err=20; message=trim(message)//'problem with the aquifer root density calculations'; return; endif
 
+ ! Noah-MP vegetation routines
+ !call noahMP_veg(err,cmessage)
+ !if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+
+
  ! compute the radiation absorbtion by the vegetation and the ground
- call radTransfr(dt,&          ! input: time step (seconds)
-                 err,cmessage) ! output: error control
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ !call radTransfr(dt,&          ! input: time step (seconds)
+ !                err,cmessage) ! output: error control
+ !if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
-
-
- ! compute the surface albedo (constant over the iterations)
- if(nSnow > 0)then
-  call surfAlbedo(dt,&          ! input: time step (seconds)
-                  err,cmessage) ! output: error control
-  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
- else
-  surfaceAlbedo = soilAlbedo
- endif
-
- ! compute the radiation absorbed by the vegetation
-
- ! compute the radiation absorbed by the ground
- 
 
 
 

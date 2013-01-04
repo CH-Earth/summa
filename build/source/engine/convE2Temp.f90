@@ -1,4 +1,4 @@
-module ConvE2Temp_module
+module convE2Temp_module
 USE nrtype
 implicit none
 private

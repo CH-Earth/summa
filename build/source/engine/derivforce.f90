@@ -21,7 +21,7 @@ contains
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
  ! local pointers to model parameters
- real(dp),pointer              :: Fabs_vis                  ! fraction radiation absorbed in visible part of spectrum (-)
+ real(dp),pointer              :: Frad_vis                  ! fraction radiation absorbed in visible part of spectrum (-)
  real(dp),pointer              :: minwind                   ! minimum windspeed (m s-1)
  real(dp),pointer              :: fc_param                  ! freeezing curve parameter for snow (K-1)
  real(dp),pointer              :: tempCritRain              ! critical temperature where precipitation is rain (K)
@@ -51,7 +51,7 @@ contains
  ! initialize error control
  err=0; message="f-derivforce/"
  ! assign pointers to model parameters
- Fabs_vis          => mpar_data%var(iLookPARAM%Fabs_vis)            ! fraction radiation absorbed in visible part of spectrum (-)
+ Frad_vis          => mpar_data%var(iLookPARAM%Frad_vis)            ! fraction radiation absorbed in visible part of spectrum (-)
  minwind           => mpar_data%var(iLookPARAM%minwind)             ! minimum windspeed (m s-1)
  fc_param          => mpar_data%var(iLookPARAM%snowfrz_scale)       ! freezing curve parameter for snow (K-1)
  tempCritRain      => mpar_data%var(iLookPARAM%tempCritRain)        ! critical temperature where precipitation is rain (K)
@@ -72,7 +72,7 @@ contains
  snowfall     => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)     ! computed snowfall rate (kg m-2 s-1)
  snowfallTemp => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1) ! computed temperature of fresh snow (K)
  ! compute shortwave radiation in the visible and near-infra-red part of the spectrum
- swDownVis = Fabs_vis*sw_down
+ swDownVis = Frad_vis*sw_down
  swDownNir = sw_down - swDownVis
  ! ensure wind speed is above a prescribed minimum value
  if(windspd < minwind) windspd=minwind

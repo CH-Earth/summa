@@ -73,7 +73,7 @@ contains
   if (temp(1:1)=='!')cycle
   ! save data into a temporary variables
   read(temp,trim(ffmt),iostat=err) varname, dLim, vardata
-  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; endif
+  if (err/=0) then; err=30; message=trim(message)//"errorReadLine[file="//trim(infile)//"; line="//trim(temp)//"]"; return; endif
   ! put data into data structure
   select case(trim(varname))
    case('filenm')   ; read(vardata,*) forcFileInfo%filenm

@@ -4,6 +4,7 @@ USE netcdf
 implicit none
 private
 public::writeForce
+public::writeAttrb
 public::writeParam
 public::writeModel
 ! define dimension names
@@ -16,6 +17,66 @@ character(len=32),parameter :: ifcSnowAndTime_DimName='ifcSnowAndTime' ! dimensi
 character(len=32),parameter :: ifcSoilAndTime_DimName='ifcSoilAndTime' ! dimension name for ifcSoil-time (unlimited)
 character(len=32),parameter :: ifcTotoAndTime_DimName='ifcTotoAndTime' ! dimension name for ifcToto-time (unlimited)
 contains
+
+ ! **********************************************************************************************************
+ ! new subroutine: write local attributes
+ ! **********************************************************************************************************
+ subroutine writeAttrb(fileout,err,message)
+ USE data_struc,only:attr_data,attr_meta                   ! local attributes
+ USE data_struc,only:type_data,type_meta                   ! local classification of veg, soil, etc.
+ implicit none
+ ! declare dummy variables
+ character(*), intent(in)    :: fileout                    ! output file
+ integer(i4b),intent(out)    :: err                        ! error code
+ character(*),intent(out)    :: message                    ! error message
+ ! local variables
+ integer(i4b)                :: ncid                       ! NetCDF file ID
+ integer(i4b)                :: iVar                       ! loop through variables
+ integer(i4b)                :: iVarId                     ! variable ID
+ ! initialize error control
+ err=0;message="f-writeAttrb/"
+
+ ! open NetCDF file
+ err = nf90_open(trim(fileout),nf90_write,ncid)
+ call netcdf_err(err,message); if (err/=0) return
+
+ ! loop through local attributes
+ do iVar=1,size(attr_meta)
+  ! check that the variable is desired
+  if (.not.attr_meta(iVar)%v_write) cycle
+  ! initialize message
+  message=trim(message)//trim(attr_meta(iVar)%varname)//'/'
+  ! get variable ID
+  err = nf90_inq_varid(ncid,trim(attr_meta(iVar)%varname),iVarId)
+  call netcdf_err(err,message); if (err/=0) return
+  ! write data
+  err = nf90_put_var(ncid,iVarId,(/attr_data%var(iVar)/),start=(/1/),count=(/1/))
+  call netcdf_err(err,message); if (err/=0) return
+  ! re-initialize message
+  message="f-writeAttrb/"
+ end do  ! looping through local attributes
+
+ ! loop through local classification of veg, soil, etc.
+ do iVar=1,size(type_meta)
+  ! check that the variable is desired
+  if (.not.type_meta(iVar)%v_write) cycle
+  ! initialize message
+  message=trim(message)//trim(type_meta(iVar)%varname)//'/'
+  ! get variable ID
+  err = nf90_inq_varid(ncid,trim(type_meta(iVar)%varname),iVarId)
+  call netcdf_err(err,message); if (err/=0) return
+  ! write data
+  err = nf90_put_var(ncid,iVarId,(/type_data%var(iVar)/),start=(/1/),count=(/1/))
+  call netcdf_err(err,message); if (err/=0) return
+  ! re-initialize message
+  message="f-writeAttrb/"
+ end do  ! looping through local classification of veg, soil, etc.
+
+ ! close output file
+ err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
+ end subroutine writeAttrb
+
+
 
  ! **********************************************************************************************************
  ! new subroutine: write model parameters
@@ -51,10 +112,11 @@ contains
   ! write data
   err = nf90_put_var(ncid,iVarId,(/mpar_data%var(ipar)/),start=(/iParSet/),count=(/1/))
   call netcdf_err(err,message); if (err/=0) return
- end do  ! looping through forcing data variables
+  ! re-initialize message
+  message="f-writeParam/"
+ end do  ! looping through model parameters
 
  ! close output file
- message="f-writeParam/"
  err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine writeParam
 

@@ -5,7 +5,8 @@ private
 public::init_metad
 public::alloc_time
 public::alloc_forc
-public::alloc_site
+public::alloc_attr
+public::alloc_type
 public::alloc_mpar
 public::alloc_mvar
 public::alloc_indx
@@ -19,8 +20,8 @@ contains
  ! ************************************************************************************************
  subroutine init_metad(err,message)
  ! used to initialize the metadata structures
- USE var_lookup,only:maxvarTime,maxvarForc,maxvarSite,maxvarMpar,maxvarMvar,maxvarIndx ! maximum number variables in each data structure
- USE data_struc,only:time_meta,forc_meta,site_meta,mpar_meta,mvar_meta,indx_meta       ! metadata structures
+ USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType,maxvarMpar,maxvarMvar,maxvarIndx   ! maximum number variables in each data structure
+ USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta,mpar_meta,mvar_meta,indx_meta          ! metadata structures
  implicit none
  ! declare variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -30,12 +31,14 @@ contains
  ! ensure metadata structures are deallocated
  if (associated(time_meta)) deallocate(time_meta)
  if (associated(forc_meta)) deallocate(forc_meta)
- if (associated(site_meta)) deallocate(site_meta)
+ if (associated(attr_meta)) deallocate(attr_meta)
+ if (associated(type_meta)) deallocate(type_meta)
  if (associated(mpar_meta)) deallocate(mpar_meta)
  if (associated(mvar_meta)) deallocate(mvar_meta)
  if (associated(indx_meta)) deallocate(indx_meta)
  ! allocate metadata structures
- allocate(time_meta(maxvarTime),forc_meta(maxvarForc),site_meta(maxvarSite),mpar_meta(maxvarMpar),mvar_meta(maxvarMvar),indx_meta(maxvarIndx),stat=err)
+ allocate(time_meta(maxvarTime),forc_meta(maxvarForc),attr_meta(maxvarAttr),type_meta(maxvarType),&
+          mpar_meta(maxvarMpar),mvar_meta(maxvarMvar),indx_meta(maxvarIndx),stat=err)
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
  end subroutine init_metad
 
@@ -97,11 +100,11 @@ contains
 
 
  ! ************************************************************************************************
- ! new subroutine: initialize data structures for site characteristics
+ ! new subroutine: initialize data structures for local attributes
  ! ************************************************************************************************
- subroutine alloc_site(err,message)
+ subroutine alloc_attr(err,message)
  ! used to initialize structure components for model variables
- USE data_struc,only:site_data,site_meta             ! data structures
+ USE data_struc,only:attr_data,attr_meta             ! data structures
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -109,37 +112,56 @@ contains
  ! local variables
  integer(i4b)                         :: ivar        ! loop throough variables
  integer(i4b)                         :: nVar        ! number of variables
- integer(i4b),parameter               :: nMonthsPerYear=12  ! number of months per year
  ! initialize errors
- err=0; message="f-alloc_site/"
+ err=0; message="f-alloc_attr/"
  ! check that the metadata structure is allocated
- if(.not.associated(site_meta))then
+ if(.not.associated(attr_meta))then
   err=10; message=trim(message)//"metadataNotInitialized"; return
  endif
  ! initialize top-level data structure
- if(associated(site_data)) deallocate(site_data)
- allocate(site_data,stat=err)
+ if(associated(attr_data)) deallocate(attr_data)
+ allocate(attr_data,stat=err)
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
  ! initialize second level data structure
- nVar = size(site_meta)
- allocate(site_data%var(nVar),stat=err)
+ nVar = size(attr_meta)
+ allocate(attr_data%var(nVar),stat=err)
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- ! loop through variables
- do ivar=1,nVar
-  print*,site_meta(ivar)%varname
-  if (associated(site_data%var(ivar)%dat)) deallocate(site_data%var(ivar)%dat)
-  select case(site_meta(ivar)%vartype)
-   case('scalarv'); allocate(site_data%var(ivar)%dat(1),stat=err)
-   case('monthly'); allocate(site_data%var(ivar)%dat(nMonthsPerYear),stat=err)
-   case default
-    err=40; message=trim(message)//"unknownVariableType[name='"//trim(site_meta(ivar)%varname)//"'; &
-                                   &type='"//trim(site_meta(ivar)%vartype)//"']"; return
-  endselect
-  if(err/=0)then;err=30;message=trim(message)//"problemAllocate[var='"//trim(site_meta(ivar)%varname)//"']"; return; endif
-  ! fill data with missing values
-  site_data%var(ivar)%dat(:) = missingDouble
- end do  ! (looping through variables)
- end subroutine alloc_site
+ ! fill data with missing values
+ attr_data%var(:) = missingDouble
+ end subroutine alloc_attr
+
+
+ ! ************************************************************************************************
+ ! new subroutine: initialize data structures for local classification of veg, soil, etc.
+ ! ************************************************************************************************
+ subroutine alloc_type(err,message)
+ ! used to initialize structure components for model variables
+ USE data_struc,only:type_data,type_meta             ! data structures
+ implicit none
+ ! dummy variables
+ integer(i4b),intent(out)             :: err         ! error code
+ character(*),intent(out)             :: message     ! error message
+ ! local variables
+ integer(i4b)                         :: ivar        ! loop throough variables
+ integer(i4b)                         :: nVar        ! number of variables
+ ! initialize errors
+ err=0; message="f-alloc_type/"
+ ! check that the metadata structure is allocated
+ if(.not.associated(type_meta))then
+  err=10; message=trim(message)//"metadataNotInitialized"; return
+ endif
+ ! initialize top-level data structure
+ if(associated(type_data)) deallocate(type_data)
+ allocate(type_data,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
+ ! initialize second level data structure
+ nVar = size(type_meta)
+ allocate(type_data%var(nVar),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
+ ! fill data with missing values
+ type_data%var(:) = missingInteger
+ end subroutine alloc_type
+
 
  ! ************************************************************************************************
  ! new subroutine: initialize data structures for model parameters

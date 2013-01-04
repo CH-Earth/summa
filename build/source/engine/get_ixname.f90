@@ -5,7 +5,8 @@ implicit none
 private
 public::get_ixdecisions
 public::get_ixTime
-public::get_ixSite
+public::get_ixAttr
+public::get_ixType
 public::get_ixForce
 public::get_ixParam
 public::get_ixMvar
@@ -25,20 +26,22 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
-  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! ( 1) choice of numerical method
-  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 2) choice of method to calculate flux derivatives
-  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! ( 3) form of Richards' equation
-  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! ( 4) choice of groundwater parameterization
-  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! ( 5) choice of hydraulic conductivity profile
-  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! ( 6) type of upper boundary condition for thermodynamics
-  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! ( 7) type of lower boundary condition for thermodynamics
-  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! ( 8) type of upper boundary condition for soil hydrology
-  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! ( 9) type of lower boundary condition for soil hydrology
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (10) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (11) choice of compaction routine
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (12) choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (13) choice of albedo representation
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (14) choice of method for sub-grid routing
+  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! ( 1) soil-category dateset
+  case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! ( 2) vegetation category dataset
+  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! ( 3) choice of numerical method
+  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 4) choice of method to calculate flux derivatives
+  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! ( 5) form of Richards' equation
+  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! ( 6) choice of groundwater parameterization
+  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! ( 7) choice of hydraulic conductivity profile
+  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! ( 8) type of upper boundary condition for thermodynamics
+  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! ( 9) type of lower boundary condition for thermodynamics
+  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (10) type of upper boundary condition for soil hydrology
+  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (11) type of lower boundary condition for soil hydrology
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (12) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (13) choice of compaction routine
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (14) choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (15) choice of albedo representation
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (16) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -102,25 +105,47 @@ contains
  ! *******************************************************************************************************************
  ! new function: get the index of the named variables for the site characteristics
  ! *******************************************************************************************************************
- function get_ixSite(varName)
- USE var_lookup,only:iLookSITE                       ! indices of the named variables
+ function get_ixAttr(varName)
+ USE var_lookup,only:iLookATTR                       ! indices of the named variables
  implicit none
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
- integer(i4b)             :: get_ixSite              ! index of the named variable
+ integer(i4b)             :: get_ixAttr              ! index of the named variable
  ! define local variables
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
-  case('latitude'   ); get_ixSite = iLookSITE%latitude       ! latitude    (degrees north)
-  case('longitude'  ); get_ixSite = iLookSITE%longitude      ! longitude   (degrees east)
-  case('elevation'  ); get_ixSite = iLookSITE%elevation      ! elevation   (m)
-  case('LAI_monthly'); get_ixSite = iLookSITE%LAI_monthly    ! monthly values of the leaf area index (m2 m-2)
+  case('latitude'   ); get_ixAttr = iLookATTR%latitude       ! latitude    (degrees north)
+  case('longitude'  ); get_ixAttr = iLookATTR%longitude      ! longitude   (degrees east)
+  case('elevation'  ); get_ixAttr = iLookATTR%elevation      ! elevation   (m)
   ! get to here if cannot find the variable
   case default
-   get_ixSite = imiss
+   get_ixAttr = imiss
  endselect
- end function get_ixSite
+ end function get_ixAttr
+
+
+ ! *******************************************************************************************************************
+ ! new function: get the index of the named variables for the local classification of veg, soil, etc.
+ ! *******************************************************************************************************************
+ function get_ixType(varName)
+ USE var_lookup,only:iLookTYPE                       ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! variable name
+ integer(i4b)             :: get_ixType              ! index of the named variable
+ ! define local variables
+ integer(i4b), parameter  :: imiss = -999            ! missing value
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('vegTypeIndex'   ); get_ixType = iLookTYPE%vegTypeIndex       ! index defining vegetation type
+  case('soilTypeIndex'  ); get_ixType = iLookTYPE%soilTypeIndex      ! index defining soil type
+  case('slopeTypeIndex' ); get_ixType = iLookTYPE%slopeTypeIndex     ! index defining slope
+  ! get to here if cannot find the variable
+  case default
+   get_ixType = imiss
+ endselect
+ end function get_ixType
 
 
  ! *******************************************************************************************************************
@@ -258,6 +283,15 @@ contains
   case('averageSoilEjection'         ); get_ixmvar = iLookMVAR%averageSoilEjection         ! ejected water from the soil matrix (m s-1)
   case('averageAquiferRecharge'      ); get_ixmvar = iLookMVAR%averageAquiferRecharge      ! recharge to the aquifer (m s-1)
   case('averageAquiferBaseflow'      ); get_ixmvar = iLookMVAR%averageAquiferBaseflow      ! baseflow from the aquifer (m s-1)
+  ! NOAH-MP vegetation variables
+  case('scalarCanopyHeight'          ); get_ixmvar = iLookMVAR%scalarCanopyHeight          ! height of the top of the canopy layer (m)
+  case('scalarVegetationTemp'        ); get_ixmvar = iLookMVAR%scalarVegetationTemp        ! vegetation temperature (K)
+  case('scalarRootZoneTemp'          ); get_ixmvar = iLookMVAR%scalarRootZoneTemp          ! average temperature of the root zone (K)
+  case('scalarLAI'                   ); get_ixmvar = iLookMVAR%scalarLAI                   ! one-sided leaf area index (m2 m-2)
+  case('scalarSAI'                   ); get_ixmvar = iLookMVAR%scalarSAI                   ! one-sided stem area index (m2 m-2)
+  case('scalarEffectiveLAI'          ); get_ixmvar = iLookMVAR%scalarEffectiveLAI          ! effective leaf area index after burial by snow (m2 m-2)
+  case('scalarEffectiveSAI'          ); get_ixmvar = iLookMVAR%scalarEffectiveSAI          ! effective stem area index after burial by snow(m2 m-2)
+  case('scalarGrowingSeasonIndex'    ); get_ixmvar = iLookMVAR%scalarGrowingSeasonIndex    ! growing season index (0=off, 1=on)
   ! scalar variables
   case('scalarSwDownVis'             ); get_ixmvar = iLookMVAR%scalarSwDownVis             ! downwelling shortwave radiation in visible part of spectrum (W m-2)
   case('scalarSwDownNir'             ); get_ixmvar = iLookMVAR%scalarSwDownNir             ! downwelling shortwave radiation in near-infrared part of spectrum (W m-2)
@@ -344,7 +378,6 @@ contains
   case('averageInstantRunoff'        ); get_ixmvar = iLookMVAR%averageInstantRunoff        ! instantaneous runoff (m s-1)
   case('averageRoutedRunoff'         ); get_ixmvar = iLookMVAR%averageRoutedRunoff         ! routed runoff (m s-1)
   ! "short-cut" variables
-  case('scalarLAI'                   ); get_ixmvar = iLookMVAR%scalarLAI                   ! leaf area index (m2 m-2)
   case('scalarExNeut'                ); get_ixmvar = iLookMVAR%scalarExNeut                ! exchange coefficient in neutral conditions (-)
   case('scalarBprime'                ); get_ixmvar = iLookMVAR%scalarBprime                ! stable b parameter in Louis (1979) stability function (-)
   case('scalarCparam'                ); get_ixmvar = iLookMVAR%scalarCparam                ! c parameter in Louis (1979) stability function 

@@ -53,7 +53,8 @@ MODULE data_struc
  ! define arrays of metadata
  type(var_info),pointer,save,public      :: time_meta(:) => null()   ! model time information
  type(var_info),pointer,save,public      :: forc_meta(:) => null()   ! model forcing data
- type(var_info),pointer,save,public      :: site_meta(:) => null()   ! site characteristics
+ type(var_info),pointer,save,public      :: attr_meta(:) => null()   ! local attributes
+ type(var_info),pointer,save,public      :: type_meta(:) => null()   ! local classification of veg, soil, etc.
  type(var_info),pointer,save,public      :: mpar_meta(:) => null()   ! model parameters
  type(var_info),pointer,save,public      :: mvar_meta(:) => null()   ! model variables
  type(var_info),pointer,save,public      :: indx_meta(:) => null()   ! model indices
@@ -96,8 +97,9 @@ MODULE data_struc
  ! NOTE: either allocate directly, or use to point to higher dimensional structures
  type(var_i),pointer,save,public         :: time_data => null()      ! model time data
  type(var_d),pointer,save,public         :: forc_data => null()      ! model forcing data
+ type(var_d),pointer,save,public         :: attr_data => null()      ! local attributes
+ type(var_i),pointer,save,public         :: type_data => null()      ! local classification of veg, soil, etc.
  type(var_d),pointer,save,public         :: mpar_data => null()      ! model parameters
- type(var_dlength),pointer,save,public   :: site_data => null()      ! site characteristics
  type(var_dlength),pointer,save,public   :: mvar_data => null()      ! model variables
  type(var_ilength),pointer,save,public   :: indx_data => null()      ! model indices
  ! ***********************************************************************************************************

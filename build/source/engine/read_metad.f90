@@ -6,10 +6,11 @@ public::read_metad
 ! define named variables to define the type of data structures used
 integer(i4b),parameter :: ix_time =1001
 integer(i4b),parameter :: ix_force=1002
-integer(i4b),parameter :: ix_site =1003
-integer(i4b),parameter :: ix_param=1004
-integer(i4b),parameter :: ix_mvar =1005
-integer(i4b),parameter :: ix_index=1006
+integer(i4b),parameter :: ix_attr =1003
+integer(i4b),parameter :: ix_type =1004
+integer(i4b),parameter :: ix_param=1005
+integer(i4b),parameter :: ix_mvar =1006
+integer(i4b),parameter :: ix_index=1007
 contains
 
  ! ************************************************************************************************
@@ -18,8 +19,8 @@ contains
  subroutine read_metad(err,message)
  ! used to populate metadata structures with metadata
  USE snow_fileManager,only:SETNGS_PATH                ! path for metadata files
- USE snow_fileManager,only:META_TIME,META_SITE,META_FORCE,META_PARAM,META_MVAR,META_INDEX   ! name of metadata files
- USE data_struc,only:time_meta,forc_meta,site_meta,mpar_meta,mvar_meta,indx_meta            ! metadata structures
+ USE snow_fileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE,META_PARAM,META_MVAR,META_INDEX   ! name of metadata files
+ USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta,mpar_meta,mvar_meta,indx_meta            ! metadata structures
  implicit none
  ! declare variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -31,9 +32,12 @@ contains
  ! populate time structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_TIME),ix_time,time_meta,err,cmessage)
  if(err/=0)then; err=40; message=trim(message)//'time/'//trim(cmessage); return; endif
- ! populate site characteristics structure with metadata
- call v_metadata(trim(SETNGS_PATH)//trim(META_SITE),ix_site,site_meta,err,cmessage)
- if(err/=0)then; err=40; message=trim(message)//'site/'//trim(cmessage); return; endif
+ ! populate local attributes structure with metadata
+ call v_metadata(trim(SETNGS_PATH)//trim(META_ATTR),ix_attr,attr_meta,err,cmessage)
+ if(err/=0)then; err=40; message=trim(message)//'attr/'//trim(cmessage); return; endif
+ ! populate local category structure with metadata
+ call v_metadata(trim(SETNGS_PATH)//trim(META_TYPE),ix_type,type_meta,err,cmessage)
+ if(err/=0)then; err=40; message=trim(message)//'type/'//trim(cmessage); return; endif
  ! populate forcing structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_FORCE),ix_force,forc_meta,err,cmessage)
  if(err/=0)then; err=40; message=trim(message)//'forc/'//trim(cmessage); return; endif
@@ -58,7 +62,8 @@ contains
  USE ascii_util_module,only:file_open
  ! identify indices of named variables
  USE get_ixname_module,only:get_ixTime
- USE get_ixname_module,only:get_ixSite
+ USE get_ixname_module,only:get_ixAttr
+ USE get_ixname_module,only:get_ixType
  USE get_ixname_module,only:get_ixForce
  USE get_ixname_module,only:get_ixParam
  USE get_ixname_module,only:get_ixMvar
@@ -113,7 +118,8 @@ contains
   ! identify the index of the named variable
   select case(ivar_lookup)
    case(ix_time);  ivar = get_ixTime(metaTemp%varname)
-   case(ix_site);  ivar = get_ixSite(metaTemp%varname)
+   case(ix_attr);  ivar = get_ixAttr(metaTemp%varname)
+   case(ix_type);  ivar = get_ixType(metaTemp%varname)
    case(ix_force); ivar = get_ixForce(metaTemp%varname)
    case(ix_param); ivar = get_ixParam(metaTemp%varname)
    case(ix_mvar);  ivar = get_ixMvar(metaTemp%varname)

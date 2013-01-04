@@ -5,22 +5,23 @@ implicit none
 private
 public :: def_output
 ! define dimension names
-character(len=32),parameter :: parSet_DimName='parSet'                 ! dimension name for the parameter sets (unlimited)
-character(len=32),parameter :: timestep_DimName='time'                 ! dimension name for the time step (unlimited)
+character(len=32),parameter :: scalar_DimName='scalar'                 ! dimension name for scalar variables
+character(len=32),parameter :: parSet_DimName='parSet'                 ! dimension name for the parameter sets
+character(len=32),parameter :: timestep_DimName='time'                 ! dimension name for the time step
 character(len=32),parameter :: routing_DimName='timeDelayRouting'      ! dimension name for thetime delay routing vectors     
-character(len=32),parameter :: midSnowAndTime_DimName='midSnowAndTime' ! dimension name for midSnow-time (unlimited)
-character(len=32),parameter :: midSoilAndTime_DimName='midSoilAndTime' ! dimension name for midSoil-time (unlimited)
-character(len=32),parameter :: midTotoAndTime_DimName='midTotoAndTime' ! dimension name for midToto-time (unlimited)
-character(len=32),parameter :: ifcSnowAndTime_DimName='ifcSnowAndTime' ! dimension name for ifcSnow-time (unlimited)
-character(len=32),parameter :: ifcSoilAndTime_DimName='ifcSoilAndTime' ! dimension name for ifcSoil-time (unlimited)
-character(len=32),parameter :: ifcTotoAndTime_DimName='ifcTotoAndTime' ! dimension name for ifcToto-time (unlimited)
+character(len=32),parameter :: midSnowAndTime_DimName='midSnowAndTime' ! dimension name for midSnow-time
+character(len=32),parameter :: midSoilAndTime_DimName='midSoilAndTime' ! dimension name for midSoil-time
+character(len=32),parameter :: midTotoAndTime_DimName='midTotoAndTime' ! dimension name for midToto-time
+character(len=32),parameter :: ifcSnowAndTime_DimName='ifcSnowAndTime' ! dimension name for ifcSnow-time
+character(len=32),parameter :: ifcSoilAndTime_DimName='ifcSoilAndTime' ! dimension name for ifcSoil-time
+character(len=32),parameter :: ifcTotoAndTime_DimName='ifcTotoAndTime' ! dimension name for ifcToto-time
 contains
 
  ! **********************************************************************************************************
  ! new subroutine: define model output file
  ! **********************************************************************************************************
  subroutine def_output(infile,err,message)
- USE data_struc,only:forc_meta,mpar_meta,mvar_meta,indx_meta  ! metadata structures
+ USE data_struc,only:forc_meta,attr_meta,type_meta,mpar_meta,mvar_meta,indx_meta  ! metadata structures
  USE data_struc,only:model_decisions
  ! declare dummy variables
  character(*), intent(in)    :: infile                       ! file suffix
@@ -43,6 +44,22 @@ contains
   call put_attrib(trim(infile),model_decisions(ivar)%cOption,model_decisions(ivar)%cDecision,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
+ ! **********************************************************************************************************
+ ! ***** define local attributes
+ ! **********************************************************************************************************
+ do ivar=1,size(attr_meta)
+  if (.not.attr_meta(ivar)%v_write) cycle
+  call def_variab(trim(infile),(/scalar_DimName/),attr_meta(ivar),nf90_double,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end do  ! looping through local attributes
+ ! **********************************************************************************************************
+ ! ***** define local classification of veg, soil, etc.
+ ! **********************************************************************************************************
+ do ivar=1,size(type_meta)
+  if (.not.type_meta(ivar)%v_write) cycle
+  call def_variab(trim(infile),(/scalar_DimName/),type_meta(ivar),nf90_int,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end do  ! looping through local classification of veg, soil, etc.
  ! **********************************************************************************************************
  ! ***** define model parameters
  ! **********************************************************************************************************
@@ -110,12 +127,16 @@ contains
  integer(i4b),parameter      :: maxLength=1500000         ! maximum length of the variable vector
  !integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
  integer(i4b),parameter      :: maxParSets=1               ! maximum number of parameter sets
+ integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
  ! initialize error control
  err=0;message="f-iniCreate/"
  ! create output file
  err = nf90_create(trim(infile),nf90_classic_model,ncid)
  call netcdf_err(err,message); if (err/=0) return
- ! create parameter dimension (unlimited)
+ ! create scalar dimension
+ err = nf90_def_dim(ncid, trim(scalar_DimName), scalarLength, dimId)
+ call netcdf_err(err,message); if (err/=0) return
+ ! create parameter dimension
  err = nf90_def_dim(ncid, trim(parSet_DimName), maxParSets, dimId)
  call netcdf_err(err,message); if (err/=0) return
  ! create time dimension (unlimited)
@@ -124,22 +145,22 @@ contains
  ! create dimension for the time-delay routing variables
  err = nf90_def_dim(ncid, trim(routing_DimName), maxRouting, dimId)
  call netcdf_err(err,message); if (err/=0) return
- ! create dimension for midSnow+time (unlimited)
+ ! create dimension for midSnow+time
  err = nf90_def_dim(ncid, trim(midSnowAndTime_DimName), maxLength, dimId)
  call netcdf_err(err,message); if (err/=0) return
- ! create dimension for midSoil+time (unlimited)
+ ! create dimension for midSoil+time
  err = nf90_def_dim(ncid, trim(midSoilAndTime_DimName), maxLength, dimId)
  call netcdf_err(err,message); if (err/=0) return
- ! create dimension for midToto+time (unlimited)
+ ! create dimension for midToto+time
  err = nf90_def_dim(ncid, trim(midTotoAndTime_DimName), maxLength, dimId)
  call netcdf_err(err,message); if (err/=0) return
- ! create dimension for ifcSnow+time (unlimited)
+ ! create dimension for ifcSnow+time
  err = nf90_def_dim(ncid, trim(ifcSnowAndTime_DimName), maxLength, dimId)
  call netcdf_err(err,message); if (err/=0) return
- ! create dimension for ifcSoil+time (unlimited)
+ ! create dimension for ifcSoil+time
  err = nf90_def_dim(ncid, trim(ifcSoilAndTime_DimName), maxLength, dimId)
  call netcdf_err(err,message); if (err/=0) return
- ! create dimension for ifcToto+time (unlimited)
+ ! create dimension for ifcToto+time
  err = nf90_def_dim(ncid, trim(ifcTotoAndTime_DimName), maxLength, dimId)
  call netcdf_err(err,message); if (err/=0) return
  ! close NetCDF file
