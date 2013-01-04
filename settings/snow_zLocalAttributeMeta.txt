@@ -12,7 +12,7 @@
 ! 1: variable name
 ! 2: variable description
 ! 3: variable units
-! 4: variable type (e.g., scalar, vector og monthly values)
+! 4: variable type (e.g., scalar, vector of monthly values)
 ! 5: write variable to output file? (T/F)
 ! ***************************************************************************************************************************
 '(a15,(1x,a1,1x),a55,(1x,a1,1x),a15,(1x,a1,1x),a7,(1x,a1,1x),l1)'  ! format of the descriptions that follow (must be in single quotes)
@@ -22,5 +22,4 @@
 latitude        | latitude                                                | degrees north   | scalarv | T
 longitude       | longitude                                               | degrees east    | scalarv | T
 elevation       | elevation                                               | m               | scalarv | T
-LAI_monthly     | climatological monthly values of the leaf area index    | m2 m-2          | monthly | T
 ! ***************************************************************************************************************************

@@ -1,19 +1,21 @@
-SNOW_FILEMANAGER_V1.1
+SNOW_FILEMANAGER_V1.2
 ! Comment line:
 ! *** paths (must be in single quotes)
 '/d1/mclark/FUSE_SNOW/settings/'                   ! SETNGS_PATH
 '/d1/mclark/FUSE_SNOW/input/senatorBeck/'          ! INPUT_PATH
 '/d1/mclark/FUSE_SNOW/output/senatorBeck/'         ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
-'senatorBeck/snow_zDecisions_senatorBeck.txt'      ! M_DECISIONS     = definition of model decisions
-'snow_zTimeMeta.txt'                               ! META_TIME       = metadata for time
-'snow_zSiteMeta.txt'                               ! META_SITE       = metadata for site characteristics
-'snow_zForceMeta.txt'                              ! META_FORCE      = metadata for model forcing variables
-'snow_zParamMeta.txt'                              ! META_PARAM      = metadata for model parameters
-'snow_zModelVarMeta.txt'                           ! META_MVAR       = metadata for model variables
-'snow_zModelIndexMeta.txt'                         ! META_INDEX      = metadata for model indices
-'senatorBeck/snow_zParamInfo_senatorBeck.txt'      ! PARAMETER_INFO  = site characteristics, and default values and constraints for model parameters
-'senatorBeck/snow_zForcingInfo_senatorBeck.txt'    ! FORCEFILE_DESC  = description of forcing data file
-'senatorBeck/snow_zInitialCond_senatorBeck.txt'    ! MODEL_INITCOND  = model initial conditions
-'senatorBeck/snow_zParamTrial_senatorBeck.txt'     ! PARAMETER_TRIAL = trial values for model parameters
-'senatorBeck'                                      ! OUTPUT_PREFIX   = prefix for the output file
+'senatorBeck/snow_zDecisions_senatorBeck.txt'      ! M_DECISIONS      = definition of model decisions
+'snow_zTimeMeta.txt'                               ! META_TIME        = metadata for time
+'snow_zLocalAttributeMeta.txt'                     ! META_ATTR        = metadata for local attributes
+'snow_zCategoryMeta.txt'                           ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'snow_zForceMeta.txt'                              ! META_FORCE       = metadata for model forcing variables
+'snow_zParamMeta.txt'                              ! META_PARAM       = metadata for model parameters
+'snow_zModelVarMeta.txt'                           ! META_MVAR        = metadata for model variables
+'snow_zModelIndexMeta.txt'                         ! META_INDEX       = metadata for model indices
+'senatorBeck/snow_zLocalAttributes.txt'            ! LOCAL_ATTRIBUTES = local attributes
+'senatorBeck/snow_zParamInfo_senatorBeck.txt'      ! PARAMETER_INFO   = default values and constraints for model parameters
+'senatorBeck/snow_zForcingInfo_senatorBeck.txt'    ! FORCEFILE_DESC   = description of forcing data file
+'senatorBeck/snow_zInitialCond_senatorBeck.txt'    ! MODEL_INITCOND   = model initial conditions
+'senatorBeck/snow_zParamTrial_senatorBeck.txt'     ! PARAMETER_TRIAL  = trial values for model parameters
+'senatorBeck'                                      ! OUTPUT_PREFIX    = prefix for the output file

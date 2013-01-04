@@ -5,34 +5,17 @@
 ! ***********************************************************************************************************************
 ! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
 !
-!
 ! ***********************************************************************************************************************
-! PART 1: DEFINE SITE CHARACTERISTICS
-! -----------------------------------
-! Variable name followed by the value
-! The variable names are important, as they must match the variable names in the code
-! ***********************************************************************************************************************
-<start_siteCharacteristix>
-! --------------------------------
-latitude                50.3
-longitude                6.1
-elevation              491.0
-LAI_monthly              0.7 0.8 1.4 2.5 4.2 5.2 3.9 3.8 3.8 3.1 1.7 1.0
-!                          J   F   M   A   M   J   J   A   S   O   N   D
-! --------------------------------
-<end_siteCharacteristix>
-! ***********************************************************************************************************************
-! PART 1: DEFINE SITE MODEL PARAMETERS
+! DEFINE SITE MODEL PARAMETERS
 ! ------------------------------------
 ! the format definition defines the format of the file, which can be changed
 ! the delimiters "| " must be present (format a2), as these are used to check the integrety of the file
 ! columns are:
 ! 1: parameter name
 ! 2: default parameter value
-! 3: upper parameter limit
-! 4: lower parameter limit
+! 3: lower parameter limit
+! 4: upper parameter limit
 ! ***********************************************************************************************************************
-<start_modelParameters>
 !
 ! ***************************************************************
 ! define format string for parameter descriptions
@@ -156,5 +139,3 @@ absConvTol_aquifr    |       1.0d-5 |       1.0d-5 |       1.0d-1
 zmin                 |       0.0100 |       0.0050 |       0.1000
 zmax                 |       0.0250 |       0.0100 |       0.5000
 ! ***************************************************************
-!
-<end_modelParameters>

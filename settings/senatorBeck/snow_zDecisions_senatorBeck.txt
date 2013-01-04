@@ -6,85 +6,94 @@
 ! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
 ! (2) the name of the decision is followed by the character string defining the decision
 ! ***********************************************************************************************************************
-num_method   itertive  ! ( 1) choice of numerical method
-fDerivMeth   analytic  ! ( 2) method used to calculate flux derivatives
-f_Richards   mixdform  ! ( 3) form of Richard's equation
-groundwatr   noXplict  ! ( 4) choice of groundwater parameterization
-hc_profile   constant  ! ( 5) choice of hydraulic conductivity profile
-bcUpprTdyn   nrg_flux  ! ( 6) type of upper boundary condition for thermodynamics
-bcLowrTdyn   zeroFlux  ! ( 7) type of lower boundary condition for thermodynamics
-bcUpprSoiH   liq_flux  ! ( 8) type of upper boundary condition for soil hydrology
-bcLowrSoiH   drainage  ! ( 9) type of lower boundary condition for soil hydrology
-astability   mahrtexp  ! (10) choice of stability function
-alb_method   fsnowage  ! (11) choice of albedo representation
-compaction   anderson  ! (12) choice of compaction routine
-thermlcond   melr1977  ! (13) choice of thermal conductivity representation
-subRouting   timeDlay  ! (14) choice of method for sub-grid routing
+soilCatTbl                       STAS  ! ( 1) soil-category dateset
+vegeParTbl   MODIFIED_IGBP_MODIS_NOAH  ! ( 2) vegetation category dataset
+num_method                   itertive  ! ( 3) choice of numerical method
+fDerivMeth                   analytic  ! ( 4) method used to calculate flux derivatives
+f_Richards                   mixdform  ! ( 5) form of Richard's equation
+groundwatr                   noXplict  ! ( 6) choice of groundwater parameterization
+hc_profile                   constant  ! ( 7) choice of hydraulic conductivity profile
+bcUpprTdyn                   nrg_flux  ! ( 8) type of upper boundary condition for thermodynamics
+bcLowrTdyn                   zeroFlux  ! ( 9) type of lower boundary condition for thermodynamics
+bcUpprSoiH                   liq_flux  ! (10) type of upper boundary condition for soil hydrology
+bcLowrSoiH                   drainage  ! (11) type of lower boundary condition for soil hydrology
+astability                   mahrtexp  ! (12) choice of stability function
+alb_method                   fsnowage  ! (13) choice of albedo representation
+compaction                   anderson  ! (14) choice of compaction routine
+thermlcond                   melr1977  ! (15) choice of thermal conductivity representation
+subRouting                   timeDlay  ! (16) choice of method for sub-grid routing
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
-! (1) choice of numerical method
+! (1) soil-category dateset
+! STAS      ! STATSGO dataset
+! -----------------------------------------------------------------------------------------------
+! (2) vegetation category dataset
+! USGS      ! USGS 24/27 category dataset
+! MODIFIED_IGBP_MODIS_NOAH  ! MODIS 20-category dataset
+! -----------------------------------------------------------------------------------------------
+! (3) choice of numerical method
 ! itertive  ! iterative
 ! non_iter  ! non-iterative
 ! itersurf  ! iterate only on the surface energy balance
 ! -----------------------------------------------------------------------------------------------
-! (2) method used to calculate flux derivatives
+! (4) method used to calculate flux derivatives
 ! numericl  ! numerical derivatives
 ! analytic  ! analytical derivatives
 ! -----------------------------------------------------------------------------------------------
-! (3) form of Richards' equation
+! (5) form of Richards' equation
 ! moisture  ! moisture-based form of Richards' equation
 ! mixdform  ! mixed form of Richards' equation
 ! -----------------------------------------------------------------------------------------------
-! (4) choice of groundwater parameterization
+! (6) choice of groundwater parameterization
 ! zEquilWT  ! equilibrium water table
 ! pseudoWT  ! pseudo water table
 ! bigBuckt  ! a big bucket (lumped aquifer model)
 ! noXplict  ! no explicit groundwater parameterization
 ! -----------------------------------------------------------------------------------------------
-! (5) choice of hydraulic conductivity profile
+! (7) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth
 ! exp_prof  ! exponential profile
 ! pow_prof  ! power-law profile
 ! lin_prof  ! linear profile
 ! -----------------------------------------------------------------------------------------------
-! (6) choice of upper boundary conditions for thermodynamics
+! (8) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! nrg_flux  ! energy flux
 ! -----------------------------------------------------------------------------------------------
-! (7) choice of lower boundary conditions for thermodynamics
+! (9) choice of lower boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! zeroFlux  ! zero flux
 ! -----------------------------------------------------------------------------------------------
-! (8) choice of upper boundary conditions for soil hydrology
+! (10) choice of upper boundary conditions for soil hydrology
 ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 ! liq_flux  ! liquid water flux
 ! -----------------------------------------------------------------------------------------------
-! (9) choice of lower boundary conditions for soil hydrology
+! (11) choice of lower boundary conditions for soil hydrology
 ! drainage  ! free draining
 ! bottmPsi  ! function of matric head in the lower-most layer
 ! zeroFlux  ! zero flux
 ! -----------------------------------------------------------------------------------------------
-! (10) choice of stability function
+! (12) choice of stability function
 ! standard  ! standard MO similarity, a la Anderson (1979)
 ! louisinv  ! Louis (1979) inverse power function
 ! mahrtexp  ! Mahrt (1987) exponential function
 ! -----------------------------------------------------------------------------------------------
-! (11) choice of albedo representation
+! (13) choice of albedo representation
 ! fsnowage  ! function of snow age
 ! batslike  ! BATS-like approach, with destructive metamorphism + soot content
 ! -----------------------------------------------------------------------------------------------
-! (12) choice of compaction routine
+! (14) choice of compaction routine
 ! consettl  ! constant settlement rate
 ! anderson  ! semi-empirical method of Anderson (1976)
 ! -----------------------------------------------------------------------------------------------
-! (13) choice of thermal conductivity
+! (15) choice of thermal conductivity
 ! tyen1965  ! Yen (1965)
 ! melr1977  ! Mellor (1977)
 ! jrdn1991  ! Jordan (1991)
 ! smnv2000  ! Smirnova et al. (2000)
 ! -----------------------------------------------------------------------------------------------
-! (14) choice of method for sub-grid routing
+! (16) choice of method for sub-grid routing
 ! timeDlay  ! time-delay histogram
 ! qInstant  ! instantaneous routing
 ! ***********************************************************************************************
