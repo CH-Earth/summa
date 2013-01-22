@@ -20,12 +20,12 @@ id        | 3                         ! day
 ih        | 4                         ! hour
 imin      | 5                         ! minute
 pptrate   | 7                         ! precipitation rate              (kg m-2 s-1)
-sw_down   | 8                         ! downwelling shortwave radiaiton (W m-2)
-lw_down   | 9                         ! downwelling longwave radiation  (W m-2)
+SWRadAtm  | 8                         ! downwelling shortwave radiaiton (W m-2)
+LWRadAtm  | 9                         ! downwelling longwave radiation  (W m-2)
 airtemp   | 10                        ! air temperature                 (K)
 windspd   | 11                        ! windspeed                       (m/s)
 airpres   | 12                        ! pressure                        (Pa)
 spechum   | 13                        ! specific humidity               (g/g)
-istart    | 14400                     ! start of the simulation period
+istart    | 14412                     ! start of the simulation period
 numtim    | 50000                     ! number of time steps (113976)
 data_step | 3600                      ! length of time step (seconds)

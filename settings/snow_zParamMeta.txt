@@ -50,6 +50,7 @@ soot_load            | albedo decay associated with soot load                   
 ! radiation transfer
 ! *****************************************************************************************************************
 radExt_snow          | extinction coefficient for radiation penetration into snowpack    | m-1        | scalarv | F
+Frad_direct          | fraction direct solar radiation                                   | -          | scalarv | F
 Frad_vis             | fraction radiation in visible part of spectrum                    | -          | scalarv | F
 ! *****************************************************************************************************************
 ! new snow density
@@ -76,24 +77,30 @@ mw_exp               | exponent for meltwater flow                              
 ! turbulent heat fluxes
 ! *****************************************************************************************************************
 mheight              | measurement height above bare ground                              | m          | scalarv | F
-zon                  | roughness length                                                  | m          | scalarv | F
-c_star               | cstar parameter in Louis (1979) stability function                | -          | scalarv | F
-bparam               | b parameter in Louis (1979) stability function                    | -          | scalarv | F
-Mahrt_m              | m parameter from the Mahrt (1987) stability function              | -          | scalarv | F
+z0Snow               | roughness length of snow                                          | m          | scalarv | T
+z0Soil               | roughness length of bare soil below the canopy                    | m          | scalarv | T
+z0Canopy             | roughness length of the canopy                                    | m          | scalarv | T
+critRichNumber       | critical value for the bulk Richardson number                     | -          | scalarv | T
+Louis79_bparam       | parameter in Louis (1979) stability function                      | -          | scalarv | T
+Louis79_cStar        | parameter in Louis (1979) stability function                      | -          | scalarv | T
+Mahrt87_eScale       | exponential scaling factor in the Mahrt (1987) stability function | -          | scalarv | T
+windReductionFactor  | canopy wind reduction factor                                      | -          | scalarv | T
+leafExchangeCoeff    | turbulent exchange coeff between canopy surface and canopy air    | m s-(1/2)  | scalarv | T
 ! *****************************************************************************************************************
 ! vegetation properties
 ! *****************************************************************************************************************
 rootingDepth         | rooting depth                                                     | m          | scalarv | T
-rootDistExp          | exponent for the vertical distriution of root density             | -          | scalarv | T
-minStomatalResist    | minimum stomatal resistance                                       | s m-1      | scalarv | F
-maxStomatalResist    | maximum stomatal resistance                                       | s m-1      | scalarv | F
-plantWiltPsi         | critical matric head when stomatal resitance 2 x min              | m          | scalarv | T
-plantWiltExp         | empirical exponent in plant wilting factor expression             | -          | scalarv | T
+rootDistExp          | exponent for the vertical distribution of root density            | -          | scalarv | T
+plantWiltPsi         | matric head at wilting point                                      | m          | scalarv | T
+soilStressParam      | parameter in the exponential soil stress function                 | -          | scalarv | T
+critSoilWilting      | critical vol. liq. water content when plants are wilting          | -          | scalarv | T
+critSoilTranspire    | critical vol. liq. water content when transpiration is limited    | -          | scalarv | T
 critAquiferTranspire | critical aquifer storage value when transpiration is limited      | m          | scalarv | T
+leafDimension        | characteristic leaf dimension                                     | m          | scalarv | T
+canopyHeight         | canopy height                                                     | m          | scalarv | T
 ! *****************************************************************************************************************
 ! soil properties
 ! *****************************************************************************************************************
-soilAlbedo           | surface albedo of the soil                                        | -          | scalarv | F
 soil_dens_intr       | intrinsic soil density                                            | kg m-3     | scalarv | F
 frac_sand            | fraction of sand                                                  | -          | scalarv | F
 frac_silt            | fraction of silt                                                  | -          | scalarv | F
