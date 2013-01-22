@@ -27,6 +27,9 @@ MODULE module_sf_noahlsm
         CHARACTER(LEN=256) SLTYPE
         REAL, DIMENSION (1:NSLTYPE) :: BB,DRYSMC,F11,                           &
         MAXSMC, REFSMC,SATPSI,SATDK,SATDW, WLTSMC,QTZ
+        ! MPC add van Genutchen parameters
+        REAL, DIMENSION (1:NSLTYPE) :: theta_res, theta_sat,                    &
+        vGn_alpha, vGn_n, k_soil
 
 ! LSM GENERAL PARAMETERS
         INTEGER :: SLPCATS

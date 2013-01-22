@@ -4,7 +4,17 @@ implicit none
 private
 public::mDecisions
 ! -----------------------------------------------------------------------------------------------------------
-! ***** define look-up values for different model decisions *****
+! ***** define look-up values for different Noah-MP decisions *****
+! -----------------------------------------------------------------------------------------------------------
+! look-up values for the choice of function for the soil moisture control on stomatal resistance
+integer(i4b),parameter,public :: NoahType          = 1    ! thresholded linear function of volumetric liquid water content
+integer(i4b),parameter,public :: CLM_type          = 2    ! thresholded linear function of matric head
+integer(i4b),parameter,public :: SiB_Type          = 3    ! exponential of the log of matric head
+! look-up values for the choice of function for the soil moisture control on stomatal resistance
+integer(i4b),parameter,public :: BallBerry         = 1    ! Ball-Berry
+integer(i4b),parameter,public :: Jarvis            = 2    ! Jarvis
+! -----------------------------------------------------------------------------------------------------------
+! ***** define look-up values for different FUSE model decisions *****
 ! -----------------------------------------------------------------------------------------------------------
 ! look-up values for the choice of numerical method
 integer(i4b),parameter,public :: iterative         =11    ! iterative
@@ -63,6 +73,10 @@ contains
  ! model decision structures
  USE data_struc,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ ! Noah-MP decision structures
+ USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
+ USE noahmp_globals,only:OPT_RAD            ! decision for canopy radiation
+ USE noahmp_globals,only:OPT_ALB            ! decision for snow albedo
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
@@ -79,7 +93,33 @@ contains
  call readoption(err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
- ! (1) identify the numerical method
+ ! -------------------------------------------------------------------------------------------------
+
+ ! (0) set Noah-MP options
+ DVEG=3      ! option for dynamic vegetation
+ OPT_RAD=1   ! option for canopy radiation
+ OPT_ALB=1   ! option for snow albedo
+
+ ! (N-03) identify the choice of function for the soil moisture control on stomatal resistance
+ select case(trim(model_decisions(iLookDECISIONS%soilStress)%cDecision))
+  case('NoahType'); model_decisions(iLookDECISIONS%soilStress)%iDecision = NoahType             ! thresholded linear function of volumetric liquid water content
+  case('CLM_type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = CLM_type             ! thresholded linear function of matric head
+  case('SiB_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = SiB_Type             ! exponential of the log of matric head
+  case default
+   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%soilStress)%cDecision)//"]"; return
+ end select
+
+ ! (N-04) identify the choice of function for stomatal resistance
+ select case(trim(model_decisions(iLookDECISIONS%stomResist)%cDecision))
+  case('BallBerry'); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerry           ! Ball-Berry
+  case('Jarvis'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = Jarvis              ! Jarvis
+  case default
+   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
+ end select
+
+ ! -------------------------------------------------------------------------------------------------
+
+ ! (F-01) identify the numerical method
  select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
   case('itertive'); model_decisions(iLookDECISIONS%num_method)%iDecision = iterative           ! iterative
   case('non_iter'); model_decisions(iLookDECISIONS%num_method)%iDecision = nonIterative        ! non-iterative
@@ -88,7 +128,7 @@ contains
    err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
  end select
 
- ! (2) identify the method used to calculate flux derivatives
+ ! (F-02) identify the method used to calculate flux derivatives
  select case(trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision))
   case('numericl'); model_decisions(iLookDECISIONS%fDerivMeth)%iDecision = numerical           ! numerical
   case('analytic'); model_decisions(iLookDECISIONS%fDerivMeth)%iDecision = analytical          ! analytical
@@ -96,7 +136,7 @@ contains
    err=10; message=trim(message)//"unknown method used to calculate flux derivatives [option="//trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision)//"]"; return
  end select
 
- ! (3) identify the form of Richards' equation
+ ! (F-03) identify the form of Richards' equation
  select case(trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision))
   case('moisture'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = moisture            ! moisture-based form
   case('mixdform'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform            ! mixed form
@@ -104,7 +144,7 @@ contains
    err=10; message=trim(message)//"unknown form of Richards' equation [option="//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//"]"; return
  end select
 
- ! (4) identify the groundwater parameterization
+ ! (F-04) identify the groundwater parameterization
  select case(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision))
   case('zEquilWT'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = equilWaterTable     ! equilibrium water table
   case('pseudoWT'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = pseudoWaterTable    ! pseudo water table
@@ -114,7 +154,7 @@ contains
    err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
  end select
 
- ! (5) identify the hydraulic conductivity profile
+ ! (F-05) identify the hydraulic conductivity profile
  select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
   case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
   case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = exp_profile         ! exponential profile
@@ -124,7 +164,7 @@ contains
    err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
  end select
 
- ! (6) identify the upper boundary conditions for thermodynamics
+ ! (F-06) identify the upper boundary conditions for thermodynamics
  select case(trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision))
   case('presTemp'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = prescribedTemp      ! prescribed temperature
   case('nrg_flux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = energyFlux          ! energy flux
@@ -132,7 +172,7 @@ contains
    err=10; message=trim(message)//"unknown upper boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision)//"]"; return
  end select
 
- ! (7) identify the lower boundary conditions for thermodynamics
+ ! (F-07) identify the lower boundary conditions for thermodynamics
  select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
   case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
   case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
@@ -140,7 +180,7 @@ contains
    err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
  end select
 
- ! (8) identify the upper boundary conditions for soil hydrology
+ ! (F-08) identify the upper boundary conditions for soil hydrology
  select case(trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision))
   case('presHead'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   case('liq_flux'); model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision = liquidFlux          ! liquid water flux
@@ -148,7 +188,7 @@ contains
    err=10; message=trim(message)//"unknown upper boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcUpprSoiH)%cDecision)//"]"; return
  end select
 
- ! (9) identify the lower boundary conditions for soil hydrology
+ ! (F-09) identify the lower boundary conditions for soil hydrology
  select case(trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision))
   case('presHead'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = prescribedHead      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
   case('bottmPsi'); model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision = funcBottomHead      ! function of matric head in the lower-most layer
@@ -158,7 +198,7 @@ contains
    err=10; message=trim(message)//"unknown lower boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision)//"]"; return
  end select
 
- ! (10) identify the choice of atmospheric stability function
+ ! (F-10) identify the choice of atmospheric stability function
  select case(trim(model_decisions(iLookDECISIONS%astability)%cDecision))
   case('standard'); model_decisions(iLookDECISIONS%astability)%iDecision = standard            ! standard MO similarity, a la Anderson (1976)
   case('louisinv'); model_decisions(iLookDECISIONS%astability)%iDecision = louisInversePower   ! Louis (1979) inverse power function
@@ -167,7 +207,7 @@ contains
    err=10; message=trim(message)//"unknown stability function [option="//trim(model_decisions(iLookDECISIONS%astability)%cDecision)//"]"; return
  end select
 
- ! (11) choice of albedo representation
+ ! (F-11) choice of albedo representation
  select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
   case('fsnowage'); model_decisions(iLookDECISIONS%alb_method)%iDecision = funcSnowAge         ! function of snow age
   case('BATSlike'); model_decisions(iLookDECISIONS%alb_method)%iDecision = BATSlike            ! BATS-like approach, with destructive metamorphism + soot content
@@ -175,7 +215,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
  end select
 
- ! (12) choice of compaction routine
+ ! (F-12) choice of snow compaction routine
  select case(trim(model_decisions(iLookDECISIONS%compaction)%cDecision))
   case('consettl'); model_decisions(iLookDECISIONS%compaction)%iDecision = constantSettlement  ! constant settlement rate
   case('anderson'); model_decisions(iLookDECISIONS%compaction)%iDecision = andersonEmpirical   ! semi-empirical method of Anderson (1976)
@@ -183,7 +223,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
  end select
 
- ! (13) choice of thermal conductivity
+ ! (F-13) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
   case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
@@ -193,7 +233,7 @@ contains
    err=10; message=trim(message)//"unknown option for thermal conductivity [option="//trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision)//"]"; return
  end select
 
- ! (14) choice of routing method
+ ! (F-14) choice of routing method
  select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
   case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
   case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing

@@ -16,11 +16,11 @@ USE def_output_module,only:def_output                       ! module to define m
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
 USE read_attrb_module,only:read_attrb                       ! module to read local attributes
 USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
+USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
 USE read_icond_module,only:read_icond                       ! module to read initial conditions
 USE read_param_module,only:read_param                       ! module to read model parameter sets
 USE ConvE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
 USE var_derive_module,only:calcHeight                       ! module to calculate height at layer interfaces and layer mid-point
-USE var_derive_module,only:turbExchng                       ! module to calculate turbulaent exchange coefficients for neutral conditons
 USE var_derive_module,only:v_shortcut                       ! module to calculate "short-cut" variables
 USE var_derive_module,only:rootDensty                       ! module to calculate the vertical distribution of roots
 USE var_derive_module,only:satHydCond                       ! module to calculate the saturated hydraulic conductivity in each soil layer
@@ -97,21 +97,6 @@ endif
 call fuse_SetDirsUndPhiles(fuseFileManager,err,message); call handle_err(err,message)
 ! read model decisions
 call mDecisions(err,message); call handle_err(err,message)
-! read Noah soil and vegetation tables
-call soil_veg_gen_parm(trim(SETNGS_PATH)//'VEGPARM.TBL',                              & ! filename for vegetation table
-                       trim(SETNGS_PATH)//'SOILPARM.TBL',                             & ! filename for soils table
-                       trim(SETNGS_PATH)//'GENPARM.TBL',                              & ! filename for general table
-                       trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision),    & ! classification system used for vegetation
-                       trim(model_decisions(iLookDECISIONS%soilCatTbl)%cDecision))      ! classification system used for soils
-! read Noah-MP vegetation tables
-call read_mp_veg_parameters(trim(SETNGS_PATH)//'MPTABLE.TBL',                         & ! filename for Noah-MP table
-                            trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision)) ! classification system used for vegetation
-! define urban vegetation category
-select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
- case('USGS');                     urbanVegCategory=1
- case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory=13
- case default; call handle_err(30,'unable to identify vegetation category')
-end select
 
 ! *****************************************************************************
 ! (2) read model metadata
@@ -128,13 +113,34 @@ call read_attrb(err,message); call handle_err(err,message)
 call read_pinit(err,message); call handle_err(err,message) 
 
 ! *****************************************************************************
-! (3) read trial model parameter values -- and allocate space for parameter structures
+! (3) read Noah vegetation tables, and overwrite default values
+! *****************************************************************************
+! read Noah soil and vegetation tables
+call soil_veg_gen_parm(trim(SETNGS_PATH)//'VEGPARM.TBL',                              & ! filename for vegetation table
+                       trim(SETNGS_PATH)//'SOILPARM.TBL',                             & ! filename for soils table
+                       trim(SETNGS_PATH)//'GENPARM.TBL',                              & ! filename for general table
+                       trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision),    & ! classification system used for vegetation
+                       trim(model_decisions(iLookDECISIONS%soilCatTbl)%cDecision))      ! classification system used for soils
+! read Noah-MP vegetation tables
+call read_mp_veg_parameters(trim(SETNGS_PATH)//'MPTABLE.TBL',                         & ! filename for Noah-MP table
+                            trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision)) ! classification system used for vegetation
+! define urban vegetation category
+select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
+ case('USGS');                     urbanVegCategory=1
+ case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory=13
+ case default; call handle_err(30,'unable to identify vegetation category')
+end select
+! use values from Noah tables to overwrite default parameter values
+call pOverwrite(err,message); call handle_err(err,message)
+
+! *****************************************************************************
+! (4) read trial model parameter values -- and allocate space for parameter structures
 ! *****************************************************************************
 ! read trial model parameter values -- and allocate space for parameter structures
 call read_param(nParSets,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (4) loop through the model parameter sets
+! (5) loop through the model parameter sets
 ! *****************************************************************************
 do iParSet=1,nParSets
 
@@ -144,7 +150,6 @@ do iParSet=1,nParSets
  call read_icond(err,message); call handle_err(err,message)
  ! compute derived model variables that are pretty much constant
  call E2T_lookup(err,message); call handle_err(err,message) ! calculate a look-up table for the temperature-enthalpy conversion
- call turbExchng(err,message); call handle_err(err,message) ! calculate turbulent exchange coefficients under neutral conditions
  call rootDensty(err,message); call handle_err(err,message) ! calculate vertical distribution of root density
  call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
  call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
@@ -173,7 +178,7 @@ do iParSet=1,nParSets
  jstep=1
 
  ! ****************************************************************************
- ! (5) loop through time
+ ! (6) loop through time
  ! ****************************************************************************
  do istep=1,forcFileInfo%numtim
 
@@ -200,17 +205,15 @@ do iParSet=1,nParSets
               urbanVegCategory)                                                  ! vegetation category for urban areas
 
   ! ***************************************************************************
-  ! (6) read forcing data
+  ! (7) read forcing data
   ! ***************************************************************************
   ! read a line of forcing data (if not already opened, open file, and get to the correct place)
   call read_force(istep,err,message); call handle_err(err,message)
   ! compute derived forcing variables
   call derivforce(err,message); call handle_err(err,message)
-  ! re-compute turbulent exchange coefficients for neutral conditions (the height of the surface may change)
-  call turbExchng(err,message); call handle_err(err,message)
 
   ! *****************************************************************************
-  ! (7) create a new NetCDF output file, and write parameters and forcing data
+  ! (8) create a new NetCDF output file, and write parameters and forcing data
   ! *****************************************************************************
   ! check the start of a new water year
   if(time_data%var(iLookTIME%im)  ==10 .and. &   ! month = October
@@ -242,7 +245,7 @@ do iParSet=1,nParSets
   !stop 'FORTRAN STOP: after call to writeForce'
 
   ! ****************************************************************************
-  ! (8) run the model
+  ! (9) run the model
   ! ****************************************************************************
   print*, time_data%var, nSnow
   ! run the model for a single parameter set and time step
@@ -349,6 +352,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
        &                        albedomaxtbl, wltsmc, qtz, refsmc, &
        &                        z0mintbl, z0maxtbl, &
        &                        satpsi, satdk, satdw, &
+       &                        theta_res, theta_sat, vGn_alpha, vGn_n, k_soil, &  ! MPC add van Genutchen parameters
        &                        fxexp_data, lvcoef_data, &
        &                        lutype, maxalb, &
        &                        slope_data, frzk_data, bare, cmcmax_data, &
@@ -483,17 +487,26 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
 
   LUMATCH=0
 
-  READ (19,*)
-  READ (19,2000,END=2003)SLTYPE
-2000 FORMAT (A4)
-  READ (19,*)SLCATS,IINDEX
-  IF(SLTYPE.EQ.MMINSL)THEN
+
+
+  ! MPC add a new soil table
+  FIND_soilTYPE : DO WHILE (LUMATCH == 0)
+   READ (19,*)
+   READ (19,*,END=2003)SLTYPE
+   READ (19,*)SLCATS,IINDEX
+   IF(SLTYPE.EQ.MMINSL)THEN
      WRITE( mess , * ) 'SOIL TEXTURE CLASSIFICATION = ', TRIM ( SLTYPE ) , ' FOUND', &
           SLCATS,' CATEGORIES'
      ! CALL wrf_message ( mess )
      LUMATCH=1
-  ENDIF
-! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
+   ELSE
+    call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    DO LC = 1, SLCATS
+     read(19,*)
+    ENDDO
+   ENDIF
+  ENDDO FIND_soilTYPE
+  ! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
   IF ( SIZE(BB    ) < SLCATS .OR. &
        SIZE(DRYSMC) < SLCATS .OR. &
        SIZE(F11   ) < SLCATS .OR. &
@@ -506,20 +519,38 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
        SIZE(QTZ   ) < SLCATS  ) THEN
      CALL wrf_error_fatal('Table sizes too small for value of SLCATS in module_sf_noahdrv.F')
   ENDIF
-  IF(SLTYPE.EQ.MMINSL)THEN
+
+  ! MPC add new soil table
+  select case(trim(SLTYPE))
+   case('STAS','STAS-RUC')  ! original soil tables
      DO LC=1,SLCATS
         READ (19,*) IINDEX,BB(LC),DRYSMC(LC),F11(LC),MAXSMC(LC),&
              REFSMC(LC),SATPSI(LC),SATDK(LC), SATDW(LC),   &
              WLTSMC(LC), QTZ(LC)
      ENDDO
-  ENDIF
+   case('ROSETTA')          ! new soil table
+     DO LC=1,SLCATS
+        READ (19,*) IINDEX,&
+             ! new soil parameters (from Rosetta)
+             theta_res(LC), theta_sat(LC),        &
+             vGn_alpha(LC), vGn_n(LC), k_soil(LC), &
+             ! original soil parameters
+             BB(LC),DRYSMC(LC),F11(LC),MAXSMC(LC),&
+             REFSMC(LC),SATPSI(LC),SATDK(LC), SATDW(LC),   &
+             WLTSMC(LC), QTZ(LC)
+     ENDDO
+   case default
+     CALL wrf_message( 'SOIL TEXTURE IN INPUT FILE DOES NOT ' )
+     CALL wrf_message( 'MATCH SOILPARM TABLE'                 )
+     CALL wrf_error_fatal ( 'INCONSISTENT OR MISSING SOILPARM FILE' )
+  end select
 
 2003 CONTINUE
 
   CLOSE (19)
 
   IF(LUMATCH.EQ.0)THEN
-     CALL wrf_message( 'SOIl TEXTURE IN INPUT FILE DOES NOT ' )
+     CALL wrf_message( 'SOIL TEXTURE IN INPUT FILE DOES NOT ' )
      CALL wrf_message( 'MATCH SOILPARM TABLE'                 )
      CALL wrf_error_fatal ( 'INCONSISTENT OR MISSING SOILPARM FILE' )
   ENDIF

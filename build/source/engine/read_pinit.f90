@@ -6,7 +6,7 @@ public::read_pinit
 contains
 
  ! ************************************************************************************************
- ! (1) new subroutine: read information on model site characteristix and parameter info
+ ! (1) new subroutine: read default model parameter values and constraints
  ! ************************************************************************************************
  subroutine read_pinit(err,message)
  ! used to read metadata on the forcing data file

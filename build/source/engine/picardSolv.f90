@@ -10,6 +10,7 @@ contains
  ! ************************************************************************************************
  subroutine picardSolv(dt,maxiter,niter,err,message)
  ! provide access to subroutines
+ USE noahMP_veg_module,only:noahMP_veg          ! compute energy and mass fluxes for a single vegetation layer
  USE diagn_evar_module,only:diagn_evar          ! compute diagnostic energy variables -- thermal conductivity and heat capacity
  USE heatTransf_module,only:heatTransf          ! compute change in temperature over the time step
  USE phseChange_module,only:phseChange          ! compute change in phase over the time step
@@ -48,7 +49,6 @@ contains
  real(dp),pointer                     :: Fcapil                   ! capillary retention as a fraction of the total pore volume (-)
  real(dp),pointer                     :: snowfrz_scale            ! scaling parameter for the snow freezing curve (K-1)
  ! local pointers to soil/veg parameters
- real(dp),pointer                     :: soilAlbedo               ! soil albedo (-)
  real(dp),pointer                     :: vGn_alpha                ! van Genutchen "alpha" parameter
  real(dp),pointer                     :: vGn_n                    ! van Genutchen "n" parameter
  real(dp),pointer                     :: theta_sat                ! soil porosity (-)
@@ -76,13 +76,11 @@ contains
  real(dp),pointer                     :: surfaceAlbedo            ! surface albedo (-) 
  real(dp),pointer                     :: scalarSfcMeltPond        ! ponded water caused by melt of the "snow without a layer" (kg m-2)
  real(dp),pointer                     :: scalarAquiferStorage     ! relative aquifer storage above the bottom of the soil profile (m)
+ real(dp),pointer                     :: scalarVegetationTemp     ! vegetation temperature (K)
  ! local pointers to diagnostic scalar variables
  real(dp),pointer                     :: scalarRainPlusMelt       ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
  real(dp),pointer                     :: scalarSnowDepth          ! total snow depth (m)
  real(dp),pointer                     :: scalarWaterTableDepth    ! water table depth (m)
- real(dp),pointer                     :: scalarPotentialET        ! potential ET (kg m-2 s-1)
- real(dp),pointer                     :: scalarMassLiquid         ! evaporation/dew (kg m-2 s-1)
- real(dp),pointer                     :: scalarMassSolid          ! sublimation/frost (kg m-2 s-1)
  real(dp),pointer                     :: scalarSoilInflux         ! influx of water at the top of the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilBaseflow       ! total baseflow from the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilDrainage       ! drainage from the bottom of the soil profile (m s-1)
@@ -130,6 +128,8 @@ contains
  integer(i4b),pointer                 :: nLayers                  ! number of layers
  integer(i4b),pointer                 :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local model state variables
+ real(dp)                             :: scalarVegetationTempIter ! trial value of vegetation temperature (K)
+ real(dp)                             :: scalarVegetationTempNew  ! vegetation temperature at the next iteration (K)
  real(dp),allocatable                 :: mLayerTempIter(:)        ! temperature vector at the current iteration (K)
  real(dp),allocatable                 :: mLayerTempNew(:)         ! temperature vector at the next iteration (K)
  real(dp),allocatable                 :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice at the current iteration (-)
@@ -172,7 +172,6 @@ contains
  real(dp)                             :: aquifr_max               ! absolute change in aquifer storage for a given iteration (m)
  real(dp)                             :: theta                    ! volumetric fraction of total water, liquid plus ice (-)
  real(dp),parameter                   :: eps   = 1.d-10           ! small increment used to define ice content at the freezing point
- real(dp)                             :: checkCalcs               ! check the aquifer root density calculations
  real(dp)                             :: nrgRequired              ! case of "snow without a layer": energy required to melt all the snow (J m-2)
  real(dp)                             :: nrgAvailable             ! case of "snow without a layer": energy available to melt the snow (J m-2)
  real(dp)                             :: snwDensity               ! case of "snow without a layer": snow density (kg m-3)
@@ -211,7 +210,6 @@ contains
  Fcapil            => mpar_data%var(iLookPARAM%Fcapil)         ! capillary retention as a fraction of the total pore volume (-)
 
  ! assign pointers to soil/veg parameters
- soilAlbedo        => mpar_data%var(iLookPARAM%soilAlbedo)      ! soil albedo (-)
  vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)       ! van Genutchen "alpha" parameter (m-1)
  vGn_n             => mpar_data%var(iLookPARAM%vGn_n)           ! van Genutchen "n" parameter (-)
  theta_sat         => mpar_data%var(iLookPARAM%theta_sat)       ! soil porosity (-)
@@ -241,13 +239,11 @@ contains
  scalarSWE            => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)             ! SWE (kg m-2)
  surfaceAlbedo        => mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1)          ! surface albedo (-)
  scalarSfcMeltPond    => mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1)     ! ponded water caused by melt of the "snow without a layer" (kg m-2)
+ scalarVegetationTemp => mvar_data%var(iLookMVAR%scalarVegetationTemp)%dat(1)  ! vegetation temperature (K)
 
  ! assign local pointers to diagnostic scalar variables
  scalarRainPlusMelt   => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)    ! rain plus melt (m s-1)
  scalarSnowDepth      => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)       ! total snow depth (m)
- scalarPotentialET    => mvar_data%var(iLookMVAR%scalarPotentialET)%dat(1)     ! potential ET (kg m-2 s-1)
- scalarMassLiquid     => mvar_data%var(iLookMVAR%scalarMassLiquid)%dat(1)      ! transpiration (kg m-2 s-1)
- scalarMassSolid      => mvar_data%var(iLookMVAR%scalarMassSolid)%dat(1)       ! sublimation/frost (kg m-2 s-1)
  scalarSoilInflux     => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
  scalarSoilBaseflow   => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)    ! baseflow from throughout the soil profile (m s-1)
  scalarSoilDrainage   => mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1)    ! drainage from the bottom of the soil profile (m s-1)
@@ -361,6 +357,9 @@ contains
  ! get the total aquifer storage at the start of the time step (kg m-2)
  balanceAquifer0 = scalarAquiferStorage*iden_water
 
+ ! initialize vegetation temperature
+ scalarVegetationTempIter = scalarVegetationTemp
+
  ! initialize temperature
  mLayerTempIter = mLayerTemp
 
@@ -369,17 +368,6 @@ contains
 
  ! identify the number of soil layers to use in the soil hydrology routine
  nLevels = nSoil  ! NOTE: always pass the full number of soil layers
-
- ! compute the fraction of roots below layers that are completely unsaturated (-)
- scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity(1:nLevels))
-
- ! check the aquifer root fraction is OK
- checkCalcs = 1._dp - ( min(iLayerHeight(nSnow+nLevels),rootingDepth) / rootingDepth)**rootDistExp
- if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then; err=20; message=trim(message)//'problem with the aquifer root density calculations'; return; endif
-
- ! Noah-MP vegetation routines
- !call noahMP_veg(err,cmessage)
- !if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
 
  ! compute the radiation absorbtion by the vegetation and the ground
@@ -434,16 +422,25 @@ contains
   !print*, 'before heatTransf: mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
   !print*, 'before heatTransf: mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
 
+  ! Noah-MP vegetation routines
+  call noahMP_veg(dt,&              ! intent(in): time step (seconds)
+                  iter,&            ! intent(in): iteration index
+                  err,cmessage)     ! intent(out): error control
+  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+
   ! compute the temperature and ice content at the next iteration
-  call heatTransf(dt,&                        ! time step (seconds)
+  call heatTransf(&
+                  ! input
+                  dt,&                        ! time step (seconds)
                   iter,&                      ! current iteration count
+                  scalarVegetationTempIter, & ! trial vegetation temperature at the current iteration (K)
                   mLayerTempIter,           & ! trial temperature at the current iteration (K)
                   mLayerVolFracIceIter,     & ! volumetric fraction of ice at the current iteration (-)
                   mLayerVolFracLiqIter,     & ! volumetric fraction of liquid water at the current iteration (-)
                   mLayerMatricHeadIter,     & ! matric head at the current iteration (m)
-                  scalarAquiferStorageIter, & ! aquifer storage at the current iteration (m)
-                  mLayerTempIncrOld,        & ! iteration increment for temperature from the previous iteration (K)
+                  ! output
                   mLayerTempIncr,           & ! iteration increment for temperature (K)
+                  scalarVegetationTempNew,  & ! new vegetation temperature (K)
                   mLayerTempNew,            & ! new temperature (K)
                   mLayerVolFracIceNew,      & ! new volumetric fraction of ice (-)
                   mLayerVolFracLiqNew,      & ! new volumetric fraction of liquid water (-)
@@ -582,6 +579,7 @@ contains
   !write(*,'(a,1x,10(e20.10,1x))') 'inflComponent(1:9) = ', inflComponent(1:9)
 
   ! get ready for the next iteration
+  scalarVegetationTempIter = scalarVegetationTempNew
   scalarAquiferStorageIter = scalarAquiferStorageNew
 
   ! non-iterative check (do not expect convergence)
@@ -661,8 +659,8 @@ contains
  !print*, mLayerVolFracLiqIter(nSnow+1)
 
  ! compute sublimation
- if(nSnow>0)&
-  mLayerVolFracIceIter(1) = mLayerVolFracIceIter(1) + scalarPotentialET*dt/(mLayerDepth(1)*iden_ice)
+ !if(nSnow>0)&
+ ! mLayerVolFracIceIter(1) = mLayerVolFracIceIter(1) + scalarPotentialET*dt/(mLayerDepth(1)*iden_ice)
 
  ! compute change in snow density
  ! NOTE: input "iter" because of copying trick in phase change
@@ -736,7 +734,7 @@ contains
  balanceSoilBaseflow      = scalarSoilBaseflow*iden_water*dt
  balanceSoilDrainage      = scalarSoilDrainage*iden_water*dt
  balanceSoilEjection      = scalarSoilEjection*iden_water*dt
- balanceSoilTranspiration = scalarMassLiquid*dt - (wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*iden_water*dt
+ !balanceSoilTranspiration = scalarMassLiquid*dt - (wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*iden_water*dt
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilEjection) )

@@ -480,12 +480,14 @@ MODULE NOAHMP_ROUTINES
   public  :: FRH2O           
 
   private :: ATM
-  private :: PHENOLOGY
+  !private :: PHENOLOGY
+  public :: PHENOLOGY
   private :: ENERGY
   private ::       THERMOPROP
   private ::               CSNOW
   private ::               TDFCND
-  private ::       RADIATION
+  !private ::       RADIATION
+  public ::       RADIATION
   private ::               ALBEDO
   private ::                         SNOW_AGE
   private ::                         SNOWALB_BATS  
@@ -496,8 +498,10 @@ MODULE NOAHMP_ROUTINES
   private ::       VEGE_FLUX
   private ::               SFCDIF1                  
   private ::               SFCDIF2                
-  private ::               STOMATA                  
-  private ::               CANRES                  
+  !private ::               STOMATA                  
+  !private ::               CANRES                  
+  public ::               STOMATA                  
+  public ::               CANRES                  
   private ::               ESAT
   private ::               RAGRB
   private ::       BARE_FLUX

@@ -3,7 +3,6 @@ USE nrtype
 implicit none
 private
 public::calcHeight
-public::turbExchng
 public::rootDensty
 public::satHydCond
 public::fracFuture
@@ -57,50 +56,6 @@ contains
 
 
  ! **********************************************************************************************************
- ! new subroutine: compute turbulent exchange coefficients
- ! **********************************************************************************************************
- subroutine turbExchng(err,message)
- ! used to compute derived model variables
- USE multiconst, only: vkc                     ! von Karman's constant
- USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
- implicit none
- ! declare dummy variables
- integer(i4b),intent(out) :: err               ! error code
- character(*),intent(out) :: message           ! error message
- ! declare pointers to data in parameter structures
- real(dp),pointer         :: zon               ! roughness length (m)
- real(dp),pointer         :: mheight           ! measurement height (m)
- real(dp),pointer         :: bparam            ! parameter in Louis (1979) stability function
- real(dp),pointer         :: c_star            ! parameter in Louis (1979) stability function
- ! declare pointers to data in model variable structures
- real(dp),pointer         :: surfaceHeight     ! height of the layer interface (m)
- real(dp),pointer         :: ExNeut            ! exchange coefficient in neutral conditions
- real(dp),pointer         :: bprime            ! used in Louis (1979) stability function
- real(dp),pointer         :: cparam            ! used in Louis (1979) stability function
- ! initialize error control
- err=0; message='turbExchng/'
- ! assign local pointers to the values in the parameter structures
- zon            =>mpar_data%var(iLookPARAM%zon)                        ! roughness length (m)
- mheight        =>mpar_data%var(iLookPARAM%mheight)                    ! measurement height (m)
- bparam         =>mpar_data%var(iLookPARAM%bparam)                     ! parameter in Louis (1979) stability function
- c_star         =>mpar_data%var(iLookPARAM%c_star)                     ! parameter in Louis (1979) stability function
- ! assign local pointers to the values in the model variable structures
- surfaceHeight  =>mvar_data%var(iLookMVAR%iLayerHeight)%dat(0)         ! height of the upper-most layer interface (m)
- ExNeut         =>mvar_data%var(iLookMVAR%scalarExNeut)%dat(1)         ! exchange coefficient in neutral conditions
- bprime         =>mvar_data%var(iLookMVAR%scalarBprime)%dat(1)         ! used in Louis (1979) stability function
- cparam         =>mvar_data%var(iLookMVAR%scalarCparam)%dat(1)         ! used in Louis (1979) stability function
- ! check the measurement height is above the snow surface
- if(-surfaceHeight > mheight)then; err=20; message=trim(message)//'height of snow surface exceeds height of measurement'; return; endif
- ! ************************************************************************************************************************
- ! compute derived parameters for turbulent heat transfer -- note positive downwards, with 0 at soil surface, so snow height is negative
- ExNeut = (vkc**2._dp) / (log((mheight+surfaceHeight)/zon))**2._dp          ! exchange coefficient in neutral conditions
- bprime = bparam / 2._dp                                                    ! used in Louis (1979) stability function
- cparam = c_star * ExNeut * bparam * ((mheight+surfaceHeight)/zon)**0.5_dp  ! used in Louis (1979) stability function
- ! ************************************************************************************************************************
- end subroutine turbExchng
-
- ! **********************************************************************************************************
  ! new subroutine: compute vertical distribution of root density
  ! **********************************************************************************************************
  subroutine rootDensty(err,message)
@@ -135,6 +90,7 @@ contains
  integer(i4b)             :: iLayer                ! loop through layers
  real(dp)                 :: fracRootLower         ! fraction of the rooting depth at the lower interface
  real(dp)                 :: fracRootUpper         ! fraction of the rooting depth at the upper interface
+ real(dp)                 :: checkCalcs            ! check calculations for aquifer roots
  ! initialize error control
  err=0; message='rootDensty/'
 
@@ -173,8 +129,17 @@ contains
   !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp = ', &
   !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp
  end do  ! (looping thru layers)
- ! check everything is OK
+
+ ! compute fraction of roots in the aquifer
  if(rootingDepth < iLayerHeight(nLayers))then
+  scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity(1:nSoil))
+  checkCalcs = 1._dp - ( min(iLayerHeight(nLayers),rootingDepth) / rootingDepth)**rootDistExp
+  if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then
+   err=20; message=trim(message)//'problem with the aquifer root density calculations'; return
+  endif
+ 
+ ! check everything is OK
+ else
   if(abs(sum(mLayerRootDensity) - 1._dp) > epsilon(rootingDepth))then
    message=trim(message)//'root density does not sum to one when rooting depth is within the soil profile'
    err=20; return

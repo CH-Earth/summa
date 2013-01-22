@@ -9,7 +9,7 @@
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = /home/mclark/FUSE_SNOW/
+F_MASTER = /d1/mclark/FUSE_SNOW/
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)build/source/
@@ -30,6 +30,7 @@ HOOKUP_DIR = $(F_KORE_DIR)hookup
 NETCDF_DIR = $(F_KORE_DIR)netcdf
 DSHARE_DIR = $(F_KORE_DIR)dshare
 NUMREC_DIR = $(F_KORE_DIR)numrec
+NOAHMP_DIR = $(F_KORE_DIR)noah-mp
 ENGINE_DIR = $(F_KORE_DIR)engine
 #
 # Numerical Recipes utilities
@@ -64,33 +65,46 @@ MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODGUT))
 
 # Solver
 FUSE_SOLVER= \
+		noahMP_veg.f90 \
 		tridagSolv.f90 \
 		diagn_evar.f90 \
 		phseChange.f90 \
 		heatTransf.f90 \
 		snowHydrol.f90 \
 		soilHydrol.f90 \
-        picardSolv.f90 \
-        coupled_em.f90
+		picardSolv.f90 \
+		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_SOLVER))
 
 # Define routines for FUSE preliminaries
 FUSE_PRELIM= \
 		conv_funcs.f90 \
+		sunGeomtry.f90 \
 		ascii_util.f90 \
 		get_ixname.f90 \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
-		ConvE2Temp.f90 \
+		convE2Temp.f90 \
 		time_utils.f90 \
 		allocspace.f90 \
 		read_metad.f90 \
 		ffile_info.f90 \
+		read_attrb.f90 \
 		read_pinit.f90 \
+		pOverwrite.f90 \
 		read_param.f90 \
 		read_icond.f90
 PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_PRELIM))
+
+FUSE_NOAHMP= \
+		module_model_constants.F \
+		module_sf_noahutl.F \
+		module_sf_myjsfc.F \
+		module_sf_sfclay.F \
+		module_sf_noahlsm.F \
+		module_sf_noahmplsm.F
+NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(FUSE_NOAHMP))
 
 # Define routines for the FUSE model runs
 FUSE_MODRUN = \
@@ -99,7 +113,6 @@ FUSE_MODRUN = \
 		derivforce.f90 \
 		newsnwfall.f90 \
 		layerMerge.f90 \
-		surfAlbedo.f90 \
 		snwDensify.f90 \
 		qTimeDelay.f90
 MODRUN = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODRUN))
@@ -107,7 +120,6 @@ MODRUN = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODRUN))
 # Define routines for the solver
 FUSE_MSOLVE = \
 		
-
 # Define NetCDF routines
 FUSE_NETCDF = \
 		def_output.f90 \
@@ -116,7 +128,7 @@ NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(FUSE_NETCDF))
 
 # ... and stitch it all together...
 FUSE_ALL = $(UTILMS) $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) \
-		$(MODGUT) $(PRELIM) $(MODRUN) $(SOLVER) \
+		$(PRELIM) $(MODRUN) $(SOLVER) \
         $(NETCDF)
 
 #========================================================================
@@ -132,14 +144,14 @@ ifeq "$(FC)" "gfortran"
  INCNETCDF = -I/opt/netcdf-4.1.3/gcc-4.4.5/include
 endif
 ifeq "$(FC)" "ifort"
- #HDF_PATH  = /usr/local/hdf5-1.8.7
- #NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
- #LOCL_PATH = /usr/local
- HDF_PATH  = /opt/hdf5-1.8.7
- NCDF_PATH = /opt/netcdf-4.1.3/ifort-12.0.5
- LOCL_PATH = /opt
+ HDF_PATH  = /usr/local/hdf5-1.8.7
+ NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
+ LOCL_PATH = /usr/local
+ #HDF_PATH  = /opt/hdf5-1.8.7
+ #NCDF_PATH = /opt/netcdf-4.1.3/ifort-12.0.5
+ #LOCL_PATH = /opt
  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(HDF_PATH)/lib -lhdf5_hl -lhdf5 -L$(LOCL_PATH)/lib -lsz -lz
- INCNETCDF = -I$(NCDF_PATH)/include -I/$(HDF_PATH)/include
+ INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
 endif
 ifeq "$(FC)" "pgf90"
  LIBNETCDF = -L/usr/local/netcdf4-pgi/lib -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lsz -lz
@@ -163,8 +175,8 @@ ifeq "$(FC)" "gfortran"
  FLAGS = -static -Wall -g -ffree-line-length-none
 endif
 ifeq "$(FC)" "ifort"
- FLAGS1 = -warn all -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
- FLAGS = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
+ FLAGS_FUSE = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
 endif
 ifeq "$(FC)" "pgf90"
  FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
@@ -176,17 +188,24 @@ endif
 #.SUFFIXES: .f .o .f90
 
 # Compile
-all: check compile install clean
+all: compile_noah compile_fuse link clean install
 
 check:
 	echo test
-	echo $(FLAGS)
 	echo $(FC)
 
-# compile FUSE into a static library
-compile:
-	$(FC) $(FLAGS) $(FUSE_ALL) $(DRIVER) \
-	$(LIBNETCDF) $(INCNETCDF) -o $(DRIVER__EX)
+# compile Noah-MP routines
+compile_noah:
+	$(FC) $(FLAGS_NOAH) -c $(NOAHMP)
+
+# compile FUSE routines
+compile_fuse:
+	$(FC) $(FLAGS_FUSE) -c $(FUSE_ALL) $(DRIVER) \
+	$(INCNETCDF)
+
+# link routines
+link:
+	$(FC) -static *.o $(LIBNETCDF) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

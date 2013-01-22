@@ -7,6 +7,7 @@ public :: def_output
 ! define dimension names
 character(len=32),parameter :: scalar_DimName='scalar'                 ! dimension name for scalar variables
 character(len=32),parameter :: parSet_DimName='parSet'                 ! dimension name for the parameter sets
+character(len=32),parameter :: wLength_dimName='spectral_bands'        ! dimension name for the number of spectral bands
 character(len=32),parameter :: timestep_DimName='time'                 ! dimension name for the time step
 character(len=32),parameter :: routing_DimName='timeDelayRouting'      ! dimension name for thetime delay routing vectors     
 character(len=32),parameter :: midSnowAndTime_DimName='midSnowAndTime' ! dimension name for midSnow-time
@@ -83,6 +84,7 @@ contains
   if (.not.mvar_meta(ivar)%v_write) cycle
   select case(trim(mvar_meta(ivar)%vartype))
    case('scalarv'); call def_variab(trim(infile),(/parSet_DimName,Timestep_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('wLength'); call def_variab(trim(infile),(/parSet_DimName,wLength_DimName,Timestep_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
    case('midSnow'); call def_variab(trim(infile),(/parSet_DimName,midSnowAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
    case('midSoil'); call def_variab(trim(infile),(/parSet_DimName,midSoilAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
    case('midToto'); call def_variab(trim(infile),(/parSet_DimName,midTotoAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
@@ -124,8 +126,9 @@ contains
  integer(i4b)                :: ncid                       ! NetCDF file ID
  integer(i4b)                :: dimID
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
- integer(i4b),parameter      :: maxLength=1500000         ! maximum length of the variable vector
- !integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
+ !integer(i4b),parameter      :: maxLength=1500000         ! maximum length of the variable vector
+ integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
+ integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: maxParSets=1               ! maximum number of parameter sets
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
  ! initialize error control
@@ -138,6 +141,9 @@ contains
  call netcdf_err(err,message); if (err/=0) return
  ! create parameter dimension
  err = nf90_def_dim(ncid, trim(parSet_DimName), maxParSets, dimId)
+ call netcdf_err(err,message); if (err/=0) return
+ ! create spectral band dimension
+ err = nf90_def_dim(ncid, trim(wLength_DimName), maxSpectral, dimId)
  call netcdf_err(err,message); if (err/=0) return
  ! create time dimension (unlimited)
  err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, dimId)

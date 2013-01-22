@@ -215,6 +215,7 @@ contains
  integer(i4b)                         :: ivar        ! loop throough variables
  integer(i4b)                         :: nVar        ! number of variables
  integer(i4b)                         :: nLayers     ! total number of layers
+ integer(i4b),parameter               :: nBand=2     ! number of spectral bands
  integer(i4b),parameter               :: nTimeDelay=1000  ! number of elements in the time delay histogram
  ! initialize errors
  err=0; message="f-alloc_mvar/"
@@ -238,6 +239,7 @@ contains
   if (associated(mvar_data%var(ivar)%dat)) deallocate(mvar_data%var(ivar)%dat)
   select case(mvar_meta(ivar)%vartype)
    case('scalarv'); allocate(mvar_data%var(ivar)%dat(1),stat=err)
+   case('wLength'); allocate(mvar_data%var(ivar)%dat(nBand),stat=err)
    case('midSnow'); allocate(mvar_data%var(ivar)%dat(nSnow),stat=err)
    case('midSoil'); allocate(mvar_data%var(ivar)%dat(nSoil),stat=err)
    case('midToto'); allocate(mvar_data%var(ivar)%dat(nLayers),stat=err)

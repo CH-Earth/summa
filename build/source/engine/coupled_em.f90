@@ -176,8 +176,8 @@ contains
   mLayerVolFracLiq  => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat             ! volumetric fraction of liquid water in each layer (-)
 
   ! assign pointers to the model flux variables
-  scalarMassLiquid      => mvar_data%var(iLookMVAR%scalarMassLiquid)%dat(1)      ! evaporation or dew (kg m-2 s-1)
-  scalarMassSolid       => mvar_data%var(iLookMVAR%scalarMassSolid)%dat(1)       ! sublimation or frost (kg m-2 s-1)
+  !scalarMassLiquid      => mvar_data%var(iLookMVAR%scalarMassLiquid)%dat(1)      ! evaporation or dew (kg m-2 s-1)
+  !scalarMassSolid       => mvar_data%var(iLookMVAR%scalarMassSolid)%dat(1)       ! sublimation or frost (kg m-2 s-1)
   scalarRainPlusMelt    => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)    ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   scalarSurfaceRunoff   => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)   ! surface runoff (m s-1)
   scalarSoilInflux      => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
@@ -220,8 +220,8 @@ contains
   dt_wght = dt_sub/dt
 
   ! increment timestep-average fluxes
-  averageMassLiquid      = averageMassLiquid      + scalarMassLiquid     *dt_wght ! evaporation or dew (kg m-2 s-1)
-  averageMassSolid       = averageMassSolid       + scalarMassSolid      *dt_wght ! sublimation or frost (kg m-2 s-1)
+  !averageMassLiquid      = averageMassLiquid      + scalarMassLiquid     *dt_wght ! evaporation or dew (kg m-2 s-1)
+  !averageMassSolid       = averageMassSolid       + scalarMassSolid      *dt_wght ! sublimation or frost (kg m-2 s-1)
   averageRainPlusMelt    = averageRainPlusMelt    + scalarRainPlusMelt   *dt_wght ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   averageSurfaceRunoff   = averageSurfaceRunoff   + scalarSurfaceRunoff  *dt_wght ! surface runoff (m s-1)
   averageSoilInflux      = averageSoilInflux      + scalarSoilInflux     *dt_wght ! influx of water at the top of the soil profile (m s-1)
@@ -288,7 +288,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! save the surface temperature (just to make things easier to visualize)
- mvar_data%var(iLookMVAR%scalarSurfaceTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)
+ !mvar_data%var(iLookMVAR%scalarSurfaceTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)
 
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
