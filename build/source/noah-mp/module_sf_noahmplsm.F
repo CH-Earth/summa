@@ -131,6 +131,7 @@ module noahmp_globals
 ! 1 -> off (use table LAI; use FVEG = SHDFAC from input)
 ! 2 -> on (together with OPT_CRS = 1)
 ! 3 -> off (use table LAI; calculate FVEG)
+! 4 -> off (use table LAI; use maximum vegetation fraction)
 
   INTEGER :: DVEG    != 2   !
 
@@ -293,9 +294,8 @@ MODULE NOAHMP_VEG_PARAMETERS
     real eps(MVT,5)
 
 CONTAINS
-  subroutine read_mp_veg_parameters(FILENAME_VEGTABLE,DATASET_IDENTIFIER)
+  subroutine read_mp_veg_parameters(DATASET_IDENTIFIER)
     implicit none
-    character(len=*), intent(in) :: FILENAME_VEGTABLE
     character(len=*), intent(in) :: DATASET_IDENTIFIER
     integer :: ierr
 
@@ -368,13 +368,13 @@ CONTAINS
     SLAREA = -1.E36
     EPS    = -1.E36
 
-    open(15, file=trim(FILENAME_VEGTABLE), status='old', form='formatted', action='read', iostat=ierr)
+    open(15, file="MPTABLE.TBL", status='old', form='formatted', action='read', iostat=ierr)
     if (ierr /= 0) then
        write(*,'("****** Error ******************************************************")')
        write(*,'("Cannot find file MPTABLE.TBL")')
        write(*,'("STOP")')
        write(*,'("*******************************************************************")')
-       stop
+       call wrf_error_fatal("STOP in Noah-MP read_mp_veg_parameters")
     endif
 
     if ( trim(DATASET_IDENTIFIER) == "USGS" ) then
@@ -386,7 +386,7 @@ CONTAINS
     else
        write(*,'("Unrecognized DATASET_IDENTIFIER in subroutine READ_MP_VEG_PARAMETERS")')
        write(*,'("DATASET_IDENTIFIER = ''", A, "''")') trim(DATASET_IDENTIFIER)
-       stop
+       call wrf_error_fatal("STOP in Noah-MP read_mp_veg_parameters")
     endif
     close(15)
 
@@ -480,14 +480,12 @@ MODULE NOAHMP_ROUTINES
   public  :: FRH2O           
 
   private :: ATM
-  !private :: PHENOLOGY
-  public :: PHENOLOGY
+  private :: PHENOLOGY
   private :: ENERGY
   private ::       THERMOPROP
   private ::               CSNOW
   private ::               TDFCND
-  !private ::       RADIATION
-  public ::       RADIATION
+  private ::       RADIATION
   private ::               ALBEDO
   private ::                         SNOW_AGE
   private ::                         SNOWALB_BATS  
@@ -498,10 +496,8 @@ MODULE NOAHMP_ROUTINES
   private ::       VEGE_FLUX
   private ::               SFCDIF1                  
   private ::               SFCDIF2                
-  !private ::               STOMATA                  
-  !private ::               CANRES                  
-  public ::               STOMATA                  
-  public ::               CANRES                  
+  private ::               STOMATA                  
+  private ::               CANRES                  
   private ::               ESAT
   private ::               RAGRB
   private ::       BARE_FLUX
@@ -540,32 +536,35 @@ MODULE NOAHMP_ROUTINES
 contains
 !
 ! ==================================================================================================
-  SUBROUTINE NOAHMP_SFLX (ICE    ,IST    ,VEGTYP ,ISC    ,NSNOW  ,NSOIL  , & !in
-                   ZSOIL  ,DT     ,Q2     ,SFCTMP ,UU     ,VV     , & !in
-                   SOLDN  ,LWDN   ,PRCP   ,ZLVL   ,CO2AIR ,O2AIR  , & !in
-                   COSZ   ,TBOT   ,FOLN   ,SFCPRS ,IMONTH ,IDAY   , & !in
-                   SHDFAC ,LAT            ,ILOC   , JLOC  ,DZ8W   , & !in
-                   EAH    ,TAH    ,FWET   ,FICEOLD,QSNOW  ,SNEQVO , & !inout
-                   ISNOW  ,ZSNSO  ,CANLIQ ,CANICE ,SNOWH  ,SNEQV  , & !inout
-                   SNICE  ,SNLIQ  ,TV     ,TG     ,STC    ,SH2O   , & !inout
-                   SMC    ,ZWT    ,WA     ,WT     ,WSLAKE ,LFMASS , & !inout
-                   RTMASS ,STMASS ,WOOD   ,STBLCP ,FASTCP ,LAI    , & !inout
-                   SAI    ,ALBOLD ,CM     ,CH     ,                 & !inout
-                   FSA    ,FSR    ,FIRA   ,FSH    ,SSOIL  ,FCEV   , & !out
-                   FGEV   ,FCTR   ,TRAD   ,ECAN   ,ETRAN  ,EDIR   , & !out
-                   RUNSRF ,RUNSUB ,APAR   ,PSN    ,SAV    ,SAG    , & !out
-                   FSNO   ,NEE    ,GPP    ,NPP    ,TS     ,FVEG   , & !out
-                   ALBEDO ,ERRWAT, QMELT  ,PONDING        ,PONDING1,& !out
-                   PONDING2,DX                                    , & 
-!jref:start
-                   ISURBAN,IZ0TLND,QC     ,PBLH    ,QSFC  ,PSFC   , & !in
-                   CHSTAR ,CHSTAR2,TSTAR  ,T2MV   ,T2MB   ,RSSUN  , &
-                   RSSHA  ,BGAP   ,WGAP   ,GAP    ,TGV    ,TGB    ,Q1,&
-                   Q2V    ,Q2B    ,CQSTAR2)       !out
-!jref:end
+
+  SUBROUTINE NOAHMP_SFLX (&
+                   ILOC    , JLOC    , LAT     , YEARLEN , JULIAN  , COSZ    , & ! IN : Time/Space-related
+                   DT      , DX      , DZ8W    , NSOIL   , ZSOIL   , NSNOW   , & ! IN : Model configuration 
+                   SHDFAC  , SHDMAX  , VEGTYP  , ISURBAN , ICE     , IST     , & ! IN : Vegetation/Soil characteristics
+                   ISC     ,                                                   & ! IN : Vegetation/Soil characteristics
+                   IZ0TLND ,                                                   & ! IN : User options
+                   SFCTMP  , SFCPRS  , PSFC    , UU      , VV      , Q2      , & ! IN : Forcing
+                   QC      , SOLDN   , LWDN    , PRCP    , TBOT    , CO2AIR  , & ! IN : Forcing
+                   O2AIR   , FOLN    , FICEOLD , PBLH    , ZLVL    ,           & ! IN : Forcing
+                   ALBOLD  , SNEQVO  ,                                         & ! IN/OUT : 
+                   STC     , SH2O    , SMC     , TAH     , EAH     , FWET    , & ! IN/OUT : 
+                   CANLIQ  , CANICE  , TV      , TG      , QSFC    , QSNOW   , & ! IN/OUT : 
+                   ISNOW   , ZSNSO   , SNOWH   , SNEQV   , SNICE   , SNLIQ   , & ! IN/OUT : 
+                   ZWT     , WA      , WT      , WSLAKE  , LFMASS  , RTMASS  , & ! IN/OUT : 
+                   STMASS  , WOOD    , STBLCP  , FASTCP  , LAI     , SAI     , & ! IN/OUT : 
+                   CM      , CH      , TAUSS   ,                               & ! IN/OUT : 
+                   FSA     , FSR     , FIRA    , FSH     , SSOIL   , FCEV    , & ! OUT : 
+                   FGEV    , FCTR    , ECAN    , ETRAN   , EDIR    , TRAD    , & ! OUT :
+                   TGB     , TGV     , T2MV    , T2MB    , Q2V     , Q2B     , & ! OUT :
+                   RUNSRF  , RUNSUB  , APAR    , PSN     , SAV     , SAG     , & ! OUT :
+                   FSNO    , NEE     , GPP     , NPP     , FVEG    , ALBEDO  , & ! OUT :
+                   QSNBOT  , PONDING , PONDING1, PONDING2, RSSUN   , RSSHA   , & ! OUT :
+                   BGAP    , WGAP    , CHV     , CHB     , EMISSI  ,           & ! OUT :
+		   SHG     , SHC     , SHB     , EVG     , EVB     , GHV     , & ! OUT :
+		   GHB     , IRG     , IRC     , IRB     , TR      , EVC     , & ! OUT :
+		   CHLEAF  , CHUC    , CHV2    , CHB2    , FPICE    )            ! OUT :
 
 ! --------------------------------------------------------------------------------------------------
-! Code history:
 ! Initial code: Guo-Yue Niu, Oct. 2007
 ! --------------------------------------------------------------------------------------------------
   USE NOAHMP_VEG_PARAMETERS
@@ -574,8 +573,6 @@ contains
   implicit none
 ! --------------------------------------------------------------------------------------------------
 ! input
-  INTEGER                        , INTENT(IN)    :: IMONTH !month index
-  INTEGER                        , INTENT(IN)    :: IDAY   !day index
   INTEGER                        , INTENT(IN)    :: ICE    !ice (ice = 1)
   INTEGER                        , INTENT(IN)    :: IST    !surface type 1->soil; 2->lake
   INTEGER                        , INTENT(IN)    :: VEGTYP !vegetation type 
@@ -599,6 +596,8 @@ contains
   REAL                           , INTENT(IN)    :: TBOT   !bottom condition for soil temp. [K]
   REAL                           , INTENT(IN)    :: FOLN   !foliage nitrogen (%) [1-saturated]
   REAL                           , INTENT(IN)    :: SHDFAC !green vegetation fraction [0.0-1.0]
+  INTEGER                        , INTENT(IN)    :: YEARLEN!Number of days in the particular year.
+  REAL                           , INTENT(IN)    :: JULIAN !Julian day of year (floating point)
   REAL                           , INTENT(IN)    :: LAT    !latitude (radians)
   REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: FICEOLD!ice fraction at last timestep
 
@@ -611,6 +610,7 @@ contains
   REAL                           , INTENT(IN)    :: PSFC   !pressure at lowest model layer
   REAL                           , INTENT(IN)    :: DZ8W   !thickness of lowest layer
   REAL                           , INTENT(IN)    :: DX
+  REAL                           , INTENT(IN)    :: SHDMAX  !yearly max vegetation fraction
 !jref:end
 
 ! input/output : need arbitary intial values
@@ -622,6 +622,7 @@ contains
   REAL                           , INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
   REAL                           , INTENT(INOUT) :: CM     !momentum drag coefficient
   REAL                           , INTENT(INOUT) :: CH     !sensible heat exchange coefficient
+  REAL                           , INTENT(INOUT) :: TAUSS  !non-dimensional snow age
 
 ! prognostic variables
   INTEGER                        , INTENT(INOUT) :: ISNOW  !actual no. of snow layers [-]
@@ -652,7 +653,7 @@ contains
   REAL                           , INTENT(OUT)   :: FCTR   !transpiration heat (w/m2) [+ to atm]
   REAL                           , INTENT(OUT)   :: SSOIL  !ground heat flux (w/m2)   [+ to soil]
   REAL                           , INTENT(OUT)   :: TRAD   !surface radiative temperature (k)
-  REAL                           , INTENT(OUT)   :: TS     !surface temperature (k)
+  REAL                                           :: TS     !surface temperature (k)
   REAL                           , INTENT(OUT)   :: ECAN   !evaporation of intercepted water (mm/s)
   REAL                           , INTENT(OUT)   :: ETRAN  !transpiration rate (mm/s)
   REAL                           , INTENT(OUT)   :: EDIR   !soil surface evaporation rate (mm/s]
@@ -665,27 +666,23 @@ contains
   REAL                           , INTENT(OUT)   :: FSNO   !snow cover fraction on the ground (-)
   REAL                           , INTENT(OUT)   :: FVEG   !green vegetation fraction [0.0-1.0]
   REAL                           , INTENT(OUT)   :: ALBEDO !surface albedo [-]
-  REAL                           , INTENT(OUT)   :: ERRWAT !water error [kg m{-2}]
-  REAL                           , INTENT(OUT)   :: QMELT  !snowmelt [mm/s]
+  REAL                                           :: ERRWAT !water error [kg m{-2}]
+  REAL                           , INTENT(OUT)   :: QSNBOT !snowmelt out bottom of pack [mm/s]
   REAL                           , INTENT(OUT)   :: PONDING!surface ponding [mm]
   REAL                           , INTENT(OUT)   :: PONDING1!surface ponding [mm]
   REAL                           , INTENT(OUT)   :: PONDING2!surface ponding [mm]
 
 !jref:start; output
-  REAL                           , INTENT(INOUT)   :: CHSTAR !effective exchange coefficient
-  REAL                           , INTENT(INOUT)   :: CHSTAR2!effective exchange coefficient
-  REAL                           , INTENT(INOUT)   :: CQSTAR2!effective exchange coefficient
-  REAL                           , INTENT(INOUT)   :: TSTAR  !effective skin temperature
-  REAL                           , INTENT(INOUT)   :: T2MV   !2-m air temperature over vegetated part [k]
-  REAL                           , INTENT(INOUT)   :: T2MB   !2-m air temperature over bare ground part [k]
+  REAL                           , INTENT(OUT)     :: T2MV   !2-m air temperature over vegetated part [k]
+  REAL                           , INTENT(OUT)     :: T2MB   !2-m air temperature over bare ground part [k]
   REAL, INTENT(OUT) :: RSSUN        !sunlit leaf stomatal resistance (s/m)
   REAL, INTENT(OUT) :: RSSHA        !shaded leaf stomatal resistance (s/m)
   REAL, INTENT(OUT) :: BGAP
   REAL, INTENT(OUT) :: WGAP
-  REAL, INTENT(OUT) :: GAP
   REAL, INTENT(OUT) :: TGV
   REAL, INTENT(OUT) :: TGB
-  REAL, INTENT(OUT) :: Q1
+  REAL              :: Q1
+  REAL, INTENT(OUT) :: EMISSI
 !jref:end
 
 ! local
@@ -724,7 +721,21 @@ contains
   REAL                                           :: QVAP   !ground surface evap. rate [mm/s]
   REAL                                           :: LATHEA !latent heat [j/kg]
   REAL                                           :: SWDOWN !downward solar [w/m2]
+  REAL                                           :: QMELT  !snowmelt [mm/s]
   REAL                                           :: BEG_WB !water storage at begin of a step [mm]
+  REAL,INTENT(OUT)                                              :: IRC    !canopy net LW rad. [w/m2] [+ to atm]
+  REAL,INTENT(OUT)                                              :: IRG    !ground net LW rad. [w/m2] [+ to atm]
+  REAL,INTENT(OUT)                                              :: SHC    !canopy sen. heat [w/m2]   [+ to atm]
+  REAL,INTENT(OUT)                                              :: SHG    !ground sen. heat [w/m2]   [+ to atm]
+  REAL,INTENT(OUT)                                              :: EVG    !ground evap. heat [w/m2]  [+ to atm]
+  REAL,INTENT(OUT)                                              :: GHV    !ground heat flux [w/m2]  [+ to soil]
+  REAL,INTENT(OUT)                                              :: IRB    !net longwave rad. [w/m2] [+ to atm]
+  REAL,INTENT(OUT)                                              :: SHB    !sensible heat [w/m2]     [+ to atm]
+  REAL,INTENT(OUT)                                              :: EVB    !evaporation heat [w/m2]  [+ to atm]
+  REAL,INTENT(OUT)                                              :: GHB    !ground heat flux [w/m2] [+ to soil]
+  REAL,INTENT(OUT)                                              :: EVC    !canopy evap. heat [w/m2]  [+ to atm]
+  REAL,INTENT(OUT)                                              :: TR     !transpiration heat [w/m2] [+ to atm]
+  REAL, INTENT(OUT)   :: FPICE   !snow fraction in precipitation
 
 !jref:start 
   REAL                                           :: FSRV
@@ -733,8 +744,12 @@ contains
   REAL,INTENT(OUT)                               :: Q2B
   REAL :: Q2E
   REAL :: QFX
-  REAL :: CAH
-  REAL :: EHB
+  REAL,INTENT(OUT)                               :: CHV    !sensible heat exchange coefficient over vegetated fraction
+  REAL,INTENT(OUT)                               :: CHB    !sensible heat exchange coefficient over bare-ground
+  REAL,INTENT(OUT)                               :: CHLEAF !leaf exchange coefficient
+  REAL,INTENT(OUT)                               :: CHUC   !under canopy exchange coefficient
+  REAL,INTENT(OUT)                               :: CHV2    !sensible heat exchange coefficient over vegetated fraction
+  REAL,INTENT(OUT)                               :: CHB2    !sensible heat exchange coefficient over bare-ground
 !jref:end  
 
 ! carbon
@@ -773,10 +788,6 @@ contains
              QAIR   ,EAIR   ,RHOAIR ,QPRECC ,QPRECL ,SOLAD  ,SOLAI  , &
              SWDOWN )
 
-   print*, '***********'
-   if(isnow>0) stop ' have at least 1 snow layer '
-   print*, 'after atm: qsnow = ', qsnow
-
 ! snow/soil layer thickness (m)
 
      DO IZ = ISNOW+1, NSOIL
@@ -805,25 +816,44 @@ contains
 
 ! vegetation phenology
 
-     CALL PHENOLOGY (VEGTYP,IMONTH ,IDAY   ,SNOWH  ,TV     ,LAT   , & !in
-                     LAI   ,SAI    ,TROOT  ,                & !in
-                     HTOP  ,ELAI   ,ESAI   ,IGS)
+     CALL PHENOLOGY (VEGTYP , ISURBAN, SNOWH  , TV     , LAT   , YEARLEN , JULIAN , & !in
+                     LAI    , SAI    , TROOT  , HTOP  , ELAI    , ESAI   ,IGS)
 
-     !input GVF should be consistent with LAI
+!input GVF should be consistent with LAI
+!     IF(DVEG == 1) THEN
+!        FVEG = SHDFAC
+!        IF(FVEG <= 0.05) FVEG = 0.05
+!     ELSE IF (DVEG == 2 .or. DVEG == 3) THEN
+!        FVEG = 1.-EXP(-0.52*(LAI+SAI))
+!        IF(FVEG <= 0.05) FVEG = 0.05
+!     ELSE IF (DVEG == 4) THEN
+!        FVEG = SHDMAX
+!        IF(FVEG <= 0.05) FVEG = 0.05
+!     ELSE
+!        WRITE(*,*) "-------- FATAL CALLED IN SFLX -----------"
+!        CALL wrf_error_fatal("Namelist parameter DVEG unknown") 
+!     ENDIF
      IF(DVEG == 1) THEN
         FVEG = SHDFAC
-        IF(FVEG <= 0.05) FVEG = 0.05
+        IF(FVEG <= 0.01) FVEG = 0.01
      ELSE IF (DVEG == 2 .or. DVEG == 3) THEN
-          FVEG = 1.-EXP(-0.52*(LAI+SAI))
-          IF(FVEG <= 0.05) FVEG = 0.05
+        FVEG = 1.-EXP(-0.52*(LAI+SAI))
+        IF(FVEG <= 0.01) FVEG = 0.01
+     ELSE IF (DVEG == 4 .or. DVEG == 5) THEN
+        FVEG = SHDMAX
+        IF(FVEG <= 0.01) FVEG = 0.01
+     ELSE
+        WRITE(*,*) "-------- FATAL CALLED IN SFLX -----------"
+        CALL wrf_error_fatal("Namelist parameter DVEG unknown") 
      ENDIF
+     IF(VEGTYP == ISURBAN .OR. VEGTYP == ISBARREN) FVEG = 0.0
+     IF(ELAI+ESAI == 0.0) FVEG = 0.0
 
 !     CALL PHENOLOGY (VEGTYP,IMONTH ,IDAY   ,SNOWH  ,TV     ,LAT   , & !in
 !                     LAI   ,SAI    ,TROOT  ,                & !in
 !                     HTOP  ,ELAI   ,ESAI   ,IGS    )   !out
 
 ! compute energy budget (momentum & energy fluxes and phase changes) 
-    print*, 'before energy: snowh = ', snowh
 
     CALL ENERGY (ICE    ,VEGTYP ,IST    ,ISC    ,NSNOW  ,NSOIL  , & !in
                  ISNOW  ,NROOT  ,DT     ,RHOAIR ,SFCPRS ,QAIR   , & !in
@@ -841,14 +871,16 @@ contains
                  TV     ,TG     ,STC    ,SNOWH  ,EAH    ,TAH    , & !inout
                  SNEQVO ,SNEQV  ,SH2O   ,SMC    ,SNICE  ,SNLIQ  , & !inout
                  ALBOLD ,CM     ,CH     ,DX     ,DZ8W   ,Q2     , & !inout
+                 TAUSS  ,                                         & !inout
 !jref:start
                  QC     ,PBLH   ,QSFC   ,PSFC   ,ISURBAN,IZ0TLND, & !in 
-                 CHSTAR ,CHSTAR2 ,TSTAR  ,T2MV   ,T2MB  ,FSRV   , &
-                 FSRG   ,RSSUN   ,RSSHA ,BGAP   ,WGAP, GAP,TGV,TGB,&
-                 Q1     ,Q2V    ,Q2B,Q2E,CAH,EHB)             !out 
+                 T2MV   ,T2MB  ,FSRV   , &
+                 FSRG   ,RSSUN   ,RSSHA ,BGAP   ,WGAP, TGV,TGB,&
+                 Q1     ,Q2V    ,Q2B    ,Q2E    ,CHV   ,CHB     , & !out
+                 EMISSI,&
+		     SHG,SHC,SHB,EVG,EVB,GHV,GHB,IRG,IRC,IRB,TR,EVC,CHLEAF,CHUC,CHV2,CHB2 )                                            !out
 !jref:end                            
 
-    print*, 'after energy: snowh = ', snowh
     SICE(:) = MAX(0.0, SMC(:) - SH2O(:))   
     SNEQVO  = SNEQV
 
@@ -867,22 +899,9 @@ contains
                  SICE   ,ZWT    ,WA     ,WT     ,DZSNSO ,WSLAKE , & !inout
                  CMC    ,ECAN   ,ETRAN  ,FWET   ,RUNSRF ,RUNSUB , & !out
                  QIN    ,QDIS   ,QSNOW  ,PONDING1       ,PONDING2,&
-                 ISURBAN)  !out
-      print*, 'after water: qsnow, snowh = ', qsnow, snowh
+                 ISURBAN,QSNBOT,FPICE)  !out
 
 !     write(*,'(a20,10F15.5)') 'SFLX:RUNOFF=',RUNSRF*DT,RUNSUB*DT,EDIR*DT
-
-! compute carbon budgets (carbon storages and co2 & bvoc fluxes)
-
-   IF (DVEG == 2) THEN
-    CALL CARBON (NSNOW  ,NSOIL  ,VEGTYP ,NROOT  ,DT     ,ZSOIL  , & !in
-                 DZSNSO ,STC    ,SMC    ,TV     ,TG     ,PSN    , & !in
-                 FOLN   ,SMCMAX ,BTRAN  ,APAR   ,FVEG   ,IGS    , & !in
-                 TROOT  ,IST    ,IMONTH ,LAT    ,iloc   ,jloc   , & !in
-                 LFMASS ,RTMASS ,STMASS ,WOOD   ,STBLCP ,FASTCP , & !inout
-                 GPP    ,NPP    ,NEE    ,AUTORS ,HETERS ,TOTSC  , & !out
-                 TOTLB  ,LAI    ,SAI    )                   !out
-   END IF
 
 ! water and energy balance check
 
@@ -891,12 +910,24 @@ contains
                  SNEQV  ,WA     ,SMC    ,DZSNSO ,PRCP   ,ECAN   , & !in
                  ETRAN  ,EDIR   ,RUNSRF ,RUNSUB ,DT     ,NSOIL  , & !in
                  NSNOW  ,IST    ,ERRWAT ,ILOC   , JLOC  ,FVEG   , &
-                 SAV    ,SAG    ,FSRV   ,FSRG)   !in ( Except ERRWAT, which is out )
+                 SAV    ,SAG    ,FSRV   ,FSRG, ELAI, ESAI, LAI, SAI)   !in ( Except ERRWAT, which is out )
+
+! compute carbon budgets (carbon storages and co2 & bvoc fluxes)
+
+   IF (DVEG == 2 .OR. DVEG == 5) THEN
+    CALL CARBON (NSNOW  ,NSOIL  ,VEGTYP ,NROOT  ,DT     ,ZSOIL  , & !in
+                 DZSNSO ,STC    ,SMC    ,TV     ,TG     ,PSN    , & !in
+                 FOLN   ,SMCMAX ,BTRAN  ,APAR   ,FVEG   ,IGS    , & !in
+                 TROOT  ,IST    ,LAT    ,iloc   ,jloc   ,ISURBAN, & !in
+                 LFMASS ,RTMASS ,STMASS ,WOOD   ,STBLCP ,FASTCP , & !inout
+                 GPP    ,NPP    ,NEE    ,AUTORS ,HETERS ,TOTSC  , & !out
+                 TOTLB  ,LAI    ,SAI    )                   !out
+   END IF
 
 ! urban - jref
     QFX = ETRAN + ECAN + EDIR
     IF ( VEGTYP == ISURBAN ) THEN
-       QSFC = (QFX/RHOAIR*CHSTAR) + QAIR
+       QSFC = (QFX/RHOAIR*CH) + QAIR
        Q2B = QSFC
     END IF
 
@@ -905,6 +936,7 @@ contains
     ELSE
       ALBEDO = -999.9
     END IF
+    
 
   END SUBROUTINE NOAHMP_SFLX
 ! ==================================================================================================
@@ -945,9 +977,9 @@ contains
 !jref: seems like PAIR should be P1000mb??
        PAIR   = SFCPRS                   ! atm bottom level pressure (pa)
        THAIR  = SFCTMP * (SFCPRS/PAIR)**(RAIR/CPAIR) 
-!jref: mixing ratio to specific       
-       QAIR   = Q2 / (1.0+Q2)           ! mixing ratio to specific humidity [kg/kg]
-!       QAIR   = Q2                       ! GLDAS forcing: Q2 = specific humidity [kg/kg]
+
+!       QAIR   = Q2 / (1.0+Q2)           ! mixing ratio to specific humidity [kg/kg]
+       QAIR   = Q2                       ! In WRF, driver converts to specific humidity
 
        EAIR   = QAIR*SFCPRS / (0.622+0.378*QAIR)
        RHOAIR = (SFCPRS-0.378*EAIR) / (RAIR*SFCTMP)
@@ -969,9 +1001,8 @@ contains
   END SUBROUTINE ATM
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
-  SUBROUTINE PHENOLOGY (VEGTYP,IMONTH ,IDAY   ,SNOWH  ,TV     ,LAT   , & !in
-                        LAI   ,SAI    ,TROOT  ,                & !in
-                        HTOP  ,ELAI   ,ESAI   ,IGS)
+  SUBROUTINE PHENOLOGY (VEGTYP , ISURBAN, SNOWH  , TV     , LAT   , YEARLEN , JULIAN , & !in
+                        LAI    , SAI    , TROOT  , HTOP  , ELAI    , ESAI   , IGS)
 
 ! --------------------------------------------------------------------------------------------------
 ! vegetation phenology considering vegeation canopy being buries by snow and evolution in time
@@ -981,21 +1012,22 @@ contains
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
 ! inputs
-  INTEGER                   , INTENT(IN) :: VEGTYP !vegetation type 
-  INTEGER                   , INTENT(IN) :: IMONTH !month index
-  INTEGER                   , INTENT(IN) :: IDAY   !day index
-  REAL                      , INTENT(IN) :: SNOWH  !snow height [m]
-  REAL                      , INTENT(IN) :: TV     !vegetation temperature (k)
-  REAL                      , INTENT(IN) :: LAT    !latitude (radians)
-  real                      , INTENT(IN) :: TROOT  !root-zone averaged temperature (k)
+  INTEGER                , INTENT(IN   ) :: VEGTYP !vegetation type 
+  INTEGER                , INTENT(IN   ) :: ISURBAN!urban category
+  REAL                   , INTENT(IN   ) :: SNOWH  !snow height [m]
+  REAL                   , INTENT(IN   ) :: TV     !vegetation temperature (k)
+  REAL                   , INTENT(IN   ) :: LAT    !latitude (radians)
+  INTEGER                , INTENT(IN   ) :: YEARLEN!Number of days in the particular year
+  REAL                   , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
+  real                   , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
   REAL                   , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
   REAL                   , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
 
 ! outputs
-  REAL                      ,INTENT(OUT) :: HTOP   !top of canopy layer (m)
-  REAL                      ,INTENT(OUT) :: ELAI   !leaf area index, after burying by snow
-  REAL                      ,INTENT(OUT) :: ESAI   !stem area index, after burying by snow
-  REAL                      ,INTENT(OUT) :: IGS    !growing season index (0=off, 1=on)
+  REAL                   , INTENT(OUT  ) :: HTOP   !top of canopy layer (m)
+  REAL                   , INTENT(OUT  ) :: ELAI   !leaf area index, after burying by snow
+  REAL                   , INTENT(OUT  ) :: ESAI   !stem area index, after burying by snow
+  REAL                   , INTENT(OUT  ) :: IGS    !growing season index (0=off, 1=on)
 
 ! locals
 
@@ -1005,33 +1037,23 @@ contains
                                                    !is fully covered by snow
 
   INTEGER                                :: K       !index
-  INTEGER                                :: NDAYN   !days in current year since jan 1: 1, ..., 365
-  INTEGER                                :: NDAYS   !ndayn shifted 6 mon for SH
   INTEGER                                :: IT1,IT2 !interpolation months
-  REAL                                   :: DAY     !current day of year
+  REAL                                   :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
   REAL                                   :: WT1,WT2 !interpolation weights
   REAL                                   :: T       !current month (1.00, ..., 12.00)
-  INTEGER                                :: NDAYPM(12)  !days per month
-  DATA NDAYPM /31,28,31,30,31,30,31,31,30,31,30,31/
-  SAVE NDAYPM
 ! --------------------------------------------------------------------------------------------------
-! ndayn = days in current year since jan 1: 1, ..., 365
-! ndays = ndayn shifted 6 mon for SH: 1 -> 183; 183 -> 365; 184 -> 1; 365 -> 182
 
-   IF ( DVEG == 1 .or. DVEG == 3 ) THEN
-     NDAYN = 0
-     DO K = 1, IMONTH
-         NDAYN = NDAYN + NDAYPM(K)
-     END DO
-     NDAYN = NDAYN - NDAYPM(IMONTH) + IDAY
-     NDAYS = MOD (NDAYN-1+365/2, 365) + 1
+  IF ( DVEG == 1 .or. DVEG == 3 .or. DVEG == 4 ) THEN
 
      IF (LAT >= 0.) THEN
-        DAY = NDAYN
+        ! Northern Hemisphere
+        DAY = JULIAN
      ELSE
-        DAY = NDAYS
-     END IF
-     T = 12. * (DAY-0.5)/365.
+        ! Southern Hemisphere.  DAY is shifted by 1/2 year.
+        DAY = MOD ( JULIAN + ( 0.5 * YEARLEN ) , REAL(YEARLEN) )
+     ENDIF
+
+     T = 12. * DAY / REAL(YEARLEN)
      IT1 = T + 0.5
      IT2 = IT1 + 1
      WT1 = (IT1+0.5) - T
@@ -1041,12 +1063,14 @@ contains
 
      LAI = WT1*LAIM(VEGTYP,IT1) + WT2*LAIM(VEGTYP,IT2)
      SAI = WT1*SAIM(VEGTYP,IT1) + WT2*SAIM(VEGTYP,IT2)
-   END IF
+  ENDIF
+  IF (SAI < 0.1) SAI = 0.0  ! MB: SAI CHECK
+  IF (LAI < 0.1 .OR. SAI == 0.0) LAI = 0.0  ! MB: LAI CHECK
 
-     IF ( ( VEGTYP == ISWATER ) .OR. ( VEGTYP == ISBARREN ) .OR. ( VEGTYP == ISSNOW ) ) THEN
-        LAI  = 0.
-        SAI  = 0.
-     END IF
+  IF ( ( VEGTYP == ISWATER ) .OR. ( VEGTYP == ISBARREN ) .OR. ( VEGTYP == ISSNOW ) .or. ( VEGTYP == ISURBAN) ) THEN
+     LAI  = 0.
+     SAI  = 0.
+  ENDIF
 
 !buried by snow
 
@@ -1056,16 +1080,18 @@ contains
      IF(HVT(VEGTYP)> 0. .AND. HVT(VEGTYP) <= 0.5) THEN
        SNOWHC = HVT(VEGTYP)*EXP(-SNOWH/0.1)
        FB     = MIN(SNOWH,SNOWHC)/SNOWHC
-     END IF
+     ENDIF
 
      ELAI =  LAI*(1.-FB)
      ESAI =  SAI*(1.-FB)
+     IF (ESAI < 0.1) ESAI = 0.0  ! MB: ESAI CHECK
+     IF (ELAI < 0.1 .OR. ESAI == 0.0) ELAI = 0.0  ! MB: LAI CHECK
 
      IF (TV .GT. TMIN(VEGTYP)) THEN
          IGS = 1.
      ELSE
          IGS = 0.
-     END IF
+     ENDIF
 
      HTOP = HVT(VEGTYP)
 
@@ -1076,7 +1102,7 @@ contains
                     SNEQV  ,WA     ,SMC    ,DZSNSO ,PRCP   ,ECAN   , &
                     ETRAN  ,EDIR   ,RUNSRF ,RUNSUB ,DT     ,NSOIL  , &
                     NSNOW  ,IST    ,ERRWAT, ILOC   ,JLOC   ,FVEG   , &
-                    SAV    ,SAG    ,FSRV   ,FSRG)
+                    SAV    ,SAG    ,FSRV   ,FSRG, ELAI, ESAI, LAI, SAI)
 ! --------------------------------------------------------------------------------------------------
 ! check surface energy balance and water balance
 ! --------------------------------------------------------------------------------------------------
@@ -1102,6 +1128,10 @@ contains
   REAL                           , INTENT(IN) :: SAG
   REAL                           , INTENT(IN) :: FSRV
   REAL                           , INTENT(IN) :: FSRG
+  REAL                           , INTENT(IN) :: ELAI
+  REAL                           , INTENT(IN) :: ESAI
+  REAL                           , INTENT(IN) :: LAI
+  REAL                           , INTENT(IN) :: SAI
 
   REAL                           , INTENT(IN) :: PRCP   !precipitation rate (kg m-2 s-1)
   REAL                           , INTENT(IN) :: ECAN   !evaporation of intercepted water (mm/s)
@@ -1128,10 +1158,10 @@ contains
   CHARACTER(len=256)                          :: message
 ! --------------------------------------------------------------------------------------------------
 !jref:start
-!   ERRSW   = SWDOWN - (FSA + FSR)
-   ERRSW   = SWDOWN - (SAV+SAG + FSRV+FSRG)
- !  WRITE(*,*) "ERRSW =",ERRSW
-   IF (ERRSW > 0.01) THEN            ! w/m2
+   ERRSW   = SWDOWN - (FSA + FSR)
+!   ERRSW   = SWDOWN - (SAV+SAG + FSRV+FSRG)
+!   WRITE(*,*) "ERRSW =",ERRSW
+   IF (ABS(ERRSW) > 0.01) THEN            ! w/m2
    WRITE(*,*) "VEGETATION!"
    WRITE(*,*) "SWDOWN*FVEG =",SWDOWN*FVEG
    WRITE(*,*) "FVEG*(SAV+SAG) =",FVEG*SAV + SAG
@@ -1152,13 +1182,15 @@ contains
       call wrf_error_fatal("Stop in Noah-MP")
    END IF
 
-!jref:start - FSA changed to FVEG(SAV+SAG)+(1-FVEG)*SAG
-   ERRENG = FVEG*SAV+SAG-(FIRA+FSH+FCEV+FGEV+FCTR+SSOIL)
+   ERRENG = SAV+SAG-(FIRA+FSH+FCEV+FGEV+FCTR+SSOIL)
+!   ERRENG = FVEG*SAV+SAG-(FIRA+FSH+FCEV+FGEV+FCTR+SSOIL)
 !   WRITE(*,*) "ERRENG =",ERRENG
-   IF(ERRENG > 0.01) THEN
+   IF(ABS(ERRENG) > 0.01) THEN
       write(message,*) 'ERRENG =',ERRENG
       call wrf_message(trim(message))
       WRITE(message,'(i6,1x,i6,1x,7F10.4)')ILOC,JLOC,FSA,FIRA,FSH,FCEV,FGEV,FCTR,SSOIL
+      call wrf_message(trim(message))
+      WRITE(message,'(i6,1x,i6,1x,7F10.4)')ILOC,JLOC,SAV,SAG,FVEG,ELAI,ESAI,LAI,SAI
       call wrf_message(trim(message))
       call wrf_error_fatal("Energy budget problem in NOAHMP LSM")
    END IF
@@ -1182,6 +1214,8 @@ contains
            call wrf_message(trim(message))
            WRITE(message,'(i6,1x,i6,1x,2f15.3,8f11.5)')ILOC,JLOC,END_WB,BEG_WB,PRCP*DT,ECAN*DT,&
                 EDIR*DT,ETRAN*DT,RUNSRF*DT,RUNSUB*DT
+           call wrf_message(trim(message))
+           WRITE(message,'(i6,1x,i6,1x,7f11.5)')ILOC,JLOC,SNEQV,CANLIQ,CANICE,SMC
            call wrf_message(trim(message))
            call wrf_error_fatal("Water budget problem in NOAHMP LSM")
         END IF
@@ -1208,11 +1242,13 @@ contains
                      TV     ,TG     ,STC    ,SNOWH  ,EAH    ,TAH    , & !inout
                      SNEQVO ,SNEQV  ,SH2O   ,SMC    ,SNICE  ,SNLIQ  , & !inout
                      ALBOLD ,CM     ,CH     ,DX     ,DZ8W   ,Q2     , &   !inout
+                     TAUSS  ,                                         & !inout
 !jref:start
                      QC     ,PBLH   ,QSFC   ,PSFC   ,ISURBAN,IZ0TLND, & !in 
-                     CHSTAR ,CHSTAR2,TSTAR  ,T2MV   ,T2MB   ,FSRV   , &
-                     FSRG   ,RSSUN  ,RSSHA  ,BGAP   ,WGAP,GAP,TGV,TGB,&
-                     Q1     ,Q2V    ,Q2B    ,Q2E    ,CAH  ,EHB )   !out 
+                     T2MV   ,T2MB   ,FSRV   , &
+                     FSRG   ,RSSUN  ,RSSHA  ,BGAP   ,WGAP,TGV,TGB,&
+                     Q1     ,Q2V    ,Q2B    ,Q2E    ,CHV  ,CHB, EMISSI,&
+		     SHG,SHC,SHB,EVG,EVB,GHV,GHB,IRG,IRC,IRB,TR,EVC,CHLEAF,CHUC,CHV2,CHB2 )   !out 
 !jref:end                            
 
 ! --------------------------------------------------------------------------------------------------
@@ -1348,14 +1384,10 @@ contains
 !jref:end - out for debug  
 
 !jref:start; output
-  REAL                              , INTENT(INOUT) :: CHSTAR !effective exchange coefficient
-  REAL                              , INTENT(INOUT) :: CHSTAR2!effective exchange coefficient
-  REAL                              , INTENT(INOUT) :: TSTAR  !effective skin temperature
-  REAL                              , INTENT(INOUT) :: T2MV   !2-m air temperature over vegetated part [k]
-  REAL                              , INTENT(INOUT) :: T2MB   !2-m air temperature over bare ground part [k]
+  REAL                              , INTENT(OUT)   :: T2MV   !2-m air temperature over vegetated part [k]
+  REAL                              , INTENT(OUT)   :: T2MB   !2-m air temperature over bare ground part [k]
   REAL                              , INTENT(OUT)   :: BGAP
   REAL                              , INTENT(OUT)   :: WGAP
-  REAL                              , INTENT(OUT)   :: GAP
 !jref:end
 
 ! input & output
@@ -1373,10 +1405,12 @@ contains
   REAL                              , INTENT(INOUT) :: EAH    !canopy air vapor pressure (pa)
   REAL                              , INTENT(INOUT) :: TAH    !canopy air temperature (k)
   REAL                              , INTENT(INOUT) :: ALBOLD !snow albedo at last time step(CLASS type)
+  REAL                              , INTENT(INOUT) :: TAUSS  !non-dimensional snow age
   REAL                              , INTENT(INOUT) :: CM     !momentum drag coefficient
   REAL                              , INTENT(INOUT) :: CH     !sensible heat exchange coefficient
   REAL                              , INTENT(INOUT) :: Q1
 !  REAL                                              :: Q2E
+  REAL,                               INTENT(OUT)   :: EMISSI
 
 ! local
   INTEGER                                           :: IZ     !do-loop index
@@ -1386,6 +1420,8 @@ contains
   REAL                                              :: FSUN   !sunlit fraction of canopy [-]
   REAL                                              :: RB     !leaf boundary layer resistance (s/m)
   REAL                                              :: RSURF  !ground surface resistance (s/m)
+  REAL                                              :: L_RSURF!Dry-layer thickness for computing RSURF (Sakaguchi and Zeng, 2009)
+  REAL                                              :: D_RSURF!Reduced vapor diffusivity in soil for computing RSURF (SZ09)
   REAL                                              :: BEVAP  !soil water evaporation factor (0- 1)
   REAL                                              :: MOL    !Monin-Obukhov length (m)
   REAL                                              :: VAI    !sum of LAI  + stem area index [m2/m2]
@@ -1424,39 +1460,40 @@ contains
 
   REAL                                              :: TAUXV  !wind stress: e-w dir [n/m2]
   REAL                                              :: TAUYV  !wind stress: n-s dir [n/m2]
-  REAL                                              :: IRC    !canopy net LW rad. [w/m2] [+ to atm]
-  REAL                                              :: IRG    !ground net LW rad. [w/m2] [+ to atm]
-  REAL                                              :: SHC    !canopy sen. heat [w/m2]   [+ to atm]
-  REAL                                              :: SHG    !ground sen. heat [w/m2]   [+ to atm]
+  REAL,INTENT(OUT)                                              :: IRC    !canopy net LW rad. [w/m2] [+ to atm]
+  REAL,INTENT(OUT)                                              :: IRG    !ground net LW rad. [w/m2] [+ to atm]
+  REAL,INTENT(OUT)                                              :: SHC    !canopy sen. heat [w/m2]   [+ to atm]
+  REAL,INTENT(OUT)                                              :: SHG    !ground sen. heat [w/m2]   [+ to atm]
 !jref:start  
   REAL,INTENT(OUT)                                  :: Q2V
   REAL,INTENT(OUT)                                  :: Q2B
   REAL,INTENT(OUT)                                  :: Q2E
 !jref:end  
-  REAL                                              :: EVC    !canopy evap. heat [w/m2]  [+ to atm]
-  REAL                                              :: EVG    !ground evap. heat [w/m2]  [+ to atm]
-  REAL                                              :: TR     !transpiration heat [w/m2] [+ to atm]
-  REAL                                              :: GHV    !ground heat flux [w/m2]  [+ to soil]
+  REAL,INTENT(OUT)                                              :: EVC    !canopy evap. heat [w/m2]  [+ to atm]
+  REAL,INTENT(OUT)                                              :: EVG    !ground evap. heat [w/m2]  [+ to atm]
+  REAL,INTENT(OUT)                                              :: TR     !transpiration heat [w/m2] [+ to atm]
+  REAL,INTENT(OUT)                                              :: GHV    !ground heat flux [w/m2]  [+ to soil]
   REAL,INTENT(OUT)                                  :: TGV    !ground surface temp. [k]
   REAL                                              :: CMV    !momentum drag coefficient
-  REAL                                              :: CHV    !sensible heat exchange coefficient
+  REAL,INTENT(OUT)                                  :: CHV    !sensible heat exchange coefficient
 
 ! temperature and fluxes over bare soil fraction
 
   REAL                                              :: TAUXB  !wind stress: e-w dir [n/m2]
   REAL                                              :: TAUYB  !wind stress: n-s dir [n/m2]
-  REAL                                              :: IRB    !net longwave rad. [w/m2] [+ to atm]
-  REAL                                              :: SHB    !sensible heat [w/m2]     [+ to atm]
-  REAL                                              :: EVB    !evaporation heat [w/m2]  [+ to atm]
-  REAL                                              :: GHB    !ground heat flux [w/m2] [+ to soil]
+  REAL,INTENT(OUT)                                              :: IRB    !net longwave rad. [w/m2] [+ to atm]
+  REAL,INTENT(OUT)                                              :: SHB    !sensible heat [w/m2]     [+ to atm]
+  REAL,INTENT(OUT)                                              :: EVB    !evaporation heat [w/m2]  [+ to atm]
+  REAL,INTENT(OUT)                                              :: GHB    !ground heat flux [w/m2] [+ to soil]
   REAL,INTENT(OUT)                                  :: TGB    !ground surface temp. [k]
   REAL                                              :: CMB    !momentum drag coefficient
-  REAL                                              :: CHB    !sensible heat exchange coefficient
+  REAL,INTENT(OUT)                                  :: CHB    !sensible heat exchange coefficient
+  REAL,INTENT(OUT)                                  :: CHLEAF !leaf exchange coefficient
+  REAL,INTENT(OUT)                                  :: CHUC   !under canopy exchange coefficient
 !jref:start  
-  REAL,INTENT(OUT)                                  :: CAH    !sensible heat conductance, canopy air to ZLVL air (m/s)
-  REAL,INTENT(OUT)                                  :: EHB    !sensible heat conductance, canopy air to ZLVL air (m/s)
-  REAL                                  :: CAH2    !sensible heat conductance, canopy air to ZLVL air (m/s)
-  REAL                                  :: EHB2    !sensible heat conductance, canopy air to ZLVL air (m/s)
+  REAL,INTENT(OUT)                                  :: CHV2    !sensible heat conductance, canopy air to ZLVL air (m/s)
+  REAL,INTENT(OUT)                                  :: CHB2    !sensible heat conductance, canopy air to ZLVL air (m/s)
+  REAL                                  :: noahmpres
 
 !jref:end  
 
@@ -1479,6 +1516,12 @@ contains
     GHV       = 0.       
     PSNSUN    = 0.
     PSNSHA    = 0.
+    T2MV      = 0.
+    Q2V       = 0.
+    CHV       = 0.
+    CHLEAF    = 0.
+    CHUC      = 0.
+    CHV2      = 0.
 
 ! wind speed at reference height: ur >= 1
 
@@ -1488,7 +1531,7 @@ contains
 
     VAI = ELAI + ESAI
     VEG = .FALSE.
-    IF(VAI > 0.) VEG = .TRUE.
+    IF(VAI > 0.0) VEG = .TRUE.   
 
 ! ground snow cover fraction [Niu and Yang, 2007, JGR]
 
@@ -1547,10 +1590,10 @@ contains
                    TG      ,TV      ,FSNO    ,QSNOW   ,FWET    , & !in
                    ELAI    ,ESAI    ,SMC     ,SOLAD   ,SOLAI   , & !in
                    FVEG    ,ILOC    ,JLOC    ,                   & !in
-                   ALBOLD  ,                                     & !inout
+                   ALBOLD  ,TAUSS   ,                            & !inout
                    FSUN    ,LAISUN  ,LAISHA  ,PARSUN  ,PARSHA  , & !out
                    SAV     ,SAG     ,FSR     ,FSA     ,FSRV    , & 
-                   FSRG    ,BGAP    ,WGAP    ,GAP)            !out
+                   FSRG    ,BGAP    ,WGAP    )            !out
 
 ! vegetation and ground emissivity
 
@@ -1588,15 +1631,25 @@ contains
        BTRANI(1:NROOT) = BTRANI(1:NROOT)/BTRAN
      END IF
 
-! soil surface resistence for ground evap.
+! soil surface resistance for ground evap.
 
      BEVAP = MAX(0.0,SH2O(1)/SMCMAX)
      IF(IST == 2) THEN
        RSURF = 1.          ! avoid being divided by 0
        RHSUR = 1.0
      ELSE
-!niu       RSURF = FSNO * 1. + (1.-FSNO)* EXP(8.25-4.225*BEVAP) !Sellers (1992)
-       RSURF = FSNO * 1. + (1.-FSNO)* EXP(8.25-6.0*BEVAP) !adjusted to decrease RSURF for wet soil
+
+        ! RSURF based on Sakaguchi and Zeng, 2009
+        ! taking the "residual water content" to be the wilting point, 
+        ! and correcting the exponent on the D term (typo in SZ09 ?)
+        L_RSURF = (-ZSOIL(1)) * ( exp ( (1.0 - MIN(1.0,SH2O(1)/SMCMAX)) ** 5 ) - 1.0 ) / ( 2.71828 - 1.0 ) 
+        D_RSURF = 2.2E-5 * SMCMAX * SMCMAX * ( 1.0 - SMCWLT / SMCMAX ) ** (2.0+3.0/BEXP)
+        RSURF = L_RSURF / D_RSURF
+
+        ! Older RSURF computations:
+        !    RSURF = FSNO * 1. + (1.-FSNO)* EXP(8.25-4.225*BEVAP) !Sellers (1992)
+        !    RSURF = FSNO * 1. + (1.-FSNO)* EXP(8.25-6.0  *BEVAP) !adjusted to decrease RSURF for wet soil
+
        IF(SH2O(1) < 0.01 .and. SNOWH == 0.) RSURF = 1.E6
        PSI   = -PSISAT*(MAX(0.01,SH2O(1))/SMCMAX)**(-BEXP)   
        RHSUR = FSNO + (1.-FSNO) * EXP(PSI*GRAV/(RW*TG)) 
@@ -1618,7 +1671,7 @@ contains
 
 ! Surface temperatures of the ground and canopy and energy fluxes
 
-    IF (VEG) THEN 
+    IF (VEG .AND. FVEG > 0) THEN 
     TGV = TG
     CMV = CM
     CHV = CH
@@ -1640,7 +1693,7 @@ contains
                     T2MV    ,PSNSUN  ,PSNSHA  ,                   & !out
 !jref:start
                     QC      ,PBLH    ,QSFC    ,PSFC    ,ISURBAN , & !in
-                    IZ0TLND ,CAH     ,Q2V     ,CAH2)               !inout 
+                    IZ0TLND ,Q2V     ,CHV2, CHLEAF, CHUC)               !inout 
 !jref:end                            
     END IF
 
@@ -1653,32 +1706,30 @@ contains
                     DZSNSO  ,ZLVL    ,ZPDG    ,Z0MG    ,          & !in
                     EMG     ,STC     ,DF      ,RSURF   ,LATHEA  , & !in
                     GAMMA   ,RHSUR   ,ILOC    ,JLOC    ,Q2      , & !in
-                    TGB     ,CMB     ,CHB     ,          & !inout
+                    TGB     ,CMB     ,CHB     ,                   & !inout
                     TAUXB   ,TAUYB   ,IRB     ,SHB     ,EVB     , & !out
                     GHB     ,T2MB    ,DX      ,DZ8W    ,VEGTYP  , & !out
 !jref:start
                     QC      ,PBLH    ,QSFC    ,PSFC    ,ISURBAN , & !in
-                    IZ0TLND ,SFCPRS  ,EHB     ,Q2B,   EHB2)                          !in 
+                    IZ0TLND ,SFCPRS  ,Q2B,   CHB2)                          !in 
 !jref:end                            
 
 !energy balance at vege canopy: SAV          =(IRC+SHC+EVC+TR)     *FVEG  at   FVEG 
 !energy balance at vege ground: SAG*    FVEG =(IRG+SHG+EVG+GHV)    *FVEG  at   FVEG
 !energy balance at bare ground: SAG*(1.-FVEG)=(IRB+SHB+EVB+GHB)*(1.-FVEG) at 1-FVEG
 
-    IF (VEG) THEN 
+    IF (VEG .AND. FVEG > 0) THEN 
         TAUX  = FVEG * TAUXV     + (1.0 - FVEG) * TAUXB
         TAUY  = FVEG * TAUYV     + (1.0 - FVEG) * TAUYB
-        FIRA  = FVEG * IRG       + (1.0 - FVEG) * IRB       + FVEG * IRC
-        FSH   = FVEG * SHG       + (1.0 - FVEG) * SHB       + FVEG * SHC
+        FIRA  = FVEG * IRG       + (1.0 - FVEG) * IRB       + IRC
+        FSH   = FVEG * SHG       + (1.0 - FVEG) * SHB       + SHC
         FGEV  = FVEG * EVG       + (1.0 - FVEG) * EVB
         SSOIL = FVEG * GHV       + (1.0 - FVEG) * GHB
-        FCEV  = FVEG * EVC
-        FCTR  = FVEG * TR
+        FCEV  = EVC
+        FCTR  = TR
         TG    = FVEG * TGV       + (1.0 - FVEG) * TGB
         T2M   = FVEG * T2MV      + (1.0 - FVEG) * T2MB
-!jref: easy test of TGB temp
-        TS    = (1.0 - FVEG) * TGB
-!        TS    = FVEG * TV        + (1.0 - FVEG) * TGB
+        TS    = FVEG * TV        + (1.0 - FVEG) * TGB
         CM    = FVEG * CMV       + (1.0 - FVEG) * CMB      ! better way to average?
         CH    = FVEG * CHV       + (1.0 - FVEG) * CHB
         Q1    = FVEG * (EAH*0.622/(SFCPRS - 0.378*EAH)) + (1.0 - FVEG)*QSFC
@@ -1699,6 +1750,10 @@ contains
         CH    = CHB
         Q1    = QSFC
         Q2E   = Q2B
+        RSSUN = 0.0
+        RSSHA = 0.0
+        TGV   = TGB
+        CHV   = CHB
     END IF
 
     FIRE = LWDN + FIRA
@@ -1708,17 +1763,24 @@ contains
        WRITE(6,*) 'input of SHDFAC with LAI'
        WRITE(6,*) ILOC, JLOC, 'SHDFAC=',FVEG,'VAI=',VAI,'TV=',TV,'TG=',TG
        WRITE(6,*) 'LWDN=',LWDN,'FIRA=',FIRA,'SNOWH=',SNOWH
-       STOP
+       call wrf_error_fatal("STOP in Noah-MP")
     END IF
 
-    TRAD = (FIRE/SB)**0.25
+    ! Compute a net emissivity
+    EMISSI = FVEG * ( EMG*(1-EMV) + EMV + EMV*(1-EMV)*(1-EMG) ) + &
+         (1-FVEG) * EMG
+
+    ! When we're computing a TRAD, subtract from the emitted IR the
+    ! reflected portion of the incoming LWDN, so we're just
+    ! considering the IR originating in the canopy/ground system.
+    
+    TRAD = ( ( FIRE - (1-EMISSI)*LWDN ) / (EMISSI*SB) ) ** 0.25
+
+    ! Old TRAD calculation not taking into account Emissivity:
+    ! TRAD = (FIRE/SB)**0.25
+
     APAR = PARSUN*LAISUN + PARSHA*LAISHA
     PSN  = PSNSUN*LAISUN + PSNSHA*LAISHA
-
-! effective parameters for PBL and diagnostics
-
-    CALL EPARM(ILOC   ,JLOC   ,TAH    ,TGB    ,FVEG   ,&
-               CAH    ,EHB    ,VEG    ,CHSTAR ,TSTAR)   !inout
 
 ! 3L snow & 4L soil temperatures
 
@@ -1733,7 +1795,7 @@ contains
       IF (SNOWH > 0.05 .AND. TG > TFRZ) THEN
         TGV = TFRZ
         TGB = TFRZ
-          IF (VEG) THEN
+          IF (VEG .AND. FVEG > 0) THEN
              TG    = FVEG * TGV       + (1.0 - FVEG) * TGB
              TS    = FVEG * TV        + (1.0 - FVEG) * TGB
           ELSE
@@ -1745,15 +1807,12 @@ contains
 
 ! Energy released or consumed by snow & frozen soil
 
- print*, 'in energy, before phasechange: snowh = ', snowh
-
  CALL PHASECHANGE (NSNOW   ,NSOIL   ,ISNOW   ,DT      ,FACT    , & !in
                    DZSNSO  ,HCPCT   ,IST     ,ILOC    ,JLOC    , & !in
                    STC     ,SNICE   ,SNLIQ   ,SNEQV   ,SNOWH   , & !inout
                    SMC     ,SH2O    ,                            & !inout
                    QMELT   ,IMELT   ,PONDING )                     !out
 
- print*, 'in energy, after phasechange: snowh = ', snowh
 
   END SUBROUTINE ENERGY
 ! ==================================================================================================
@@ -2037,10 +2096,10 @@ contains
                         TG      ,TV      ,FSNO    ,QSNOW   ,FWET    , & !in
                         ELAI    ,ESAI    ,SMC     ,SOLAD   ,SOLAI   , & !in
                         FVEG    ,ILOC    ,JLOC    ,                   & !in
-                        ALBOLD  ,                                     & !inout
+                        ALBOLD  ,TAUSS   ,                            & !inout
                         FSUN    ,LAISUN  ,LAISHA  ,PARSUN  ,PARSHA  , & !out
                         SAV     ,SAG     ,FSR     ,FSA     ,FSRV    , &
-                        FSRG    ,BGAP    ,WGAP,GAP)            !out
+                        FSRG    ,BGAP    ,WGAP)            !out
 ! --------------------------------------------------------------------------------------------------
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
@@ -2072,6 +2131,7 @@ contains
 
 ! inout
   REAL,                  INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
+  REAL,                  INTENT(INOUT) :: TAUSS  !non-dimensional snow age.
 
 ! output
   REAL, INTENT(OUT)                    :: FSUN   !sunlit fraction of canopy (-)
@@ -2089,7 +2149,6 @@ contains
   REAL, INTENT(OUT)                    :: FSRG    !ground reflected solar radiation (w/m2)
   REAL, INTENT(OUT)                    :: BGAP
   REAL, INTENT(OUT)                    :: WGAP
-  REAL, INTENT(OUT)                    :: GAP
 !jref:end  
 
 ! local
@@ -2125,11 +2184,11 @@ contains
                 TG     ,TV     ,SNOWH  ,FSNO   ,FWET   , & !in
                 SMC    ,SNEQVO ,SNEQV  ,QSNOW  ,FVEG   , & !in
                 ILOC   ,JLOC   ,                         & !in
-                ALBOLD ,                                 & !inout
+                ALBOLD ,TAUSS                          , & !inout
                 ALBGRD ,ALBGRI ,ALBD   ,ALBI   ,FABD   , & !out
                 FABI   ,FTDD   ,FTID   ,FTII   ,FSUN   , & !)   !out
                 FREVI  ,FREVD   ,FREGD ,FREGI  ,BGAP   , & !inout
-                WGAP   ,GAP)
+                WGAP)
 
 ! surface radiation
 
@@ -2160,11 +2219,11 @@ contains
                      TG     ,TV     ,SNOWH  ,FSNO   ,FWET   , & !in
                      SMC    ,SNEQVO ,SNEQV  ,QSNOW  ,FVEG   , & !in
                      ILOC   ,JLOC   ,                         & !in
-                     ALBOLD ,                                 & !inout
+                     ALBOLD ,TAUSS                          , & !inout
                      ALBGRD ,ALBGRI ,ALBD   ,ALBI   ,FABD   , & !out
                      FABI   ,FTDD   ,FTID   ,FTII   ,FSUN   , & !out
                      FREVI  ,FREVD  ,FREGD  ,FREGI  ,BGAP   , & !out
-                     WGAP   ,GAP)
+                     WGAP)
 
 ! --------------------------------------------------------------------------------------------------
 ! surface albedos. also fluxes (per unit incoming direct and diffuse
@@ -2201,6 +2260,7 @@ contains
 
 ! inout
   REAL,                  INTENT(INOUT)  :: ALBOLD !snow albedo at last time step (CLASS type)
+  REAL,                  INTENT(INOUT)  :: TAUSS  !non-dimensional snow age
 
 ! output
   REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct)
@@ -2220,7 +2280,6 @@ contains
   REAL, DIMENSION(1:    2), INTENT(OUT) :: FREGI
   REAL, INTENT(OUT) :: BGAP
   REAL, INTENT(OUT) :: WGAP
-  REAL, INTENT(OUT) :: GAP
 !jref:end
 
 ! ------------------------------------------------------------------------
@@ -2252,7 +2311,6 @@ contains
   MPE = 1.E-06
   BGAP = 0.
   WGAP = 0.
-  GAP  = 0.
 
 ! initialize output because solar radiation only done if COSZ > 0
 
@@ -2283,7 +2341,7 @@ contains
 
 ! snow age
 
-   CALL SNOW_AGE (DT,TG,SNEQVO,SNEQV,FAGE)
+   CALL SNOW_AGE (DT,TG,SNEQVO,SNEQV,TAUSS,FAGE)
 
 ! snow albedos: only if COSZ > 0 and FSNO > 0
 
@@ -2310,14 +2368,14 @@ contains
                       FWET   ,TV      ,ALBGRD  ,ALBGRI  ,RHO    , & !in
                       TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
                       FABD   ,ALBD    ,FTDD    ,FTID    ,GDIR   , &!)   !out
-                      FREVD  ,FREGD   ,BGAP    ,WGAP    ,GAP)
+                      FREVD  ,FREGD   ,BGAP    ,WGAP)
 
       IC = 1      ! diffuse
       CALL TWOSTREAM (IB     ,IC      ,VEGTYP  ,COSZ    ,VAI    , & !in
                       FWET   ,TV      ,ALBGRD  ,ALBGRI  ,RHO    , & !in
                       TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
                       FABI   ,ALBI    ,FTDI    ,FTII    ,GDIR   , & !)   !out
-                      FREVI  ,FREGI   ,BGAP    ,WGAP    ,GAP)
+                      FREVI  ,FREGI   ,BGAP    ,WGAP)
 
   END DO
 
@@ -2462,7 +2520,7 @@ contains
   END SUBROUTINE SURRAD
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
-  SUBROUTINE SNOW_AGE (DT,TG,SNEQVO,SNEQV,FAGE)
+  SUBROUTINE SNOW_AGE (DT,TG,SNEQVO,SNEQV,TAUSS,FAGE)
 ! --------------------------------------------------------------------------------------------------
   IMPLICIT NONE
 ! ------------------------ code history ------------------------------------------------------------
@@ -2477,8 +2535,9 @@ contains
 !output
    REAL, INTENT(OUT) :: FAGE     !snow age
 
+!input/output
+   REAL, INTENT(INOUT) :: TAUSS      !non-dimensional snow age
 !local
-   REAL            :: TAUSS      !non-dimensional snow age
    REAL            :: TAGE       !total aging effects
    REAL            :: AGE1       !effects of grain growth due to vapor diffusion
    REAL            :: AGE2       !effects of grain growth at freezing of melt water
@@ -2686,7 +2745,7 @@ contains
                         FWET   ,T       ,ALBGRD  ,ALBGRI  ,RHO    , & !in
                         TAU    ,FVEG    ,IST     ,ILOC    ,JLOC   , & !in
                         FAB    ,FRE     ,FTD     ,FTI     ,GDIR   , & !)   !out
-                        FREV   ,FREG    ,BGAP    ,WGAP    ,GAP)
+                        FREV   ,FREG    ,BGAP    ,WGAP)
 
 ! --------------------------------------------------------------------------------------------------
 ! use two-stream approximation of Dickinson (1983) Adv Geophysics
@@ -2749,6 +2808,8 @@ contains
    REAL                              :: B,C,D,D1,D2,F,H,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10
    REAL                              :: PHI1,PHI2,SIGMA
    REAL                              :: FTDS,FTIS,FRES
+   REAL                              :: DENFVEG
+   REAL                              :: VAI_SPREAD
 !jref:start
    REAL                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
    REAL                              :: THETAZ
@@ -2768,28 +2829,27 @@ contains
    REAL,INTENT(INOUT) :: WGAP     !within canopy gap fraction for beam (-)
 
    REAL :: KOPEN    !gap fraction for diffue light (-)
-   REAL, INTENT(OUT) :: GAP      !total gap fraction for beam ( <=1-shafac )
+   REAL :: GAP      !total gap fraction for beam ( <=1-shafac )
 
 ! -----------------------------------------------------------------
 ! compute within and between gaps
+     VAI_SPREAD = VAI
      if(VAI == 0.0) THEN
          GAP     = 1.0
          KOPEN   = 1.0
      ELSE
          IF(OPT_RAD == 1) THEN
+	   DENFVEG = -LOG(MAX(1.0-FVEG,0.01))/(PAI*RC(VEGTYP)**2)
            HD      = HVT(VEGTYP) - HVB(VEGTYP)
            BB      = 0.5 * HD           
            THETAP  = ATAN(BB/RC(VEGTYP) * TAN(ACOS(MAX(0.01,COSZ))) )
-           BGAP    = EXP(-DEN(VEGTYP) * PAI * RC(VEGTYP)**2/COS(THETAP) )
-           FA      = VAI/(1.33 * PAI * RC(VEGTYP)**3.0 *(BB/RC(VEGTYP))*DEN(VEGTYP))
+           ! BGAP    = EXP(-DEN(VEGTYP) * PAI * RC(VEGTYP)**2/COS(THETAP) )
+           BGAP    = EXP(-DENFVEG * PAI * RC(VEGTYP)**2/COS(THETAP) )
+           FA      = VAI/(1.33 * PAI * RC(VEGTYP)**3.0 *(BB/RC(VEGTYP))*DENFVEG)
            NEWVAI  = HD*FA
            WGAP    = (1.0-BGAP) * EXP(-0.5*NEWVAI/COSZ)
-
-!jref - BGAP scaled to be less or equal to (1.-FVEG)           
-           BGAP    = (1.0-FVEG)*BGAP
-           WGAP    = FVEG*WGAP
-
            GAP     = MIN(1.0-FVEG, BGAP+WGAP)
+
            KOPEN   = 0.05
          END IF
 
@@ -2800,7 +2860,7 @@ contains
 
          IF(OPT_RAD == 3) THEN
            GAP     = 1.0-FVEG
-           KOPEN   = 0.0
+           KOPEN   = 1.0-FVEG
          END IF
      end if
 
@@ -2853,7 +2913,7 @@ contains
      TMP1 = B*B - C*C
      H = SQRT(TMP1) / AVMU
      SIGMA = TMP0*TMP0 - TMP1
-     if(SIGMA == 0.) SIGMA = 1.e-6
+     if ( ABS (SIGMA) < 1.e-6 ) SIGMA = SIGN(1.e-6,SIGMA)
      P1 = B + AVMU*H
      P2 = B - AVMU*H
      P3 = B + TMP0
@@ -2906,15 +2966,13 @@ contains
 ! flux reflected by the surface (veg. and ground)
 
      IF (IC .EQ. 0) THEN
-        FRES = (H1/SIGMA + H2 + H3)*(1.0-GAP  ) + ALBGRD(IB)*GAP
-!jref - seperate veg. and ground reflection        
+        FRES   = (H1/SIGMA + H2 + H3)*(1.0-GAP  ) + ALBGRD(IB)*GAP        
         FREVEG = (H1/SIGMA + H2 + H3)*(1.0-GAP  ) 
-        FREBAR = ALBGRD(IB)*GAP
+        FREBAR = ALBGRD(IB)*GAP                   !jref - separate veg. and ground reflection
      ELSE
-        FRES = (H7 + H8)           *(1.0-KOPEN) + ALBGRI(IB)*KOPEN
-!jref - seperate veg. and ground reflection        
-        FREVEG = (H7 + H8)           *(1.0-KOPEN)+ALBGRI(IB)*KOPEN
-        FREBAR = 0
+        FRES   = (H7 + H8) *(1.0-KOPEN) + ALBGRI(IB)*KOPEN        
+        FREVEG = (H7 + H8) *(1.0-KOPEN) + ALBGRI(IB)*KOPEN
+        FREBAR = 0                                !jref - separate veg. and ground reflection
      END IF
      FRE(IB) = FRES
 
@@ -2925,6 +2983,11 @@ contains
 
      FAB(IB) = 1. - FRE(IB) - (1.-ALBGRD(IB))*FTD(IB) &
                             - (1.-ALBGRI(IB))*FTI(IB)
+
+!if(iloc == 1.and.jloc ==  2) then
+!  write(*,'(a7,2i2,5(a6,f8.4),2(a9,f8.4))') "ib,ic: ",ib,ic," GAP: ",GAP," FTD: ",FTD(IB)," FTI: ",FTI(IB)," FRE: ", &
+!         FRE(IB)," FAB: ",FAB(IB)," ALBGRD: ",ALBGRD(IB)," ALBGRI: ",ALBGRI(IB)
+!end if
 
   END SUBROUTINE TWOSTREAM
 ! ==================================================================================================
@@ -2940,12 +3003,12 @@ contains
                        FOLN    ,CO2AIR  ,O2AIR   ,BTRAN   ,SFCPRS  , & !in
                        RHSUR   ,ILOC    ,JLOC    ,Q2      , & !in
                        EAH     ,TAH     ,TV      ,TG      ,CM      , & !inout
-                       CH      ,DX      ,DZ8W    ,                   &
+                       CH      ,DX      ,DZ8W    ,                   & !
                        TAUXV   ,TAUYV   ,IRG     ,IRC     ,SHG     , & !out
                        SHC     ,EVG     ,EVC     ,TR      ,GH      , & !out
                        T2MV    ,PSNSUN  ,PSNSHA  ,                   & !out
                        QC      ,PBLH    ,QSFC    ,PSFC    ,ISURBAN , & !in
-                       IZ0TLND ,CAH     ,Q2V     ,CAH2)              !inout 
+                       IZ0TLND ,Q2V     ,CAH2,CHLEAF,CHUC)              !inout 
 
 ! --------------------------------------------------------------------------------------------------
 ! use newton-raphson iteration to solve for vegetation (tv) and
@@ -3045,12 +3108,14 @@ contains
   REAL,                           INTENT(OUT) :: EVG    !evaporation heat flux (w/m2)  [+= to atm]
   REAL,                           INTENT(OUT) :: TR     !transpiration heat flux (w/m2)[+= to atm]
   REAL,                           INTENT(OUT) :: GH     !ground heat (w/m2) [+ = to soil]
-  REAL,                           INTENT(INOUT) :: T2MV   !2 m height air temperature (k)
+  REAL,                           INTENT(OUT) :: T2MV   !2 m height air temperature (k)
   REAL,                           INTENT(OUT) :: PSNSUN !sunlit leaf photosynthesis (umolco2/m2/s)
   REAL,                           INTENT(OUT) :: PSNSHA !shaded leaf photosynthesis (umolco2/m2/s)
+  REAL,                           INTENT(OUT) :: CHLEAF !leaf exchange coefficient
+  REAL,                           INTENT(OUT) :: CHUC   !under canopy exchange coefficient
 
-  REAL,                           INTENT(OUT) :: CAH    !sensible heat conductance, canopy air to ZLVL air (m/s)
   REAL,                           INTENT(OUT) :: Q2V
+  REAL :: CAH    !sensible heat conductance, canopy air to ZLVL air (m/s)
   REAL :: U10V    !10 m wind speed in eastward dir (m/s) 
   REAL :: V10V    !10 m wind speed in eastward dir (m/s) 
   REAL :: WSPD
@@ -3113,7 +3178,10 @@ contains
   REAL :: MOZ          !Monin-Obukhov stability parameter
   REAL :: MOZG         !Monin-Obukhov stability parameter
   REAL :: MOZOLD       !Monin-Obukhov stability parameter from prior iteration
-  
+  REAL :: FM2          !Monin-Obukhov momentum adjustment at 2m
+  REAL :: FH2          !Monin-Obukhov heat adjustment at 2m
+  REAL :: CH2          !Surface exchange at 2m
+  REAL :: THSTAR          !Surface exchange at 2m
 
   REAL :: THVAIR
   REAL :: THAH 
@@ -3150,6 +3218,7 @@ contains
 
   TDC(T)   = MIN( 50., MAX(-50.,(T-TFRZ)) )
 ! ---------------------------------------------------------------------------------------------
+
         MPE = 1E-6
         LITER = 0
         FV = 0.1
@@ -3183,7 +3252,7 @@ contains
 
 !jref - consistent surface specific humidity for sfcdif3 and sfcdif4
 
-        QSFC = 0.622*ESTG/(PSFC-0.378*ESTG)  
+        QSFC = 0.622*EAIR/(PSFC-0.378*EAIR)  
 
 ! canopy height
 
@@ -3224,8 +3293,8 @@ contains
           CALL SFCDIF1(ITER   ,SFCTMP ,RHOAIR ,H      ,QAIR   , & !in
                        ZLVL   ,ZPD    ,Z0M    ,Z0H    ,UR     , & !in
                        MPE    ,ILOC   ,JLOC   ,                 & !in
-                       MOZ    ,MOZSGN ,FM     ,FH     ,         & !inout
-                       CM     ,CH     ,FV     )                   !out
+                       MOZ    ,MOZSGN ,FM     ,FH     ,FM2,FH2, & !inout
+                       CM     ,CH     ,FV     ,CH2     )          !out
        ENDIF
      
        IF(OPT_SFC == 2) THEN
@@ -3233,6 +3302,10 @@ contains
                        CZIL   ,ZLVL   ,ILOC   ,JLOC   ,         & !in
                        CM     ,CH     ,MOZ    ,WSTAR  ,         & !in
                        FV     )                                   !out
+          ! Undo the multiplication by windspeed that SFCDIF2 
+          ! applies to exchange coefficients CH and CM:
+          CH = CH / UR
+          CM = CM / UR
        ENDIF
 
        IF(OPT_SFC == 3) THEN
@@ -3242,6 +3315,11 @@ contains
                        THAIR  ,QAIR   ,QC     ,ZLVL   , &  !in
                        SFCPRS ,FV     ,CM     ,CH     ,CH2V   ,&  !inout
                        CQ2V   ,MOZ)                               !out
+          ! Undo the multiplication by windspeed that SFCDIF3 
+          ! applies to exchange coefficients CH and CM:
+          CH   = CH / UR
+          CM   = CM / UR
+          CH2V = CH2V / UR
        ENDIF
 
        IF(OPT_SFC == 4) THEN
@@ -3250,6 +3328,11 @@ contains
                        TAH    ,QAIR   ,ZLVL   ,IZ0TLND,QSFC   ,&
                        H      ,QFX    ,CM     ,CH     ,CH2V   ,& 
                        CQ2V   ,MOZ    ,FV     ,U10V   ,V10V)
+          ! Undo the multiplication by windspeed that SFCDIF4 
+          ! applies to exchange coefficients CH and CM:
+          CH   = CH / UR
+          CM   = CM / UR
+          CH2V = CH2V / UR
        ENDIF
 
        RAMC = MAX(1.,1./(CM*UR))
@@ -3335,23 +3418,24 @@ contains
         TAH = ATA + BTA*TV               ! canopy air T.
         EAH = AEA + BEA*ESTV             ! canopy air e
 
-        IRC = AIR + CIR*TV**4
-        SHC = RHOAIR*CPAIR*CVH * (  TV-TAH)
-        EVC = RHOAIR*CPAIR*CEW * (ESTV-EAH) / GAMMA
-        TR  = RHOAIR*CPAIR*CTW * (ESTV-EAH) / GAMMA
+        IRC = FVEG*(AIR + CIR*TV**4)
+        SHC = FVEG*RHOAIR*CPAIR*CVH * (  TV-TAH)
+        EVC = FVEG*RHOAIR*CPAIR*CEW * (ESTV-EAH) / GAMMA
+        TR  = FVEG*RHOAIR*CPAIR*CTW * (ESTV-EAH) / GAMMA
         EVC = MIN(CANLIQ*LATHEA/DT,EVC)
 
         B   = SAV-IRC-SHC-EVC-TR                          !additional w/m2
-        A   = 4.*CIR*TV**3 + CSH + (CEV+CTR)*DESTV !volumetric heat capacity
+        A   = FVEG*(4.*CIR*TV**3 + CSH + (CEV+CTR)*DESTV) !volumetric heat capacity
         DTV = B/A
 
-        IRC = IRC + 4.*CIR*TV**3*DTV
-        SHC = SHC + CSH*DTV
-        EVC = EVC + CEV*DESTV*DTV
-        TR  = TR  + CTR*DESTV*DTV                               
+        IRC = IRC + FVEG*4.*CIR*TV**3*DTV
+        SHC = SHC + FVEG*CSH*DTV
+        EVC = EVC + FVEG*CEV*DESTV*DTV
+        TR  = TR  + FVEG*CTR*DESTV*DTV                               
 
 ! update vegetation surface temperature
         TV  = TV + DTV
+!        TAH = ATA + BTA*TV               ! canopy air T; update here for consistency
 
 ! for computing M-O length in the next iteration
         H  = RHOAIR*CPAIR*(TAH - SFCTMP) /RAHC        
@@ -3410,6 +3494,8 @@ contains
         TG  = TG  + DTG
 
      END DO loop2
+     
+!     TAH = (CAH*SFCTMP + CVH*TV + CGH*TG)/(CAH + CVH + CGH)
 
 ! if snow on ground and TG > TFRZ: reset TG = TFRZ. reevaluate ground fluxes.
 
@@ -3430,23 +3516,43 @@ contains
 
 ! consistent vegetation air temperature and vapor pressure since TG is not consistent with the TAH/EAH
 ! calculation.
-     TAH = SFCTMP + (SHG+SHC)/(RHOAIR*CPAIR*CAH) 
-     EAH = EAIR + (EVC+TR+EVG)/(RHOAIR*CAW*CPAIR/GAMMA )
-     QFX = (QSFC-QAIR)*RHOAIR*CAW !*CPAIR/GAMMA
+!     TAH = SFCTMP + (SHG+SHC)/(RHOAIR*CPAIR*CAH) 
+!     TAH = SFCTMP + (SHG*FVEG+SHC)/(RHOAIR*CPAIR*CAH) ! ground flux need fveg
+!     EAH = EAIR + (EVC+FVEG*(TR+EVG))/(RHOAIR*CAW*CPAIR/GAMMA )
+!     QFX = (QSFC-QAIR)*RHOAIR*CAW !*CPAIR/GAMMA
 
-! 2m temperature over vegetation
+! 2m temperature over vegetation ( corrected for low CQ2V values )
    IF (OPT_SFC == 1 .OR. OPT_SFC == 2) THEN
-      T2MV = TAH - (SHG+SHC)/(RHOAIR*CPAIR*FV) * 1./VKC * LOG((2.+Z0H)/Z0H)
-      Q2V = (EAH*0.622/(SFCPRS - 0.378*EAH))- QFX/(RHOAIR*FV)* 1./VKC * LOG((2.+Z0H)/Z0H)
-      CAH2 = FV*1./VKC*LOG((2.+Z0H)/Z0H)
+!      CAH2 = FV*1./VKC*LOG((2.+Z0H)/Z0H)
+      CAH2 = FV*VKC/LOG((2.+Z0H)/Z0H)
+      CAH2 = FV*VKC/(LOG((2.+Z0H)/Z0H)-FH2)
       CQ2V = CAH2
+      IF (CAH2 .LT. 1.E-5 ) THEN
+         T2MV = TAH
+!         Q2V  = (EAH*0.622/(SFCPRS - 0.378*EAH))
+         Q2V  = QSFC
+      ELSE
+         T2MV = TAH - (SHG+SHC/FVEG)/(RHOAIR*CPAIR) * 1./CAH2
+!         Q2V = (EAH*0.622/(SFCPRS - 0.378*EAH))- QFX/(RHOAIR*FV)* 1./VKC * LOG((2.+Z0H)/Z0H)
+         Q2V = QSFC - ((EVC+TR)/FVEG+EVG)/(LATHEA*RHOAIR) * 1./CQ2V
+      ENDIF
    ENDIF
 
 ! myj/ysu consistent 2m temperature over vegetation (if CQ2V .lt. 1e-5? )
    IF (OPT_SFC == 3 .OR. OPT_SFC == 4 ) THEN
-         T2MV = TAH - (SHG+SHC)/(RHOAIR*CPAIR*CAH2)
-         Q2V  = (EAH*0.622/(SFCPRS - 0.378*EAH)) - QFX/(RHOAIR*CQ2V)
+         IF (CAH2 .LT. 1.E-5 ) THEN
+            T2MV = TAH
+            Q2V  = (EAH*0.622/(SFCPRS - 0.378*EAH))
+         ELSE
+            T2MV = TAH - (SHG+SHC)/(RHOAIR*CPAIR*CAH2)
+            Q2V  = (EAH*0.622/(SFCPRS - 0.378*EAH)) - QFX/(RHOAIR*CQ2V)
+         ENDIF
    ENDIF  
+
+! update CH for output
+     CH = CAH
+     CHLEAF = CVH
+     CHUC = 1./RAHG
 
   END SUBROUTINE VEGE_FLUX
 ! ==================================================================================================
@@ -3460,7 +3566,7 @@ contains
                         TAUXB   ,TAUYB   ,IRB     ,SHB     ,EVB     , & !out
                         GHB     ,T2MB    ,DX      ,DZ8W    ,IVGTYP  , & !out
                         QC      ,PBLH    ,QSFC    ,PSFC    ,ISURBAN , & !in
-                        IZ0TLND ,SFCPRS  ,EHB     ,Q2B     ,EHB2)      !in 
+                        IZ0TLND ,SFCPRS  ,Q2B     ,EHB2)      !in 
 
 ! --------------------------------------------------------------------------------------------------
 ! use newton-raphson iteration to solve ground (tg) temperature
@@ -3532,10 +3638,10 @@ contains
   REAL,                           INTENT(OUT) :: SHB    !sensible heat flux (w/m2) [+ to atm]
   REAL,                           INTENT(OUT) :: EVB    !latent heat flux (w/m2)   [+ to atm]
   REAL,                           INTENT(OUT) :: GHB    !ground heat flux (w/m2)  [+ to soil]
-  REAL,                           INTENT(INOUT) :: T2MB   !2 m height air temperature (k)
+  REAL,                           INTENT(OUT) :: T2MB   !2 m height air temperature (k)
 !jref:start
-  REAL,                           INTENT(OUT) :: EHB    !bare ground heat conductance
   REAL,                           INTENT(OUT) :: Q2B    !bare ground heat conductance
+  REAL :: EHB    !bare ground heat conductance
   REAL :: U10B    !10 m wind speed in eastward dir (m/s)
   REAL :: V10B    !10 m wind speed in eastward dir (m/s)
   REAL :: WSPD
@@ -3599,6 +3705,9 @@ contains
   REAL :: FM         !momentum stability correction, weighted by prior iters
   REAL :: FH         !sen heat stability correction, weighted by prior iters
   INTEGER :: MOZSGN  !number of times MOZ changes sign
+  REAL :: FM2          !Monin-Obukhov momentum adjustment at 2m
+  REAL :: FH2          !Monin-Obukhov heat adjustment at 2m
+  REAL :: CH2          !Surface exchange at 2m
 
   INTEGER :: ITER    !iteration index
   INTEGER :: NITERB  !number of iterations for surface temperature
@@ -3637,8 +3746,8 @@ contains
           CALL SFCDIF1(ITER   ,SFCTMP ,RHOAIR ,H      ,QAIR   , & !in
                        ZLVL   ,ZPD    ,Z0M    ,Z0H    ,UR     , & !in
                        MPE    ,ILOC   ,JLOC   ,                 & !in
-                       MOZ    ,MOZSGN ,FM     ,FH     ,         & !inout
-                       CM     ,CH     ,FV     )                   !out
+                       MOZ    ,MOZSGN ,FM     ,FH     ,FM2,FH2, & !inout
+                       CM     ,CH     ,FV     ,CH2     )          !out
         ENDIF
 
         IF(OPT_SFC == 2) THEN
@@ -3646,6 +3755,10 @@ contains
                        CZIL   ,ZLVL   ,ILOC   ,JLOC   ,         & !in
                        CM     ,CH     ,MOZ    ,WSTAR  ,         & !in
                        FV     )                                   !out
+          ! Undo the multiplication by windspeed that SFCDIF2 
+          ! applies to exchange coefficients CH and CM:
+          CH = CH / UR
+          CM = CM / UR
           IF(SNOWH > 0.) THEN
              CM = MIN(0.01,CM)   ! CM & CH are too large, causing
              CH = MIN(0.01,CH)   ! computational instability
@@ -3661,6 +3774,11 @@ contains
                        THAIR  ,QAIR   ,QC     ,ZLVL   ,        &  !in            
                        SFCPRS ,FV     ,CM     ,CH     ,CH2B   ,&  !inout 
                        CQ2B   ,MOZ)                               !out   
+          ! Undo the multiplication by windspeed that SFCDIF3 
+          ! applies to exchange coefficients CH and CM:
+          CH   = CH / UR
+          CM   = CM / UR
+          CH2B = CH2B / UR
 
           IF(SNOWH > 0.) THEN    ! jref: does this still count??
              CM = MIN(0.01,CM)   ! CM & CH are too large, causing
@@ -3676,6 +3794,11 @@ contains
                        TGB    ,QAIR   ,ZLVL   ,IZ0TLND,QSFC   ,&
                        H      ,QFX    ,CM     ,CH     ,CH2B   ,& 
                        CQ2B   ,MOZ    ,FV     ,U10B   ,V10B)
+          ! Undo the multiplication by windspeed that SFCDIF4 
+          ! applies to exchange coefficients CH and CM:
+          CH   = CH / UR
+          CM   = CM / UR
+          CH2B = CH2B / UR
 
           IF(SNOWH > 0.) THEN    ! jref: does this still count??
              CM = MIN(0.01,CM)   ! CM & CH are too large, causing
@@ -3711,9 +3834,6 @@ contains
             DESTG = DSATI
         END IF
 
-!jref - update specific humidity from vapor pressure
-        QSFC = 0.622*ESTG/(PSFC-0.378*ESTG) 
-
         CSH = RHOAIR*CPAIR/RAHB
         CEV = RHOAIR*CPAIR/GAMMA/(RSURF+RAWB)
 
@@ -3738,6 +3858,15 @@ contains
 
 ! for M-O length
         H = CSH * (TGB - SFCTMP)
+
+        T = TDC(TGB)
+        CALL ESAT(T, ESATW, ESATI, DSATW, DSATI)
+        IF (T .GT. 0.) THEN
+            ESTG  = ESATW
+        ELSE
+            ESTG  = ESATI
+        END IF
+        QSFC = 0.622*(ESTG*RHSUR)/(PSFC-0.378*(ESTG*RHSUR))
 
         QFX = (QSFC-QAIR)*CEV*GAMMA/CPAIR
 
@@ -3764,26 +3893,35 @@ contains
 !jref:start; errors in original equation corrected.
 ! 2m air temperature
      IF(OPT_SFC == 1 .OR. OPT_SFC ==2) THEN
-       T2MB  = TGB - SHB/(RHOAIR*CPAIR*FV) * 1./VKC * LOG((2.+Z0H)/Z0H)
-       Q2B   = QSFC - QFX/(RHOAIR*FV)* 1./VKC * LOG((2.+Z0H)/Z0H)
-       EHB2  = FV*1./VKC*LOG((2.+Z0H)/Z0H)
+       EHB2  = FV*VKC/LOG((2.+Z0H)/Z0H)
+       EHB2  = FV*VKC/(LOG((2.+Z0H)/Z0H)-FH2)
        CQ2B  = EHB2
+       IF (EHB2.lt.1.E-5 ) THEN
+         T2MB  = TGB
+         Q2B   = QSFC
+       ELSE
+         T2MB  = TGB - SHB/(RHOAIR*CPAIR) * 1./EHB2
+         Q2B   = QSFC - EVB/(LATHEA*RHOAIR)*(1./CQ2B + RSURF)
+       ENDIF
        IF (IVGTYP == ISURBAN) Q2B = QSFC
      END IF
 
 ! myj consistent 2m temperature over bare soil
      IF(OPT_SFC ==3 .OR. OPT_SFC == 4) THEN
-!       IF (EHB2.lt.1.E-5 ) THEN
-!          T2MB = TGB
-!          Q2B  = QSFC
-!       ELSE
+       IF (EHB2.lt.1.E-5 ) THEN
+          T2MB = TGB
+          Q2B  = QSFC
+       ELSE
           T2MB = TGB - SHB/(RHOAIR*CPAIR*EHB2)
           Q2B  = QSFC - QFX/(RHOAIR*CQ2B)
-!       END IF
+       END IF
 !       IF (IVGTYP == ISURBAN) THEN
 !          Q2B = QSFC
 !       END IF
      END IF
+
+! update CH 
+     CH = EHB
 
   END SUBROUTINE BARE_FLUX
 ! ==================================================================================================
@@ -3864,9 +4002,8 @@ contains
           FHG = 0.5 * (FHG+FHGNEW)
        ENDIF
 
-!       CWPC = (CWP * VAI * HCAN * FHG)**0.5
+       CWPC = (CWP * VAI * HCAN * FHG)**0.5
 !       CWPC = (CWP*FHG)**0.5
-       CWPC = ((HCAN-HVB(VEGTYP))*VAI*FHG)**0.5
 
        TMP1 = EXP( -CWPC*Z0HG/HCAN )
        TMP2 = EXP( -CWPC*(Z0H+ZPD)/HCAN )
@@ -3883,6 +4020,7 @@ contains
 
        TMPRB  = CWPC*50. / (1. - EXP(-CWPC/2.))
        RB     = TMPRB * SQRT(DLEAF(VEGTYP)/UC)
+!       RB = 200
 
   END SUBROUTINE RAGRB
 
@@ -3891,8 +4029,8 @@ contains
   SUBROUTINE SFCDIF1(ITER   ,SFCTMP ,RHOAIR ,H      ,QAIR   , & !in
        &             ZLVL   ,ZPD    ,Z0M    ,Z0H    ,UR     , & !in
        &             MPE    ,ILOC   ,JLOC   ,                 & !in
-       &             MOZ    ,MOZSGN ,FM     ,FH     ,         & !inout
-       &             CM     ,CH     ,FV     )                   !out
+       &             MOZ    ,MOZSGN ,FM     ,FH     ,FM2,FH2, & !inout
+       &             CM     ,CH     ,FV     ,CH2     )          !out
 ! -------------------------------------------------------------------------------------------------
 ! computing surface drag coefficient CM for momentum and CH for heat
 ! -------------------------------------------------------------------------------------------------
@@ -3919,12 +4057,15 @@ contains
     REAL,              INTENT(INOUT) :: MOZ    !Monin-Obukhov stability (z/L)
     REAL,              INTENT(INOUT) :: FM     !momentum stability correction, weighted by prior iters
     REAL,              INTENT(INOUT) :: FH     !sen heat stability correction, weighted by prior iters
+    REAL,              INTENT(INOUT) :: FM2    !sen heat stability correction, weighted by prior iters
+    REAL,              INTENT(INOUT) :: FH2    !sen heat stability correction, weighted by prior iters
 
 ! outputs
 
     REAL,                INTENT(OUT) :: CM     !drag coefficient for momentum
     REAL,                INTENT(OUT) :: CH     !drag coefficient for heat
     REAL,                INTENT(OUT) :: FV     !friction velocity (m/s)
+    REAL,                INTENT(OUT) :: CH2    !drag coefficient for heat
 
 ! locals
     REAL    :: MOL                      !Monin-Obukhov length (m)
@@ -3935,8 +4076,14 @@ contains
     REAL    :: MOZOLD                   !Monin-Obukhov stability parameter from prior iteration
     REAL    :: TMP1,TMP2,TMP3,TMP4,TMP5 !temporary calculation
     REAL    :: TVIR                     !temporary virtual temperature (k)
+    REAL    :: MOZ2                     !2/L
+    REAL    :: TMPCM2                   !temporary calculation for CM2
+    REAL    :: TMPCH2                   !temporary calculation for CH2
+    REAL    :: FM2NEW                   !stability correction factor, momentum, for current moz
+    REAL    :: FH2NEW                   !stability correction factor, sen heat, for current moz
+    REAL    :: TMP12,TMP22,TMP32        !temporary calculation
 
-    REAL    :: CMFM, CHFH
+    REAL    :: CMFM, CHFH, CM2FM2, CH2FH2
 ! -------------------------------------------------------------------------------------------------
 ! Monin-Obukhov stability parameter moz for next iteration
 
@@ -3944,22 +4091,26 @@ contains
   
     IF(ZLVL <= ZPD) THEN
        write(*,*) 'critical problem: ZLVL <= ZPD; model stops'
-       STOP
+       call wrf_error_fatal("STOP in Noah-MP")
     ENDIF
 
     TMPCM = LOG((ZLVL-ZPD) / Z0M)
     TMPCH = LOG((ZLVL-ZPD) / Z0H)
+    TMPCM2 = LOG((2.0 + Z0M) / Z0M)
+    TMPCH2 = LOG((2.0 + Z0H) / Z0H)
 
     IF(ITER == 1) THEN
        FV   = 0.0
        MOZ  = 0.0
        MOL  = 0.0
+       MOZ2 = 0.0
     ELSE
        TVIR = (1. + 0.61*QAIR) * SFCTMP
        TMP1 = VKC * (GRAV/TVIR) * H/(RHOAIR*CPAIR)
        IF (ABS(TMP1) .LE. MPE) TMP1 = MPE
        MOL  = -1. * FV**3 / TMP1
        MOZ  = MIN( (ZLVL-ZPD)/MOL, 1.)
+       MOZ2  = MIN( (2.0 + Z0H)/MOL, 1.)
     ENDIF
 
 ! accumulate number of times moz changes sign.
@@ -3969,6 +4120,9 @@ contains
        MOZ = 0.
        FM = 0.
        FH = 0.
+       MOZ2 = 0.
+       FM2 = 0.
+       FH2 = 0.
     ENDIF
 
 ! evaluate stability-dependent variables using moz from prior iteration
@@ -3978,9 +4132,18 @@ contains
        TMP3 = LOG((1.+TMP1)/2.)
        FMNEW = 2.*TMP3 + TMP2 - 2.*ATAN(TMP1) + 1.5707963
        FHNEW = 2*TMP2
+
+! 2-meter
+       TMP12 = (1. - 16.*MOZ2)**0.25
+       TMP22 = LOG((1.+TMP12*TMP12)/2.)
+       TMP32 = LOG((1.+TMP12)/2.)
+       FM2NEW = 2.*TMP32 + TMP22 - 2.*ATAN(TMP12) + 1.5707963
+       FH2NEW = 2*TMP22
     ELSE
        FMNEW = -5.*MOZ
        FHNEW = FMNEW
+       FM2NEW = -5.*MOZ2
+       FH2NEW = FM2NEW
     ENDIF
 
 ! except for first iteration, weight stability factors for previous
@@ -3989,23 +4152,38 @@ contains
     IF (ITER == 1) THEN
        FM = FMNEW
        FH = FHNEW
+       FM2 = FM2NEW
+       FH2 = FH2NEW
     ELSE
        FM = 0.5 * (FM+FMNEW)
        FH = 0.5 * (FH+FHNEW)
+       FM2 = 0.5 * (FM2+FM2NEW)
+       FH2 = 0.5 * (FH2+FH2NEW)
     ENDIF
 
 ! exchange coefficients
 
+    FH = MIN(FH,0.9*TMPCH)
+    FM = MIN(FM,0.9*TMPCM)
+    FH2 = MIN(FH2,0.9*TMPCH2)
+    FM2 = MIN(FM2,0.9*TMPCM2)
+
     CMFM = TMPCM-FM
     CHFH = TMPCH-FH
+    CM2FM2 = TMPCM2-FM2
+    CH2FH2 = TMPCH2-FH2
     IF(ABS(CMFM) <= MPE) CMFM = MPE
     IF(ABS(CHFH) <= MPE) CHFH = MPE
+    IF(ABS(CM2FM2) <= MPE) CM2FM2 = MPE
+    IF(ABS(CH2FH2) <= MPE) CH2FH2 = MPE
     CM  = VKC*VKC/(CMFM*CMFM)
     CH  = VKC*VKC/(CMFM*CHFH)
+    CH2  = VKC*VKC/(CM2FM2*CH2FH2)
         
 ! friction velocity
 
     FV = UR * SQRT(CM)
+    CH2  = VKC*FV/CH2FH2
 
   END SUBROUTINE SFCDIF1
 
@@ -5046,19 +5224,6 @@ contains
 !        PSIH2=PSIM2                                                                                                      
    CQS2=UST*KARMAN/DENOMQ2                                                                                                
    CHS2=UST*KARMAN/DENOMT2                                                                                                
-!   WRITE(*,*) "JREF: TEST IN SFCDIF4 : CHS2 =",CHS2
-!   WRITE(*,*) "KARMAN=",KARMAN
-!   WRITE(*,*) "UST=",UST
-!   WRITE(*,*) "XKA=",XKA
-!   WRITE(*,*) "ZA =",ZA
-!   WRITE(*,*) "ZL =",ZL
-!   WRITE(*,*) "PSIH=",PSIH
-!   WRITE(*,*) "PSIQ=",PSIQ,"PSIT=",PSIT 
-!   WRITE(*,*) "CM=",CM
-!   WRITE(*,*) "CHS=",CHS
-!   WRITE(*,*) "CQS2=",CQS2
-!   WRITE(*,*) "CHS2=",CHS2
-
 ! jref: in last iteration calculate diagnostics                                                                           
                                                                                                                          
    U10=UX*PSIX10/PSIX                                                                                                     
@@ -5453,6 +5618,10 @@ contains
             (0.5*(ZSNSO(NSOIL-1)+ZSNSO(NSOIL)) - ZBOTSNO)
     END IF
 
+    ! Skip the energy balance check for now, until we can make it work
+    ! right for small time steps.
+    return
+
 ! energy balance check
 
     ERR_EST = 0.0
@@ -5751,8 +5920,6 @@ contains
 ! ----------------------------------------------------------------------
 ! Initialization
 
-    print*, 'in phasechange, isnow = ', isnow
-
     QMELT   = 0.
     PONDING = 0.
     XMF     = 0.
@@ -6047,7 +6214,7 @@ contains
                     SICE   ,ZWT    ,WA     ,WT     ,DZSNSO ,WSLAKE , & !inout
                     CMC    ,ECAN   ,ETRAN  ,FWET   ,RUNSRF ,RUNSUB , & !out
                     QIN    ,QDIS   ,QSNOW  ,PONDING1       ,PONDING2,&
-                    ISURBAN)  !out
+                    ISURBAN,QSNBOT,FPICE)  !out
 ! ----------------------------------------------------------------------  
 ! Code history:
 ! Initial code: Guo-Yue Niu, Oct. 2007
@@ -6115,6 +6282,8 @@ contains
   REAL,                            INTENT(OUT)   :: QSNOW   !snow at ground srf (mm/s) [+]
   REAL,                            INTENT(OUT)   :: PONDING1
   REAL,                            INTENT(OUT)   :: PONDING2
+  REAL,                            INTENT(OUT)   :: QSNBOT  !melting water out of snow bottom [mm/s]
+  REAL,                            INTENT(OUT)   :: FPICE   !snow fraction in precipitation
 
   INTEGER,                         INTENT(IN)    :: ISURBAN
 
@@ -6122,7 +6291,6 @@ contains
   INTEGER                                        :: IZ
   REAL                                           :: QINSUR  !water input on soil surface [m/s]
   REAL                                           :: QRAIN   !rain at ground srf (mm) [+]
-  REAL                                           :: QSNBOT  !melting water out of snow bottom [mm/s]
   REAL                                           :: QSEVA   !soil surface evap rate [mm/s]
   REAL                                           :: QSDEW   !soil surface dew rate [mm/s]
   REAL                                           :: QSNFRO  !snow surface frost rate[mm/s]
@@ -6150,7 +6318,7 @@ contains
                   ESAI   ,IST    ,TG     ,FVEG   ,ILOC   , JLOC, & !in
                   CANLIQ ,CANICE ,TV     ,                 & !inout
                   CMC    ,ECAN   ,ETRAN  ,QRAIN  ,QSNOW  , & !out
-                  SNOWHIN,FWET   )                           !out
+                  SNOWHIN,FWET   ,FPICE   )                           !out
 
 ! sublimation, frost, evaporation, and dew
 
@@ -6229,7 +6397,7 @@ contains
                        ESAI   ,IST    ,TG     ,FVEG   ,ILOC   , JLOC , & !in
                        CANLIQ ,CANICE ,TV     ,                 & !inout
                        CMC    ,ECAN   ,ETRAN  ,QRAIN  ,QSNOW  , & !out
-                       SNOWHIN,FWET   )                           !out
+                       SNOWHIN,FWET   ,FPICE   )                           !out
 
 ! ------------------------ code history ------------------------------
 ! canopy hydrology
@@ -6269,13 +6437,13 @@ contains
   REAL, INTENT(OUT)   :: QSNOW   !snow at ground srf (mm/s) [+]
   REAL, INTENT(OUT)   :: SNOWHIN !snow depth increasing rate (m/s)
   REAL, INTENT(OUT)   :: FWET    !wetted or snowed fraction of the canopy (-)
+  REAL, INTENT(OUT)   :: FPICE   !snow fraction in precipitation
 ! --------------------------------------------------------------------
 
 ! ------------------------ local variables ---------------------------
   REAL                :: MAXSNO  !canopy capacity for snow interception (mm)
   REAL                :: MAXLIQ  !canopy capacity for rain interception (mm)
   REAL                :: FP      !fraction of the gridcell that receives precipitation
-  REAL                :: FPICE   !snow fraction in precipitation
   REAL                :: BDFALL  !bulk density of snowfall (kg/m3)
   REAL                :: QINTR   !interception rate for rain (mm/s)
   REAL                :: QDRIPR  !drip rate for rain (mm/s)
@@ -6353,7 +6521,6 @@ contains
 
      RAIN   = (QPRECC + QPRECL) * (1.-FPICE)
      SNOW   = (QPRECC + QPRECL) * FPICE
-     print*, 'in canwater: rain, snow, fpice = ', rain, snow, fpice
 
 ! fractional area that receives precipitation (see, Niu et al. 2005)
    
@@ -6532,19 +6699,28 @@ contains
                   ISNOW  ,SNOWH  ,DZSNSO ,STC    ,SNICE  , & !inout
                   SNLIQ  ,SNEQV  )                           !inout
 
-   if(isnow < 0) then        !when more than one layer
+! MB: do each if block separately
+
+   IF(ISNOW < 0) &        ! when multi-layer
    CALL  COMPACT (NSNOW  ,NSOIL  ,DT     ,STC    ,SNICE  , & !in
                   SNLIQ  ,ZSOIL  ,IMELT  ,FICEOLD,ILOC   , JLOC ,& !in
                   ISNOW  ,DZSNSO ,ZSNSO  )                   !inout
 
+   IF(ISNOW < 0) &        !when multi-layer
    CALL  COMBINE (NSNOW  ,NSOIL  ,ILOC   ,JLOC   ,         & !in
                   ISNOW  ,SH2O   ,STC    ,SNICE  ,SNLIQ  , & !inout
                   DZSNSO ,SICE   ,SNOWH  ,SNEQV  ,         & !inout
                   PONDING1       ,PONDING2)                  !out
 
+   IF(ISNOW < 0) &        !when multi-layer
    CALL   DIVIDE (NSNOW  ,NSOIL  ,                         & !in
                   ISNOW  ,STC    ,SNICE  ,SNLIQ  ,DZSNSO )   !inout
-   end if
+
+   CALL  SNOWH2O (NSNOW  ,NSOIL  ,DT     ,QSNFRO ,QSNSUB , & !in 
+                  QRAIN  ,ILOC   ,JLOC   ,                 & !in
+                  ISNOW  ,DZSNSO ,SNOWH  ,SNEQV  ,SNICE  , & !inout
+                  SNLIQ  ,SH2O   ,SICE   ,STC    ,         & !inout
+                  QSNBOT ,PONDING1       ,PONDING2)           !out
 
 !set empty snow layers to zero
 
@@ -6555,12 +6731,6 @@ contains
         dzsnso(iz)= 0.
         zsnso(iz) = 0.
    enddo
-
-   CALL  SNOWH2O (NSNOW  ,NSOIL  ,DT     ,QSNFRO ,QSNSUB , & !in 
-                  QRAIN  ,ILOC   ,JLOC   ,                 & !in
-                  ISNOW  ,DZSNSO ,SNOWH  ,SNEQV  ,SNICE  , & !inout
-                  SNLIQ  ,SH2O   ,SICE   ,STC    ,         & !inout
-                  QSNBOT ,PONDING1       ,PONDING2)           !out
 
 !to obtain equilibrium state of snow in glacier region
        
@@ -6574,7 +6744,7 @@ contains
 
 ! sum up snow mass for layered snow
 
-   IF(ISNOW /= 0) THEN
+   IF(ISNOW < 0) THEN  ! MB: only do for multi-layer
        SNEQV = 0.
        DO IZ = ISNOW+1,0
              SNEQV = SNEQV + SNICE(IZ) + SNLIQ(IZ)
@@ -6649,7 +6819,8 @@ contains
 
 ! creating a new layer
  
-    IF(ISNOW == 0  .AND. QSNOW>0. .AND. SNOWH >= 0.05) THEN
+    IF(ISNOW == 0  .AND. QSNOW>0. .AND. SNOWH >= 0.025) THEN !MB: change limit
+!    IF(ISNOW == 0  .AND. QSNOW>0. .AND. SNOWH >= 0.05) THEN
       ISNOW    = -1
       NEWNODE  =  1
       DZSNSO(0)= SNOWH
@@ -6707,7 +6878,8 @@ contains
     REAL    :: ZWLIQ                 ! total liquid water in snow
 
     REAL    :: DZMIN(3)              ! minimum of top snow layer
-    DATA DZMIN /0.045, 0.05, 0.2/
+!    DATA DZMIN /0.045, 0.05, 0.2/
+    DATA DZMIN /0.025, 0.025, 0.1/  ! MB: change limit
 !-----------------------------------------------------------------------
 
        ISNOW_OLD = ISNOW
@@ -6718,12 +6890,12 @@ contains
                 SNLIQ(J+1) = SNLIQ(J+1) + SNLIQ(J)
                 SNICE(J+1) = SNICE(J+1) + SNICE(J)
              ELSE
-               IF (ISNOW_OLD < -1) THEN
+               IF (ISNOW < -1) THEN    ! MB/KM: change to ISNOW
                 SNLIQ(J-1) = SNLIQ(J-1) + SNLIQ(J)
                 SNICE(J-1) = SNICE(J-1) + SNICE(J)
                ELSE
                 PONDING1 = SNLIQ(J)       ! ISNOW WILL GET SET TO ZERO BELOW
-                SNEQV = SNICE(J)          ! PONDING WILL GET ADDED TO PONDING FROM
+                SNEQV = SNICE(J)          ! PONDING1 WILL GET ADDED TO PONDING FROM
                 SNOWH = DZSNSO(J)         ! PHASECHANGE WHICH SHOULD BE ZERO HERE
                 SNLIQ(J) = 0.0            ! BECAUSE THERE IT WAS ONLY CALCULATED
                 SNICE(J) = 0.0            ! FOR THIN SNOW
@@ -6753,6 +6925,8 @@ contains
           SICE(1) = 0.
        END IF
 
+       IF(ISNOW ==0) RETURN   ! MB: get out if no longer multi-layer
+
        SNEQV  = 0.
        SNOWH  = 0.
        ZWICE  = 0.
@@ -6768,7 +6942,8 @@ contains
 ! check the snow depth - all snow gone
 ! the liquid water assumes ponding on soil surface.
 
-       IF (SNOWH < 0.05 .AND. ISNOW < 0 ) THEN
+       IF (SNOWH < 0.025 .AND. ISNOW < 0 ) THEN ! MB: change limit
+!       IF (SNOWH < 0.05 .AND. ISNOW < 0 ) THEN
           ISNOW  = 0
           SNEQV = ZWICE
           PONDING2 = ZWLIQ           ! LIMIT OF ISNOW < 0 MEANS INPUT PONDING
@@ -6911,7 +7086,8 @@ contains
                   ZWLIQ, ZWICE, TSNO(1))
 
              ! subdivide a new layer
-             IF (MSNO <= 2 .AND. DZ(2) > 0.10) THEN
+             IF (MSNO <= 2 .AND. DZ(2) > 0.20) THEN  ! MB: change limit
+!             IF (MSNO <= 2 .AND. DZ(2) > 0.10) THEN
                 MSNO = 3
                 DTDZ = (TSNO(1) - TSNO(2))/((DZ(1)+DZ(2))/2.)
                 DZ(2)    = DZ(2)/2.
@@ -8108,7 +8284,7 @@ contains
   SUBROUTINE CARBON (NSNOW  ,NSOIL  ,VEGTYP ,NROOT  ,DT     ,ZSOIL  , & !in
                      DZSNSO ,STC    ,SMC    ,TV     ,TG     ,PSN    , & !in
                      FOLN   ,SMCMAX ,BTRAN  ,APAR   ,FVEG   ,IGS    , & !in
-                     TROOT  ,IST    ,IMONTH ,LAT    ,ILOC   ,JLOC   , & !in
+                     TROOT  ,IST    ,LAT    ,ILOC   ,JLOC   ,ISURBAN, & !in
                      LFMASS ,RTMASS ,STMASS ,WOOD   ,STBLCP ,FASTCP , & !inout
                      GPP    ,NPP    ,NEE    ,AUTORS ,HETERS ,TOTSC  , & !out
                      TOTLB  ,XLAI   ,XSAI   )                   !out
@@ -8122,7 +8298,7 @@ contains
   INTEGER                        , INTENT(IN) :: ILOC   !grid index
   INTEGER                        , INTENT(IN) :: JLOC   !grid index
   INTEGER                        , INTENT(IN) :: VEGTYP !vegetation type 
-  INTEGER                        , INTENT(IN) :: IMONTH !month index
+  INTEGER                        , INTENT(IN) :: ISURBAN!Urban category
   INTEGER                        , INTENT(IN) :: NSNOW  !number of snow layers
   INTEGER                        , INTENT(IN) :: NSOIL  !number of soil layers
   INTEGER                        , INTENT(IN) :: NROOT  !no. of root layers
@@ -8174,7 +8350,7 @@ contains
   REAL    :: LAPM      !leaf area per unit mass [m2/g]
 ! ------------------------------------------------------------------------------------------
 
-   IF(VEGTYP == 16 .OR. VEGTYP == 19 .OR. VEGTYP == 24) THEN
+   IF ( ( VEGTYP == ISWATER ) .OR. ( VEGTYP == ISBARREN ) .OR. ( VEGTYP == ISSNOW ) .or. (VEGTYP == ISURBAN) ) THEN
       XLAI   = 0.
       XSAI   = 0.
       GPP    = 0.
@@ -8207,7 +8383,7 @@ contains
 
   CALL CO2FLUX (NSNOW  ,NSOIL  ,VEGTYP ,IGS    ,DT     , & !in
                 DZSNSO ,STC    ,PSN    ,TROOT  ,TV     , & !in
-                WROOT  ,WSTRES ,FOLN   ,LAPM   ,IMONTH , & !in
+                WROOT  ,WSTRES ,FOLN   ,LAPM   ,         & !in
                 LAT    ,ILOC   ,JLOC   ,FVEG   ,         & !in
                 XLAI   ,XSAI   ,LFMASS ,RTMASS ,STMASS , & !inout
                 FASTCP ,STBLCP ,WOOD   ,                 & !inout
@@ -8221,7 +8397,7 @@ contains
 ! ==================================================================================================
   SUBROUTINE CO2FLUX (NSNOW  ,NSOIL  ,VEGTYP ,IGS    ,DT     , & !in
                       DZSNSO ,STC    ,PSN    ,TROOT  ,TV     , & !in
-                      WROOT  ,WSTRES ,FOLN   ,LAPM   ,IMONTH , & !in
+                      WROOT  ,WSTRES ,FOLN   ,LAPM   ,         & !in
                       LAT    ,ILOC   ,JLOC   ,FVEG   ,         & !in
                       XLAI   ,XSAI   ,LFMASS ,RTMASS ,STMASS , & !inout
                       FASTCP ,STBLCP ,WOOD   ,                 & !inout
@@ -8239,7 +8415,6 @@ contains
 
   INTEGER                        , INTENT(IN) :: ILOC   !grid index
   INTEGER                        , INTENT(IN) :: JLOC   !grid index
-  INTEGER                        , INTENT(IN) :: IMONTH !month index
   INTEGER                        , INTENT(IN) :: VEGTYP !vegetation physiology type
   INTEGER                        , INTENT(IN) :: NSNOW  !number of snow layers
   INTEGER                        , INTENT(IN) :: NSOIL  !number of soil layers
@@ -8585,7 +8760,7 @@ contains
 ! ==================================================================================================
 ! ********************************* end of carbon subroutines *****************************
 ! ==================================================================================================
-  SUBROUTINE REDPRM (VEGTYP,SOILTYP,SLOPETYP,SLDPTH,ZSOIL,NSOIL,ISURBAN)
+  SUBROUTINE REDPRM (VEGTYP,SOILTYP,SLOPETYP,ZSOIL,NSOIL,ISURBAN)
    
 !niu  use module_sf_noahlsm_param_init
 
@@ -8638,7 +8813,6 @@ contains
 ! General parameters
     INTEGER, INTENT(IN)    :: NSOIL
 ! Layer parameters
-    REAL,DIMENSION(NSOIL),INTENT(IN) :: SLDPTH
     REAL,DIMENSION(NSOIL),INTENT(IN) :: ZSOIL
 
 ! Locals
@@ -8661,7 +8835,6 @@ contains
        write(message, '("VEGTYP = ", I6, ";    LUCATS = ", I6)') VEGTYP, LUCATS
        call wrf_message(trim(message))
        call wrf_error_fatal ('Error: too many input landuse types')
-       STOP 333
     END IF
 
 ! ----------------------------------------------------------------------
@@ -8729,55 +8902,12 @@ contains
        WRITE (*,*) 'Warning: too many root layers'
        write (*,*) 'NROOT = ', nroot
        write (*,*) 'NSOIL = ', nsoil
-       STOP 333
+       call wrf_error_fatal("STOP in Noah-MP")
     END IF
 
 ! ----------------------------------------------------------------------
 
   END  SUBROUTINE REDPRM
-!jref:start; calculate effective parameters for PBL and diagnostics
-! ==================================================================
-  SUBROUTINE EPARM(ILOC  ,JLOC  ,TAH  ,TGB    ,FVEG , & 
-                   CAH   ,EHB   ,VEG  ,CHSTAR ,TSTAR) !inout
-
-! ------------------------------------------------------------------
-! calculate effective parameters for diagnostic terms.
-! Joakim Refslund, 2011
-! ------------------------------------------------------------------
-  IMPLICIT NONE
-! ------------------------------------------------------------------
-! input
-  INTEGER, INTENT(IN)  :: ILOC
-  INTEGER, INTENT(IN)  :: JLOC
-  REAL   , INTENT(IN)  :: TAH     !canopy air  temperature (k)
-  REAL   , INTENT(IN)  :: TGB     !ground surface  temp. [k]
-  REAL   , INTENT(IN)  :: FVEG    !greeness vegetation fraction (-)
-  REAL   , INTENT(IN)  :: CAH     !coefficient sens. heat canopy air to atm
-  REAL   , INTENT(IN)  :: EHB     !coefficient sens. heat ground to atm
-  LOGICAL, INTENT(IN)  :: VEG     !Veg.Fraction based on LAI/SAI - NOT min. value
-
-! output  
-  REAL, INTENT(INOUT) :: CHSTAR  !effective sensible heat exchange coefficient
-  REAL, INTENT(INOUT) :: TSTAR   !effective skin temperature
-
-! local
-  REAL              :: W       !weight
-
-!  INTEGER, INTENT(IN)    :: VEGTYP
-
-! ------------------------------------------------------------------
-! effective exchange coefficient for PBL.
-  IF (VEG) THEN
-    CHSTAR  = FVEG*CAH +(1.-FVEG)*EHB
-    W = FVEG*CAH*TAH+(1.-FVEG)*EHB*TGB
-    TSTAR = W/CHSTAR
-  ELSE
-    CHSTAR = EHB
-    TSTAR  = TGB
-  ENDIF
-
-  END SUBROUTINE EPARM
-!jref:end
 ! ==================================================================================================
 
   subroutine noahmp_options(idveg     ,iopt_crs  ,iopt_btr  ,iopt_run  ,iopt_sfc  ,iopt_frz , & 
