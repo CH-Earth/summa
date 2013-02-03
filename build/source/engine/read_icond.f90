@@ -54,7 +54,7 @@ contains
  integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
- character(LEN=256)             :: namesScalarDesired(7) ! names of desired scalar variables
+ character(LEN=256)             :: namesScalarDesired(9) ! names of desired scalar variables
  logical(lgt),allocatable       :: checkGotVars(:) ! used to check if we have got desired variables
  character(LEN=256),allocatable :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable :: chardata(:)     ! vector of character data
@@ -99,16 +99,18 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
  ! define desired scalar variables
- if(size(namesScalarDesired)/=7)then
-  err=20; message=trim(message)//'expect 7 variables in namesScalarDesired'; return
+ if(size(namesScalarDesired)/=9)then
+  err=20; message=trim(message)//'expect 9 variables in namesScalarDesired'; return
  endif
- namesScalarDesired(1) = 'scalarVegetationTemp'
- namesScalarDesired(2) = 'scalarAlbedo'
- namesScalarDesired(3) = 'scalarSWE'
- namesScalarDesired(4) = 'scalarSnowDepth'
- namesScalarDesired(5) = 'scalarSfcMeltPond'
- namesScalarDesired(6) = 'scalarAquiferStorage'
- namesScalarDesired(7) = 'scalarWaterTableDepth'
+ namesScalarDesired(1) = 'scalarCanopyIce'
+ namesScalarDesired(2) = 'scalarCanopyLiquid'
+ namesScalarDesired(3) = 'scalarVegetationTemp'
+ namesScalarDesired(4) = 'scalarAlbedo'
+ namesScalarDesired(5) = 'scalarSWE'
+ namesScalarDesired(6) = 'scalarSnowDepth'
+ namesScalarDesired(7) = 'scalarSfcMeltPond'
+ namesScalarDesired(8) = 'scalarAquiferStorage'
+ namesScalarDesired(9) = 'scalarWaterTableDepth'
 
  ! **********************************************************************************************
  ! (1) open files, etc.

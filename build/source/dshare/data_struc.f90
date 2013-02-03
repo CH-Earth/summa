@@ -103,17 +103,17 @@ MODULE data_struc
  type(var_dlength),pointer,save,public   :: mvar_data => null()      ! model variables
  type(var_ilength),pointer,save,public   :: indx_data => null()      ! model indices
  ! ***********************************************************************************************************
+ ! Define common variables
+ ! ***********************************************************************************************************
+ real(dp),save,public                    :: refJulday                ! reference time in fractional julian days
+ real(dp),save,public                    :: fracJulday               ! fractional julian days since the start of year
+ integer(i4b),save,public                :: yearLength               ! number of days in the current year
+ integer(i4b),save,public                :: urbanVegCategory=1       ! vegetation category for urban areas
+ ! ***********************************************************************************************************
  ! Define ancillary data structures
  ! ***********************************************************************************************************
  type(var_d),pointer,save,public         :: mpar_sets(:) => null()   ! structure to hold multiple parameter sets
  type(var_i),pointer,save,public         :: refTime      => null()   ! reference time for the model simulation
- real(dp),save,public                    :: refJulday                ! reference time in fractional julian days
- integer(i4b),pointer,save,public        :: stateLookup(:) => null() ! vector to save state names 
- real(dp),pointer,save,public            :: xboundLower(:) => null() ! lower bounds for x-vector
- real(dp),pointer,save,public            :: xboundUpper(:) => null() ! upper bounds for x-vector
- real(dp),pointer,save,public            :: xold_save(:) => null()   ! x-vector at start of the time step
- real(dp),pointer,save,public            :: dXdt_xold(:) => null()   ! x-vector at start of the time step
- real(dp),pointer,save,public            :: dtsub_save => null()     ! length of the sub-step (seconds)
  ! ***********************************************************************************************************
 END MODULE data_struc
 ! ***********************************************************************************************************************

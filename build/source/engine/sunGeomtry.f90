@@ -86,7 +86,7 @@ contains
  T1=MAX(T,-TP-DDT,-TD)
  ! Set end time of time step (adjust if after sunset)
  T2=MIN(T+DELT1,TD,TP-DDT)
- ! print *, 'First t1 and t2 = ', t1, t2
+ !print *, 'First t1 and t2 = ', t1, t2
  IF(T2.LE.T1) THEN
   HRI=0.0 ! nighttime
  ELSE

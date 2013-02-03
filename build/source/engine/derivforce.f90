@@ -28,7 +28,7 @@ contains
  ! variables for cosine of the solar zenith angle
  integer(i4b),pointer          :: im                         ! month
  integer(i4b),pointer          :: id                         ! day
- real(dp)                      :: ahour                      ! hour
+ real(dp)                      :: ahour                      ! hour at start of time step
  real(dp)                      :: dataStep                   ! data step (hours)
  real(dp),parameter            :: slope=0._dp                ! terrain slope (assume flat)
  real(dp),parameter            :: azimuth=0._dp              ! terrain azimuth (assume zero)
@@ -81,8 +81,9 @@ contains
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
- ahour      = real(time_data%var(iLookTIME%ih), kind(dp))           ! hour
  dataStep   = forcFileInfo%data_step/secprhour                      ! time step (hours)
+ ahour      = real(time_data%var(iLookTIME%ih),kind(dp)) - dataStep ! hour at start of time step
+ print*, 'aHour, dataStep = ', aHour, dataStep
  latitude  => attr_data%var(iLookATTR%latitude)                     ! latitude (degrees north
  cosZenith => mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1)       ! average cosine of the zenith angle over time step DT
  ! assign pointers to model forcing data
@@ -138,6 +139,7 @@ contains
 
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
  VPair = vapPress(spechum,airpres)
+ print*, 'VPair = ', VPair
 
  ! compute wet bulb temperature (K)
  twetbulb = WETBULBTMP(airtemp, relhum, airpres)

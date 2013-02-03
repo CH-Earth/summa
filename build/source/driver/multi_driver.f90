@@ -37,6 +37,7 @@ USE data_struc,only:mpar_data,mpar_sets                     ! model parameter in
 USE data_struc,only:mvar_data                               ! model variable data
 USE data_struc,only:indx_data,indx_meta                     ! index data structures
 USE data_struc,only:model_decisions                         ! model decisions
+USE data_struc,only:urbanVegCategory                        ! vegetation category for urban areas
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookMVAR                               ! look-up values for model variables
@@ -71,7 +72,6 @@ integer(i4b),pointer      :: ifcSoilStartIndex=>null()      ! start index of the
 integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the ifcToto vector for a given timestep
 real(dp)                  :: dt_init=0._dp                  ! used to initialize the length of the sub-step
 ! general local variables
-integer(i4b)              :: urbanVegCategory=1             ! vegetation category for urban areas
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 ! error control
 integer(i4b)              :: err=0                          ! error code
@@ -199,7 +199,6 @@ do iParSet=1,nParSets
   call REDPRM(type_data%var(iLookTYPE%vegTypeIndex),                           & ! vegetation type index
               type_data%var(iLookTYPE%soilTypeIndex),                          & ! soil type
               type_data%var(iLookTYPE%slopeTypeIndex),                         & ! slope type index
-              mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nSnow+nSoil),   & ! * not used: depth of each layer (m)
               zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
               nSoil,                                                           & ! number of soil layers
               urbanVegCategory)                                                  ! vegetation category for urban areas

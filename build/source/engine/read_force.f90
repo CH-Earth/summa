@@ -13,6 +13,8 @@ contains
  USE multiconst,only:secprday                          ! number of seconds in a day
  USE data_struc,only:forcFileInfo                      ! forcing file info
  USE data_struc,only:refTime,refJulday                 ! reference time
+ USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
+ USE data_struc,only:yearLength                        ! number of days in the current year
  USE data_struc,only:time_meta,forc_meta               ! metadata structures
  USE data_struc,only:time_data,forc_data               ! data structures
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements 
@@ -32,7 +34,9 @@ contains
  integer(i4b)                      :: iline            ! loop through lines in the file
  character(len=1024),allocatable   :: cline(:)         ! a line of data
  real(dp)                          :: dsec             ! double precision seconds (not used)
+ real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
+ logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  ! local pointers to data structures
  integer(i4b),pointer              :: ncols            ! number of columns in the forcing data file
  integer(i4b),pointer              :: istart           ! start index of the simulation
@@ -140,6 +144,11 @@ contains
   if(err/=0)then; err=30; message=trim(message)//"ProblemDataRead[var='"//trim(forc_meta(iline)%varname)//"']"; return; endif
   !print*,trim(forc_meta(iline)%varname),forc_data%var(iline)
  end do
+ ! compute the julian day at the start of the year
+ call compjulday(time_data%var(iLookTIME%iyyy),          & ! input  = year
+                 1, 1, 1, 1, 0._dp,                      & ! input  = month, day, hour, minute, second
+                 startJulDay,err,cmessage)                 ! output = julian day (fraction of day) + error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! compute the fractional julian day for the current time step
  call compjulday(time_data%var(iLookTIME%iyyy),           & ! input  = year
                  time_data%var(iLookTIME%im),             & ! input  = month
@@ -148,13 +157,37 @@ contains
                  time_data%var(iLookTIME%imin),0._dp,     & ! input  = minute/second
                  currentJulday,err,cmessage)                ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- ! compute time difference (in seconds)
+ ! compute the time since the start of the year (in fractional days)
+ fracJulday = currentJulday - startJulDay
+ ! compute time since the reference time (in seconds)
  forc_data%var(iLookFORCE%time) = (currentJulday-refJulday)*secprday
+ ! compute the number of days in the current year
+ yearLength = 365
+ if(mod(time_data%var(iLookTIME%iyyy),4) == 0)then
+  yearLength = 366
+  if(mod(time_data%var(iLookTIME%iyyy),100) == 0)then
+   yearLength = 365
+   if(mod(time_data%var(iLookTIME%iyyy),400) == 0)then
+    yearLength = 366
+   endif
+  endif
+ endif
  ! check to see if any of the forcing data is missing
  if(any(forc_data%var(:)<amiss*0.99_dp))then
   do iline=1,size(data_ix)
    if(forc_data%var(iline)<amiss*0.99_dp)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"; return; endif
   end do
+ endif
+ ! test
+ if(checkTime)then
+  write(*,'(i4,1x,4(i2,1x),f9.3,1x,i4)') time_data%var(iLookTIME%iyyy),           & ! year
+                                         time_data%var(iLookTIME%im),             & ! month
+                                         time_data%var(iLookTIME%id),             & ! day
+                                         time_data%var(iLookTIME%ih),             & ! hour
+                                         time_data%var(iLookTIME%imin),           & ! minute
+                                         fracJulday,                              & ! fractional julian day for the current time step
+                                         yearLength                                 ! number of days in the current year
+  pause ' checking time'
  endif
  ! deallocate cline
  deallocate(cline,stat=err)

@@ -3,13 +3,32 @@ USE nrtype                                 ! variable types
 USE multiconst                             ! fixed parameters (lh vapzn, etc.)
 implicit none
 private
-public::RELHM2SPHM,SPHM2RELHM,WETBULBTMP,satVapPress,vapPress
+public::RELHM2SPHM,SPHM2RELHM,WETBULBTMP,satVapPress,vapPress,psychometric
 contains
 
 ! ----------------------------------------------------------------------
 ! series of functions to convert one thing to another
 ! (partially courtesy of Drew Slater)
 ! ----------------------------------------------------------------------
+
+function psychometric(T,P)
+! set psychrometric constant (Pa/K)
+implicit none
+! input
+real(dp),intent(in)   :: T              ! temperature (K)
+real(dp),intent(in)   :: P              ! air pressure (Pa)
+! output
+real(dp)              :: psychometric   ! psychrometric constant (Pa/K)
+! local
+real(dp)              :: LHSubVap       ! latent heat of vaporization/sublimation (J kg-1)
+if(T > Tfreeze)then
+ LHSubVap = LH_vap     ! latent heat of vaporization          (J kg-1)
+else
+ LHSubVap = LH_sub     ! latent heat of sublimation           (J kg-1)
+endif
+psychometric = Cp_air*P/(w_ratio*LHSubVap)  ! (Pa/K)
+end function psychometric
+
 
 ! ----------------------------------------------------------------------
 ! ----------------------------------------------------------------------
@@ -24,7 +43,7 @@ real(dp)              :: vapPress ! vapor pressure (Pa)
 ! local
 real(dp)              :: w        ! mixing ratio
 !real(dp),parameter    :: w_ratio = 0.622_dp ! molecular weight ratio of water to dry air (-) 
-w = q - (1._dp - q)                ! mixing ratio (-)
+w = q / (1._dp - q)                ! mixing ratio (-)
 vapPress = (w/(w + w_ratio))*p     ! vapor pressure (Pa)
 end function vapPress
 

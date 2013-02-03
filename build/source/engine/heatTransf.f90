@@ -71,8 +71,8 @@ contains
  USE data_struc,only:model_decisions                            ! model decision structure
  USE var_lookup,only:iLookDECISIONS                             ! named variables for elements of the decision structure
  ! model variables, parameters, forcing data, etc.
- USE data_struc,only:mpar_data,forc_data,mvar_data,indx_data    ! data structures
- USE var_lookup,only:iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ USE data_struc,only:attr_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE var_lookup,only:iLookATTR,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  ! compute change in temperature over the time step
  implicit none
  ! input
@@ -128,7 +128,7 @@ contains
                         indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): number of layers
                         indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (ix_soil or ix_snow)
                         ! general model parameters
-                        mpar_data%var(iLookPARAM%mheight),                         & ! intent(in): measurement height (m)
+                        attr_data%var(iLookATTR%mHeight),                          & ! intent(in): measurement height (m)
                         mpar_data%var(iLookPARAM%wimplicit),                       & ! intent(in): weight assigned to start-of-step fluxes (-)
                         mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! intent(in): scaling parameter for the snow freezing curve (K-1)
                         mpar_data%var(iLookPARAM%lowerBoundTemp),                  & ! intent(in): temperature of the lower boundary (K)
@@ -221,7 +221,7 @@ contains
                               nLayers,                      & ! intent(in): number of layers
                               layerType,                    & ! intent(in): layer type (ix_soil or ix_snow)
                               ! general model parameters
-                              mheight,                      & ! intent(in): measurement height (m)
+                              mHeight,                      & ! intent(in): measurement height (m)
                               wimplicit,                    & ! intent(in): weight assigned to start-of-step fluxes (-)
                               snowfrz_scale,                & ! intent(in): scaling parameter for the snow freezing curve (K-1)
                               lowerBoundTemp,               & ! intent(in): temperature of the lower boundary (K)
@@ -301,7 +301,7 @@ contains
  integer(i4b),intent(in)        :: nLayers                    ! number of layers
  integer(i4b),intent(in)        :: layerType(:)               ! type of the layer (ix_soil or ix_snow)
  ! general model parameters
- real(dp),intent(in)            :: mheight                    ! measurement height (m)
+ real(dp),intent(in)            :: mHeight                    ! measurement height (m)
  real(dp),intent(in)            :: wimplicit                  ! weight assigned to start-of-step fluxes (-)
  real(dp),intent(in)            :: snowfrz_scale              ! scaling parameter for the snow freezing curve (K-1)
  real(dp),intent(in)            :: lowerBoundTemp             ! temperature of the lower boundary (K)
@@ -579,7 +579,7 @@ contains
               lw_down,                 & ! intent(in): downwelling long wave radiation (W m-2)   
               lowerBoundTemp,          & ! intent(in): temperature of the lower boundary (K)
               ! (model parameters)
-              mheight,                 & ! intent(in): measurement height (m)
+              mHeight,                 & ! intent(in): measurement height (m)
               wimplicit,               & ! intent(in): weight assigned to start-of-step values (-)
               ! (coordinate variables)
               mLayerDepth,             & ! intent(in): depth of each layer (m)
@@ -787,7 +787,7 @@ contains
                        lw_down,                  & ! intent(in): downwelling long wave radiation (W m-2)   
                        lowerBoundTemp,           & ! intent(in): temperature of the lower boundary (K)
                        ! (model parameters)
-                       mheight,                  & ! intent(in): measurement height (m)
+                       mHeight,                  & ! intent(in): measurement height (m)
                        wimplicit,                & ! intent(in): weight assigned to start-of-step values (-)
                        ! (coordinate variables)
                        mLayerDepth,              & ! intent(in): depth of each layer (m)
@@ -824,7 +824,7 @@ contains
  real(dp),intent(in)           :: lw_down                   ! intent(in): downwelling long wave radiation (W m-2)   
  real(dp),intent(in)           :: lowerBoundTemp            ! intent(in): temperature of the lower boundary (K)
  ! input (parameters)
- real(dp),intent(in)           :: mheight                   ! intent(in): measurement height (m)
+ real(dp),intent(in)           :: mHeight                   ! intent(in): measurement height (m)
  real(dp),intent(in)           :: wimplicit                 ! intent(in): weight assigned to start-of-step values (-)
  ! input (coordinate variables)
  real(dp),intent(in)           :: mLayerDepth(:)            ! intent(in): depth of each layer (m)
@@ -958,7 +958,7 @@ contains
                    lw_down,                 & ! intent(in): downwelling long wave radiation (W m-2)   
                    lowerBoundTemp,          & ! intent(in): temperature of the lower boundary (K)
                    ! (model parameters)
-                   mheight,                 & ! intent(in): measurement height (m)
+                   mHeight,                 & ! intent(in): measurement height (m)
                    wimplicit,               & ! intent(in): weight assigned to start-of-step values (-)
                    ! (coordinate variables)
                    mLayerDepth,             & ! intent(in): depth of each layer (m)
@@ -1006,7 +1006,7 @@ contains
  real(dp),intent(in)           :: lw_down                  ! intent(in): downwelling long wave radiation (W m-2)   
  real(dp),intent(in)           :: lowerBoundTemp           ! intent(in): temperature of the lower boundary (K)
  ! input (parameters)
- real(dp),intent(in)           :: mheight                  ! intent(in): measurement height (m)
+ real(dp),intent(in)           :: mHeight                  ! intent(in): measurement height (m)
  real(dp),intent(in)           :: wimplicit                ! intent(in): weight assigned to start-of-step values (-)
  ! input (coordinate variables)
  real(dp),intent(in)           :: mLayerDepth(:)           ! intent(in): depth of each layer (m)
@@ -1088,7 +1088,7 @@ contains
                   lw_down,                 & ! intent(in): downwelling long wave radiation (W m-2)   
                   lowerBoundTemp,          & ! intent(in): temperature of the lower boundary (K)
                   ! (model parameters)
-                  mheight,                 & ! intent(in): measurement height (m)
+                  mHeight,                 & ! intent(in): measurement height (m)
                   wimplicit,               & ! intent(in): weight assigned to start-of-step values (-)
                   ! (coordinate variables)
                   mLayerDepth,             & ! intent(in): depth of each layer (m)

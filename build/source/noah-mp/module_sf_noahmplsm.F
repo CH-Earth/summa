@@ -294,8 +294,9 @@ MODULE NOAHMP_VEG_PARAMETERS
     real eps(MVT,5)
 
 CONTAINS
-  subroutine read_mp_veg_parameters(DATASET_IDENTIFIER)
+  subroutine read_mp_veg_parameters(FILENAME_VEGTABLE,DATASET_IDENTIFIER)
     implicit none
+    character(len=*), intent(in) :: FILENAME_VEGTABLE
     character(len=*), intent(in) :: DATASET_IDENTIFIER
     integer :: ierr
 
@@ -368,7 +369,7 @@ CONTAINS
     SLAREA = -1.E36
     EPS    = -1.E36
 
-    open(15, file="MPTABLE.TBL", status='old', form='formatted', action='read', iostat=ierr)
+    open(15, file=trim(FILENAME_VEGTABLE), status='old', form='formatted', action='read', iostat=ierr)
     if (ierr /= 0) then
        write(*,'("****** Error ******************************************************")')
        write(*,'("Cannot find file MPTABLE.TBL")')
@@ -480,12 +481,14 @@ MODULE NOAHMP_ROUTINES
   public  :: FRH2O           
 
   private :: ATM
-  private :: PHENOLOGY
+  !private :: PHENOLOGY
+  public :: PHENOLOGY
   private :: ENERGY
   private ::       THERMOPROP
   private ::               CSNOW
   private ::               TDFCND
-  private ::       RADIATION
+  !private ::       RADIATION
+  public ::       RADIATION
   private ::               ALBEDO
   private ::                         SNOW_AGE
   private ::                         SNOWALB_BATS  
@@ -496,8 +499,10 @@ MODULE NOAHMP_ROUTINES
   private ::       VEGE_FLUX
   private ::               SFCDIF1                  
   private ::               SFCDIF2                
-  private ::               STOMATA                  
-  private ::               CANRES                  
+  !private ::               STOMATA                  
+  !private ::               CANRES                  
+  public ::               STOMATA                  
+  public ::               CANRES                  
   private ::               ESAT
   private ::               RAGRB
   private ::       BARE_FLUX
