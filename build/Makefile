@@ -65,7 +65,7 @@ MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODGUT))
 
 # Solver
 FUSE_SOLVER= \
-		noahMP_veg.f90 \
+		vegNrgFlux.f90 \
 		tridagSolv.f90 \
 		diagn_evar.f90 \
 		phseChange.f90 \

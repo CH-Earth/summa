@@ -356,6 +356,8 @@ contains
   case('scalarLWNetGround'              ); get_ixmvar = iLookMVAR%scalarLWNetGround                ! net longwave radiation at the ground surface (W m-2)
   case('scalarLWNetUbound'              ); get_ixmvar = iLookMVAR%scalarLWNetUbound                ! net longwave radiation at the upper atmospheric boundary (W m-2)
   ! NOAH-MP vegetation variables (turbulent heat transfer)
+  case('scalarPsycConstCanopy'          ); get_ixmvar = iLookMVAR%scalarPsycConstCanopy            ! psychometric constant for the vegetation canopy (Pa K-1)
+  case('scalarPsycConstGround'          ); get_ixmvar = iLookMVAR%scalarPsycConstGround            ! psychometric constant for the ground surface (Pa K-1)
   case('scalarSatVP_CanopyTemp'         ); get_ixmvar = iLookMVAR%scalarSatVP_CanopyTemp           ! saturation vapor pressure at the temperature of vegetation canopy (Pa)
   case('scalarSatVP_GroundTemp'         ); get_ixmvar = iLookMVAR%scalarSatVP_GroundTemp           ! saturation vapor pressure at the temperature of the ground (Pa)
   case('scalarWindReductionFactor'      ); get_ixmvar = iLookMVAR%scalarWindReductionFactor        ! canopy wind reduction factor (-)
@@ -390,8 +392,6 @@ contains
   case('scalarCanopyWetFraction'        ); get_ixmvar = iLookMVAR%scalarCanopyWetFraction          ! fraction of canopy that is wet
   case('temp1'                          ); get_ixmvar = iLookMVAR%temp1                            ! placeholder
   case('temp2'                          ); get_ixmvar = iLookMVAR%temp2                            ! placeholder
-  case('temp3'                          ); get_ixmvar = iLookMVAR%temp3                            ! placeholder
-  case('temp4'                          ); get_ixmvar = iLookMVAR%temp4                            ! placeholder
   ! scalar variables -- soil fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)

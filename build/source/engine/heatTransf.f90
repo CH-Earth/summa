@@ -54,6 +54,7 @@ contains
                        ! input
                        dt,                       & ! intent(in): time step (seconds)
                        iter,                     & ! intent(in): current iteration count
+                       firstSubstep,             & ! intent(in): flag to indicate if we are processing the first sub-step
                        scalarVegetationTempIter, & ! intent(in): trial vegetation temperature at the current iteration (K)
                        mLayerTempIter,           & ! intent(in): trial temperature at the current iteration (K)
                        mLayerVolFracIceIter,     & ! intent(in): volumetric fraction of ice at the current iteration (-)
@@ -78,6 +79,7 @@ contains
  ! input
  real(dp),intent(in)           :: dt                       ! time step (seconds)
  integer(i4b),intent(in)       :: iter                     ! iteration count
+ logical(i4b),intent(in)       :: firstSubStep             ! flag to indicate if we are processing the first sub-step
  real(dp),intent(in)           :: scalarVegetationTempIter ! trial vegetation temperature at the current iteration (K)
  real(dp),intent(in)           :: mLayerTempIter(:)        ! trial temperature at the current iteration (K)
  real(dp),intent(in)           :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice at the current iteration (-)
@@ -112,6 +114,7 @@ contains
                         ! input variables from heatTransf routine
                         dt,                                                        & ! intent(in): time step (seconds)
                         iter,                                                      & ! intent(in): current iteration count
+                        firstSubstep,                                              & ! intent(in): flag to indicate if we are processing the first sub-step
                         scalarVegetationTempIter,                                  & ! intent(in): trial vegetation temperature at the current iteration (K)
                         mLayerTempIter,                                            & ! intent(in): trial temperature at the current iteration (K)
                         mLayerVolFracIceIter,                                      & ! intent(in): volumetric fraction of ice at the current iteration (-)
@@ -205,6 +208,7 @@ contains
                               ! input variables from heatTransf routine
                               dt,                           & ! intent(in): time step (seconds)
                               iter,                         & ! intent(in): current iteration count
+                              firstSubstep,                 & ! intent(in): flag to indicate if we are processing the first sub-step
                               scalarVegetationTempIter,     & ! intent(in): trial vegetation temperature (K)
                               mLayerTempIter,               & ! intent(in): trial temperature at the current iteration (K)
                               mLayerVolFracIceIter,         & ! intent(in): volumetric fraction of ice at the current iteration (-)
@@ -276,6 +280,7 @@ contains
                               mLayerMatricHeadNew,          & ! intent(out): new matric head (m)
                               err,message)                    ! intent(out): error control
  ! utility modules
+ USE vegNrgFlux_module,only:vegNrgFlux                        ! compute energy fluxes for vegetation and ground surface
  USE phseChange_module,only:phseChange                        ! compute change in phase over the time step
  USE snow_utils_module,only:dFracLiq_dTk                      ! differentiate the freezing curve w.r.t. temperature (snow)
  USE soil_utils_module,only:dTheta_dTk                        ! differentiate the freezing curve w.r.t. temperature (soil)
@@ -285,6 +290,7 @@ contains
  ! input variables from the heatTransf subroutine
  real(dp),intent(in)            :: dt                         ! time step (seconds)
  integer(i4b),intent(in)        :: iter                       ! iteration count
+ logical(i4b),intent(in)        :: firstSubStep               ! flag to indicate if we are processing the first sub-step
  real(dp),intent(in)            :: scalarVegetationTempIter   ! trial vegetation temperature (K)
  real(dp),intent(in)            :: mLayerTempIter(:)          ! trial temperature at the current iteration (K)
  real(dp),intent(in)            :: mLayerVolFracIceIter(:)    ! volumetric fraction of ice at the current iteration (-)
@@ -369,6 +375,15 @@ contains
  real(dp)                       :: maxdiffTemp(1)             ! maximum difference between temperature input and start-of-step temperature (K)
  real(dp),parameter             :: epsT=1.d-10                ! offset from Tcrit when re-setting iterations at the critical temperature (K)
  integer(i4b)                   :: nUnsat                     ! number of unsaturated layers
+ ! define local variables for the fluxes at vegetation and ground surfaces
+ real(dp),parameter             :: canopyLiqTrial=1._dp       ! TEMPORARY FIX IN THE ABSENCE OF CANOPY WATER: liquid water storage on the vegetation canopy (kg m-2)
+ real(dp),parameter             :: canopyIceTrial=0._dp       ! TEMPORARY FIX IN THE ABSENCE OF CANOPY WATER: ice storage on the vegetation canopy (kg m-2)
+ real(dp)                       :: canopyNetFlux              ! net energy flux for the vegetation canopy (W m-2)
+ real(dp)                       :: groundNetFlux              ! net energy flux for the ground surface (W m-2) 
+ real(dp)                       :: dCanopyNetFlux_dCanopyTemp ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+ real(dp)                       :: dCanopyNetFlux_dGroundTemp ! derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+ real(dp)                       :: dGroundNetFlux_dCanopyTemp ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+ real(dp)                       :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
  ! define the local variables for the solution
  real(dp)                       :: totalSurfaceFlux           ! total surface flux (W m-2)
  real(dp)                       :: dTotalSurfaceFlux_dTemp    ! derivative in total surface flux w.r.t. temperature (W m-2 K-1)
@@ -406,23 +421,44 @@ contains
   err=20; message=trim(message)//'option "iterSurfEnergyBal" not implemented yet';return
  endif
 
+ ! compute energy fluxes at vegetation and ground surfaces
+ call vegNrgFlux(&
+                 ! input
+                 dt,                            & ! intent(in): time step (seconds)
+                 iter,                          & ! intent(in): iteration index
+                 firstSubStep,                  & ! intent(in): flag to indicate if we are processing the first sub-step
+                 scalarVegetationTempIter,      & ! intent(in): trial value of canopy temperature (K)
+                 mLayerTempIter(1),             & ! intent(in): trial value of ground temperature (K)
+                 canopyLiqTrial,                & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                 canopyIceTrial,                & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
+                 ! output
+                 canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
+                 groundNetFlux,                 & ! intent(out): net energy flux for the ground surface (W m-2)
+                 dCanopyNetFlux_dCanopyTemp,    & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+                 dCanopyNetFlux_dGroundTemp,    & ! intent(out): derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+                 dGroundNetFlux_dCanopyTemp,    & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+                 dGroundNetFlux_dGroundTemp,    & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                 err,cmessage)                    ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ pause 'after initial fluxes'
+
  ! ***** compute fluxes at layer interfaces and their derivatives (J m-2 s-1)
  call iLayer_nrg(&
                  ! (model control variables)
-                 fDerivMeth,             & ! intent(in): method used to compute derivatives (numerical or analytical)
+                 fDerivMeth,                    & ! intent(in): method used to compute derivatives (numerical or analytical)
                  ! (input)
-                 mLayerDepth,            & ! intent(in): depth of each layer (m)
-                 mLayerHeight,           & ! intent(in): height of layer mid-points (m)
-                 iLayerThermalC,         & ! intent(in): thermal conductivity at layer interfaces (W m-1)
-                 mLayerTempIter,         & ! intent(in): trial temperature at the current iteration (K)
-                 totalSurfaceFlux,       & ! intent(in): total flux at the surface (W m-2)
-                 dTotalSurfaceFlux_dTemp,& ! intent(in): derivative in total surface flux w.r.t. temperature (W m-2 K-1)
-                 lowerBoundTemp,         & ! intent(in): temperature of the lower boundary (K)
+                 mLayerDepth,                   & ! intent(in): depth of each layer (m)
+                 mLayerHeight,                  & ! intent(in): height of layer mid-points (m)
+                 iLayerThermalC,                & ! intent(in): thermal conductivity at layer interfaces (W m-1)
+                 mLayerTempIter,                & ! intent(in): trial temperature at the current iteration (K)
+                 totalSurfaceFlux,              & ! intent(in): total flux at the surface (W m-2)
+                 dTotalSurfaceFlux_dTemp,       & ! intent(in): derivative in total surface flux w.r.t. temperature (W m-2 K-1)
+                 lowerBoundTemp,                & ! intent(in): temperature of the lower boundary (K)
                  ! (output)
-                 iLayerNrgFlux,          & ! intent(out): energy flux at the layer interfaces (W m-2)
-                 dFlux_dTempAbove,       & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
-                 dFlux_dTempBelow,       & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
-                 err,cmessage)             ! intent(out): error control
+                 iLayerNrgFlux,                 & ! intent(out): energy flux at the layer interfaces (W m-2)
+                 dFlux_dTempAbove,              & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
+                 dFlux_dTempBelow,              & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
+                 err,cmessage)                    ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! ***** assign initial fluxes

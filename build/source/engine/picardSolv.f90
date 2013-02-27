@@ -8,9 +8,9 @@ contains
  ! ************************************************************************************************
  ! new subroutine: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
- subroutine picardSolv(dt,maxiter,niter,err,message)
+ subroutine picardSolv(dt,maxiter,firstSubstep,&  ! input
+                       niter,err,message)         ! output
  ! provide access to subroutines
- USE noahMP_veg_module,only:noahMP_veg          ! compute energy and mass fluxes for a single vegetation layer
  USE diagn_evar_module,only:diagn_evar          ! compute diagnostic energy variables -- thermal conductivity and heat capacity
  USE heatTransf_module,only:heatTransf          ! compute change in temperature over the time step
  USE phseChange_module,only:phseChange          ! compute change in phase over the time step
@@ -39,9 +39,11 @@ contains
  USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow ! data structures
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX               ! named variables for structure elements
  implicit none
- ! define output
+ ! input
  real(dp),intent(in)                  :: dt                       ! time step (seconds)
  integer(i4b),intent(in)              :: maxiter                  ! maximum number of iterations
+ logical(i4b),intent(in)              :: firstSubStep             ! flag to indicate if we are processing the first sub-step
+ ! output
  integer(i4b),intent(out)             :: niter                    ! number of iterations
  integer(i4b),intent(out)             :: err                      ! error code
  character(*),intent(out)             :: message                  ! error message
@@ -422,17 +424,12 @@ contains
   !print*, 'before heatTransf: mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
   !print*, 'before heatTransf: mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
 
-  ! Noah-MP vegetation routines
-  call noahMP_veg(dt,&              ! intent(in): time step (seconds)
-                  iter,&            ! intent(in): iteration index
-                  err,cmessage)     ! intent(out): error control
-  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
-
   ! compute the temperature and ice content at the next iteration
   call heatTransf(&
                   ! input
                   dt,&                        ! time step (seconds)
                   iter,&                      ! current iteration count
+                  firstSubstep,             & ! flag to indicate if we are processing the first sub-step
                   scalarVegetationTempIter, & ! trial vegetation temperature at the current iteration (K)
                   mLayerTempIter,           & ! trial temperature at the current iteration (K)
                   mLayerVolFracIceIter,     & ! volumetric fraction of ice at the current iteration (-)

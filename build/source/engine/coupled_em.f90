@@ -197,7 +197,8 @@ contains
   ! use Picard iteration to solve model equations
   do
    ! get the new solution
-   call picardSolv(dt_sub,maxiter,niter,err,cmessage)
+   call picardSolv(dt_sub,maxiter,(nsub==1),&  ! input
+                   niter,err,cmessage)            ! output
    if(err>0)then; message=trim(message)//trim(cmessage); return; endif
    !if(err<0)then; print*, trim(message)//trim(cmessage); print*, 'dt_sub, minstep = ', dt_sub, minstep; pause; endif 
    ! exit do loop if all is a-ok
@@ -210,7 +211,9 @@ contains
    if(dt_sub < minstep)then
     if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
     dt_sub  = minstep
-    call picardSolv(dt_sub,1,niter,err,cmessage) ! just iterate once
+    ! just iterate once
+    call picardSolv(dt_sub,1,(nsub==1),&  ! input
+                    niter,err,cmessage)   ! output
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     exit ! exit do loop if all is a-ok
    endif
