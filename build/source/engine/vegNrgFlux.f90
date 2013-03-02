@@ -60,9 +60,10 @@ contains
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
                        canopyTempTrial,                         & ! intent(in): trial value of canopy temperature (K)
                        groundTempTrial,                         & ! intent(in): trial value of ground temperature (K)
-                       canopyLiqTrial,                          & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
                        canopyIceTrial,                          & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
+                       canopyLiqTrial,                          & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
                        ! output
+                       exposedVAI,                              & ! intent(out): exposed vegetation area index (m2 m-2)
                        canopyNetFlux,                           & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                        groundNetFlux,                           & ! intent(out): net energy flux for the ground surface (W m-2)
                        dCanopyNetFlux_dCanopyTemp,              & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -88,9 +89,10 @@ contains
  logical(i4b),intent(in)       :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
  real(dp),intent(in)           :: canopyTempTrial                 ! trial value of canopy temperature (K)
  real(dp),intent(in)           :: groundTempTrial                 ! trial value of ground temperature (K)
- real(dp),intent(in)           :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
  real(dp),intent(in)           :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)           :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
  ! output
+ real(dp),intent(out)          :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
  real(dp),intent(out)          :: canopyNetFlux                   ! net energy flux for the vegetation canopy (W m-2)
  real(dp),intent(out)          :: groundNetFlux                   ! net energy flux for the ground surface (W m-2) 
  real(dp),intent(out)          :: dCanopyNetFlux_dCanopyTemp      ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -129,8 +131,8 @@ contains
                         firstSubStep,                                                  & ! intent(in): flag to indicate if we are processing the first sub-step
                         canopyTempTrial,                                               & ! intent(in): trial value of canopy temperature (K)
                         groundTempTrial,                                               & ! intent(in): trial value of ground temperature (K)
-                        canopyLiqTrial,                                                & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
                         canopyIceTrial,                                                & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
+                        canopyLiqTrial,                                                & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
 
                         ! model control -- intent(in)
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,          & ! intent(in): choice of method to compute derivatives
@@ -150,7 +152,7 @@ contains
                         urbanVegCategory,                                              & ! intent(in): vegetation category for urban areas
 
                         ! model parameters (phenology) -- intent(in)
-                        mpar_data%var(iLookPARAM%canopyHeight),                        & ! intent(in): height of the vegetation canopy (m)
+                        mpar_data%var(iLookPARAM%heightCanopyTop),                     & ! intent(in): height at the top of the vegetation canopy (m)
                         mpar_data%var(iLookPARAM%maxCanopyLiquid),                     & ! intent(in): maximum storage of liquid water on the vegetation canopy (kg m-2)
                         mpar_data%var(iLookPARAM%maxCanopyIce),                        & ! intent(in): maximum storage of ice on the vegetation canopy (kg m-2)
 
@@ -276,6 +278,7 @@ contains
                         mvar_data%var(iLookMVAR%scalarLatHeatGround)%dat(1),           & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
                         ! output
+                        exposedVAI,                                                    & ! intent(out): exposed vegetation area index (m2 m-2)
                         canopyNetFlux,                                                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                         groundNetFlux,                                                 & ! intent(out): net energy flux for the ground surface (W m-2)
                         dCanopyNetFlux_dCanopyTemp,                                    & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -308,8 +311,8 @@ contains
                               firstSubStep,                  & ! intent(in): flag to indicate if we are processing the first sub-step
                               canopyTempTrial,               & ! intent(in): trial value of canopy temperature (K)
                               groundTempTrial,               & ! intent(in): trial value of ground temperature (K)
-                              canopyLiqTrial,                & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
                               canopyIceTrial,                & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
+                              canopyLiqTrial,                & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
 
                               ! model control -- intent(in)
                               ix_fDerivMeth,                 & ! intent(in): choice of method to compute derivatives
@@ -329,7 +332,7 @@ contains
                               urbanVegCategory,              & ! intent(in): vegetation category for urban areas
 
                               ! model parameters (phenology) -- intent(in)
-                              canopyHeight,                  & ! intent(in): height of the vegetation canopy (m)
+                              heightCanopyTop,               & ! intent(in): height at the top of the vegetation canopy (m)
                               maxCanopyLiquid,               & ! intent(in): maximum storage of liquid water on the vegetation canopy (kg m-2)
                               maxCanopyIce,                  & ! intent(in): maximum storage of ice on the vegetation canopy (kg m-2)
 
@@ -455,6 +458,7 @@ contains
                               scalarLatHeatGround,           & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
                               ! output
+                              exposedVAI,                    & ! intent(out): exposed vegetation area index (m2 m-2)
                               canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                               groundNetFlux,                 & ! intent(out): net energy flux for the ground surface (W m-2)
                               dCanopyNetFlux_dCanopyTemp,    & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -478,8 +482,8 @@ contains
  logical(lgt),intent(in)        :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
  real(dp),intent(in)            :: canopyTempTrial                ! trial value of canopy temperature (K)
  real(dp),intent(in)            :: groundTempTrial                ! trial value of ground temperature (K)
- real(dp),intent(in)            :: canopyLiqTrial                 ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
  real(dp),intent(in)            :: canopyIceTrial                 ! trial value of mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)            :: canopyLiqTrial                 ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
 
  ! model control -- intent(in)
  integer(i4b),intent(in)        :: ix_fDerivMeth                  ! choice of method to compute derivatives
@@ -499,7 +503,7 @@ contains
  integer(i4b),intent(in)        :: urbanVegCategory               ! vegetation category for urban areas
 
  ! model parameters (phenology) -- intent(in)
- real(dp),intent(in)            :: canopyHeight                   ! height of the vegetation canopy (m)
+ real(dp),intent(in)            :: heightCanopyTop                ! height at the top of the vegetation canopy (m)
  real(dp),intent(in)            :: maxCanopyLiquid                ! maximum storage of liquid water on the vegetation canopy (kg m-2)
  real(dp),intent(in)            :: maxCanopyIce                   ! maximum storage of ice on the vegetation canopy (kg m-2)
 
@@ -625,6 +629,7 @@ contains
  real(dp),intent(out)           :: scalarLatHeatGround            ! latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
  ! output
+ real(dp),intent(out)           :: exposedVAI                     ! exposed vegetation area index (m2 m-2)
  real(dp),intent(out)           :: canopyNetFlux                  ! net energy flux for the vegetation canopy (W m-2)
  real(dp),intent(out)           :: groundNetFlux                  ! net energy flux for the ground surface (W m-2)
  real(dp),intent(out)           :: dCanopyNetFlux_dCanopyTemp     ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -640,7 +645,6 @@ contains
  real(dp)                      :: snowmassPlusNewsnow             ! sum of snow mass and new snowfall (kg m-2 [mm])
  real(dp)                      :: fracSnow                        ! snow cover fraction (0-1)
  real(dp)                      :: VAI                             ! vegetation area index (m2 m-2)
- real(dp)                      :: exposedVAI                      ! "exposed" vegetation area index (m2 m-2)
  real(dp)                      :: greenVegFraction                ! green vegetation fraction (0-1) 
  real(dp)                      :: relativeCanopyWater             ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
  ! local (compute numerical derivatives)
@@ -653,7 +657,7 @@ contains
  real(dp)                      :: groundTemp                      ! value of ground temperature used in flux calculations (may be perturbed)
  real(dp)                      :: try0,try1,try2                  ! trial values to evaluate specific derivatives (testing only)
  ! local (phenology)
- real(dp)                      :: notUsed_canopyHeight            ! for some reason the Noah-MP phenology routines output canopy height
+ real(dp)                      :: notUsed_heightCanopyTop         ! for some reason the Noah-MP phenology routines output canopy height
  ! local (saturation vapor pressure of veg)
  real(dp)                      :: TV_celcius                      ! vegetaion temperature (C)
  real(dp)                      :: TG_celcius                      ! ground temperature (C)
@@ -743,7 +747,7 @@ contains
                  scalarSAI,                          & ! intent(inout): one-sided stem area index (m2 m-2)
                  scalarRootZoneTemp,                 & ! intent(in): average temperature of the root zone (K)
                  ! output
-                 notUsed_canopyHeight,               & ! intent(out): height of the top of the canopy layer (m)
+                 notUsed_heightCanopyTop,            & ! intent(out): height of the top of the canopy layer (m)
                  scalarExposedLAI,                   & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
                  scalarExposedSAI,                   & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
                  scalarGrowingSeasonIndex            ) ! intent(out): growing season index (0=off, 1=on)
@@ -877,7 +881,7 @@ contains
                  windReductionParam,                 & ! intent(in): canopy wind reduction parameter (-)                   
                  leafExchangeCoeff,                  & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
                  leafDimension,                      & ! intent(in): characteristic leaf dimension (m)
-                 canopyHeight,                       & ! intent(in): canopy height (m) 
+                 heightCanopyTop,                    & ! intent(in): height at the top of the vegetation canopy (m) 
                  ! output: scalar resistances
                  scalarWindReductionFactor,          & ! intent(out): canopy wind reduction factor (-)
                  scalarZeroPlaneDisplacement,        & ! intent(out): zero plane displacement (m) 
@@ -1107,7 +1111,7 @@ contains
                    windReductionParam,                  & ! intent(in): canopy wind reduction parameter (-)                   
                    leafExchangeCoeff,                   & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
                    leafDimension,                       & ! intent(in): characteristic leaf dimension (m)
-                   canopyHeight,                        & ! intent(in): canopy height (m) 
+                   heightCanopyTop,                     & ! intent(in): height at the top of the vegetation canopy (m) 
                    ! output: scalar resistances
                    notUsed_WindReductionFactor,         & ! intent(out): canopy wind reduction factor (-)
                    notUsed_ZeroPlaneDisplacement,       & ! intent(out): zero plane displacement (m) 
@@ -1254,6 +1258,11 @@ contains
  dGroundNetFlux_dCanopyTemp = dLWNetGround_dTCanopy + dTurbFluxGround_dTCanopy 
  dCanopyNetFlux_dGroundTemp = dLWNetCanopy_dTGround + dTurbFluxCanopy_dTGround
  dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround
+
+ print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
+ print*, 'dGroundNetFlux_dCanopyTemp = ', dGroundNetFlux_dCanopyTemp
+ print*, 'dCanopyNetFlux_dGroundTemp = ', dCanopyNetFlux_dGroundTemp
+ print*, 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
 
  end subroutine vegNrgFlux_muster
 
@@ -1526,7 +1535,7 @@ contains
                        windReductionParam,            & ! intent(in): canopy wind reduction parameter (-)                   
                        leafExchangeCoeff,             & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
                        leafDimension,                 & ! intent(in): characteristic leaf dimension (m)
-                       canopyHeight,                  & ! intent(in): canopy height (m) 
+                       heightCanopyTop,               & ! intent(in): height at the top of the vegetation canopy (m) 
                        ! output: scalar resistances
                        windReductionFactor,           & ! intent(out): canopy wind reduction factor (-)
                        zeroPlaneDisplacement,         & ! intent(out): zero plane displacement (m) 
@@ -1571,7 +1580,7 @@ contains
  real(dp),intent(in)           :: windReductionParam       ! canopy wind reduction parameter (-)                   
  real(dp),intent(in)           :: leafExchangeCoeff        ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
  real(dp),intent(in)           :: leafDimension            ! characteristic leaf dimension (m)
- real(dp),intent(in)           :: canopyHeight             ! canopy height (m) 
+ real(dp),intent(in)           :: heightCanopyTop          ! height at the top of the vegetation canopy (m) 
  ! output: scalar resistances
  real(dp),intent(out)          :: windReductionFactor      ! canopy wind reduction factor (-)
  real(dp),intent(out)          :: zeroPlaneDisplacement    ! zero plane displacement (m) 
@@ -1613,7 +1622,7 @@ contains
  err=0; message='aeroResist/'
 
  ! check that measurement height is above the top of the canopy
- if(mHeight < canopyHeight)then
+ if(mHeight < heightCanopyTop)then
   err=20; message=trim(message)//'measurement height is below the top of the canopy'; return
  endif
 
@@ -1622,7 +1631,7 @@ contains
   ! compute the zero plane displacement for the canopy (m)
   funcLAI          = sqrt(7.5_dp*exposedVAI)
   fracCanopyHeight = -(1._dp - exp(-funcLAI))/funcLAI + 1._dp
-  zeroPlaneDisplacement = fracCanopyHeight*canopyHeight
+  zeroPlaneDisplacement = fracCanopyHeight*heightCanopyTop
   if(zeroPlaneDisplacement < snowDepth) zeroPlaneDisplacement = snowDepth
   ! assign roughness length to the canopy roughness (m)
   z0 = z0Canopy
@@ -1669,12 +1678,12 @@ contains
   canopyResistance = 1._dp/(sfc2AtmExchangeCoeff*windspd)
 
   ! compute windspeed at the top of the canopy (m s-1)
-  windConvFactor   = log((canopyHeight - zeroPlaneDisplacement)/z0Canopy)/vkc
+  windConvFactor   = log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy)/vkc
   windspdCanopyTop = frictionVelocity*windConvFactor
 
   ! compute the windspeed reduction
   ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
-  windReductionFactor = windReductionParam * exposedVAI**twoThirds * canopyHeight**oneThird / leafDimension**oneThird
+  windReductionFactor = windReductionParam * exposedVAI**twoThirds * heightCanopyTop**oneThird / leafDimension**oneThird
 
   ! compute the leaf boundary layer resistance (s m-1)
   singleLeafConductance  = sqrt(windspdCanopyTop/leafDimension)
@@ -1684,13 +1693,13 @@ contains
 
   ! compute eddy diffusivity for heat at the top of the canopy (m2 s-1)
   !   Note: use of friction velocity here includes stability adjustments
-  eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(canopyHeight - zeroPlaneDisplacement), mpe)  ! (avoid divide by zero)
+  eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTop - zeroPlaneDisplacement), mpe)  ! (avoid divide by zero)
 
   ! compute the resistance between the surface and canopy air
   !  assume exponential profile extends from the surface roughness length to the displacement height plus vegetation roughness
-  tmp1 = exp(-windReductionFactor* z0Ground/canopyHeight)
-  tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/canopyHeight)
-  groundResistance = ( canopyHeight*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)  ! s m-1
+  tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTop)
+  tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTop)
+  groundResistance = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)  ! s m-1
 
   ! * compute analytical derivatives
   if(derivDesired)then
@@ -1702,8 +1711,8 @@ contains
    dLC_dT = leaf2CanopyScaleFactor*dUC_dT/(leafDimension*sqrt(windspdCanopyTop/leafDimension)*2._dp) ! d(canopyLeafConductance)/d(canopy temperature)
    dLeafResistance_dTCanopy = -dLC_dT/(canopyLeafConductance**2._dp)
    ! compute derivative in ground resistance w.r.t. canopy temperature (s m-1 K-1)
-   dED_dT = dFV_dT*vkc*(canopyHeight - zeroPlaneDisplacement)                                        ! d(eddyDiffusCanopyTop)d(canopy temperature)
-   dGroundResistance_dTCanopy = -dED_dT*(tmp1 - tmp2)*canopyHeight*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp)
+   dED_dT = dFV_dT*vkc*(heightCanopyTop - zeroPlaneDisplacement)                                     ! d(eddyDiffusCanopyTop)d(canopy temperature)
+   dGroundResistance_dTCanopy = -dED_dT*(tmp1 - tmp2)*heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp)
   ! * numerical derivatives (computed later)
   else
    dGroundResistance_dTCanopy = 0._dp

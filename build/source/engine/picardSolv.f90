@@ -11,7 +11,6 @@ contains
  subroutine picardSolv(dt,maxiter,firstSubstep,&  ! input
                        niter,err,message)         ! output
  ! provide access to subroutines
- USE diagn_evar_module,only:diagn_evar          ! compute diagnostic energy variables -- thermal conductivity and heat capacity
  USE heatTransf_module,only:heatTransf          ! compute change in temperature over the time step
  USE phseChange_module,only:phseChange          ! compute change in phase over the time step
  USE snowHydrol_module,only:snowHydrol          ! compute liquid water flow through the snowpack
@@ -78,7 +77,9 @@ contains
  real(dp),pointer                     :: surfaceAlbedo            ! surface albedo (-) 
  real(dp),pointer                     :: scalarSfcMeltPond        ! ponded water caused by melt of the "snow without a layer" (kg m-2)
  real(dp),pointer                     :: scalarAquiferStorage     ! relative aquifer storage above the bottom of the soil profile (m)
- real(dp),pointer                     :: scalarVegetationTemp     ! vegetation temperature (K)
+ real(dp),pointer                     :: scalarCanopyTemp         ! temperature of the vegetation canopy (K)
+ real(dp),pointer                     :: scalarCanopyIce          ! mass of ice on the vegetation canopy (kg m-2)
+ real(dp),pointer                     :: scalarCanopyLiq          ! mass of liquid water on the vegetation canopy (kg m-2)
  ! local pointers to diagnostic scalar variables
  real(dp),pointer                     :: scalarRainPlusMelt       ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
  real(dp),pointer                     :: scalarSnowDepth          ! total snow depth (m)
@@ -122,7 +123,7 @@ contains
  real(dp),pointer                     :: scalarInitAquiferTranspire ! initial aquifer transpiration rate (m s-1)
  real(dp),pointer                     :: scalarInitAquiferBaseflow  ! initial aquifer baseflow rate (m s-1)
  real(dp),pointer                     :: scalarInitAquiferRecharge  ! initial aquifer recharge rate (m s-1)
- real(dp),pointer                     :: scalarAquiferTranspire     ! aquifer tramspiration rate (m s-1)
+ real(dp),pointer                     :: scalarAquiferTranspire     ! aquifer transpiration rate (m s-1)
  real(dp),pointer                     :: scalarAquiferBaseflow      ! aquifer baseflow rate (m s-1)
  real(dp),pointer                     :: scalarAquiferRecharge      ! aquifer recharge rate (m s-1)
  real(dp),pointer                     :: scalarAquiferBalError    ! error in the aquifer water balance (kg m-2) 
@@ -130,16 +131,18 @@ contains
  integer(i4b),pointer                 :: nLayers                  ! number of layers
  integer(i4b),pointer                 :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local model state variables
- real(dp)                             :: scalarVegetationTempIter ! trial value of vegetation temperature (K)
- real(dp)                             :: scalarVegetationTempNew  ! vegetation temperature at the next iteration (K)
- real(dp),allocatable                 :: mLayerTempIter(:)        ! temperature vector at the current iteration (K)
- real(dp),allocatable                 :: mLayerTempNew(:)         ! temperature vector at the next iteration (K)
- real(dp),allocatable                 :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice at the current iteration (-)
- real(dp),allocatable                 :: mLayerVolFracIceNew(:)   ! volumetric fraction of ice at the next iteration (-)
- real(dp),allocatable                 :: mLayerVolFracLiqIter(:)  ! volumetric fraction of liquid water at the current iteration (-)
- real(dp),allocatable                 :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water at the next iteration (-)
- real(dp),allocatable                 :: mLayerMatricHeadIter(:)  ! matric head at the current iteration (-)
- real(dp),allocatable                 :: mLayerMatricHeadNew(:)   ! matric head at the next iteration (-)
+ real(dp)                             :: scalarCanopyTempIter     ! trial value of temperature of the vegetation canopy (K)
+ real(dp)                             :: scalarCanopyIceIter      ! trial value of mass of ice on the vegetation canopy (kg m-2)
+ real(dp)                             :: scalarCanopyLiqIter      ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                             :: scalarCanopyTempNew      ! temperature of the vegetation canopy at the next iteration (K)
+ real(dp),allocatable                 :: mLayerTempIter(:)        ! temperature vector for all snow/soil layers at the current iteration (K)
+ real(dp),allocatable                 :: mLayerTempNew(:)         ! temperature vector for all snow/soil layers at the next iteration (K)
+ real(dp),allocatable                 :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice for all snow/soil layers at the current iteration (-)
+ real(dp),allocatable                 :: mLayerVolFracIceNew(:)   ! volumetric fraction of ice for all snow/soil layers at the next iteration (-)
+ real(dp),allocatable                 :: mLayerVolFracLiqIter(:)  ! volumetric fraction of liquid water for all snow/soil layers at the current iteration (-)
+ real(dp),allocatable                 :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water for all snow/soil layersat the next iteration (-)
+ real(dp),allocatable                 :: mLayerMatricHeadIter(:)  ! matric head for all soil layers at the current iteration (-)
+ real(dp),allocatable                 :: mLayerMatricHeadNew(:)   ! matric head for all soil layers at the next iteration (-)
  real(dp)                             :: scalarAquiferStorageIter ! trial value of aquifer storage (m)
  real(dp)                             :: scalarAquiferStorageNew  ! aquifer storage at the end of the time step (m)
  ! define local model diagnostic variables
@@ -241,7 +244,9 @@ contains
  scalarSWE            => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)             ! SWE (kg m-2)
  surfaceAlbedo        => mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1)          ! surface albedo (-)
  scalarSfcMeltPond    => mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1)     ! ponded water caused by melt of the "snow without a layer" (kg m-2)
- scalarVegetationTemp => mvar_data%var(iLookMVAR%scalarVegetationTemp)%dat(1)  ! vegetation temperature (K)
+ scalarCanopyTemp     => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1)      ! temperature of the vegetation canopy (K)
+ scalarCanopyIce      => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)       ! mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiq      => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)       ! mass of liquid water on the vegetation canopy (kg m-2)
 
  ! assign local pointers to diagnostic scalar variables
  scalarRainPlusMelt   => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)    ! rain plus melt (m s-1)
@@ -359,32 +364,18 @@ contains
  ! get the total aquifer storage at the start of the time step (kg m-2)
  balanceAquifer0 = scalarAquiferStorage*iden_water
 
- ! initialize vegetation temperature
- scalarVegetationTempIter = scalarVegetationTemp
+ ! initialize canopy temperature
+ scalarCanopyTempIter = scalarCanopyTemp
 
- ! initialize temperature
+ ! initialize canopy water
+ scalarCanopyIceIter = scalarCanopyIce   ! mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiqIter = scalarCanopyLiq   ! mass of liquid water on the vegetation canopy (kg m-2)
+
+ ! initialize layer temperatures
  mLayerTempIter = mLayerTemp
-
- ! initialize aquifer storage
- scalarAquiferStorageIter = scalarAquiferStorage
 
  ! identify the number of soil layers to use in the soil hydrology routine
  nLevels = nSoil  ! NOTE: always pass the full number of soil layers
-
-
- ! compute the radiation absorbtion by the vegetation and the ground
- !call radTransfr(dt,&          ! input: time step (seconds)
- !                err,cmessage) ! output: error control
- !if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
-
-
-
-
-
- ! compute diagnostic energy variables (thermal conductivity and volumetric heat capacity)
- ! (constant over the iterations)
- call diagn_evar(err,cmessage)
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
  ! calculate the critical soil temperature above which all water is unfrozen (K)
  do iLayer=nSnow+1,nSoil
@@ -427,22 +418,24 @@ contains
   ! compute the temperature and ice content at the next iteration
   call heatTransf(&
                   ! input
-                  dt,&                        ! time step (seconds)
-                  iter,&                      ! current iteration count
-                  firstSubstep,             & ! flag to indicate if we are processing the first sub-step
-                  scalarVegetationTempIter, & ! trial vegetation temperature at the current iteration (K)
-                  mLayerTempIter,           & ! trial temperature at the current iteration (K)
-                  mLayerVolFracIceIter,     & ! volumetric fraction of ice at the current iteration (-)
-                  mLayerVolFracLiqIter,     & ! volumetric fraction of liquid water at the current iteration (-)
-                  mLayerMatricHeadIter,     & ! matric head at the current iteration (m)
+                  dt,&                        ! intent(in): time step (seconds)
+                  iter,&                      ! intent(in): current iteration count
+                  firstSubstep,             & ! intent(in): flag to indicate if we are processing the first sub-step
+                  scalarCanopyTempIter,     & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
+                  scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+                  scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                  mLayerTempIter,           & ! intent(in): trial temperature of each snow/soil layer at the current iteration (K)
+                  mLayerVolFracIceIter,     & ! intent(in): trial volumetric fraction of ice in each snow/soil layer at the current iteration (-)
+                  mLayerVolFracLiqIter,     & ! intent(in): trial volumetric fraction of liquid water in each snow/soil layer at the current iteration (-)
+                  mLayerMatricHeadIter,     & ! intent(in): trial matric head of each snow/soil layer at the current iteration (m)
                   ! output
-                  mLayerTempIncr,           & ! iteration increment for temperature (K)
-                  scalarVegetationTempNew,  & ! new vegetation temperature (K)
-                  mLayerTempNew,            & ! new temperature (K)
-                  mLayerVolFracIceNew,      & ! new volumetric fraction of ice (-)
-                  mLayerVolFracLiqNew,      & ! new volumetric fraction of liquid water (-)
-                  mLayerMatricHeadNew,      & ! new matric head (m)
-                  err,cmessage)               ! error control
+                  mLayerTempIncr,           & ! intent(out): iteration increment for temperature (K)
+                  scalarCanopyTempNew,      & ! intent(out): new temperature of the vegetation canopy (K)
+                  mLayerTempNew,            & ! intent(out): new temperature each snow/soil layer (K)
+                  mLayerVolFracIceNew,      & ! intent(out): new volumetric fraction of ice in each snow/soil layer (-)
+                  mLayerVolFracLiqNew,      & ! intent(out): new volumetric fraction of liquid water in each snow/soil layer (-)
+                  mLayerMatricHeadNew,      & ! intent(out): new matric head in each snow/soil layer (m)
+                  err,cmessage)               ! intent(out): error control
   ! negative error code requires convergence check, so just check positive errors
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
   !print*, '*** after heatTransf'
@@ -576,7 +569,7 @@ contains
   !write(*,'(a,1x,10(e20.10,1x))') 'inflComponent(1:9) = ', inflComponent(1:9)
 
   ! get ready for the next iteration
-  scalarVegetationTempIter = scalarVegetationTempNew
+  scalarCanopyTempIter = scalarCanopyTempNew
   scalarAquiferStorageIter = scalarAquiferStorageNew
 
   ! non-iterative check (do not expect convergence)

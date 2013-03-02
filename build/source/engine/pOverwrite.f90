@@ -19,6 +19,7 @@ contains
  ! Noah vegetation tables
  USE NOAHMP_VEG_PARAMETERS, only: Z0MVT     ! Noah-MP: momentum roughness length (m)
  USE NOAHMP_VEG_PARAMETERS, only: HVT       ! Noah-MP: height at top of canopy (m)
+ USE NOAHMP_VEG_PARAMETERS, only: HVB       ! Noah-MP: height at bottom of canopy (m)
  USE NOAHMP_VEG_PARAMETERS, only: DLEAF     ! Noah-MP: characteristic leaf dimension (m)
  ! Noah soil tables
  USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters 
@@ -45,7 +46,8 @@ contains
  if(ixSoil > NSLTYPE)then; err=20; message=trim(message)//'index for soil type is greater than dimension of soil table'; return; endif
 
  ! include parameters from the vegetation tables
- parFallback(iLookPARAM%canopyHeight)%default_val        = HVT(ixVeg)          ! Noah-MP: height at top of canopy (m)
+ parFallback(iLookPARAM%heightCanopyTop)%default_val     = HVT(ixVeg)          ! Noah-MP: height at top of canopy (m)
+ parFallback(iLookPARAM%heightCanopyBottom)%default_val  = HVB(ixVeg)          ! Noah-MP: height at bottom of canopy (m)
  parFallback(iLookPARAM%z0Canopy)%default_val            = Z0MVT(ixVeg)        ! Noah-MP: momentum roughness length (m)
  parFallback(iLookPARAM%leafDimension)%default_val       = DLEAF(ixVeg)        ! Noah-MP: characteristic leaf dimension (m)
 

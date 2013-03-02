@@ -224,9 +224,12 @@ contains
   case('critSoilTranspire'   ); get_ixparam = iLookPARAM%critSoilTranspire    ! critical vol. liq. water content when transpiration is limited (-)
   case('critAquiferTranspire'); get_ixparam = iLookPARAM%critAquiferTranspire ! critical aquifer storage value when transpiration is limited (m)
   case('leafDimension'       ); get_ixparam = iLookPARAM%leafDimension        ! characteristic leaf dimension (m)
-  case('canopyHeight'        ); get_ixparam = iLookPARAM%canopyHeight         ! canopy height (m)
+  case('heightCanopyTop'     ); get_ixparam = iLookPARAM%heightCanopyTop      ! height of top of the vegetation canopy above ground surface (m)
+  case('heightCanopyBottom'  ); get_ixparam = iLookPARAM%heightCanopyBottom   ! height of bottom of the vegetation canopy above ground surface (m)
   case('maxCanopyIce'        ); get_ixparam = iLookPARAM%maxCanopyIce         ! maximum mass of ice on the vegetation canopy per unit lai+sai (kg m-2)
   case('maxCanopyLiquid'     ); get_ixparam = iLookPARAM%maxCanopyLiquid      ! maximum mass of liq water on vegetation canopy per unit lai+sai (kg m-2)
+  case('specificHeatVeg'     ); get_ixparam = iLookPARAM%specificHeatVeg      ! specific heat of vegetation (J kg-1 K-1)
+  case('maxMassVegetation'   ); get_ixparam = iLookPARAM%maxMassVegetation    ! maximum mass of vegetation (full foliage) (kg m-2)
   ! soil properties
   case('soil_dens_intr'      ); get_ixparam = iLookPARAM%soil_dens_intr       ! intrinsic soil density (kg m-3)
   case('frac_sand'           ); get_ixparam = iLookPARAM%frac_sand            ! fraction of sand (-)
@@ -309,8 +312,8 @@ contains
   case('scalarCO2air'                   ); get_ixmvar = iLookMVAR%scalarCO2air                     ! atmospheric co2 concentration (Pa)
   ! scalar variables -- state variables
   case('scalarCanopyIce'                ); get_ixmvar = iLookMVAR%scalarCanopyIce                  ! mass of ice on the vegetation canopy (kg m-2)
-  case('scalarCanopyLiquid'             ); get_ixmvar = iLookMVAR%scalarCanopyLiquid               ! mass of liquid water on the vegetation canopy (kg m-2)
-  case('scalarVegetationTemp'           ); get_ixmvar = iLookMVAR%scalarVegetationTemp             ! vegetation temperature (K)
+  case('scalarCanopyLiq'                ); get_ixmvar = iLookMVAR%scalarCanopyLiq                  ! mass of liquid water on the vegetation canopy (kg m-2)
+  case('scalarCanopyTemp'               ); get_ixmvar = iLookMVAR%scalarCanopyTemp                 ! temperature of the vegetation canopy (K)
   case('scalarAlbedo'                   ); get_ixmvar = iLookMVAR%scalarAlbedo                     ! albedo of the surface, soil or snow (-)
   case('scalarSnowAge'                  ); get_ixmvar = iLookMVAR%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarSnowDepth'                ); get_ixmvar = iLookMVAR%scalarSnowDepth                  ! total snow depth (m)
@@ -319,6 +322,7 @@ contains
   case('scalarAquiferStorage'           ); get_ixmvar = iLookMVAR%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
   case('scalarWaterTableDepth'          ); get_ixmvar = iLookMVAR%scalarWaterTableDepth            ! depth of the water table (m)
   ! NOAH-MP vegetation variables (general)
+  case('scalarBulkVolHeatCapVeg'        ); get_ixmvar = iLookMVAR%scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
   case('scalarRootZoneTemp'             ); get_ixmvar = iLookMVAR%scalarRootZoneTemp               ! average temperature of the root zone (K)
   case('scalarLAI'                      ); get_ixmvar = iLookMVAR%scalarLAI                        ! one-sided leaf area index (m2 m-2)
   case('scalarSAI'                      ); get_ixmvar = iLookMVAR%scalarSAI                        ! one-sided stem area index (m2 m-2)
@@ -391,7 +395,6 @@ contains
   ! NOAH-MP vegetation variables (hydrology)
   case('scalarCanopyWetFraction'        ); get_ixmvar = iLookMVAR%scalarCanopyWetFraction          ! fraction of canopy that is wet
   case('temp1'                          ); get_ixmvar = iLookMVAR%temp1                            ! placeholder
-  case('temp2'                          ); get_ixmvar = iLookMVAR%temp2                            ! placeholder
   ! scalar variables -- soil fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)

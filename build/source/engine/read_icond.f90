@@ -103,8 +103,8 @@ contains
   err=20; message=trim(message)//'expect 9 variables in namesScalarDesired'; return
  endif
  namesScalarDesired(1) = 'scalarCanopyIce'
- namesScalarDesired(2) = 'scalarCanopyLiquid'
- namesScalarDesired(3) = 'scalarVegetationTemp'
+ namesScalarDesired(2) = 'scalarCanopyLiq'
+ namesScalarDesired(3) = 'scalarCanopyTemp'
  namesScalarDesired(4) = 'scalarAlbedo'
  namesScalarDesired(5) = 'scalarSWE'
  namesScalarDesired(6) = 'scalarSnowDepth'
