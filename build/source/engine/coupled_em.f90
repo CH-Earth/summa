@@ -56,8 +56,8 @@ contains
  real(dp),pointer                     :: mLayerVolFracIce(:)    ! volumetric fraction of ice in each layer (-)
  real(dp),pointer                     :: mLayerVolFracLiq(:)    ! volumetric fraction of liquid water in each layer (-) 
  ! local pointers to flux variables
- real(dp),pointer                     :: scalarMassLiquid       ! evaporation or dew (kg m-2 s-1)
- real(dp),pointer                     :: scalarMassSolid        ! sublimation or frost (kg m-2 s-1)
+ real(dp),pointer                     :: scalarGroundEvaporation ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
+ real(dp),pointer                     :: scalarGroundSublimation ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: scalarRainPlusMelt     ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  real(dp),pointer                     :: scalarSurfaceRunoff    ! surface runoff (m s-1) 
  real(dp),pointer                     :: scalarSoilInflux       ! influx of water at the top of the soil profile (m s-1)
@@ -67,8 +67,8 @@ contains
  real(dp),pointer                     :: scalarAquiferRecharge  ! recharge to the aquifer (m s-1)
  real(dp),pointer                     :: scalarAquiferBaseflow  ! baseflow from the aquifer (m s-1)
  ! local pointers to timestep-average flux variables
- real(dp),pointer                     :: averageMassLiquid      ! evaporation or dew (kg m-2 s-1)
- real(dp),pointer                     :: averageMassSolid       ! sublimation or frost (kg m-2 s-1)
+ real(dp),pointer                     :: averageGroundEvaporation ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
+ real(dp),pointer                     :: averageGroundSublimation ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: averageRainPlusMelt    ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  real(dp),pointer                     :: averageSurfaceRunoff   ! surface runoff (m s-1) 
  real(dp),pointer                     :: averageSoilInflux      ! influx of water at the top of the soil profile (m s-1)
@@ -93,16 +93,16 @@ contains
  scalarSnowfall    => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)     ! snowfall flux (kg m-2 s-1)
 
  ! assign pointers to timestep-average model fluxes
- averageMassLiquid      => mvar_data%var(iLookMVAR%averageMassLiquid)%dat(1)      ! evaporation or dew (kg m-2 s-1)
- averageMassSolid       => mvar_data%var(iLookMVAR%averageMassSolid)%dat(1)       ! sublimation or frost (kg m-2 s-1)
- averageRainPlusMelt    => mvar_data%var(iLookMVAR%averageRainPlusMelt)%dat(1)    ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
- averageSurfaceRunoff   => mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)   ! surface runoff (m s-1)
- averageSoilInflux      => mvar_data%var(iLookMVAR%averageSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
- averageSoilBaseflow    => mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)    ! total baseflow from throughout the soil profile (m s-1)
- averageSoilDrainage    => mvar_data%var(iLookMVAR%averageSoilDrainage)%dat(1)    ! drainage from the bottom of the soil profile (m s-1)
- averageSoilEjection    => mvar_data%var(iLookMVAR%averageSoilEjection)%dat(1)    ! ejected water from the soil matrix (m s-1)
- averageAquiferRecharge => mvar_data%var(iLookMVAR%averageAquiferRecharge)%dat(1) ! recharge to the aquifer (m s-1)
- averageAquiferBaseflow => mvar_data%var(iLookMVAR%averageAquiferBaseflow)%dat(1) ! baseflow from the aquifer (m s-1)
+ averageGroundEvaporation => mvar_data%var(iLookMVAR%averageGroundEvaporation)%dat(1) ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
+ averageGroundSublimation => mvar_data%var(iLookMVAR%averageGroundSublimation)%dat(1) ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
+ averageRainPlusMelt      => mvar_data%var(iLookMVAR%averageRainPlusMelt)%dat(1)      ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+ averageSurfaceRunoff     => mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)     ! surface runoff (m s-1)
+ averageSoilInflux        => mvar_data%var(iLookMVAR%averageSoilInflux)%dat(1)        ! influx of water at the top of the soil profile (m s-1)
+ averageSoilBaseflow      => mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)      ! total baseflow from throughout the soil profile (m s-1)
+ averageSoilDrainage      => mvar_data%var(iLookMVAR%averageSoilDrainage)%dat(1)      ! drainage from the bottom of the soil profile (m s-1)
+ averageSoilEjection      => mvar_data%var(iLookMVAR%averageSoilEjection)%dat(1)      ! ejected water from the soil matrix (m s-1)
+ averageAquiferRecharge   => mvar_data%var(iLookMVAR%averageAquiferRecharge)%dat(1)   ! recharge to the aquifer (m s-1)
+ averageAquiferBaseflow   => mvar_data%var(iLookMVAR%averageAquiferBaseflow)%dat(1)   ! baseflow from the aquifer (m s-1)
 
  ! assign pointers to algorithmic control parameters
  minstep => mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
@@ -110,16 +110,16 @@ contains
  !print*, 'minstep, maxstep = ', minstep, maxstep
 
  ! initialize average fluxes
- averageSurfaceRunoff   = 0._dp  ! surface runoff (m s-1)
- averageMassLiquid      = 0._dp  ! evaporation or dew (kg m-2 s-1)
- averageMassSolid       = 0._dp  ! sublimation or frost (kg m-2 s-1)
- averageRainPlusMelt    = 0._dp  ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
- averageSoilInflux      = 0._dp  ! influx of water at the top of the soil profile (m s-1)
- averageSoilBaseflow    = 0._dp  ! total baseflow from throughout the soil profile (m s-1)
- averageSoilDrainage    = 0._dp  ! drainage from the bottom of the soil profile (m s-1)
- averageSoilEjection    = 0._dp  ! ejected water from the soil matrix (m s-1)
- averageAquiferRecharge = 0._dp  ! recharge to the aquifer (m s-1)
- averageAquiferBaseflow = 0._dp  ! baseflow from the aquifer (m s-1)
+ averageSurfaceRunoff     = 0._dp  ! surface runoff (m s-1)
+ averageGroundEvaporation = 0._dp  ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
+ averageGroundSublimation = 0._dp  ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
+ averageRainPlusMelt      = 0._dp  ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+ averageSoilInflux        = 0._dp  ! influx of water at the top of the soil profile (m s-1)
+ averageSoilBaseflow      = 0._dp  ! total baseflow from throughout the soil profile (m s-1)
+ averageSoilDrainage      = 0._dp  ! drainage from the bottom of the soil profile (m s-1)
+ averageSoilEjection      = 0._dp  ! ejected water from the soil matrix (m s-1)
+ averageAquiferRecharge   = 0._dp  ! recharge to the aquifer (m s-1)
+ averageAquiferBaseflow   = 0._dp  ! baseflow from the aquifer (m s-1)
 
  ! get the length of the time step (seconds)
  dt = forcFileInfo%data_step
@@ -176,16 +176,16 @@ contains
   mLayerVolFracLiq  => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat             ! volumetric fraction of liquid water in each layer (-)
 
   ! assign pointers to the model flux variables
-  !scalarMassLiquid      => mvar_data%var(iLookMVAR%scalarMassLiquid)%dat(1)      ! evaporation or dew (kg m-2 s-1)
-  !scalarMassSolid       => mvar_data%var(iLookMVAR%scalarMassSolid)%dat(1)       ! sublimation or frost (kg m-2 s-1)
-  scalarRainPlusMelt    => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)    ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
-  scalarSurfaceRunoff   => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)   ! surface runoff (m s-1)
-  scalarSoilInflux      => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
-  scalarSoilBaseflow    => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)    ! total baseflow from throughout the soil profile (m s-1)
-  scalarSoilDrainage    => mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1)    ! drainage from the bottom of the soil profile (m s-1)
-  scalarSoilEjection    => mvar_data%var(iLookMVAR%scalarSoilEjection)%dat(1)    ! ejected water from the soil matrix (m s-1)
-  scalarAquiferRecharge => mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1) ! recharge to the aquifer (m s-1)
-  scalarAquiferBaseflow => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1) ! baseflow from the aquifer (m s-1)
+  scalarGroundEvaporation => mvar_data%var(iLookMVAR%scalarGroundEvaporation)%dat(1) ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
+  scalarGroundSublimation => mvar_data%var(iLookMVAR%scalarGroundSublimation)%dat(1) ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
+  scalarRainPlusMelt      => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)      ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  scalarSurfaceRunoff     => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)     ! surface runoff (m s-1)
+  scalarSoilInflux        => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)        ! influx of water at the top of the soil profile (m s-1)
+  scalarSoilBaseflow      => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)      ! total baseflow from throughout the soil profile (m s-1)
+  scalarSoilDrainage      => mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1)      ! drainage from the bottom of the soil profile (m s-1)
+  scalarSoilEjection      => mvar_data%var(iLookMVAR%scalarSoilEjection)%dat(1)      ! ejected water from the soil matrix (m s-1)
+  scalarAquiferRecharge   => mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1)   ! recharge to the aquifer (m s-1)
+  scalarAquiferBaseflow   => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)   ! baseflow from the aquifer (m s-1)
 
   ! allocate temporary array
   allocate(arrTemp(nLayers),stat=err)
@@ -223,16 +223,16 @@ contains
   dt_wght = dt_sub/dt
 
   ! increment timestep-average fluxes
-  !averageMassLiquid      = averageMassLiquid      + scalarMassLiquid     *dt_wght ! evaporation or dew (kg m-2 s-1)
-  !averageMassSolid       = averageMassSolid       + scalarMassSolid      *dt_wght ! sublimation or frost (kg m-2 s-1)
-  averageRainPlusMelt    = averageRainPlusMelt    + scalarRainPlusMelt   *dt_wght ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
-  averageSurfaceRunoff   = averageSurfaceRunoff   + scalarSurfaceRunoff  *dt_wght ! surface runoff (m s-1)
-  averageSoilInflux      = averageSoilInflux      + scalarSoilInflux     *dt_wght ! influx of water at the top of the soil profile (m s-1)
-  averageSoilBaseflow    = averageSoilBaseflow    + scalarSoilBaseflow   *dt_wght ! total baseflow from throughout the soil profile (m s-1)
-  averageSoilDrainage    = averageSoilDrainage    + scalarSoilDrainage   *dt_wght ! drainage from the bottom of the soil profile (m s-1)
-  averageSoilEjection    = averageSoilEjection    + scalarSoilEjection   *dt_wght ! ejected water from the soil matrix (m s-1)
-  averageAquiferRecharge = averageAquiferRecharge + scalarAquiferRecharge*dt_wght ! recharge to the aquifer (m s-1)
-  averageAquiferBaseflow = averageAquiferBaseflow + scalarAquiferBaseflow*dt_wght ! recharge to the aquifer (m s-1)
+  averageGroundEvaporation = averageGroundEvaporation + scalarGroundEvaporation*dt_wght ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
+  averageGroundSublimation = averageGroundSublimation + scalarGroundSublimation*dt_wght ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
+  averageRainPlusMelt      = averageRainPlusMelt      + scalarRainPlusMelt     *dt_wght ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  averageSurfaceRunoff     = averageSurfaceRunoff     + scalarSurfaceRunoff    *dt_wght ! surface runoff (m s-1)
+  averageSoilInflux        = averageSoilInflux        + scalarSoilInflux       *dt_wght ! influx of water at the top of the soil profile (m s-1)
+  averageSoilBaseflow      = averageSoilBaseflow      + scalarSoilBaseflow     *dt_wght ! total baseflow from throughout the soil profile (m s-1)
+  averageSoilDrainage      = averageSoilDrainage      + scalarSoilDrainage     *dt_wght ! drainage from the bottom of the soil profile (m s-1)
+  averageSoilEjection      = averageSoilEjection      + scalarSoilEjection     *dt_wght ! ejected water from the soil matrix (m s-1)
+  averageAquiferRecharge   = averageAquiferRecharge   + scalarAquiferRecharge  *dt_wght ! recharge to the aquifer (m s-1)
+  averageAquiferBaseflow   = averageAquiferBaseflow   + scalarAquiferBaseflow  *dt_wght ! recharge to the aquifer (m s-1)
 
   ! check that snow depth is decreasing (can only increase in the top layer)
   if(nSnow>1)then

@@ -2364,6 +2364,7 @@ contains
                   TG      ,ILOC    ,JLOC    ,                   & !in
                   ALBGRD  ,ALBGRI  )                              !out
 
+
 ! loop over NBAND wavebands to calculate surface albedos and solar
 ! fluxes for unit incoming direct (IC=0) and diffuse flux (IC=1)
 

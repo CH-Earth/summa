@@ -13,6 +13,7 @@ contains
  ! provide access to subroutines
  USE heatTransf_module,only:heatTransf          ! compute change in temperature over the time step
  USE phseChange_module,only:phseChange          ! compute change in phase over the time step
+ USE can_Hydrol_module,only:can_Hydrol          ! compute canopy water balance
  USE snowHydrol_module,only:snowHydrol          ! compute liquid water flow through the snowpack
  USE soilHydrol_module,only:soilHydrol          ! compute change in mass over the time step for the soil
  USE snwDensify_module,only:snwDensify          ! compute densification of snow
@@ -84,13 +85,15 @@ contains
  real(dp),pointer                     :: scalarRainPlusMelt       ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
  real(dp),pointer                     :: scalarSnowDepth          ! total snow depth (m)
  real(dp),pointer                     :: scalarWaterTableDepth    ! water table depth (m)
- real(dp),pointer                     :: scalarSoilInflux         ! influx of water at the top of the soil profile (m s-1)
- real(dp),pointer                     :: scalarSoilBaseflow       ! total baseflow from the soil profile (m s-1)
- real(dp),pointer                     :: scalarSoilDrainage       ! drainage from the bottom of the soil profile (m s-1)
- real(dp),pointer                     :: scalarSoilEjection       ! total water ejected from soil layers (m s-1)
  real(dp),pointer                     :: scalarSoilWatBalError    ! error in the total soil water balance (kg m-2) 
  real(dp),pointer                     :: scalarTotalSoilLiq       ! total mass of liquid water in the soil (kg m-2)
  real(dp),pointer                     :: scalarTotalSoilIce       ! total mass of ice in the soil (kg m-2)
+ ! sub-step average fluxes for the soil zone
+ real(dp),pointer                     :: scalarSoilInflux         ! sub-step average: influx of water at the top of the soil profile (m s-1)
+ real(dp),pointer                     :: scalarSoilBaseflow       ! sub-step average: total baseflow from the soil profile (m s-1)
+ real(dp),pointer                     :: scalarSoilDrainage       ! sub-step average: drainage from the bottom of the soil profile (m s-1)
+ real(dp),pointer                     :: scalarSoilEjection       ! sub-step average: total water ejected from soil layers (m s-1)
+ real(dp),pointer                     :: scalarSoilTranspiration  ! sub-step average: total transpiration from the soil (m s-1)
  ! local pointers to model coordinate variables
  real(dp),pointer                     :: iLayerHeight(:)          ! height of layer interfaces (m)
  ! local pointers to model state variables -- all layers
@@ -132,9 +135,12 @@ contains
  integer(i4b),pointer                 :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local model state variables
  real(dp)                             :: scalarCanopyTempIter     ! trial value of temperature of the vegetation canopy (K)
- real(dp)                             :: scalarCanopyIceIter      ! trial value of mass of ice on the vegetation canopy (kg m-2)
- real(dp)                             :: scalarCanopyLiqIter      ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                             :: scalarCanopyTempIncr     ! iteration increment for temperature of the vegetation canopy (K)
  real(dp)                             :: scalarCanopyTempNew      ! temperature of the vegetation canopy at the next iteration (K)
+ real(dp)                             :: scalarCanopyIceIter      ! trial value of mass of ice on the vegetation canopy (kg m-2)
+ real(dp)                             :: scalarCanopyIceNew       ! updated value of mass of ice on the vegetation canopy (kg m-2)
+ real(dp)                             :: scalarCanopyLiqIter      ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                             :: scalarCanopyLiqNew       ! updated value of mass of liquid water on the vegetation canopy (kg m-2)
  real(dp),allocatable                 :: mLayerTempIter(:)        ! temperature vector for all snow/soil layers at the current iteration (K)
  real(dp),allocatable                 :: mLayerTempNew(:)         ! temperature vector for all snow/soil layers at the next iteration (K)
  real(dp),allocatable                 :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice for all snow/soil layers at the current iteration (-)
@@ -251,13 +257,16 @@ contains
  ! assign local pointers to diagnostic scalar variables
  scalarRainPlusMelt   => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)    ! rain plus melt (m s-1)
  scalarSnowDepth      => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)       ! total snow depth (m)
+ scalarSoilWatBalError=> mvar_data%var(iLookMVAR%scalarSoilWatBalError)%dat(1) ! error in the total soil water balance (kg m-2)
+ scalarTotalSoilLiq   => mvar_data%var(iLookMVAR%scalarTotalSoilLiq)%dat(1)    ! total mass of liquid water in the soil (kg m-2)
+ scalarTotalSoilIce   => mvar_data%var(iLookMVAR%scalarTotalSoilIce)%dat(1)    ! total mass of ice in the soil (kg m-2)
+
+ ! sub-step average fluxes for the soil zone
  scalarSoilInflux     => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)      ! influx of water at the top of the soil profile (m s-1)
  scalarSoilBaseflow   => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)    ! baseflow from throughout the soil profile (m s-1)
  scalarSoilDrainage   => mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1)    ! drainage from the bottom of the soil profile (m s-1)
  scalarSoilEjection   => mvar_data%var(iLookMVAR%scalarSoilEjection)%dat(1)    ! water ejected from soil layers (m s-1)
- scalarSoilWatBalError=> mvar_data%var(iLookMVAR%scalarSoilWatBalError)%dat(1) ! error in the total soil water balance (kg m-2)
- scalarTotalSoilLiq   => mvar_data%var(iLookMVAR%scalarTotalSoilLiq)%dat(1)    ! total mass of liquid water in the soil (kg m-2)
- scalarTotalSoilIce   => mvar_data%var(iLookMVAR%scalarTotalSoilIce)%dat(1)    ! total mass of ice in the soil (kg m-2)
+ scalarSoilTranspiration => mvar_data%var(iLookMVAR%scalarSoilTranspiration)%dat(1)    ! sub-step average: total transpiration from the soil (m s-1)
 
  ! assign pointers to model coordinate variables
  iLayerHeight      => mvar_data%var(iLookMVAR%iLayerHeight)%dat             ! height of layer interfaces (m)
@@ -312,8 +321,8 @@ contains
  freeze_infiltrate = .true.
 
  ! define the maximum number of layers to print
- minLayer=40
- maxLayer=50
+ minLayer=1
+ maxLayer=4
 
  ! allocate space for state variables at the start and end of the iteration
  allocate(mLayerTempIter(nLayers),      mLayerTempNew(nLayers),       &  ! all layers
@@ -407,10 +416,10 @@ contains
   ! increment number of iterations
   niter=niter+1
 
-  !print*, '***********************************************************************'
-  !print*, '***********************************************************************'
+  print*, '***********************************************************************'
+  print*, '***********************************************************************'
 
-  !print*, 'iter = ', iter
+  print*, 'iter = ', iter
   !print*, 'before heatTransf: mLayerTempIter(minLayer:min(maxLayer,nLayers)) = ',       mLayerTempIter(minLayer:min(maxLayer,nLayers))
   !print*, 'before heatTransf: mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
   !print*, 'before heatTransf: mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
@@ -429,7 +438,8 @@ contains
                   mLayerVolFracLiqIter,     & ! intent(in): trial volumetric fraction of liquid water in each snow/soil layer at the current iteration (-)
                   mLayerMatricHeadIter,     & ! intent(in): trial matric head of each snow/soil layer at the current iteration (m)
                   ! output
-                  mLayerTempIncr,           & ! intent(out): iteration increment for temperature (K)
+                  scalarCanopyTempIncr,     & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
+                  mLayerTempIncr,           & ! intent(out): iteration increment for temperature of the snow-soil system (K)
                   scalarCanopyTempNew,      & ! intent(out): new temperature of the vegetation canopy (K)
                   mLayerTempNew,            & ! intent(out): new temperature each snow/soil layer (K)
                   mLayerVolFracIceNew,      & ! intent(out): new volumetric fraction of ice in each snow/soil layer (-)
@@ -438,14 +448,19 @@ contains
                   err,cmessage)               ! intent(out): error control
   ! negative error code requires convergence check, so just check positive errors
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
-  !print*, '*** after heatTransf'
-  !write(*,'(a,10(f10.5,1x))') 'mLayerTempDiff =       ', mLayerTempNew(minLayer:min(maxLayer,nLayers)) - mLayerTempIter(minLayer:min(maxLayer,nLayers))
-  !write(*,'(a,10(f10.5,1x))') 'mLayerTempIter =       ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
-  !write(*,'(a,10(f10.5,1x))') 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
-  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceIter = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
-  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceNew =  ', mLayerVolFracIceNew(minLayer:min(maxLayer,nLayers))
-  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
-  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
+  print*, '*** after heatTransf'
+  print*, 'canopyTempDiff = ', scalarCanopyTempNew - scalarCanopyTempIter
+  print*, 'canopyTempIter = ', scalarCanopyTempIter
+  print*, 'canopyTempNew = ', scalarCanopyTempNew
+  print*, '*** '
+  write(*,'(a,10(f10.5,1x))') 'mLayerTempDiff =       ', mLayerTempNew(minLayer:min(maxLayer,nLayers)) - mLayerTempIter(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,10(f10.5,1x))') 'mLayerTempIter =       ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,10(f10.5,1x))') 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
+
+  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceIter = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceNew =  ', mLayerVolFracIceNew(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
+  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
 
   if(printflag) print*, 'mLayerTempIter =       ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
   if(printflag) print*, 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
@@ -479,6 +494,19 @@ contains
   !endif
 
   !print*, 'after heat transfer, nSnow, nSoil, nLayers, ice(nLayers) = ', nSnow, nSoil, nLayers, mLayerVolFracIceIter(nLayers)
+
+  ! compute the canopy water balance
+  call can_Hydrol(&
+                  ! input
+                  dt,                       & ! intent(in): time step (seconds)
+                  iter,                     & ! intent(in): iteration index
+                  scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+                  scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                  ! output
+                  scalarCanopyIceNew,       & ! intent(out): updated mass of ice on the vegetation canopy at the current iteration (kg m-2)
+                  scalarCanopyLiqNew,       & ! intent(out): updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                  err,cmessage)               ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! compute the volumetric liquid water content at the next iteration (note: only use snow vectors)
   ! NOTE: ice not modified in the snow hydrology routines, so can stay as "New"
@@ -707,10 +735,12 @@ contains
  balanceAquifer1 = scalarAquiferStorageNew*iden_water
 
  ! compute the influx, drainage and ejection of water from the soil profile (m s-1)
- scalarSoilInflux       = (wimplicit*iLayerInitLiqFluxSoil(0)       + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)      )
- scalarSoilBaseflow     = (wimplicit*sum(mLayerInitBaseflow)        + (1._dp - wimplicit)*sum(mLayerBaseflow)       )
- scalarSoilDrainage     = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
- scalarSoilEjection     = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
+ scalarSoilInflux        = (wimplicit*iLayerInitLiqFluxSoil(0)       + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)      )
+ scalarSoilBaseflow      = (wimplicit*sum(mLayerInitBaseflow)        + (1._dp - wimplicit)*sum(mLayerBaseflow)       )
+ scalarSoilDrainage      = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
+ scalarSoilEjection      = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
+ scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)) - &
+                           (wimplicit*scalarInitAquiferTranspire     + (1._dp - wimplicit)*scalarAquiferTranspire)
 
  ! check ejected water
  if(scalarSoilEjection < 0._dp)then
@@ -724,7 +754,7 @@ contains
  balanceSoilBaseflow      = scalarSoilBaseflow*iden_water*dt
  balanceSoilDrainage      = scalarSoilDrainage*iden_water*dt
  balanceSoilEjection      = scalarSoilEjection*iden_water*dt
- !balanceSoilTranspiration = scalarMassLiquid*dt - (wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*iden_water*dt
+ balanceSoilTranspiration = scalarSoilTranspiration*iden_water*dt
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilEjection) )
@@ -784,7 +814,12 @@ contains
   case default; err=20; message=trim(message)//'unknown groundwater parameterization'; return
  end select ! (selecting groundwater parameterization)
 
- ! update the state vectors
+ ! update the states for the canopy
+ scalarCanopyTemp = scalarCanopyTempNew      ! temperature of the vegetation canopy (K)
+ scalarCanopyIce  = scalarCanopyIceNew       ! mass of ice on the vegetation canopy at the current iteration (kg m-2)
+ scalarCanopyLiq  = scalarCanopyLiqNew       ! mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+
+ ! update the states for the snow-soil vector
  mLayerTemp           = mLayerTempNew           ! New (after heatTransf)
  mLayerVolFracIce     = mLayerVolFracIceNew     ! New (after densification)
  mLayerVolFracLiq     = mLayerVolFracLiqNew     ! New (after densifcaction)

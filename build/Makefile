@@ -70,6 +70,7 @@ FUSE_SOLVER= \
 		diagn_evar.f90 \
 		phseChange.f90 \
 		heatTransf.f90 \
+		can_Hydrol.f90 \
 		snowHydrol.f90 \
 		soilHydrol.f90 \
 		picardSolv.f90 \

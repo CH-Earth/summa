@@ -3,7 +3,7 @@ USE nrtype                                 ! variable types
 USE multiconst                             ! fixed parameters (lh vapzn, etc.)
 implicit none
 private
-public::RELHM2SPHM,SPHM2RELHM,WETBULBTMP,satVapPress,vapPress,psychometric
+public::RELHM2SPHM,SPHM2RELHM,WETBULBTMP,satVapPress,vapPress,getLatentHeatValue
 contains
 
 ! ----------------------------------------------------------------------
@@ -11,23 +11,17 @@ contains
 ! (partially courtesy of Drew Slater)
 ! ----------------------------------------------------------------------
 
-function psychometric(T,P)
-! set psychrometric constant (Pa/K)
+function getLatentHeatValue(T)
+! get appropriate latent heat of sublimation/vaporization for a given surface
 implicit none
-! input
-real(dp),intent(in)   :: T              ! temperature (K)
-real(dp),intent(in)   :: P              ! air pressure (Pa)
-! output
-real(dp)              :: psychometric   ! psychrometric constant (Pa/K)
-! local
-real(dp)              :: LHSubVap       ! latent heat of vaporization/sublimation (J kg-1)
+real(dp),intent(in)   :: T                    ! temperature (K)
+real(dp)              :: getLatentHeatValue   ! latent heat of sublimation/vaporization (J kg-1)
 if(T > Tfreeze)then
- LHSubVap = LH_vap     ! latent heat of vaporization          (J kg-1)
+ getLatentHeatValue = LH_vap     ! latent heat of vaporization          (J kg-1)
 else
- LHSubVap = LH_sub     ! latent heat of sublimation           (J kg-1)
+ getLatentHeatValue = LH_sub     ! latent heat of sublimation           (J kg-1)
 endif
-psychometric = Cp_air*P/(w_ratio*LHSubVap)  ! (Pa/K)
-end function psychometric
+end function getLatentHeatValue
 
 
 ! ----------------------------------------------------------------------

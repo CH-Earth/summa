@@ -45,7 +45,7 @@ integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  
 integer(i4b),parameter        :: iLoc    = 1   ! i-location
 integer(i4b),parameter        :: jLoc    = 1   ! j-location
 ! algorithmic parameters
-real(dp),parameter     :: verySmall=epsilon(1._dp) ! a very small number
+real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
 real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
 contains
@@ -58,12 +58,21 @@ contains
                        dt,                                      & ! intent(in): time step (seconds)
                        iter,                                    & ! intent(in): iteration index
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
+                       computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                       computeShortwave,                        & ! intent(in): flag to indicate if we need to compute shortwave radiation
                        canopyTempTrial,                         & ! intent(in): trial value of canopy temperature (K)
                        groundTempTrial,                         & ! intent(in): trial value of ground temperature (K)
                        canopyIceTrial,                          & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                        canopyLiqTrial,                          & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                       vegTypeIndex,                            & ! intent(in): vegetation type index
+                       scalarLAI,                               & ! intent(in): one-sided leaf area index (m2 m-2)
+                       scalarSAI,                               & ! intent(in): one-sided stem area index (m2 m-2)
+                       scalarExposedLAI,                        & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                       scalarExposedSAI,                        & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                       scalarGrowingSeasonIndex,                & ! intent(in): growing season index (0=off, 1=on)
+                       scalarFoliageNitrogenFactor,             & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
+
                        ! output
-                       exposedVAI,                              & ! intent(out): exposed vegetation area index (m2 m-2)
                        canopyNetFlux,                           & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                        groundNetFlux,                           & ! intent(out): net energy flux for the ground surface (W m-2)
                        dCanopyNetFlux_dCanopyTemp,              & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -74,10 +83,6 @@ contains
  ! model decisions
  USE data_struc,only:model_decisions                              ! model decision structure
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
- ! common variables
- USE data_struc,only:urbanVegCategory                             ! vegetation category for urban areas
- USE data_struc,only:fracJulday                                   ! fractional julian days since the start of year
- USE data_struc,only:yearLength                                   ! number of days in the current year
  ! model variables, parameters, etc.
  USE data_struc,only:time_data,type_data,attr_data,forc_data,mpar_data,mvar_data,indx_data     ! data structures
  USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookINDEX  ! named variables for structure elements
@@ -86,13 +91,21 @@ contains
  ! input
  real(dp),intent(in)           :: dt                              ! time step (seconds)
  integer(i4b),intent(in)       :: iter                            ! iteration index
- logical(i4b),intent(in)       :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)       :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)       :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)       :: computeShortwave                ! flag to indicate if need to compute shortwave radiation
  real(dp),intent(in)           :: canopyTempTrial                 ! trial value of canopy temperature (K)
  real(dp),intent(in)           :: groundTempTrial                 ! trial value of ground temperature (K)
  real(dp),intent(in)           :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)           :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ integer(i4b),intent(in)       :: vegTypeIndex                    ! vegetation type index
+ real(dp),intent(in)           :: scalarLAI                       ! one-sided leaf area index (m2 m-2)
+ real(dp),intent(in)           :: scalarSAI                       ! one-sided stem area index (m2 m-2)
+ real(dp),intent(in)           :: scalarExposedLAI                ! exposed leaf area index after burial by snow (m2 m-2)
+ real(dp),intent(in)           :: scalarExposedSAI                ! exposed stem area index after burial by snow (m2 m-2)
+ real(dp),intent(in)           :: scalarGrowingSeasonIndex        ! growing season index (0=off, 1=on)
+ real(dp),intent(in)           :: scalarFoliageNitrogenFactor     ! foliage nitrogen concentration (1.0 = saturated)
  ! output
- real(dp),intent(out)          :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
  real(dp),intent(out)          :: canopyNetFlux                   ! net energy flux for the vegetation canopy (W m-2)
  real(dp),intent(out)          :: groundNetFlux                   ! net energy flux for the ground surface (W m-2) 
  real(dp),intent(out)          :: dCanopyNetFlux_dCanopyTemp      ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -103,7 +116,6 @@ contains
  character(*),intent(out)      :: message                         ! error message
  ! local
  character(LEN=256)            :: cmessage                        ! error message of downwind routine
- integer(i4b)                  :: nLayersRoots                    ! number of soil layers that contain roots
  ! initialize error control
  err=0; message="vegNrgFlux_muster/"
 
@@ -111,15 +123,6 @@ contains
  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)  ! number of soil layers
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_snow)  ! number of snow layers
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)                   ! total number of layers
-
- ! preliminaries
- if(iter==1 .and. firstSubStep)then
-  ! compute the number of layers with roots
-  nLayersRoots = count(mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)-verySmall)
-  if(nLayersRoots == 0)then; err=20; message=trim(message)//'no roots within the soil profile'; return; endif
-  ! compute the temperature of the root zone (K)
-  mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
- endif
 
  ! subroutine to compute energy fluxes at vegetation and ground surfaces
  ! NOTE: separate call to use data structure elements, and ensure variables are used as they are intended (input, input/output, output)
@@ -129,10 +132,19 @@ contains
                         dt,                                                            & ! intent(in): time step (seconds)
                         iter,                                                          & ! intent(in): iteration index
                         firstSubStep,                                                  & ! intent(in): flag to indicate if we are processing the first sub-step
+                        computeVegFlux,                                                & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                        computeShortwave,                                              & ! intent(in): flag to indicate if we need to compute shortwave radiation
                         canopyTempTrial,                                               & ! intent(in): trial value of canopy temperature (K)
                         groundTempTrial,                                               & ! intent(in): trial value of ground temperature (K)
                         canopyIceTrial,                                                & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                         canopyLiqTrial,                                                & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                        vegTypeIndex,                                                  & ! intent(in): vegetation type index
+                        scalarLAI,                                                     & ! intent(in): one-sided leaf area index (m2 m-2)
+                        scalarSAI,                                                     & ! intent(in): one-sided stem area index (m2 m-2)
+                        scalarExposedLAI,                                              & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                        scalarExposedSAI,                                              & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                        scalarGrowingSeasonIndex,                                      & ! intent(in): growing season index (0=off, 1=on)
+                        scalarFoliageNitrogenFactor,                                   & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
 
                         ! model control -- intent(in)
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,          & ! intent(in): choice of method to compute derivatives
@@ -140,16 +152,6 @@ contains
                         model_decisions(iLookDECISIONS%soilStress)%iDecision,          & ! intent(in): choice of function for the soil moisture control on stomatal resistance
                         model_decisions(iLookDECISIONS%groundwatr)%iDecision,          & ! intent(in): groundwater parameterization
                         model_decisions(iLookDECISIONS%stomResist)%iDecision,          & ! intent(in): choice of function for stomatal resistance
-
-                        ! time -- intent(in)
-                        yearLength,                                                    & ! intent(in): number of days in the current year
-                        fracJulday,                                                    & ! intent(in): fractional julian days since the start of year
-
-                        ! physical attributes -- intent(in)
-                        attr_data%var(iLookATTR%mHeight),                              & ! intent(in): measurement height (m)
-                        attr_data%var(iLookATTR%latitude),                             & ! intent(in): latitude (degrees north)
-                        type_data%var(iLookTYPE%vegTypeIndex),                         & ! intent(in): vegetation type index
-                        urbanVegCategory,                                              & ! intent(in): vegetation category for urban areas
 
                         ! model parameters (phenology) -- intent(in)
                         mpar_data%var(iLookPARAM%heightCanopyTop),                     & ! intent(in): height at the top of the vegetation canopy (m)
@@ -177,6 +179,7 @@ contains
                         mpar_data%var(iLookPARAM%critAquiferTranspire),                & ! intent(in): critical aquifer storage value when transpiration is limited (m)
        
                         ! forcing at the upper boundary -- intent(in)
+                        attr_data%var(iLookATTR%mHeight),                              & ! intent(in): measurement height (m)
                         forc_data%var(iLookFORCE%airtemp),                             & ! intent(in): air temperature at some height above the surface (K)
                         forc_data%var(iLookFORCE%windspd),                             & ! intent(in): wind speed at some height above the surface (m s-1)
                         forc_data%var(iLookFORCE%airpres),                             & ! intent(in): air pressure at some height above the surface (Pa)
@@ -197,19 +200,10 @@ contains
                         mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                 & ! intent(in): matric head in each layer (m)
                         mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),          & ! intent(in): aquifer storage (m)
 
-                        ! vegetation phenology -- intent(inout) because only called at the start of the sub-step
-                        mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),       & ! intent(inout): fraction of canopy that is wet
-                        mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1),   & ! intent(inout): foliage nitrogen concentration (1.0 = saturated)
-                        mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1),            & ! intent(inout): root zone temperature
-                        mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                     & ! intent(inout): one-sided leaf area index (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarSAI)%dat(1),                     & ! intent(inout): one-sided stem area index (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),              & ! intent(inout): exposed leaf area index after burial by snow (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),              & ! intent(inout): exposed stem area index after burial by snow (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1),      & ! intent(inout): growing season index (0=off, 1=on)
-
                         ! shortwave radiation fluxes -- intent(inout) because only called at the start of the sub-step
                         mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1),                  & ! intent(inout): snow albedo (-)
                         mvar_data%var(iLookMVAR%scalarSnowAge)%dat(1),                 & ! intent(inout): non-dimensional snow age (-)
+                        mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),       & ! intent(inout): fraction of canopy that is wet
                         mvar_data%var(iLookMVAR%scalarCanopySunlitFraction)%dat(1),    & ! intent(inout): sunlit fraction of canopy (-)
                         mvar_data%var(iLookMVAR%scalarCanopySunlitLAI)%dat(1),         & ! intent(inout): sunlit leaf area (-)
                         mvar_data%var(iLookMVAR%scalarCanopyShadedLAI)%dat(1),         & ! intent(inout): shaded leaf area (-)
@@ -263,8 +257,8 @@ contains
                         mvar_data%var(iLookMVAR%scalarPhotosynthesisShaded)%dat(1),    & ! intent(inout): shaded photosynthesis (umolco2 m-2 s-1)
 
                         ! turbulent heat fluxes
-                        mvar_data%var(iLookMVAR%scalarPsycConstCanopy)%dat(1),         & ! intent(inout): psychrometric constant for the vegetation canopy (Pa K-1)
-                        mvar_data%var(iLookMVAR%scalarPsycConstGround)%dat(1),         & ! intent(inout): psychrometric constant for the ground surface (Pa K-1)
+                        mvar_data%var(iLookMVAR%scalarLatHeatSubVapCanopy)%dat(1),     & ! intent(inout): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+                        mvar_data%var(iLookMVAR%scalarLatHeatSubVapGround)%dat(1),     & ! intent(inout): latent heat of sublimation/vaporization for the ground surface (J kg-1)
                         mvar_data%var(iLookMVAR%scalarTemp_CanopyAir)%dat(1),          & ! intent(inout): temperature of the canopy air space (K)
                         mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),            & ! intent(inout): vapor pressure of the canopy air space (Pa)
                         mvar_data%var(iLookMVAR%scalarSatVP_CanopyTemp)%dat(1),        & ! intent(out): saturation vapor pressure at the temperature of the vegetation canopy (Pa)
@@ -277,8 +271,14 @@ contains
                         mvar_data%var(iLookMVAR%scalarSenHeatGround)%dat(1),           & ! intent(out): sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
                         mvar_data%var(iLookMVAR%scalarLatHeatGround)%dat(1),           & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
+                        ! mass fluxes
+                        mvar_data%var(iLookMVAR%scalarCanopyTranspiration)%dat(1),     & ! intent(out): canopy transpiration (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarCanopyEvaporation)%dat(1),       & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1),       & ! intent(out): canopy sublimation/frost (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarGroundEvaporation)%dat(1),       & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarGroundSublimation)%dat(1),       & ! intent(out): ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+
                         ! output
-                        exposedVAI,                                                    & ! intent(out): exposed vegetation area index (m2 m-2)
                         canopyNetFlux,                                                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                         groundNetFlux,                                                 & ! intent(out): net energy flux for the ground surface (W m-2)
                         dCanopyNetFlux_dCanopyTemp,                                    & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -309,10 +309,19 @@ contains
                               dt,                            & ! intent(in): time step (seconds)
                               iter,                          & ! intent(in): iteration index
                               firstSubStep,                  & ! intent(in): flag to indicate if we are processing the first sub-step
+                              computeVegFlux,                & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                              computeShortwave,              & ! intent(in): flag to indicate if we need to compute shortwave radiation
                               canopyTempTrial,               & ! intent(in): trial value of canopy temperature (K)
                               groundTempTrial,               & ! intent(in): trial value of ground temperature (K)
                               canopyIceTrial,                & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                               canopyLiqTrial,                & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                              vegTypeIndex,                  & ! intent(in): vegetation type index
+                              scalarLAI,                     & ! intent(in): one-sided leaf area index (m2 m-2)
+                              scalarSAI,                     & ! intent(in): one-sided stem area index (m2 m-2)
+                              scalarExposedLAI,              & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                              scalarExposedSAI,              & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                              scalarGrowingSeasonIndex,      & ! intent(in): growing season index (0=off, 1=on)
+                              scalarFoliageNitrogenFactor,   & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
 
                               ! model control -- intent(in)
                               ix_fDerivMeth,                 & ! intent(in): choice of method to compute derivatives
@@ -320,16 +329,6 @@ contains
                               ix_soilStress,                 & ! intent(in): choice of function for the soil moisture control on stomatal resistance
                               ix_groundwatr,                 & ! intent(in): groundwater parameterization
                               ix_stomResist,                 & ! intent(in): choice of function for stomatal resistance
-
-                              ! time -- intent(in)
-                              yearLength,                    & ! intent(in): number of days in the current year
-                              fracJulday,                    & ! intent(in): fractional julian days since the start of year
-
-                              ! physical attributes -- intent(in)
-                              mHeight,                       & ! intent(in): measurement height (m)
-                              latitude,                      & ! intent(in): latitude (degrees north)
-                              vegTypeIndex,                  & ! intent(in): vegetation type index
-                              urbanVegCategory,              & ! intent(in): vegetation category for urban areas
 
                               ! model parameters (phenology) -- intent(in)
                               heightCanopyTop,               & ! intent(in): height at the top of the vegetation canopy (m)
@@ -357,6 +356,7 @@ contains
                               critAquiferTranspire,          & ! intent(in): critical aquifer storage value when transpiration is limited (m)
 
                               ! forcing at the upper boundary -- intent(in)
+                              mHeight,                       & ! intent(in): measurement height (m)
                               airtemp,                       & ! intent(in): air temperature at some height above the surface (K)
                               windspd,                       & ! intent(in): wind speed at some height above the surface (m s-1)
                               airpres,                       & ! intent(in): air pressure at some height above the surface (Pa)
@@ -377,19 +377,10 @@ contains
                               mLayerMatricHead,              & ! intent(in): matric head in each layer (m)
                               scalarAquiferStorage,          & ! intent(in): aquifer storage (m)
 
-                              ! vegetation phenology -- intent(inout) because only called at the start of the sub-step
-                              scalarCanopyWetFraction,       & ! intent(inout): fraction of canopy that is wet
-                              scalarFoliageNitrogenFactor,   & ! intent(inout): foliage nitrogen concentration (1.0 = saturated)
-                              scalarRootZoneTemp,            & ! intent(inout): root zone temperature
-                              scalarLAI,                     & ! intent(inout): one-sided leaf area index (m2 m-2)
-                              scalarSAI,                     & ! intent(inout): one-sided stem area index (m2 m-2)
-                              scalarExposedLAI,              & ! intent(inout): exposed leaf area index after burial by snow (m2 m-2)
-                              scalarExposedSAI,              & ! intent(inout): exposed stem area index after burial by snow (m2 m-2)
-                              scalarGrowingSeasonIndex,      & ! intent(inout): growing season index (0=off, 1=on)
-
                               ! shortwave radiation fluxes -- intent(inout) because only called at the start of the sub-step
                               scalarAlbedo,                  & ! intent(inout): snow albedo (-)
                               scalarSnowAge,                 & ! intent(inout): non-dimensional snow age (-)
+                              scalarCanopyWetFraction,       & ! intent(inout): fraction of canopy that is wet
                               scalarCanopySunlitFraction,    & ! intent(inout): sunlit fraction of canopy (-)
                               scalarCanopySunlitLAI,         & ! intent(inout): sunlit leaf area (-)
                               scalarCanopyShadedLAI,         & ! intent(inout): shaded leaf area (-)
@@ -443,8 +434,8 @@ contains
                               scalarPhotosynthesisShaded,    & ! intent(inout): shaded photosynthesis (umolco2 m-2 s-1)
 
                               ! turbulent heat fluxes
-                              scalarPsycConstCanopy,         & ! intent(inout): psychrometric constant for the vegetation canopy (Pa K-1)
-                              scalarPsycConstGround,         & ! intent(inout): psychrometric constant for the ground surface (Pa K-1)
+                              scalarLatHeatSubVapCanopy,     & ! intent(inout): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+                              scalarLatHeatSubVapGround,     & ! intent(inout): latent heat of sublimation/vaporization for the ground surface (J kg-1)
                               scalarTemp_CanopyAir,          & ! intent(inout): temperature of the canopy air space (K)
                               scalarVP_CanopyAir,            & ! intent(inout): vapor pressure of the canopy air space (Pa)
                               scalarSatVP_canopyTemp,        & ! intent(out): saturation vapor pressure at the temperature of the vegetation canopy (Pa)
@@ -457,8 +448,14 @@ contains
                               scalarSenHeatGround,           & ! intent(out): sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
                               scalarLatHeatGround,           & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
+                              ! mass fluxes
+                              scalarCanopyTranspiration,     & ! intent(out): canopy transpiration (kg m-2 s-1)
+                              scalarCanopyEvaporation,       & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                              scalarCanopySublimation,       & ! intent(out): canopy sublimation/frost (kg m-2 s-1)
+                              scalarGroundEvaporation,       & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+                              scalarGroundSublimation,       & ! intent(out): ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+
                               ! output
-                              exposedVAI,                    & ! intent(out): exposed vegetation area index (m2 m-2)
                               canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                               groundNetFlux,                 & ! intent(out): net energy flux for the ground surface (W m-2)
                               dCanopyNetFlux_dCanopyTemp,    & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -469,9 +466,8 @@ contains
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! conversion functions
  USE conv_funcs_module,only:satVapPress                           ! function to compute the saturated vapor pressure (Pa)
- USE conv_funcs_module,only:psychometric                          ! function to compute the psychrometric constant (Pa K-1)
+ USE conv_funcs_module,only:getLatentHeatValue                    ! function to identify latent heat of vaporization/sublimation (J kg-1)
  ! Noah-MP modules
- USE NOAHMP_ROUTINES,only:phenology                               ! compute vegetation phenology
  USE NOAHMP_ROUTINES,only:radiation                               ! compute radiation fluxes
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input/output
@@ -480,10 +476,19 @@ contains
  real(dp),intent(in)            :: dt                             ! time step (seconds)
  integer(i4b),intent(in)        :: iter                           ! iteration index
  logical(lgt),intent(in)        :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)        :: computeVegFlux                 ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)        :: computeShortwave               ! flag to indicate if need to compute shortwave radiation
  real(dp),intent(in)            :: canopyTempTrial                ! trial value of canopy temperature (K)
  real(dp),intent(in)            :: groundTempTrial                ! trial value of ground temperature (K)
  real(dp),intent(in)            :: canopyIceTrial                 ! trial value of mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)            :: canopyLiqTrial                 ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ integer(i4b),intent(in)        :: vegTypeIndex                   ! vegetation type index
+ real(dp),intent(in)            :: scalarLAI                      ! one-sided leaf area index (m2 m-2)
+ real(dp),intent(in)            :: scalarSAI                      ! one-sided stem area index (m2 m-2)
+ real(dp),intent(in)            :: scalarExposedLAI               ! exposed leaf area index after burial by snow (m2 m-2)
+ real(dp),intent(in)            :: scalarExposedSAI               ! exposed stem area index after burial by snow (m2 m-2)
+ real(dp),intent(in)            :: scalarGrowingSeasonIndex       ! growing season index (0=off, 1=on)
+ real(dp),intent(in)            :: scalarFoliageNitrogenFactor    ! foliage nitrogen concentration (1.0 = saturated)
 
  ! model control -- intent(in)
  integer(i4b),intent(in)        :: ix_fDerivMeth                  ! choice of method to compute derivatives
@@ -491,16 +496,6 @@ contains
  integer(i4b),intent(in)        :: ix_soilStress                  ! choice of function for the soil moisture control on stomatal resistance
  integer(i4b),intent(in)        :: ix_groundwatr                  ! groundwater parameterization
  integer(i4b),intent(in)        :: ix_stomResist                  ! choice of function for stomatal resistance
-
- ! time -- intent(in)
- integer(i4b),intent(in)        :: yearLength                     ! number of days in the current year
- real(dp),intent(in)            :: fracJulday                     ! fractional julian days since the start of year
-
- ! physical attributes -- intent(in)
- real(dp),intent(in)            :: mHeight                        ! measurement height (m)
- real(dp),intent(in)            :: latitude                       ! latitude (degrees north)
- integer(i4b),intent(in)        :: vegTypeIndex                   ! vegetation type index
- integer(i4b),intent(in)        :: urbanVegCategory               ! vegetation category for urban areas
 
  ! model parameters (phenology) -- intent(in)
  real(dp),intent(in)            :: heightCanopyTop                ! height at the top of the vegetation canopy (m)
@@ -528,6 +523,7 @@ contains
  real(dp),intent(in)            :: critAquiferTranspire           ! critical aquifer storage value when transpiration is limited (m)
 
  ! forcing at the upper boundary -- intent(in)
+ real(dp),intent(in)            :: mHeight                        ! measurement height (m)
  real(dp),intent(in)            :: airtemp                        ! air temperature at some height above the surface (K)
  real(dp),intent(in)            :: windspd                        ! wind speed at some height above the surface (m s-1)
  real(dp),intent(in)            :: airpres                        ! air pressure at some height above the surface (Pa)
@@ -548,19 +544,10 @@ contains
  real(dp),intent(in)            :: mLayerMatricHead(:)            ! matric head in each layer (m)
  real(dp),intent(in)            :: scalarAquiferStorage           ! aquifer storage (m)
 
- ! vegetation phenology -- intent(inout) because only called at the start of the sub-step
- real(dp),intent(inout)         :: scalarCanopyWetFraction        ! fraction of canopy that is wet
- real(dp),intent(inout)         :: scalarFoliageNitrogenFactor    ! foliage nitrogen concentration (1.0 = saturated)
- real(dp),intent(inout)         :: scalarRootZoneTemp             ! root zone temperature
- real(dp),intent(inout)         :: scalarLAI                      ! one-sided leaf area index (m2 m-2)
- real(dp),intent(inout)         :: scalarSAI                      ! one-sided stem area index (m2 m-2)
- real(dp),intent(inout)         :: scalarExposedLAI               ! exposed leaf area index after burial by snow (m2 m-2)
- real(dp),intent(inout)         :: scalarExposedSAI               ! exposed stem area index after burial by snow (m2 m-2)
- real(dp),intent(inout)         :: scalarGrowingSeasonIndex       ! growing season index (0=off, 1=on)
-
  ! shortwave radiation fluxes -- intent(inout) because only called at the start of the sub-step
  real(dp),intent(inout)         :: scalarAlbedo                   ! snow albedo (-)
  real(dp),intent(inout)         :: scalarSnowAge                  ! non-dimensional snow age (-)
+ real(dp),intent(inout)         :: scalarCanopyWetFraction        ! fraction of canopy that is wet
  real(dp),intent(inout)         :: scalarCanopySunlitFraction     ! sunlit fraction of canopy (-)
  real(dp),intent(inout)         :: scalarCanopySunlitLAI          ! sunlit leaf area (-)
  real(dp),intent(inout)         :: scalarCanopyShadedLAI          ! shaded leaf area (-)
@@ -614,8 +601,8 @@ contains
  real(dp),intent(inout)         :: scalarPhotosynthesisShaded     ! shaded photosynthesis (umolco2 m-2 s-1)
 
  ! turbulent heat fluxes
- real(dp),intent(inout)         :: scalarPsycConstCanopy          ! psychrometric constant for the vegetation canopy (Pa K-1)
- real(dp),intent(inout)         :: scalarPsycConstGround          ! psychrometric constant for the ground surface (Pa K-1)
+ real(dp),intent(inout)         :: scalarLatHeatSubVapCanopy      ! intent(inout): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+ real(dp),intent(inout)         :: scalarLatHeatSubVapGround      ! intent(inout): latent heat of sublimation/vaporization for the ground surface (J kg-1)
  real(dp),intent(inout)         :: scalarTemp_CanopyAir           ! temperature of the canopy air space (K)
  real(dp),intent(inout)         :: scalarVP_CanopyAir             ! vapor pressure of the canopy air space (Pa)
  real(dp),intent(out)           :: scalarSatVP_canopyTemp         ! saturation vapor pressure at the temperature of the vegetation canopy (Pa)
@@ -628,8 +615,14 @@ contains
  real(dp),intent(out)           :: scalarSenHeatGround            ! sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
  real(dp),intent(out)           :: scalarLatHeatGround            ! latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
+ ! mass fluxes
+ real(dp),intent(out)           :: scalarCanopyTranspiration      ! intent(out): canopy transpiration (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarCanopyEvaporation        ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarCanopySublimation        ! intent(out): canopy sublimation/frost (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarGroundEvaporation        ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarGroundSublimation        ! intent(out): ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+
  ! output
- real(dp),intent(out)           :: exposedVAI                     ! exposed vegetation area index (m2 m-2)
  real(dp),intent(out)           :: canopyNetFlux                  ! net energy flux for the vegetation canopy (W m-2)
  real(dp),intent(out)           :: groundNetFlux                  ! net energy flux for the ground surface (W m-2)
  real(dp),intent(out)           :: dCanopyNetFlux_dCanopyTemp     ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -645,6 +638,7 @@ contains
  real(dp)                      :: snowmassPlusNewsnow             ! sum of snow mass and new snowfall (kg m-2 [mm])
  real(dp)                      :: fracSnow                        ! snow cover fraction (0-1)
  real(dp)                      :: VAI                             ! vegetation area index (m2 m-2)
+ real(dp)                      :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
  real(dp)                      :: greenVegFraction                ! green vegetation fraction (0-1) 
  real(dp)                      :: relativeCanopyWater             ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
  ! local (compute numerical derivatives)
@@ -656,8 +650,6 @@ contains
  real(dp)                      :: canopyTemp                      ! value of canopy temperature used in flux calculations (may be perturbed)
  real(dp)                      :: groundTemp                      ! value of ground temperature used in flux calculations (may be perturbed)
  real(dp)                      :: try0,try1,try2                  ! trial values to evaluate specific derivatives (testing only)
- ! local (phenology)
- real(dp)                      :: notUsed_heightCanopyTop         ! for some reason the Noah-MP phenology routines output canopy height
  ! local (saturation vapor pressure of veg)
  real(dp)                      :: TV_celcius                      ! vegetaion temperature (C)
  real(dp)                      :: TG_celcius                      ! ground temperature (C)
@@ -715,44 +707,16 @@ contains
 
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
- ! ***** PHENOLOGY  **************************************************************************************************************************************************
+ ! ***** PRELIMINARIES  **********************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
 
- ! set psychrometric constant for canopy and ground surface (Pa/K)
- ! NOTE: variables are constant over the full time step, to simplify relating energy and mass fluxes
- if(iter==1 .and. firstSubStep)then
-  scalarPsycConstCanopy = psychometric(canopyTempTrial,airpres)
-  scalarPsycConstGround = psychometric(groundTempTrial,airpres)
- endif
-
- ! variables are constant over the SUBSTEP
- ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
+ ! set latent heat of sublimation/vaporization for canopy and ground surface (Pa/K)
+ ! NOTE: variables are constant over the substep, to simplify relating energy and mass fluxes
  if(iter==1)then
-
-  ! define the foliage nitrogen factor
-  scalarFoliageNitrogenFactor = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
-
-  ! compute vegetation phenology
-  call phenology(&
-                 ! input
-                 vegTypeIndex,                       & ! intent(in): vegetation type index
-                 urbanVegCategory,                   & ! intent(in): vegetation category for urban areas
-                 scalarSnowDepth,                    & ! intent(in): snow depth (m)
-                 canopyTempTrial,                    & ! intent(in): vegetation temperature (K)
-                 latitude,                           & ! intent(in): latitude (degrees north)
-                 yearLength,                         & ! intent(in): number of days in the current year
-                 fracJulday,                         & ! intent(in): fractional julian days since the start of year
-                 scalarLAI,                          & ! intent(inout): one-sided leaf area index (m2 m-2)
-                 scalarSAI,                          & ! intent(inout): one-sided stem area index (m2 m-2)
-                 scalarRootZoneTemp,                 & ! intent(in): average temperature of the root zone (K)
-                 ! output
-                 notUsed_heightCanopyTop,            & ! intent(out): height of the top of the canopy layer (m)
-                 scalarExposedLAI,                   & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
-                 scalarExposedSAI,                   & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
-                 scalarGrowingSeasonIndex            ) ! intent(out): growing season index (0=off, 1=on)
-
- endif  ! (variables constant over the SUBSTEP)
+  scalarLatHeatSubVapCanopy = getLatentHeatValue(canopyTempTrial)
+  scalarLatHeatSubVapGround = getLatentHeatValue(groundTempTrial)
+ endif
 
  ! compute the snow cover fraction
  if(scalarSWE > 0._dp)then
@@ -785,7 +749,7 @@ contains
  ! shortwave radiation is constant over the SUBSTEP
  ! NOTE: canopy radiation does depend on canopy temperature (to distinguish between snow covered canopy, for albedo calculations) and this dependency
  !       is not included on the assumption that albedo changes over the sub-step are small compared to other fluxes
- if(iter==1)then
+ if(computeShortwave)then
 
   ! compute the fraction of canopy that is wet
   if(canopyIceTrial > 0._dp)then
@@ -1144,7 +1108,8 @@ contains
   ! (soil water evaporation factor [0-1])
   soilEvapFactor = mLayerVolFracLiq(1)/theta_sat
   ! (resistance from the soil [s m-1])
-  scalarSoilResistance = fracSnow*1._dp + (1._dp - fracSnow)*exp(8.25_dp - 6.0_dp*soilEvapFactor)
+  !scalarSoilResistance = fracSnow*1._dp + (1._dp - fracSnow)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
+  scalarSoilResistance = fracSnow*1._dp + (1._dp - fracSnow)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
   ! (relative humidity in the soil pores [0-1])
   soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTemp*R_wv) )
   scalarSoilRelHumidity  = fracSnow*1._dp + (1._dp - fracSnow)*soilRelHumidity_noSnow
@@ -1156,10 +1121,11 @@ contains
                   ix_fDerivMeth,                        & ! intent(in): method used to calculate flux derivatives
                   ! input: above-canopy forcing data
                   airtemp,                              & ! intent(in): air temperature at some height above the surface (K)
+                  airpres,                              & ! intent(in): air pressure of the air above the vegetation canopy (Pa)
                   scalarVPair,                          & ! intent(in): vapor pressure of the air above the vegetation canopy (Pa)
-                  ! input: psychometric constant for canopy and ground
-                  scalarPsycConstCanopy,                & ! intent(in): psychrometric constant for the vegetation canopy (Pa/K)
-                  scalarPsycConstGround,                & ! intent(in): psychrometric constant for the ground surface (Pa/K)
+                  ! input: latent heat of sublimation/vaporization
+                  scalarLatHeatSubVapCanopy,            & ! intent(in): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+                  scalarLatHeatSubVapGround,            & ! intent(in): latent heat of sublimation/vaporization for the ground surface (J kg-1)
                   ! input: canopy liquid and canopy ice (used as a solution constraint)
                   canopyLiqTrial,                       & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
                   canopyIceTrial,                       & ! intent(in): mass of ice water on the vegetation canopy (kg m-2)
@@ -1208,6 +1174,13 @@ contains
                   err,cmessage                          ) ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  !print*, 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
+  !print*, 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
+  !print*, 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
+
+  !print*, 'scalarSenHeatGround = ', scalarSenHeatGround
+  !print*, 'scalarLatHeatGround = ', scalarLatHeatGround
+
   ! save perturbed fluxes
   if(ix_fDerivMeth == numerical)then
    select case(itry) ! (select type of perturbation)
@@ -1236,12 +1209,33 @@ contains
  endif
 
  ! test
- print*, (ix_fDerivMeth == numerical)
- print*, 'dTurbFluxCanopy_dTCanopy = ', dTurbFluxCanopy_dTCanopy
- print*, 'dTurbFluxGround_dTCanopy = ', dTurbFluxGround_dTCanopy
- print*, 'dTurbFluxCanopy_dTGround = ', dTurbFluxCanopy_dTGround
- print*, 'dTurbFluxGround_dTGround = ', dTurbFluxGround_dTGround
+ !print*, (ix_fDerivMeth == numerical)
+ !print*, 'dTurbFluxCanopy_dTCanopy = ', dTurbFluxCanopy_dTCanopy
+ !print*, 'dTurbFluxGround_dTCanopy = ', dTurbFluxGround_dTCanopy
+ !print*, 'dTurbFluxCanopy_dTGround = ', dTurbFluxCanopy_dTGround
+ !print*, 'dTurbFluxGround_dTGround = ', dTurbFluxGround_dTGround
+ !print*, '*****'
+ !print*, 'airtemp = ', airtemp
 
+ ! compute the mass flux associated with transpiration and evaporation/sublimation (J m-2 s-1 --> kg m-2 s-1)
+ ! (transpiration)
+ scalarCanopyTranspiration = scalarLatHeatCanopyTrans/LH_vap
+ ! (canopy evaporation/sublimation)
+ if(scalarLatHeatSubVapCanopy > LH_vap+verySmall)then ! sublimation
+  scalarCanopyEvaporation = 0._dp
+  scalarCanopySublimation = scalarLatHeatCanopyEvap/LH_sub
+ else                                                 ! evaporation
+  scalarCanopyEvaporation = scalarLatHeatCanopyEvap/LH_vap
+  scalarCanopySublimation = 0._dp
+ endif
+ ! (ground evaporation/sublimation)
+ if(scalarLatHeatSubVapGround > LH_vap+verySmall)then ! sublimation
+  scalarGroundEvaporation = 0._dp
+  scalarGroundSublimation = scalarLatHeatGround/LH_sub
+ else                                                 ! evaporation
+  scalarGroundEvaporation = scalarLatHeatGround/LH_vap
+  scalarGroundSublimation = 0._dp
+ endif
 
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
@@ -1252,6 +1246,9 @@ contains
  ! compute net fluxes at the canopy and ground surface
  canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy
  groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround
+ !print*, 'canopyNetFlux = ', canopyNetFlux
+ !print*, 'groundNetFlux = ', groundNetFlux
+
 
  ! compute the derivatives
  dCanopyNetFlux_dCanopyTemp = dLWNetCanopy_dTCanopy + dTurbFluxCanopy_dTCanopy
@@ -1259,10 +1256,11 @@ contains
  dCanopyNetFlux_dGroundTemp = dLWNetCanopy_dTGround + dTurbFluxCanopy_dTGround
  dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround
 
- print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
- print*, 'dGroundNetFlux_dCanopyTemp = ', dGroundNetFlux_dCanopyTemp
- print*, 'dCanopyNetFlux_dGroundTemp = ', dCanopyNetFlux_dGroundTemp
- print*, 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
+ !print*, (ix_fDerivMeth == numerical)
+ !print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
+ !print*, 'dGroundNetFlux_dCanopyTemp = ', dGroundNetFlux_dCanopyTemp
+ !print*, 'dCanopyNetFlux_dGroundTemp = ', dCanopyNetFlux_dGroundTemp
+ !print*, 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
 
  end subroutine vegNrgFlux_muster
 
@@ -1435,6 +1433,14 @@ contains
   LWNetGround = LWRadUbound2Ground + LWRadCanopy2Ground - LWRadGround                             ! ground surface
   LWNetUbound = LWRadUbound - LWRadUbound2Ubound - LWRadCanopy2Ubound - LWRadGround2Ubound                             ! upper boundary
 
+  !print*, 'LWRadCanopy = ', LWRadCanopy
+  !print*, 'LWRadGround = ', LWRadGround
+
+  !print*, 'LWNetCanopy = ', LWNetCanopy
+  !print*, 'LWNetGround = ', LWNetGround
+  !print*, 'LWNetUbound = ', LWNetUbound
+
+
   ! check the flux balance
   fluxBalance = LWNetUbound - (LWNetCanopy + LWNetGround)
   if(abs(fluxBalance) > fluxTolerance)then
@@ -1457,6 +1463,13 @@ contains
    message=trim(message)//'flux imbalance'
    err=20; return
   endif
+
+  ! check radiation values
+  if(LWRadCanopy>500._dp .or. LWRadGround>500._dp)then
+   message=trim(message)//'radiation values are huge'
+   err=20; return
+  endif
+
 
   ! --------------------------------------------------------------------------------------
   ! save perturbed fluxes to calculate numerical derivatives (one-sided finite difference)
@@ -1488,7 +1501,7 @@ contains
    dLWRadGround_dTGround = 4._dp*emg*sb*TGnd**3._dp
    ! compute analytical derivatives
    dLWNetCanopy_dTCanopy = (emc*(1._dp - emg) - 2._dp)*dLWRadCanopy_dTCanopy ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
-   dLWNetGround_dTGround = dLWRadGround_dTGround      ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
+   dLWNetGround_dTGround = -dLWRadGround_dTGround     ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
    dLWNetCanopy_dTGround = emc*dLWRadGround_dTGround  ! derivative in net canopy radiation w.r.t. ground temperature (W m-2 K-1)
    dLWNetGround_dTCanopy = emg*dLWRadCanopy_dTCanopy  ! derivative in net ground radiation w.r.t. canopy temperature (W m-2 K-1)
 
@@ -1997,10 +2010,11 @@ contains
                        ixDerivMethod,                 & ! intent(in): choice of method used to compute derivative (analytical or numerical)
                        ! input: above-canopy forcing data
                        airtemp,                       & ! intent(in): air temperature at some height above the surface (K)
+                       airpres,                       & ! intent(in): air pressure of the air above the vegetation canopy (Pa)
                        VPair,                         & ! intent(in): vapor pressure of the air above the vegetation canopy (Pa)
-                       ! input: psychometric constant for canopy and ground
-                       psycConstCanopy,               & ! psychrometric constant for the vegetation canopy (Pa/K)
-                       psycConstGround,               & ! psychrometric constant for the ground surface (Pa/K)
+                       ! input: latent heat of sublimation/vaporization
+                       latHeatSubVapCanopy,           & ! intent(in): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+                       latHeatSubVapGround,           & ! intent(in): latent heat of sublimation/vaporization for the ground surface (J kg-1)
                        ! input: canoopy liquid and canopy ice (used as a solution constraint)
                        canopyLiquid,                  & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
                        canopyIce,                     & ! intent(in): mass of ice water on the vegetation canopy (kg m-2)
@@ -2054,10 +2068,11 @@ contains
  integer(i4b),intent(in)       :: ixDerivMethod         ! choice of method used to compute derivative (analytical or numerical)
  ! input: above-canopy forcing data
  real(dp),intent(in)           :: airtemp               ! air temperature at some height above the surface (K)
+ real(dp),intent(in)           :: airpres               ! air pressure of the air above the vegetation canopy (Pa)
  real(dp),intent(in)           :: VPair                 ! vapor pressure of the air above the vegetation canopy (Pa)
- ! input: psychometric constant for canopy and ground
- real(dp),intent(in)           :: psycConstCanopy       ! psychrometric constant for the vegetation canopy (Pa/K)
- real(dp),intent(in)           :: psycConstGround       ! psychrometric constant for the ground surface (Pa/K)
+ ! input: latent heat of sublimation/vaporization
+ real(dp),intent(in)           :: latHeatSubVapCanopy   ! latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+ real(dp),intent(in)           :: latHeatSubVapGround   ! latent heat of sublimation/vaporization for the ground surface (J kg-1)
  ! input: canopy liquid and canopy ice (used as a solution constraint)
  real(dp),intent(in)           :: canopyLiquid          ! mass of liquid water on the vegetation canopy (kg m-2)
  real(dp),intent(in)           :: canopyIce             ! mass of ice water on the vegetation canopy (kg m-2)
@@ -2110,8 +2125,7 @@ contains
  real(dp)                      :: dpart1,dpart2                ! derivatives for different parts of a function
  ! local variables -- "constants"
  real(dp)                      :: volHeatCapacityAir           ! volumetric heat capacity of air (J m-3)
- real(dp)                      :: latHeatConstCanopy           ! latent heat constant for the canopy (J m-3 K-1)
- real(dp)                      :: latHeatConstGround           ! latent heat constant for the ground (J m-3 K-1)
+ real(dp)                      :: latentHeatConstant           ! latent heat constant (kg m-3 K-1)
  ! local variables -- conductance
  real(dp)                      :: leafConductance              ! leaf conductance (m s-1)
  real(dp)                      :: canopyConductance            ! canopy conductance (m s-1)
@@ -2155,9 +2169,8 @@ contains
  err=0; message='turbFluxes/'
 
  ! compute constants
- volHeatCapacityAir = iden_air*cp_air                          ! volumetric heat capacity of air (J m-3)
- latHeatConstCanopy = volHeatCapacityAir/psycConstCanopy       ! latent heat constant for the canopy (J m-3 K-1)
- latHeatConstGround = volHeatCapacityAir/psycConstGround       ! latent heat constant for the ground (J m-3 K-1)
+ volHeatCapacityAir = iden_air*cp_air           ! volumetric heat capacity of air (J m-3)
+ latentHeatConstant = iden_air*w_ratio/airpres  ! latent heat constant for (kg m-3 Pa-1)
 
  ! *****
  ! * compute conductances, and derivatives...
@@ -2236,8 +2249,8 @@ contains
 
  ! compute sensible and latent heat fluxes from the canopy to the canopy air space (W m-2)
  senHeatCanopy      = -volHeatCapacityAir*leafConductance*(canopyTemp - temp_CanopyAir)        ! (positive downwards)
- latHeatCanopyEvap  = -latHeatConstCanopy*evapConductance*(satVP_CanopyTemp - VP_CanopyAir)    ! (positive downwards)
- latHeatCanopyTrans = -latHeatConstCanopy*transConductance*(satVP_CanopyTemp - VP_CanopyAir)   ! (positive downwards)
+ latHeatCanopyEvap  = -latHeatSubVapCanopy*latentHeatConstant*evapConductance*(satVP_CanopyTemp - VP_CanopyAir)    ! (positive downwards)
+ latHeatCanopyTrans =              -LH_vap*latentHeatConstant*transConductance*(satVP_CanopyTemp - VP_CanopyAir)   ! (positive downwards)
 
  ! check that energy for canopy evaporation does not exhaust the available water
  ! NOTE: do this here, rather than enforcing solution constraints, because energy and mass solutions may be uncoupled
@@ -2248,8 +2261,8 @@ contains
  endif
 
  ! compute sensible and latent heat fluxes from the ground to the canopy air space (W m-2)
- senHeatGround      = -volHeatCapacityAir*groundConductanceSH*(groundTemp - temp_CanopyAir)                      ! (positive downwards)
- latHeatGround      = -latHeatConstGround*groundConductanceLH*(satVP_GroundTemp*soilRelHumidity - VP_CanopyAir)  ! (positive downwards)
+ senHeatGround      = -volHeatCapacityAir*groundConductanceSH*(groundTemp - temp_CanopyAir)                                          ! (positive downwards)
+ latHeatGround      = -latHeatSubVapGround*latentHeatConstant*groundConductanceLH*(satVP_GroundTemp*soilRelHumidity - VP_CanopyAir)  ! (positive downwards)
 
  ! * compute derivatives
  if(ixDerivMethod == analytical)then
@@ -2257,26 +2270,26 @@ contains
   ! differentiate CANOPY fluxes w.r.t. canopy temperature (product rule)
   dSenHeatCanopy_dTCanopy      = (-volHeatCapacityAir*dLeafCond_dCanopyTemp)*(canopyTemp - temp_CanopyAir) + &            ! d(canopy sensible heat flux)/d(canopy temp)
                                  (-volHeatCapacityAir*leafConductance)*(1._dp - dTempCanopyAir_dTCanopy)
-  dLatHeatCanopyEvap_dTCanopy  = (-latHeatConstCanopy*dEvapCond_dCanopyTemp)*(satVP_CanopyTemp - VP_CanopyAir) + &        ! d(canopy evaporation flux)/d(canopy temp)
-                                 (-latHeatConstCanopy*evapConductance)*(dSVPCanopy_dCanopyTemp - dVPCanopyAir_dTCanopy)
-  dLatHeatCanopyTrans_dTCanopy = (-latHeatConstCanopy*dTransCond_dCanopyTemp)*(satVP_CanopyTemp - VP_CanopyAir) + &       ! d(canopy transpiration flux)/d(canopy temp)
-                                 (-latHeatConstCanopy*transConductance)*(dSVPCanopy_dCanopyTemp - dVPCanopyAir_dTCanopy)
+  dLatHeatCanopyEvap_dTCanopy  = (-latHeatSubVapCanopy*latentHeatConstant*dEvapCond_dCanopyTemp)*(satVP_CanopyTemp - VP_CanopyAir) + &        ! d(canopy evaporation flux)/d(canopy temp)
+                                 (-latHeatSubVapCanopy*latentHeatConstant*evapConductance)*(dSVPCanopy_dCanopyTemp - dVPCanopyAir_dTCanopy)
+  dLatHeatCanopyTrans_dTCanopy = (             -LH_vap*latentHeatConstant*dTransCond_dCanopyTemp)*(satVP_CanopyTemp - VP_CanopyAir) + &       ! d(canopy transpiration flux)/d(canopy temp)
+                                 (             -LH_vap*latentHeatConstant*transConductance)*(dSVPCanopy_dCanopyTemp - dVPCanopyAir_dTCanopy)
 
   ! differentiate CANOPY fluxes w.r.t. ground temperature
   dSenHeatCanopy_dTGround      = volHeatCapacityAir*leafConductance*dTempCanopyAir_dTGround
-  dLatHeatCanopyEvap_dTGround  = latHeatConstCanopy*evapConductance*dVPCanopyAir_dTGround
-  dLatHeatCanopyTrans_dTGround = latHeatConstCanopy*transConductance*dVPCanopyAir_dTGround
+  dLatHeatCanopyEvap_dTGround  = latHeatSubVapCanopy*latentHeatConstant*evapConductance*dVPCanopyAir_dTGround
+  dLatHeatCanopyTrans_dTGround =              LH_vap*latentHeatConstant*transConductance*dVPCanopyAir_dTGround
 
 
   ! differentiate GROUND fluxes w.r.t. canopy temperature (product rule)
-  dSenHeatGround_dTCanopy = (-volHeatCapacityAir*dGroundCondSH_dCanopyTemp)*(groundTemp - temp_CanopyAir) + &                            ! d(ground sensible heat flux)/d(canopy temp)
+  dSenHeatGround_dTCanopy = (-volHeatCapacityAir*dGroundCondSH_dCanopyTemp)*(groundTemp - temp_CanopyAir) + &                                                ! d(ground sensible heat flux)/d(canopy temp)
                             (-volHeatCapacityAir*groundConductanceSH)*(0._dp - dTempCanopyAir_dTCanopy)
-  dLatHeatGround_dTCanopy = (-latHeatConstGround*dGroundCondLH_dCanopyTemp)*(satVP_GroundTemp*soilRelHumidity - VP_CanopyAir) + &        ! d(ground latent heat flux)/d(canopy temp)
-                            (-latHeatConstCanopy*groundConductanceLH)*(0._dp - dVPCanopyAir_dTCanopy)
+  dLatHeatGround_dTCanopy = (-latHeatSubVapGround*latentHeatConstant*dGroundCondLH_dCanopyTemp)*(satVP_GroundTemp*soilRelHumidity - VP_CanopyAir) + &        ! d(ground latent heat flux)/d(canopy temp)
+                            (-latHeatSubVapGround*latentHeatConstant*groundConductanceLH)*(0._dp - dVPCanopyAir_dTCanopy)
 
   ! differentiate GROUND fluxes w.r.t. ground temperature
   dSenHeatGround_dTGround = -volHeatCapacityAir*groundConductanceSH*(1._dp - dTempCanopyAir_dTGround)
-  dLatHeatGround_dTGround = -latHeatConstGround*groundConductanceLH*(dSVPGround_dGroundTemp*soilRelHumidity - dVPCanopyAir_dTGround)
+  dLatHeatGround_dTGround = -latHeatSubVapGround*latentHeatConstant*groundConductanceLH*(dSVPGround_dGroundTemp*soilRelHumidity - dVPCanopyAir_dTGround)
 
  endif  ! (if computing analytical derivatives)
 

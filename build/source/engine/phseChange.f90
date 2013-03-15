@@ -116,8 +116,8 @@ contains
   endselect
   ! print results
   !if(iLayer > nSnow .and. iLayer < nSnow+3) &
-  ! write(*,'(a,i4,1x,10(f20.10,1x))') 'in phase change, liquid (iter, new), ice (iter, new, diff)', &
-  !  iLayer, mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracIceNew(iLayer), &
+  ! write(*,'(a,i4,1x,10(f20.10,1x))') 'in phase change: temp, liquid (iter, new), ice (iter, new, diff)', &
+  !  iLayer, mLayerTempNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracIceNew(iLayer), &
   !  mLayerVolFracIceNew(iLayer) - mLayerVolFracIceIter(iLayer)
   ! sanity check
   if(mLayerVolFracIceNew(iLayer) < 0._dp)then

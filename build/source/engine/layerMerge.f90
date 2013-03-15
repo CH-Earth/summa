@@ -163,6 +163,7 @@ contains
  ! identify the number of snow layers, and the total number of layers
  nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1) 
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+ print*, '***** removing layer'
 
  ! ***** compute combined model state variables
  ! assign pointer to the freezing curve parameter

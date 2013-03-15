@@ -83,7 +83,6 @@ contains
  id        => time_data%var(iLookTIME%id)                           ! day
  dataStep   = forcFileInfo%data_step/secprhour                      ! time step (hours)
  ahour      = real(time_data%var(iLookTIME%ih),kind(dp)) - dataStep ! hour at start of time step
- print*, 'aHour, dataStep = ', aHour, dataStep
  latitude  => attr_data%var(iLookATTR%latitude)                     ! latitude (degrees north
  cosZenith => mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1)       ! average cosine of the zenith angle over time step DT
  ! assign pointers to model forcing data
@@ -139,7 +138,6 @@ contains
 
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
  VPair = vapPress(spechum,airpres)
- print*, 'VPair = ', VPair
 
  ! compute wet bulb temperature (K)
  twetbulb = WETBULBTMP(airtemp, relhum, airpres)

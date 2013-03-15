@@ -41,6 +41,7 @@ USE data_struc,only:urbanVegCategory                        ! vegetation categor
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookMVAR                               ! look-up values for model variables
+USE var_lookup,only:iLookPARAM                              ! look-up values for model parameters
 USE var_lookup,only:iLookINDEX                              ! look-up values for index variables
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 implicit none
@@ -146,6 +147,8 @@ do iParSet=1,nParSets
 
  ! assign the parameter structure to the appropriate parameter set
  mpar_data => mpar_sets(iParSet)
+ if(mpar_data%var(iLookPARAM%zmin)/mpar_data%var(iLookPARAM%zmax) > 0.25_dp)&
+  call handle_err(20,'zmax must be at least 4 times larger than zmin')
  ! read description of model initial conditions -- also initializes model structure components
  call read_icond(err,message); call handle_err(err,message)
  ! compute derived model variables that are pretty much constant
@@ -249,7 +252,13 @@ do iParSet=1,nParSets
   print*, time_data%var, nSnow
   ! run the model for a single parameter set and time step
   call coupled_em(dt_init,err,message); call handle_err(err,message) 
-  if(istep>0) stop 'FORTRAN STOP: after call to coupled_em'
+  !if(istep>1000) stop 'FORTRAN STOP: after call to coupled_em'
+  !if(associated(forc_data))then
+  ! print*, 'pptrate            = ', forc_data%var(iLookFORCE%pptrate)
+  ! print*, 'airtemp            = ', forc_data%var(iLookFORCE%airtemp)
+  !endif
+  !print*, time_data%var, nSnow
+  !pause
 
   ! write the model output to the NetCDF file
   call writeModel(fileout,iParSet,jstep,err,message); call handle_err(err,message)
@@ -280,8 +289,8 @@ contains
 
  subroutine handle_err(err,message)
  ! used to handle error codes
- USE data_struc,only:mvar_data            ! variable data structure
- USE var_lookup,only:iLookMVAR            ! named variables defining elements in data structure
+ USE data_struc,only:mvar_data,indx_data     ! variable data structure
+ USE var_lookup,only:iLookMVAR,iLookINDEX    ! named variables defining elements in data structure
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)::err             ! error code
@@ -304,6 +313,7 @@ contains
  endif
  if(associated(mvar_data))then
   print*, 'scalarRainPlusMelt = ', mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)
+  write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indx_data%var(iLookINDEX%layerType)%dat
   write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', mvar_data%var(iLookMVAR%mLayerDepth)%dat
   write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', mvar_data%var(iLookMVAR%mLayerTemp)%dat
   write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat

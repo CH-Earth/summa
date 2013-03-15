@@ -289,8 +289,8 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! define timestep-average fluxes for a few key variables
-  case('averageMassLiquid'              ); get_ixmvar = iLookMVAR%averageMassLiquid                ! evaporation or dew (kg m-2 s-1)
-  case('averageMassSolid'               ); get_ixmvar = iLookMVAR%averageMassSolid                 ! sublimation or frost (kg m-2 s-1)
+  case('averageGroundEvaporation'       ); get_ixmvar = iLookMVAR%averageGroundEvaporation         ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
+  case('averageGroundSublimation'       ); get_ixmvar = iLookMVAR%averageGroundSublimation         ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   case('averageRainPlusMelt'            ); get_ixmvar = iLookMVAR%averageRainPlusMelt              ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('averageSurfaceRunoff'           ); get_ixmvar = iLookMVAR%averageSurfaceRunoff             ! surface runoff (m s-1)
   case('averageSoilInflux'              ); get_ixmvar = iLookMVAR%averageSoilInflux                ! influx of water at the top of the soil profile (m s-1)
@@ -360,8 +360,8 @@ contains
   case('scalarLWNetGround'              ); get_ixmvar = iLookMVAR%scalarLWNetGround                ! net longwave radiation at the ground surface (W m-2)
   case('scalarLWNetUbound'              ); get_ixmvar = iLookMVAR%scalarLWNetUbound                ! net longwave radiation at the upper atmospheric boundary (W m-2)
   ! NOAH-MP vegetation variables (turbulent heat transfer)
-  case('scalarPsycConstCanopy'          ); get_ixmvar = iLookMVAR%scalarPsycConstCanopy            ! psychometric constant for the vegetation canopy (Pa K-1)
-  case('scalarPsycConstGround'          ); get_ixmvar = iLookMVAR%scalarPsycConstGround            ! psychometric constant for the ground surface (Pa K-1)
+  case('scalarLatHeatSubVapCanopy'      ); get_ixmvar = iLookMVAR%scalarLatHeatSubVapCanopy        ! latent heat of sublimation/vaporization used for veg canopy (J kg-1)
+  case('scalarLatHeatSubVapGround'      ); get_ixmvar = iLookMVAR%scalarLatHeatSubVapGround        ! latent heat of sublimation/vaporization used for ground surface (J kg-1)
   case('scalarSatVP_CanopyTemp'         ); get_ixmvar = iLookMVAR%scalarSatVP_CanopyTemp           ! saturation vapor pressure at the temperature of vegetation canopy (Pa)
   case('scalarSatVP_GroundTemp'         ); get_ixmvar = iLookMVAR%scalarSatVP_GroundTemp           ! saturation vapor pressure at the temperature of the ground (Pa)
   case('scalarWindReductionFactor'      ); get_ixmvar = iLookMVAR%scalarWindReductionFactor        ! canopy wind reduction factor (-)
@@ -395,7 +395,8 @@ contains
   ! NOAH-MP vegetation variables (hydrology)
   case('scalarCanopyWetFraction'        ); get_ixmvar = iLookMVAR%scalarCanopyWetFraction          ! fraction of canopy that is wet
   case('temp1'                          ); get_ixmvar = iLookMVAR%temp1                            ! placeholder
-  ! scalar variables -- soil fluxes
+  case('temp2'                          ); get_ixmvar = iLookMVAR%temp2                            ! placeholder
+  ! scalar variables -- soil and aquifer fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)
   case('scalarInitAquiferRecharge'      ); get_ixmvar = iLookMVAR%scalarInitAquiferRecharge        ! recharge to the aquifer -- at the start of the step (m s-1)
@@ -404,10 +405,12 @@ contains
   case('scalarAquiferTranspire'         ); get_ixmvar = iLookMVAR%scalarAquiferTranspire           ! transpiration from the aquifer (m s-1)
   case('scalarInitAquiferBaseflow'      ); get_ixmvar = iLookMVAR%scalarInitAquiferBaseflow        ! baseflow from the aquifer (m s-1)
   case('scalarAquiferBaseflow'          ); get_ixmvar = iLookMVAR%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
-  case('scalarSoilInflux'               ); get_ixmvar = iLookMVAR%scalarSoilInflux                 ! influx of water at the top of the soil profile (m s-1)
-  case('scalarSoilBaseflow'             ); get_ixmvar = iLookMVAR%scalarSoilBaseflow               ! total baseflow from throughout the soil profile (m s-1)
-  case('scalarSoilDrainage'             ); get_ixmvar = iLookMVAR%scalarSoilDrainage               ! drainage from the bottom of the soil profile (m s-1)
-  case('scalarSoilEjection'             ); get_ixmvar = iLookMVAR%scalarSoilEjection               ! total water ejected from soil layers (m s-1)
+  ! scalar variables -- sub-step average fluxes for the soil zone
+  case('scalarSoilInflux'               ); get_ixmvar = iLookMVAR%scalarSoilInflux                 ! sub-step average: influx of water at the top of the soil profile (m s-1)
+  case('scalarSoilBaseflow'             ); get_ixmvar = iLookMVAR%scalarSoilBaseflow               ! sub-step average: total baseflow from throughout the soil profile (m s-1)
+  case('scalarSoilDrainage'             ); get_ixmvar = iLookMVAR%scalarSoilDrainage               ! sub-step average: drainage from the bottom of the soil profile (m s-1)
+  case('scalarSoilEjection'             ); get_ixmvar = iLookMVAR%scalarSoilEjection               ! sub-step average: total water ejected from soil layers (m s-1)
+  case('scalarSoilTranspiration'        ); get_ixmvar = iLookMVAR%scalarSoilTranspiration          ! sub-step average: total transpiration from the soil (m s-1)
   ! scalar variables -- mass balance check
   case('scalarSoilWatBalError'          ); get_ixmvar = iLookMVAR%scalarSoilWatBalError            ! error in the total soil water balance (kg m-2)
   case('scalarAquiferBalError'          ); get_ixmvar = iLookMVAR%scalarAquiferBalError            ! error in the aquifer water balance (kg m-2)

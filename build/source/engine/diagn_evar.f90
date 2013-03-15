@@ -65,7 +65,7 @@ contains
  ! input: coordinate variables
  integer(i4b),intent(in)       :: layerType(:)            ! type of the layer (snow or soil)
  real(dp),intent(in)           :: mLayerHeight(:)         ! height of the layer mid-point (top of soil = 0)
- real(dp),intent(in)           :: iLayerHeight(:)         ! height of the layer interface (top of soil = 0)
+ real(dp),intent(in)           :: iLayerHeight(0:)        ! height of the layer interface (top of soil = 0)
  ! input: model parameters
  real(dp),intent(in)           :: canopyDepth             ! depth of the vegetation canopy (m)
  real(dp),intent(in)           :: specificHeatVeg         ! specific heat of vegetation (J kg-1 K-1)
@@ -184,6 +184,7 @@ contains
   zdn =  iLayerHeight(iLayer)   - mLayerHeight(iLayer) ! height difference between interface and lower value (m)
   zdp =  mLayerHeight(iLayer+1) - iLayerHeight(iLayer) ! height difference between interface and upper value (m)
   iLayerThermalC(iLayer) = (TCn*TCp*(zdn + zdp)) / (TCn*zdp + TCp*zdn)
+  !write(*,'(a,1x,i4,1x,10(f9.3,1x))') 'iLayer, TCn, TCp, zdn, zdp, iLayerThermalC(iLayer) = ', iLayer, TCn, TCp, zdn, zdp, iLayerThermalC(iLayer)
  end do
  ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
  iLayerThermalC(0)       = mLayerThermalC(1)

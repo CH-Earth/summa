@@ -7,6 +7,8 @@ public::writeForce
 public::writeAttrb
 public::writeParam
 public::writeModel
+! define dimension lengths
+integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
 ! define dimension names
 character(len=32),parameter :: parSet_DimName='parSet'                 ! dimension name for the parameter sets
 character(len=32),parameter :: timestep_DimName='time'                 ! dimension name for the time step (unlimited)
@@ -252,6 +254,7 @@ contains
   ! write data
   select case(trim(mvar_meta(imodel)%vartype))
    case('scalarv'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,istep/),count=(/1,1/))
+   case('wLength'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,1,istep/),count=(/1,maxSpectral,1/))
    case('midSnow'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,midSnowStartIndex/),count=(/1,nSnow/))
    case('midSoil'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,midSoilStartIndex/),count=(/1,nSoil/))
    case('midToto'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/ipar,midTotoStartIndex/),count=(/1,nLayers/))
