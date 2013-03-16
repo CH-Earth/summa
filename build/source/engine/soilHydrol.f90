@@ -35,13 +35,13 @@ private
 public::soilHydrol
 public::eWaterTable
 ! number of layers
-integer(i4b)           :: nSoil                    ! number of soil layers
-integer(i4b)           :: nSnow                    ! number of snow layers
-integer(i4b)           :: nLevels                  ! total number of soil layers to examine
-! missing value parameter
-real(dp),parameter     :: valueMissing=-1.e+20_dp  ! missing value parameter
-! finite difference increment
-real(dp),parameter     :: dx=1.e-8_dp              ! finite difference increment
+integer(i4b)           :: nSoil                     ! number of soil layers
+integer(i4b)           :: nSnow                     ! number of snow layers
+integer(i4b)           :: nLevels                   ! total number of soil layers to examine
+! constant parameters
+real(dp),parameter     :: valueMissing=-9999._dp    ! missing value parameter
+real(dp),parameter     :: verySmall=epsilon(1.0_dp) ! a very small number (used to avoid divide by zero)
+real(dp),parameter     :: dx=1.e-8_dp               ! finite difference increment
 contains
 
 
@@ -512,9 +512,15 @@ contains
   scalarRainPlusMelt = 0._dp
  endif
 
- ! compute the fraction of transpiration loss from each snow-soil layer
- mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
- aquiferTranspireFrac   = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim
+ ! compute the fraction of transpiration loss from each snow-soil layer, and the aquifer
+ if(scalarTranspireLim > epsilon(scalarTranspireLim))then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
+  mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
+  aquiferTranspireFrac   = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim
+ else ! (possible for there to be non-zero conductance and therefore transpiration in this case)
+  mLayerTranspireFrac(:) = mLayerRootDensity(:)
+  aquiferTranspireFrac   = scalarAquiferRootFrac
+ endif
+ ! check that the sums are OK
  if(abs(1._dp - sum(mLayerTranspireFrac)+aquiferTranspireFrac) > 1.e-8_dp)then
   message=trim(message)//'problem allocating transpiration flux to soil layers and the aquifer'
   err=20; return
@@ -1912,8 +1918,8 @@ contains
   real(dp)                         :: scalarTempAquiferBaseflowDeriv ! derivative in aquifer baseflow flux (m s-1)
   ! Jacobian matrix (used for testing)
   integer(i4b),parameter           :: minLayer=1                  ! minimum layer to test/print
-  integer(i4b),parameter           :: maxLayer=4                  ! maximum layer to test/print
-  real(dp)                         :: eps=1.0e-8_dp               ! finite difference increment
+  integer(i4b),parameter           :: maxLayer=100                ! maximum layer to test/print
+  real(dp)                         :: eps                         ! finite difference increment
   integer(i4b)                     :: ijac                        ! index of columns
   real(dp),dimension(nLevels)      :: fTest                       ! function test (residual vector)
   real(dp)                         :: fAquifer                    ! function test (aquifer)
@@ -2074,14 +2080,14 @@ contains
   end do  ! looping through soil layers
 
   ! print the Jacobian
-  do iJac=minLayer,maxLayer
+  do iJac=minLayer,min(maxLayer,nState)
    ! print the Jacobian
-   if(iJac==1)then;          write(*,'(2(i4,1x),2(a,1x,3(e20.10,1x)))') ixDerivMethod, iJac, 'testing Jacobian', (/valueMissing,      jmat(iJac,1:iJac+1)/), '--> tri-diag = ', valueMissing, diag(iJac), d_p1(iJac)
-   elseif(iJac==nState)then; write(*,'(2(i4,1x),2(a,1x,3(e20.10,1x)))') ixDerivMethod, iJac, 'testing Jacobian', (/jmat(iJac,iJac-1:nState), valueMissing/), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), valueMissing
-   else;                     write(*,'(2(i4,1x),2(a,1x,3(e20.10,1x)))') ixDerivMethod, iJac, 'testing Jacobian', (/jmat(iJac,iJac-1:iJac+1)              /), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), d_p1(iJac) 
+   if(iJac==1)then;          write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') ixDerivMethod, iJac, 'test hyd Jacobian', (/valueMissing,      jmat(iJac,1:iJac+1)/), '--> tri-diag = ', valueMissing, diag(iJac), d_p1(iJac)
+   elseif(iJac==nState)then; write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') ixDerivMethod, iJac, 'test hyd Jacobian', (/jmat(iJac,iJac-1:nState), valueMissing/), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), valueMissing
+   else;                     write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') ixDerivMethod, iJac, 'test hyd Jacobian', (/jmat(iJac,iJac-1:iJac+1)              /), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), d_p1(iJac) 
    endif
   end do
-  pause 'testing Jacobian' 
+  !pause 'testing Jacobian' 
 
   end subroutine cmpJacobian
 
@@ -2578,18 +2584,18 @@ contains
   select case(ixRichards)  ! (form of Richards' equation)
    case(moisture)
     ! derivatives in hydraulic conductivity at the layer interface (m s-1)
-    dHydCondIface_dVolLiqAbove = dHydCond_dVolLiq(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_dp/iLayerHydCond
-    dHydCondIface_dVolLiqBelow = dHydCond_dVolLiq(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_dp/iLayerHydCond
+    dHydCondIface_dVolLiqAbove = dHydCond_dVolLiq(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_dp/max(iLayerHydCond,verySmall)
+    dHydCondIface_dVolLiqBelow = dHydCond_dVolLiq(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_dp/max(iLayerHydCond,verySmall)
     ! derivatives in hydraulic diffusivity at the layer interface (m2 s-1)
-    dDiffuseIface_dVolLiqAbove = dDiffuse_dVolLiq(ixUpper)*nodeDiffuseTrial(ixLower) * 0.5_dp/iLayerDiffuse
-    dDiffuseIface_dVolLiqBelow = dDiffuse_dVolLiq(ixLower)*nodeDiffuseTrial(ixUpper) * 0.5_dp/iLayerDiffuse
+    dDiffuseIface_dVolLiqAbove = dDiffuse_dVolLiq(ixUpper)*nodeDiffuseTrial(ixLower) * 0.5_dp/max(iLayerDiffuse,verySmall)
+    dDiffuseIface_dVolLiqBelow = dDiffuse_dVolLiq(ixLower)*nodeDiffuseTrial(ixUpper) * 0.5_dp/max(iLayerDiffuse,verySmall)
     ! derivatives in the flux w.r.t. volumetric liquid water content
     dq_dStateAbove = -dDiffuseIface_dVolLiqAbove*dLiq/dz + iLayerDiffuse/dz + dHydCondIface_dVolLiqAbove
     dq_dStateBelow = -dDiffuseIface_dVolLiqBelow*dLiq/dz - iLayerDiffuse/dz + dHydCondIface_dVolLiqBelow
    case(mixdform)
     ! derivatives in hydraulic conductivity
-    dHydCondIface_dMatricAbove = dHydCond_dMatric(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_dp/iLayerHydCond
-    dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_dp/iLayerHydCond
+    dHydCondIface_dMatricAbove = dHydCond_dMatric(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_dp/max(iLayerHydCond,verySmall)
+    dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_dp/max(iLayerHydCond,verySmall)
     ! derivatives in the flux w.r.t. matric head
     dq_dStateAbove = -dHydCondIface_dMatricAbove*dPsi/dz + iLayerHydCond/dz + dHydCondIface_dMatricAbove
     dq_dStateBelow = -dHydCondIface_dMatricBelow*dPsi/dz - iLayerHydCond/dz + dHydCondIface_dMatricBelow

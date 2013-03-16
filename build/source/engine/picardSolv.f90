@@ -11,6 +11,8 @@ contains
  subroutine picardSolv(dt,maxiter,firstSubstep,&  ! input
                        niter,err,message)         ! output
  ! provide access to subroutines
+ USE NOAHMP_ROUTINES,only:phenology             ! determine vegetation phenology
+ USE diagn_evar_module,only:diagn_evar          ! compute diagnostic energy variables -- thermal conductivity and heat capacity
  USE heatTransf_module,only:heatTransf          ! compute change in temperature over the time step
  USE phseChange_module,only:phseChange          ! compute change in phase over the time step
  USE can_Hydrol_module,only:can_Hydrol          ! compute canopy water balance
@@ -18,7 +20,9 @@ contains
  USE soilHydrol_module,only:soilHydrol          ! compute change in mass over the time step for the soil
  USE snwDensify_module,only:snwDensify          ! compute densification of snow
  USE soil_utils_module,only:crit_soilT          ! compute the critical temperature above which all water is unfrozen
- ! provide access to data
+ ! named variables for snow and soil
+ USE data_struc,only:ix_soil,ix_snow ! named variables for snow and soil
+ ! constants
  USE multiconst,only:&
                      gravity,      & ! acceleration of gravity              (m s-2)
                      Tfreeze,      & ! temperature at freezing              (K)
@@ -36,8 +40,13 @@ contains
  USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
  ! general data structures
  USE data_struc,only:forcFileInfo                                  ! extract time step of forcing data
- USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow ! data structures
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX               ! named variables for structure elements
+ ! model variables, parameters, forcing data, etc.
+ USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ ! common variables
+ USE data_struc,only:urbanVegCategory                              ! vegetation category for urban areas
+ USE data_struc,only:fracJulday                                    ! fractional julian days since the start of year
+ USE data_struc,only:yearLength                                    ! number of days in the current year
  implicit none
  ! input
  real(dp),intent(in)                  :: dt                       ! time step (seconds)
@@ -164,11 +173,18 @@ contains
  real(dp),allocatable                 :: tempComponent(:)         ! temperature component of the energy increment (J m-3)
  real(dp),allocatable                 :: phseComponent(:)         ! phase component of the energy increment (J m-3)
  real(dp),allocatable                 :: inflComponent(:)         ! infiltration component of the energy increment (J m-3)
- ! define local variables
+ ! define general local variables
  character(len=256)                   :: cmessage                 ! error message of downwind routine
  integer(i4b)                         :: nLevels                  ! number of layers to consider in soil hydrology (e.g., # layers above water table)
  logical(lgt)                         :: freeze_infiltrate        ! .true to freeze infiltrating flux of liquid water
  logical(lgt)                         :: printflag                ! .true. if want to print
+ logical(lgt)                         :: computeVegFlux           ! .true. if computing fluxes over vegetation (.false. if veg is buried with snow)
+ ! define local variables for the vegetation phenology
+ integer(i4b)                         :: nLayersRoots             ! number of soil layers that contain roots
+ real(dp),parameter                   :: verySmall=epsilon(1._dp) ! a very small number
+ real(dp)                             :: notUsed_heightCanopyTop  ! for some reason the Noah-MP phenology routines output canopy height
+ real(dp)                             :: exposedVAI               ! exposed vegetation area index (LAI + SAI)
+ ! define local variables
  integer(i4b)                         :: minLayer                 ! minimum layer to print
  integer(i4b)                         :: maxLayer                 ! maximum layer to print
  integer(i4b)                         :: nSnow                    ! number of snow layers
@@ -392,6 +408,84 @@ contains
   mLayerTcrit(iLayer-nSnow) = crit_soilT(theta,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
  end do
 
+ ! compute the root zone temperature (used in vegetation phenology)
+ ! (compute the number of layers with roots)
+ nLayersRoots = count(iLayerHeight(nSnow:nLayers-1) < rootingDepth-verySmall)
+ if(nLayersRoots == 0)then; err=20; message=trim(message)//'no roots within the soil profile'; return; endif
+ ! (compute the temperature of the root zone)
+ mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1) = sum(mLayerTemp(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
+
+ ! define the foliage nitrogen factor
+ mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1) = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
+
+ ! determine vegetation phenology
+ ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
+ call phenology(&
+                ! input
+                type_data%var(iLookTYPE%vegTypeIndex),                      & ! intent(in): vegetation type index
+                urbanVegCategory,                                           & ! intent(in): vegetation category for urban areas               
+                mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),            & ! intent(in): snow depth on the ground surface (m)
+                scalarCanopyTempIter,                                       & ! intent(in): temperature of the vegetation canopy (K)
+                attr_data%var(iLookATTR%latitude),                          & ! intent(in): latitude (degrees north)
+                yearLength,                                                 & ! intent(in): number of days in the current year
+                fracJulday,                                                 & ! intent(in): fractional julian days since the start of year
+                mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                  & ! intent(inout): one-sided leaf area index (m2 m-2)
+                mvar_data%var(iLookMVAR%scalarSAI)%dat(1),                  & ! intent(inout): one-sided stem area index (m2 m-2)
+                mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1),         & ! intent(in): root zone temperature
+                ! output
+                notUsed_heightCanopyTop,                                    & ! intent(out): height of the top of the canopy layer (m)
+                mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),           & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
+                mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),           & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
+                mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1)    ) ! intent(out): growing season index (0=off, 1=on)
+ !print*, 'scalarLAI, scalarSAI, scalarExposedLAI, scalarExposedSAI, nLayersRoots, scalarRootZoneTemp = ', &
+ !         scalarLAI, scalarSAI, scalarExposedLAI, scalarExposedSAI, nLayersRoots, scalarRootZoneTemp
+
+ ! determine if we are including vegetation
+ exposedVAI     = mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1) + mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1)
+ computeVegFlux = (exposedVAI > 0.01_dp)
+ !print*, 'computing canopy fluxes = ', computeVegFlux
+
+ ! get an initial canopy temperature if veg just starts protruding through snow on the ground
+ if(computeVegFlux)then
+  ! (NOTE: if canopy temperature is below absolute zero then canopy was previously buried by snow)
+  if(scalarCanopyTempIter < 0._dp)then
+   scalarCanopyTemp     = forc_data%var(iLookFORCE%airtemp)
+   scalarCanopyTempIter = forc_data%var(iLookFORCE%airtemp)
+  endif
+ endif
+
+ ! compute diagnostic energy variables (thermal conductivity and volumetric heat capacity)
+ call diagn_evar(&
+                 ! input: state variables
+                 ! NOTE: using start-of-substep variables
+                 mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): mass of ice on the vegetation canopy (kg m-2)
+                 mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
+                 mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,             & ! intent(in): volumetric fraction of ice in each layer (-)
+                 mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water in each layer (-)
+                 ! input: coordinate variables
+                 indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (ix_soil or ix_snow)
+                 mvar_data%var(iLookMVAR%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
+                 mvar_data%var(iLookMVAR%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
+                 ! input: model parameters
+                 mpar_data%var(iLookPARAM%heightCanopyTop),                 & ! intent(in): height of top of the vegetation canopy above ground surface (m)
+                 mpar_data%var(iLookPARAM%heightCanopyBottom),              & ! intent(in): height of bottom of the vegetation canopy above ground surface (m)
+                 mpar_data%var(iLookPARAM%specificHeatVeg),                 & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+                 mpar_data%var(iLookPARAM%maxMassVegetation),               & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
+                 mpar_data%var(iLookPARAM%soil_dens_intr),                  & ! intent(in): intrinsic density of soil (kg m-3)
+                 mpar_data%var(iLookPARAM%theta_sat),                       & ! intent(in): soil porosity (-)
+                 mpar_data%var(iLookPARAM%frac_sand),                       & ! intent(in): fraction of sand (-)
+                 mpar_data%var(iLookPARAM%frac_silt),                       & ! intent(in): fraction of silt (-)
+                 mpar_data%var(iLookPARAM%frac_clay),                       & ! intent(in): fraction of clay (-)
+                 ! output: diagnostic variables
+                 mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): bulk volumetric heat capacity of vegetation (J m-3 K-1)
+                 mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
+                 mvar_data%var(iLookMVAR%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
+                 mvar_data%var(iLookMVAR%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
+                 mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat,             & ! intent(out): volumetric fraction of air in each layer (-)
+                 ! output: error control
+                 err,cmessage)              ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! compute phase change "not accounted for" in the previous time step
  ! NOTE: input="start-of-step values" and output="Iter" to save extra copying
  call phsechange(mLayerTempIter,      & ! intent(in): new temperature vector (K)
@@ -410,16 +504,22 @@ contains
 
  !if(any(mLayerVolFracIce*iden_ice > 700._dp)) printflag=.true.
 
- ! ***** iterate
+ ! **********************************************************************************************************************
+ ! **********************************************************************************************************************
+ ! **********************************************************************************************************************
+ ! ***** iterate ********************************************************************************************************
+ ! **********************************************************************************************************************
+ ! **********************************************************************************************************************
+ ! **********************************************************************************************************************
  do iter=1,maxiter
 
   ! increment number of iterations
   niter=niter+1
 
-  print*, '***********************************************************************'
-  print*, '***********************************************************************'
+  !print*, '***********************************************************************'
+  !print*, '***********************************************************************'
 
-  print*, 'iter = ', iter
+  !print*, 'iter = ', iter
   !print*, 'before heatTransf: mLayerTempIter(minLayer:min(maxLayer,nLayers)) = ',       mLayerTempIter(minLayer:min(maxLayer,nLayers))
   !print*, 'before heatTransf: mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
   !print*, 'before heatTransf: mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers)) = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
@@ -430,6 +530,7 @@ contains
                   dt,&                        ! intent(in): time step (seconds)
                   iter,&                      ! intent(in): current iteration count
                   firstSubstep,             & ! intent(in): flag to indicate if we are processing the first sub-step
+                  computeVegFlux,           & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
                   scalarCanopyTempIter,     & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
                   scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                   scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
@@ -448,19 +549,19 @@ contains
                   err,cmessage)               ! intent(out): error control
   ! negative error code requires convergence check, so just check positive errors
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
-  print*, '*** after heatTransf'
-  print*, 'canopyTempDiff = ', scalarCanopyTempNew - scalarCanopyTempIter
-  print*, 'canopyTempIter = ', scalarCanopyTempIter
-  print*, 'canopyTempNew = ', scalarCanopyTempNew
-  print*, '*** '
-  write(*,'(a,10(f10.5,1x))') 'mLayerTempDiff =       ', mLayerTempNew(minLayer:min(maxLayer,nLayers)) - mLayerTempIter(minLayer:min(maxLayer,nLayers))
-  write(*,'(a,10(f10.5,1x))') 'mLayerTempIter =       ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
-  write(*,'(a,10(f10.5,1x))') 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
+  !print*, '*** after heatTransf'
+  !print*, 'canopyTempDiff = ', scalarCanopyTempNew - scalarCanopyTempIter
+  !print*, 'canopyTempIter = ', scalarCanopyTempIter
+  !print*, 'canopyTempNew = ', scalarCanopyTempNew
+  !print*, '*** '
+  !write(*,'(a,10(f10.5,1x))') 'mLayerTempDiff =       ', mLayerTempNew(minLayer:min(maxLayer,nLayers)) - mLayerTempIter(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerTempIter =       ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
 
-  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceIter = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
-  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceNew =  ', mLayerVolFracIceNew(minLayer:min(maxLayer,nLayers))
-  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
-  write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceIter = ', mLayerVolFracIceIter(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracIceNew =  ', mLayerVolFracIceNew(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter(minLayer:min(maxLayer,nLayers))
+  !write(*,'(a,10(f10.5,1x))') 'mLayerVolFracLiqNew =  ', mLayerVolFracLiqNew(minLayer:min(maxLayer,nLayers))
 
   if(printflag) print*, 'mLayerTempIter =       ', mLayerTempIter(minLayer:min(maxLayer,nLayers))
   if(printflag) print*, 'mLayerTempNew =        ', mLayerTempNew(minLayer:min(maxLayer,nLayers))
@@ -638,8 +739,10 @@ contains
 
   ! check for lack of convergence
   if(niter==maxiter)then; err=-30; message=trim(message)//'failed to converge'; return; endif
+  !if(niter > 10)pause ' > 10 iterations'
 
  end do  ! (iterating)
+
 
  ! *****************************************************************************************************************************************
  ! *****************************************************************************************************************************************

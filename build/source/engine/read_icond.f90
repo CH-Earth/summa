@@ -20,7 +20,8 @@ contains
                        gravity,   &  ! gravitational acceleration           (m s-2)
                        Tfreeze       ! freezing point of pure water         (K)
  ! modules
- USE snow_utils_module,only:fracliquid             ! compute volumetric fraction of liquid water
+ USE snow_utils_module,only:fracliquid             ! compute volumetric fraction of liquid water in snow based on temperature
+ USE snow_utils_module,only:templiquid             ! compute temperature of snow based on volumetric fraction of liquid water
  USE soil_utils_module,only:volFracLiq             ! compute volumetric fraction of liquid water based on matric head
  USE soil_utils_module,only:matricHead             ! compute matric head based on volumetric fraction of liquid water
  USE soil_utils_module,only:crit_soilT             ! compute temperature above which all water is unfrozen
@@ -80,15 +81,17 @@ contains
  real(dp),pointer               :: scalarVolFracIce    ! volumetric fraction of ice (-)
  real(dp),pointer               :: scalarVolFracLiq    ! volumetric fraction of liquid water (-)
  real(dp),pointer               :: scalarMatricHead    ! matric head (m)
- real(dp),pointer               :: snowfrz_scale       ! scaling parameter for the snow freezing curve (K-1)
  real(dp),pointer               :: vGn_alpha           ! van Genutchen "alpha" parameter
  real(dp),pointer               :: vGn_n               ! van Genutchen "n" parameter
  real(dp),pointer               :: theta_sat           ! soil porosity (-)
  real(dp),pointer               :: theta_res           ! soil residual volumetric water content (-)
+ real(dp),pointer               :: snowfrz_scale       ! scaling parameter for the snow freezing curve (K-1)
+ real(dp),pointer               :: FCapil              ! fraction of snow pore space in tension storage (-)
  real(dp)                       :: Tcrit               ! temperature above which all water is unfrozen (K)
  real(dp)                       :: vGn_m               ! van Genutchen "m" parameter (-)
  real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1) 
  real(dp)                       :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
+ real(dp)                       :: residlVolFracLiq    ! volumetric fraction of liquid water in tension storage (snow)
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -285,7 +288,7 @@ contains
     endselect
     if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ivar))//"']"; return; endif
    end do    ! (looping through initial conditions variables)
-  endif     ! (if in the "layer" portion of the file)
+  endif   ! (if layer flag)
   ! check if reached the start of the layer definitions
   if (trim(temp)=='<start_'//trim(layer_tag)//'>') layer_flag=.true.
  end do  ! looping through lines in the file
@@ -298,11 +301,12 @@ contains
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! assign pointers to model parameters
- snowfrz_scale       => mpar_data%var(iLookPARAM%snowfrz_scale)              ! scaling parameter for the snow freezing curve (K-1)
  vGn_alpha           => mpar_data%var(iLookPARAM%vGn_alpha)                  ! van Genutchen "alpha" parameter (m-1)
  vGn_n               => mpar_data%var(iLookPARAM%vGn_n)                      ! van Genutchen "n" parameter (-)
  theta_sat           => mpar_data%var(iLookPARAM%theta_sat)                  ! soil porosity (-)
  theta_res           => mpar_data%var(iLookPARAM%theta_res)                  ! soil residual volumetric water content (-)
+ snowfrz_scale       => mpar_data%var(iLookPARAM%snowfrz_scale)              ! scaling parameter for the snow freezing curve (K-1)
+ FCapil              => mpar_data%var(iLookPARAM%FCapil)                     ! fraction of pore space in tension storage (-)
  ! compute the maximum volumetric fraction of liquid water -- used to avoid problems of super-saturation in the moisture-based form of Richards' equation
  maxVolFracLiq = theta_sat - 1.e-4_dp
  ! compute the van Genutchen "m" parameter (-)
@@ -322,8 +326,21 @@ contains
   select case(scalarLayerType)
    ! ** snow
    case(ix_snow)
+    ! check that snow temperature is less than freezing
+    if(scalarTemp > Tfreeze)then
+     message=trim(message)//'initial snow temperature is greater than freezing'
+     err=20; return
+    endif
+    ! compute volumetric fraction of liquid water and ice based on temperature
     scalarVolFracLiq = fracliquid(scalarTemp,snowfrz_scale)*scalarTheta        ! volumetric fraction of liquid water
     scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)  ! volumetric fraction of ice
+    ! check that the volumetric liquid water content is not greater than tension storage
+    residlVolFracLiq = FCapil*(1._dp - scalarVolFracIce)  ! "residual" volumetric liquid water content (i.e., tension storage)
+    if(scalarVolFracLiq > residlVolFracLiq)then
+     scalarVolFracLiq = residlVolFracLiq                                       ! set volumetric liquid water content to tension storage
+     scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice) ! compute corresponding ice volume to maintain mass
+     scalarTemp       = templiquid(scalarVolFracLiq/scalarTheta,snowfrz_scale) ! identify the temperature associated with tension storage
+    endif  ! (if liquid water content > tension storage)
    ! ** soil
    case(ix_soil)
     ! assign pointer to the matric head
@@ -350,6 +367,13 @@ contains
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
   endselect
  end do  ! (looping through layers)
+ ! if snow layers exist, compute snow depth and SWE
+ if(nSnow > 0)then
+  mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(0)
+  mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                          mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                           * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+ endif  ! (if snow layers exist
  ! **********************************************************************************************
  ! deallocate variable names vector
  deallocate(varnames,chardata,stat=err)
@@ -366,6 +390,7 @@ contains
  print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
  print*,'scalarAlbedo     ', mvar_data%var(iLookMVAR%scalarAlbedo)%dat(:)
  print*,'scalarSnowDepth  ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(:)
+ print*,'scalarSWE        ', mvar_data%var(iLookMVAR%scalarSWE)%dat(:)
  print*,'layerType        ', indx_data%var(iLookINDEX%layerType)%dat(:)
  print*,'****************************************************************************************'
  end subroutine read_icond

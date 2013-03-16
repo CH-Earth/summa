@@ -17,6 +17,7 @@ USE ffile_info_module,only:ffile_info                       ! module to read inf
 USE read_attrb_module,only:read_attrb                       ! module to read local attributes
 USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
 USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
+USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
 USE read_icond_module,only:read_icond                       ! module to read initial conditions
 USE read_param_module,only:read_param                       ! module to read model parameter sets
 USE ConvE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
@@ -147,8 +148,8 @@ do iParSet=1,nParSets
 
  ! assign the parameter structure to the appropriate parameter set
  mpar_data => mpar_sets(iParSet)
- if(mpar_data%var(iLookPARAM%zmin)/mpar_data%var(iLookPARAM%zmax) > 0.25_dp)&
-  call handle_err(20,'zmax must be at least 4 times larger than zmin')
+ ! check that the parameters are consistent
+ call paramCheck(err,message); call handle_err(err,message)
  ! read description of model initial conditions -- also initializes model structure components
  call read_icond(err,message); call handle_err(err,message)
  ! compute derived model variables that are pretty much constant
@@ -289,8 +290,8 @@ contains
 
  subroutine handle_err(err,message)
  ! used to handle error codes
- USE data_struc,only:mvar_data,indx_data     ! variable data structure
- USE var_lookup,only:iLookMVAR,iLookINDEX    ! named variables defining elements in data structure
+ USE data_struc,only:mvar_data,mpar_data,indx_data     ! variable data structure
+ USE var_lookup,only:iLookMVAR,iLookPARAM,iLookINDEX    ! named variables defining elements in data structure
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)::err             ! error code
@@ -311,7 +312,18 @@ contains
   print*, 'pptrate            = ', forc_data%var(iLookFORCE%pptrate)
   print*, 'airtemp            = ', forc_data%var(iLookFORCE%airtemp)
  endif
+ if(associated(mpar_data))then
+  print*, 'theta_res         = ', mpar_data%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
+  print*, 'theta_sat         = ', mpar_data%var(iLookPARAM%theta_sat)            ! soil porosity (-)
+  print*, 'plantWiltPsi      = ', mpar_data%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
+  print*, 'soilStressParam   = ', mpar_data%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
+  print*, 'critSoilWilting   = ', mpar_data%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
+  print*, 'critSoilTranspire = ', mpar_data%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
+ endif
  if(associated(mvar_data))then
+  print*, 'scalarSWE = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+  print*, 'scalarSnowDepth = ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)
+  print*, 'scalarCanopyTemp = ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1)
   print*, 'scalarRainPlusMelt = ', mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)
   write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indx_data%var(iLookINDEX%layerType)%dat
   write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', mvar_data%var(iLookMVAR%mLayerDepth)%dat

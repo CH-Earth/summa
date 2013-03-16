@@ -126,8 +126,8 @@ contains
  integer(i4b)                :: ncid                       ! NetCDF file ID
  integer(i4b)                :: dimID
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
- !integer(i4b),parameter      :: maxLength=1500000         ! maximum length of the variable vector
- integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
+ integer(i4b),parameter      :: maxLength=1500000         ! maximum length of the variable vector
+ !integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
  integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: maxParSets=1               ! maximum number of parameter sets
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable

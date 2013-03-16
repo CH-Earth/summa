@@ -41,7 +41,8 @@ public::heatTransf
 ! global parameters
 real(dp),parameter            :: RHsurf=1._dp             ! relative humidity of the surface (-)
 real(dp),parameter            :: dx=1.e-8_dp              ! finite difference increment (K)
-real(dp),parameter            :: valueMissing=0._dp       ! missing value parameter
+real(dp),parameter            :: valueMissing=-9999._dp   ! missing value parameter
+real(dp),parameter            :: missingValue_belowAbsoluteZero=-9999._dp ! missing value for canopy temperature (must be < 0) 
 ! number of soil and snow layers
 integer(i4b)                  :: nSoil                    ! number of soil layers
 integer(i4b)                  :: nSnow                    ! number of snow layers
@@ -57,6 +58,7 @@ contains
                        dt,                       & ! intent(in): time step (seconds)
                        iter,                     & ! intent(in): current iteration count
                        firstSubstep,             & ! intent(in): flag to indicate if we are processing the first sub-step
+                       computeVegFlux,           & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
                        scalarCanopyTempIter,     & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
                        scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                        scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
@@ -85,6 +87,7 @@ contains
  real(dp),intent(in)           :: dt                       ! time step (seconds)
  integer(i4b),intent(in)       :: iter                     ! iteration count
  logical(lgt),intent(in)       :: firstSubStep             ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)       :: computeVegFlux           ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(dp),intent(in)           :: scalarCanopyTempIter     ! trial temperature of the vegetation canopy at the current iteration (K)
  real(dp),intent(in)           :: scalarCanopyIceIter      ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
  real(dp),intent(in)           :: scalarCanopyLiqIter      ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
@@ -124,6 +127,7 @@ contains
                         dt,                                                            & ! intent(in): time step (seconds)
                         iter,                                                          & ! intent(in): current iteration count
                         firstSubstep,                                                  & ! intent(in): flag to indicate if we are processing the first sub-step
+                        computeVegFlux,                                                & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
                         scalarCanopyTempIter,                                          & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
                         scalarCanopyIceIter,                                           & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                         scalarCanopyLiqIter,                                           & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
@@ -142,7 +146,6 @@ contains
                         indx_data%var(iLookINDEX%layerType)%dat,                       & ! intent(in): layer type (ix_soil or ix_snow)
 
                         ! physical attributes
-                        attr_data%var(iLookATTR%latitude),                             & ! intent(in): latitude (degrees north)
                         type_data%var(iLookTYPE%vegTypeIndex),                         & ! intent(in): vegetation type index
 
                         ! general model parameters
@@ -151,21 +154,14 @@ contains
                         mpar_data%var(iLookPARAM%lowerBoundTemp),                      & ! intent(in): temperature of the lower boundary (K)
 
                         ! vegetation parameters
-                        mpar_data%var(iLookPARAM%rootingDepth),                        & ! intent(in): rooting depth (m)
                         mpar_data%var(iLookPARAM%heightCanopyTop),                     & ! intent(in): height of top of the vegetation canopy above ground surface (m)
                         mpar_data%var(iLookPARAM%heightCanopyBottom),                  & ! intent(in): height of bottom of the vegetation canopy above ground surface (m)
-                        mpar_data%var(iLookPARAM%specificHeatVeg),                     & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-                        mpar_data%var(iLookPARAM%maxMassVegetation),                   & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
 
                         ! soil parameters
                         mpar_data%var(iLookPARAM%vGn_alpha),                           & ! intent(in): van Genutchen "alpha" parameter (m-1)
                         mpar_data%var(iLookPARAM%vGn_n),                               & ! intent(in): van Genutchen "n" parameter (-)
                         mpar_data%var(iLookPARAM%theta_sat),                           & ! intent(in): soil porosity (-)
                         mpar_data%var(iLookPARAM%theta_res),                           & ! intent(in): soil residual volumetric water content (-)
-                        mpar_data%var(iLookPARAM%soil_dens_intr),                      & ! intent(in): intrinsic density of soil (kg m-3)
-                        mpar_data%var(iLookPARAM%frac_sand),                           & ! intent(in): fraction of sand (-)
-                        mpar_data%var(iLookPARAM%frac_silt),                           & ! intent(in): fraction of silt (-)
-                        mpar_data%var(iLookPARAM%frac_clay),                           & ! intent(in): fraction of clay (-)
                         mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1),                   & ! intent(in): van Genutchen "m" parameter (-)
                         mvar_data%var(iLookMVAR%scalarKappa)%dat(1),                   & ! intent(in): constant used to express matric head as a function of temperature (m K-1)
 
@@ -183,24 +179,20 @@ contains
                         ! model cooordinate variables (input)
                         mvar_data%var(iLookMVAR%mLayerDepth)%dat,                      & ! intent(in): depth of each layer (m)
                         mvar_data%var(iLookMVAR%mLayerHeight)%dat,                     & ! intent(in): height at the mid-point of each layer (m)
-                        mvar_data%var(iLookMVAR%iLayerHeight)%dat,                     & ! intent(in): height at the interface of each layer (m)
 
-                        ! model diagnostic variables for vegetation (intent inout) -- phenology and thermal properties constant over iterations
-                        mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                     & ! intent(inout): one-sided leaf area index (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarSAI)%dat(1),                     & ! intent(inout): one-sided stem area index (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),              & ! intent(inout): exposed leaf area index after burial by snow (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),              & ! intent(inout): exposed stem area index after burial by snow (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1),            & ! intent(inout): root zone temperature
-                        mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1),      & ! intent(inout): growing season index (0=off, 1=on)
-                        mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1),   & ! intent(inout): foliage nitrogen concentration (1.0 = saturated)
-                        mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),       & ! intent(inout): bulk volumetric heat capacity of vegetation (J m-3 K-1)
+                        ! model diagnostic variables for vegetation (intent in) -- phenology and thermal properties constant over iterations
+                        mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                     & ! intent(in): one-sided leaf area index (m2 m-2)
+                        mvar_data%var(iLookMVAR%scalarSAI)%dat(1),                     & ! intent(in): one-sided stem area index (m2 m-2)
+                        mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),              & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                        mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),              & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                        mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1),      & ! intent(in): growing season index (0=off, 1=on)
+                        mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1),   & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
+                        mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),       & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
 
-                        ! model diagnostic variables for snow-soil vector (intent inout) -- thermal properties constant over iterations
+                        ! model diagnostic variables for snow-soil vector (intent in) -- thermal properties constant over iterations
                         mvar_data%var(iLookMVAR%mLayerTcrit)%dat,                      & ! intent(in): critical soil temperature above which all water is unfrozen (K)
-                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,               & ! intent(inout): volumetric heat capacity in each layer (J m-3 K-1) 
-                        mvar_data%var(iLookMVAR%mLayerThermalC)%dat,                   & ! intent(inout): thermal conductivity at the mid-point of each layer (W m-1 K-1)
-                        mvar_data%var(iLookMVAR%iLayerThermalC)%dat,                   & ! intent(inout): thermal conductivity at the interface of each layer (W m-1 K-1)
-                        mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat,                 & ! intent(inout): volumetric fraction of air in each layer (-)
+                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,               & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1) 
+                        mvar_data%var(iLookMVAR%iLayerThermalC)%dat,                   & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
 
                         ! model diagnostic variables (output)
                         mvar_data%var(iLookMVAR%mLayerdTheta_dTk)%dat,                 & ! intent(out): derivative in the freezing curve (K-1)
@@ -242,6 +234,7 @@ contains
                               dt,                           & ! intent(in): time step (seconds)
                               iter,                         & ! intent(in): current iteration count
                               firstSubstep,                 & ! intent(in): flag to indicate if we are processing the first sub-step
+                              computeVegFlux,               & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
                               scalarCanopyTempIter,         & ! intent(in): trial temperature of the vegetation canopy (K)
                               scalarCanopyIceIter,          & ! intent(in): trial mass of ice on the vegetation canopy (kg m-2)
                               scalarCanopyLiqIter,          & ! intent(in): trial mass of liquid water on the vegetation canopy (kg m-2)
@@ -260,7 +253,6 @@ contains
                               layerType,                    & ! intent(in): layer type (ix_soil or ix_snow)
 
                               ! physical attributes
-                              latitude,                     & ! intent(in): latitude (degrees north)
                               vegTypeIndex,                 & ! intent(in): vegetation type index
 
                               ! general model parameters
@@ -269,21 +261,14 @@ contains
                               lowerBoundTemp,               & ! intent(in): temperature of the lower boundary (K)
 
                               ! vegetation parameters
-                              rootingDepth,                 & ! intent(in): rooting depth (m)
                               heightCanopyTop,              & ! intent(in): height of top of the vegetation canopy above ground surface (m)
                               heightCanopyBottom,           & ! intent(in): height of bottom of the vegetation canopy above ground surface (m)
-                              specificHeatVeg,              & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-                              maxMassVegetation,            & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
 
                               ! soil parameters
                               vGn_alpha,                    & ! intent(in): van Genutchen "alpha" parameter (m-1)
                               vGn_n,                        & ! intent(in): van Genutchen "n" parameter (-)
                               theta_sat,                    & ! intent(in): soil porosity (-)
                               theta_res,                    & ! intent(in): soil residual volumetric water content (-)
-                              iden_soil,                    & ! intent(in): intrinsic density of soil (kg m-3)
-                              frac_sand,                    & ! intent(in): fraction of sand (-)
-                              frac_silt,                    & ! intent(in): fraction of silt (-)
-                              frac_clay,                    & ! intent(in): fraction of clay (-)
                               vGn_m,                        & ! intent(in): van Genutchen "m" parameter (-)
                               kappa,                        & ! intent(in): constant used to express matric head as a function of temperature (m K-1)
 
@@ -301,24 +286,20 @@ contains
                               ! model cooordinate variables (input)
                               mLayerDepth,                  & ! intent(in): depth of each layer (m)
                               mLayerHeight,                 & ! intent(in): height at the mid-point of each layer (m)
-                              iLayerHeight,                 & ! intent(in): height at the interface of each layer (m)
 
-                              ! model diagnostic variables for vegetation (intent inout) -- phenology and thermal properties constant over iterations
-                              scalarLAI,                    & ! intent(inout): one-sided leaf area index (m2 m-2)
-                              scalarSAI,                    & ! intent(inout): one-sided stem area index (m2 m-2)
-                              scalarExposedLAI,             & ! intent(inout): exposed leaf area index after burial by snow (m2 m-2)
-                              scalarExposedSAI,             & ! intent(inout): exposed stem area index after burial by snow (m2 m-2)
-                              scalarRootZoneTemp,           & ! intent(inout): root zone temperature
-                              scalarGrowingSeasonIndex,     & ! intent(inout): growing season index (0=off, 1=on)
-                              scalarFoliageNitrogenFactor,  & ! intent(inout): foliage nitrogen concentration (1.0 = saturated)
-                              scalarBulkVolHeatCapVeg,      & ! intent(inout): bulk volumetric heat capacity of vegetation (J m-3 K-1)
+                              ! model diagnostic variables for vegetation (intent in) -- phenology and thermal properties constant over iterations
+                              scalarLAI,                    & ! intent(in): one-sided leaf area index (m2 m-2)
+                              scalarSAI,                    & ! intent(in): one-sided stem area index (m2 m-2)
+                              scalarExposedLAI,             & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                              scalarExposedSAI,             & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                              scalarGrowingSeasonIndex,     & ! intent(in): growing season index (0=off, 1=on)
+                              scalarFoliageNitrogenFactor,  & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
+                              scalarBulkVolHeatCapVeg,      & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
 
-                              ! model diagnostic variables (intent inout) -- thermal properties constant over iterations
+                              ! model diagnostic variables (intent in) -- thermal properties constant over iterations
                               mLayerTcrit,                  & ! intent(in): critical soil temperature above which all water is unfrozen (K)
-                              mLayerVolHtCapBulk,           & ! intent(inout): volumetric heat capacity in each layer (J m-3 K-1) 
-                              mLayerThermalC,               & ! intent(inout): thermal conductivity at the mid-point of each layer (W m-1 K-1)
-                              iLayerThermalC,               & ! intent(inout): thermal conductivity at the interface of each layer (W m-1 K-1)
-                              mLayerVolFracAir,             & ! intent(inout): volumetric fraction of air in each layer (-)
+                              mLayerVolHtCapBulk,           & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1) 
+                              iLayerThermalC,               & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
 
                               ! model diagnostic variables (output)
                               mLayerdTheta_dTk,             & ! intent(out): derivative in the freezing curve (K-1)
@@ -335,13 +316,7 @@ contains
                               mLayerMatricHeadNew,          & ! intent(out): new matric head (m)
                               err,message)                    ! intent(out): error control
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------
- ! common variables
- USE data_struc,only:urbanVegCategory                         ! vegetation category for urban areas
- USE data_struc,only:fracJulday                               ! fractional julian days since the start of year
- USE data_struc,only:yearLength                               ! number of days in the current year
  ! utility module
- USE NOAHMP_ROUTINES,only:phenology                           ! determine vegetation phenology
- USE diagn_evar_module,only:diagn_evar                        ! compute diagnostic energy variables -- thermal conductivity and heat capacity
  USE vegNrgFlux_module,only:vegNrgFlux                        ! compute energy fluxes for vegetation and ground surface
  USE phseChange_module,only:phseChange                        ! compute change in phase over the time step
  USE snow_utils_module,only:dFracLiq_dTk                      ! differentiate the freezing curve w.r.t. temperature (snow)
@@ -354,6 +329,7 @@ contains
  real(dp),intent(in)            :: dt                          ! time step (seconds)
  integer(i4b),intent(in)        :: iter                        ! iteration count
  logical(lgt),intent(in)        :: firstSubStep                ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)        :: computeVegFlux              ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(dp),intent(in)            :: scalarCanopyTempIter        ! trial vegetation temperature (K)
  real(dp),intent(in)            :: scalarCanopyIceIter         ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
  real(dp),intent(in)            :: scalarCanopyLiqIter         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
@@ -369,27 +345,19 @@ contains
  integer(i4b),intent(in)        :: nLayers                     ! number of layers
  integer(i4b),intent(in)        :: layerType(:)                ! type of the layer (ix_soil or ix_snow)
  ! physical attributes
- real(dp),intent(in)            :: latitude                    ! latitude (degrees north)
  integer(i4b),intent(in)        :: vegTypeIndex                ! vegetation type index
  ! general model parameters
  real(dp),intent(in)            :: wimplicit                   ! weight assigned to start-of-step fluxes (-)
  real(dp),intent(in)            :: snowfrz_scale               ! scaling parameter for the snow freezing curve (K-1)
  real(dp),intent(in)            :: lowerBoundTemp              ! temperature of the lower boundary (K)
  ! vegetation parameters
- real(dp),intent(in)            :: rootingDepth                ! rooting depth (m)
  real(dp),intent(in)            :: heightCanopyTop             ! height of top of the vegetation canopy above ground surface (m)
  real(dp),intent(in)            :: heightCanopyBottom          ! height of bottom of the vegetation canopy above ground surface (m)
- real(dp),intent(in)            :: specificHeatVeg             ! specific heat of vegetation (J kg-1 K-1)
- real(dp),intent(in)            :: maxMassVegetation           ! maximum mass of vegetation (full foliage) (kg m-2)
  ! soil parameters
  real(dp),intent(in)            :: vGn_alpha                   ! van Genutchen "alpha" parameter
  real(dp),intent(in)            :: vGn_n                       ! van Genutchen "n" parameter
  real(dp),intent(in)            :: theta_sat                   ! soil porosity (-)
  real(dp),intent(in)            :: theta_res                   ! soil residual volumetric water content (-)
- real(dp),intent(in)            :: iden_soil                   ! intrinsic density of soil (kg m-3)
- real(dp),intent(in)            :: frac_sand                   ! fraction of sand (-)
- real(dp),intent(in)            :: frac_silt                   ! fraction of silt (-)
- real(dp),intent(in)            :: frac_clay                   ! fraction of clay (-)
  real(dp),intent(in)            :: vGn_m                       ! van Genutchen "m" parameter (-)
  real(dp),intent(in)            :: kappa                       ! constant used to express matric head as a function of temperature (m K-1)
  ! model state variables
@@ -405,22 +373,18 @@ contains
  ! model coordinate variables (intent in)
  real(dp),intent(in)            :: mLayerDepth(:)              ! depth of each layer (m)
  real(dp),intent(in)            :: mLayerHeight(:)             ! height at the mid-point of each layer (m)
- real(dp),intent(in)            :: iLayerHeight(0:)            ! height at the interface of each layer (m)
- ! model diagnostic variables for vegetation (intent inout) -- phenology and thermal properties constant over iterations
- real(dp),intent(inout)         :: scalarLAI                   ! one-sided leaf area index (m2 m-2)
- real(dp),intent(inout)         :: scalarSAI                   ! one-sided stem area index (m2 m-2)
- real(dp),intent(inout)         :: scalarExposedLAI            ! exposed leaf area index after burial by snow (m2 m-2)
- real(dp),intent(inout)         :: scalarExposedSAI            ! exposed stem area index after burial by snow (m2 m-2)
- real(dp),intent(inout)         :: scalarRootZoneTemp          ! root zone temperature
- real(dp),intent(inout)         :: scalarGrowingSeasonIndex    ! growing season index (0=off, 1=on)
- real(dp),intent(inout)         :: scalarFoliageNitrogenFactor ! foliage nitrogen concentration (1.0 = saturated)
- real(dp),intent(inout)         :: scalarBulkVolHeatCapVeg     ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
- ! model diagnostic variables (intent inout) -- thermal properties constant over iterations
+ ! model diagnostic variables for vegetation (intent in) -- phenology and thermal properties constant over iterations
+ real(dp),intent(in)            :: scalarLAI                   ! one-sided leaf area index (m2 m-2)
+ real(dp),intent(in)            :: scalarSAI                   ! one-sided stem area index (m2 m-2)
+ real(dp),intent(in)            :: scalarExposedLAI            ! exposed leaf area index after burial by snow (m2 m-2)
+ real(dp),intent(in)            :: scalarExposedSAI            ! exposed stem area index after burial by snow (m2 m-2)
+ real(dp),intent(in)            :: scalarGrowingSeasonIndex    ! growing season index (0=off, 1=on)
+ real(dp),intent(in)            :: scalarFoliageNitrogenFactor ! foliage nitrogen concentration (1.0 = saturated)
+ real(dp),intent(in)            :: scalarBulkVolHeatCapVeg     ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ ! model diagnostic variables (intent in) -- thermal properties constant over iterations
  real(dp),intent(in)            :: mLayerTcrit(:)              ! critical soil temperature above which all water is unfrozen (K)
- real(dp),intent(inout)         :: mLayerVolHtCapBulk(:)       ! volumetric heat capacity in each layer (J m-3 K-1) 
- real(dp),intent(inout)         :: mLayerThermalC(:)           ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
- real(dp),intent(inout)         :: iLayerThermalC(0:)          ! thermal conductivity at the interface of each layer (W m-1 K-1)
- real(dp),intent(inout)         :: mLayerVolFracAir(:)         ! volumetric fraction of air in each layer (-)
+ real(dp),intent(in)            :: mLayerVolHtCapBulk(:)       ! volumetric heat capacity in each layer (J m-3 K-1) 
+ real(dp),intent(in)            :: iLayerThermalC(0:)          ! thermal conductivity at the interface of each layer (W m-1 K-1)
  ! model diagnostic variables (intent out)
  real(dp),intent(out)           :: mLayerdTheta_dTk(:)         ! derivative in the freezing curve (K-1)
  real(dp),intent(out)           :: iLayerInitNrgFlux(0:)       ! energy flux at layer interfaces at the start of the time step (W m-2)
@@ -443,7 +407,6 @@ contains
  integer(i4b)                   :: iLayer                     ! index of model layers
  logical(lgt)                   :: printflag                  ! .true. if print progress to the screen
  logical(lgt)                   :: fTranspire                 ! .true. if computing transpiration
- logical(lgt)                   :: computeVegFlux             ! .true. if computing fluxes over vegetation
  logical(lgt),parameter         :: computeJacobian=.false.    ! .true. if desire to compute the Jacobian matrix (just used for testing)
  real(dp)                       :: canopyDepth                ! depth of the vegetation canopy (m)
  real(dp)                       :: theta                      ! total volumetric water content (liquid plus ice)
@@ -451,10 +414,6 @@ contains
  real(dp)                       :: maxdiffTemp(1)             ! maximum difference between temperature input and start-of-step temperature (K)
  real(dp),parameter             :: epsT=1.d-10                ! offset from Tcrit when re-setting iterations at the critical temperature (K)
  integer(i4b)                   :: nUnsat                     ! number of unsaturated layers
- ! define local variables for the vegetation phenology
- integer(i4b)                   :: nLayersRoots               ! number of soil layers that contain roots
- real(dp),parameter             :: verySmall=epsilon(1._dp)   ! a very small number
- real(dp)                       :: notUsed_heightCanopyTop    ! for some reason the Noah-MP phenology routines output canopy height
  ! define local variables for the fluxes at vegetation and ground surfaces
  real(dp)                       :: canopyNetFlux              ! net energy flux for the vegetation canopy (W m-2)
  real(dp)                       :: groundNetFlux              ! net energy flux for the ground surface (W m-2) 
@@ -507,92 +466,13 @@ contains
   err=20; message=trim(message)//'height of the bottom of the canopy > top of the canopy'; return
  endif
 
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! * PRELIMINARIES...
- ! --------------------------------------------------------------------------------------------------------------------------------
-
- ! compute variables constant over the iterations
- if(iter==1)then
-
-  ! compute the root zone temperature (used in vegetation phenology)
-  ! (compute the number of layers with roots)
-  nLayersRoots = count(iLayerHeight(nSnow:nLayers-1) < rootingDepth-verySmall)
-  if(nLayersRoots == 0)then; err=20; message=trim(message)//'no roots within the soil profile'; return; endif
-  ! (compute the temperature of the root zone)
-  scalarRootZoneTemp = sum(mLayerTemp(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
-
-  ! determine vegetation phenology
-  ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
-  call phenology(&
-                 ! input
-                 vegTypeIndex,                       & ! intent(in): vegetation type index
-                 urbanVegCategory,                   & ! intent(in): vegetation category for urban areas
-                 scalarSnowDepth,                    & ! intent(in): snow depth (m)
-                 scalarCanopyTempIter,               & ! intent(in): vegetation temperature (K)
-                 latitude,                           & ! intent(in): latitude (degrees north)
-                 yearLength,                         & ! intent(in): number of days in the current year
-                 fracJulday,                         & ! intent(in): fractional julian days since the start of year
-                 scalarLAI,                          & ! intent(inout): one-sided leaf area index (m2 m-2)
-                 scalarSAI,                          & ! intent(inout): one-sided stem area index (m2 m-2)
-                 scalarRootZoneTemp,                 & ! intent(in): average temperature of the root zone (K)
-                 ! output
-                 notUsed_heightCanopyTop,            & ! intent(out): height of the top of the canopy layer (m)
-                 scalarExposedLAI,                   & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
-                 scalarExposedSAI,                   & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
-                 scalarGrowingSeasonIndex            ) ! intent(out): growing season index (0=off, 1=on)
-  !print*, 'scalarLAI, scalarSAI, scalarExposedLAI, scalarExposedSAI, nLayersRoots, scalarRootZoneTemp = ', &
-  !         scalarLAI, scalarSAI, scalarExposedLAI, scalarExposedSAI, nLayersRoots, scalarRootZoneTemp
-  scalarLAI = 1.35_dp
-  scalarSAI = 0.45_dp
-  scalarExposedLAI = scalarLAI
-  scalarExposedSAI = scalarSAI
-
-
-  ! define the foliage nitrogen factor
-  scalarFoliageNitrogenFactor = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
-
-  ! compute diagnostic energy variables (thermal conductivity and volumetric heat capacity)
-  call diagn_evar(&
-                  ! input: state variables
-                  ! NOTE: using start-of-substep variables
-                  scalarCanopyIce,         & ! intent(in): mass of ice on the vegetation canopy (kg m-2)
-                  scalarCanopyLiq,         & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
-                  mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in each layer (-)
-                  mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water in each layer (-)
-                  ! input: coordinate variables
-                  layerType,               & ! intent(in): type of the layer (snow or soil)
-                  mLayerHeight,            & ! intent(in): height of the layer mid-point (top of soil = 0)
-                  iLayerHeight,            & ! intent(in): height of the layer interface (top of soil = 0)
-                  ! input: model parameters
-                  canopyDepth,             & ! intent(in): depth of the vegetation canopy (m)
-                  specificHeatVeg,         & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-                  maxMassVegetation,       & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
-                  iden_soil,               & ! intent(in): intrinsic density of soil (kg m-3)
-                  theta_sat,               & ! intent(in): soil porosity (-)
-                  frac_sand,               & ! intent(in): fraction of sand (-)
-                  frac_silt,               & ! intent(in): fraction of silt (-)
-                  frac_clay,               & ! intent(in): fraction of clay (-)
-                  ! output: diagnostic variables
-                  scalarBulkVolHeatCapVeg, & ! intent(out): bulk volumetric heat capacity of vegetation (J m-3 K-1)
-                  mLayerVolHtCapBulk,      & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
-                  mLayerThermalC,          & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
-                  iLayerThermalC,          & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
-                  mLayerVolFracAir,        & ! intent(out): volumetric fraction of air in each layer (-)
-                  ! output: error control
-                  err,cmessage)              ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- endif
-
- ! ***** determine if we are including vegetation
- computeVegFlux = (scalarExposedLAI+scalarExposedLAI > 0.01)
-
  ! ***** allocate space for the tri-diagonal matrix
  if(computeVegFlux)then
   allocate(d_m1(0:nLayers-1),diag(0:nLayers),d_p1(0:nLayers-1),rvec(0:nLayers),sInc(0:nLayers), stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the tri-diag matrix'; return; endif
  else
-  err=20; message=trim(message)//'non-vegetated surfaces not implemented yet'; return
+  allocate(d_m1(1:nLayers-1),diag(1:nLayers),d_p1(1:nLayers-1),rvec(1:nLayers),sInc(1:nLayers), stat=err)
  endif 
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the tri-diag matrix'; return; endif
 
  ! --------------------------------------------------------------------------------------------------------------------------------
 
@@ -602,7 +482,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
 
  ! check temperatures
- if(scalarCanopyTempIter < 200._dp)then; message=trim(message)//'canopy temperature is very cold'; err=20; return; endif
+ if(computeVegFlux)then
+  if(scalarCanopyTempIter < 200._dp)then; message=trim(message)//'canopy temperature is very cold'; err=20; return; endif
+ endif
  if(mLayerTempIter(1)    < 200._dp)then; message=trim(message)//'ground temperature is very cold'; err=20; return; endif
 
  ! ***** compute energy fluxes at vegetation and ground surfaces
@@ -672,14 +554,16 @@ contains
 
 
  ! ***** compute the residual for the vegetation canopy
- ! (compute individual terms)
- nrg0 = scalarBulkVolHeatCapVeg*scalarCanopyTemp                      ! energy content at the start of the time step (J m-3)
- nrg1 = scalarBulkVolHeatCapVeg*scalarCanopyTempIter                  ! energy content at the current iteration (J m-3)
- flx0 = canopyNetFluxInit/canopyDepth                                 ! flux at the start of the time step (J m-3 s-1)
- flx1 = canopyNetFlux/canopyDepth                                     ! flux at the current iteration (J m-3 s-1)
- phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
- ! (compute residuals)
- canopyResidual = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
+ if(computeVegFlux)then
+  ! (compute individual terms) 
+  nrg0 = scalarBulkVolHeatCapVeg*scalarCanopyTemp                      ! energy content at the start of the time step (J m-3)
+  nrg1 = scalarBulkVolHeatCapVeg*scalarCanopyTempIter                  ! energy content at the current iteration (J m-3)
+  flx0 = canopyNetFluxInit/canopyDepth                                 ! flux at the start of the time step (J m-3 s-1)
+  flx1 = canopyNetFlux/canopyDepth                                     ! flux at the current iteration (J m-3 s-1)
+  phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
+  ! (compute residuals)
+  canopyResidual = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
+ endif
 
  ! ***** compute the residual vector for all snow/soil layers (J m-3)
  do iLayer=1,nLayers
@@ -704,10 +588,14 @@ contains
 
  ! ***** compute the derivative in the freezing curve w.r.t. temperature (K-1)
  ! * vegetation canopy
- if(scalarCanopyIceIter > 0._dp)then
-  dTheta_dTkCanopy = dFracLiq_dTk(scalarCanopyTempIter,snowfrz_scale)
+ if(computeVegFlux)then
+  if(scalarCanopyIceIter > 0._dp)then
+   dTheta_dTkCanopy = dFracLiq_dTk(scalarCanopyTempIter,snowfrz_scale)
+  else
+   dTheta_dTkCanopy = 0._dp
+  endif
  else
-  dTheta_dTkCanopy = 0._dp
+  dTheta_dTkCanopy = valueMissing
  endif
  ! * all snow-soil layers
  do iLayer=1,nLayers
@@ -730,9 +618,11 @@ contains
  wtim = (1._dp - wimplicit)*dt  ! weighted time
 
  ! ***** assemble the tri-diagonal matrix for the canopy
- diagCanopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dCanopyTemp) + dTheta_dTkCanopy*LH_fus*iden_water + scalarBulkVolHeatCapVeg
- d_m1Canopy = (wtim/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
- d_p1Canopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dGroundTemp)
+ if(computeVegFlux)then
+  diagCanopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dCanopyTemp) + dTheta_dTkCanopy*LH_fus*iden_water + scalarBulkVolHeatCapVeg
+  d_m1Canopy = (wtim/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
+  d_p1Canopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dGroundTemp)
+ endif
 
  ! ***** assemble the tri-diagonal matrix for the snow-soil layers
  diagVector = (wtim/mLayerDepth)*(-dFlux_dTempBelow(0:nLayers-1) + dFlux_dTempAbove(1:nLayers)) + mLayerVolHtCapBulk + mLayerdTheta_dTk*LH_fus*iden_water
@@ -740,10 +630,17 @@ contains
  d_p1Vector = (wtim/mLayerDepth(1:nLayers-1))*( dFlux_dTempBelow(1:nLayers-1) )
 
  ! ***** combine vectors
- d_m1 = (/d_m1Canopy,d_m1Vector/)
- diag = (/diagCanopy,diagVector/)
- d_p1 = (/d_p1Canopy,d_p1Vector/)
- rvec = (/canopyResidual,mLayerResidual/)
+ if(computeVegFlux)then
+  d_m1 = (/d_m1Canopy,d_m1Vector/)
+  diag = (/diagCanopy,diagVector/)
+  d_p1 = (/d_p1Canopy,d_p1Vector/)
+  rvec = (/canopyResidual,mLayerResidual/)
+ else
+  d_m1 = d_m1Vector
+  diag = diagVector
+  d_p1 = d_p1Vector
+  rvec = mLayerResidual
+ endif
 
  ! compute Jacobian matrix (just used for testing)
  if(computeJacobian)then
@@ -801,7 +698,11 @@ contains
  end do
 
  ! update temperatures
- scalarCanopyTempNew = scalarCanopyTempIter + scalarCanopyTempDiff
+ if(computeVegFlux)then
+  scalarCanopyTempNew = scalarCanopyTempIter + scalarCanopyTempDiff
+ else
+  scalarCanopyTempNew = missingValue_belowAbsoluteZero
+ endif
  mLayerTempNew       = mLayerTempIter + mLayerTempDiff
 
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -892,15 +793,12 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the Jacobian matrix'; return; endif
 
   ! get copies of the state vector to perturb
-  scalarCanopyTempTrial = scalarCanopyTempInput
-  mLayerTempTrial       = mLayerTempInput
+  if(computeVegFlux) scalarCanopyTempTrial = scalarCanopyTempInput
+  mLayerTempTrial = mLayerTempInput
  
   ! loop through desired layers
   do ijac=jStart,nLayers
 
-   print*, '*****************************'
-   print*, '* perturb layer ', iJac
- 
    ! ***** perturb states
    if(iJac == 0)then  ! (can ONLY happen if canopy)
     scalarCanopyTempTrial = scalarCanopyTempInput + dx
@@ -958,14 +856,16 @@ contains
  
    ! ***** compute the residual for the vegetation canopy (J m-3)
    ! (compute individual terms)
-   nrg0 = scalarBulkVolHeatCapVeg*scalarCanopyTemp                      ! energy content at the start of the time step (J m-3)
-   nrg1 = scalarBulkVolHeatCapVeg*scalarCanopyTempTrial                 ! energy content at the current iteration (J m-3)
-   flx0 = canopyNetFluxInit/canopyDepth                                 ! flux at the start of the time step (J m-3 s-1)
-   flx1 = local_canopyNetFlux/canopyDepth                               ! flux at the current iteration (J m-3 s-1)
-   phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
-   ! (compute residuals)
-   fCanopy = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
- 
+   if(computeVegFlux)then
+    nrg0 = scalarBulkVolHeatCapVeg*scalarCanopyTemp                      ! energy content at the start of the time step (J m-3)
+    nrg1 = scalarBulkVolHeatCapVeg*scalarCanopyTempTrial                 ! energy content at the current iteration (J m-3)
+    flx0 = canopyNetFluxInit/canopyDepth                                 ! flux at the start of the time step (J m-3 s-1)
+    flx1 = local_canopyNetFlux/canopyDepth                               ! flux at the current iteration (J m-3 s-1)
+    phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
+    ! (compute residuals)
+    fCanopy = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
+   endif 
+
    ! ***** compute the residual vector for all snow/soil layers (J m-3)
    do iLayer=1,nLayers
     ! (compute energy storage)
@@ -988,7 +888,7 @@ contains
     endselect
     vfIce = (theta - vfLiq)*(iden_water/iden_ice)
     phse  = LH_fus*iden_ice*(vfIce - mLayerVolFracIce(iLayer))            ! phase change term (J m-3)
-    write(*,'(a,10(f20.10,1x))') 'in Jacobian, computing residuals: nrg0, nrg1, flx0*dt, flx1*dt = ', nrg0, nrg1, flx0*dt, flx1*dt, mLayerTempTrial(iLayer)
+    !write(*,'(a,10(f20.10,1x))') 'in Jacobian, computing residuals: nrg0, nrg1, flx0*dt, flx1*dt = ', nrg0, nrg1, flx0*dt, flx1*dt, mLayerTempTrial(iLayer)
     ! (compute residuals)
     fVector(iLayer) = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
    end do
@@ -1011,12 +911,12 @@ contains
 
   ! print the Jacobian
   do iJac=jStart,nLayers
-   if(iJac==jStart)then;      write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'testing Jacobian', (/valueMissing,       jmat(iJac,jStart:iJac+1)/), '--> tri-diag = ', valueMissing, diag(iJac), d_p1(iJac)
-   elseif(iJac==nLayers)then; write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'testing Jacobian', (/jmat(iJac,iJac-1:nLayers),      valueMissing/), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), valueMissing
-   else;                      write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'testing Jacobian', (/jmat(iJac,iJac-1:iJac+1)                    /), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), d_p1(iJac)
+   if(iJac==jStart)then;      write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'test HT Jacobian', (/valueMissing,       jmat(iJac,jStart:iJac+1)/), '--> tri-diag = ', valueMissing, diag(iJac), d_p1(iJac)
+   elseif(iJac==nLayers)then; write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'test HT Jacobian', (/jmat(iJac,iJac-1:nLayers),      valueMissing/), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), valueMissing
+   else;                      write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'test HT Jacobian', (/jmat(iJac,iJac-1:iJac+1)                    /), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), d_p1(iJac)
    endif
   end do
-  pause 'testing Jacobian'
+  !pause 'testing Jacobian'
 
   ! deallocate space for the Jacobian matrix
   deallocate(jMat, stat=err) 

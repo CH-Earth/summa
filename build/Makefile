@@ -95,6 +95,7 @@ FUSE_PRELIM= \
 		read_pinit.f90 \
 		pOverwrite.f90 \
 		read_param.f90 \
+		paramCheck.f90 \
 		read_icond.f90
 PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_PRELIM))
 

@@ -37,7 +37,8 @@ contains
                        mLayerHeight,            & ! intent(in): height of the layer mid-point (top of soil = 0)
                        iLayerHeight,            & ! intent(in): height of the layer interface (top of soil = 0)
                        ! input: model parameters
-                       canopyDepth,             & ! intent(in): depth of the vegetation canopy (m)
+                       heightCanopyTop,         & ! intent(in): height at the top of the veg canopy (m)
+                       heightCanopyBottom,      & ! intent(in): height at the bottom of the veg canopy (m)
                        specificHeatVeg,         & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                        maxMassVegetation,       & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
                        iden_soil,               & ! intent(in): intrinsic density of soil (kg m-3)
@@ -67,7 +68,8 @@ contains
  real(dp),intent(in)           :: mLayerHeight(:)         ! height of the layer mid-point (top of soil = 0)
  real(dp),intent(in)           :: iLayerHeight(0:)        ! height of the layer interface (top of soil = 0)
  ! input: model parameters
- real(dp),intent(in)           :: canopyDepth             ! depth of the vegetation canopy (m)
+ real(dp),intent(in)           :: heightCanopyTop         ! height at the top of the veg canopy
+ real(dp),intent(in)           :: heightCanopyBottom      ! height at the bottom of the veg canopy
  real(dp),intent(in)           :: specificHeatVeg         ! specific heat of vegetation (J kg-1 K-1)
  real(dp),intent(in)           :: maxMassVegetation       ! maximum mass of vegetation (full foliage) (kg m-2)
  real(dp),intent(in)           :: iden_soil               ! intrinsic density of soil (kg m-3)
@@ -100,6 +102,7 @@ contains
  real(dp)                      :: bulkden_soil           ! bulk density of soil (kg m-3)
  real(dp)                      :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
  real(dp)                      :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+ real(dp)                      :: canopyDepth            ! depth of the vegetation canopy (m)
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -107,6 +110,12 @@ contains
 
  ! compute the number of layers
  nLayers = size(mLayerHeight)
+
+ ! define the canopy depth (m)
+ canopyDepth = heightCanopyTop - heightCanopyBottom
+ if(heightCanopyBottom > heightCanopyTop)then
+  err=20; message=trim(message)//'height of the bottom of the canopy > top of the canopy'; return
+ endif
 
  ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
  scalarBulkVolHeatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component

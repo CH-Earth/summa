@@ -60,10 +60,12 @@ contains
  real(dp)                      :: phseChnge                  ! volumetric liquid water equivalent associated with phase change (-)
  real(dp)                      :: relSaturn                  ! relative saturation [0,1] (-)
  real(dp)                      :: vDrainage                  ! vertical drainage (m s-1)
+ real(dp)                      :: vDrainage1                 ! vertical drainage (m s-1)
  real(dp)                      :: dflw_dliq                  ! derivative in vertical drainage (m s-1)
  real(dp)                      :: dt_dz                      ! dt/dz (s m-1)
  real(dp)                      :: lin_error                  ! linearization error [-residual] (-)
  real(dp)                      :: increment                  ! iteration increment (-)
+ real(dp),parameter            :: dx=1.e-8_dp                ! finite difference increment (-)
  real(dp),parameter            :: atol=1.d-6                 ! absolute iteration tolerance (-)
  integer(i4b),parameter        :: maxiter=10                 ! maximum number of iterations
  integer(i4b)                  :: jiter                      ! internal iteration index
@@ -148,7 +150,7 @@ contains
   do jiter=1,maxiter
    ! compute the drainage flux and its derivative
    call mw_func(volFracLiqTrial,mLayerThetaResid(iLayer),mLayerPoreSpace(iLayer), & ! input
-                vDrainage, dflw_dliq)                                               ! output
+                vDrainage, dflw_dliq)
    ! compute the residual (-)
    lin_error = dt_dz*(          wimplicit *(iLayerInitLiqFluxSnow(iLayer-1) - iLayerInitLiqFluxSnow(iLayer)) +   &
                        (1._dp - wimplicit)*(iLayerLiqFluxSnow(iLayer-1)     - vDrainage                    ) ) - &
