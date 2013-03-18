@@ -14,7 +14,7 @@ contains
  USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
  USE var_lookup,only:iLookDECISIONS                                   ! named variables for elements of the decision structure
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
- USE newsnwfall_module,only:newsnwfall      ! compute new snowfall
+ USE layerDivide_module,only:layerDivide    ! divide layers if they are too thick (includes addition of new snowfall)
  USE layerMerge_module,only:layerMerge      ! merge snow layers if they are too thin
  USE picardSolv_module,only:picardSolv      ! provide access to the Picard solver
  USE qTimeDelay_module,only:qOverland       ! provide access to the routing module
@@ -147,13 +147,12 @@ contains
   ! increment the number of sub-steps
   nsub = nsub+1
 
-  if(scalarSnowfall > 0._dp)then
-   call newsnwfall(dt_sub,            & ! time step (seconds)
+  ! NOTE: add new snowfall in layerDivide
+
+  ! add new snowfall, and divide snow layers if too thick
+  call layerDivide(dt_sub,            & ! time step (seconds)
                    err,cmessage)        ! error control
-   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
-   !print*, 'scalarRainfall, scalarSnowfall = ', scalarRainfall, scalarSnowfall
-   !stop ' snow is falling!'
-  endif
+  if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
 
   ! merge snow layers if they are too thin
   call layerMerge(err,cmessage)        ! error control
@@ -193,6 +192,8 @@ contains
 
   ! save the volumetric fraction of ice
   arrTemp = mLayerDepth
+ 
+
 
   ! use Picard iteration to solve model equations
   do

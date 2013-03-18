@@ -17,52 +17,55 @@ integer(i4b),parameter,public :: Jarvis            = 2    ! Jarvis
 ! ***** define look-up values for different FUSE model decisions *****
 ! -----------------------------------------------------------------------------------------------------------
 ! look-up values for the choice of numerical method
-integer(i4b),parameter,public :: iterative         =11    ! iterative
-integer(i4b),parameter,public :: nonIterative      =12    ! non-iterative
-integer(i4b),parameter,public :: iterSurfEnergyBal =13    ! iterate only on the surface energy balance
+integer(i4b),parameter,public :: iterative            =  11    ! iterative
+integer(i4b),parameter,public :: nonIterative         =  12    ! non-iterative
+integer(i4b),parameter,public :: iterSurfEnergyBal    =  13    ! iterate only on the surface energy balance
 ! look-up values for method used to compute derivative
-integer(i4b),parameter,public :: numerical         =21    ! numerical solution
-integer(i4b),parameter,public :: analytical        =22    ! analytical solution
+integer(i4b),parameter,public :: numerical            =  21    ! numerical solution
+integer(i4b),parameter,public :: analytical           =  22    ! analytical solution
 ! look-up values for the form of Richards' equation
-integer(i4b),parameter,public :: moisture          =31    ! moisture-based form of Richards' equation
-integer(i4b),parameter,public :: mixdform          =32    ! mixed form of Richards' equation
+integer(i4b),parameter,public :: moisture             =  31    ! moisture-based form of Richards' equation
+integer(i4b),parameter,public :: mixdform             =  32    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
-integer(i4b),parameter,public :: equilWaterTable   =41    ! equilibrium water table
-integer(i4b),parameter,public :: pseudoWaterTable  =42    ! pseudo water table
-integer(i4b),parameter,public :: bigBucket         =43    ! a big bucket (lumped aquifer model)
-integer(i4b),parameter,public :: noExplicit        =44    ! no explicit groundwater parameterization
+integer(i4b),parameter,public :: equilWaterTable      =  41    ! equilibrium water table
+integer(i4b),parameter,public :: pseudoWaterTable     =  42    ! pseudo water table
+integer(i4b),parameter,public :: bigBucket            =  43    ! a big bucket (lumped aquifer model)
+integer(i4b),parameter,public :: noExplicit           =  44    ! no explicit groundwater parameterization
 ! look-up values for the choice of hydraulic conductivity profile
-integer(i4b),parameter,public :: constant          =51     ! constant hydraulic conductivity with depth
-integer(i4b),parameter,public :: exp_profile       =52     ! exponential profile
-integer(i4b),parameter,public :: powerLaw_profile  =53     ! power-law profile
-integer(i4b),parameter,public :: linear_profile    =54     ! linear profile
+integer(i4b),parameter,public :: constant             =  51    ! constant hydraulic conductivity with depth
+integer(i4b),parameter,public :: exp_profile          =  52    ! exponential profile
+integer(i4b),parameter,public :: powerLaw_profile     =  53    ! power-law profile
+integer(i4b),parameter,public :: linear_profile       =  54    ! linear profile
 ! look-up values for the choice of boundary conditions for thermodynamics
-integer(i4b),parameter,public :: prescribedTemp    =61    ! prescribed temperature
-integer(i4b),parameter,public :: energyFlux        =62    ! energy flux
-integer(i4b),parameter,public :: zeroFlux          =63    ! zero flux
+integer(i4b),parameter,public :: prescribedTemp       =  61    ! prescribed temperature
+integer(i4b),parameter,public :: energyFlux           =  62    ! energy flux
+integer(i4b),parameter,public :: zeroFlux             =  63    ! zero flux
 ! look-up values for the choice of boundary conditions for hydrology
-integer(i4b),parameter,public :: liquidFlux        =71    ! liquid water flux
-integer(i4b),parameter,public :: prescribedHead    =72    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-integer(i4b),parameter,public :: funcBottomHead    =73    ! function of matric head in the lower-most layer
-integer(i4b),parameter,public :: freeDrainage      =74    ! free drainage
+integer(i4b),parameter,public :: liquidFlux           =  71    ! liquid water flux
+integer(i4b),parameter,public :: prescribedHead       =  72    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+integer(i4b),parameter,public :: funcBottomHead       =  73    ! function of matric head in the lower-most layer
+integer(i4b),parameter,public :: freeDrainage         =  74    ! free drainage
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard          =81    ! standard MO similarity, a la Anderson (1976) 
-integer(i4b),parameter,public :: louisInversePower =82    ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential  =83    ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard             =  81    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: louisInversePower    =  82    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential     =  83    ! Mahrt (1987) exponential
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: funcSnowAge       =91    ! function of snow age
-integer(i4b),parameter,public :: BATSlike          =92    ! BATS-like approach, with destructive metamorphism + soot content
+integer(i4b),parameter,public :: funcSnowAge          =  91    ! function of snow age
+integer(i4b),parameter,public :: BATSlike             =  92    ! BATS-like approach, with destructive metamorphism + soot content
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement=101   ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical =102   ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement   = 101    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical    = 102    ! semi-empirical method of Anderson (1976)
+! look-up values for the choice of method to combine and sub-divide snow layers
+integer(i4b),parameter,public :: sameRulesAllLayers   = 111    ! same combination/sub-division rules applied to all layers
+integer(i4b),parameter,public :: rulesDependLayerIndex= 112    ! combination/sub-dividion rules depend on layer index
 ! look-up values for the choice of thermal conductivity
-integer(i4b),parameter,public :: Yen1965           =111   ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977        =112   ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991        =113   ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000      =114   ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965              = 121    ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977           = 122    ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991           = 123    ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000         = 124    ! Smirnova et al. (2000)
 ! look-up values for the choice of routing method
-integer(i4b),parameter,public :: timeDelay         =121   ! time-delay histogram
-integer(i4b),parameter,public :: qInstant          =122   ! instantaneous routing
+integer(i4b),parameter,public :: timeDelay            = 131    ! time-delay histogram
+integer(i4b),parameter,public :: qInstant             = 132    ! instantaneous routing
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -223,7 +226,15 @@ contains
    err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
  end select
 
- ! (F-13) choice of thermal conductivity
+ ! (F-13) choice of method to combine and sub-divide snow layers
+ select case(trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision))
+  case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
+  case default
+   err=10; message=trim(message)//"unknown option for combination/sub-division of snow layers [option="//trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision)//"]"; return
+ end select
+
+ ! (F-14) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
   case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
@@ -233,7 +244,7 @@ contains
    err=10; message=trim(message)//"unknown option for thermal conductivity [option="//trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision)//"]"; return
  end select
 
- ! (F-14) choice of routing method
+ ! (F-15) choice of routing method
  select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
   case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
   case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing
@@ -250,6 +261,9 @@ contains
     err=20; return 
    endif
  end select
+
+ print*, 'check decisions', model_decisions(iLookDECISIONS%snowLayers)%iDecision, sameRulesAllLayers, rulesDependLayerIndex
+ pause
 
  end subroutine mDecisions
 

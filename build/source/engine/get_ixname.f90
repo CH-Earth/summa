@@ -43,6 +43,7 @@ contains
   case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (13) type of lower boundary condition for soil hydrology
   case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (14) choice of stability function
   case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (15) choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (16) choice of method to combine and sub-divide snow layers
   case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (16) choice of thermal conductivity representation
   case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (17) choice of albedo representation
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (18) choice of method for sub-grid routing
@@ -268,6 +269,19 @@ contains
   case('absConvTol_aquifr'   ); get_ixparam = iLookPARAM%absConvTol_aquifr    ! absolute convergence tolerance for aquifer storage (m)
   case('zmin'                ); get_ixparam = iLookPARAM%zmin                 ! minimum layer depth (m)
   case('zmax'                ); get_ixparam = iLookPARAM%zmax                 ! maximum layer depth (m)
+  case('zminLayer1'          ); get_ixparam = iLookPARAM%zminLayer1           ! minimum layer depth for the 1st (top) layer (m)
+  case('zminLayer2'          ); get_ixparam = iLookPARAM%zminLayer2           ! minimum layer depth for the 2nd layer (m) 
+  case('zminLayer3'          ); get_ixparam = iLookPARAM%zminLayer3           ! minimum layer depth for the 3rd layer (m) 
+  case('zminLayer4'          ); get_ixparam = iLookPARAM%zminLayer4           ! minimum layer depth for the 4th layer (m) 
+  case('zminLayer5'          ); get_ixparam = iLookPARAM%zminLayer5           ! minimum layer depth for the 5th (bottom) layer (m) 
+  case('zmaxLayer1_lower'    ); get_ixparam = iLookPARAM%zmaxLayer1_lower     ! maximum layer depth for the 1st (top) layer when only 1 layer (m) 
+  case('zmaxLayer2_lower'    ); get_ixparam = iLookPARAM%zmaxLayer2_lower     ! maximum layer depth for the 2nd layer when only 2 layers (m) 
+  case('zmaxLayer3_lower'    ); get_ixparam = iLookPARAM%zmaxLayer3_lower     ! maximum layer depth for the 3rd layer when only 3 layers (m) 
+  case('zmaxLayer4_lower'    ); get_ixparam = iLookPARAM%zmaxLayer4_lower     ! maximum layer depth for the 4th layer when only 4 layers (m) 
+  case('zmaxLayer1_upper'    ); get_ixparam = iLookPARAM%zmaxLayer1_upper     ! maximum layer depth for the 1st (top) layer when > 1 layer (m) 
+  case('zmaxLayer2_upper'    ); get_ixparam = iLookPARAM%zmaxLayer2_upper     ! maximum layer depth for the 2nd layer when > 2 layers (m) 
+  case('zmaxLayer3_upper'    ); get_ixparam = iLookPARAM%zmaxLayer3_upper     ! maximum layer depth for the 3rd layer when > 3 layers (m) 
+  case('zmaxLayer4_upper'    ); get_ixparam = iLookPARAM%zmaxLayer4_upper     ! maximum layer depth for the 4th layer when > 4 layers (m) 
   ! get to here if cannot find the variable
   case default
    get_ixparam = imiss

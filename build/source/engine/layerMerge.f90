@@ -1,5 +1,9 @@
 module layerMerge_module
 USE nrtype
+! define look-up values for the choice of method to combine and sub-divide snow layers
+USE mDecisions_module,only:&
+ sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+ rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
 implicit none
 private
 public::layerMerge
@@ -13,10 +17,16 @@ contains
  ! new subroutine: merge layers if the thickness is less than zmin
  ! ************************************************************************************************
  subroutine layerMerge(err,message)    ! error control
+ ! physical constants
  USE multiconst,only:&
                      iden_ice,       & ! intrinsic density of ice             (kg m-3)
                      iden_water        ! intrinsic density of liquid water    (kg m-3)
+ ! compute modules
  USE var_derive_module,only:calcHeight ! module to calculate height at layer interfaces and layer mid-point
+ ! model decisions
+ USE data_struc,only:model_decisions                            ! model decision structure
+ USE var_lookup,only:iLookDECISIONS                             ! named variables for elements of the decision structure
+ ! data structures
  USE data_struc,only:mpar_meta,forc_meta,mvar_meta,indx_meta                    ! metadata
  USE data_struc,only:mpar_data,forc_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
  USE var_lookup,only:iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX                 ! named variables for structure elements
@@ -27,19 +37,25 @@ contains
  character(*),intent(out)            :: message                  ! error message
  ! local pointers to model parameters (control on the depth of snow layers)
  real(dp),pointer                    :: zmin                     ! minimum layer depth (m)
- real(dp),pointer                    :: zmax                     ! maximum layer depth (m)
+ real(dp),pointer                    :: zminLayer1               ! minimum layer depth for the 1st (top) layer(m) 
+ real(dp),pointer                    :: zminLayer2               ! minimum layer depth for the 2nd layer(m) 
+ real(dp),pointer                    :: zminLayer3               ! minimum layer depth for the 3rd layer(m) 
+ real(dp),pointer                    :: zminLayer4               ! minimum layer depth for the 4th layer(m) 
+ real(dp),pointer                    :: zminLayer5               ! minimum layer depth for the 5th (bottom) layer(m) 
  ! local pointers to model state variables
  real(dp),pointer                    :: mLayerDepth(:)           ! depth of each layer (m)
  real(dp),pointer                    :: mLayerVolFracIce(:)      ! volumetric fraction of ice in each layer (-)
  real(dp),pointer                    :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water in each layer (-)
  ! local pointers to diagnostic scalar variables
- real(dp),pointer                     :: scalarSnowDepth          ! total snow depth (m)
- real(dp),pointer                     :: scalarSWE                ! SWE (kg m-2)
+ real(dp),pointer                     :: scalarSnowDepth         ! total snow depth (m)
+ real(dp),pointer                     :: scalarSWE               ! SWE (kg m-2)
  ! local pointers to model index variables
  integer(i4b),pointer                :: nLayers                  ! number of layers
  integer(i4b),pointer                :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local variables
  character(LEN=256)                  :: cmessage                 ! error message of downwind routine
+ real(dp),dimension(5)               :: zminLayer                ! minimum layer depth in each layer (m)
+ logical(lgt)                        :: removeLayer              ! flag to indicate need to remove a layer
  integer(i4b)                        :: iSnow                    ! index of snow layers (looping)
  integer(i4b)                        :: jSnow                    ! index of snow layer identified for combination with iSnow
  integer(i4b)                        :: kSnow                    ! index of the upper layer of the two layers identified for combination
@@ -48,8 +64,13 @@ contains
  ! initialize error control
  err=0; message="layerMerge/"
  ! assign local pointers to model parameters (control the depth of snow layers)
- zmin             => mpar_data%var(iLookPARAM%zmin)                    ! minimum layer depth (m)
- zmax             => mpar_data%var(iLookPARAM%zmax)                    ! maximum layer depth (m)
+ zmin             => mpar_data%var(iLookPARAM%zmin)              ! minimum layer depth (m)
+ zminLayer1       => mpar_data%var(iLookPARAM%zminLayer1)        ! minimum layer depth for the 1st (top) layer (m)
+ zminLayer2       => mpar_data%var(iLookPARAM%zminLayer2)        ! minimum layer depth for the 2nd layer (m)
+ zminLayer3       => mpar_data%var(iLookPARAM%zminLayer3)        ! minimum layer depth for the 3rd layer (m)
+ zminLayer4       => mpar_data%var(iLookPARAM%zminLayer4)        ! minimum layer depth for the 4th layer (m)
+ zminLayer5       => mpar_data%var(iLookPARAM%zminLayer5)        ! minimum layer depth for the 5th (bottom) layer (m)
+
  ! assign local pointers to model state variables
  mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
  mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer  (-)
@@ -65,11 +86,25 @@ contains
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
 
+ ! identify algorithmic control parameters to syb-divide and combine snow layers
+ zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
+
+ ! check that there are no more than 5 layers in the CLM option
+ if(model_decisions(iLookDECISIONS%snowLayers)%iDecision == rulesDependLayerIndex)then
+  message=trim(message)//'expect no more than 5 layers when combination/sub-division rules depend on the layer index (CLM option)'
+  err=20; return
+ endif
+
  kSnow=0 ! initialize first layer to test (top layer)
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
   do iSnow=kSnow+1,nSnow
    ! check if the layer depth is less than the depth threshold
-   if(mLayerDepth(iSnow)<zmin)then
+   select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+    case(sameRulesAllLayers);    removeLayer = (scalarSnowDepth < zmin)
+    case(rulesDependLayerIndex); removeLayer = (scalarSnowDepth < zminLayer(iSnow))
+    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+   end select ! (option to combine/sub-divide snow layers)
+   if(removeLayer)then
     ! ***** handle special case of a single layer
     if(nSnow==1)then
      ! set the variables defining "snow without a layer"
