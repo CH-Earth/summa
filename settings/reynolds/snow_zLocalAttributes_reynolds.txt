@@ -1,0 +1,131 @@
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! ***** DEFINITION OF SITE CHARACTERISTICS ******************************************************************************
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "|" must be present (format a1), as these are used to check the integrety of the file
+! ***************************************************************************************************************************
+! columns are:
+! 1: variable name
+! 2: variable definition
+! 3: variable type (categorical or numerical)
+! ***************************************************************************************************************************
+! define format string for parameter descriptions
+! ***************************************************************************************************************************
+'(a20,(1x,a1,1x),a10,(1x,a1,1x),a11)'    ! format string (must be in single quotes)
+! ***************************************************************************************************************************
+! ***************************************************************************************************************************
+! define variables
+! ***************************************************************************************************************************
+! ***************************************************************************************************************************
+! categorical data
+! ***************************************************************************************************************************
+! ***** NOTE: ensure select from the table used in the decisions file
+! ***************************************************************************************************************************
+vegTypeIndex         |          9 | categorical
+soilTypeIndex        |          8 | categorical
+slopeTypeIndex       |          1 | categorical
+! ***************************************************************************************************************************
+! numerical data
+! ***************************************************************************************************************************
+latitude             |       43.2 | numericData
+longitude            |      243.2 | numericData
+elevation            |     2057.0 | numericData
+mHeight              |        6.0 | numericData
+! ***********************************************************************************************************************
+!
+!
+! (description of the tables used)
+!
+! ***********************************************************************************************************************
+! USGS Vegetation table
+! ***********************************************************************************************************************
+!  1: Urban and Built-Up Land
+!  2: Dryland Cropland and Pasture
+!  3: Irrigated Cropland and Pasture
+!  4: Mixed Dryland/Irrigated Cropland and Pasture
+!  5: Cropland/Grassland Mosaic
+!  6: Cropland/Woodland Mosaic
+!  7: Grassland
+!  8: Shrubland
+!  9: Mixed Shrubland/Grassland
+! 10: Savanna
+! 11: Deciduous Broadleaf Forest
+! 12: Deciduous Needleleaf Forest
+! 13: Evergreen Broadleaf Forest
+! 14: Evergreen Needleleaf Forest
+! 15: Mixed Forest
+! 16: Water Bodies
+! 17: Herbaceous Wetland
+! 18: Wooded Wetland
+! 19: Barren or Sparsely Vegetated
+! 20: Herbaceous Tundra
+! 21: Wooded Tundra
+! 22: Mixed Tundra
+! 23: Bare Ground Tundra
+! 24: Snow or Ice
+! 25: Playa
+! 26: Lava
+! 27: White Sand
+! ***********************************************************************************************************************
+! MODIS Vegetation table
+! ***********************************************************************************************************************
+! 1          'Evergreen Needleleaf Forest'                       -> USGS 14
+! 2,         'Evergreen Broadleaf Forest'                        -> USGS 13
+! 3,         'Deciduous Needleleaf Forest'                       -> USGS 12
+! 4,         'Deciduous Broadleaf Forest'                        -> USGS 11
+! 5,         'Mixed Forests'                                     -> USGS 15
+! 6,         'Closed Shrublands'                                 -> USGS  8 "shrubland"
+! 7,         'Open Shrublands'                                   -> USGS  9 "shrubland/grassland"
+! 8,         'Woody Savannas'                                    -> USGS  8 "shrubland"
+! 9,         'Savannas'                                          -> USGS 10
+! 10,        'Grasslands'                                        -> USGS  7
+! 11         'Permanent wetlands'                                -> avg of USGS 17 and 18 (herb. wooded wetland)
+! 12,        'Croplands'                                         -> USGS  2 "dryland cropland"
+! 13,        'Urban and Built-Up'                                -> USGS  1
+! 14         'cropland/natural vegetation mosaic'                -> USGS  5 "cropland/grassland"
+! 15,        'Snow and Ice'                                      -> USGS 24
+! 16,        'Barren or Sparsely Vegetated'                      -> USGS 19
+! 17,        'Water'                                             -> USGS 16
+! 18,        'Wooded Tundra'                                     -> USGS 21
+! 19,        'Mixed Tundra'                                      -> USGS 22
+! 20,        'Barren Tundra'                                     -> USGS 23
+! ***********************************************************************************************************************
+! Soil table
+! ***********************************************************************************************************************
+! 1,  'SAND'
+! 2,  'LOAMY SAND'
+! 3,  'SANDY LOAM'
+! 4,  'SILT LOAM'
+! 5,  'SILT'
+! 6,  'LOAM'
+! 7,  'SANDY CLAY LOAM'
+! 8,  'SILTY CLAY LOAM'
+! 9,  'CLAY LOAM'
+! 10, 'SANDY CLAY'
+! 11, 'SILTY CLAY'
+! 12, 'CLAY'
+! 13, 'ORGANIC MATERIAL'
+! 14, 'WATER'
+! 15, 'BEDROCK'
+! 16, 'OTHER(land-ice)'
+! 17, 'PLAYA'
+! 18, 'LAVA'
+! 19, 'WHITE SAND'
+! ***********************************************************************************************************************
+! Slope table
+! ***********************************************************************************************************************
+! 1, 0.1
+! 2, 0.6
+! 3, 1.0
+! 4, 0.35
+! 5, 0.55
+! 6, 0.8
+! 7, 0.63
+! 8, 0.0
+! 9, 0.0
+! ***********************************************************************************************************************

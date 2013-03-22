@@ -23,7 +23,7 @@ bcLowrSoiH                   drainage  ! (F-09) type of lower boundary condition
 astability                   mahrtexp  ! (F-10) choice of stability function
 alb_method                   fsnowage  ! (F-11) choice of albedo representation
 compaction                   anderson  ! (F-12) choice of compaction routine
-snowLayers                   CLM_2010  ! (F-13) choice of method to combine and sub-divide snow layers
+snowLayers                   jrdn1991  ! (F-13) choice of method to combine and sub-divide snow layers
 thermlcond                   melr1977  ! (F-14) choice of thermal conductivity representation
 subRouting                   timeDlay  ! (F-15) choice of method for sub-grid routing
 ! ***********************************************************************************************
