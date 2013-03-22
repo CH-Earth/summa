@@ -76,7 +76,6 @@ mw_exp               | exponent for meltwater flow                              
 ! *****************************************************************************************************************
 ! turbulent heat fluxes
 ! *****************************************************************************************************************
-mheight              | measurement height above bare ground                              | m          | scalarv | F
 z0Snow               | roughness length of snow                                          | m          | scalarv | T
 z0Soil               | roughness length of bare soil below the canopy                    | m          | scalarv | T
 z0Canopy             | roughness length of the canopy                                    | m          | scalarv | T
@@ -84,8 +83,8 @@ critRichNumber       | critical value for the bulk Richardson number            
 Louis79_bparam       | parameter in Louis (1979) stability function                      | -          | scalarv | T
 Louis79_cStar        | parameter in Louis (1979) stability function                      | -          | scalarv | T
 Mahrt87_eScale       | exponential scaling factor in the Mahrt (1987) stability function | -          | scalarv | T
-windReductionFactor  | canopy wind reduction factor                                      | -          | scalarv | T
 leafExchangeCoeff    | turbulent exchange coeff between canopy surface and canopy air    | m s-(1/2)  | scalarv | T
+windReductionParam   | canopy wind reduction parameter                                   | -          | scalarv | T
 ! *****************************************************************************************************************
 ! vegetation properties
 ! *****************************************************************************************************************
@@ -97,7 +96,12 @@ critSoilWilting      | critical vol. liq. water content when plants are wilting 
 critSoilTranspire    | critical vol. liq. water content when transpiration is limited    | -          | scalarv | T
 critAquiferTranspire | critical aquifer storage value when transpiration is limited      | m          | scalarv | T
 leafDimension        | characteristic leaf dimension                                     | m          | scalarv | T
-canopyHeight         | canopy height                                                     | m          | scalarv | T
+heightCanopyTop      | height of top of the vegetation canopy above ground surface       | m          | scalarv | T
+heightCanopyBottom   | height of bottom of the vegetation canopy above ground surface    | m          | scalarv | T
+maxCanopyIce         | maximum mass of ice on the vegetation canopy per unit lai+sai     | kg m-2     | scalarv | T
+maxCanopyLiquid      | maximum mass of liq water on vegetation canopy per unit lai+sai   | kg m-2     | scalarv | T
+specificHeatVeg      | specific heat of vegetation                                       | J kg-1 K-1 | scalarv | T
+maxMassVegetation    | maximum mass of vegetation (full foliage)                         | kg m-2     | scalarv | T
 ! *****************************************************************************************************************
 ! soil properties
 ! *****************************************************************************************************************
@@ -142,4 +146,17 @@ relConvTol_aquifr    | relative convergence tolerance for aquifer storage       
 absConvTol_aquifr    | absolute convergence tolerance for aquifer storage                | m          | scalarv | F
 zmin                 | minimum layer depth                                               | m          | scalarv | F
 zmax                 | maximum layer depth                                               | m          | scalarv | F
+zminLayer1           | minimum layer depth for the 1st (top) layer                       | m          | scalarv | F
+zminLayer2           | minimum layer depth for the 2nd layer                             | m          | scalarv | F
+zminLayer3           | minimum layer depth for the 3rd layer                             | m          | scalarv | F
+zminLayer4           | minimum layer depth for the 4th layer                             | m          | scalarv | F
+zminLayer5           | minimum layer depth for the 5th (bottom) layer                    | m          | scalarv | F
+zmaxLayer1_lower     | maximum layer depth for the 1st (top) layer when only 1 layer     | m          | scalarv | F
+zmaxLayer2_lower     | maximum layer depth for the 2nd layer when only 2 layers          | m          | scalarv | F
+zmaxLayer3_lower     | maximum layer depth for the 3rd layer when only 3 layers          | m          | scalarv | F
+zmaxLayer4_lower     | maximum layer depth for the 4th layer when only 4 layers          | m          | scalarv | F
+zmaxLayer1_upper     | maximum layer depth for the 1st (top) layer when > 1 layer        | m          | scalarv | F
+zmaxLayer2_upper     | maximum layer depth for the 2nd layer when > 2 layers             | m          | scalarv | F
+zmaxLayer3_upper     | maximum layer depth for the 3rd layer when > 3 layers             | m          | scalarv | F
+zmaxLayer4_upper     | maximum layer depth for the 4th layer when > 4 layers             | m          | scalarv | F
 ! *****************************************************************************************************************

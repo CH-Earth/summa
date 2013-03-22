@@ -27,8 +27,8 @@
 ! ********************************************************************************************************************************
 ! timestep-average fluxes for a few key variables
 ! ********************************************************************************************************************************
-averageMassLiquid              | evaporation or dew                                                | kg m-2 s-1      | scalarv | T
-averageMassSolid               | sublimation or frost                                              | kg m-2 s-1      | scalarv | T
+averageSnowSublimation         | snow sublimation/frost (below canopy or non-vegetated)            | kg m-2 s-1      | scalarv | T
+averageGroundEvaporation       | ground evaporation/condensation (below canopy or non-vegetated)   | kg m-2 s-1      | scalarv | T
 averageRainPlusMelt            | rain plus melt input to soil before calculating surface runoff    | m s-1           | scalarv | T
 averageSurfaceRunoff           | surface runoff                                                    | m s-1           | scalarv | T
 averageSoilInflux              | influx of water at the top of the soil profile                    | m s-1           | scalarv | T
@@ -53,17 +53,20 @@ scalarCO2air                   | atmospheric co2 concentration                  
 ! ********************************************************************************************************************************
 ! scalar variables (state variables)
 ! ********************************************************************************************************************************
-scalarVegetationTemp           | vegetation temperature                                            | K               | scalarv | T             
-scalarAlbedo                   | albedo of the surface (snow or soil)                              | -               | scalarv | F
+scalarCanopyIce                | mass of ice on the vegetation canopy                              | kg m-2          | scalarv | T
+scalarCanopyLiq                | mass of liquid water on the vegetation canopy                     | kg m-2          | scalarv | T
+scalarCanopyTemp               | temperature of the vegetation canopy                              | K               | scalarv | T             
+scalarAlbedo                   | snow albedo                                                       | -               | scalarv | F
+scalarSnowAge                  | non-dimensional snow age                                          | -               | scalarv | F
 scalarSnowDepth                | total snow depth                                                  | m               | scalarv | T
 scalarSWE                      | snow water equivalent                                             | kg m-2          | scalarv | T
-scalarSfcMeltPond              | ponded water caused by melt of the "snow without a layer"         | kg m-2          | scalarv | F
+scalarSfcMeltPond              | ponded water caused by melt of the "snow without a layer"         | kg m-2          | scalarv | T
 scalarAquiferStorage           | water required to bring aquifer to the bottom of the soil profile | m               | scalarv | T
 scalarWaterTableDepth          | depth of the water table                                          | m               | scalarv | T
 ! ********************************************************************************************************************************
 ! NOAH-MP vegetation variables (general)
 ! ********************************************************************************************************************************
-scalarCanopyHeight             | height of the top of the canopy layer                             | m               | scalarv | T
+scalarBulkVolHeatCapVeg        | bulk volumetric heat capacity of vegetation                       | J m-3 K-1       | scalarv | T
 scalarRootZoneTemp             | average temperature of the root zone                              | K               | scalarv | T
 scalarLAI                      | one-sided leaf area index                                         | m2 m-2          | scalarv | T
 scalarSAI                      | one-sided stem area index                                         | m2 m-2          | scalarv | T
@@ -88,7 +91,6 @@ scalarCanopyReflectedSolar     | solar radiation reflected from the canopy      
 scalarGroundReflectedSolar     | solar radiation reflected from the ground                         | W m-2           | scalarv | T
 scalarBetweenCanopyGapFraction | between canopy gap fraction for beam                              | -               | scalarv | T
 scalarWithinCanopyGapFraction  | within canopy gap fraction for beam                               | -               | scalarv | T
-scalarTotalCanopyGapFraction   | total canopy gap fraction for beam                                | -               | scalarv | T
 ! ********************************************************************************************************************************
 ! NOAH-MP vegetation variables (longwave radiation)
 ! ********************************************************************************************************************************
@@ -108,30 +110,36 @@ scalarLWNetUbound              | net longwave radiation at the upper atmospheric
 ! ********************************************************************************************************************************
 ! NOAH-MP vegetation variables (turbulent heat transfer)
 ! ********************************************************************************************************************************
+scalarLatHeatSubVapCanopy      | latent heat of sublimation/vaporization used for veg canopy       | J kg-1          | scalarv | T
+scalarLatHeatSubVapGround      | latent heat of sublimation/vaporization used for ground surface   | J kg-1          | scalarv | T
+scalarSatVP_CanopyTemp         | saturation vapor pressure at the temperature of vegetation canopy | Pa              | scalarv | T
+scalarSatVP_GroundTemp         | saturation vapor pressure at the temperature of the ground        | Pa              | scalarv | T
+scalarWindReductionFactor      | canopy wind reduction factor                                      | -               | scalarv | T
 scalarZeroPlaneDisplacement    | zero plane displacement                                           | m               | scalarv | T
 scalarSfc2AtmExchangeCoeff     | surface-atmosphere turbulent exchange coefficient                 | -               | scalarv | T
 scalarEddyDiffusCanopyTop      | eddy diffusivity for heat at the top of the canopy                | m2 s-1          | scalarv | T 
 scalarWindspdCanopyTop         | windspeed at the top of the canopy                                | m s-1           | scalarv | T
-scalarLeafResistance           | mean leaf boundary layer resistance per unit leaf area            | s m-1           | scalarv | T
 scalarGroundResistance         | below canopy aerodynamic resistance                               | s m-1           | scalarv | T
 scalarCanopyResistance         | above canopy aerodynamic resistance                               | s m-1           | scalarv | T
+scalarLeafResistance           | mean leaf boundary layer resistance per unit leaf area            | s m-1           | scalarv | T
+scalarSoilResistance           | soil surface resistance                                           | s m-1           | scalarv | T
+scalarSoilRelHumidity          | relative humidity in the soil pores in the upper-most soil layer  | -               | scalarv | T
 scalarSenHeatCanopy            | sensible heat from the canopy to the canopy air space             | W m-2           | scalarv | T
 scalarSenHeatGround            | sensible heat from the ground (below canopy or non-vegetated)     | W m-2           | scalarv | T
-scalarLatHeatCanopy            | latent heat from the canopy to the canopy air space               | W m-2           | scalarv | T
+scalarLatHeatCanopyEvap        | evaporation latent heat from the canopy to the canopy air space   | W m-2           | scalarv | T
+scalarLatHeatCanopyTrans       | transpiration latent heat from the canopy to the canopy air space | W m-2           | scalarv | T
 scalarLatHeatGround            | latent heat from the ground (below canopy or non-vegetated)       | W m-2           | scalarv | T
-scalarPotentialET              | potential evapotranspiration                                      | kg m-2 s-1      | scalarv | T
 scalarCanopyTranspiration      | canopy transpiration                                              | kg m-2 s-1      | scalarv | T
 scalarCanopyEvaporation        | canopy evaporation/condensation                                   | kg m-2 s-1      | scalarv | T
-scalarCanopySublimation        | ground sublimation/frost                                          | kg m-2 s-1      | scalarv | T
+scalarCanopySublimation        | canopy sublimation/frost                                          | kg m-2 s-1      | scalarv | T
 scalarGroundEvaporation        | ground evaporation/condensation (below canopy or non-vegetated)   | kg m-2 s-1      | scalarv | T
-scalarGroundSublimation        | ground sublimation/frost (below canopy or non-vegetated)          | kg m-2 s-1      | scalarv | T
+scalarSnowSublimation          | snow sublimation/frost (below canopy or non-vegetated)            | kg m-2 s-1      | scalarv | T
 ! ********************************************************************************************************************************
 ! NOAH-MP vegetation variables (transpiration)
 ! ********************************************************************************************************************************
 scalarTranspireLim             | aggregate soil moisture and aquifer control on transpiration      | -               | scalarv | F
 scalarTranspireLimAqfr         | aquifer storage control on transpiration                          | -               | scalarv | F
 scalarFoliageNitrogenFactor    | foliage nitrogen concentration (1=saturated)                      | -               | scalarv | F
-scalarSatVP_VegTemp            | saturation vapor pressure at vegetation temperature               | Pa              | scalarv | T
 scalarStomResistSunlit         | stomatal resistance for sunlit leaves                             | s m-1           | scalarv | T
 scalarStomResistShaded         | stomatal resistance for shaded leaves                             | s m-1           | scalarv | T
 scalarPhotosynthesisSunlit     | sunlit photosynthesis                                             | umolco2 m-2 s-1 | scalarv | T
@@ -140,8 +148,10 @@ scalarPhotosynthesisShaded     | shaded photosynthesis                          
 ! NOAH-MP vegetation variables (hydrology)
 ! ********************************************************************************************************************************
 scalarCanopyWetFraction        | fraction of canopy that is wet                                    | -               | scalarv | T
+scalarGroundSnowFraction       | fraction of ground that is covered with snow                      | -               | scalarv | T
+temp1                          | placeholder                                                       | -               | scalarv | F
 ! ********************************************************************************************************************************
-! scalar variables (soil fluxes)
+! scalar variables (soil and aquifer fluxes)
 ! ********************************************************************************************************************************
 scalarRainPlusMelt             | rain plus melt, used as input to soil before surface runoff       | m s-1           | scalarv | F
 scalarSurfaceRunoff            | surface runoff                                                    | m s-1           | scalarv | F
@@ -151,10 +161,14 @@ scalarInitAquiferTranspire     | transpiration loss from the aquifer at the star
 scalarAquiferTranspire         | transpiration loss from the aquifer at the end-of-step            | m s-1           | scalarv | F
 scalarInitAquiferBaseflow      | baseflow from the aquifer at the start-of-step                    | m s-1           | scalarv | F 
 scalarAquiferBaseflow          | baseflow from the aquifer at the end-of-step                      | m s-1           | scalarv | F 
+! ********************************************************************************************************************************
+! scalar variables (sub-step average fluxes for the soil zone)
+! ********************************************************************************************************************************
 scalarSoilInflux               | sub-step average: influx of water at the top of the soil profile  | m s-1           | scalarv | F
 scalarSoilBaseflow             | sub-step average: total baseflow from the soil profile            | m s-1           | scalarv | F
 scalarSoilDrainage             | sub-step average: drainage from the bottom of the soil profile    | m s-1           | scalarv | F
 scalarSoilEjection             | sub-step average: total water ejected from each soil layer        | m s-1           | scalarv | F
+scalarSoilTranspiration        | sub-step average: total transpiration from the soil               | m s-1           | scalarv | F
 ! ********************************************************************************************************************************
 ! scalar variables (mass balance check)
 ! ********************************************************************************************************************************
@@ -188,9 +202,9 @@ mLayerdPsi_dTheta              | derivative in the soil water characteristic w.r
 mLayerThetaResid               | residual volumetric water content in each snow layer              | -               | midSnow | F
 mLayerPoreSpace                | total pore space in each snow layer                               | -               | midSnow | F
 mLayerInfilFreeze              | volumetric ice content increase by freezing infiltrating flux     | -               | midToto | F
-mLayerTranspireLim             | soil moist & veg limit on transpiration for each layer            | -               | midSoil | F
+mLayerTranspireLim             | soil moist & veg limit on transpiration for each layer            | -               | midSoil | T
 mLayerInitTranspire            | transpiration loss from each soil layer at the start-of-step      | m s-1           | midSoil | F
-mLayerTranspire                | transpiration loss from each soil layer                           | m s-1           | midSoil | F
+mLayerTranspire                | transpiration loss from each soil layer                           | m s-1           | midSoil | T
 mLayerInitEjectWater           | water ejected from each soil layer at the start-of-step           | m s-1           | midSoil | F
 mLayerEjectWater               | water ejected from each soil layer                                | m s-1           | midSoil | F
 mLayerInitBaseflow             | baseflow from each soil layer at the start of the time step       | m s-1           | midSoil | F
@@ -206,7 +220,7 @@ iLayerSatHydCond               | saturated hydraulic conductivity in each layer 
 iLayerInitLiqFluxSnow          | liquid flux at snow layer interfaces at start of the time step    | m s-1           | ifcSnow | F
 iLayerInitLiqFluxSoil          | liquid flux at soil layer interfaces at start of the time step    | m s-1           | ifcSoil | F
 iLayerLiqFluxSnow              | liquid flux at snow layer interfaces at end of the time step      | m s-1           | ifcSnow | F
-iLayerLiqFluxSoil              | liquid flux at soil layer interfaces at end of the time step      | m s-1           | ifcSoil | F
+iLayerLiqFluxSoil              | liquid flux at soil layer interfaces at end of the time step      | m s-1           | ifcSoil | T
 ! ********************************************************************************************************************************
 ! runoff
 ! ********************************************************************************************************************************
