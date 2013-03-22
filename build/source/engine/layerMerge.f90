@@ -56,6 +56,7 @@ contains
  character(LEN=256)                  :: cmessage                 ! error message of downwind routine
  real(dp),dimension(5)               :: zminLayer                ! minimum layer depth in each layer (m)
  logical(lgt)                        :: removeLayer              ! flag to indicate need to remove a layer
+ integer(i4b)                        :: nCheck                   ! number of layers to check for combination
  integer(i4b)                        :: iSnow                    ! index of snow layers (looping)
  integer(i4b)                        :: jSnow                    ! index of snow layer identified for combination with iSnow
  integer(i4b)                        :: kSnow                    ! index of the upper layer of the two layers identified for combination
@@ -89,22 +90,30 @@ contains
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
 
- ! check that there are no more than 5 layers in the CLM option
- if(model_decisions(iLookDECISIONS%snowLayers)%iDecision == rulesDependLayerIndex)then
-  message=trim(message)//'expect no more than 5 layers when combination/sub-division rules depend on the layer index (CLM option)'
-  err=20; return
- endif
-
  kSnow=0 ! initialize first layer to test (top layer)
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
-  do iSnow=kSnow+1,nSnow
+
+  ! special case of >5 layers: add an offset to use maximum threshold from layer above
+  if(model_decisions(iLookDECISIONS%snowLayers)%iDecision == rulesDependLayerIndex .and. nSnow > 5)then
+   nCheck=5
+  else
+   nCheck=nSnow
+  endif
+
+  ! loop through snow layers
+  do iSnow=kSnow+1,nCheck
+
    ! check if the layer depth is less than the depth threshold
    select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
-    case(sameRulesAllLayers);    removeLayer = (scalarSnowDepth < zmin)
-    case(rulesDependLayerIndex); removeLayer = (scalarSnowDepth < zminLayer(iSnow))
+    case(sameRulesAllLayers);    removeLayer = (mLayerDepth(iSnow) < zmin)
+    case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iSnow) < zminLayer(iSnow))
     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
    end select ! (option to combine/sub-divide snow layers)
+   !print*, 'in layerMerge: iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer = ', iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer
+
+   ! check if need to remove a layer
    if(removeLayer)then
+
     ! ***** handle special case of a single layer
     if(nSnow==1)then
      ! set the variables defining "snow without a layer"
@@ -122,7 +131,8 @@ contains
      ! exit the do loop (no more snow layers to remove)
      return
     endif
-    ! identify the layer to combine
+
+    ! ***** identify the layer to combine
     if(iSnow==1)then
      jSnow = iSnow+1  ! upper-most layer, combine with its lower neighbor
     elseif(iSnow==nSnow)then
@@ -131,6 +141,7 @@ contains
      if(mLayerDepth(iSnow-1)<mLayerDepth(iSnow+1))then; jSnow = iSnow-1; else; jSnow = iSnow+1; endif
     endif
 
+    ! ***** combine layers
     ! identify the layer closest to the surface
     kSnow=min(iSnow,jSnow)
     ! combine layer with identified neighbor
@@ -140,14 +151,48 @@ contains
     mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
     ! update the number of snow layers
     nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+    !print*, 'removed layer: mLayerDepth = ', mLayerDepth
+    !pause
+
     ! exit the loop to try again
     exit
+
    endif  ! (if layer is below the mass threshold)
+
    kSnow=iSnow ! ksnow is used for completion test, so include here
-  end do
+
+  end do ! (looping through snow layers)
+
+  !print*, 'ksnow = ', ksnow
+
   ! exit if finished
-  if(kSnow==nSnow)exit
- end do
+  if(kSnow==nCheck)exit
+
+ end do ! continuous do
+
+ ! handle special case of > 5 layers in the CLM option
+ if(nSnow > 5 .and. model_decisions(iLookDECISIONS%snowLayers)%iDecision == rulesDependLayerIndex)then
+  ! initial check to ensure everything is wonderful in the universe
+  if(nSnow /= 6)then; err=5; message=trim(message)//'special case of > 5 layers: expect only six layers'; return; endif
+  ! combine 5th layer with layer below
+  call layer_combine(5,err,cmessage)
+  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+  ! re-assign pointers to the layer depth
+  mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
+  ! update the number of snow layers
+  nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+  !print*, 'removed layer: mLayerDepth = ', mLayerDepth
+  !pause
+  if(nSnow /= 5)then; err=5; message=trim(message)//'special case of > 5 layers: expect have fixed matters so there are now just 5 layers'; return; endif
+ endif
+
+ ! check that there are no more than 5 layers in the CLM option
+ if(model_decisions(iLookDECISIONS%snowLayers)%iDecision == rulesDependLayerIndex)then
+  if(nSnow > 5)then
+   message=trim(message)//'expect no more than 5 layers when combination/sub-division rules depend on the layer index (CLM option)'
+   err=20; return
+  endif
+ endif
 
  end subroutine layerMerge
 

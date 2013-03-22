@@ -92,6 +92,7 @@ contains
  real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1) 
  real(dp)                       :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
  real(dp)                       :: residlVolFracLiq    ! volumetric fraction of liquid water in tension storage (snow)
+ real(dp)                       :: h1,h2               ! used to check depth and height are consistent
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -322,6 +323,49 @@ contains
   scalarLayerType  => indx_data%var(iLookINDEX%layerType)%dat(iLayer)          ! type of layer (ix_soil or ix_snow)
   ! compute liquid water equivalent of total water (liquid plus ice)
   scalarTheta = scalarVolFracIce*(iden_ice/iden_water) + scalarVolFracLiq
+
+  ! check that the initial volumetric fraction of liquid water and ice is reasonable
+  select case(scalarLayerType)
+   ! ***** snow
+   case(ix_snow)
+    ! (check liquid water)
+    if(scalarVolFracLiq < 0._dp .or. scalarVolFracLiq > 1._dp)then
+     write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0 or > 1: layer = ',iLayer
+     err=20; return
+    endif
+    ! (check ice)
+    if(scalarVolFracIce < 0.05_dp .or. scalarVolFracIce > 0.70_dp)then
+     write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05 or > 0.70: layer = ',iLayer
+     err=20; return
+    endif
+    ! check total water
+    if(scalarTheta < 0.05_dp .or. scalarTheta > 0.7_dp)then
+     write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with theta (total water fraction [liquid + ice]) < 0.05 or > 0.70: layer = ',iLayer
+     err=20; return
+    endif
+
+   ! ***** soil
+   case(ix_soil)
+    ! (check liquid water)
+    if(scalarVolFracLiq < theta_res .or. scalarVolFracLiq > theta_sat)then
+     write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res or > theta_sat: layer = ',iLayer
+     err=20; return
+    endif
+    ! (check ice)
+    if(scalarVolFracIce < 0._dp .or. scalarVolFracIce > theta_sat)then
+     write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0 or > theta_sat: layer = ',iLayer
+     err=20; return
+    endif
+    ! check total water
+    if(scalarTheta < theta_res .or. scalarTheta > theta_sat)then
+     write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with theta (total water fraction [liquid + ice]) < theta_res or > theta_sat: layer = ',iLayer
+     err=20; return
+    endif
+
+   case default; err=20; message=trim(message)//'cannot identify layer type'; return
+
+  end select
+
   ! process snow and soil separately
   select case(scalarLayerType)
    ! ** snow
@@ -331,11 +375,12 @@ contains
      message=trim(message)//'initial snow temperature is greater than freezing'
      err=20; return
     endif
+    ! compute the residual volumetric fraction of liquid water based on the specified volumetric fraction of ice
+    residlVolFracLiq = FCapil*(1._dp - scalarVolFracIce)  ! "residual" volumetric liquid water content (i.e., tension storage)
     ! compute volumetric fraction of liquid water and ice based on temperature
     scalarVolFracLiq = fracliquid(scalarTemp,snowfrz_scale)*scalarTheta        ! volumetric fraction of liquid water
     scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)  ! volumetric fraction of ice
     ! check that the volumetric liquid water content is not greater than tension storage
-    residlVolFracLiq = FCapil*(1._dp - scalarVolFracIce)  ! "residual" volumetric liquid water content (i.e., tension storage)
     if(scalarVolFracLiq > residlVolFracLiq)then
      scalarVolFracLiq = residlVolFracLiq                                       ! set volumetric liquid water content to tension storage
      scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice) ! compute corresponding ice volume to maintain mass
@@ -374,6 +419,12 @@ contains
                                                           mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                            * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
  endif  ! (if snow layers exist
+ ! check that the layering is consistent
+ do iLayer=1,nLayers
+  h1 = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
+  h2 = mvar_data%var(iLookMVAR%iLayerHeight)%dat(iLayer) - mvar_data%var(iLookMVAR%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
+  if(abs(h1 - h2) > epsilon(h1))then; err=20; message=trim(message)//'mis-match between layer depth and layer height'; return; endif
+ end do
  ! **********************************************************************************************
  ! deallocate variable names vector
  deallocate(varnames,chardata,stat=err)

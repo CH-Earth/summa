@@ -14,8 +14,9 @@ contains
  USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
  USE var_lookup,only:iLookDECISIONS                                   ! named variables for elements of the decision structure
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
- USE layerDivide_module,only:layerDivide    ! divide layers if they are too thick (includes addition of new snowfall)
+ USE newsnwfall_module,only:newsnwfall      ! compute new snowfall
  USE layerMerge_module,only:layerMerge      ! merge snow layers if they are too thin
+ USE layerDivide_module,only:layerDivide    ! sub-divide layers if they are too thick
  USE picardSolv_module,only:picardSolv      ! provide access to the Picard solver
  USE qTimeDelay_module,only:qOverland       ! provide access to the routing module
  USE multiconst,only:iden_water,iden_ice    ! intrinsic density of water and icei
@@ -56,8 +57,8 @@ contains
  real(dp),pointer                     :: mLayerVolFracIce(:)    ! volumetric fraction of ice in each layer (-)
  real(dp),pointer                     :: mLayerVolFracLiq(:)    ! volumetric fraction of liquid water in each layer (-) 
  ! local pointers to flux variables
+ real(dp),pointer                     :: scalarSnowSublimation  ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: scalarGroundEvaporation ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
- real(dp),pointer                     :: scalarGroundSublimation ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: scalarRainPlusMelt     ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  real(dp),pointer                     :: scalarSurfaceRunoff    ! surface runoff (m s-1) 
  real(dp),pointer                     :: scalarSoilInflux       ! influx of water at the top of the soil profile (m s-1)
@@ -67,8 +68,8 @@ contains
  real(dp),pointer                     :: scalarAquiferRecharge  ! recharge to the aquifer (m s-1)
  real(dp),pointer                     :: scalarAquiferBaseflow  ! baseflow from the aquifer (m s-1)
  ! local pointers to timestep-average flux variables
+ real(dp),pointer                     :: averageSnowSublimation ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: averageGroundEvaporation ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
- real(dp),pointer                     :: averageGroundSublimation ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: averageRainPlusMelt    ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  real(dp),pointer                     :: averageSurfaceRunoff   ! surface runoff (m s-1) 
  real(dp),pointer                     :: averageSoilInflux      ! influx of water at the top of the soil profile (m s-1)
@@ -93,8 +94,8 @@ contains
  scalarSnowfall    => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)     ! snowfall flux (kg m-2 s-1)
 
  ! assign pointers to timestep-average model fluxes
+ averageSnowSublimation   => mvar_data%var(iLookMVAR%averageSnowSublimation)%dat(1)   ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  averageGroundEvaporation => mvar_data%var(iLookMVAR%averageGroundEvaporation)%dat(1) ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
- averageGroundSublimation => mvar_data%var(iLookMVAR%averageGroundSublimation)%dat(1) ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  averageRainPlusMelt      => mvar_data%var(iLookMVAR%averageRainPlusMelt)%dat(1)      ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  averageSurfaceRunoff     => mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)     ! surface runoff (m s-1)
  averageSoilInflux        => mvar_data%var(iLookMVAR%averageSoilInflux)%dat(1)        ! influx of water at the top of the soil profile (m s-1)
@@ -111,8 +112,8 @@ contains
 
  ! initialize average fluxes
  averageSurfaceRunoff     = 0._dp  ! surface runoff (m s-1)
+ averageSnowSublimation   = 0._dp  ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  averageGroundEvaporation = 0._dp  ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
- averageGroundSublimation = 0._dp  ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  averageRainPlusMelt      = 0._dp  ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
  averageSoilInflux        = 0._dp  ! influx of water at the top of the soil profile (m s-1)
  averageSoilBaseflow      = 0._dp  ! total baseflow from throughout the soil profile (m s-1)
@@ -147,11 +148,15 @@ contains
   ! increment the number of sub-steps
   nsub = nsub+1
 
-  ! NOTE: add new snowfall in layerDivide
-
-  ! add new snowfall, and divide snow layers if too thick
-  call layerDivide(dt_sub,            & ! time step (seconds)
+  ! add new snowfall
+  if(scalarSnowfall > 0._dp)then
+   call newsnwfall(dt_sub,            & ! time step (seconds)
                    err,cmessage)        ! error control
+   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! divide snow layers if too thick
+  call layerDivide(err,cmessage)        ! error control
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
 
   ! merge snow layers if they are too thin
@@ -175,8 +180,8 @@ contains
   mLayerVolFracLiq  => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat             ! volumetric fraction of liquid water in each layer (-)
 
   ! assign pointers to the model flux variables
+  scalarSnowSublimation   => mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1)   ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   scalarGroundEvaporation => mvar_data%var(iLookMVAR%scalarGroundEvaporation)%dat(1) ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
-  scalarGroundSublimation => mvar_data%var(iLookMVAR%scalarGroundSublimation)%dat(1) ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   scalarRainPlusMelt      => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)      ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   scalarSurfaceRunoff     => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)     ! surface runoff (m s-1)
   scalarSoilInflux        => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)        ! influx of water at the top of the soil profile (m s-1)
@@ -224,8 +229,8 @@ contains
   dt_wght = dt_sub/dt
 
   ! increment timestep-average fluxes
+  averageSnowSublimation   = averageSnowSublimation   + scalarSnowSublimation  *dt_wght ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   averageGroundEvaporation = averageGroundEvaporation + scalarGroundEvaporation*dt_wght ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
-  averageGroundSublimation = averageGroundSublimation + scalarGroundSublimation*dt_wght ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   averageRainPlusMelt      = averageRainPlusMelt      + scalarRainPlusMelt     *dt_wght ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   averageSurfaceRunoff     = averageSurfaceRunoff     + scalarSurfaceRunoff    *dt_wght ! surface runoff (m s-1)
   averageSoilInflux        = averageSoilInflux        + scalarSoilInflux       *dt_wght ! influx of water at the top of the soil profile (m s-1)

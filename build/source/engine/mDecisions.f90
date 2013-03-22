@@ -262,9 +262,6 @@ contains
    endif
  end select
 
- print*, 'check decisions', model_decisions(iLookDECISIONS%snowLayers)%iDecision, sameRulesAllLayers, rulesDependLayerIndex
- pause
-
  end subroutine mDecisions
 
  ! ************************************************************************************************

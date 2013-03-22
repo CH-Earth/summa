@@ -115,6 +115,7 @@ FUSE_MODRUN = \
 		derivforce.f90 \
 		newsnwfall.f90 \
 		layerMerge.f90 \
+		layerDivide.f90 \
 		snwDensify.f90 \
 		qTimeDelay.f90
 MODRUN = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODRUN))

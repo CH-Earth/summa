@@ -303,8 +303,8 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! define timestep-average fluxes for a few key variables
+  case('averageSnowSublimation'         ); get_ixmvar = iLookMVAR%averageSnowSublimation           ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   case('averageGroundEvaporation'       ); get_ixmvar = iLookMVAR%averageGroundEvaporation         ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
-  case('averageGroundSublimation'       ); get_ixmvar = iLookMVAR%averageGroundSublimation         ! ground sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   case('averageRainPlusMelt'            ); get_ixmvar = iLookMVAR%averageRainPlusMelt              ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('averageSurfaceRunoff'           ); get_ixmvar = iLookMVAR%averageSurfaceRunoff             ! surface runoff (m s-1)
   case('averageSoilInflux'              ); get_ixmvar = iLookMVAR%averageSoilInflux                ! influx of water at the top of the soil profile (m s-1)
@@ -397,7 +397,7 @@ contains
   case('scalarCanopyEvaporation'        ); get_ixmvar = iLookMVAR%scalarCanopyEvaporation          ! canopy evaporation/condensation (kg m-2 s-1)
   case('scalarCanopySublimation'        ); get_ixmvar = iLookMVAR%scalarCanopySublimation          ! canopy sublimation/frost (kg m-2 s-1)
   case('scalarGroundEvaporation'        ); get_ixmvar = iLookMVAR%scalarGroundEvaporation          ! ground evaporation/condensation (below canopy or non-vegetated) (kg m-2 s-1)
-  case('scalarGroundSublimation'        ); get_ixmvar = iLookMVAR%scalarGroundSublimation          ! ground sublimation/frost (below canopy or non-vegetated) (kg m-2 s-1)
+  case('scalarSnowSublimation'          ); get_ixmvar = iLookMVAR%scalarSnowSublimation            ! snow sublimation/frost (below canopy or non-vegetated) (kg m-2 s-1)
   ! NOAH-MP vegetation variables (transpiration) 
   case('scalarTranspireLim'             ); get_ixmvar = iLookMVAR%scalarTranspireLim               ! aggregate soil moisture and aquifer storage limit on transpiration (-)
   case('scalarTranspireLimAqfr'         ); get_ixmvar = iLookMVAR%scalarTranspireLimAqfr           ! aquifer storage limit on transpiration (-)
@@ -408,8 +408,8 @@ contains
   case('scalarPhotosynthesisShaded'     ); get_ixmvar = iLookMVAR%scalarPhotosynthesisShaded       ! shaded photosynthesis (umolco2 m-2 s-1)
   ! NOAH-MP vegetation variables (hydrology)
   case('scalarCanopyWetFraction'        ); get_ixmvar = iLookMVAR%scalarCanopyWetFraction          ! fraction of canopy that is wet
+  case('scalarGroundSnowFraction'       ); get_ixmvar = iLookMVAR%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   case('temp1'                          ); get_ixmvar = iLookMVAR%temp1                            ! placeholder
-  case('temp2'                          ); get_ixmvar = iLookMVAR%temp2                            ! placeholder
   ! scalar variables -- soil and aquifer fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)

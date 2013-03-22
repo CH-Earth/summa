@@ -118,6 +118,8 @@ contains
  real(dp),pointer                     :: mLayerdTheta_dTk(:)      ! derivative in the freezing curve (K-1)
  real(dp),pointer                     :: mLayerMeltFreeze(:)      ! melt/freeze in each layer (kg m-3 s-1)
  real(dp),pointer                     :: mLayerInfilFreeze(:)     ! increase in volumetric ice content caused by freezing infiltrating flux (-)
+ ! local pointers to model diagnostic variables -- snow only
+ real(dp),pointer                     :: scalarSnowSublimation    ! sublimation from the snow surface (below vegetation canopy, or non vegetated) - kg m-2 s-1
  ! local pointers to model diagnostic variables -- soil layers
  real(dp),pointer                     :: mLayerTcrit(:)           ! critical soil temperature above which all water is unfrozen (K)
  real(dp),pointer                     :: mLayerdTheta_dPsi(:)     ! derivative in the soil water characteristic (m-1)
@@ -306,6 +308,9 @@ contains
  mLayerdTheta_dTk  => mvar_data%var(iLookMVAR%mLayerdTheta_dTk)%dat         ! derivative in the freezing curve (K-1)
  mLayerMeltFreeze  => mvar_data%var(iLookMVAR%mLayerMeltFreeze)%dat         ! melt/freeze in each layer (kg m-3 s-1)
  mLayerInfilFreeze => mvar_data%var(iLookMVAR%mLayerInfilFreeze)%dat        ! increase in volumetric ice content caused by freezing infiltrating flux (-)
+
+ ! assign pointers to model diagnostic variables -- snow only
+ scalarSnowSublimation => mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1) ! sublimation from the snow surface (below vegetation canopy, or non vegetated) - kg m-2 s-1
 
  ! assign pointers to model diagnostic variables -- soil only
  mLayerTcrit           => mvar_data%var(iLookMVAR%mLayerTcrit)%dat            ! critical soil temperature above which all water is unfrozen (K)
@@ -779,9 +784,9 @@ contains
  !print*, 'check volumetric liquid water content again...'
  !print*, mLayerVolFracLiqIter(nSnow+1)
 
- ! compute sublimation
- !if(nSnow>0)&
- ! mLayerVolFracIceIter(1) = mLayerVolFracIceIter(1) + scalarPotentialET*dt/(mLayerDepth(1)*iden_ice)
+ ! compute sublimation/evaporation from snow
+ if(nSnow > 0._dp)& ! snow layers exist
+  mLayerVolFracIceIter(1) = mLayerVolFracIceIter(1) + scalarSnowSublimation*dt/(mLayerDepth(1)*iden_ice) 
 
  ! compute change in snow density
  ! NOTE: input "iter" because of copying trick in phase change

@@ -179,7 +179,6 @@ contains
                         ! evaporation/transpiration fluxes (from vegFlux routine)
                         mvar_data%var(iLookMVAR%scalarCanopyTranspiration)%dat(1),    & ! intent(in): canopy transpiration (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarGroundEvaporation)%dat(1),      & ! intent(in): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarGroundSublimation)%dat(1),      & ! intent(in): ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
 
                         ! initial fluxes (intent inout)
                         mvar_data%var(iLookMVAR%iLayerInitLiqFluxSoil)%dat(0:nLevels),& ! intent(inout): liquid flux at layer interfaces at the start of the time step (m s-1)
@@ -312,7 +311,6 @@ contains
                               ! evaporation/transpiration fluxes (from vegFlux routine)
                               scalarCanopyTranspiration,   & ! intent(in): canopy transpiration (W m-2)
                               scalarGroundEvaporation,     & ! intent(in): ground evaporation/condensation -- below canopy or non-vegetated (W m-2)
-                              scalarGroundSublimation,     & ! intent(in): ground sublimation/frost -- below canopy or non-vegetated (W m-2)
 
                               ! initial fluxes (intent inout)
                               iLayerInitLiqFluxSoil,       & ! intent(inout): liquid flux at layer interfaces at the start of the time step (m s-1)
@@ -415,7 +413,6 @@ contains
  ! evaporation/transpiration fluxes (from vegFlux routine)
  real(dp),intent(in)              :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(in)              :: scalarGroundEvaporation      ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
- real(dp),intent(in)              :: scalarGroundSublimation      ! ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! ***** input/output variables -- start-of-step fluxes
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -530,15 +527,13 @@ contains
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
  scalarAquiferTranspire = aquiferTranspireFrac*scalarCanopyTranspiration/iden_water
 
- ! include ground evaporation in the top soil layer (if no snow)
- if(nSnow == 0)then
-  mLayerTranspire(1)     = mLayerTranspire(1) + (scalarGroundEvaporation + scalarGroundSublimation)/iden_water
- endif
+ ! include ground evaporation in the transpiration total for the top soil layer -- will be zero id snow layers have formed
+ mLayerTranspire(1) = mLayerTranspire(1) + (scalarGroundEvaporation)/iden_water
 
  ! initialize fluxes at the start of the time step
  if(iter == 1)then
-  mLayerInitTranspire        = mLayerTranspire
-  scalarInitAquiferTranspire = scalarAquiferTranspire
+  mLayerInitTranspire         = mLayerTranspire
+  scalarInitAquiferTranspire  = scalarAquiferTranspire
  endif
 
  ! get the number of state variables, and allocate space for the tri-diagonal matrix

@@ -117,6 +117,19 @@ contains
  ! new subroutine: initial create
  ! **********************************************************************************************************
  subroutine ini_create(infile,err,message)
+ ! variables to define number of steps per file (total number of time steps, step length, etc.)
+ USE multiconst,only:secprday           ! number of seconds per day
+ USE data_struc,only:forcFileInfo       ! info on model forcing file
+ ! model model index structures
+ USE data_struc,only:indx_data          ! data structures
+ USE data_struc,only:ix_soil            ! named variable to identify a soil layer
+ USE var_lookup,only:iLookINDEX         ! named variables for structure elements
+ ! model decisions
+ USE data_struc,only:model_decisions    ! model decision structure
+ USE var_lookup,only:iLookDECISIONS     ! named variables for elements of the decision structure
+ USE mDecisions_module,only:&
+  sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
  implicit none
  ! declare dummy variables
  character(*),intent(in)     :: infile                     ! filename
@@ -126,13 +139,25 @@ contains
  integer(i4b)                :: ncid                       ! NetCDF file ID
  integer(i4b)                :: dimID
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
- integer(i4b),parameter      :: maxLength=1500000         ! maximum length of the variable vector
- !integer(i4b),parameter      :: maxLength=10000         ! maximum length of the variable vector
  integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: maxParSets=1               ! maximum number of parameter sets
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
+ integer(i4b)                :: meanSnowLayersPerStep      ! mean number of snow layers per time step
+ integer(i4b)                :: maxStepsPerFile            ! maximum number of time steps to be stored in each file
+ integer(i4b)                :: maxLength                  ! maximum length of the variable vector
+ integer(i4b)                :: nSoil                      ! number of soil layers
  ! initialize error control
  err=0;message="f-iniCreate/"
+ ! define number of soil layers
+ nSoil = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)  ! number of soil layers
+ ! identify length of the variable vector
+ maxStepsPerFile = min(forcFileInfo%numtim, nint(366._dp * secprday/forcFileInfo%data_step) )
+ select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+  case(sameRulesAllLayers);    meanSnowLayersPerStep = 100
+  case(rulesDependLayerIndex); meanSnowLayersPerStep = 4
+  case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+ end select ! (option to combine/sub-divide snow layers)
+ maxLength = maxStepsPerFile*(nSoil+1 + meanSnowLayersPerStep)
  ! create output file
  err = nf90_create(trim(infile),nf90_classic_model,ncid)
  call netcdf_err(err,message); if (err/=0) return

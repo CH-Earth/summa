@@ -205,6 +205,7 @@ contains
                         mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1),                  & ! intent(inout): snow albedo (-)
                         mvar_data%var(iLookMVAR%scalarSnowAge)%dat(1),                 & ! intent(inout): non-dimensional snow age (-)
                         mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),       & ! intent(inout): fraction of canopy that is wet
+                        mvar_data%var(iLookMVAR%scalarGroundSnowFraction)%dat(1),      & ! intent(inout): fraction of ground covered with snow (-)
                         mvar_data%var(iLookMVAR%scalarCanopySunlitFraction)%dat(1),    & ! intent(inout): sunlit fraction of canopy (-)
                         mvar_data%var(iLookMVAR%scalarCanopySunlitLAI)%dat(1),         & ! intent(inout): sunlit leaf area (-)
                         mvar_data%var(iLookMVAR%scalarCanopyShadedLAI)%dat(1),         & ! intent(inout): shaded leaf area (-)
@@ -250,6 +251,8 @@ contains
                         mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),            & ! intent(inout): weighted average of the transpiration limiting factor (-)
                         mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat,               & ! intent(inout): transpiration limiting factor in each layer (-)
                         mvar_data%var(iLookMVAR%scalarTranspireLimAqfr)%dat(1),        & ! intent(inout): transpiration limiting factor for the aquifer (-)
+                        mvar_data%var(iLookMVAR%scalarSoilRelHumidity)%dat(1),         & ! intent(inout): relative humidity in the soil pores [0-1]
+                        mvar_data%var(iLookMVAR%scalarSoilResistance)%dat(1),          & ! intent(inout): resistance from the soil (s m-1)
 
                         ! stomatal resistance -- intent(inout) because only called at the first iteration
                         mvar_data%var(iLookMVAR%scalarStomResistSunlit)%dat(1),        & ! intent(inout): stomatal resistance for sunlit leaves (s m-1)
@@ -264,8 +267,6 @@ contains
                         mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),            & ! intent(inout): vapor pressure of the canopy air space (Pa)
                         mvar_data%var(iLookMVAR%scalarSatVP_CanopyTemp)%dat(1),        & ! intent(out): saturation vapor pressure at the temperature of the vegetation canopy (Pa)
                         mvar_data%var(iLookMVAR%scalarSatVP_GroundTemp)%dat(1),        & ! intent(out): saturation vapor pressure at the temperature of the ground surface (Pa)
-                        mvar_data%var(iLookMVAR%scalarSoilRelHumidity)%dat(1),         & ! intent(out): relative humidity in the soil pores [0-1]
-                        mvar_data%var(iLookMVAR%scalarSoilResistance)%dat(1),          & ! intent(out): resistance from the soil (s m-1)
                         mvar_data%var(iLookMVAR%scalarSenHeatCanopy)%dat(1),           & ! intent(out): sensible heat flux from the canopy to the canopy air space (W m-2)
                         mvar_data%var(iLookMVAR%scalarLatHeatCanopyEvap)%dat(1),       & ! intent(out): latent heat flux associated with evaporation from the canopy to the canopy air space (W m-2)
                         mvar_data%var(iLookMVAR%scalarLatHeatCanopyTrans)%dat(1),      & ! intent(out): latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
@@ -277,7 +278,7 @@ contains
                         mvar_data%var(iLookMVAR%scalarCanopyEvaporation)%dat(1),       & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1),       & ! intent(out): canopy sublimation/frost (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarGroundEvaporation)%dat(1),       & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarGroundSublimation)%dat(1),       & ! intent(out): ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1),         & ! intent(out): snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
 
                         ! output
                         canopyNetFlux,                                                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
@@ -371,7 +372,7 @@ contains
                               spectralIncomingDiffuse,       & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
 
                               ! water storage -- intent(in)
-                              ! NOTE: soil stress only computed at the start of the substep (iter==1)
+                              ! NOTE: soil stress for transpiration only computed at the start of the substep (iter==1)
                               scalarSWE,                     & ! intent(in): snow water equivalent on the ground (kg m-2)
                               scalarSnowDepth,               & ! intent(in): snow depth on the ground surface (m)
                               mLayerVolFracLiq,              & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
@@ -382,6 +383,7 @@ contains
                               scalarAlbedo,                  & ! intent(inout): snow albedo (-)
                               scalarSnowAge,                 & ! intent(inout): non-dimensional snow age (-)
                               scalarCanopyWetFraction,       & ! intent(inout): fraction of canopy that is wet
+                              scalarGroundSnowFraction,      & ! intent(inout): fraction of ground covered with snow (-)
                               scalarCanopySunlitFraction,    & ! intent(inout): sunlit fraction of canopy (-)
                               scalarCanopySunlitLAI,         & ! intent(inout): sunlit leaf area (-)
                               scalarCanopyShadedLAI,         & ! intent(inout): shaded leaf area (-)
@@ -427,6 +429,8 @@ contains
                               scalarTranspireLim,            & ! intent(inout): weighted average of the transpiration limiting factor (-)
                               mLayerTranspireLim,            & ! intent(inout): transpiration limiting factor in each layer (-)
                               scalarTranspireLimAqfr,        & ! intent(inout): transpiration limiting factor for the aquifer (-)
+                              scalarSoilRelHumidity,         & ! intent(inout): relative humidity in the soil pores [0-1]
+                              scalarSoilResistance,          & ! intent(inout): resistance from the soil (s m-1)
 
                               ! stomatal resistance -- intent(inout) because only called at the first iteration
                               scalarStomResistSunlit,        & ! intent(inout): stomatal resistance for sunlit leaves (s m-1)
@@ -441,8 +445,6 @@ contains
                               scalarVP_CanopyAir,            & ! intent(inout): vapor pressure of the canopy air space (Pa)
                               scalarSatVP_canopyTemp,        & ! intent(out): saturation vapor pressure at the temperature of the vegetation canopy (Pa)
                               scalarSatVP_groundTemp,        & ! intent(out): saturation vapor pressure at the temperature of the ground surface (Pa)
-                              scalarSoilRelHumidity,         & ! intent(out): relative humidity in the soil pores [0-1]
-                              scalarSoilResistance,          & ! intent(out): resistance from the soil (s m-1)
                               scalarSenHeatCanopy,           & ! intent(out): sensible heat flux from the canopy to the canopy air space (W m-2)
                               scalarLatHeatCanopyEvap,       & ! intent(out): latent heat flux associated with evaporation from the canopy to the canopy air space (W m-2)
                               scalarLatHeatCanopyTrans,      & ! intent(out): latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
@@ -454,7 +456,7 @@ contains
                               scalarCanopyEvaporation,       & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
                               scalarCanopySublimation,       & ! intent(out): canopy sublimation/frost (kg m-2 s-1)
                               scalarGroundEvaporation,       & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-                              scalarGroundSublimation,       & ! intent(out): ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+                              scalarSnowSublimation,         & ! intent(out): snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
 
                               ! output
                               canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
@@ -549,6 +551,7 @@ contains
  real(dp),intent(inout)         :: scalarAlbedo                   ! snow albedo (-)
  real(dp),intent(inout)         :: scalarSnowAge                  ! non-dimensional snow age (-)
  real(dp),intent(inout)         :: scalarCanopyWetFraction        ! fraction of canopy that is wet
+ real(dp),intent(inout)         :: scalarGroundSnowFraction       ! fraction of ground covered with snow (-)
  real(dp),intent(inout)         :: scalarCanopySunlitFraction     ! sunlit fraction of canopy (-)
  real(dp),intent(inout)         :: scalarCanopySunlitLAI          ! sunlit leaf area (-)
  real(dp),intent(inout)         :: scalarCanopyShadedLAI          ! shaded leaf area (-)
@@ -591,9 +594,11 @@ contains
  ! soil resistance -- intent(in) and intent(inout) because only called at the first iteration
  real(dp),intent(in)            :: mLayerRootDensity(:)           ! root density in each layer (-)
  real(dp),intent(in)            :: scalarAquiferRootFrac          ! fraction of roots below the lowest soil layer (-)
- real(dp),intent(out)           :: scalarTranspireLim             ! weighted average of the transpiration limiting factor (-)
- real(dp),intent(out)           :: mLayerTranspireLim(:)          ! transpiration limiting factor in each layer (-)
- real(dp),intent(out)           :: scalarTranspireLimAqfr         ! transpiration limiting factor for the aquifer (-)
+ real(dp),intent(inout)         :: scalarTranspireLim             ! weighted average of the transpiration limiting factor (-)
+ real(dp),intent(inout)         :: mLayerTranspireLim(:)          ! transpiration limiting factor in each layer (-)
+ real(dp),intent(inout)         :: scalarTranspireLimAqfr         ! transpiration limiting factor for the aquifer (-)
+ real(dp),intent(inout)         :: scalarSoilRelHumidity          ! relative humidity in the soil pores [0-1]
+ real(dp),intent(inout)         :: scalarSoilResistance           ! resistance from the soil (s m-1)
 
  ! stomatal resistance -- intent(inout) because only called at the first iteration
  real(dp),intent(inout)         :: scalarStomResistSunlit         ! stomatal resistance for sunlit leaves (s m-1)
@@ -608,8 +613,6 @@ contains
  real(dp),intent(inout)         :: scalarVP_CanopyAir             ! vapor pressure of the canopy air space (Pa)
  real(dp),intent(out)           :: scalarSatVP_canopyTemp         ! saturation vapor pressure at the temperature of the vegetation canopy (Pa)
  real(dp),intent(out)           :: scalarSatVP_groundTemp         ! saturation vapor pressure at the temperature of the ground surface (Pa)
- real(dp),intent(out)           :: scalarSoilRelHumidity          ! relative humidity in the soil pores [0-1]
- real(dp),intent(out)           :: scalarSoilResistance           ! resistance from the soil (s m-1)
  real(dp),intent(out)           :: scalarSenHeatCanopy            ! sensible heat flux from the canopy to the canopy air space (W m-2)
  real(dp),intent(out)           :: scalarLatHeatCanopyEvap        ! latent heat flux associated with evaporation from the canopy to the canopy air space (W m-2)
  real(dp),intent(out)           :: scalarLatHeatCanopyTrans       ! latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
@@ -621,7 +624,7 @@ contains
  real(dp),intent(out)           :: scalarCanopyEvaporation        ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
  real(dp),intent(out)           :: scalarCanopySublimation        ! intent(out): canopy sublimation/frost (kg m-2 s-1)
  real(dp),intent(out)           :: scalarGroundEvaporation        ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
- real(dp),intent(out)           :: scalarGroundSublimation        ! intent(out): ground sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarSnowSublimation          ! intent(out): snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
 
  ! output
  real(dp),intent(out)           :: canopyNetFlux                  ! net energy flux for the vegetation canopy (W m-2)
@@ -637,7 +640,6 @@ contains
  ! local (general)
  character(LEN=256)            :: cmessage                        ! error message of downwind routine
  real(dp)                      :: snowmassPlusNewsnow             ! sum of snow mass and new snowfall (kg m-2 [mm])
- real(dp)                      :: fracSnow                        ! snow cover fraction (0-1)
  real(dp)                      :: VAI                             ! vegetation area index (m2 m-2)
  real(dp)                      :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
  real(dp)                      :: greenVegFraction                ! green vegetation fraction (0-1) 
@@ -718,18 +720,20 @@ contains
  ! NOTE: variables are constant over the substep, to simplify relating energy and mass fluxes
  if(iter==1)then
   scalarLatHeatSubVapCanopy = getLatentHeatValue(canopyTempTrial)
-  scalarLatHeatSubVapGround = getLatentHeatValue(groundTempTrial)
- endif
-
- ! compute the snow cover fraction
- if(scalarSWE > 0._dp)then
-  fracSnow = 1._dp
- else
-  fracSnow = 0._dp
- endif
-
+  ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
+  if(nSnow > 0)then
+   if(groundTempTrial > Tfreeze)then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; endif
+   scalarLatHeatSubVapGround = LH_sub  ! sublimation from snow
+   scalarGroundSnowFraction  = 1._dp
+  ! case when the ground is snow-free
+  else
+   scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
+   scalarGroundSnowFraction  = 0._dp
+  endif  ! (if there is snow on the ground)
+ endif  ! (if the first iteration)
+ 
  ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
- z0Ground = z0soil*(1._dp - fracSnow) + z0Snow*fracSnow     ! roughness length (m)
+ z0Ground = z0soil*(1._dp - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
 
  ! compute the total vegetation area index (leaf plus stem)
  VAI        = scalarLAI + scalarSAI  ! vegetation area index
@@ -741,7 +745,7 @@ contains
  ! compute emissivity of the canopy and ground surface (-)
  canopyEmissivity = 1._dp - exp(-exposedVAI)                                     ! effective emissivity of the canopy (-)
  if(.not.computeVegFlux) canopyEmissivity=0._dp                                  ! sets canopy longwave fluxes to zero when not computing canopy fluxes
- groundEmissivity = fracSnow*snowEmissivity + (1._dp - fracSnow)*soilEmissivity  ! emissivity of the ground surface (-)
+ groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._dp - scalarGroundSnowFraction)*soilEmissivity  ! emissivity of the ground surface (-)
  
 
  ! *******************************************************************************************************************************************************************
@@ -784,7 +788,7 @@ contains
                  scalarSnowDepth*1000._dp,           & ! intent(in): snow depth (mm)
                  groundTempTrial,                    & ! intent(in): ground temperature (K)
                  canopyTempTrial,                    & ! intent(in): vegetation temperature (K)
-                 fracSnow,                           & ! intent(in): snow cover fraction (0-1)
+                 scalarGroundSnowFraction,           & ! intent(in): snow cover fraction (0-1)
                  scalarSnowfall,                     & ! intent(in): snowfall (kg m-2 s-1 [mm/s])
                  scalarCanopyWetFraction,            & ! intent(in): fraction of canopy that is wet
                  scalarExposedLAI,                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
@@ -1118,18 +1122,21 @@ contains
   !print*, 'trialCanopyResistance = ', trialCanopyResistance
 
   ! compute the relative humidity in the top soil layer and the resistance at the ground surface
-  ! (soil water evaporation factor [0-1])
-  soilEvapFactor = mLayerVolFracLiq(1)/theta_sat
-  ! (resistance from the soil [s m-1])
-  !scalarSoilResistance = fracSnow*1._dp + (1._dp - fracSnow)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
-  scalarSoilResistance = fracSnow*1._dp + (1._dp - fracSnow)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
-  ! (relative humidity in the soil pores [0-1])
-  if(mLayerMatricHead(1) > -1.e+5_dp)then  ! avoid problems with numerical precision when soil is very dry
-   soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTemp*R_wv) )
-  else
-   soilRelHumidity_noSnow = 0._dp
-  endif
-  scalarSoilRelHumidity  = fracSnow*1._dp + (1._dp - fracSnow)*soilRelHumidity_noSnow
+  ! NOTE: computations are based on start-of-step values, so only compute at the first iteration
+  if(iter ==1)then
+   ! (soil water evaporation factor [0-1])
+   soilEvapFactor = mLayerVolFracLiq(1)/theta_sat
+   ! (resistance from the soil [s m-1])
+   !scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
+   scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
+   ! (relative humidity in the soil pores [0-1])
+   if(mLayerMatricHead(1) > -1.e+5_dp)then  ! avoid problems with numerical precision when soil is very dry
+    soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTemp*R_wv) )
+   else
+    soilRelHumidity_noSnow = 0._dp
+   endif ! (if matric head is very low)
+   scalarSoilRelHumidity  = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*soilRelHumidity_noSnow
+  endif  ! (if the first iteration)
 
   ! compute turbulent heat fluxes
   call turbFluxes(&
@@ -1243,6 +1250,7 @@ contains
  !print*, 'airtemp = ', airtemp
 
  ! compute the mass flux associated with transpiration and evaporation/sublimation (J m-2 s-1 --> kg m-2 s-1)
+ ! NOTE: remove water from the snow on the ground in preference to removing water from the water in soil pores
  ! (transpiration)
  scalarCanopyTranspiration = scalarLatHeatCanopyTrans/LH_vap
  ! (canopy evaporation/sublimation)
@@ -1255,11 +1263,15 @@ contains
  endif
  ! (ground evaporation/sublimation)
  if(scalarLatHeatSubVapGround > LH_vap+verySmall)then ! sublimation
-  scalarGroundEvaporation = 0._dp
-  scalarGroundSublimation = scalarLatHeatGround/LH_sub
- else                                                 ! evaporation
+  ! NOTE: this should only occur when we have formed snow layers, so check
+  if(nSnow == 0)then; err=20; message=trim(message)//'only expect snow sublimation when we have formed some snow layers'; return; endif
+  scalarGroundEvaporation = 0._dp  ! ground evaporation is zero once the snowpack has formed
+  scalarSnowSublimation   = scalarLatHeatGround/LH_sub
+ else
+  ! NOTE: this should only occur when we have no snow layers, so check
+  if(nSnow > 0)then; err=20; message=trim(message)//'only expect ground evaporation when there are no snow layers'; return; endif
   scalarGroundEvaporation = scalarLatHeatGround/LH_vap
-  scalarGroundSublimation = 0._dp
+  scalarSnowSublimation   = 0._dp  ! no sublimation from snow if no snow layers have formed
  endif
 
  ! *******************************************************************************************************************************************************************
