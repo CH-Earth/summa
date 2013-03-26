@@ -334,12 +334,12 @@ contains
      err=20; return
     endif
     ! (check ice)
-    if(scalarVolFracIce < 0.05_dp .or. scalarVolFracIce > 0.70_dp)then
+    if(scalarVolFracIce < 0.05_dp .or. scalarVolFracIce > 0.80_dp)then
      write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05 or > 0.70: layer = ',iLayer
      err=20; return
     endif
     ! check total water
-    if(scalarTheta < 0.05_dp .or. scalarTheta > 0.7_dp)then
+    if(scalarTheta < 0.05_dp .or. scalarTheta > 0.80_dp)then
      write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with theta (total water fraction [liquid + ice]) < 0.05 or > 0.70: layer = ',iLayer
      err=20; return
     endif
@@ -423,7 +423,11 @@ contains
  do iLayer=1,nLayers
   h1 = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
   h2 = mvar_data%var(iLookMVAR%iLayerHeight)%dat(iLayer) - mvar_data%var(iLookMVAR%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
-  if(abs(h1 - h2) > epsilon(h1))then; err=20; message=trim(message)//'mis-match between layer depth and layer height'; return; endif
+  if(abs(h1 - h2) > 1.e-12_dp)then
+  print*, 'h1, h2, (h1 - h2) = ', h1, h2, (h1 - h2)
+   write(message,'(a,1x,i0)') trim(message)//'mis-match between layer depth and layer height [suggest round numbers in initial conditions file]; layer = ', iLayer
+   err=20; return
+  endif
  end do
  ! **********************************************************************************************
  ! deallocate variable names vector
@@ -444,6 +448,7 @@ contains
  print*,'scalarSWE        ', mvar_data%var(iLookMVAR%scalarSWE)%dat(:)
  print*,'layerType        ', indx_data%var(iLookINDEX%layerType)%dat(:)
  print*,'****************************************************************************************'
+ !pause
  end subroutine read_icond
 
 

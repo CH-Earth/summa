@@ -642,7 +642,7 @@ contains
  real(dp)                      :: snowmassPlusNewsnow             ! sum of snow mass and new snowfall (kg m-2 [mm])
  real(dp)                      :: VAI                             ! vegetation area index (m2 m-2)
  real(dp)                      :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
- real(dp)                      :: greenVegFraction                ! green vegetation fraction (0-1) 
+ real(dp),parameter            :: vegFraction=1._dp               ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
  real(dp)                      :: relativeCanopyWater             ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
  ! local (compute numerical derivatives)
  integer(i4b),parameter        :: unperturbed=1                   ! named variable to identify the case of unperturbed state variables
@@ -739,9 +739,6 @@ contains
  VAI        = scalarLAI + scalarSAI  ! vegetation area index
  exposedVAI = scalarExposedLAI + scalarExposedSAI  !  exposed vegetation area index
 
- ! compute the green vegetation fraction (used in radiation module -- set to 1 to trun off semi-tile approach)
- greenVegFraction = 1._dp
-
  ! compute emissivity of the canopy and ground surface (-)
  canopyEmissivity = 1._dp - exp(-exposedVAI)                                     ! effective emissivity of the canopy (-)
  if(.not.computeVegFlux) canopyEmissivity=0._dp                                  ! sets canopy longwave fluxes to zero when not computing canopy fluxes
@@ -796,7 +793,7 @@ contains
                  mLayerVolFracLiq(1:nSoil),          & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                  spectralIncomingDirect(1:nBands),   & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
                  spectralIncomingDiffuse(1:nBands),  & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
-                 greenVegFraction,                   & ! intent(in): green vegetation fraction (0-1)
+                 vegFraction,                        & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
                  iLoc, jLoc,                         & ! intent(in): spatial location indices      
                  ! output
                  scalarAlbedo,                       & ! intent(inout): snow albedo (-)
@@ -818,6 +815,9 @@ contains
   !print*, 'average absorbed par for shaded leaves (w m-2) = ', scalarCanopyShadedPAR
   !print*, 'solar radiation absorbed by canopy (W m-2) = ', scalarCanopyAbsorbedSolar
   !print*, 'solar radiation absorbed by ground (W m-2) = ', scalarGroundAbsorbedSolar
+  !print*, 'solar radiation reflected by canopy (W m-2) = ', scalarCanopyReflectedSolar
+  !print*, 'solar radiation reflected by ground (W m-2) = ', scalarGroundReflectedSolar
+  !pause
 
  endif  ! (shortwave radiation is constant over the SUBSTEP)
 
@@ -1283,8 +1283,8 @@ contains
  ! compute net fluxes at the canopy and ground surface
  canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy
  groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround
- !print*, 'canopyNetFlux = ', canopyNetFlux
- !print*, 'groundNetFlux = ', groundNetFlux
+ !print*, 'canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy = ', canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy
+ !print*, 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround = ', groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround
 
 
  ! compute the derivatives
@@ -1742,9 +1742,9 @@ contains
   !   Note: use of friction velocity here includes stability adjustments
   eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTop - zeroPlaneDisplacement), mpe)  ! (avoid divide by zero)
 
-  ! compute the resistance between the surface and canopy air
+  ! compute the resistance between the surface and canopy air (s m-1)
   !  assume exponential profile extends from the surface roughness length to the displacement height plus vegetation roughness
-  tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTop)
+  tmp1 = exp(-windReductionFactor* heightCanopyBottom/heightCanopyTop)
   tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTop)
   groundResistance = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)  ! s m-1
 

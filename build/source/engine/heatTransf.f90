@@ -486,6 +486,9 @@ contains
   if(scalarCanopyTempIter < 200._dp)then; message=trim(message)//'canopy temperature is very cold'; err=20; return; endif
  endif
  if(mLayerTempIter(1)    < 200._dp)then; message=trim(message)//'ground temperature is very cold'; err=20; return; endif
+ !if(mLayerTempIter(1) < 260._dp)then
+ ! print*, 'before flux computations: mLayerTempIter(1) = ', mLayerTempIter(1)
+ !endif
 
  ! ***** compute energy fluxes at vegetation and ground surfaces
  call vegNrgFlux(&
@@ -577,7 +580,8 @@ contains
   phse = LH_fus*iden_ice*(mLayerVolFracIceIter(iLayer) - mLayerVolFracIce(iLayer))            ! phase change term (J m-3)
   ! (compute residuals)
   mLayerResidual(iLayer) = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
-  !write(*,'(a,1x,f13.9,1x,4(f9.5,1x),5(f14.4,1x))') 'mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse = ', &
+  !if(iLayer==1)&
+  !write(*,'(a,1x,f13.9,1x,2(f9.5,1x),5(e14.4,1x))') 'mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse = ', &
   !                                                   mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse
  end do
 
@@ -676,12 +680,15 @@ contains
  ! get the temperature increment for all snow-soil layers
  mLayerTempDiff(1:nLayers) = sInc(1:nLayers)
 
- ! adjust del temperature in cases where snow temperature exceeds Tfreeze -- use bi-section
+ ! adjust del temperature for snow
  if(nSnow>0)then
   do iLayer=1,nSnow
+   ! adjust del temperature in cases where snow temperature exceeds Tfreeze -- use bi-section
    if(mLayerTempIter(iLayer)+mLayerTempDiff(iLayer) > Tfreeze)then
     mLayerTempDiff(iLayer) = (Tfreeze-mLayerTempIter(iLayer))*0.5_dp
    endif
+   ! check that temperature increment is not too large
+   if(abs(mLayerTempDiff(iLayer)) > 10._dp)then; err=-20; message=trim(message)//'temperature increment is > 10K'; return; endif
   end do
  endif
 

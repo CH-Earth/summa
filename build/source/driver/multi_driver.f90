@@ -8,7 +8,7 @@ USE snow_fileManager,only:fuse_SetDirsUndPhiles             ! sets directories a
 USE snow_fileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
 USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
-use module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
+USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
 USE read_metad_module,only:read_metad                       ! module to populate metadata structures
@@ -39,6 +39,10 @@ USE data_struc,only:mvar_data                               ! model variable dat
 USE data_struc,only:indx_data,indx_meta                     ! index data structures
 USE data_struc,only:model_decisions                         ! model decisions
 USE data_struc,only:urbanVegCategory                        ! vegetation category for urban areas
+USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
+USE mDecisions_module,only:&                                ! look-up values for LAI decisions
+ monthlyTable,&  ! LAI/SAI taken directly from a monthly table for different vegetation classes
+ specified       ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookMVAR                               ! look-up values for model variables
@@ -75,6 +79,7 @@ integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the
 real(dp)                  :: dt_init=0._dp                  ! used to initialize the length of the sub-step
 ! general local variables
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
+real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 ! error control
 integer(i4b)              :: err=0                          ! error code
 character(len=512)        :: message=''                     ! error message
@@ -117,6 +122,8 @@ call read_pinit(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! (3) read Noah vegetation tables, and overwrite default values
 ! *****************************************************************************
+! define monthly fraction of green vegetation
+greenVegFrac_monthly = (/0.01_dp, 0.02_dp, 0.07_dp, 0.17_dp, 0.27_dp, 0.58_dp, 0.95_dp, 0.96_dp, 0.65_dp, 0.24_dp, 0.11_dp, 0.02_dp/)
 ! read Noah soil and vegetation tables
 call soil_veg_gen_parm(trim(SETNGS_PATH)//'VEGPARM.TBL',                              & ! filename for vegetation table
                        trim(SETNGS_PATH)//'SOILPARM.TBL',                             & ! filename for soils table
@@ -159,6 +166,11 @@ do iParSet=1,nParSets
  call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
  call fracFuture(err,message); call handle_err(err,message) ! calculate the fraction of runoff in future time steps
  call v_shortcut(err,message); call handle_err(err,message) ! calculate "short-cut" variables such as volumetric heat capacity
+ ! overwrite the tables for LAI and SAI
+ if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
+  SAIM(type_data%var(iLookTYPE%vegTypeIndex),:) = mpar_data%var(iLookPARAM%winterSAI)
+  LAIM(type_data%var(iLookTYPE%vegTypeIndex),:) = mpar_data%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
+ endif
  ! define the filename for model spinup
  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
  ! define the file if the first parameter set
@@ -176,7 +188,7 @@ do iParSet=1,nParSets
  zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
 
  ! initialize time step length
- dt_init = 900._dp ! seconds
+ dt_init = 3600._dp ! seconds
 
  ! initialize time step index
  jstep=1
@@ -214,7 +226,9 @@ do iParSet=1,nParSets
   call read_force(istep,err,message); call handle_err(err,message)
   ! compute derived forcing variables
   call derivforce(err,message); call handle_err(err,message)
-
+  ! define the green vegetation fraction of the grid box (used to compute LAI)
+  mvar_data%var(iLookMVAR%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(time_data%var(iLookTIME%im))
+   
   ! *****************************************************************************
   ! (8) create a new NetCDF output file, and write parameters and forcing data
   ! *****************************************************************************

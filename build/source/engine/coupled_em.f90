@@ -25,7 +25,11 @@ contains
   iterative,                      &         ! iterative
   nonIterative,                   &         ! non-iterative
   iterSurfEnergyBal                         ! iterate only on the surface energy balance
-
+ USE multiconst,only:&
+                     Tfreeze,     &         ! temperature at freezing              (K)
+                     LH_fus,      &         ! latent heat of fusion                (J kg-1)
+                     iden_ice,    &         ! intrinsic density of ice             (kg m-3)
+                     iden_water             ! intrinsic density of liquid water    (kg m-3)
  implicit none
  ! define output
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
@@ -51,6 +55,11 @@ contains
  integer(i4b),pointer                 :: nSnow                  ! number of snow layers
  integer(i4b),pointer                 :: nLayers                ! number of layers
  integer(i4b),pointer                 :: layerType(:)           ! type of the layer (ix_soil or ix_snow)
+ ! local pointers to variables defining melt of the "snow without a layer"
+ real(dp),pointer                     :: scalarSWE              ! snow water equivalent (kg m-2)
+ real(dp),pointer                     :: scalarSnowDepth        ! snow depth (m)
+ real(dp),pointer                     :: scalarSfcMeltPond      ! surface melt pond (kg m-2)
+ real(dp),pointer                     :: mLayerVolHtCapBulk(:)  ! volumetric heat capacity (J m-3 K-1)
  ! local pointers to model state variables -- all layers
  real(dp),pointer                     :: mLayerTemp(:)          ! temperature of each layer (K)
  real(dp),pointer                     :: mLayerDepth(:)         ! depth of each layer (m)
@@ -84,6 +93,9 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage               ! error message
  real(dp),dimension(:),allocatable    :: arrTemp                ! temporary array, used for testing
+ real(dp)                             :: nrgRequired            ! case of "snow without a layer": energy required to melt all the snow (J m-2)
+ real(dp)                             :: nrgAvailable           ! case of "snow without a layer": energy available to melt the snow (J m-2)
+ real(dp)                             :: snwDensity             ! case of "snow without a layer": snow density (kg m-3)
  real(dp)                             :: dt_wght                ! weight applied to each sub-step, to compute time step average
  integer(i4b)                         :: iLayer                 ! index of model layers
  ! initialize error control
@@ -163,6 +175,9 @@ contains
   call layerMerge(err,cmessage)        ! error control
   if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
+  ! **
+  ! NOTE: need to re-assign pointers here as data structures have changed
+
   ! assign local pointers to the model index structures
   nSoil             => indx_data%var(iLookINDEX%nSoil)%dat(1)     ! number of soil layers
   nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)     ! number of snow layers
@@ -172,6 +187,12 @@ contains
   ! identify the number of snow and soil layers
   nSnow = count(layerType==ix_snow)
   nSoil = count(layerType==ix_soil)
+
+  ! assign pointers to variables defining melt of the "snow without a layer"
+  scalarSWE          => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)         ! snow water equivalent (kg m-2)
+  scalarSnowDepth    => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)   ! snow depth (m)
+  scalarSfcMeltPond  => mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1) ! surface melt pond (kg m-2)
+  mLayerVolHtCapBulk => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat   ! volumetric heat capacity (J m-3 K-1)
 
   ! assign pointers to model state variables -- all layers
   mLayerTemp        => mvar_data%var(iLookMVAR%mLayerTemp)%dat                   ! temperature of each layer (K)
@@ -224,6 +245,35 @@ contains
     exit ! exit do loop if all is a-ok
    endif
   end do 
+
+  ! compute melt for the case of "snow without a layer"
+  if(nSnow==0 .and. scalarSWE > 0._dp)then
+   ! only melt if temperature of the top soil layer is greater than Tfreeze
+   if(mLayerTemp(1) > Tfreeze)then
+    ! compute the energy required to melt all the snow (J m-2)
+    nrgRequired     = scalarSWE*LH_fus
+    ! compute the energy available to melt the snow (J m-2)
+    nrgAvailable    = mLayerVolHtCapBulk(1)*(mLayerTemp(1) - Tfreeze)*mLayerDepth(1)
+    ! compute the snow density (not saved)
+    snwDensity      = scalarSWE/scalarSnowDepth
+    ! compute the amount of melt, and update SWE (kg m-2)
+    if(nrgAvailable > nrgRequired)then
+     scalarSfcMeltPond  = scalarSWE
+     scalarSWE          = 0._dp
+    else
+     scalarSfcMeltPond  = nrgAvailable/LH_fus
+     scalarSWE          = scalarSWE - scalarSfcMeltPond
+    endif
+    ! update depth
+    scalarSnowDepth = scalarSWE/snwDensity
+    ! update temperature of the top soil layer (K)
+    mLayerTemp(1)= mLayerTemp(1) - (scalarSfcMeltPond/mLayerDepth(1))/mLayerVolHtCapBulk(1)
+   else  ! melt is zero if the temperature of the top soil layer is less than Tfreeze
+    scalarSfcMeltPond = 0._dp  ! kg m-2
+   endif ! (if the temperature of the top soil layer is greater than Tfreeze)
+  else  ! melt is zero if the "snow without a layer" does not exist
+   scalarSfcMeltPond = 0._dp  ! kg m-2
+  endif ! (if the "snow without a layer" exists)
 
   ! define weight applied to each sub-step
   dt_wght = dt_sub/dt
