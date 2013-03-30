@@ -48,27 +48,31 @@ integer(i4b),parameter,public :: liquidFlux           =  81    ! liquid water fl
 integer(i4b),parameter,public :: prescribedHead       =  82    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 integer(i4b),parameter,public :: funcBottomHead       =  83    ! function of matric head in the lower-most layer
 integer(i4b),parameter,public :: freeDrainage         =  84    ! free drainage
+! look-up values for the choice of parameterization for vegetation roughness length and displacement height
+integer(i4b),parameter,public :: Raupach_BLM1994      =  91    ! Raupach (BLM 1994) "Simplified expressions..."
+integer(i4b),parameter,public :: CM_QJRMS1998         =  92    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+integer(i4b),parameter,public :: vegTypeTable         =  93    ! constant parameters dependent on the vegetation type
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard             =  91    ! standard MO similarity, a la Anderson (1976) 
-integer(i4b),parameter,public :: louisInversePower    =  92    ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential     =  93    ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard             = 101    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: louisInversePower    = 102    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential     = 103    ! Mahrt (1987) exponential
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: funcSnowAge          = 101    ! function of snow age
-integer(i4b),parameter,public :: BATSlike             = 102    ! BATS-like approach, with destructive metamorphism + soot content
+integer(i4b),parameter,public :: funcSnowAge          = 111    ! function of snow age
+integer(i4b),parameter,public :: BATSlike             = 112    ! BATS-like approach, with destructive metamorphism + soot content
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement   = 111    ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical    = 112    ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement   = 121    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical    = 122    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
-integer(i4b),parameter,public :: sameRulesAllLayers   = 121    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 122    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: sameRulesAllLayers   = 131    ! same combination/sub-division rules applied to all layers
+integer(i4b),parameter,public :: rulesDependLayerIndex= 132    ! combination/sub-dividion rules depend on layer index
 ! look-up values for the choice of thermal conductivity
-integer(i4b),parameter,public :: Yen1965              = 131    ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977           = 132    ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991           = 133    ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000         = 134    ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965              = 141    ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977           = 142    ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991           = 143    ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000         = 144    ! Smirnova et al. (2000)
 ! look-up values for the choice of routing method
-integer(i4b),parameter,public :: timeDelay            = 141    ! time-delay histogram
-integer(i4b),parameter,public :: qInstant             = 142    ! instantaneous routing
+integer(i4b),parameter,public :: timeDelay            = 151    ! time-delay histogram
+integer(i4b),parameter,public :: qInstant             = 152    ! instantaneous routing
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -212,7 +216,16 @@ contains
    err=10; message=trim(message)//"unknown lower boundary conditions for soil hydrology [option="//trim(model_decisions(iLookDECISIONS%bcLowrSoiH)%cDecision)//"]"; return
  end select
 
- ! (F-11) identify the choice of atmospheric stability function
+ ! (F-11) identify the choice of parameterization for vegetation roughness length and displacement height
+ select case(trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision))
+  case('Raupach_BLM1994'); model_decisions(iLookDECISIONS%veg_traits)%iDecision = Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
+  case('CM_QJRMS1998'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = CM_QJRMS1998     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+  case('vegTypeTable'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = vegTypeTable     ! constant parameters dependent on the vegetation type
+  case default
+   err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height [option="//trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision)//"]"; return
+ end select
+
+ ! (F-12) identify the choice of atmospheric stability function
  select case(trim(model_decisions(iLookDECISIONS%astability)%cDecision))
   case('standard'); model_decisions(iLookDECISIONS%astability)%iDecision = standard            ! standard MO similarity, a la Anderson (1976)
   case('louisinv'); model_decisions(iLookDECISIONS%astability)%iDecision = louisInversePower   ! Louis (1979) inverse power function
@@ -221,7 +234,7 @@ contains
    err=10; message=trim(message)//"unknown stability function [option="//trim(model_decisions(iLookDECISIONS%astability)%cDecision)//"]"; return
  end select
 
- ! (F-12) choice of albedo representation
+ ! (F-13) choice of albedo representation
  select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
   case('fsnowage'); model_decisions(iLookDECISIONS%alb_method)%iDecision = funcSnowAge         ! function of snow age
   case('BATSlike'); model_decisions(iLookDECISIONS%alb_method)%iDecision = BATSlike            ! BATS-like approach, with destructive metamorphism + soot content
@@ -229,7 +242,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
  end select
 
- ! (F-13) choice of snow compaction routine
+ ! (F-14) choice of snow compaction routine
  select case(trim(model_decisions(iLookDECISIONS%compaction)%cDecision))
   case('consettl'); model_decisions(iLookDECISIONS%compaction)%iDecision = constantSettlement  ! constant settlement rate
   case('anderson'); model_decisions(iLookDECISIONS%compaction)%iDecision = andersonEmpirical   ! semi-empirical method of Anderson (1976)
@@ -237,7 +250,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
  end select
 
- ! (F-14) choice of method to combine and sub-divide snow layers
+ ! (F-15) choice of method to combine and sub-divide snow layers
  select case(trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision))
   case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-dividion rules applied to all layers
   case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
@@ -245,7 +258,7 @@ contains
    err=10; message=trim(message)//"unknown option for combination/sub-division of snow layers [option="//trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision)//"]"; return
  end select
 
- ! (F-15) choice of thermal conductivity
+ ! (F-16) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
   case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
@@ -255,7 +268,7 @@ contains
    err=10; message=trim(message)//"unknown option for thermal conductivity [option="//trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision)//"]"; return
  end select
 
- ! (F-16) choice of routing method
+ ! (F-17) choice of routing method
  select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
   case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
   case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing

@@ -209,6 +209,8 @@ contains
                         mpar_data%var(iLookPARAM%absConvTol_aquifr),                 & ! intent(in): absolute convergence tolerance for aquifer storage (m)
 
                         ! output: diagnostic variables
+                        mvar_data%var(iLookMVAR%scalarTemp_CanopyAir)%dat(1),        & ! intent(inout): trial temperature of the canopy air space (K)
+                        mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),          & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
                         mvar_data%var(iLookMVAR%mLayerTcrit)%dat,                    & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
 
                         ! output: model state variables at the end of the step
@@ -640,6 +642,8 @@ contains
                               absConvTol_aquifr,             & ! intent(in): absolute convergence tolerance for aquifer storage (m)
                                
                               ! output: diagnostic variables
+                              scalarTemp_CanopyAir,          & ! intent(inout): trial temperature of the canopy air space (K)
+                              scalarVP_CanopyAir,            & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
                               mLayerTcrit,                   & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
 
                               ! output: model state variables at the end of the step
@@ -708,6 +712,8 @@ contains
  real(dp),intent(in)            :: absConvTol_aquifr           ! absolute convergence tolerance for aquifer storage (m)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! output: diagnostic variables
+ real(dp),intent(inout)         :: scalarTemp_CanopyAir        ! trial temperature of the canopy air space (K)
+ real(dp),intent(inout)         :: scalarVP_CanopyAir          ! trial vapor pressure of the canopy air space (Pa)
  real(dp),intent(out)           :: mLayerTcrit(:)              ! critical soil temperature where liquid water begins to freeze (K)
  ! output: model state variables at the end of the step
  ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
@@ -736,6 +742,11 @@ contains
  real(dp)                       :: theta                       ! liquid water equivalent of the volumetric fraction of total water, liquid plus ice (-)
  real(dp)                       :: volFrac_water               ! total volumetric fraction of water, liquid water plus ice (-) 
  real(dp),parameter             :: eps=1.e-10_dp               ! small increment used to define ice content at the freezing point
+ ! define derivatives in canopy air space variables
+ real(dp)                       :: dTempCanopyAir_dTCanopy     ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
+ real(dp)                       :: dTempCanopyAir_dTGround     ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground
+ real(dp)                       :: dVPCanopyAir_dTCanopy       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
+ real(dp)                       :: dVPCanopyAir_dTGround       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
  ! define state variables for the vegetation canopy
  real(dp)                       :: scalarCanopyTempIter        ! trial value of temperature of the vegetation canopy (K)
  real(dp)                       :: scalarCanopyIceIter         ! trial value of mass of ice on the vegetation canopy (kg m-2)
@@ -842,6 +853,15 @@ contains
                   mLayerVolFracIceIter,     & ! intent(in): trial volumetric fraction of ice in each snow/soil layer at the current iteration (-)
                   mLayerVolFracLiqIter,     & ! intent(in): trial volumetric fraction of liquid water in each snow/soil layer at the current iteration (-)
                   mLayerMatricHeadIter,     & ! intent(in): trial matric head of each snow/soil layer at the current iteration (m)
+
+                  ! input/output variables from heatTransf subroutine: canopy air space variables
+                  scalarTemp_CanopyAir,     & ! intent(inout): trial temperature of the canopy air space (K)
+                  scalarVP_CanopyAir,       & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
+                  dTempCanopyAir_dTCanopy,  & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
+                  dTempCanopyAir_dTGround,  & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the ground
+                  dVPCanopyAir_dTCanopy,    & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
+                  dVPCanopyAir_dTGround,    & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+
                   ! output
                   scalarCanopyTempIncr,     & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                   mLayerTempIncr,           & ! intent(out): iteration increment for temperature of the snow-soil system (K)
@@ -854,6 +874,11 @@ contains
                   err,cmessage)               ! intent(out): error control
   ! check errors
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! test
+  write(*,'(a,1x,10(f12.5,1x))') 'scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
+                                  scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  pause
 
   ! compute melt/freeze in each layer (kg m-3 s-1) -- melt is negative
   mLayerMeltFreeze = mLayerMeltFreeze + iden_ice*(mLayerVolFracIceNew - mLayerVolFracIceIter)/dt

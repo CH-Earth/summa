@@ -235,7 +235,6 @@ contains
  nLayers = nSnow + nSoil
  ! loop through variables
  do ivar=1,nVar
-  print*,mvar_meta(ivar)%varname
   if (associated(mvar_data%var(ivar)%dat)) deallocate(mvar_data%var(ivar)%dat)
   select case(mvar_meta(ivar)%vartype)
    case('scalarv'); allocate(mvar_data%var(ivar)%dat(1),stat=err)

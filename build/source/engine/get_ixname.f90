@@ -42,12 +42,13 @@ contains
   case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! (12) type of lower boundary condition for thermodynamics
   case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (13) type of upper boundary condition for soil hydrology
   case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (14) type of lower boundary condition for soil hydrology
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (15) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (16) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (17) choice of method to combine and sub-divide snow layers
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (18) choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (19) choice of albedo representation
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (20) choice of method for sub-grid routing
+  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (15) choice of parameterization for vegetation roughness length and displacement height
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (16) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (17) choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (18) choice of method to combine and sub-divide snow layers
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (19) choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (20) choice of albedo representation
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (21) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -211,6 +212,7 @@ contains
   case('z0Snow'              ); get_ixparam = iLookPARAM%z0Snow               ! roughness length of snow (m)
   case('z0Soil'              ); get_ixparam = iLookPARAM%z0Soil               ! roughness length of bare soil below the canopy (m)
   case('z0Canopy'            ); get_ixparam = iLookPARAM%z0Canopy             ! roughness length of the canopy (m)
+  case('zpdFraction'         ); get_ixparam = iLookPARAM%zpdFraction          ! zero plane displacement / canopy height (-)
   case('critRichNumber'      ); get_ixparam = iLookPARAM%critRichNumber       ! critical value for the bulk Richardson number (-)
   case('Louis79_bparam'      ); get_ixparam = iLookPARAM%Louis79_bparam       ! parameter in Louis (1979) stability function (-)
   case('Louis79_cStar'       ); get_ixparam = iLookPARAM%Louis79_cStar        ! parameter in Louis (1979) stability function (-)
@@ -382,11 +384,15 @@ contains
   case('scalarLatHeatSubVapGround'      ); get_ixmvar = iLookMVAR%scalarLatHeatSubVapGround        ! latent heat of sublimation/vaporization used for ground surface (J kg-1)
   case('scalarSatVP_CanopyTemp'         ); get_ixmvar = iLookMVAR%scalarSatVP_CanopyTemp           ! saturation vapor pressure at the temperature of vegetation canopy (Pa)
   case('scalarSatVP_GroundTemp'         ); get_ixmvar = iLookMVAR%scalarSatVP_GroundTemp           ! saturation vapor pressure at the temperature of the ground (Pa)
+  case('scalarZ0Canopy'                 ); get_ixmvar = iLookMVAR%scalarZ0Canopy                   ! roughness length of the canopy (m)
   case('scalarWindReductionFactor'      ); get_ixmvar = iLookMVAR%scalarWindReductionFactor        ! canopy wind reduction factor (-)
   case('scalarZeroPlaneDisplacement'    ); get_ixmvar = iLookMVAR%scalarZeroPlaneDisplacement      ! zero plane displacement (m) 
-  case('scalarSfc2AtmExchangeCoeff'     ); get_ixmvar = iLookMVAR%scalarSfc2AtmExchangeCoeff       ! surface-atmosphere turbulent exchange coefficient (-)
+  case('scalarCanopyStabilityCorrection'); get_ixmvar = iLookMVAR%scalarCanopyStabilityCorrection  ! stability correction for the canopy (-)
+  case('scalarGroundStabilityCorrection'); get_ixmvar = iLookMVAR%scalarGroundStabilityCorrection  ! stability correction for the ground surface (-)
   case('scalarEddyDiffusCanopyTop'      ); get_ixmvar = iLookMVAR%scalarEddyDiffusCanopyTop        ! eddy diffusivity for heat at the top of the canopy (m2 s-1)
+  case('scalarFrictionVelocity'         ); get_ixmvar = iLookMVAR%scalarFrictionVelocity           ! friction velocity - canopy momentum sink (m s-1)
   case('scalarWindspdCanopyTop'         ); get_ixmvar = iLookMVAR%scalarWindspdCanopyTop           ! windspeed at the top of the canopy (m s-1)
+  case('scalarWindspdCanopyBottom'      ); get_ixmvar = iLookMVAR%scalarWindspdCanopyBottom        ! windspeed at the height of the bottom of the canopy (m s-1)
   case('scalarGroundResistance'         ); get_ixmvar = iLookMVAR%scalarGroundResistance           ! below canopy aerodynamic resistance (s m-1) 
   case('scalarCanopyResistance'         ); get_ixmvar = iLookMVAR%scalarCanopyResistance           ! above canopy aerodynamic resistance (s m-1)
   case('scalarLeafResistance'           ); get_ixmvar = iLookMVAR%scalarLeafResistance             ! mean leaf boundary layer resistance per unit leaf area (s m-1)

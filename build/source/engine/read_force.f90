@@ -142,7 +142,7 @@ contains
   if (data_ix(iline)<1 .or. data_ix(iline)>ncols) cycle
   read(cline(data_ix(iline)),*,iostat=err) forc_data%var(iline)
   if(err/=0)then; err=30; message=trim(message)//"ProblemDataRead[var='"//trim(forc_meta(iline)%varname)//"']"; return; endif
-  !print*,trim(forc_meta(iline)%varname),forc_data%var(iline)
+  print*,trim(forc_meta(iline)%varname),forc_data%var(iline)
  end do
  ! compute the julian day at the start of the year
  call compjulday(time_data%var(iLookTIME%iyyy),          & ! input  = year
