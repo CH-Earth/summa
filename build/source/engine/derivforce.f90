@@ -138,6 +138,7 @@ contains
 
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
  VPair = vapPress(spechum,airpres)
+ !print*, 'VPair = ', VPair
 
  ! compute wet bulb temperature (K)
  twetbulb = WETBULBTMP(airtemp, relhum, airpres)

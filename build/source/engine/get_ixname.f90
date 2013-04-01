@@ -387,6 +387,8 @@ contains
   case('scalarZ0Canopy'                 ); get_ixmvar = iLookMVAR%scalarZ0Canopy                   ! roughness length of the canopy (m)
   case('scalarWindReductionFactor'      ); get_ixmvar = iLookMVAR%scalarWindReductionFactor        ! canopy wind reduction factor (-)
   case('scalarZeroPlaneDisplacement'    ); get_ixmvar = iLookMVAR%scalarZeroPlaneDisplacement      ! zero plane displacement (m) 
+  case('scalarRiBulkCanopy'             ); get_ixmvar = iLookMVAR%scalarRiBulkCanopy               ! bulk Richardson number for the canopy (-)
+  case('scalarRiBulkGround'             ); get_ixmvar = iLookMVAR%scalarRiBulkGround               ! bulk Richardson number for the ground surface (-)
   case('scalarCanopyStabilityCorrection'); get_ixmvar = iLookMVAR%scalarCanopyStabilityCorrection  ! stability correction for the canopy (-)
   case('scalarGroundStabilityCorrection'); get_ixmvar = iLookMVAR%scalarGroundStabilityCorrection  ! stability correction for the ground surface (-)
   case('scalarEddyDiffusCanopyTop'      ); get_ixmvar = iLookMVAR%scalarEddyDiffusCanopyTop        ! eddy diffusivity for heat at the top of the canopy (m2 s-1)

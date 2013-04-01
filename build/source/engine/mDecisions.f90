@@ -107,7 +107,7 @@ contains
 
  ! (0) set Noah-MP options
  DVEG=3      ! option for dynamic vegetation
- OPT_RAD=3   ! option for canopy radiation
+ OPT_RAD=1   ! option for canopy radiation
  OPT_ALB=1   ! option for snow albedo
 
  ! (N-03) identify the choice of function for the soil moisture control on stomatal resistance

@@ -876,9 +876,9 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! test
-  write(*,'(a,1x,10(f12.5,1x))') 'scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
-                                  scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
-  pause
+  write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
+                                        iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  !pause
 
   ! compute melt/freeze in each layer (kg m-3 s-1) -- melt is negative
   mLayerMeltFreeze = mLayerMeltFreeze + iden_ice*(mLayerVolFracIceNew - mLayerVolFracIceIter)/dt

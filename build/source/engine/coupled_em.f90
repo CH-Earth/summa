@@ -226,8 +226,8 @@ contains
    ! get the new solution
    call picardSolv(dt_sub,maxiter,(nsub==1),&  ! input
                    niter,err,cmessage)            ! output
-   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
-   !if(err<0)then; print*, trim(message)//trim(cmessage); print*, 'dt_sub, minstep = ', dt_sub, minstep; pause; endif 
+   if(err > 0)then; message=trim(message)//trim(cmessage); return; endif
+   if(err<0)then; print*, trim(message)//trim(cmessage); print*, 'dt_sub, minstep = ', dt_sub, minstep; pause; endif 
    ! exit do loop if all is a-ok
    if(err==0) exit
    ! if not ok, reduce time step and try again
