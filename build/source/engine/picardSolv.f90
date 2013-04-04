@@ -766,6 +766,7 @@ contains
  real(dp),dimension(nLayers)    :: mLayerTempIncr              ! iteration increment for temperature of the snow-soil vector (K)
  real(dp),dimension(nLayers)    :: mLayerLiqIncr               ! iteration increment for volumetric liquid water content in the snow-soil vector (-)
  real(dp),dimension(nSoil)      :: mLayerMatIncr               ! iteration increment for matric head in soil layers (m)
+ real(dp)                       :: canopyTempIncrOld           ! iteration increment for temperature of the vegetation canopy in the previous iteration (K)
  real(dp),dimension(nLayers)    :: mLayerTempIncrOld           ! iteration increment for temperature of the snow-soil vector in the previous iteration (K)
  ! define error monitoring variables
  real(dp)                       :: canopyTempComponent         ! veg canopy: temperature component of the energy increment (J m-3)
@@ -853,6 +854,8 @@ contains
                   mLayerVolFracIceIter,     & ! intent(in): trial volumetric fraction of ice in each snow/soil layer at the current iteration (-)
                   mLayerVolFracLiqIter,     & ! intent(in): trial volumetric fraction of liquid water in each snow/soil layer at the current iteration (-)
                   mLayerMatricHeadIter,     & ! intent(in): trial matric head of each snow/soil layer at the current iteration (m)
+                  canopyTempIncrOld,        & ! intent(in): previous iteration increment in canopy temperature (K)
+                  mLayerTempIncrOld,        & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
 
                   ! input/output variables from heatTransf subroutine: canopy air space variables
                   scalarTemp_CanopyAir,     & ! intent(inout): trial temperature of the canopy air space (K)
@@ -876,8 +879,8 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! test
-  write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
-                                        iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
+  !                                                     iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
   !pause
 
   ! compute melt/freeze in each layer (kg m-3 s-1) -- melt is negative
@@ -889,7 +892,10 @@ contains
   mLayerPhseComponent = iden_ice*LH_fus*(mLayerVolFracIceNew - mLayerVolFracIceIter)
 
   ! save the temperature increment
+  canopyTempIncrOld   = scalarCanopyTempIncr
   mLayerTempIncrOld   = mLayerTempIncr
+  !print*, 'in PicardSolv: canopyTempIncrOld = ', canopyTempIncrOld
+
 
   ! =================================================================================================================================================
   ! =================================================================================================================================================

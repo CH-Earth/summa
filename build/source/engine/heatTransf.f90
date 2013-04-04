@@ -66,6 +66,8 @@ contains
                        mLayerVolFracIceIter,     & ! intent(in): trial volumetric fraction of ice at the current iteration (-)
                        mLayerVolFracLiqIter,     & ! intent(in): trial volumetric fraction of liquid water at the current iteration (-)
                        mLayerMatricHeadIter,     & ! intent(in): trial matric head at the current iteration (m)
+                       canopyTempIncrOld,        & ! intent(in): previous iteration increment in canopy temperature (K)
+                       mLayerTempIncrOld,        & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
                        ! input/output variables from heatTransf subroutine: canopy air space variables
                        scalarTemp_CanopyAir,     & ! intent(inout): trial temperature of the canopy air space (K)
                        scalarVP_CanopyAir,       & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
@@ -102,6 +104,8 @@ contains
  real(dp),intent(in)           :: mLayerVolFracIceIter(:)  ! trial volumetric fraction of ice at the current iteration (-)
  real(dp),intent(in)           :: mLayerVolFracLiqIter(:)  ! trial volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)           :: mLayerMatricHeadIter(:)  ! trial matric head at the current iteration (m)
+ real(dp),intent(in)           :: canopyTempIncrOld        ! iteration increment for temperature of the vegetation canopy in the previous iteration (K)
+ real(dp),intent(in)           :: mLayerTempIncrOld(:)     ! iteration increment for temperature of the snow-soil vector in the previous iteration (K)
  ! input/output variables from the heatTransf subroutine: canopy air space variables
  real(dp),intent(inout)        :: scalarTemp_CanopyAir     ! trial temperature of the canopy air space (K)
  real(dp),intent(inout)        :: scalarVP_CanopyAir       ! trial vapor pressure of the canopy air space (Pa)
@@ -149,6 +153,8 @@ contains
                         mLayerVolFracIceIter,                                          & ! intent(in): trial volumetric fraction of ice at the current iteration (-)
                         mLayerVolFracLiqIter,                                          & ! intent(in): trial volumetric fraction of liquid water at the current iteration (-)
                         mLayerMatricHeadIter,                                          & ! intent(in): trial matric head at the current iteration (m)
+                        canopyTempIncrOld,                                             & ! intent(in): previous iteration increment in canopy temperature (K)
+                        mLayerTempIncrOld,                                             & ! intent(in): previous iteration increment in the temperature of the snow-soil vector  (K)
 
                         ! model decisions
                         model_decisions(iLookDECISIONS%num_method)%iDecision,          & ! intent(in): choice of numerical method
@@ -264,6 +270,8 @@ contains
                               mLayerVolFracIceIter,         & ! intent(in): trial volumetric fraction of ice at the current iteration (-)
                               mLayerVolFracLiqIter,         & ! intent(in): trial volumetric fraction of liquid water at the current iteration (-)
                               mLayerMatricHeadIter,         & ! intent(in): trial matric head at the current iteration (m)
+                              canopyTempIncrOld,            & ! intent(in): previous iteration increment in canopy temperature (K)
+                              mLayerTempIncrOld,            & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
 
                               ! model decisions
                               num_method,                   & ! intent(in): choice of numerical method
@@ -367,6 +375,8 @@ contains
  real(dp),intent(in)            :: mLayerVolFracIceIter(:)     ! volumetric fraction of ice at the current iteration (-)
  real(dp),intent(in)            :: mLayerVolFracLiqIter(:)     ! volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)            :: mLayerMatricHeadIter(:)     ! matric head at the current iteration (m)
+ real(dp),intent(in)            :: canopyTempIncrOld           ! iteration increment for temperature of the vegetation canopy in the previous iteration (K)
+ real(dp),intent(in)            :: mLayerTempIncrOld(:)        ! iteration increment for temperature of the snow-soil vector in the previous iteration (K)
  ! model decisions
  integer(i4b),intent(in)        :: num_method                  ! choice of numerical method
  integer(i4b),intent(in)        :: fDerivMeth                  ! method used to calculate flux derivatives
@@ -451,6 +461,7 @@ contains
  real(dp)                       :: maxdiffTemp(1)             ! maximum difference between temperature input and start-of-step temperature (K)
  real(dp),parameter             :: epsT=1.d-10                ! offset from Tcrit when re-setting iterations at the critical temperature (K)
  integer(i4b)                   :: nUnsat                     ! number of unsaturated layers
+ real(dp),dimension(1)          :: amaxIncrement              ! maximum iteration increment
  ! define local variables for the fluxes at vegetation and ground surfaces
  real(dp)                       :: saveTemp_CanopyAir         ! trial temperature of the canopy air space (K)
  real(dp)                       :: saveVP_CanopyAir           ! trial vapor pressure of the canopy air space (Pa)
@@ -617,6 +628,8 @@ contains
   phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
   ! (compute residuals)
   canopyResidual = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
+  !write(*,'(a,1x,10(f20.10,1x))') 'canopy: scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse = ', &
+  !                                         scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse
  endif
 
  ! ***** compute the residual vector for all snow/soil layers (J m-3)
@@ -632,8 +645,9 @@ contains
   ! (compute residuals)
   mLayerResidual(iLayer) = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
   !if(iLayer==1)&
-  !write(*,'(a,1x,f13.9,1x,2(f9.5,1x),5(e14.4,1x))') 'mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse = ', &
-  !                                                   mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse
+  !write(*,'(a,1x,i4,1x,f13.9,1x,2(f9.5,1x),5(e14.4,1x))') &
+  ! 'mLayer: iLayer, mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse = ', &
+  !          iLayer, mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse
  end do
 
 
@@ -730,6 +744,29 @@ contains
 
  ! get the temperature increment for all snow-soil layers
  mLayerTempDiff(1:nLayers) = sInc(1:nLayers)
+
+ ! adjust iteration increments in cases where iteration increments are too large
+ if(abs(scalarCanopyTempDiff) > 1._dp .or. any(abs(mLayerTempDiff(1:nLayers)) > 1._dp) )then
+  amaxIncrement = maxval(abs((/scalarCanopyTempDiff,mLayerTempDiff(1:nLayers)/)))
+  !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
+  !print*, 'mLayerTempDiff(1:nLayers) = ', mLayerTempDiff(1:nLayers)
+  scalarCanopyTempDiff      = scalarCanopyTempDiff/amaxIncrement(1)
+  mLayerTempDiff(1:nLayers) = mLayerTempDiff(1:nLayers)/amaxIncrement(1)
+  !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
+  !print*, 'mLayerTempDiff(1:nLayers) = ', mLayerTempDiff(1:nLayers)
+  !pause ' excessive increment'
+ endif
+
+ ! adjust iteration increments in cases where iterations are oscillating
+ if(iter > 5)then
+  if(scalarCanopyTempDiff*canopyTempIncrOld < -0.01_dp .or. any(mLayerTempIncrOld(1:nLayers)*mLayerTempDiff(1:nLayers) < -0.01_dp) )then
+   !write(*,'(a,1x,20(f20.10,1x))') 'temperature difference (old) = ', scalarCanopyTempDiff, mLayerTempDiff
+   !write(*,'(a,1x,20(f20.10,1x))') 'temperature difference (new) = ', canopyTempIncrOld,    mLayerTempIncrOld
+   scalarCanopyTempDiff      = 0.5_dp*scalarCanopyTempDiff
+   mLayerTempDiff(1:nLayers) = 0.5_dp*mLayerTempDiff(1:nLayers)
+   !pause ' iteration either oscillating or iteration increment is too large: cut iteration increment in half' 
+  endif
+ endif
 
  ! adjust del temperature for snow
  if(nSnow>0)then

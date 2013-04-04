@@ -166,8 +166,11 @@ contains
     volFracLiqNew = 0.5_dp*(xmin+xmax)
     increment = volFracLiqNew - volFracLiqTrial
    endif
-   if(printflag) write(*,'(a,3(i4,1x),10(f20.10,1x))') 'in snowHydrol, iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew = ', &
-                                                                       iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew
+   ! test
+   if(iLayer==1 .and. printflag)then
+    write(*,'(a)')      'in snowHydrol, iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge = '
+    write(*,'(3(i4,1x),10(f20.10,1x))') iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge
+   endif
    ! check for convergence
    if(abs(increment) < atol) exit
    ! get ready for next iteration

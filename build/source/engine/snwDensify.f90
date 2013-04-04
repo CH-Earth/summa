@@ -62,15 +62,14 @@ contains
  integer(i4b)                        :: iSnow                    ! index of snow layers
  integer(i4b)                        :: nSnow                    ! number of snow layers
  real(dp)                            :: chi1,chi2,chi3,chi4,chi5 ! multipliers in the densification algorithm (-)
- real(dp)                            :: fracMelt                 ! fraction of ice that melts in a time step (-)
  real(dp)                            :: halfWeight               ! half of the weight of the current snow layer (kg m-2)
  real(dp)                            :: weightSnow               ! total weight of snow above the current snow layer (kg m-2)
  real(dp)                            :: CR_grainGrowth           ! compaction rate for grain growth (s-1)
  real(dp)                            :: CR_ovrvdnPress           ! compaction rate associated with over-burden pressure (s-1)
  real(dp)                            :: CR_metamorph             ! compaction rate for metamorphism (s-1)
- real(dp)                            :: CR_snowmelt              ! compaction rate for snowmelt (s-1)
  real(dp)                            :: massIceOld               ! mass of ice in the snow layer (kg m-2)
  real(dp)                            :: massLiqOld               ! mass of liquid water in the snow layer (kg m-2)
+ real(dp)                            :: scalarDepthNew           ! updated layer depth (m)
  real(dp),parameter                  :: snwden_min=100._dp       ! minimum snow density for reducing metamorphism rate (kg m-3)
  real(dp),parameter                  :: snwDensityMax=550._dp    ! maximum snow density for collapse under melt (kg m-3)
  real(dp),parameter                  :: wetSnowThresh=0.01_dp    ! threshold to discriminate between "wet" and "dry" snow
@@ -116,20 +115,23 @@ contains
   ! update the snow weight with the halfWeight not yet used
   weightSnow = weightSnow + halfweight          ! add half of the weight from the current layer
   ! *** compute the compaction rate associated with snow melt and sublimation (s-1)
+  ! NOTE: loss of ice due to snowmelt and sublimation are implicit, so can be updated directly
   if(iden_ice*mLayerVolFracIceNew(iSnow) < snwDensityMax .or. iSnow==1)then ! only collapse layers if below a critical density
-   fracMelt    = min(mLayerVolFracIceNew(iSnow) - mLayerVolFracIce(iSnow), 0._dp)/mLayerVolFracIce(iSnow)
-   CR_snowmelt = fracMelt/dt
+   scalarDepthNew = min(mLayerVolFracIceNew(iSnow)/mLayerVolFracIce(iSnow), 1._dp)*mLayerDepth(iSnow)
   else
-   CR_snowmelt = 0._dp
+   scalarDepthNew = mLayerDepth(iSnow)
   endif
   ! compute the total compaction rate associated with metamorphism
   CR_metamorph = CR_grainGrowth + CR_ovrvdnPress
-  ! check
-  !write(*,'(a,1x,i4,1x,f9.3)') 'iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
-  !write(*,'(a,1x,i4,1x,9(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_snowmelt*dt, CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
-  !                                     iSnow, mLayerDepth(iSnow), mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_snowmelt*dt, CR_grainGrowth*dt, CR_ovrvdnPress*dt
-  ! update state variables -- note snowmelt is implicit, so can be updated directly
-  mLayerDepth(iSnow)         = mLayerDepth(iSnow)/(1._dp + CR_metamorph*dt) + dt*CR_snowmelt*mLayerDepth(iSnow)
+  ! update depth due to metamorphism (implicit solution)
+  mLayerDepth(iSnow) = scalarDepthNew/(1._dp + CR_metamorph*dt)
+  ! check that depth is reasonable
+  if(mLayerDepth(iSnow) < 0._dp)then
+   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, dt, density, massIceOld, massLiqOld = ', iSnow, dt, mLayerVolFracIceNew(iSnow)*iden_ice, massIceOld, massLiqOld
+   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
+                                         iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
+  endif
+  ! update volumetric ice and liquid water content
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
   mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
  end do  ! looping through snow layers

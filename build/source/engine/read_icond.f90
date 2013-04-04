@@ -55,7 +55,7 @@ contains
  integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
- character(LEN=256)             :: namesScalarDesired(9) ! names of desired scalar variables
+ character(LEN=256)             :: namesScalarDesired(10) ! names of desired scalar variables
  logical(lgt),allocatable       :: checkGotVars(:) ! used to check if we have got desired variables
  character(LEN=256),allocatable :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable :: chardata(:)     ! vector of character data
@@ -103,18 +103,19 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
  ! define desired scalar variables
- if(size(namesScalarDesired)/=9)then
-  err=20; message=trim(message)//'expect 9 variables in namesScalarDesired'; return
+ if(size(namesScalarDesired)/=10)then
+  err=20; message=trim(message)//'expect 10 variables in namesScalarDesired'; return
  endif
- namesScalarDesired(1) = 'scalarCanopyIce'
- namesScalarDesired(2) = 'scalarCanopyLiq'
- namesScalarDesired(3) = 'scalarCanopyTemp'
- namesScalarDesired(4) = 'scalarAlbedo'
- namesScalarDesired(5) = 'scalarSWE'
- namesScalarDesired(6) = 'scalarSnowDepth'
- namesScalarDesired(7) = 'scalarSfcMeltPond'
- namesScalarDesired(8) = 'scalarAquiferStorage'
- namesScalarDesired(9) = 'scalarWaterTableDepth'
+ namesScalarDesired( 1) = 'scalarCanopyIce'
+ namesScalarDesired( 2) = 'scalarCanopyLiq'
+ namesScalarDesired( 3) = 'scalarCanopyTemp'
+ namesScalarDesired( 4) = 'scalarSnowAge'
+ namesScalarDesired( 5) = 'scalarAlbedo'
+ namesScalarDesired( 6) = 'scalarSWE'
+ namesScalarDesired( 7) = 'scalarSnowDepth'
+ namesScalarDesired( 8) = 'scalarSfcMeltPond'
+ namesScalarDesired( 9) = 'scalarAquiferStorage'
+ namesScalarDesired(10) = 'scalarWaterTableDepth'
 
  ! **********************************************************************************************
  ! (1) open files, etc.
@@ -195,6 +196,7 @@ contains
    read(chardata(2),*,iostat=err) mvar_data%var(jvar)%dat(1)
    if(err/=0)then; err=40; message=trim(message)//"problemInternalRead[data='"//trim(chardata(2))//"']"; return; endif
    deallocate(chardata)
+   !print*, jVar, trim(mvar_meta(jvar)%vardesc), mvar_data%var(jvar)%dat(1)
   endif    ! if we are in the scalar part of the file
   ! check if reached the start of the scalar definitions
   if (trim(temp)=='<start_'//trim(scalar_tag)//'>') scalar_flag=.true.
@@ -443,6 +445,7 @@ contains
  print*,'mLayerVolFracIce ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(:)
  print*,'mLayerVolFracLiq ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(:)
  print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
+ print*,'scalarSnowAge    ', mvar_data%var(iLookMVAR%scalarSnowAge)%dat(:)
  print*,'scalarAlbedo     ', mvar_data%var(iLookMVAR%scalarAlbedo)%dat(:)
  print*,'scalarSnowDepth  ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(:)
  print*,'scalarSWE        ', mvar_data%var(iLookMVAR%scalarSWE)%dat(:)

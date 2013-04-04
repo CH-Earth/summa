@@ -139,7 +139,7 @@ FUSE_ALL = $(UTILMS) $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) \
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = ifort
+FC  = pgf90
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -157,8 +157,11 @@ ifeq "$(FC)" "ifort"
  INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
 endif
 ifeq "$(FC)" "pgf90"
- LIBNETCDF = -L/usr/local/netcdf4-pgi/lib -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lsz -lz
- INCNETCDF = -I/usr/local/netcdf4-pgi/include
+ HDF_PATH  = /usr/local/hdf5-1.8.7
+ NCDF_PATH = /usr/local/netcdf4-pgi
+ LOCL_PATH = /usr/local
+ LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(HDF_PATH)/lib -lhdf5_hl -lhdf5 -L$(LOCL_PATH)/lib -lsz -lz
+ INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
 endif
 
 # Define the driver routine
@@ -183,7 +186,8 @@ ifeq "$(FC)" "ifort"
 endif
 ifeq "$(FC)" "pgf90"
  FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+ FLAGS_NOAH = -g -Mr8 -Mfree
+ FLAGS_FUSE = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
 endif
 
 #FLAGS = -O3 -W -v
@@ -208,7 +212,7 @@ compile_fuse:
 
 # link routines
 link:
-	$(FC) -static *.o $(LIBNETCDF) -o $(DRIVER__EX)
+	$(FC) -Bstatic *.o $(LIBNETCDF) -o $(DRIVER__EX)
 
 # Remove object files
 clean:
