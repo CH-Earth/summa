@@ -42,6 +42,7 @@ NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(FUSE_NRUTIL))
 #
 # Numerical recipes procedures
 FUSE_NRPROC= \
+		expIntegral.f90 \
 		spline_int.f90 \
 		intgr8func.f90
 NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(FUSE_NRPROC))
@@ -139,7 +140,7 @@ FUSE_ALL = $(UTILMS) $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) \
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = pgf90
+FC  = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"

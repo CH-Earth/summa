@@ -26,6 +26,10 @@ USE mDecisions_module,only:  &
  Raupach_BLM1994,            & ! Raupach (BLM 1994) "Simplified expressions..."
  CM_QJRMS1998,               & ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
  vegTypeTable                  ! constant parameters dependent on the vegetation type
+! look-up values for the choice of parameterization for canopy emissivity
+USE mDecisions_module,only:  &
+ simplExp,                   & ! simple exponential function
+ difTrans                      ! parameterized as a function of diffuse transmissivity
 ! look-up values for choice of stability function
 USE mDecisions_module,only:  &
  standard,                   & ! standard MO similarity, a la Anderson (1976) 
@@ -171,6 +175,7 @@ contains
                         ! model control -- intent(in)
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,              & ! intent(in): choice of method to compute derivatives
                         model_decisions(iLookDECISIONS%veg_traits)%iDecision,              & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
+                        model_decisions(iLookDECISIONS%canopyEmis)%iDecision,              & ! intent(in): choice of parameterization for canopy emissivity
                         model_decisions(iLookDECISIONS%astability)%iDecision,              & ! intent(in): choice of stability function
                         model_decisions(iLookDECISIONS%soilStress)%iDecision,              & ! intent(in): choice of function for the soil moisture control on stomatal resistance
                         model_decisions(iLookDECISIONS%groundwatr)%iDecision,              & ! intent(in): groundwater parameterization
@@ -245,6 +250,7 @@ contains
                         mvar_data%var(iLookMVAR%scalarWithinCanopyGapFraction)%dat(1),     & ! intent(inout): within canopy gap fraction for beam (-)
 
                         ! longwave radiation fluxes -- intent(out) because called in every step
+                        mvar_data%var(iLookMVAR%scalarCanopyEmissivity)%dat(1),            & ! intent(out): effective emissivity of the canopy (-)
                         mvar_data%var(iLookMVAR%scalarLWRadCanopy)%dat(1),                 & ! intent(out): longwave radiation emitted from the canopy (W m-2)
                         mvar_data%var(iLookMVAR%scalarLWRadGround)%dat(1),                 & ! intent(out): longwave radiation emitted at the ground surface (W m-2)
                         mvar_data%var(iLookMVAR%scalarLWRadUbound2Canopy)%dat(1),          & ! intent(out): downward atmospheric longwave radiation absorbed by the canopy (W m-2)
@@ -364,6 +370,7 @@ contains
                               ! model control -- intent(in)
                               ix_fDerivMeth,                     & ! intent(in): choice of method to compute derivatives
                               ix_veg_traits,                     & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
+                              ix_canopyEmis,                     & ! intent(in): choice of parameterization for canopy emissivity
                               ix_astability,                     & ! intent(in): choice of stability function
                               ix_soilStress,                     & ! intent(in): choice of function for the soil moisture control on stomatal resistance
                               ix_groundwatr,                     & ! intent(in): groundwater parameterization
@@ -438,6 +445,7 @@ contains
                               scalarWithinCanopyGapFraction,     & ! intent(inout): within canopy gap fraction for beam (-)
 
                               ! longwave radiation fluxes -- intent(out) because called in every step
+                              scalarCanopyEmissivity,            & ! intent(out): effective emissivity of the canopy (-)
                               scalarLWRadCanopy,                 & ! intent(out): longwave radiation emitted from the canopy (W m-2)
                               scalarLWRadGround,                 & ! intent(out): longwave radiation emitted at the ground surface (W m-2)
                               scalarLWRadUbound2Canopy,          & ! intent(out): downward atmospheric longwave radiation absorbed by the canopy (W m-2)
@@ -518,6 +526,8 @@ contains
                               dGroundNetFlux_dGroundTemp,        & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
                               err,message                        ) ! intent(out): error control
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ! utilities
+ USE expIntegral_module,only:expIntegral                           ! subroutine to calculate the exponential integral
  ! conversion functions
  USE conv_funcs_module,only:satVapPress                            ! function to compute the saturated vapor pressure (Pa)
  USE conv_funcs_module,only:getLatentHeatValue                     ! function to identify latent heat of vaporization/sublimation (J kg-1)
@@ -547,6 +557,7 @@ contains
  ! model control -- intent(in)
  integer(i4b),intent(in)        :: ix_fDerivMeth                   ! choice of method to compute derivatives
  integer(i4b),intent(in)        :: ix_veg_traits                   ! choice of parameterization for vegetation roughness length and displacement height
+ integer(i4b),intent(in)        :: ix_canopyEmis                   ! choice of parameterization for canopy emissivity
  integer(i4b),intent(in)        :: ix_astability                   ! choice of stability function
  integer(i4b),intent(in)        :: ix_soilStress                   ! choice of function for the soil moisture control on stomatal resistance
  integer(i4b),intent(in)        :: ix_groundwatr                   ! groundwater parameterization
@@ -621,6 +632,7 @@ contains
  real(dp),intent(inout)         :: scalarWithinCanopyGapFraction   ! within canopy gap fraction for beam (-)
 
  ! longwave radiation fluxes -- intent(out) because called in every step
+ real(dp),intent(out)           :: scalarCanopyEmissivity          ! effective emissivity of the canopy (-)
  real(dp),intent(out)           :: scalarLWRadCanopy               ! longwave radiation emitted from the canopy (W m-2)
  real(dp),intent(out)           :: scalarLWRadGround               ! longwave radiation emitted at the ground surface (W m-2)
  real(dp),intent(out)           :: scalarLWRadUbound2Canopy        ! downward atmospheric longwave radiation absorbed by the canopy (W m-2)
@@ -725,8 +737,12 @@ contains
  real(dp)                      :: dSVPCanopy_dCanopyTemp           ! derivative in canopy saturated vapor pressure w.r.t. vegetation temperature (Pa/K)
  real(dp)                      :: dSVPGround_dGroundTemp           ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
  ! local (longwave radiation)
- real(dp)                      :: canopyEmissivity                 ! effective emissivity of the canopy (-)
+ real(dp)                      :: expi                             ! exponential integral
+ real(dp)                      :: expint                           ! exponential integral function
+ real(dp)                      :: scaleLAI                         ! scaled LAI (computing diffuse transmissivity)
+ real(dp)                      :: diffuseTrans                     ! diffuse transmissivity (-)
  real(dp)                      :: groundEmissivity                 ! emissivity of the ground surface (-)
+ real(dp),parameter            :: vegEmissivity=0.98_dp            ! emissivity of vegetation (-)
  real(dp),parameter            :: soilEmissivity=0.98_dp           ! emmisivity of the soil (-)
  real(dp),parameter            :: snowEmissivity=0.99_dp           ! emissivity of snow (-)
  real(dp)                      :: dLWNetCanopy_dTCanopy            ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
@@ -834,9 +850,32 @@ contains
  VAI        = scalarLAI + scalarSAI  ! vegetation area index
  exposedVAI = scalarExposedLAI + scalarExposedSAI  !  exposed vegetation area index
 
- ! compute emissivity of the canopy and ground surface (-)
- canopyEmissivity = 1._dp - exp(-exposedVAI)                                     ! effective emissivity of the canopy (-)
- if(.not.computeVegFlux) canopyEmissivity=0._dp                                  ! sets canopy longwave fluxes to zero when not computing canopy fluxes
+ ! compute emissivity of the canopy (-)
+ if(computeVegFlux)then
+  select case(ix_canopyEmis)
+   ! *** simple exponential function
+   case(simplExp)
+    scalarCanopyEmissivity = 1._dp - exp(-exposedVAI)                                     ! effective emissivity of the canopy (-)
+   ! *** canopy emissivity parameterized as a function of diffuse transmissivity
+   case(difTrans)
+    ! compute the exponential integral
+    scaleLAI = 0.5_dp*exposedVAI  
+    call expIntegral(1,scaleLAI,expi,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! compute diffuse transmissivity (-) 
+    diffuseTrans = (1._dp - scaleLAI)*exp(-scaleLAI) + (scaleLAI**2._dp)*expi
+    ! compute the canopy emissivity
+    scalarCanopyEmissivity = (1._dp - diffuseTrans)*vegEmissivity
+   ! *** check we found the correct option
+   case default
+    err=20; message=trim(message)//'unable to identify option for canopy emissivity'; return
+  end select
+ endif
+
+ ! ensure canopy longwave fluxes are zero when not computing canopy fluxes
+ if(.not.computeVegFlux) scalarCanopyEmissivity=0._dp 
+
+ ! compute emissivity of the ground surface (-)
  groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._dp - scalarGroundSnowFraction)*soilEmissivity  ! emissivity of the ground surface (-)
  
 
@@ -1083,7 +1122,7 @@ contains
                   canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
                   groundTempTrial,                   & ! intent(in): temperature of the ground surface (K)
                   ! input: canopy and ground emissivity
-                  canopyEmissivity,                  & ! intent(in): canopy emissivity (-)
+                  scalarCanopyEmissivity,            & ! intent(in): canopy emissivity (-)
                   groundEmissivity,                  & ! intent(in): ground emissivity (-)
                   ! input: forcing
                   LWRadAtm,                          & ! intent(in): downwelling longwave radiation at the upper boundary (W m-2)
@@ -1985,6 +2024,12 @@ contains
   windReductionFactor = windReductionParam * exposedVAI**twoThirds * heightCanopyTop**oneThird / leafDimension**oneThird
   !windReductionFactor = 3._dp
 
+  ! compute windspeed at the bottom of the canopy (m s-1)
+  !referenceHeight      = max(heightCanopyBottom, min(0.5_dp, heightCanopyTop))
+  referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground+0.05_dp)
+  windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
+  windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
+
   ! compute the leaf boundary layer resistance (s m-1)
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
   leaf2CanopyScaleFactor = (2._dp/windReductionFactor) * (1._dp - exp(-windReductionFactor/2._dp)) ! factor to scale from the leaf to the canopy
@@ -1997,14 +2042,10 @@ contains
 
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
   !  assume exponential profile extends from the surface roughness length to the displacement height plus vegetation roughness
-  tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTop)
+  tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTop)
   tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTop)
-  groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)  ! s m-1
-
-  ! compute windspeed at the bottom of the canopy (m s-1)
-  referenceHeight      = max(heightCanopyBottom, min(0.5_dp, heightCanopyTop))
-  windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
-  windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
+  groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
+                                + (1._dp/(windspdCanopyBottom*vkc**2._dp))*(log(referenceHeight/z0Ground))**2._dp
 
   ! define variables immediately above the ground surface
   ! NOTE: these are used in the stability calculations
@@ -2310,7 +2351,7 @@ contains
                        aquiferTranspireLimitFac, & ! intent(out): transpiration limiting factor for the aquifer (-)
                        err,message)                ! intent(out): error control
  ! -----------------------------------------------------------------------------------------------------------------------------------------
- USE mDecisions_module, only: NoahType,CLM_type,SiB_Type  ! options for the choice of function for the soil moisture control on stomatal resistance
+ USE mDecisions_module, only: NoahType,CLM_Type,SiB_Type  ! options for the choice of function for the soil moisture control on stomatal resistance
  USE mDecisions_module, only: bigBucket                   ! named variable that defines the "bigBucket" groundwater parameterization 
  implicit none
  ! input (model decisions)
@@ -2348,7 +2389,7 @@ contains
   select case(ixSoilResist)    
    case(NoahType)  ! thresholded linear function of volumetric liquid water content
     gx = (mLayerVolFracLiq(iLayer) - critSoilWilting) / (critSoilTranspire - critSoilWilting)
-   case(CLM_type)  ! thresholded linear function of matric head
+   case(CLM_Type)  ! thresholded linear function of matric head
     gx = 1._dp - mLayerMatricHead(iLayer)/plantWiltPsi
    case(SiB_Type)  ! exponential of the log of matric head
     if(mLayerMatricHead(iLayer) < 0._dp)then  ! (unsaturated)
@@ -2360,7 +2401,7 @@ contains
     err=20; message=trim(message)//'cannot identify option for soil resistance'; return
   end select
   ! save the factor the the given layer (ensure between zero and one)
-  mLayerTranspireLimitFac(iLayer) = min(1._dp, max(0._dp,gx) )
+  mLayerTranspireLimitFac(iLayer) = min(1._dp, max(1.e-8_dp,gx) )
   ! compute the weighted average (weighted by root density)
   wAvgTranspireLimitFac = wAvgTranspireLimitFac + mLayerTranspireLimitFac(iLayer)*mLayerRootDensity(iLayer)
  end do ! (looping through soil layers)
@@ -3139,6 +3180,45 @@ contains
   dRiBulk_dTemp = 1._dp
  endif
  end subroutine bulkRichardson
+
+
+ ! ****************** EXPONENTIAL INTEGRAL FUNCTION *****************************************
+ ! From UEBVeg
+ ! Computes the exponential integral function for the given value
+ FUNCTION EXPINT (LAI)
+ REAL(DP) LAI
+ REAL(DP) EXPINT
+ REAL(DP) a0,a1,a2,a3,a4,a5,b1,b2,b3,b4
+ IF (LAI.EQ.0)THEN
+  EXPINT=1._dp
+
+ ELSEIF (LAI.LE.1.0) THEN
+  a0=-.57721566_dp
+  a1=.99999193_dp
+  a2=-.24991055_dp
+  a3=.05519968_dp
+  a4=-.00976004_dp
+  a5=.00107857_dp
+
+  EXPINT = a0+a1*LAI+a2*LAI**2+a3*LAI**3+a4*LAI**4+a5*LAI**5 - log(LAI)
+
+ ELSE
+  a1=8.5733287401_dp
+  a2=18.0590169730_dp
+  a3=8.6347637343_dp
+  a4=.2677737343_dp
+  b1=9.5733223454_dp
+  b2=25.6329561486_dp
+  b3=21.0996530827_dp
+  b4=3.9584969228_dp
+
+  EXPINT=(LAI**4+a1*LAI**3+a2*LAI**2+a3*LAI+a4)/ &
+      ((LAI**4+b1*LAI**3+b2*LAI**2+b3*LAI+b4)*LAI*exp(LAI))
+
+ END IF
+ RETURN
+ END FUNCTION EXPINT
+
 
 
 

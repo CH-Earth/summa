@@ -43,12 +43,13 @@ contains
   case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (13) type of upper boundary condition for soil hydrology
   case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (14) type of lower boundary condition for soil hydrology
   case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (15) choice of parameterization for vegetation roughness length and displacement height
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (16) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (17) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (18) choice of method to combine and sub-divide snow layers
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (19) choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (20) choice of albedo representation
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (21) choice of method for sub-grid routing
+  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (16) choice of parameterization for canopy emissivity
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (17) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (18) choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (19) choice of method to combine and sub-divide snow layers
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (20) choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (21) choice of albedo representation
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (22) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -366,6 +367,7 @@ contains
   case('scalarBetweenCanopyGapFraction' ); get_ixmvar = iLookMVAR%scalarBetweenCanopyGapFraction   ! between canopy gap fraction for beam (-)
   case('scalarWithinCanopyGapFraction'  ); get_ixmvar = iLookMVAR%scalarWithinCanopyGapFraction    ! within canopy gap fraction for beam (-)
   ! NOAH-MP vegetation variables (longwave radiation)
+  case('scalarCanopyEmissivity'         ); get_ixmvar = iLookMVAR%scalarCanopyEmissivity           ! effective canopy emissivity (-)
   case('scalarLWRadCanopy'              ); get_ixmvar = iLookMVAR%scalarLWRadCanopy                ! longwave radiation emitted from the canopy (W m-2)
   case('scalarLWRadGround'              ); get_ixmvar = iLookMVAR%scalarLWRadGround                ! longwave radiation emitted at the ground surface  (W m-2)
   case('scalarLWRadUbound2Canopy'       ); get_ixmvar = iLookMVAR%scalarLWRadUbound2Canopy         ! downward atmospheric longwave radiation absorbed by the canopy (W m-2)
