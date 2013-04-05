@@ -21,12 +21,12 @@
 ! *****************************************************************************************************************
 ! boundary conditions
 ! *****************************************************************************************************************
-upperBoundHead       | matric head at the upper boundary                                 | m          | scalarv | F
-lowerBoundHead       | matric head at the lower boundary                                 | m          | scalarv | F
-upperBoundTheta      | volumetric liquid water content at the upper boundary             | -          | scalarv | F
-lowerBoundTheta      | volumetric liquid water content at the lower boundary             | -          | scalarv | F
-upperBoundTemp       | temperature of the upper boundary                                 | K          | scalarv | F
-lowerBoundTemp       | temperature of the lower boundary                                 | K          | scalarv | F
+upperBoundHead       | matric head at the upper boundary                                 | m          | scalarv | T
+lowerBoundHead       | matric head at the lower boundary                                 | m          | scalarv | T
+upperBoundTheta      | volumetric liquid water content at the upper boundary             | -          | scalarv | T
+lowerBoundTheta      | volumetric liquid water content at the lower boundary             | -          | scalarv | T
+upperBoundTemp       | temperature of the upper boundary                                 | K          | scalarv | T
+lowerBoundTemp       | temperature of the lower boundary                                 | K          | scalarv | T
 ! *****************************************************************************************************************
 ! precipitation partitioning
 ! *****************************************************************************************************************
@@ -79,6 +79,7 @@ mw_exp               | exponent for meltwater flow                              
 z0Snow               | roughness length of snow                                          | m          | scalarv | T
 z0Soil               | roughness length of bare soil below the canopy                    | m          | scalarv | T
 z0Canopy             | roughness length of the canopy                                    | m          | scalarv | T
+zpdFraction          | zero plane displacement / canopy height                           | -          | scalarv | T
 critRichNumber       | critical value for the bulk Richardson number                     | -          | scalarv | T
 Louis79_bparam       | parameter in Louis (1979) stability function                      | -          | scalarv | T
 Louis79_cStar        | parameter in Louis (1979) stability function                      | -          | scalarv | T
@@ -88,6 +89,8 @@ windReductionParam   | canopy wind reduction parameter                          
 ! *****************************************************************************************************************
 ! vegetation properties
 ! *****************************************************************************************************************
+winterSAI            | stem area index prior to the start of the growing season          | m2 m-2     | scalarv | T
+summerLAI            | maximum leaf area index at the peak of the growing season         | m2 m-2     | scalarv | T
 rootingDepth         | rooting depth                                                     | m          | scalarv | T
 rootDistExp          | exponent for the vertical distribution of root density            | -          | scalarv | T
 plantWiltPsi         | matric head at wilting point                                      | m          | scalarv | T

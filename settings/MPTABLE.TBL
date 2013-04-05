@@ -136,6 +136,7 @@
            0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
 /
 
+
 &noah_mp_modis_veg_categories
  VEG_DATASET_DESCRIPTION = "modified igbp modis noah"
  NVEG = 20
