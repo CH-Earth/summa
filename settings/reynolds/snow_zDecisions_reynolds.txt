@@ -9,23 +9,26 @@
 soilCatTbl                    ROSETTA  ! (N-01) soil-category dateset
 vegeParTbl                       USGS  ! (N-02) vegetation category dataset
 soilStress                   NoahType  ! (N-03) choice of function for the soil moisture control on stomatal resistance
-stomResist                  BallBerry  ! (N-04) choice of function for stomatal resistance
+stomResist                     Jarvis  ! (N-04) choice of function for stomatal resistance
 ! ***********************************************************************************************************************
 num_method                   itertive  ! (F-01) choice of numerical method
 fDerivMeth                   analytic  ! (F-02) method used to calculate flux derivatives
-f_Richards                   moisture  ! (F-03) form of Richard's equation
-groundwatr                   noXplict  ! (F-04) choice of groundwater parameterization
-hc_profile                   constant  ! (F-05) choice of hydraulic conductivity profile
-bcUpprTdyn                   nrg_flux  ! (F-06) type of upper boundary condition for thermodynamics
-bcLowrTdyn                   zeroFlux  ! (F-07) type of lower boundary condition for thermodynamics
-bcUpprSoiH                   liq_flux  ! (F-08) type of upper boundary condition for soil hydrology
-bcLowrSoiH                   drainage  ! (F-09) type of lower boundary condition for soil hydrology
-astability                   mahrtexp  ! (F-10) choice of stability function
-alb_method                   fsnowage  ! (F-11) choice of albedo representation
-compaction                   anderson  ! (F-12) choice of compaction routine
-snowLayers                   CLM_2010  ! (F-13) choice of method to combine and sub-divide snow layers
-thermlcond                   melr1977  ! (F-14) choice of thermal conductivity representation
-subRouting                   timeDlay  ! (F-15) choice of method for sub-grid routing
+LAI_method                  specified  ! (F-03) method used to determine LAI and SAI
+f_Richards                   mixdform  ! (F-04) form of Richard's equation
+groundwatr                   noXplict  ! (F-05) choice of groundwater parameterization
+hc_profile                   constant  ! (F-06) choice of hydraulic conductivity profile
+bcUpprTdyn                   nrg_flux  ! (F-07) type of upper boundary condition for thermodynamics
+bcLowrTdyn                   zeroFlux  ! (F-08) type of lower boundary condition for thermodynamics
+bcUpprSoiH                   liq_flux  ! (F-09) type of upper boundary condition for soil hydrology
+bcLowrSoiH                   drainage  ! (F-10) type of lower boundary condition for soil hydrology
+veg_traits               CM_QJRMS1998  ! (F-11) choice of parameterization for vegetation roughness length and displacement height
+canopyEmis                   difTrans  ! (F-12) choice of parameterization for canopy emissivity
+astability                   mahrtexp  ! (F-13) choice of stability function
+alb_method                   fsnowage  ! (F-14) choice of albedo representation
+compaction                   anderson  ! (F-15) choice of compaction routine
+snowLayers                   CLM_2010  ! (F-16) choice of method to combine and sub-divide snow layers
+thermlcond                   smnv2000  ! (F-17) choice of thermal conductivity representation
+subRouting                   timeDlay  ! (F-18) choice of method for sub-grid routing
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -58,63 +61,77 @@ subRouting                   timeDlay  ! (F-15) choice of method for sub-grid ro
 ! numericl  ! numerical derivatives
 ! analytic  ! analytical derivatives
 ! -----------------------------------------------------------------------------------------------
-! (F-03) form of Richards' equation
+! (F-03) method used to determine LAI and SAI
+! monTable  ! LAI/SAI taken directly from a monthly table for different vegetation classes
+! specified ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+! -----------------------------------------------------------------------------------------------
+! (F-04) form of Richards' equation
 ! moisture  ! moisture-based form of Richards' equation
 ! mixdform  ! mixed form of Richards' equation
 ! -----------------------------------------------------------------------------------------------
-! (F-04) choice of groundwater parameterization
+! (F-05) choice of groundwater parameterization
 ! zEquilWT  ! equilibrium water table
 ! pseudoWT  ! pseudo water table
 ! bigBuckt  ! a big bucket (lumped aquifer model)
 ! noXplict  ! no explicit groundwater parameterization
 ! -----------------------------------------------------------------------------------------------
-! (F-05) choice of hydraulic conductivity profile
+! (F-06) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth
 ! exp_prof  ! exponential profile
 ! pow_prof  ! power-law profile
 ! lin_prof  ! linear profile
 ! -----------------------------------------------------------------------------------------------
-! (F-06) choice of upper boundary conditions for thermodynamics
+! (F-07) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! nrg_flux  ! energy flux
 ! -----------------------------------------------------------------------------------------------
-! (F-07) choice of lower boundary conditions for thermodynamics
+! (F-08) choice of lower boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! zeroFlux  ! zero flux
 ! -----------------------------------------------------------------------------------------------
-! (F-08) choice of upper boundary conditions for soil hydrology
+! (F-09) choice of upper boundary conditions for soil hydrology
 ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 ! liq_flux  ! liquid water flux
 ! -----------------------------------------------------------------------------------------------
-! (F-09) choice of lower boundary conditions for soil hydrology
+! (F-10) choice of lower boundary conditions for soil hydrology
 ! drainage  ! free draining
+! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 ! bottmPsi  ! function of matric head in the lower-most layer
 ! zeroFlux  ! zero flux
 ! -----------------------------------------------------------------------------------------------
-! (F-10) choice of stability function
+! (F-11) choice of parameterization for vegetation roughness length and displacement height
+! Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
+! CM_QJRMS1998     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+! vegTypeTable     ! constant parameters dependent on the vegetation type
+! -----------------------------------------------------------------------------------------------
+! (F-12) choice of parameterization for canopy emissivity
+! simplExp  ! simple exponential function
+! difTrans  ! parameterized as a function of diffuse transmissivity
+! -----------------------------------------------------------------------------------------------
+! (F-13) choice of stability function
 ! standard  ! standard MO similarity, a la Anderson (1979)
 ! louisinv  ! Louis (1979) inverse power function
 ! mahrtexp  ! Mahrt (1987) exponential function
 ! -----------------------------------------------------------------------------------------------
-! (F-11) choice of albedo representation
+! (F-14) choice of albedo representation
 ! fsnowage  ! function of snow age
 ! batslike  ! BATS-like approach, with destructive metamorphism + soot content
 ! -----------------------------------------------------------------------------------------------
-! (F-12) choice of compaction routine
+! (F-15) choice of compaction routine
 ! consettl  ! constant settlement rate
 ! anderson  ! semi-empirical method of Anderson (1976)
 ! -----------------------------------------------------------------------------------------------
-! (F-13) choice of method to combine and sub-divide snow layers
+! (F-16) choice of method to combine and sub-divide snow layers
 ! CLM_2010  ! CLM option: combination/sub-dividion rules depend on layer index
 ! jrdn1991  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
 ! -----------------------------------------------------------------------------------------------
-! (F-14) choice of thermal conductivity
+! (F-17) choice of thermal conductivity
 ! tyen1965  ! Yen (1965)
 ! melr1977  ! Mellor (1977)
 ! jrdn1991  ! Jordan (1991)
 ! smnv2000  ! Smirnova et al. (2000)
 ! -----------------------------------------------------------------------------------------------
-! (F-15) choice of method for sub-grid routing
+! (F-18) choice of method for sub-grid routing
 ! timeDlay  ! time-delay histogram
 ! qInstant  ! instantaneous routing
 ! ***********************************************************************************************
