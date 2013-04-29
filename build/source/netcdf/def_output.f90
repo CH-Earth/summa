@@ -5,8 +5,8 @@ implicit none
 private
 public :: def_output
 ! define dimension names
+character(len=32),parameter :: hru_DimName='hru'                       ! dimension name for the HRUs
 character(len=32),parameter :: scalar_DimName='scalar'                 ! dimension name for scalar variables
-character(len=32),parameter :: parSet_DimName='parSet'                 ! dimension name for the parameter sets
 character(len=32),parameter :: wLength_dimName='spectral_bands'        ! dimension name for the number of spectral bands
 character(len=32),parameter :: timestep_DimName='time'                 ! dimension name for the time step
 character(len=32),parameter :: routing_DimName='timeDelayRouting'      ! dimension name for thetime delay routing vectors     
@@ -21,10 +21,13 @@ contains
  ! **********************************************************************************************************
  ! new subroutine: define model output file
  ! **********************************************************************************************************
- subroutine def_output(infile,err,message)
- USE data_struc,only:forc_meta,attr_meta,type_meta,mpar_meta,mvar_meta,indx_meta  ! metadata structures
+ subroutine def_output(nHRU,infile,err,message)
+ USE data_struc,only:forc_meta,attr_meta,type_meta  ! metadata structures
+ USE data_struc,only:mpar_meta,mvar_meta,indx_meta  ! metadata structures
+ USE data_struc,only:bpar_meta,bvar_meta            ! metadata structures
  USE data_struc,only:model_decisions
  ! declare dummy variables
+ integer(i4b), intent(in)    :: nHRU                         ! number of HRUs
  character(*), intent(in)    :: infile                       ! file suffix
  integer(i4b),intent(out)    :: err                          ! error code
  character(*),intent(out)    :: message                      ! error message
@@ -32,11 +35,11 @@ contains
  integer(i4b)                :: ivar                         ! loop through model variables
  character(len=256)          :: cmessage                     ! temporary error message
  ! initialize errors
- err=0; message="f-fuse/def_output/"
+ err=0; message="def_output/"
  ! **********************************************************************************************************
  ! ***** create initial file
  ! **********************************************************************************************************
- call ini_create(trim(infile),err,cmessage)
+ call ini_create(nHRU,trim(infile),err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! **********************************************************************************************************
  ! ***** define model decisions
@@ -46,11 +49,23 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do
  ! **********************************************************************************************************
+ ! ***** define model forcing data
+ ! **********************************************************************************************************
+ do ivar=1,size(forc_meta)
+  if(.not.forc_meta(ivar)%v_write) cycle
+  if(forc_meta(ivar)%varname == 'time')then
+   call def_variab(trim(infile),(/Timestep_DimName/),forc_meta(ivar),nf90_double,err,cmessage)
+  else
+   call def_variab(trim(infile),(/hru_DimName,Timestep_DimName/),forc_meta(ivar),nf90_double,err,cmessage)
+  endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end do ! looping through forcing variables
+ ! **********************************************************************************************************
  ! ***** define local attributes
  ! **********************************************************************************************************
  do ivar=1,size(attr_meta)
   if (.not.attr_meta(ivar)%v_write) cycle
-  call def_variab(trim(infile),(/scalar_DimName/),attr_meta(ivar),nf90_double,err,cmessage)
+  call def_variab(trim(infile),(/hru_DimName/),attr_meta(ivar),nf90_double,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through local attributes
  ! **********************************************************************************************************
@@ -58,68 +73,81 @@ contains
  ! **********************************************************************************************************
  do ivar=1,size(type_meta)
   if (.not.type_meta(ivar)%v_write) cycle
-  call def_variab(trim(infile),(/scalar_DimName/),type_meta(ivar),nf90_int,err,cmessage)
+  call def_variab(trim(infile),(/hru_DimName/),type_meta(ivar),nf90_int,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through local classification of veg, soil, etc.
  ! **********************************************************************************************************
- ! ***** define model parameters
+ ! ***** define local column model parameters
  ! **********************************************************************************************************
  do ivar=1,size(mpar_meta)
   if (.not.mpar_meta(ivar)%v_write) cycle
-  call def_variab(trim(infile),(/parSet_DimName/),mpar_meta(ivar),nf90_double,err,cmessage)
+  call def_variab(trim(infile),(/hru_DimName/),mpar_meta(ivar),nf90_double,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through model parameters
  ! **********************************************************************************************************
- ! ***** define model forcing data
+ ! ***** define basin-average model parameters
  ! **********************************************************************************************************
- do ivar=1,size(forc_meta)
-  if (.not.forc_meta(ivar)%v_write) cycle
-  call def_variab(trim(infile),(/Timestep_DimName/),forc_meta(ivar),nf90_double,err,cmessage)
+ do ivar=1,size(bpar_meta)
+  if (.not.bpar_meta(ivar)%v_write) cycle
+  call def_variab(trim(infile),(/scalar_DimName/),bpar_meta(ivar),nf90_double,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- end do ! looping through forcing variables
+ end do  ! looping through model parameters
  ! **********************************************************************************************************
- ! ***** define model variables -- dimensions depend on the variable type
+ ! ***** define local column model variables -- dimensions depend on the variable type
  ! **********************************************************************************************************
  do ivar=1,size(mvar_meta)
   if (.not.mvar_meta(ivar)%v_write) cycle
   select case(trim(mvar_meta(ivar)%vartype))
-   case('scalarv'); call def_variab(trim(infile),(/parSet_DimName,Timestep_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('wLength'); call def_variab(trim(infile),(/parSet_DimName,wLength_DimName,Timestep_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('midSnow'); call def_variab(trim(infile),(/parSet_DimName,midSnowAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('midSoil'); call def_variab(trim(infile),(/parSet_DimName,midSoilAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('midToto'); call def_variab(trim(infile),(/parSet_DimName,midTotoAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('ifcSnow'); call def_variab(trim(infile),(/parSet_DimName,ifcSnowAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('ifcSoil'); call def_variab(trim(infile),(/parSet_DimName,ifcSoilAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('ifcToto'); call def_variab(trim(infile),(/parSet_DimName,ifcTotoAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case('routing'); call def_variab(trim(infile),(/parSet_DimName,routing_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
-   case default; err=35; message="f-fuse/def_output/varTypeNotFound"; return
+   case('scalarv'); call def_variab(trim(infile),(/hru_DimName,Timestep_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('wLength'); call def_variab(trim(infile),(/hru_DimName,wLength_DimName,Timestep_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('midSnow'); call def_variab(trim(infile),(/hru_DimName,midSnowAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('midSoil'); call def_variab(trim(infile),(/hru_DimName,midSoilAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('midToto'); call def_variab(trim(infile),(/hru_DimName,midTotoAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('ifcSnow'); call def_variab(trim(infile),(/hru_DimName,ifcSnowAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('ifcSoil'); call def_variab(trim(infile),(/hru_DimName,ifcSoilAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case('ifcToto'); call def_variab(trim(infile),(/hru_DimName,ifcTotoAndTime_DimName/),mvar_meta(ivar),nf90_double,err,cmessage)
+   case default; err=35; message=trim(message)//"varTypeNotFound"; return
   endselect
   ! check variable definition was OK
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do ! loop through model variables
  ! **********************************************************************************************************
- ! ***** define model indices -- dimensions depend on the variable type
+ ! ***** define local column model indices -- dimensions depend on the variable type
  ! **********************************************************************************************************
  do ivar=1,size(indx_meta)
   if (.not.indx_meta(ivar)%v_write) cycle
   select case(trim(indx_meta(ivar)%vartype))
-   case('scalarv'); call def_variab(trim(infile),(/parSet_DimName,Timestep_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
-   case('midToto'); call def_variab(trim(infile),(/parSet_DimName,midTotoAndTime_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
-   case default; err=35; message="f-fuse/def_output/varTypeNotFound"; return
+   case('scalarv'); call def_variab(trim(infile),(/hru_DimName,Timestep_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
+   case('midToto'); call def_variab(trim(infile),(/hru_DimName,midTotoAndTime_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
+   case default; err=35; message=trim(message)//"varTypeNotFound"; return
   endselect
   ! check variable definition was OK
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do ! loop through model variable
+ ! **********************************************************************************************************
+ ! ***** define local column model variables -- dimensions depend on the variable type
+ ! **********************************************************************************************************
+ do ivar=1,size(bvar_meta)
+  if (.not.bvar_meta(ivar)%v_write) cycle
+  select case(trim(bvar_meta(ivar)%vartype))
+   case('scalarv'); call def_variab(trim(infile),(/Timestep_DimName/),bvar_meta(ivar),nf90_double,err,cmessage)
+   case('routing'); call def_variab(trim(infile),(/routing_DimName/), bvar_meta(ivar),nf90_double,err,cmessage)
+   case default; err=35; message=trim(message)//"varTypeNotFound"; return
+  endselect
+  ! check variable definition was OK
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ end do ! loop through model variables
 
  end subroutine def_output
 
  ! **********************************************************************************************************
  ! new subroutine: initial create
  ! **********************************************************************************************************
- subroutine ini_create(infile,err,message)
+ subroutine ini_create(nHRU,infile,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
- USE data_struc,only:forcFileInfo       ! info on model forcing file
+ USE data_struc,only:data_step          ! time step of model forcing data (s)
+ USE data_struc,only:numtim             ! number of time steps
  ! model model index structures
  USE data_struc,only:indx_data          ! data structures
  USE data_struc,only:ix_soil            ! named variable to identify a soil layer
@@ -132,6 +160,7 @@ contains
   rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
  implicit none
  ! declare dummy variables
+ integer(i4b),intent(in)     :: nHRU                       ! number of HRUs
  character(*),intent(in)     :: infile                     ! filename
  integer(i4b),intent(out)    :: err                        ! error code
  character(*),intent(out)    :: message                    ! error message
@@ -140,7 +169,6 @@ contains
  integer(i4b)                :: dimID
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
  integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
- integer(i4b),parameter      :: maxParSets=1               ! maximum number of parameter sets
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
  integer(i4b)                :: meanSnowLayersPerStep      ! mean number of snow layers per time step
  integer(i4b)                :: maxStepsPerFile            ! maximum number of time steps to be stored in each file
@@ -151,49 +179,50 @@ contains
  ! define number of soil layers
  nSoil = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)  ! number of soil layers
  ! identify length of the variable vector
- maxStepsPerFile = min(forcFileInfo%numtim, nint(366._dp * secprday/forcFileInfo%data_step) )
+ maxStepsPerFile = min(numtim, nint(366._dp * secprday/data_step) )
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
   case(sameRulesAllLayers);    meanSnowLayersPerStep = 100
   case(rulesDependLayerIndex); meanSnowLayersPerStep = 4
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
  maxLength = maxStepsPerFile*(nSoil+1 + meanSnowLayersPerStep)
+ print*, 'maxStepsPerFile, maxLength = ', maxStepsPerFile, maxLength
  ! create output file
  err = nf90_create(trim(infile),nf90_classic_model,ncid)
- call netcdf_err(err,message); if (err/=0) return
- ! create scalar dimension
- err = nf90_def_dim(ncid, trim(scalar_DimName), scalarLength, dimId)
- call netcdf_err(err,message); if (err/=0) return
- ! create parameter dimension
- err = nf90_def_dim(ncid, trim(parSet_DimName), maxParSets, dimId)
- call netcdf_err(err,message); if (err/=0) return
- ! create spectral band dimension
- err = nf90_def_dim(ncid, trim(wLength_DimName), maxSpectral, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
  ! create time dimension (unlimited)
  err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[time]'; call netcdf_err(err,message); if (err/=0) return
+ ! create scalar dimension
+ err = nf90_def_dim(ncid, trim(scalar_DimName), scalarLength, dimId)
+ message='iCreate[scalar]'; call netcdf_err(err,message); if (err/=0) return
+ ! create HRU dimension
+ err = nf90_def_dim(ncid, trim(hru_DimName), nHRU, dimId)
+ message='iCreate[HRU]'; call netcdf_err(err,message); if (err/=0) return
+ ! create spectral band dimension
+ err = nf90_def_dim(ncid, trim(wLength_DimName), maxSpectral, dimId)
+ message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
  ! create dimension for the time-delay routing variables
  err = nf90_def_dim(ncid, trim(routing_DimName), maxRouting, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[routing]'; call netcdf_err(err,message); if (err/=0) return
  ! create dimension for midSnow+time
  err = nf90_def_dim(ncid, trim(midSnowAndTime_DimName), maxLength, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[midSnow]'; call netcdf_err(err,message); if (err/=0) return
  ! create dimension for midSoil+time
  err = nf90_def_dim(ncid, trim(midSoilAndTime_DimName), maxLength, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[midSoil]'; call netcdf_err(err,message); if (err/=0) return
  ! create dimension for midToto+time
  err = nf90_def_dim(ncid, trim(midTotoAndTime_DimName), maxLength, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[minToto]'; call netcdf_err(err,message); if (err/=0) return
  ! create dimension for ifcSnow+time
  err = nf90_def_dim(ncid, trim(ifcSnowAndTime_DimName), maxLength, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[ifcSnow]'; call netcdf_err(err,message); if (err/=0) return
  ! create dimension for ifcSoil+time
  err = nf90_def_dim(ncid, trim(ifcSoilAndTime_DimName), maxLength, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[ifcSoil]'; call netcdf_err(err,message); if (err/=0) return
  ! create dimension for ifcToto+time
  err = nf90_def_dim(ncid, trim(ifcTotoAndTime_DimName), maxLength, dimId)
- call netcdf_err(err,message); if (err/=0) return
+ message='iCreate[ifcToto]'; call netcdf_err(err,message); if (err/=0) return
  ! close NetCDF file
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
  err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return

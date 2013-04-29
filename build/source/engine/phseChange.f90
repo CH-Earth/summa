@@ -50,6 +50,7 @@ contains
  real(dp),pointer              :: vGn_m                    ! van Genutchen "m" parameter (-)
  real(dp),pointer              :: kappa                    ! constant in the freezing curve function (m K-1)
  ! local pointers to model variables
+ real(dp),pointer              :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the start of the iteration (-)
  real(dp),pointer              :: mLayerTcrit(:)           ! critical soil temperature above which all water is unfrozen (K)
  integer(i4b),pointer          :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local variables
@@ -64,17 +65,18 @@ contains
  printflag=.false.
 
  ! assign pointers to model parameters
- snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)        ! scaling parameter for the snow freezing curve (K-1)
- vGn_alpha     => mpar_data%var(iLookPARAM%vGn_alpha)            ! van Genutchen "alpha" parameter (m-1)
- vGn_n         => mpar_data%var(iLookPARAM%vGn_n)                ! van Genutchen "n" parameter (-)
- theta_sat     => mpar_data%var(iLookPARAM%theta_sat)            ! soil porosity (-)
- theta_res     => mpar_data%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
- vGn_m         => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)    ! van Genutchen "m" parameter (-)
- kappa         => mvar_data%var(iLookMVAR%scalarKappa)%dat(1)    ! constant in the freezing curve function (m K-1)
+ snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)        ! scaling parameter for the snow freezing curve (K-1)
+ vGn_alpha        => mpar_data%var(iLookPARAM%vGn_alpha)            ! van Genutchen "alpha" parameter (m-1)
+ vGn_n            => mpar_data%var(iLookPARAM%vGn_n)                ! van Genutchen "n" parameter (-)
+ theta_sat        => mpar_data%var(iLookPARAM%theta_sat)            ! soil porosity (-)
+ theta_res        => mpar_data%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
+ vGn_m            => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)    ! van Genutchen "m" parameter (-)
+ kappa            => mvar_data%var(iLookMVAR%scalarKappa)%dat(1)    ! constant in the freezing curve function (m K-1)
 
  ! assign pointers to index variables
- mLayerTcrit   => mvar_data%var(iLookMVAR%mLayerTcrit)%dat       ! critical soil temperature above which all water is unfrozen (K) 
- layerType     => indx_data%var(iLookINDEX%layerType)%dat        ! layer type (ix_soil or ix_snow)
+ mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat  ! volumetric fraction of ice at the start of the iteration (-)
+ mLayerTcrit      => mvar_data%var(iLookMVAR%mLayerTcrit)%dat       ! critical soil temperature above which all water is unfrozen (K) 
+ layerType        => indx_data%var(iLookINDEX%layerType)%dat        ! layer type (ix_soil or ix_snow)
 
  ! identify the number of snow layers
  nSnow = count(layerType==ix_snow)
@@ -102,10 +104,12 @@ contains
      mLayerVolFracIceNew(iLayer)       = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
     else
      ! update matric head when all water is **unfrozen** -- if matric head > 0 at iter=m then no change in matric head
-     if(mLayerMatricHeadIter(iLayer-nSnow) > 0._dp)then ! saturated at the start of the iteration
+     !if(mLayerMatricHeadIter(iLayer-nSnow) > 0._dp)then ! saturated at the start of the iteration
+     if(mLayerVolFracIce(iLayer-nSnow) > 0._dp)then ! no ice at the start of the iteration
       mLayerMatricHeadNew(iLayer-nSnow) = mLayerMatricHeadIter(iLayer-nSnow)
      else
-      ! some water is frozen at the start of the iteration      
+      ! some water is frozen at the start of the iteration
+      if(theta < epsilon(theta))then; err=20; message=trim(message)//'zero volumetric water content'; return; endif      
       mLayerMatricHeadNew(iLayer-nSnow) = matricHead(min(theta,theta_sat),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      endif
      ! update liquid water and ice content 

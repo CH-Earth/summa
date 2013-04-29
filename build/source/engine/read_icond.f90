@@ -46,8 +46,11 @@ contains
  integer(i4b),intent(out)       :: err             ! error code
  character(*),intent(out)       :: message         ! error message
  ! define local variables
+ integer(i4b),parameter         :: missingInteger=-9999     ! missing value for integers
+ real(dp),parameter             :: missingDouble=-9999._dp  ! missing value for double
  character(len=256)             :: cmessage        ! error message for downwind routine
  character(LEN=256)             :: infile          ! input filename
+ integer(i4b),parameter         :: nBand=2         ! number of spectral bands
  integer(i4b),parameter         :: ix_miss=-999    ! index for missing data
  integer(i4b),parameter         :: unt=99          ! DK: need to either define units globally, or use getSpareUnit
  integer(i4b)                   :: iline           ! loop through lines in the file 
@@ -126,7 +129,7 @@ contains
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! **********************************************************************************************
- ! (2) identify the number of layers and allocate space
+ ! (2) identify the number of layers
  ! **********************************************************************************************
  nSnow=0           ! initialize the number of snow layers
  nSoil=0           ! initialize the number of soil layers
@@ -157,11 +160,41 @@ contains
  end do  ! looping through lines
  nLayers = nSnow + nSoil
  print *, 'nLayers = ', nLayers
- ! allocate space
- call alloc_mvar(nSnow,nSoil,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- call alloc_indx(nLayers,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! **********************************************************************************************
+ ! (3) allocate space for structure components
+ ! **********************************************************************************************
+ ! (loop through model variables)
+ do ivar=1,size(mvar_meta)
+  select case(mvar_meta(ivar)%vartype)
+   case('scalarv'); allocate(mvar_data%var(ivar)%dat(1),stat=err)
+   case('wLength'); allocate(mvar_data%var(ivar)%dat(nBand),stat=err)
+   case('midSnow'); allocate(mvar_data%var(ivar)%dat(nSnow),stat=err)
+   case('midSoil'); allocate(mvar_data%var(ivar)%dat(nSoil),stat=err)
+   case('midToto'); allocate(mvar_data%var(ivar)%dat(nLayers),stat=err)
+   case('ifcSnow'); allocate(mvar_data%var(ivar)%dat(0:nSnow),stat=err)
+   case('ifcSoil'); allocate(mvar_data%var(ivar)%dat(0:nSoil),stat=err)
+   case('ifcToto'); allocate(mvar_data%var(ivar)%dat(0:nLayers),stat=err)
+   case default
+    err=40; message=trim(message)//"unknownVariableType[name='"//trim(mvar_meta(ivar)%varname)//"'; &
+                                   &type='"//trim(mvar_meta(ivar)%vartype)//"']"; return
+  endselect
+  if(err/=0)then;err=30;message=trim(message)//"problemAllocate[var='"//trim(mvar_meta(ivar)%varname)//"']"; return; endif
+  ! fill data with missing values
+  mvar_data%var(ivar)%dat(:) = missingDouble
+ end do  ! (looping through model variables)
+ ! (loop through model indices)
+ do ivar=1,size(indx_meta)
+  select case(indx_meta(ivar)%vartype)
+   case('scalarv'); allocate(indx_data%var(ivar)%dat(1),stat=err)
+   case('midToto'); allocate(indx_data%var(ivar)%dat(nLayers),stat=err)
+   case default
+    err=40; message=trim(message)//"unknownVariableType[name='"//trim(indx_meta(ivar)%varname)//"'; &
+                                   &type='"//trim(indx_meta(ivar)%vartype)//"']"; return
+  endselect
+  if(err/=0)then;err=30;message=trim(message)//"problemAllocate[var='"//trim(indx_meta(ivar)%varname)//"']"; return; endif
+  ! fill data with missing values
+  indx_data%var(ivar)%dat(:) = missingInteger
+ end do  ! (loop through model indices) 
  ! save the number of layers
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
  indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
@@ -173,8 +206,12 @@ contains
  indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
  indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
  indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
+
+ ! ==============================================================================================
+ ! ==============================================================================================
+
  ! **********************************************************************************************
- ! (2) read the scalar initial conditions
+ ! (4) read the scalar initial conditions
  ! **********************************************************************************************
  scalar_flag=.false. ! initialize scalar flag
  ! loop through file until reach the scalar_tag
@@ -212,7 +249,7 @@ contains
   endif
  end do
  ! **********************************************************************************************
- ! (3) read the layer initial conditions
+ ! (5) read the layer initial conditions
  ! **********************************************************************************************
  iSnow=0            ! initialize the index of the snow vector
  iSoil=0            ! initialize the index of the soil vector
@@ -295,6 +332,8 @@ contains
   ! check if reached the start of the layer definitions
   if (trim(temp)=='<start_'//trim(layer_tag)//'>') layer_flag=.true.
  end do  ! looping through lines in the file
+ ! close file
+ close(unt)
  ! set iLayerHeight for the bottom layer
  mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers) = &
  mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers-1) + mvar_data%var(iLookMVAR%mLayerDepth)%dat(nLayers)

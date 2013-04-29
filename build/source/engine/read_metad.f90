@@ -11,6 +11,8 @@ integer(i4b),parameter :: ix_type =1004
 integer(i4b),parameter :: ix_param=1005
 integer(i4b),parameter :: ix_mvar =1006
 integer(i4b),parameter :: ix_index=1007
+integer(i4b),parameter :: ix_bpar =1008
+integer(i4b),parameter :: ix_bvar =1009
 contains
 
  ! ************************************************************************************************
@@ -19,8 +21,12 @@ contains
  subroutine read_metad(err,message)
  ! used to populate metadata structures with metadata
  USE snow_fileManager,only:SETNGS_PATH                ! path for metadata files
- USE snow_fileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE,META_PARAM,META_MVAR,META_INDEX   ! name of metadata files
- USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta,mpar_meta,mvar_meta,indx_meta            ! metadata structures
+ USE snow_fileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE         ! name of metadata files (global)
+ USE snow_fileManager,only:META_LOCALPARAM,META_LOCALMVAR,META_LOCALINDEX   ! name of metadata files (local column)
+ USE snow_fileManager,only:META_BASINPARAM,META_BASINMVAR                   ! name of metadata files (basin-average)
+ USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
+ USE data_struc,only:mpar_meta,mvar_meta,indx_meta            ! metadata structures
+ USE data_struc,only:bpar_meta,bvar_meta                      ! metadata structures
  implicit none
  ! declare variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -28,7 +34,7 @@ contains
  ! local variables
  character(len=1024)                  :: cmessage    ! error message for downstream routine
  ! initialize errors
- err=0; message="f-read_metad/"
+ err=0; message="read_metad/"
  ! populate time structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_TIME),ix_time,time_meta,err,cmessage)
  if(err/=0)then; err=40; message=trim(message)//'time/'//trim(cmessage); return; endif
@@ -41,15 +47,21 @@ contains
  ! populate forcing structure with metadata
  call v_metadata(trim(SETNGS_PATH)//trim(META_FORCE),ix_force,forc_meta,err,cmessage)
  if(err/=0)then; err=40; message=trim(message)//'forc/'//trim(cmessage); return; endif
- ! populate parameter structure with metadata
- call v_metadata(trim(SETNGS_PATH)//trim(META_PARAM),ix_param,mpar_meta,err,cmessage)
+ ! populate local parameter structure with metadata
+ call v_metadata(trim(SETNGS_PATH)//trim(META_LOCALPARAM),ix_param,mpar_meta,err,cmessage)
  if(err/=0)then; err=40; message=trim(message)//'param/'//trim(cmessage); return; endif
- ! populate model variable structure with metadata
- call v_metadata(trim(SETNGS_PATH)//trim(META_MVAR),ix_mvar, mvar_meta,err,cmessage)
+ ! populate local model variable structure with metadata
+ call v_metadata(trim(SETNGS_PATH)//trim(META_LOCALMVAR),ix_mvar,mvar_meta,err,cmessage)
  if(err/=0)then; err=40; message=trim(message)//'mvar/'//trim(cmessage); return; endif
- ! populate model variable structure with metadata
- call v_metadata(trim(SETNGS_PATH)//trim(META_INDEX),ix_index, indx_meta,err,cmessage)
+ ! populate local model variable structure with metadata
+ call v_metadata(trim(SETNGS_PATH)//trim(META_LOCALINDEX),ix_index,indx_meta,err,cmessage)
  if(err/=0)then; err=40; message=trim(message)//'indx/'//trim(cmessage); return; endif
+ ! populate basin parameter structure with metadata
+ call v_metadata(trim(SETNGS_PATH)//trim(META_BASINPARAM),ix_bpar,bpar_meta,err,cmessage)
+ if(err/=0)then; err=40; message=trim(message)//'bpar/'//trim(cmessage); return; endif
+ ! populate basin model variable structure with metadata
+ call v_metadata(trim(SETNGS_PATH)//trim(META_BASINMVAR),ix_bvar,bvar_meta,err,cmessage)
+ if(err/=0)then; err=40; message=trim(message)//'bvar/'//trim(cmessage); return; endif
  end subroutine read_metad
 
 
@@ -68,6 +80,8 @@ contains
  USE get_ixname_module,only:get_ixParam
  USE get_ixname_module,only:get_ixMvar
  USE get_ixname_module,only:get_ixIndex
+ USE get_ixname_module,only:get_ixBpar
+ USE get_ixname_module,only:get_ixBvar
  implicit none
  ! define input
  character(*),intent(in)              :: infile         ! input filename
@@ -124,6 +138,8 @@ contains
    case(ix_param); ivar = get_ixParam(metaTemp%varname)
    case(ix_mvar);  ivar = get_ixMvar(metaTemp%varname)
    case(ix_index); ivar = get_ixIndex(metaTemp%varname)
+   case(ix_bpar);  ivar = get_ixBpar(metaTemp%varname)
+   case(ix_bvar);  ivar = get_ixBvar(metaTemp%varname)
    case default; err=35; message=trim(message)//"caseNotFound"; return
   end select
   if(ivar<=0)then; err=40; message=trim(message)//"variableNotFound[var="//trim(metaTemp%varname)//"]"; return; endif

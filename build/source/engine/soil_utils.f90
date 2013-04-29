@@ -416,6 +416,7 @@ contains
  real(dp),intent(in) :: m             ! vGn "m" parameter (-)
  real(dp)            :: crit_soilT    ! critical soil temperature (K)
  ! local variables
+ real(dp),parameter  :: verySmall=1.e-8_dp  ! a very small number to avoid numerical problems when there is zero storage
  real(dp)            :: relsat        ! relative saturation (-)
  real(dp)            :: kappa         ! constant (m K-1)
  ! compute kappa (m K-1)
@@ -424,7 +425,7 @@ contains
  relsat = (min(theta,theta_sat) - theta_res)/(theta_sat - theta_res)
  ! compute the critical temperature above which all water is unfrozen (K)
  !print*,'in soil_utils',Tfreeze,relsat,m,n,alpha,kappa
- crit_soilT = Tfreeze + ((relsat**(-1._dp/m) - 1._dp)**(1._dp/n))/(alpha*kappa)
+ crit_soilT = Tfreeze + ((max(verySmall, relsat)**(-1._dp/m) - 1._dp)**(1._dp/n))/(alpha*kappa)
  end function crit_soilT
 
 

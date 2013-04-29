@@ -4,14 +4,16 @@ private
 public::read_force
 contains
 
- subroutine read_force(istep,err,message)
+ subroutine read_force(istep,iHRU,err,message)
  ! used to read in initial conditions
  USE nrtype                                            ! variable types, etc.
  USE snow_fileManager,only:INPUT_PATH                  ! path of the forcing data file
- USE allocspace_module,only:alloc_time,alloc_forc      ! allocate space for forcing data
  USE time_utils_module,only:extractTime,compJulday     ! extract time info from units string
  USE multiconst,only:secprday                          ! number of seconds in a day
  USE data_struc,only:forcFileInfo                      ! forcing file info
+ USE data_struc,only:data_step                         ! length of the data step (s)
+ USE data_struc,only:dJulianStart                      ! julian day of start time of simulation
+ USE data_struc,only:dJulianFinsh                      ! julian day of end time of simulation
  USE data_struc,only:refTime,refJulday                 ! reference time
  USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
  USE data_struc,only:yearLength                        ! number of days in the current year
@@ -21,6 +23,7 @@ contains
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
+ integer(i4b),intent(in)           :: iHRU             ! index of hydrologic response unit
  integer(i4b),intent(out)          :: err              ! error code
  character(*),intent(out)          :: message          ! error message
  ! define local variables
@@ -30,27 +33,34 @@ contains
  character(len=256)                :: cmessage         ! error message for downwind routine
  logical(lgt)                      :: xist             ! .TRUE. if the file exists
  logical(lgt)                      :: xopn             ! .TRUE. if the file is open
- integer(i4b),parameter            :: unt=28           ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b),parameter            :: baseUnit=28      ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b)                      :: unt              ! file unit
+ integer(i4b)                      :: untCheck         ! check that file unit is what we expect
  integer(i4b)                      :: iline            ! loop through lines in the file
  character(len=1024),allocatable   :: cline(:)         ! a line of data
+ integer(i4b)                      :: iStart           ! time index st the start of the model simulation
  real(dp)                          :: dsec             ! double precision seconds (not used)
+ real(dp)                          :: juldayFirst      ! julian day of the first time step in the data file
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  ! local pointers to data structures
  integer(i4b),pointer              :: ncols            ! number of columns in the forcing data file
- integer(i4b),pointer              :: istart           ! start index of the simulation
  integer(i4b),pointer              :: time_ix(:)       ! column index for time
  integer(i4b),pointer              :: data_ix(:)       ! column index for forcing data
  ! Start procedure here
  err=0; message="fuseReadForce/"
  ! define local pointers to data structures
- ncols   => forcFileInfo%ncols   ! number of columns in the forcing data file
- istart  => forcFileInfo%istart  ! start index in the forcing data file
- time_ix => forcFileInfo%time_ix ! column index for time
- data_ix => forcFileInfo%data_ix ! column index for forcing data
+ ncols   => forcFileInfo(iHRU)%ncols   ! number of columns in the forcing data file
+ time_ix => forcFileInfo(iHRU)%time_ix ! column index for time
+ data_ix => forcFileInfo(iHRU)%data_ix ! column index for forcing data
+ ! define the file unit
+ unt = baseUnit + iHRU
+ ! allocate space for the character vector
+ allocate(cline(ncols),stat=err)
+ if (err/=0) then; err=10; message=trim(message)//"problemAllocate"; return; endif
  ! define file
- infile=trim(INPUT_PATH)//trim(forcFileInfo%filenm)
+ infile=trim(INPUT_PATH)//trim(forcFileInfo(iHRU)%filenmData)
  ! check if the forcing info file exists
  inquire(file=trim(infile),exist=xist)  ! Check for existence of forcing datafile
  if(.not.xist)then
@@ -70,15 +80,6 @@ contains
    message=trim(message)//"OpenError['"//trim(infile)//"']"
    err=20; return
   endif
-  ! allocate space for the time structure
-  call alloc_time(time_data,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! allocate space for the forcing structure
-  call alloc_forc(err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! allocate space for the reference time
-  call alloc_time(refTime,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! define the reference time for the model simulation
   call extractTime(forc_meta(iLookFORCE%time)%varunit,    & ! input  = units string for time data
                    refTime%var(iLookTIME%iyyy),           & ! output = year
@@ -96,8 +97,35 @@ contains
                   refTime%var(iLookTIME%imin),dsec,       & ! input  = minute/second
                   refJulday,err,cmessage)                   ! output = julian day (fraction of day) + error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! identify the start index
+  time_data%var(:) = imiss
+  ! read data using free format
+  read(unt,*,iostat=err) cline
+  if(err/=0)then; err=20; write(message,'(a,i0,a)')trim(message)//"ProblemLineRead[firstStep]"; return; endif
+  ! put data in time structure
+  do iline=1,size(time_ix)
+   if (time_ix(iline)<1 .or. time_ix(iline)>ncols) cycle
+   read(cline(time_ix(iline)),*,iostat=err) time_data%var(iline)
+   if(err/=0)then; err=30; message=trim(message)//"ProblemTimeRead[var='"//trim(time_meta(iline)%varname)//"']"; return; endif
+   !print*,trim(time_meta(iline)%varname),time_data%var(iline)
+  end do
+  ! compute the julian date of the first time index
+  call compjulday(time_data%var(iLookTIME%iyyy),            & ! input  = year
+                  time_data%var(iLookTIME%im),              & ! input  = month
+                  time_data%var(iLookTIME%id),              & ! input  = day
+                  time_data%var(iLookTIME%ih),              & ! input  = hour
+                  time_data%var(iLookTIME%imin),dsec,       & ! input  = minute/second
+                  juldayFirst,err,cmessage)                   ! output = julian day (fraction of day) + error control
+  ! compute the start index
+  iStart = nint( (dJulianStart - juldayFirst)*secprday/data_step )
+  if(iStart < 0)then
+   message=trim(message)//'simulation start time is before the firrst time index in the datafile ['//trim(infile)//']'
+   err=20; return
+  endif
   ! read until just before start index
-  do iline=1,istart-1; read(unt,'(a)'); end do
+  if(iStart /= 0)then
+   do iline=1,iStart-1; read(unt,'(a)'); end do
+  endif
   ! handle situation where istep>1
   if (istep>1) then
    ! read until just before the time step index
@@ -114,15 +142,12 @@ contains
  ! initialize time and forcing data structures
  time_data%var(:) = imiss
  forc_data%var(:) = amiss
- ! allocate space for the character vector
- allocate(cline(ncols),stat=err)
- if (err/=0) then; err=10; message=trim(message)//"problemAllocate"; return; endif
- ! read data using the appropriate format code
+ ! check that the file unit is what we expect
+ inquire(file=trim(infile),number=untCheck)
+ if(unt/=untCheck)then; err=20; message=trim(message)//'unexpected file unit for file ['//trim(infile)//']'; return; endif
+ ! read data using free format
  read(unt,*,iostat=err) cline
  if(err/=0)then; err=20; write(message,'(a,i0,a)')trim(message)//"ProblemLineRead[iStep=",istep,"]"; return; endif
- do iline=1,ncols
-  !print*,trim(cline(iline))
- end do 
  ! put data in time structure
  do iline=1,size(time_ix)
   if (time_ix(iline)<1 .or. time_ix(iline)>ncols) cycle

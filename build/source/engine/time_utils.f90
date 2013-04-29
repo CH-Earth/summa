@@ -36,25 +36,39 @@ contains
 
  ! get the year
  call extract(refdate(istart:n),"-",iend,iyyy,err,message); if (err/=0) return
+ if(iyyy < 1900)then; err=20; message=trim(message)//'year < 1900'; return; endif
+ if(iyyy > 2100)then; err=20; message=trim(message)//'year > 2100'; return; endif
  ! get the month
  istart=istart+iend
  call extract(refdate(istart:n),"-",iend,im,err,message);   if (err/=0) return
+ if(im <  1)then; err=20; message=trim(message)//'month < 1'; return; endif
+ if(im > 12)then; err=20; message=trim(message)//'month > 12'; return; endif
  ! get the day
  istart=istart+iend
  call extract(refdate(istart:n)," ",iend,id,err,message);   if (err/=0) return
+ if(id <  1)then; err=20; message=trim(message)//'day < 1'; return; endif
+ if(id > 31)then; err=20; message=trim(message)//'day > 31'; return; endif
  ! check if we are at the end of the string
  if (istart+(iend-2)==n) then
   ih=0; imin=0; dsec=0._dp; return
  endif
+ print*, 'iyyy, im, id = ', iyyy, im, id
 
  ! get the hour (":" at end of hour)
  istart = istart+iend
+ if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include hours'; return; endif
  call extract(refdate(istart:n),":",iend,ih,err,message);   if (err/=0) return
- ! get the minute (":" at end of hour)
+ if(ih <  0)then; err=20; message=trim(message)//'hour < 0'; return; endif
+ if(ih > 24)then; err=20; message=trim(message)//'hour > 24'; return; endif
+ ! get the minute (":" at end of minute)
  istart = istart+iend
+ if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include minutes'; return; endif
  call extract(refdate(istart:n),":",iend,imin,err,message); if (err/=0) return
+ if(imin <  0)then; err=20; message=trim(message)//'minute < 0'; return; endif
+ if(imin > 60)then; err=20; message=trim(message)//'minute > 60'; return; endif
  ! get the second
  istart = istart+iend
+ if(istart > len_trim(refdate)) return
  iend   = index(refdate(istart:n)," ")
  read(refdate(istart:n),*) dsec
 
@@ -70,7 +84,7 @@ contains
   integer(i4b),intent(out)    :: err        ! error code
   character(*),intent(out)    :: message    ! error message
   ! initialize error code and message
-  err=0; message="extract"
+  err=0; message="extract/"
   ! identify end-point of string
   iend = index(substring,cdelim)
   ! if sub-string does not exist, assume end is at end of string
@@ -107,7 +121,7 @@ contains
  real(dp)                  :: jfrac        ! fraction of julian day
 
  ! initialize errors
- err=0; message="f-juldayss"
+ err=0; message="juldayss"
 
  ! compute julian day
  jy=iyyy

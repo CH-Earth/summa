@@ -304,7 +304,7 @@ contains
                  ! input: state variables at the start of the sub-step
                  mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,                      & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                  mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,                      & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                 mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),               & ! intent(in): aquifer storage at the end of the sub-step (m)
+                 mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),               & ! intent(in): aquifer storage at the start of the sub-step (m)
 
                  ! input: state variables after iteration                
                  mLayerVolFracIceNew,                                                & ! intent(in): volumetric fraction of ice at the end of the sub-step (-)

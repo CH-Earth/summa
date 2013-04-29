@@ -18,16 +18,15 @@ MODULE data_struc
  ! ***********************************************************************************************************
  ! define a derived type for the data in the file
  type,public  :: file_info
-  character(len=256)                     :: filenm=''
+  character(len=256)                     :: filenmDesc='notPopulatedYet' ! name of file that describes the data
+  character(len=256)                     :: filenmData='notPopulatedYet' ! name of data file
   integer(i4b)                           :: ncols                    ! number of columns in the file
   integer(i4b),pointer                   :: time_ix(:) => null()     ! column index for each time variable
   integer(i4b),pointer                   :: data_ix(:) => null()     ! column index for each forcing data variable
-  real(dp)                               :: data_step                ! time step of the data
-  integer(i4b)                           :: istart                   ! start index of the simulation
-  integer(i4b)                           :: numtim                   ! number of time steps in the simulation
  end type file_info
  ! and save all the data in a single data structure
- type(file_info),pointer,save,public     :: forcFileInfo => null()   ! file info for model forcing data
+ ! NOTE: vector (HRU dimension)
+ type(file_info),pointer,save,public     :: forcFileInfo(:) => null()   ! file info for model forcing data
  ! ***********************************************************************************************************
  ! Define metadata on model parameters
  ! ***********************************************************************************************************
@@ -38,7 +37,8 @@ MODULE data_struc
   real(dp)                               :: upper_limit              ! upper bound
  endtype par_info
  ! define a vector, with a separate element for each parameter (variable)
- type(par_info),pointer,save,public      :: parFallback(:) => null() ! fixed parameter structure 
+ type(par_info),pointer,save,public      :: localParFallback(:) => null() ! local column default parameters
+ type(par_info),pointer,save,public      :: basinParFallback(:) => null() ! basin-average default parameters
  ! ***********************************************************************************************************
  ! Define variable metadata
  ! ***********************************************************************************************************
@@ -55,9 +55,11 @@ MODULE data_struc
  type(var_info),pointer,save,public      :: forc_meta(:) => null()   ! model forcing data
  type(var_info),pointer,save,public      :: attr_meta(:) => null()   ! local attributes
  type(var_info),pointer,save,public      :: type_meta(:) => null()   ! local classification of veg, soil, etc.
- type(var_info),pointer,save,public      :: mpar_meta(:) => null()   ! model parameters
- type(var_info),pointer,save,public      :: mvar_meta(:) => null()   ! model variables
- type(var_info),pointer,save,public      :: indx_meta(:) => null()   ! model indices
+ type(var_info),pointer,save,public      :: mpar_meta(:) => null()   ! local model parameters for each HRU
+ type(var_info),pointer,save,public      :: mvar_meta(:) => null()   ! local model variables for each HRU
+ type(var_info),pointer,save,public      :: indx_meta(:) => null()   ! local model indices for each HRU
+ type(var_info),pointer,save,public      :: bpar_meta(:) => null()   ! basin parameters for aggregated processes
+ type(var_info),pointer,save,public      :: bvar_meta(:) => null()   ! basin parameters for aggregated processes
  ! ***********************************************************************************************************
  ! Define hierarchal derived data types
  ! ***********************************************************************************************************
@@ -95,25 +97,39 @@ MODULE data_struc
  endtype var_i
  ! define top-level derived types
  ! NOTE: either allocate directly, or use to point to higher dimensional structures
+ type(var_d),pointer,save,public         :: attr_hru(:) => null()    ! local attributes for each HRU
+ type(var_i),pointer,save,public         :: type_hru(:) => null()    ! local classification of soil veg etc. for each HRU
+ type(var_d),pointer,save,public         :: forc_hru(:) => null()    ! model forcing data
+ type(var_d),pointer,save,public         :: mpar_hru(:) => null()    ! model parameters
+ type(var_dlength),pointer,save,public   :: mvar_hru(:) => null()    ! model variables
+ type(var_ilength),pointer,save,public   :: indx_hru(:) => null()    ! model indices
+ ! define data types for individual HRUs, and for basin-average quantities
  type(var_i),pointer,save,public         :: time_data => null()      ! model time data
  type(var_d),pointer,save,public         :: forc_data => null()      ! model forcing data
  type(var_d),pointer,save,public         :: attr_data => null()      ! local attributes
  type(var_i),pointer,save,public         :: type_data => null()      ! local classification of veg, soil, etc.
- type(var_d),pointer,save,public         :: mpar_data => null()      ! model parameters
- type(var_dlength),pointer,save,public   :: mvar_data => null()      ! model variables
- type(var_ilength),pointer,save,public   :: indx_data => null()      ! model indices
+ type(var_d),pointer,save,public         :: mpar_data => null()      ! local column model parameters
+ type(var_dlength),pointer,save,public   :: mvar_data => null()      ! local column model variables
+ type(var_ilength),pointer,save,public   :: indx_data => null()      ! local column model indices
+ type(var_d),pointer,save,public         :: bpar_data => null()      ! basin-average model parameters
+ type(var_dlength),pointer,save,public   :: bvar_data => null()      ! basin-average model variables
  ! ***********************************************************************************************************
  ! Define common variables
  ! ***********************************************************************************************************
+ integer(i4b),save,public                :: numtim                   ! number of time steps
+ real(dp),save,public                    :: data_step                ! time step of the data
  real(dp),save,public                    :: refJulday                ! reference time in fractional julian days
  real(dp),save,public                    :: fracJulday               ! fractional julian days since the start of year
+ real(dp),save,public                    :: dJulianStart             ! julian day of start time of simulation
+ real(dp),save,public                    :: dJulianFinsh             ! julian day of end time of simulation
  integer(i4b),save,public                :: yearLength               ! number of days in the current year
  integer(i4b),save,public                :: urbanVegCategory=1       ! vegetation category for urban areas
  ! ***********************************************************************************************************
  ! Define ancillary data structures
  ! ***********************************************************************************************************
- type(var_d),pointer,save,public         :: mpar_sets(:) => null()   ! structure to hold multiple parameter sets
  type(var_i),pointer,save,public         :: refTime      => null()   ! reference time for the model simulation
+ type(var_i),pointer,save,public         :: startTime    => null()   ! start time for the model simulation
+ type(var_i),pointer,save,public         :: finshTime    => null()   ! end time for the model simulation
  ! ***********************************************************************************************************
 END MODULE data_struc
 ! ***********************************************************************************************************************

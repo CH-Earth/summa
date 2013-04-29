@@ -246,15 +246,15 @@ contains
   timeDelay,&  ! time-delay histogram
   qInstant     ! instantaneous routing
  ! model variables, parameters, forcing data, etc.
- USE data_struc,only:forcFileInfo                     ! extract time step of forcing data
- USE data_struc,only:mvar_data,mpar_data              ! data structures for model variables and parameters
- USE var_lookup,only:iLookMVAR,iLookPARAM             ! named variables for structure elements
+ USE data_struc,only:data_step                        ! time step of forcing data
+ USE data_struc,only:bvar_data,bpar_data              ! data structures for model variables and parameters
+ USE var_lookup,only:iLookBVAR,iLookBPAR              ! named variables for structure elements
  implicit none
  ! dummy variables
  integer(i4b),intent(out)   :: err                    ! error code
  character(*),intent(out)   :: message                ! error message
  ! pointers to model structures
- real(dp),pointer           :: dt                     ! data time step (s)
+ real(dp)                   :: dt                     ! data time step (s)
  integer(i4b),pointer       :: ixRouting              ! index for routing method
  real(dp),pointer           :: routingGammaShape      ! shape parameter in Gamma distribution used for sub-grid routing (-)
  real(dp),pointer           :: routingGammaScale      ! scale parameter in Gamma distribution used for sub-grid routing (s)
@@ -273,12 +273,12 @@ contains
  err=0; message='fracFuture/'
 
  ! assign pointers (just to save typing)
- dt                => forcFileInfo%data_step                                 ! get the legth of the data step (s)
+ dt                =  data_step                                              ! get the legth of the data step (s)
  ixRouting         => model_decisions(iLookDECISIONS%subRouting)%iDecision   ! index for routing method
- routingGammaShape => mpar_data%var(iLookPARAM%routingGammaShape)            ! shape parameter in Gamma distribution used for sub-grid routing (-)
- routingGammaScale => mpar_data%var(iLookPARAM%routingGammaScale)            ! scale parameter in Gamma distribution used for sub-grid routing (s)
- runoffFuture      => mvar_data%var(iLookMVAR%routingRunoffFuture)%dat       ! runoff in future time steps (m s-1)
- fractionFuture    => mvar_data%var(iLookMVAR%routingFractionFuture)%dat     ! fraction of runoff in future time steps (-)
+ routingGammaShape => bpar_data%var(iLookBPAR%routingGammaShape)             ! shape parameter in Gamma distribution used for sub-grid routing (-)
+ routingGammaScale => bpar_data%var(iLookBPAR%routingGammaScale)             ! scale parameter in Gamma distribution used for sub-grid routing (s)
+ runoffFuture      => bvar_data%var(iLookBVAR%routingRunoffFuture)%dat       ! runoff in future time steps (m s-1)
+ fractionFuture    => bvar_data%var(iLookBVAR%routingFractionFuture)%dat     ! fraction of runoff in future time steps (-)
 
  ! identify number of points in the time-delay histogram
  nTDH = size(runoffFuture)

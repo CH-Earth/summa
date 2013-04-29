@@ -28,7 +28,10 @@ USE mDecisions_module,only:  &
  funcBottomHead,             & ! function of matric head in the lower-most layer
  freeDrainage,               & ! free drainage
  liquidFlux,                 & ! liquid water flux
- zeroFlux                      ! zero flux
+ zeroFlux,                   & ! zero flux
+ ! look-up values for the choice of groundwater representation (local-column, or single-basin)
+ localColumn,                & ! separate groundwater representation in each local soil column
+ singleBasin                   ! single groundwater store over the entire basin
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -84,6 +87,7 @@ contains
  character(*),intent(out)      :: message                  ! error message
  ! internal
  integer(i4b)                  :: ibeg,iend                ! start and end indices of the soil layers in concatanated snow-soil vector
+ integer(i4b)                  :: local_ixGroundwater      ! local representation of groundwater (gw decision applies to regional scale, if regional gw used)
  character(LEN=256)            :: cmessage                 ! error message of downwind routine
  ! initialize error control
  err=0; message='soilHydrol/'
@@ -98,6 +102,15 @@ contains
  ! get indices for the data structures
  ibeg = nSnow + 1
  iend = nSnow + nLevels
+
+ ! modify the groundwater representation for this single-column implementation
+ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+  case(singleBasin); local_ixGroundwater = noExplicit ! force no explicit representation of groundwater at the local scale
+  case(localColumn); local_ixGroundwater = model_decisions(iLookDECISIONS%groundwatr)%iDecision ! go with the specified decision
+  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
+ end select ! (modify the groundwater representation for this single-column implementation) 
+
+
 
  ! *****
  ! wrapper for the soil hydrology sub-routine...
@@ -119,9 +132,10 @@ contains
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,         & ! intent(in): method used to calculate flux derivatives 
                         model_decisions(iLookDECISIONS%f_Richards)%iDecision,         & ! intent(in): form of Richards' equation
                         model_decisions(iLookDECISIONS%hc_Profile)%iDecision,         & ! intent(in): option for the hydraulic conductivity profile
-                        model_decisions(iLookDECISIONS%groundwatr)%iDecision,         & ! intent(in): groundwater parameterization
+                        local_ixGroundwater,                                          & ! intent(in): groundwater parameterization
                         model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,         & ! intent(in): upper boundary conditions for soil hydrology
                         model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,         & ! intent(in): lower boundary conditions for soil hydrology
+                        model_decisions(iLookDECISIONS%spatial_gw)%iDecision,         & ! intent(in): spatial representation of groundwater (local-column or single-basin)
 
                         ! model coordinate variables -- NOTE: use of ibeg and iend 
                         mvar_data%var(iLookMVAR%mLayerDepth)%dat(ibeg:iend),          & ! intent(in): depth of the layer (m)
@@ -254,6 +268,7 @@ contains
                               ixGroundwater,               & ! intent(in): choice of groundwater parameterization
                               ixBcUpperSoilHydrology,      & ! intent(in): choice of upper boundary condition for soil hydrology
                               ixBcLowerSoilHydrology,      & ! intent(in): choice of upper boundary condition for soil hydrology
+                              ixSpatialGroundwater,        & ! intent(in): spatial representation of groundwater (local-column or single-basin)
 
                               ! model coordinate variables -- NOTE: use of ibeg and iend 
                               mLayerDepth,                 & ! intent(in): depth of the layer (m)
@@ -347,6 +362,7 @@ contains
  USE soil_utils_module,only:matricHead      ! compute matric head (m)
  USE soil_utils_module,only:dTheta_dPsi     ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
  USE soil_utils_module,only:dPsi_dTheta     ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
+ USE groundwatr_module,only:q_baseflow      ! compute baseflow and its derivative
  USE tridagSolv_module,only:tridag          ! solve tridiagonal system of equations
  implicit none
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -366,6 +382,7 @@ contains
  integer(i4b),intent(in)          :: ixGroundwater                ! choice of groundwater parameterization
  integer(i4b),intent(in)          :: ixBcUpperSoilHydrology       ! choice of upper boundary condition for soil hydrology
  integer(i4b),intent(in)          :: ixBcLowerSoilHydrology       ! choice of upper boundary condition for soil hydrology
+ integer(i4b),intent(in)          :: ixSpatialGroundwater         ! choice of the spatial representation of groundwater (local-column or single-basin)
  ! model coordinate variables
  real(dp),intent(in)              :: mLayerDepth(:)               ! depth of the layer (m)
  real(dp),intent(in)              :: mLayerHeight(:)              ! height of the layer mid-point (m)
@@ -536,12 +553,26 @@ contains
   scalarInitAquiferTranspire  = scalarAquiferTranspire
  endif
 
- ! get the number of state variables, and allocate space for the tri-diagonal matrix
- select case(ixGroundwater)
-  case(pseudoWaterTable,bigBucket); nState = nLevels+1
-  case(noExplicit,equilWaterTable); nState = nLevels
-  case default; err=20; message=trim(message)//'unknown groundwater parameterization'; return
- end select
+ ! * get the number of state variables
+ select case(ixSpatialGroundwater)
+  ! separate groundwater representation in each local soil column
+  case(localColumn)
+   select case(ixGroundwater)
+    case(pseudoWaterTable,bigBucket); nState = nLevels+1
+    case(noExplicit,equilWaterTable); nState = nLevels
+    case default; err=20; message=trim(message)//'unknown groundwater parameterization'; return
+   end select
+  ! single groundwater store over the entire basin
+  case(singleBasin)
+   nState = nLevels
+   if(ixGroundwater /= noExplicit)then
+    message=trim(message)//'expect noExplicit representation of groundwater at the local scale if using a single-basin representation of groundwater'
+    err=20; return
+   endif
+  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
+ end select ! (spatial representation of groundwater)
+
+ ! allocate space for the tri-diagonal matrix
  allocate(d_m1(nState-1),diag(nState),d_p1(nState-1),rVec(nState),sInc(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the tri-diagonal vectors'; return; endif
 
@@ -641,7 +672,7 @@ contains
   endif ! (if computing standard fluxes)
 
  end do  ! looping through initial vectors
-
+ 
  !write(*,'(a,1x,i4,1x,e20.10)') 'ixDerivMethod, scalarAquiferRecharge = ', ixDerivMethod, scalarAquiferRecharge
  !write(*,'(a,1x,i4,1x,e20.10)') 'ixDerivMethod, scalarAquiferBaseflow = ', ixDerivMethod, scalarAquiferBaseflow
  !write(*,'(a,1x,i4,1x,e20.10)') 'ixDerivMethod, scalarAquiferRechargeDeriv = ', ixDerivMethod, scalarAquiferRechargeDeriv
@@ -826,6 +857,7 @@ contains
     if(iLayer > 0)then
      mLayerMatricHeadNew(iLayer) = mLayerMatricHeadIter(iLayer) + mLayerMatricHeadDiff(iLayer)
      mLayerVolFracLiqNew(iLayer) = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     if(mLayerVolFracLiqNew(iLayer) < epsilon(mLayerVolFracLiqNew))then; err=20; message=trim(message)//'very dry soil'; return; endif
      ! check for ponding on the soil surface
      if(mLayerMatricHeadNew(1) > maxDepthPond)then
       print*, 'mLayerMatricHeadNew(1:5) = ', mLayerMatricHeadNew(1:5)
@@ -1010,6 +1042,8 @@ contains
   select case(ixGroundwater)
    ! equilibrium water table
    case(equilWaterTable)
+    message=trim(message)//'equilibrium water table is not yet supported'
+    err=20; return
     totalWaterDeficit = sum( (theta_sat - (mLayerVolFracLiqTrial(:) + mLayerVolFracIceTrial(:)) ) * mLayerDepth(:) )  ! water required to bring entire soil profile to saturation (m)
     call eWaterTable(&
                      totalWaterDeficit,          & ! input: total water required to bring entire soil profile to saturation (m)
@@ -1176,7 +1210,7 @@ contains
                    ! output: error control
                    err,cmessage)                 ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   !print*, 'scalarSurfaceRunoff, iLayerLiqFluxSoil(0) = ', scalarSurfaceRunoff, iLayerLiqFluxSoil(0)
+   !print*, 'scalarRainPlusMelt, scalarSurfaceRunoff, iLayerLiqFluxSoil(0) = ', scalarRainPlusMelt, scalarSurfaceRunoff, iLayerLiqFluxSoil(0)
 
    ! get copies of surface flux to compute numerical derivatives
    if(deriv_desired .and. ixDerivMethod==numerical)then
@@ -1594,6 +1628,8 @@ contains
    ! using the pseudo water table for the groundwater parameterization...
    ! ====================================================================
    case(pseudoWaterTable)
+    message=trim(message)//'pseudo water table is not yet supported'
+    err=20; return
     scalarAquiferRecharge      = iLayerLiqFluxSoil(nUnsat)   ! recharge = drainage flux from the bottom of the soil profile (m s-1)
     scalarAquiferRechargeDeriv = 0._dp                       ! recharge does not depend on aquifer storage
 
@@ -1697,164 +1733,44 @@ contains
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! * compute the baseflow flux and its derivative
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
+  call q_baseflow(&
+                  ! input: model decisions
+                  deriv_desired,               & ! intent(in): flag indicating if derivatives are desired
+                  ixDerivMethod,               & ! intent(in): choice of method used to compute derivative
+                  ixGroundwater,               & ! intent(in): choice of groundwater parameterization
+                  hc_Profile,                  & ! intent(in): choice of hydraulic conductivity profile
+                  ! input: state and diagnostic variables
+                  scalarWaterTableDepth,       & ! intent(in): water table depth (m)
+                  scalarAquiferStorageTrial,   & ! intent(in): aquifer storage (m)
+                  iLayerSatHydCond(0),         & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
+                  ! input: parameters
+                  kAnisotropic,                & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
+                  zScale_TOPMODEL,             & ! intent(in): scale factor for TOPMODEL-ish baseflow parameterization (m)
+                  aquiferScaleFactor,          & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
+                  bucketBaseflowExp,           & ! intent(in): exponent in bucket baseflow parameterization
+                  ! output
+                  scalarAquiferBaseflow,       & ! intent(out): total baseflow (m s-1)
+                  scalarAquiferBaseflowDeriv,  & ! intent(out): derivative in baseflow flux w.r.t. water table depth (m s-1)
+                  err,cmessage)                  ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! select groundwater options
+  ! * compute the baseflow from each soil layer (m s-1)
   select case(ixGroundwater)
-
-   ! ------------------------------------------------------------------------------------------------------------------------------------------------
-   ! *****
-   ! case of no explicit deep groundwater
-   case(noExplicit)
-    ! (baseflow flux from each soil layer)
-    mLayerBaseflow = 0._dp
-    ! (baseflow flux from the aquifer)
-    scalarAquiferBaseflow      = 0._dp  ! baseflow from the aquifer (m s-1)
-    scalarAquiferBaseflowDeriv = 0._dp  ! derivative in baseflow w.r.t. aquifer storage (s-1)
-
-   ! ------------------------------------------------------------------------------------------------------------------------------------------------
-   ! *****
-   ! pseudo water table and equilibrium water table
+   ! (baseflow from each soil layer based on depth-weighted hydraulic conductivity)
    case(pseudoWaterTable,equilWaterTable)
-
-    ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
-    do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
-
-     ! only perturb states for the pseudoWaterTable
-     if(ixGroundwater == equilWaterTable)then
-      if(itry /= unperturbed) cycle
-     endif
-
-     ! * identify the type of perturbation
-     select case(itry)
-      ! (skip undersired perturbations)
-      case(perturbStateBelow); cycle   ! assume baseflow at "bottom" of aquifer, so perturb w.r.t. state above
-      case(perturbState); cycle        ! assume baseflow at "bottom" of aquifer, so perturb w.r.t. state above
-      ! (perturb)
-      case(unperturbed);       scalarWaterTableDepthTrial = scalarWaterTableDepth
-      case(perturbStateAbove); scalarWaterTableDepthTrial = scalarWaterTableDepth + dx
-      case default; err=10; message=trim(message)//"unknown perturbation"; return
-     end select ! (type of perturbation)
-
-     ! only compute baseflow if water table within soil profile
-     if(scalarWaterTableDepthTrial < iLayerHeight(nLevels))then
-      ! * compute the total baseflow (m s-1)
-      call QBtopmodel(&
-                      deriv_desired,               & ! input: flag indicating if derivatives are desired
-                      scalarWaterTableDepthTrial,  & ! input: water table depth (m)
-                      iLayerSatHydCond(0),         & ! input: saturated hydraulic conductivity at the surface (m s-1)
-                      kAnisotropic,                & ! input: anisotropy factor for lateral hydraulic conductivity (-)
-                      zScale_TOPMODEL,             & ! input: scale factor for TOPMODEL-ish baseflow parameterization (m)
-                      totalBaseflow,               & ! output: total baseflow (m s-1)
-                      dq_dWaterTable,              & ! output: derivative in baseflow flux w.r.t. water table depth (m s-1)
-                      err,cmessage)                  ! output: error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     else
-      totalBaseflow  = 0._dp
-      dq_dWaterTable = 0._dp
-     endif
-
-     ! * get copies of baseflow flux to compute derivatives
-     if(deriv_desired .and. ixDerivMethod==numerical)then
-      select case(itry)
-       case(unperturbed);       scalarFlux             = totalBaseflow
-       case(perturbStateAbove); scalarFlux_dStateAbove = totalBaseflow
-       case(perturbStateBelow,perturbState); err=10; message=trim(message)//'only perturb water table depth when computing baseflow flux -- should not get here'; return
-       case default; err=10; message=trim(message)//'unknown perturbation'; return
-      end select
-     endif
-
-    end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
-
-    ! * compute derivatives
-    ! NOTE: baseflow derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
-    if(deriv_desired .and. ixGroundwater==pseudoWaterTable)then
-     select case(ixDerivMethod)
-      case(numerical);  scalarAquiferBaseflowDeriv = -(scalarFlux_dStateAbove - scalarFlux)/dx/specificYield ! change in baseflow flux w.r.t. change in the aquifer storage (s-1)
-      case(analytical); scalarAquiferBaseflowDeriv = -dq_dWaterTable/specificYield
-      case default; err=10; message=trim(message)//'unknown numerical method'; return
-     end select
-    else
-     scalarAquiferBaseflowDeriv = valueMissing
-    endif
-
-    ! * compute the baseflow from each soil layer (m s-1)
     sumDepthWeightCond  = sum(mLayerHydCond(ixWaterTable:nSoil)*mLayerDepth(ixWaterTable:nSoil))
     mLayerBaseflow(1:nUnsat)           = 0._dp
     if(ixWaterTable <=nSoil)then
-     mLayerBaseflow(ixWaterTable:nSoil) = totalBaseflow * mLayerHydCond(ixWaterTable:nSoil)*mLayerDepth(ixWaterTable:nSoil)/sumDepthWeightCond
+     mLayerBaseflow(ixWaterTable:nSoil) = scalarAquiferBaseflow * mLayerHydCond(ixWaterTable:nSoil)*mLayerDepth(ixWaterTable:nSoil)/sumDepthWeightCond
     endif
-
-    ! * save aquifer baseflow
-    select case(ixGroundWater)
-     case(pseudoWaterTable); scalarAquiferBaseflow = totalBaseflow
-     case(equilWaterTable);  scalarAquiferBaseflow = 0._dp    ! do not keep track of the aquifer storage -- water table depth is diagnostic in this case
-     case default; err=20; message=trim(message)//'unknown groundwater parameterization (expect only pseudoWaterTable and equilWaterTable at this point)'
-    end select
-
-   ! ------------------------------------------------------------------------------------------------------------------------------------------------
-   ! ***** the big bucket
-   case(bigBucket)
-
-    ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
-    do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
-
-     ! * identify the type of perturbation
-     select case(itry)
-      ! (skip undersired perturbations)
-      case(perturbStateBelow); cycle   ! assume baseflow at "bottom" of aquifer, so perturb w.r.t. state above
-      case(perturbState); cycle        ! assume baseflow at "bottom" of aquifer, so perturb w.r.t. state above
-      ! (perturb)
-      case(unperturbed);       aquiferStorageTest = scalarAquiferStorageTrial
-      case(perturbStateAbove); aquiferStorageTest = scalarAquiferStorageTrial + dx
-      case default; err=10; message=trim(message)//"unknown perturbation"; return
-     end select ! (type of perturbation)
-
-     ! * compute the total baseflow (m s-1)
-     call QBbigbuckt(&
-                     deriv_desired,               & ! input: flag indicating if derivatives are desired
-                     aquiferStorageTest,          & ! input: trial value of aquifer storage (m)
-                     aquiferScaleFactor,          & ! input: scaling factor for aquifer storage in the big bucket (m)
-                     iLayerSatHydCond(0),         & ! input: saturated hydraulic conductivity at the surface (m s-1)
-                     kAnisotropic,                & ! input: anisotropy factor for lateral hydraulic conductivity (-)
-                     bucketBaseflowExp,           & ! input: exponent in bucket baseflow parameterization
-                     scalarAquiferBaseflow,       & ! output: total baseflow (m s-1)
-                     scalarAquiferBaseflowDeriv,  & ! output: derivative in baseflow flux w.r.t. water table depth (m s-1)
-                     err,cmessage)                  ! output: error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     ! * get copies of baseflow flux to compute derivatives
-     if(deriv_desired .and. ixDerivMethod==numerical)then
-      select case(itry)
-       case(unperturbed);       scalarFlux             = scalarAquiferBaseflow
-       case(perturbStateAbove); scalarFlux_dStateAbove = scalarAquiferBaseflow
-       case(perturbStateBelow,perturbState); err=10; message=trim(message)//'only perturb water table depth when computing baseflow flux -- should not get here'; return
-       case default; err=10; message=trim(message)//'unknown perturbation'; return
-      end select
-     endif
-
-    end do  ! (multiple flux calls for computing  numerical derivatives
-
-    ! * compute derivatives
-    ! NOTE: baseflow derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
-    if(deriv_desired)then
-     if(ixDerivMethod==numerical) scalarAquiferBaseflowDeriv = (scalarFlux_dStateAbove - scalarFlux)/dx
-    else
-     scalarAquiferBaseflowDeriv = valueMissing
-    endif
-    !print*, 'scalarAquiferBaseflowDeriv = ', scalarAquiferBaseflowDeriv
-    !pause
-
-    ! (baseflow flux from each soil layer)
-    mLayerBaseflow = 0._dp
-
-   ! ------------------------------------------------------------------------------------------------------------------------------------------------
-   ! ***** error check
+   ! (no baseflow from soil layers)
+   case(bigBucket,noExplicit)
+    mLayerBaseflow(:) = 0._dp
+   ! (error checking)
    case default
-    err=20; message=trim(message)//'cannot identify option for groundwater parameterization'; return
-
-  end select  ! (groundwater options)
-  !print*, 'total baseflow = ', sum(mLayerBaseflow)
-
+    write(message,'(a,i0,a)') trim(message)//'unable to identify choice of groundwater representation [index = ',ixGroundwater,']'
+    err=20; return
+  end select
 
  
   ! *************************************************************************************************************************************************
@@ -2908,13 +2824,13 @@ contains
   case(freeDrainage)
 
    ! compute flux
-   scalarDrainage = nodeHydCond*kAnisotropic
+   scalarDrainage = nodeHydCond!*kAnisotropic
 
    ! compute derivatives
    if(deriv_desired)then
     select case(ixRichards)  ! (form of Richards' equation)
-     case(moisture); dq_dStateUnsat = dHydCond_dVolLiq*kAnisotropic
-     case(mixdform); dq_dStateUnsat = dHydCond_dMatric*kAnisotropic
+     case(moisture); dq_dStateUnsat = dHydCond_dVolLiq!*kAnisotropic
+     case(mixdform); dq_dStateUnsat = dHydCond_dMatric!*kAnisotropic
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
     ! no dependency on aquifer storage

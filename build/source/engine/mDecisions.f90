@@ -73,7 +73,10 @@ integer(i4b),parameter,public :: Yen1965              = 151    ! Yen (1965)
 integer(i4b),parameter,public :: Mellor1977           = 152    ! Mellor (1977)
 integer(i4b),parameter,public :: Jordan1991           = 153    ! Jordan (1991)
 integer(i4b),parameter,public :: Smirnova2000         = 154    ! Smirnova et al. (2000)
-! look-up values for the choice of routing method
+! look-up values for the choice of method for the spatial representation of groundwater
+integer(i4b),parameter,public :: localColumn          = 161    ! separate groundwater representation in each local soil column
+integer(i4b),parameter,public :: singleBasin          = 162    ! single groundwater store over the entire basin
+! look-up values for the choice of sub-grid routing method
 integer(i4b),parameter,public :: timeDelay            = 161    ! time-delay histogram
 integer(i4b),parameter,public :: qInstant             = 162    ! instantaneous routing
 ! -----------------------------------------------------------------------------------------------------------
@@ -83,6 +86,15 @@ contains
  ! new subroutine: save model decisions as named integers
  ! ************************************************************************************************
  subroutine mDecisions(err,message)
+ ! model time structures
+ USE multiconst,only:secprday               ! number of seconds in a day
+ USE data_struc,only:time_meta              ! time metadata
+ USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
+ USE data_struc,only:startTime,finshTime    ! start/end time of simulation
+ USE data_struc,only:dJulianStart           ! julian day of start time of simulation
+ USE data_struc,only:dJulianFinsh           ! julian day of end time of simulation
+ USE data_struc,only:data_step              ! length of data step (s)
+ USE data_struc,only:numtim                 ! number of time steps in the simulation
  ! model decision structures
  USE data_struc,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -90,12 +102,17 @@ contains
  USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
  USE noahmp_globals,only:OPT_RAD            ! decision for canopy radiation
  USE noahmp_globals,only:OPT_ALB            ! decision for snow albedo
+ ! time utility programs
+ USE time_utils_module,only:extractTime     ! extract time info from units string
+ USE time_utils_module,only:compjulday      ! compute the julian day
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
+ integer(i4b)                         :: nAtt           ! number of attributes in the time structures
+ real(dp)                             :: dsec           ! second
  ! initialize error control
  err=0; message='mDecisions/'
 
@@ -106,6 +123,67 @@ contains
  call readoption(err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ ! -------------------------------------------------------------------------------------------------
+
+ ! allocate space for start/end time structures
+ nAtt = size(time_meta)  ! number of attributes in the time structure
+ allocate(startTime,finshTime, stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structures'; return; endif
+ allocate(startTime%var(nAtt),finshTime%var(nAtt), stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structure components'; return; endif
+
+ ! put simulation start time information into the time structures
+ call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
+                  startTime%var(iLookTIME%iyyy),                         & ! year 
+                  startTime%var(iLookTIME%im),                           & ! month
+                  startTime%var(iLookTIME%id),                           & ! day
+                  startTime%var(iLookTIME%ih),                           & ! hour
+                  startTime%var(iLookTIME%imin),                         & ! minute
+                  dsec,                                                  & ! second
+                  err,cmessage)                                            ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! put simulation end time information into the time structures
+ call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
+                  finshTime%var(iLookTIME%iyyy),                         & ! year 
+                  finshTime%var(iLookTIME%im),                           & ! month
+                  finshTime%var(iLookTIME%id),                           & ! day
+                  finshTime%var(iLookTIME%ih),                           & ! hour
+                  finshTime%var(iLookTIME%imin),                         & ! minute
+                  dsec,                                                  & ! second
+                  err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! compute the julian date (fraction of day) for the start of the simulation
+ call compjulday(&
+                 startTime%var(iLookTIME%iyyy),                         & ! year 
+                 startTime%var(iLookTIME%im),                           & ! month
+                 startTime%var(iLookTIME%id),                           & ! day
+                 startTime%var(iLookTIME%ih),                           & ! hour
+                 startTime%var(iLookTIME%imin),                         & ! minute
+                 0._dp,                                                 & ! second
+                 dJulianStart,                                          & ! julian date for the start of the simulation
+                 err, cmessage)                                           ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! compute the julian date (fraction of day) for the end of the simulation
+ call compjulday(&
+                 finshTime%var(iLookTIME%iyyy),                         & ! year 
+                 finshTime%var(iLookTIME%im),                           & ! month
+                 finshTime%var(iLookTIME%id),                           & ! day
+                 finshTime%var(iLookTIME%ih),                           & ! hour
+                 finshTime%var(iLookTIME%imin),                         & ! minute
+                 0._dp,                                                 & ! second
+                 dJulianFinsh,                                          & ! julian date for the end of the simulation
+                 err, cmessage)                                           ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! check that simulation end time is > start time
+ if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; endif
+
+ ! compute the number of time steps
+ numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+ 
  ! -------------------------------------------------------------------------------------------------
 
  ! (0) set Noah-MP options
@@ -279,7 +357,15 @@ contains
    err=10; message=trim(message)//"unknown option for thermal conductivity [option="//trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision)//"]"; return
  end select
 
- ! (F-18) choice of routing method
+ ! (F-18) choice of method for the spatial representation of groundwater
+ select case(trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision))
+  case('localColumn'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = localColumn       ! separate groundwater in each local soil column
+  case('singleBasin'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = singleBasin       ! single groundwater store over the entire basin
+  case default
+   err=10; message=trim(message)//"unknown option for spatial representation of groundwater [option="//trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision)//"]"; return
+ end select
+
+ ! (F-19) choice of routing method
  select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
   case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
   case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing

@@ -12,8 +12,9 @@ contains
  USE nr_utility_module,only:erf                              ! provide access to the error function
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
  USE multiconst,only:secprhour                               ! number of seconds in an hour
- USE data_struc,only:forcFileInfo,time_data,attr_data        ! data structures
- USE data_struc,only:mpar_data,forc_data,mvar_data           ! data structures
+ USE data_struc,only:data_step                               ! length of the data step (s)
+ USE data_struc,only:time_data,forc_data                     ! forcing data structures
+ USE data_struc,only:attr_data,mpar_data,mvar_data           ! model data structures
  USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
  USE var_lookup,only:iLookPARAM,iLookFORCE,iLookMVAR         ! named variables for structure elements
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
@@ -81,7 +82,7 @@ contains
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
- dataStep   = forcFileInfo%data_step/secprhour                      ! time step (hours)
+ dataStep   = data_step/secprhour                                   ! time step (hours)
  ahour      = real(time_data%var(iLookTIME%ih),kind(dp)) - dataStep ! hour at start of time step
  latitude  => attr_data%var(iLookATTR%latitude)                     ! latitude (degrees north
  cosZenith => mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1)       ! average cosine of the zenith angle over time step DT

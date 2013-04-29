@@ -11,6 +11,8 @@ public::get_ixForce
 public::get_ixParam
 public::get_ixMvar
 public::get_ixIndex
+public::get_ixBpar
+public::get_ixBvar
 contains
 
  ! *******************************************************************************************************************
@@ -26,30 +28,34 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
+  ! simulation options
+  case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! ( 1) simulation start time
+  case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! ( 2) simulation end time
   ! Noah-MP decisions
-  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! ( 1) soil-category dateset
-  case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! ( 2) vegetation category dataset
-  case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! ( 3) choice of function for the soil moisture control on stomatal resistance
-  case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! ( 4) choice of function for stomatal resistance
+  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! ( 3) soil-category dateset
+  case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! ( 4) vegetation category dataset
+  case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! ( 5) choice of function for the soil moisture control on stomatal resistance
+  case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! ( 6) choice of function for stomatal resistance
   ! FUSE decisions
-  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! ( 5) choice of numerical method
-  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 6) choice of method to calculate flux derivatives
-  case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! ( 7) choice of method to determine LAI and SAI
-  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! ( 8) form of Richards' equation
-  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! ( 9) choice of groundwater parameterization
-  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! (10) choice of hydraulic conductivity profile
-  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! (11) type of upper boundary condition for thermodynamics
-  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! (12) type of lower boundary condition for thermodynamics
-  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (13) type of upper boundary condition for soil hydrology
-  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (14) type of lower boundary condition for soil hydrology
-  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (15) choice of parameterization for vegetation roughness length and displacement height
-  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (16) choice of parameterization for canopy emissivity
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (17) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (18) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (19) choice of method to combine and sub-divide snow layers
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (20) choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (21) choice of albedo representation
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (22) choice of method for sub-grid routing
+  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! ( 7) choice of numerical method
+  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 8) choice of method to calculate flux derivatives
+  case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! ( 9) choice of method to determine LAI and SAI
+  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! (10) form of Richards' equation
+  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! (11) choice of groundwater parameterization
+  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! (12) choice of hydraulic conductivity profile
+  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! (13) type of upper boundary condition for thermodynamics
+  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! (14) type of lower boundary condition for thermodynamics
+  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (15) type of upper boundary condition for soil hydrology
+  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (16) type of lower boundary condition for soil hydrology
+  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (17) choice of parameterization for vegetation roughness length and displacement height
+  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (18) choice of parameterization for canopy emissivity
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (19) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (20) choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (21) choice of method to combine and sub-divide snow layers
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (22) choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (23) choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (24) choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (25) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -123,9 +129,10 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
-  case('latitude'   ); get_ixAttr = iLookATTR%latitude       ! latitude    (degrees north)
-  case('longitude'  ); get_ixAttr = iLookATTR%longitude      ! longitude   (degrees east)
-  case('elevation'  ); get_ixAttr = iLookATTR%elevation      ! elevation   (m)
+  case('latitude'   ); get_ixAttr = iLookATTR%latitude       ! latitude     (degrees north)
+  case('longitude'  ); get_ixAttr = iLookATTR%longitude      ! longitude    (degrees east)
+  case('elevation'  ); get_ixAttr = iLookATTR%elevation      ! elevation    (m)
+  case('HRUfraction'); get_ixAttr = iLookATTR%HRUfraction    ! HRU fraction (-)
   case('mHeight'    ); get_ixAttr = iLookATTR%mHeight        ! measurement height above bare ground (m)
   ! get to here if cannot find the variable
   case default
@@ -147,6 +154,7 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
+  case('hruIndex'       ); get_ixType = iLookTYPE%hruIndex           ! index defining HRU index
   case('vegTypeIndex'   ); get_ixType = iLookTYPE%vegTypeIndex       ! index defining vegetation type
   case('soilTypeIndex'  ); get_ixType = iLookTYPE%soilTypeIndex      ! index defining soil type
   case('slopeTypeIndex' ); get_ixType = iLookTYPE%slopeTypeIndex     ! index defining slope
@@ -256,9 +264,6 @@ contains
   case('aquiferScaleFactor'  ); get_ixparam = iLookPARAM%aquiferScaleFactor   ! scaling factor for aquifer storage in the big bucket (m)
   case('bucketBaseflowExp'   ); get_ixparam = iLookPARAM%bucketBaseflowExp    ! baseflow exponent for the big bucket (-)
   case('f_impede'            ); get_ixparam = iLookPARAM%f_impede             ! ice impedence factor (-)
-  ! sub-grid routing
-  case('routingGammaShape'   ); get_ixparam = iLookPARAM%routingGammaShape    ! shape parameter in Gamma distribution used for sub-grid routing (-)
-  case('routingGammaScale'   ); get_ixparam = iLookPARAM%routingGammaScale    ! scale parameter in Gamma distribution used for sub-grid routing (s)
   ! algorithmic control parameters
   case('minwind'             ); get_ixparam = iLookPARAM%minwind              ! minimum wind speed (m s-1)
   case('minstep'             ); get_ixparam = iLookPARAM%minstep              ! minimum length of the time step
@@ -319,6 +324,7 @@ contains
   case('averageSoilEjection'            ); get_ixmvar = iLookMVAR%averageSoilEjection              ! ejected water from the soil matrix (m s-1)
   case('averageAquiferRecharge'         ); get_ixmvar = iLookMVAR%averageAquiferRecharge           ! recharge to the aquifer (m s-1)
   case('averageAquiferBaseflow'         ); get_ixmvar = iLookMVAR%averageAquiferBaseflow           ! baseflow from the aquifer (m s-1)
+  case('averageAquiferTranspire'        ); get_ixmvar = iLookMVAR%averageAquiferTranspire          ! transpiration from the aquifer (m s-1)
   ! scalar variables -- forcing
   case('scalarCosZenith'                ); get_ixmvar = iLookMVAR%scalarCosZenith                  ! cosine of the solar zenith angle (0-1)
   case('spectralIncomingDirect'         ); get_ixmvar = iLookMVAR%spectralIncomingDirect           ! incoming direct solar radiation in each wave band (W m-2)
@@ -482,11 +488,6 @@ contains
   case('iLayerInitLiqFluxSoil'          ); get_ixmvar = iLookMVAR%iLayerInitLiqFluxSoil            ! liquid flux at soil layer interfaces at the start of the time step (m s-1)
   case('iLayerLiqFluxSnow'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('iLayerLiqFluxSoil'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSoil                ! liquid flux at soil layer interfaces at the end of the time step (m s-1)
-  ! variables to compute runoff
-  case('routingRunoffFuture'            ); get_ixmvar = iLookMVAR%routingRunoffFuture              ! runoff in future time steps (m s-1)
-  case('routingFractionFuture'          ); get_ixmvar = iLookMVAR%routingFractionFuture            ! fraction of runoff in future time steps (-)
-  case('averageInstantRunoff'           ); get_ixmvar = iLookMVAR%averageInstantRunoff             ! instantaneous runoff (m s-1)
-  case('averageRoutedRunoff'            ); get_ixmvar = iLookMVAR%averageRoutedRunoff              ! routed runoff (m s-1)
   ! "short-cut" variables
   case('scalarVGn_m'                    ); get_ixmvar = iLookMVAR%scalarVGn_m                      ! van Genuchten "m" parameter (-) 
   case('scalarKappa'                    ); get_ixmvar = iLookMVAR%scalarKappa                      ! constant in the freezing curve function (m K-1)
@@ -533,5 +534,68 @@ contains
    get_ixindex = imiss
  endselect
  end function get_ixindex
+
+
+ ! *******************************************************************************************************************
+ ! new function: get the index of the named variables for the basin-average variables
+ ! *******************************************************************************************************************
+ function get_ixbpar(varName)
+ USE var_lookup,only:iLookBPAR                       ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! parameter name
+ integer(i4b)             :: get_ixbpar              ! index of the named variable
+ ! define local variables
+ integer(i4b), parameter  :: imiss = -999            ! missing value
+ ! get the index of the named variables
+ select case(trim(varName))
+  ! baseflow
+  case('basin__hydCond'           ); get_ixbpar = iLookBPAR%basin__hydCond            ! hydraulic conductivity (m s-1)
+  case('basin__kAnisotropic'      ); get_ixbpar = iLookBPAR%basin__kAnisotropic       ! anisotropy factor for lateral hydraulic conductivity (-)
+  case('basin__zScale_TOPMODEL'   ); get_ixbpar = iLookBPAR%basin__zScale_TOPMODEL    ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+  case('basin__specificYield'     ); get_ixbpar = iLookBPAR%basin__specificYield      ! specific yield (-)
+  case('basin__aquiferScaleFactor'); get_ixbpar = iLookBPAR%basin__aquiferScaleFactor ! scaling factor for aquifer storage in the big bucket (m)
+  case('basin__bucketBaseflowExp' ); get_ixbpar = iLookBPAR%basin__bucketBaseflowExp  ! baseflow exponent for the big bucket (-)
+  ! sub-grid routing
+  case('routingGammaShape'        ); get_ixbpar = iLookBPAR%routingGammaShape         ! shape parameter in Gamma distribution used for sub-grid routing (-)
+  case('routingGammaScale'        ); get_ixbpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
+  ! get to here if cannot find the variable
+  case default
+   get_ixbpar = imiss
+ endselect
+ end function get_ixbpar
+
+
+ ! *******************************************************************************************************************
+ ! new function: get the index of the named variables for the basin-average variables
+ ! *******************************************************************************************************************
+ function get_ixbvar(varName)
+ USE var_lookup,only:iLookBVAR                       ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! parameter name
+ integer(i4b)             :: get_ixbvar              ! index of the named variable
+ ! define local variables
+ integer(i4b), parameter  :: imiss = -999            ! missing value
+ ! get the index of the named variables
+ select case(trim(varName))
+  ! scalar variables -- basin-average runoff and aquifer fluxes
+  case('basin__SurfaceRunoff'          ); get_ixbvar = iLookBVAR%basin__SurfaceRunoff            ! surface runoff (m s-1)
+  case('basin__SoilEjection'           ); get_ixbvar = iLookBVAR%basin__SoilEjection             ! ejected water from the soil profile (m s-1)
+  case('basin__SoilBaseflow'           ); get_ixbvar = iLookBVAR%basin__SoilBaseflow             ! baseflow from the soil profile (m s-1)
+  case('basin__AquiferStorage'         ); get_ixbvar = iLookBVAR%basin__AquiferStorage           ! aquifer storage (m s-1)
+  case('basin__AquiferRecharge'        ); get_ixbvar = iLookBVAR%basin__AquiferRecharge          ! recharge to the aquifer (m s-1)
+  case('basin__AquiferBaseflow'        ); get_ixbvar = iLookBVAR%basin__AquiferBaseflow          ! baseflow from the aquifer (m s-1)
+  case('basin__AquiferTranspire'       ); get_ixbvar = iLookBVAR%basin__AquiferTranspire         ! transpiration from the aquifer (m s-1)
+  ! variables to compute runoff
+  case('routingRunoffFuture'           ); get_ixbvar = iLookBVAR%routingRunoffFuture             ! runoff in future time steps (m s-1)
+  case('routingFractionFuture'         ); get_ixbvar = iLookBVAR%routingFractionFuture           ! fraction of runoff in future time steps (-)
+  case('averageInstantRunoff'          ); get_ixbvar = iLookBVAR%averageInstantRunoff            ! instantaneous runoff (m s-1)
+  case('averageRoutedRunoff'           ); get_ixbvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
+  ! get to here if cannot find the variable
+  case default
+   get_ixbvar = imiss
+ endselect
+ end function get_ixbvar
 
 end module get_ixname_module

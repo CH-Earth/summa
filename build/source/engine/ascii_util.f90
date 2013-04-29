@@ -19,6 +19,7 @@ contains
  character(*),intent(out)             :: message     ! error message
  ! declare local variables
  logical(lgt)                         :: xist        ! .TRUE. if the file exists
+ logical(lgt)                         :: xopn        ! .TRUE. if the file is already open
  ! initialize errors
  err=0; message="f-file_open/"
  ! check if the file exists
@@ -26,6 +27,12 @@ contains
  if(.not.xist)then
    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
    err=10; return
+ endif
+ ! check if the file is already open
+ inquire(file=trim(infile),opened=xopn) ! Check if the file is open
+ if(xopn)then
+  message=trim(message)//"FileAlreadyOpen['"//trim(infile)//"']"
+  err=20; return
  endif
  ! open file
  open(unt,file=trim(infile),status="old",action="read",iostat=err)
@@ -82,7 +89,7 @@ contains
    current=>current%next
   endif
   ! check that the line has fewer words than maxWords
-  if (iword==maxWords)then; err=20; message=trim(message)//"exceedMaxWords"; return; endif
+  if (iword==maxWords)then; err=20; message=trim(message)//"exceedMaxWords [line = "//trim(inline)//"]"; return; endif
  end do
  ! ***** allocate space for the list of words
  nWords = current%ix

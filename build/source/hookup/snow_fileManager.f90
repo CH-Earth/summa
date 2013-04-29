@@ -17,12 +17,15 @@ CHARACTER(LEN=fusePathLen)  :: META_TIME        ='snow_zTimeMeta.txt'           
 CHARACTER(LEN=fusePathLen)  :: META_ATTR        ='snow_zLocalAttributeMeta.txt'  ! metadata for local attributes
 CHARACTER(LEN=fusePathLen)  :: META_TYPE        ='snow_zCatergoryMeta.txt'       ! metadata for local classification of veg, soil, etc.
 CHARACTER(LEN=fusePathLen)  :: META_FORCE       ='snow_zForceMeta.txt'           ! metadata for model forcing variables
-CHARACTER(LEN=fusePathLen)  :: META_PARAM       ='snow_zParamMeta.txt'           ! metadata for model parameters
-CHARACTER(LEN=fusePathLen)  :: META_MVAR        ='snow_zModelVarMeta.txt'        ! metadata for model variables
-CHARACTER(LEN=fusePathLen)  :: META_INDEX       ='snow_zModelIndexMeta.txt'      ! metadata for model indices
+CHARACTER(LEN=fusePathLen)  :: META_LOCALPARAM  ='snow_zLocalParamMeta.txt'      ! metadata for model parameters
+CHARACTER(LEN=fusePathLen)  :: META_LOCALMVAR   ='snow_zLocalModelVarMeta.txt'   ! metadata for model variables
+CHARACTER(LEN=fusePathLen)  :: META_LOCALINDEX  ='snow_zLocalModelIndexMeta.txt' ! metadata for model indices
+CHARACTER(LEN=fusePathLen)  :: META_BASINPARAM  ='snow_zBasinParamMeta.txt'      ! metadata for model parameters
+CHARACTER(LEN=fusePathLen)  :: META_BASINMVAR   ='snow_zBasinModelVarMeta.txt'   ! metadata for model variables
 CHARACTER(LEN=fusePathLen)  :: LOCAL_ATTRIBUTES ='snow_zLocalAttributes.txt'     ! local attributes
-CHARACTER(LEN=fusePathLen)  :: PARAMETER_INFO   ='snow_zParamInfo.txt'           ! default values and constraints for model parameters
-CHARACTER(LEN=fusePathLen)  :: FORCEFILE_DESC   ='snow_zforcingInfo.txt'         ! description of forcing data file
+CHARACTER(LEN=fusePathLen)  :: LOCALPARAM_INFO  ='snow_zLocalParamInfo.txt'      ! default values and constraints for local model parameters
+CHARACTER(LEN=fusePathLen)  :: BASINPARAM_INFO  ='snow_zBasinParamInfo.txt'      ! default values and constraints for basin model parameters
+CHARACTER(LEN=fusePathLen)  :: FORCING_FILELIST ='snow_zForcingFileList.txt'     ! list of focing files for each HRU
 CHARACTER(LEN=fusePathLen)  :: MODEL_INITCOND   ='snow_zInitialCond.txt'         ! model initial conditions
 CHARACTER(LEN=fusePathLen)  :: PARAMETER_TRIAL  ='snow_zParamTrial.txt'          ! trial values for model parameters
 CHARACTER(LEN=fusePathLen)  :: OUTPUT_PREFIX    ='xx'                            ! prefix for the output file
@@ -30,10 +33,10 @@ CHARACTER(LEN=fusePathLen)  :: OUTPUT_PREFIX    ='xx'                           
 contains
 !----------------------------------------------------
 subroutine fuse_SetDirsUndPhiles(fuseFileManagerIn,err,message)
-! Purpose: Sets direcotries and philenames for FUSE.
+! Purpose: Sets directories and philenames for FUSE.
 ! ---
 ! Programmer: Dmitri Kavetski and Martyn Clark
-! Last modified: NCAR, 20110408
+! Last modified: Vienna, 14 April 2013
 ! ---
 ! Usage
 ! fuseFileManagerIn     = global names/path file
@@ -45,7 +48,7 @@ character(*),intent(out)::message
 ! locals
 logical(lgt)::xist
 integer(i4b),parameter::unt=99 !DK: need to either define units globally, or use getSpareUnit
-character(*),parameter::fuseFileManagerHeader="SNOW_FILEMANAGER_V1.2"
+character(*),parameter::fuseFileManagerHeader="SNOW_FILEMANAGER_V1.4"
 character(LEN=100)::temp
 integer(i4b)::ierr ! temporary error code
 integer(i4b),parameter :: runinfo_fileunit=67 ! file unit for run time information
@@ -57,20 +60,20 @@ err=0; message="fuseSetDirsUndPhiles/"
 ! check if the file manager file exists
 inquire(file=fuseFileManagerIn,exist=xist) ! Check for existence of masterfile
 if(.not.xist)then
-  message="f-fuseSetDirsUndPhiles/fuseFileManager/FileNotFound['"//trim(fuseFileManagerIn)//"']"&
-              //'/ProceedingWithDefaults'
+  message=trim(message)//"FileNotFound['"//trim(fuseFileManagerIn)//"']"&
+                       //'/ProceedingWithDefaults'
   err=-10; return
 endif
 ! open file manager file
 open(unt,file=fuseFileManagerIn,status="old",action="read",iostat=err)
 if(err/=0)then
-  message="f-fuseSetDirsUndPhiles/fileManagerOpenError['"//trim(fuseFileManagerIn)//"']"
+  message=trim(message)//"fileManagerOpenError['"//trim(fuseFileManagerIn)//"']"
   err=10; return
 endif
 ! check the header matches the code
 read(unt,*)temp
 if(trim(temp)/=fuseFileManagerHeader)then
-  message="f-fuseSetDirsUndPhiles/unknownHeader&[file='"//trim(fuseFileManagerIn)//"']&&
+  message=trim(message)//"unknownHeader&[file='"//trim(fuseFileManagerIn)//"']&&
     &[header="//trim(temp)//"]"
   err=20; return
 endif
@@ -87,12 +90,15 @@ read(unt,*)META_TIME       ; call checkLineRead(META_TIME,        err,message); 
 read(unt,*)META_ATTR       ; call checkLineRead(META_ATTR,        err,message); if(err/=0)return
 read(unt,*)META_TYPE       ; call checkLineRead(META_TYPE,        err,message); if(err/=0)return
 read(unt,*)META_FORCE      ; call checkLineRead(META_FORCE,       err,message); if(err/=0)return
-read(unt,*)META_PARAM      ; call checkLineRead(META_PARAM,       err,message); if(err/=0)return
-read(unt,*)META_MVAR       ; call checkLineRead(META_MVAR,        err,message); if(err/=0)return
-read(unt,*)META_INDEX      ; call checkLineRead(META_INDEX,       err,message); if(err/=0)return
+read(unt,*)META_LOCALPARAM ; call checkLineRead(META_LOCALPARAM,  err,message); if(err/=0)return
+read(unt,*)META_LOCALMVAR  ; call checkLineRead(META_LOCALMVAR,   err,message); if(err/=0)return
+read(unt,*)META_LOCALINDEX ; call checkLineRead(META_LOCALINDEX,  err,message); if(err/=0)return
+read(unt,*)META_BASINPARAM ; call checkLineRead(META_BASINPARAM,  err,message); if(err/=0)return
+read(unt,*)META_BASINMVAR  ; call checkLineRead(META_BASINMVAR,   err,message); if(err/=0)return
 read(unt,*)LOCAL_ATTRIBUTES; call checkLineRead(LOCAL_ATTRIBUTES, err,message); if(err/=0)return
-read(unt,*)PARAMETER_INFO  ; call checkLineRead(PARAMETER_INFO,   err,message); if(err/=0)return
-read(unt,*)FORCEFILE_DESC  ; call checkLineRead(FORCEFILE_DESC,   err,message); if(err/=0)return
+read(unt,*)LOCALPARAM_INFO ; call checkLineRead(LOCALPARAM_INFO,  err,message); if(err/=0)return
+read(unt,*)BASINPARAM_INFO ; call checkLineRead(BASINPARAM_INFO,  err,message); if(err/=0)return
+read(unt,*)FORCING_FILELIST; call checkLineRead(FORCING_FILELIST, err,message); if(err/=0)return
 read(unt,*)MODEL_INITCOND  ; call checkLineRead(MODEL_INITCOND,   err,message); if(err/=0)return
 read(unt,*)PARAMETER_TRIAL ; call checkLineRead(PARAMETER_TRIAL,  err,message); if(err/=0)return
 read(unt,*)OUTPUT_PREFIX   ; call checkLineRead(OUTPUT_PREFIX,    err,message); if(err/=0)return

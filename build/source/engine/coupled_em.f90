@@ -9,7 +9,7 @@ contains
  ! new subroutine: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
  subroutine coupled_em(dt_init,err,message)
- USE data_struc,only:forcFileInfo                                     ! extract time step of forcing data
+ USE data_struc,only:data_step                                        ! time step of forcing data (s)
  USE data_struc,only:model_decisions                                  ! model decision structure
  USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
  USE var_lookup,only:iLookDECISIONS                                   ! named variables for elements of the decision structure
@@ -18,7 +18,6 @@ contains
  USE layerMerge_module,only:layerMerge      ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide    ! sub-divide layers if they are too thick
  USE picardSolv_module,only:picardSolv      ! provide access to the Picard solver
- USE qTimeDelay_module,only:qOverland       ! provide access to the routing module
  USE multiconst,only:iden_water,iden_ice    ! intrinsic density of water and icei
  ! look-up values for the numerical method
  USE mDecisions_module,only:      &
@@ -76,6 +75,7 @@ contains
  real(dp),pointer                     :: scalarSoilEjection     ! ejected water from the soil matrix (m s-1)
  real(dp),pointer                     :: scalarAquiferRecharge  ! recharge to the aquifer (m s-1)
  real(dp),pointer                     :: scalarAquiferBaseflow  ! baseflow from the aquifer (m s-1)
+ real(dp),pointer                     :: scalarAquiferTranspire ! transpiration from the aquifer (m s-1)
  ! local pointers to timestep-average flux variables
  real(dp),pointer                     :: averageSnowSublimation ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: averageGroundEvaporation ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
@@ -87,6 +87,7 @@ contains
  real(dp),pointer                     :: averageSoilEjection    ! ejected water from the soil matrix (m s-1)
  real(dp),pointer                     :: averageAquiferRecharge ! recharge to the aquifer (m s-1)
  real(dp),pointer                     :: averageAquiferBaseflow ! baseflow from the aquifer (m s-1)
+ real(dp),pointer                     :: averageAquiferTranspire ! transpiration from the aquifer (m s-1)
  ! local pointers to algorithmic control parameters
  real(dp),pointer                     :: minstep                ! minimum time step length (s)
  real(dp),pointer                     :: maxstep                ! maximum time step length (s)
@@ -116,6 +117,7 @@ contains
  averageSoilEjection      => mvar_data%var(iLookMVAR%averageSoilEjection)%dat(1)      ! ejected water from the soil matrix (m s-1)
  averageAquiferRecharge   => mvar_data%var(iLookMVAR%averageAquiferRecharge)%dat(1)   ! recharge to the aquifer (m s-1)
  averageAquiferBaseflow   => mvar_data%var(iLookMVAR%averageAquiferBaseflow)%dat(1)   ! baseflow from the aquifer (m s-1)
+ averageAquiferTranspire  => mvar_data%var(iLookMVAR%averageAquiferTranspire)%dat(1)  ! transpiration from the aquifer (m s-1)
 
  ! assign pointers to algorithmic control parameters
  minstep => mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
@@ -133,9 +135,9 @@ contains
  averageSoilEjection      = 0._dp  ! ejected water from the soil matrix (m s-1)
  averageAquiferRecharge   = 0._dp  ! recharge to the aquifer (m s-1)
  averageAquiferBaseflow   = 0._dp  ! baseflow from the aquifer (m s-1)
-
+ averageAquiferTranspire  = 0._dp  ! transpiration from the aquifer (m s-1)
  ! get the length of the time step (seconds)
- dt = forcFileInfo%data_step
+ dt = data_step
 
  ! identify the maximum number of iterations
  select case(model_decisions(iLookDECISIONS%num_method)%iDecision)
@@ -211,6 +213,8 @@ contains
   scalarSoilEjection      => mvar_data%var(iLookMVAR%scalarSoilEjection)%dat(1)      ! ejected water from the soil matrix (m s-1)
   scalarAquiferRecharge   => mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1)   ! recharge to the aquifer (m s-1)
   scalarAquiferBaseflow   => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)   ! baseflow from the aquifer (m s-1)
+  scalarAquiferTranspire  => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)  ! transpiration from the aquifer (m s-1)
+
 
   ! allocate temporary array
   allocate(arrTemp(nLayers),stat=err)
@@ -288,7 +292,8 @@ contains
   averageSoilDrainage      = averageSoilDrainage      + scalarSoilDrainage     *dt_wght ! drainage from the bottom of the soil profile (m s-1)
   averageSoilEjection      = averageSoilEjection      + scalarSoilEjection     *dt_wght ! ejected water from the soil matrix (m s-1)
   averageAquiferRecharge   = averageAquiferRecharge   + scalarAquiferRecharge  *dt_wght ! recharge to the aquifer (m s-1)
-  averageAquiferBaseflow   = averageAquiferBaseflow   + scalarAquiferBaseflow  *dt_wght ! recharge to the aquifer (m s-1)
+  averageAquiferBaseflow   = averageAquiferBaseflow   + scalarAquiferBaseflow  *dt_wght ! baseflow from the aquifer (m s-1)
+  averageAquiferTranspire  = averageAquiferTranspire  + scalarAquiferTranspire *dt_wght ! transpiration from the aquifer (m s-1)
 
   ! check that snow depth is decreasing (can only increase in the top layer)
   if(nSnow>1)then
@@ -329,22 +334,6 @@ contains
   if(err/=0)then; err=20; message='problem deallocating space for temporary array'; return; endif
 
  end do  ! (sub-step loop)
-
- ! perform the routing
- call qOverland(&
-                ! input
-                model_decisions(iLookDECISIONS%subRouting)%iDecision, &  ! index for routing method
-                averageSurfaceRunoff,                                 &  ! surface runoff (m s-1)
-                averageSoilEjection,                                  &  ! ejected water from the soil profile (m s-1)
-                averageSoilBaseflow,                                  &  ! baseflow from the soil profile (m s-1)
-                averageAquiferBaseflow,                               &  ! baseflow from the aquifer (m s-1)
-                mvar_data%var(iLookMVAR%routingFractionFuture)%dat,   &  ! fraction of runoff in future time steps (m s-1)
-                mvar_data%var(iLookMVAR%routingRunoffFuture)%dat,     &  ! runoff in future time steps (m s-1)
-                ! output
-                mvar_data%var(iLookMVAR%averageInstantRunoff)%dat(1), &  ! instantaneous runoff (m s-1)
-                mvar_data%var(iLookMVAR%averageRoutedRunoff)%dat(1),  &  ! routed runoff (m s-1)
-                err,cmessage)                                            ! error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! save the surface temperature (just to make things easier to visualize)
  !mvar_data%var(iLookMVAR%scalarSurfaceTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)

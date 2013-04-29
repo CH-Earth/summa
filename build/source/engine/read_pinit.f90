@@ -8,19 +8,24 @@ contains
  ! ************************************************************************************************
  ! (1) new subroutine: read default model parameter values and constraints
  ! ************************************************************************************************
- subroutine read_pinit(err,message)
+ subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
  USE snow_fileManager,only:SETNGS_PATH     ! path for metadata files
- USE snow_fileManager,only:PARAMETER_INFO  ! file containing site characteristix and fefault values and constraints for model parameters
  USE ascii_util_module,only:file_open      ! open ascii file
  USE ascii_util_module,only:split_line     ! extract the list of variable names from the character string
- USE data_struc,only:mpar_meta             ! parameter metadata
- USE data_struc,only:par_info,parFallback  ! data structures for default values and constraints for model parameters
- USE get_ixname_module,only:get_ixParam    ! identify index of named variable for model parameters
+ USE data_struc,only:var_info              ! data type for metadata
+ USE data_struc,only:par_info              ! data type for parameter constraints
+ USE get_ixname_module,only:get_ixParam    ! identify index of named variable for local column model parameters
+ USE get_ixname_module,only:get_ixBpar     ! identify index of named variable for basin-average model parameters
  implicit none
+ ! define input
+ character(*),intent(in)              :: filenm         ! name of file containing default values and constraints of model parameters
+ logical(lgt),intent(in)              :: isLocal        ! .true. if the file describes local column parameters
+ type(var_info),pointer,intent(in)    :: mpar_meta(:)   ! metadata for model parameters
  ! define output
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
+ type(par_info),pointer,intent(out)   :: parFallback(:) ! default values and constraints of model parameters
+ integer(i4b),intent(out)             :: err            ! error code
+ character(*),intent(out)             :: message        ! error message
  ! define general variables
  real(dp),parameter                   :: amiss=1.d+30   ! missing data
  character(len=256)                   :: cmessage       ! error message for downwind routine
@@ -28,7 +33,7 @@ contains
  integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
  integer(i4b)                         :: iline          ! loop through lines in the file 
  integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file 
- character(LEN=256)                   :: temp           ! single lime of information
+ character(LEN=256)                   :: temp           ! single line of information
  ! define local variables for the default model parameters
  integer(i4b)                         :: iend           ! check for the end of the file
  character(LEN=256)                   :: ffmt           ! file format
@@ -37,12 +42,12 @@ contains
  character(len=2)                     :: dLim           ! column delimiter
  integer(i4b)                         :: ivar           ! index of model variable
  ! Start procedure here
- err=0; message="f-fuse/read_pinit/"
+ err=0; message="read_pinit/"
  ! **********************************************************************************************
  ! (1) open files, etc.
  ! **********************************************************************************************
  ! build filename
- infile = trim(SETNGS_PATH)//trim(PARAMETER_INFO)
+ infile = trim(SETNGS_PATH)//trim(filenm)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -85,7 +90,12 @@ contains
   read(temp,trim(ffmt),iostat=err) varname, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
   if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; endif
   ! (identify the index of the variable in the data structure)
-  ivar = get_ixParam(trim(varname))
+  if(isLocal)then
+   ivar = get_ixParam(trim(varname))
+  else
+   ivar = get_ixBpar(trim(varname))
+  endif
+  ! (check that we have successfully found the parameter)
   if(ivar>0)then
    if(ivar>size(parFallback))then
     err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return
