@@ -19,6 +19,7 @@
 ! ***************************************************************************************************************************
 ! classifications
 ! ***************************************************************************************************************************
+hruIndex             | index defining the hydrologic response unit                  | -          | scalarv | T
 vegTypeIndex         | index defining vegetation type                               | -          | scalarv | T
 soilTypeIndex        | index defining soil type                                     | -          | scalarv | T
 slopeTypeIndex       | index defining slope                                         | -          | scalarv | T

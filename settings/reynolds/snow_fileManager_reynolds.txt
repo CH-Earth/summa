@@ -1,21 +1,24 @@
-SNOW_FILEMANAGER_V1.2
+SNOW_FILEMANAGER_V1.4
 ! Comment line:
-! *** paths (must be in singleey quotes)
-'/d1/mclark/FUSE_SNOW/settings/'              ! SETNGS_PATH
-'/d1/mclark/FUSE_SNOW/input/reynolds/'        ! INPUT_PATH
-'/d1/mclark/FUSE_SNOW/output/reynolds/'       ! OUTPUT_PATH
+! *** paths (must be in single quotes)
+'/home/mclark/FUSE_SNOW/settings/'             ! SETNGS_PATH
+'/home/mclark/FUSE_SNOW/input/reynolds/'       ! INPUT_PATH
+'/home/mclark/FUSE_SNOW/output/reynolds/'      ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
-'reynolds/snow_zDecisions_reynolds.txt'       ! M_DECISIONS      = definition of model decisions
-'snow_zTimeMeta.txt'                          ! META_TIME        = metadata for time
-'snow_zLocalAttributeMeta.txt'                ! META_ATTR        = metadata for local attributes
-'snow_zCategoryMeta.txt'                      ! META_TYPE        = metadata for local classification of veg, soil, etc.
-'snow_zForceMeta.txt'                         ! META_FORCE       = metadata for model forcing variables
-'snow_zParamMeta.txt'                         ! META_PARAM       = metadata for model parameters
-'snow_zModelVarMeta.txt'                      ! META_MVAR        = metadata for model variables
-'snow_zModelIndexMeta.txt'                    ! META_INDEX       = metadata for model indices
-'reynolds/snow_zLocalAttributes_reynolds.txt' ! LOCAL_ATTRIBUTES = local attributes
-'reynolds/snow_zParamInfo_reynolds.txt'       ! PARAMETER_INFO   = default values and constraints for model parameters
-'reynolds/snow_zForcingInfo_reynolds.txt'     ! FORCEFILE_DESC   = description of forcing data file
-'reynolds/snow_zInitialCond_reynolds.txt'     ! MODEL_INITCOND   = model initial conditions
-'reynolds/snow_zParamTrial_reynolds.txt'      ! PARAMETER_TRIAL  = trial values for model parameters
-'reynolds'                                    ! OUTPUT_PREFIX    = prefix for the output file
+'reynolds/snow_zDecisions_reynolds.txt'        ! M_DECISIONS      = definition of model decisions
+'snow_zTimeMeta.txt'                           ! META_TIME        = metadata for time
+'snow_zLocalAttributeMeta.txt'                 ! META_ATTR        = metadata for local attributes
+'snow_zCategoryMeta.txt'                       ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'snow_zForceMeta.txt'                          ! META_FORCE       = metadata for model forcing variables
+'snow_zLocalParamMeta.txt'                     ! META_LOCALPARAM  = metadata for local model parameters
+'snow_zLocalModelVarMeta.txt'                  ! META_LOCALMVAR   = metadata for local model variables
+'snow_zLocalModelIndexMeta.txt'                ! META_INDEX       = metadata for model indices
+'snow_zBasinParamMeta.txt'                     ! META_BASINPARAM  = metadata for basin-average model parameters
+'snow_zBasinModelVarMeta.txt'                  ! META_BASINMVAR   = metadata for basin-average model variables
+'reynolds/snow_zLocalAttributes_reynolds.txt'  ! LOCAL_ATTRIBUTES = local attributes
+'reynolds/snow_zLocalParamInfo_reynolds.txt'   ! LOCALPARAM_INFO  = default values and constraints for local model parameters
+'reynolds/snow_zBasinParamInfo_reynolds.txt'   ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
+'reynolds/snow_zForcingFileList.txt'           ! FORCING_FILELIST = list of files used in each HRU
+'reynolds/snow_zInitialCond_reynolds.txt'      ! MODEL_INITCOND   = model initial conditions
+'reynolds/snow_zParamTrial_reynolds.txt'       ! PARAMETER_TRIAL  = trial values for model parameters
+'distributedRME'                               ! OUTPUT_PREFIX    = prefix for the output file

@@ -5,6 +5,10 @@
 ! NOTES:
 ! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
 ! (2) the name of the decision is followed by the character string defining the decision
+! (3) the simulation start/end times must be within single quotes
+! ***********************************************************************************************************************
+simulStart              '2006-7-1 1:00'  ! (T-01) simulation start time -- must be in single quotes
+simulFinsh              '2007-9-30 0:00' ! (T-02) simulation end time -- must be in single quotes
 ! ***********************************************************************************************************************
 soilCatTbl                    ROSETTA  ! (N-01) soil-category dateset
 vegeParTbl                       USGS  ! (N-02) vegetation category dataset
@@ -15,7 +19,7 @@ num_method                   itertive  ! (F-01) choice of numerical method
 fDerivMeth                   analytic  ! (F-02) method used to calculate flux derivatives
 LAI_method                  specified  ! (F-03) method used to determine LAI and SAI
 f_Richards                   mixdform  ! (F-04) form of Richard's equation
-groundwatr                   noXplict  ! (F-05) choice of groundwater parameterization
+groundwatr                   bigBuckt  ! (F-05) choice of groundwater parameterization
 hc_profile                   constant  ! (F-06) choice of hydraulic conductivity profile
 bcUpprTdyn                   nrg_flux  ! (F-07) type of upper boundary condition for thermodynamics
 bcLowrTdyn                   zeroFlux  ! (F-08) type of lower boundary condition for thermodynamics
@@ -28,7 +32,8 @@ alb_method                   fsnowage  ! (F-14) choice of albedo representation
 compaction                   anderson  ! (F-15) choice of compaction routine
 snowLayers                   CLM_2010  ! (F-16) choice of method to combine and sub-divide snow layers
 thermlcond                   smnv2000  ! (F-17) choice of thermal conductivity representation
-subRouting                   timeDlay  ! (F-18) choice of method for sub-grid routing
+spatial_gw                singleBasin  ! (F-18) choice of method for the spatial representation of groundwater
+subRouting                   timeDlay  ! (F-19) choice of method for sub-grid routing
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -131,7 +136,11 @@ subRouting                   timeDlay  ! (F-18) choice of method for sub-grid ro
 ! jrdn1991  ! Jordan (1991)
 ! smnv2000  ! Smirnova et al. (2000)
 ! -----------------------------------------------------------------------------------------------
-! (F-18) choice of method for sub-grid routing
+! (F-18) choice of method for the spatial representation of groundwater
+! localColumn  ! separate groundwater representation in each local soil column
+! singleBasin  ! single groundwater store over the entire basin
+! -----------------------------------------------------------------------------------------------
+! (F-19) choice of method for sub-grid routing
 ! timeDlay  ! time-delay histogram
 ! qInstant  ! instantaneous routing
 ! ***********************************************************************************************

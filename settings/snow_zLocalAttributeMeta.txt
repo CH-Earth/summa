@@ -22,5 +22,6 @@
 latitude        | latitude                                                | degrees north   | scalarv | T
 longitude       | longitude                                               | degrees east    | scalarv | T
 elevation       | elevation                                               | m               | scalarv | T
+HRUfraction     | fractional area covered by each HRU                     | -               | scalarv | T
 mHeight         | measurement height above bare ground                    | m               | scalarv | T
 ! ***************************************************************************************************************************
