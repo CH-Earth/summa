@@ -32,6 +32,7 @@ lowerBoundTemp       | temperature of the lower boundary                        
 ! *****************************************************************************************************************
 tempCritRain         | critical temperature where precipitation is rain                  | K          | scalarv | T
 tempRangeTimestep    | temperature range over the time step                              | K          | scalarv | T
+frozenPrecipMultip   | frozen precipitation multiplier                                   | -          | scalarv | T
 ! *****************************************************************************************************************
 ! freezing curve for snow 
 ! *****************************************************************************************************************

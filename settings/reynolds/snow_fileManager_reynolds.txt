@@ -1,9 +1,9 @@
 SNOW_FILEMANAGER_V1.4
 ! Comment line:
 ! *** paths (must be in single quotes)
-'/home/mclark/FUSE_SNOW/settings/'             ! SETNGS_PATH
-'/home/mclark/FUSE_SNOW/input/reynolds/'       ! INPUT_PATH
-'/home/mclark/FUSE_SNOW/output/reynolds/'      ! OUTPUT_PATH
+'/d1/mclark/FUSE_SNOW/settings/'               ! SETNGS_PATH
+'/d1/mclark/FUSE_SNOW/input/reynolds/'         ! INPUT_PATH
+'/d1/mclark/FUSE_SNOW/output/reynolds/'        ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
 'reynolds/snow_zDecisions_reynolds.txt'        ! M_DECISIONS      = definition of model decisions
 'snow_zTimeMeta.txt'                           ! META_TIME        = metadata for time

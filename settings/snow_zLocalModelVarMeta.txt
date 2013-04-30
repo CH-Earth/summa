@@ -46,8 +46,8 @@ spectralIncomingDirect              | incoming direct solar radiation in each wa
 spectralIncomingDiffuse             | incoming diffuse solar radiation in each wave band                | W m-2           | wLength | T
 scalarVPair                         | vapor pressure of the air above the vegetation canopy             | Pa              | scalarv | T
 scalarTwetbulb                      | wet bulb temperature                                              | K               | scalarv | F
-scalarRainfall                      | computed rainfall rate                                            | kg m-2 s-1      | scalarv | F
-scalarSnowfall                      | computed snowfall rate                                            | kg m-2 s-1      | scalarv | F
+scalarRainfall                      | computed rainfall rate                                            | kg m-2 s-1      | scalarv | T
+scalarSnowfall                      | computed snowfall rate                                            | kg m-2 s-1      | scalarv | T
 scalarSnowfallTemp                  | temperature of fresh snow                                         | K               | scalarv | F
 scalarO2air                         | atmospheric o2 concentration                                      | Pa              | scalarv | F
 scalarCO2air                        | atmospheric co2 concentration                                     | Pa              | scalarv | F
@@ -147,7 +147,7 @@ scalarSnowSublimation               | snow sublimation/frost (below canopy or no
 ! NOAH-MP vegetation variables (transpiration)
 ! *************************************************************************************************************************************
 scalarTranspireLim                  | aggregate soil moisture and aquifer control on transpiration      | -               | scalarv | T
-scalarTranspireLimAqfr              | aquifer storage control on transpiration                          | -               | scalarv | F
+scalarTranspireLimAqfr              | aquifer storage control on transpiration                          | -               | scalarv | T
 scalarFoliageNitrogenFactor         | foliage nitrogen concentration (1=saturated)                      | -               | scalarv | F
 scalarStomResistSunlit              | stomatal resistance for sunlit leaves                             | s m-1           | scalarv | T
 scalarStomResistShaded              | stomatal resistance for shaded leaves                             | s m-1           | scalarv | T
@@ -161,14 +161,14 @@ scalarGroundSnowFraction            | fraction of ground that is covered with sn
 ! *************************************************************************************************************************************
 ! scalar variables (soil and aquifer fluxes)
 ! *************************************************************************************************************************************
-scalarRainPlusMelt                  | rain plus melt, used as input to soil before surface runoff       | m s-1           | scalarv | F
-scalarSurfaceRunoff                 | surface runoff                                                    | m s-1           | scalarv | F
-scalarInitAquiferRecharge           | recharge to the aquifer at the start-of-step                      | m s-1           | scalarv | F
-scalarAquiferRecharge               | recharge to the aquifer at the end-of-step                        | m s-1           | scalarv | F
-scalarInitAquiferTranspire          | transpiration loss from the aquifer at the start-of-step          | m s-1           | scalarv | F
-scalarAquiferTranspire              | transpiration loss from the aquifer at the end-of-step            | m s-1           | scalarv | F
-scalarInitAquiferBaseflow           | baseflow from the aquifer at the start-of-step                    | m s-1           | scalarv | F 
-scalarAquiferBaseflow               | baseflow from the aquifer at the end-of-step                      | m s-1           | scalarv | F 
+scalarRainPlusMelt                  | rain plus melt, used as input to soil before surface runoff       | m s-1           | scalarv | T
+scalarSurfaceRunoff                 | surface runoff                                                    | m s-1           | scalarv | T
+scalarInitAquiferRecharge           | recharge to the aquifer at the start-of-step                      | m s-1           | scalarv | T
+scalarAquiferRecharge               | recharge to the aquifer at the end-of-step                        | m s-1           | scalarv | T
+scalarInitAquiferTranspire          | transpiration loss from the aquifer at the start-of-step          | m s-1           | scalarv | T
+scalarAquiferTranspire              | transpiration loss from the aquifer at the end-of-step            | m s-1           | scalarv | T
+scalarInitAquiferBaseflow           | baseflow from the aquifer at the start-of-step                    | m s-1           | scalarv | T 
+scalarAquiferBaseflow               | baseflow from the aquifer at the end-of-step                      | m s-1           | scalarv | T 
 ! *************************************************************************************************************************************
 ! scalar variables (sub-step average fluxes for the soil zone)
 ! *************************************************************************************************************************************
