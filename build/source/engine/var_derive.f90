@@ -132,20 +132,24 @@ contains
  !pause
 
  ! compute fraction of roots in the aquifer
- if(rootingDepth < iLayerHeight(nLayers))then
+ if(rootingDepth > iLayerHeight(nLayers))then
   scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity(1:nSoil))
   checkCalcs = 1._dp - ( min(iLayerHeight(nLayers),rootingDepth) / rootingDepth)**rootDistExp
   if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then
    err=20; message=trim(message)//'problem with the aquifer root density calculations'; return
   endif
  
- ! check everything is OK
+ ! set fraction of aquifer roots to zero, and check everything is OK
  else
+  scalarAquiferRootFrac = 0._dp
   if(abs(sum(mLayerRootDensity) - 1._dp) > epsilon(rootingDepth))then
    message=trim(message)//'root density does not sum to one when rooting depth is within the soil profile'
    err=20; return
   endif
  endif
+
+ !print*, 'iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac = ', iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac
+ !pause
 
  end subroutine rootDensty
 

@@ -188,6 +188,7 @@ contains
   ! precipitation partitioning
   case('tempCritRain'        ); get_ixparam = iLookPARAM%tempCritRain         ! critical temperature where precipitation is rain (K)
   case('tempRangeTimestep'   ); get_ixparam = iLookPARAM%tempRangeTimestep    ! temperature range over the time step (K)
+  case('frozenPrecipMultip'  ); get_ixparam = iLookPARAM%frozenPrecipMultip   ! frozen precipitation multiplier (-)
   ! freezing curve for snow
   case('snowfrz_scale'       ); get_ixparam = iLookPARAM%snowfrz_scale        ! scaling parameter for the freezing curve for snow (K-1)
   ! snow albedo

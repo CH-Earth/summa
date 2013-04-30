@@ -39,7 +39,7 @@ contains
  integer(i4b)                         :: iend           ! check for the end of the file
  character(LEN=256)                   :: ffmt           ! file format
  character(LEN=32)                    :: varname        ! name of variable
- character(LEN=32)                    :: vardata        ! data on variable
+ character(LEN=64)                    :: vardata        ! data on variable
  character(len=2)                     :: dLim           ! column delimiter
  integer(i4b)                         :: ivar           ! index of model variable
  integer(i4b)                         :: iHRU,jHRU,kHRU ! index of HRUs (position in vector)
@@ -105,6 +105,7 @@ contains
   forcFileInfo(iHRU)%data_ix(:) = imiss
   ! build filename
   infile = trim(SETNGS_PATH)//trim(forcFileInfo(iHRU)%filenmDesc)
+  print*, 'infile = ', trim(infile)
   ! open file
   call file_open(trim(infile),unt,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -124,6 +125,8 @@ contains
    ! save data into a temporary variables
    read(temp,trim(ffmt),iostat=err) varname, dLim, vardata
    if (err/=0) then; err=30; message=trim(message)//"errorReadLine[file="//trim(infile)//"; line="//trim(temp)//"]"; return; endif
+   print*, 'varname = ', trim(varname)
+   print*, 'vardata = ', trim(vardata)
    ! put data into data structure
    select case(trim(varname))
     case('filenmData'); read(vardata,*) forcFileInfo(iHRU)%filenmData
@@ -166,6 +169,17 @@ contains
   ! close file unit
   close(unt)
  end do  ! (looping through files describing each HRU)
+ ! check that we don't have the same file for multiple HRUS
+ do iHRU=1,nHRU
+  do jHRU=1,iHRU
+   if(iHRU/=jHRU)then
+    if(trim(forcFileInfo(iHRU)%filenmData) == trim(forcFileInfo(jHRU)%filenmData))then
+     message=trim(message)//'data file "'//trim(forcFileInfo(iHRU)%filenmData)//'" used for multiple HRUs'
+     err=20; return
+    endif
+   endif
+  end do
+ end do
  end subroutine ffile_info
 
 end module ffile_info_module

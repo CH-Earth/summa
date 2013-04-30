@@ -49,7 +49,7 @@ contains
  integer(i4b),pointer              :: time_ix(:)       ! column index for time
  integer(i4b),pointer              :: data_ix(:)       ! column index for forcing data
  ! Start procedure here
- err=0; message="fuseReadForce/"
+ err=0; message="read_force/"
  ! define local pointers to data structures
  ncols   => forcFileInfo(iHRU)%ncols   ! number of columns in the forcing data file
  time_ix => forcFileInfo(iHRU)%time_ix ! column index for time

@@ -398,9 +398,9 @@ do istep=1,numtim
   bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)    = bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)     + &
                                                            mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)     * fracHRU
 
-  ! increment baseflow input variables
+  ! increment basin-average baseflow input variables
   bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + &
-                                                            mvar_data%var(iLookMVAR%averageAquiferRecharge)%dat(1)  * fracHRU
+                                                            mvar_data%var(iLookMVAR%averageSoilDrainage)%dat(1)     * fracHRU
   bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + &
                                                             mvar_data%var(iLookMVAR%averageAquiferTranspire)%dat(1) * fracHRU
 

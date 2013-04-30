@@ -553,6 +553,8 @@ contains
   scalarInitAquiferTranspire  = scalarAquiferTranspire
  endif
 
+ !write(*,'(a,3(e20.10,1x))') 'scalarCanopyTranspiration, scalarAquiferTranspire, aquiferTranspireFrac = ', scalarCanopyTranspiration, scalarAquiferTranspire, aquiferTranspireFrac
+
  ! * get the number of state variables
  select case(ixSpatialGroundwater)
   ! separate groundwater representation in each local soil column

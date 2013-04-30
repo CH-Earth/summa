@@ -43,6 +43,7 @@ contains
  real(dp),pointer              :: fc_param                   ! freezing curve parameter for snow (K-1)
  real(dp),pointer              :: tempCritRain               ! critical temperature where precipitation is rain (K)
  real(dp),pointer              :: tempRangeTimestep          ! temperature range over the time step (K)
+ real(dp),pointer              :: frozenPrecipMultip         ! frozen precipitation multiplier (-)
  ! local pointers to model forcing data
  real(dp),pointer              :: SWRadAtm                   ! downward shortwave radiation (W m-2)
  real(dp),pointer              :: airtemp                    ! air temperature at 2 meter height (K)
@@ -73,12 +74,13 @@ contains
  ! initialize error control
  err=0; message="f-derivforce/"
  ! assign pointers to model parameters
- Frad_vis          => mpar_data%var(iLookPARAM%Frad_vis)            ! fraction radiation absorbed in visible part of spectrum (-)
- Frad_direct       => mpar_data%var(iLookPARAM%Frad_direct)         ! fraction direct radiation (-)
- minwind           => mpar_data%var(iLookPARAM%minwind)             ! minimum windspeed (m s-1)
- fc_param          => mpar_data%var(iLookPARAM%snowfrz_scale)       ! freezing curve parameter for snow (K-1)
- tempCritRain      => mpar_data%var(iLookPARAM%tempCritRain)        ! critical temperature where precipitation is rain (K)
- tempRangeTimestep => mpar_data%var(iLookPARAM%tempRangeTimestep)   ! temperature range over the time step (K)
+ Frad_vis           => mpar_data%var(iLookPARAM%Frad_vis)           ! fraction radiation absorbed in visible part of spectrum (-)
+ Frad_direct        => mpar_data%var(iLookPARAM%Frad_direct)        ! fraction direct radiation (-)
+ minwind            => mpar_data%var(iLookPARAM%minwind)            ! minimum windspeed (m s-1)
+ fc_param           => mpar_data%var(iLookPARAM%snowfrz_scale)      ! freezing curve parameter for snow (K-1)
+ tempCritRain       => mpar_data%var(iLookPARAM%tempCritRain)       ! critical temperature where precipitation is rain (K)
+ tempRangeTimestep  => mpar_data%var(iLookPARAM%tempRangeTimestep)  ! temperature range over the time step (K)
+ frozenPrecipMultip => mpar_data%var(iLookPARAM%frozenPrecipMultip) ! frozen precipitation multiplier (-)
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
@@ -177,7 +179,7 @@ contains
 
  ! compute rainfall and snowfall
  rainfall = fracrain*pptrate
- snowfall = (1._dp - fracrain)*pptrate
+ snowfall = (1._dp - fracrain)*pptrate*frozenPrecipMultip
  !print*, 'tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp = '
  !print*, tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp
 
