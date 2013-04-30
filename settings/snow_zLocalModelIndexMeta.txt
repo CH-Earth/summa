@@ -1,0 +1,35 @@
+! ************************************************************************************************************
+! ************************************************************************************************************
+! ***** DEFINITION OF MODEL INDEX VARIABLES ******************************************************************
+! ************************************************************************************************************
+! ************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "| " must be present (format a2), as these are used to check the integrety of the file
+! ************************************************************************************************************
+! columns are:
+! 1: variable name
+! 2: variable description
+! 3: variable units
+! 4: variable type (scalar, separate parameter for each model layer, separate parameter at the interface of layers)
+! 5: write parameter to output file? (T/F)
+! ************************************************************************************************************
+! define format string for variable descriptions
+! ************************************************************************************************************
+'(a20,(1x,a1,1x),a60,(1x,a1,1x),a10,(1x,a1,1x),a7,(1x,a1,1x),L1)'    ! format string (must be in single quotes)
+! ************************************************************************************************************
+! define variables
+! ************************************************************************************************************
+nSnow                | number of snow layers                                        | -          | scalarv | T
+nSoil                | number of soil layers                                        | -          | scalarv | T
+nLayers              | total number of layers                                       | -          | scalarv | T
+midSnowStartIndex    | start index of the midSnow vector for a given timestep       | -          | scalarv | T
+midSoilStartIndex    | start index of the midSoil vector for a given timestep       | -          | scalarv | T
+midTotoStartIndex    | start index of the midToto vector for a given timestep       | -          | scalarv | T
+ifcSnowStartIndex    | start index of the ifcSnow vector for a given timestep       | -          | scalarv | T
+ifcSoilStartIndex    | start index of the ifcSoil vector for a given timestep       | -          | scalarv | T
+ifcTotoStartIndex    | start index of the ifcToto vector for a given timestep       | -          | scalarv | T
+layerType            | index defining type of layer (soil or snow)                  | -          | midToto | F
+! ************************************************************************************************************
