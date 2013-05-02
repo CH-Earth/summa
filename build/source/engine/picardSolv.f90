@@ -288,8 +288,6 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
 
-
-
  ! *****
  ! water balance check...
  ! **********************
@@ -300,6 +298,7 @@ contains
                  mpar_data%var(iLookPARAM%wimplicit),                                & ! intent(in): weight assigned to start-of-step fluxes (-)
                  mvar_data%var(iLookMVAR%mLayerDepth)%dat,                           & ! intent(in): depth of each layer (m)
                  model_decisions(iLookDECISIONS%groundwatr)%iDecision,               & ! intent(in): choice of groundwater parameterization
+                 model_decisions(iLookDECISIONS%spatial_gw)%iDecision,               & ! intent(in): choice of method for the spatial representation of groundwater
 
                  ! input: state variables at the start of the sub-step
                  mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,                      & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
@@ -318,7 +317,7 @@ contains
                  mvar_data%var(iLookMVAR%mLayerInitTranspire)%dat,                   & ! intent(in): transpiration from each layer at the start of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%scalarInitAquiferRecharge)%dat(1),          & ! intent(in): recharge to the aquifer at the start of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%scalarInitAquiferBaseflow)%dat(1),          & ! intent(in): baseflow from the aquifer at the start of the sub-step (m s-1)
-                 mvar_data%var(iLookMVAR%scalarInitAquiferTranspire)%dat(1),         & ! intent(in): transpiration from the aquifer at the sraer of the sub-step (m s-1)
+                 mvar_data%var(iLookMVAR%scalarInitAquiferTranspire)%dat(1),         & ! intent(in): transpiration from the aquifer at the start of the sub-step (m s-1)
 
                  ! input: model fluxes at the *END* of the sub-step
                  mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat,                     & ! intent(in): liquid water flux at the interface of each layer at the end of the sub-step (m s-1)
@@ -1139,6 +1138,8 @@ contains
                        wimplicit,                             & ! intent(in): weight assigned to start-of-step fluxes (-)
                        mLayerDepth,                           & ! intent(in): depth of each layer (m)
                        ix_groundwatr,                         & ! intent(in): choice of groundwater parameterization
+                       ix_spatialGW,                          & ! intent(in): choice of method for the spatial representation of groundwater
+ 
 
                        ! input: state variables at the start of the sub-step
                        mLayerVolFracIce,                      & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
@@ -1191,12 +1192,17 @@ contains
   pseudoWaterTable,                & ! pseudo water table
   bigBucket,                       & ! a big bucket (lumped aquifer model)
   noExplicit                         ! no explicit groundwater parameterization
+ ! look-up values for the choice of groundwater representation (local-column, or single-basin)
+ USE mDecisions_module,only:       &
+  localColumn,                     & ! separate groundwater representation in each local soil column
+  singleBasin                        ! single groundwater store over the entire basin
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)            :: dt                           ! time step (seconds)
  real(dp),intent(in)            :: wimplicit                    ! weight assigned to start-of-step fluxes (-)
  real(dp),intent(in)            :: mLayerDepth(:)               ! depth of each layer (m)
  integer(i4b),intent(in)        :: ix_groundwatr                ! choice of groundwater parameterization
+ integer(i4b),intent(in)        :: ix_spatialGW                 ! choice of method for the spatial representation of groundwater
  ! input: state variables at the start of the sub-step
  real(dp),intent(in)            :: mLayerVolFracIce(:)          ! volumetric fraction of ice in each layer (-)
  real(dp),intent(in)            :: mLayerVolFracLiq(:)          ! volumetric fraction of liquid water in each layer (-)
@@ -1283,8 +1289,8 @@ contains
  scalarSoilBaseflow      = (wimplicit*sum(mLayerInitBaseflow)        + (1._dp - wimplicit)*sum(mLayerBaseflow)       )
  scalarSoilDrainage      = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
  scalarSoilEjection      = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
- scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)) - &
-                           (wimplicit*scalarInitAquiferTranspire     + (1._dp - wimplicit)*scalarAquiferTranspire)
+ scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)      ) 
+
  ! check ejected water
  if(scalarSoilEjection < 0._dp)then
   print*, 'mLayerInitEjectWater = ', mLayerInitEjectWater
@@ -1304,8 +1310,8 @@ contains
  if(abs(scalarSoilWatBalError) > 1.d-3)then
   ! check the balance of each layer
   write(*,'(a)') 'water balance of each layer'
-  write(*,'(a)') 'Temp0 (K), Temp1(K), Liq0 (-), Liq1 (-), Ice0 (-), Ice1 (-), totalChange (-), phaseChange (-), flux_Change, evap_Change, ejectChange, ',&
-                 'phaseChange+flux_Change+evap_Change+ejectChange, totalChange - (phaseChange+flux_Change+evap_Change-ejectChange)'
+  write(*,'(a)') 'Liq0 (-), Liq1 (-), Ice0 (-), Ice1 (-), totalChange (-), phaseChange (-), flux_Change, evap_Change, qbaseChange, ejectChange, ',&
+                 'phaseChange+flux_Change+evap_Change+qbaseChange+ejectChange, totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-ejectChange)'
   do iLayer=1,nSoil
    totalChange = mLayerVolFracLiqNew(iLayer+nSnow) - mLayerVolFracLiq(iLayer+nSnow) ! total change in volumetric liquid water content
    phaseChange = -(iden_ice/iden_water)*(mLayerVolFracIceNew(iLayer+nSnow) - mLayerVolFracIce(iLayer+nSnow))  ! change in liquid water content associated with freezing
@@ -1332,29 +1338,32 @@ contains
  endif
 
  ! check the aquifer water balance
- select case(ix_groundwatr)
-  ! no explicit aquifer
-  case(noExplicit,equilWaterTable)
-   scalarAquiferBalError = 0._dp
-  ! explicit aquifer
-  case(bigBucket,pseudoWaterTable)
-   ! check the aquifer water balance
-   scalarAquiferBalError = balanceAquifer1 - (balanceAquifer0 + (iden_water*(wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*dt) + &
-                                                                (iden_water*(wimplicit*scalarInitAquiferRecharge  + (1._dp - wimplicit)*scalarAquiferRecharge) *dt) - &
-                                                                (iden_water*(wimplicit*scalarInitAquiferBaseflow  + (1._dp - wimplicit)*scalarAquiferBaseflow) *dt) )
-   ! print the terms in the aquifer balance if errors are sufficiently large
-   if(abs(scalarAquiferBalError) > 1.d-3)then
-    write(*,'(a,f20.10)') 'scalarAquiferBalError  = ', scalarAquiferBalError
-    write(*,'(a,f20.10)') 'balanceAquifer1        = ', balanceAquifer1
-    write(*,'(a,f20.10)') 'balanceAquifer0        = ', balanceAquifer0
-    write(*,'(a,f20.10)') 'scalarAquiferTranspire = ', iden_water*(wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*dt
-    write(*,'(a,f20.10)') 'scalarAquiferRecharge  = ', iden_water*(wimplicit*scalarInitAquiferRecharge  + (1._dp - wimplicit)*scalarAquiferRecharge) *dt
-    write(*,'(a,f20.10)') 'scalarAquiferBaseflow  = ', iden_water*(wimplicit*scalarInitAquiferBaseflow  + (1._dp - wimplicit)*scalarAquiferBaseflow) *dt
-    write(message,'(a,e20.10,a)')trim(message)//"abs(scalarAquiferBalError) > 1.d-3 [error = ",scalarAquiferBalError," ]"
-    err=10; return
-   endif
-  case default; err=20; message=trim(message)//'unknown groundwater parameterization'; return
- end select ! (selecting groundwater parameterization)
+ ! NOTE: only check if the aquifer is defined in the local soil column
+ if(ix_spatialGW == localColumn)then
+  select case(ix_groundwatr)
+   ! no explicit aquifer
+   case(noExplicit,equilWaterTable)
+    scalarAquiferBalError = 0._dp
+   ! explicit aquifer
+   case(bigBucket,pseudoWaterTable)
+    ! check the aquifer water balance
+    scalarAquiferBalError = balanceAquifer1 - (balanceAquifer0 + (iden_water*(wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*dt) + &
+                                                                 (iden_water*(wimplicit*scalarInitAquiferRecharge  + (1._dp - wimplicit)*scalarAquiferRecharge) *dt) - &
+                                                                 (iden_water*(wimplicit*scalarInitAquiferBaseflow  + (1._dp - wimplicit)*scalarAquiferBaseflow) *dt) )
+    ! print the terms in the aquifer balance if errors are sufficiently large
+    if(abs(scalarAquiferBalError) > 1.d-3)then
+     write(*,'(a,f20.10)') 'scalarAquiferBalError  = ', scalarAquiferBalError
+     write(*,'(a,f20.10)') 'balanceAquifer1        = ', balanceAquifer1
+     write(*,'(a,f20.10)') 'balanceAquifer0        = ', balanceAquifer0
+     write(*,'(a,f20.10)') 'scalarAquiferTranspire = ', iden_water*(wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*dt
+     write(*,'(a,f20.10)') 'scalarAquiferRecharge  = ', iden_water*(wimplicit*scalarInitAquiferRecharge  + (1._dp - wimplicit)*scalarAquiferRecharge) *dt
+     write(*,'(a,f20.10)') 'scalarAquiferBaseflow  = ', iden_water*(wimplicit*scalarInitAquiferBaseflow  + (1._dp - wimplicit)*scalarAquiferBaseflow) *dt
+     write(message,'(a,e20.10,a)')trim(message)//"abs(scalarAquiferBalError) > 1.d-3 [error = ",scalarAquiferBalError," ]"
+     err=10; return
+    endif
+   case default; err=20; message=trim(message)//'unknown groundwater parameterization'; return
+  end select ! (selecting groundwater parameterization)
+ endif  ! (if aquifer is defined in the local column)
 
  end subroutine wBal_check
 

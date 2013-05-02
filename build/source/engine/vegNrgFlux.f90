@@ -35,6 +35,10 @@ USE mDecisions_module,only:  &
  standard,                   & ! standard MO similarity, a la Anderson (1976) 
  louisInversePower,          & ! Louis (1979) inverse power function
  mahrtExponential              ! Mahrt (1987) exponential
+! look-up values for the choice of groundwater representation (local-column, or single-basin)
+USE mDecisions_module,only:  &
+ localColumn,                & ! separate groundwater representation in each local soil column
+ singleBasin                   ! single groundwater store over the entire basin
 ! named variables for snow and soil
 USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
 ! -------------------------------------------------------------------------------------------------
@@ -102,8 +106,8 @@ contains
  USE data_struc,only:model_decisions                              ! model decision structure
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! model variables, parameters, etc.
- USE data_struc,only:time_data,type_data,attr_data,forc_data,mpar_data,mvar_data,indx_data     ! data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookINDEX  ! named variables for structure elements
+ USE data_struc,only:time_data,type_data,attr_data,forc_data,mpar_data,mvar_data,bvar_data,indx_data     ! data structures
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
  ! compute energy and mass fluxes for vegetation
  implicit none
  ! input
@@ -142,6 +146,7 @@ contains
  character(*),intent(out)      :: message                         ! error message
  ! local
  character(LEN=256)            :: cmessage                        ! error message of downwind routine
+ real(dp)                      :: scalarAquiferStorage            ! aquifer storage (m) -- can be basin-average, or single column
  ! initialize error control
  err=0; message="vegNrgFlux_muster/"
 
@@ -149,6 +154,13 @@ contains
  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)  ! number of soil layers
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_snow)  ! number of snow layers
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)                   ! total number of layers
+
+ ! identify the appropriate groundwater variable
+ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+  case(singleBasin); scalarAquiferStorage = bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1)
+  case(localColumn); scalarAquiferStorage = mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
+  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
+ end select ! (modify the groundwater representation for this single-column implementation) 
 
  ! subroutine to compute energy fluxes at vegetation and ground surfaces
  ! NOTE: separate call to use data structure elements, and ensure variables are used as they are intended (input, input/output, output)
@@ -228,7 +240,7 @@ contains
                         mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),                   & ! intent(in): snow depth on the ground surface (m)
                         mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers),    & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                         mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                     & ! intent(in): matric head in each layer (m)
-                        mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),              & ! intent(in): aquifer storage (m)
+                        scalarAquiferStorage,                                              & ! intent(in): aquifer storage (m) -- can be local-column or single-basin
 
                         ! shortwave radiation fluxes -- intent(inout) because only called at the start of the sub-step
                         mvar_data%var(iLookMVAR%scalarAlbedo)%dat(1),                      & ! intent(inout): snow albedo (-)

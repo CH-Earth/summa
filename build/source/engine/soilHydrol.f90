@@ -535,7 +535,9 @@ contains
   aquiferTranspireFrac   = scalarAquiferRootFrac
  endif
  ! check that the sums are OK
- if(abs(1._dp - sum(mLayerTranspireFrac)+aquiferTranspireFrac) > 1.e-8_dp)then
+ if(abs(1._dp - (sum(mLayerTranspireFrac)+aquiferTranspireFrac)) > 1.e-8_dp)then
+  print*, 'sum(mLayerTranspireFrac) = ', sum(mLayerTranspireFrac)
+  print*, 'aquiferTranspireFrac = ', aquiferTranspireFrac
   message=trim(message)//'problem allocating transpiration flux to soil layers and the aquifer'
   err=20; return
  endif
@@ -544,7 +546,7 @@ contains
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
  scalarAquiferTranspire = aquiferTranspireFrac*scalarCanopyTranspiration/iden_water
 
- ! include ground evaporation in the transpiration total for the top soil layer -- will be zero id snow layers have formed
+ ! include ground evaporation in the transpiration total for the top soil layer -- will be zero if snow layers have formed
  mLayerTranspire(1) = mLayerTranspire(1) + (scalarGroundEvaporation)/iden_water
 
  ! initialize fluxes at the start of the time step
@@ -552,8 +554,6 @@ contains
   mLayerInitTranspire         = mLayerTranspire
   scalarInitAquiferTranspire  = scalarAquiferTranspire
  endif
-
- !write(*,'(a,3(e20.10,1x))') 'scalarCanopyTranspiration, scalarAquiferTranspire, aquiferTranspireFrac = ', scalarCanopyTranspiration, scalarAquiferTranspire, aquiferTranspireFrac
 
  ! * get the number of state variables
  select case(ixSpatialGroundwater)
@@ -766,9 +766,9 @@ contains
   ! (add aquifer storage to the residual vector)
   rVec(nLevels+1) = scalarAquiferResidual
  else
-  ! check that there us no aquifer transpiration, recharge, or baseflow
-  if(abs(scalarAquiferBaseflow) > tiny(dt) .or. scalarAquiferRecharge > tiny(dt) .or. abs(scalarAquiferTranspire) > tiny(dt))then
-   err=20; message=trim(message)//'expect there to be no aquifer baseflow or aquifer transpiration when there is no explicit gw'; return
+  ! check that there is no aquifer recharge, or baseflow
+  if(abs(scalarAquiferBaseflow) > tiny(dt) .or. scalarAquiferRecharge > tiny(dt))then
+   err=20; message=trim(message)//'expect there to be no aquifer recharge or baseflow when there is no explicit gw in the soil column'; return
   endif
  endif  ! (if there is an aquifer) 
 
@@ -1774,7 +1774,6 @@ contains
     err=20; return
   end select
 
- 
   ! *************************************************************************************************************************************************
   ! *************************************************************************************************************************************************
 
