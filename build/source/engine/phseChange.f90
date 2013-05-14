@@ -87,13 +87,17 @@ contains
   theta = mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqIter(iLayer)
   !if(iLayer==nSnow+1) print*, 'in phseChange', mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), theta, theta_sat
   select case(layerType(iLayer))
+
    ! ** snow
    case(ix_snow)
     ! compute the volumetric fraction of liquid water and ice (-)
     mLayerVolFracLiqNew(iLayer) = fracliquid(mLayerTempNew(iLayer),snowfrz_scale)*theta
     mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
+
    ! ** soil
    case(ix_soil)
+    !print*, 'iLayer, mLayerVolFracIce(iLayer), mLayerTempNew(iLayer), mLayerTcrit(iLayer-nSnow) = ',&
+    !         iLayer, mLayerVolFracIce(iLayer), mLayerTempNew(iLayer), mLayerTcrit(iLayer-nSnow)
     ! check that total volumetric water (liquid + ice) does not exceed soil porosity
     if(theta > theta_sat)then; err=-20; message=trim(message)//'volumetric (liquid + ice) content exceeds soil porosity'; return; endif 
     ! compute the matric head (m) volumetric fraction of liquid water and ice (-)
@@ -105,7 +109,7 @@ contains
     else
      ! update matric head when all water is **unfrozen** -- if matric head > 0 at iter=m then no change in matric head
      !if(mLayerMatricHeadIter(iLayer-nSnow) > 0._dp)then ! saturated at the start of the iteration
-     if(mLayerVolFracIce(iLayer-nSnow) > 0._dp)then ! no ice at the start of the iteration
+     if(mLayerVolFracIce(iLayer) < tiny(theta))then ! no ice at the start of the iteration
       mLayerMatricHeadNew(iLayer-nSnow) = mLayerMatricHeadIter(iLayer-nSnow)
      else
       ! some water is frozen at the start of the iteration
@@ -116,7 +120,10 @@ contains
      mLayerVolFracLiqNew(iLayer)       = min(theta,theta_sat)
      mLayerVolFracIceNew(iLayer)       = 0._dp
     endif
+
+   ! ** check errors
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
+
   endselect
   ! print results
   !if(iLayer > nSnow .and. iLayer < nSnow+3) &

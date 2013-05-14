@@ -229,7 +229,8 @@ contains
                         mvar_data%var(iLookMVAR%scalarVPair)%dat(1),                       & ! intent(in): vapor pressure at some height above the surface (Pa)
                         mvar_data%var(iLookMVAR%scalarO2air)%dat(1),                       & ! intent(in): atmospheric o2 concentration (Pa)
                         mvar_data%var(iLookMVAR%scalarCO2air)%dat(1),                      & ! intent(in): atmospheric co2 concentration (Pa)
-                        mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),                    & ! intent(in): snowfall rate (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),                    & ! intent(in): computed rainfall rate (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1),                   & ! intent(in): cosine of the solar zenith angle (0-1)
                         mvar_data%var(iLookMVAR%spectralIncomingDirect)%dat(1:nBands),     & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
                         mvar_data%var(iLookMVAR%spectralIncomingDiffuse)%dat(1:nBands),    & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
@@ -318,6 +319,9 @@ contains
                         mvar_data%var(iLookMVAR%scalarLatHeatCanopyTrans)%dat(1),          & ! intent(out): latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
                         mvar_data%var(iLookMVAR%scalarSenHeatGround)%dat(1),               & ! intent(out): sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
                         mvar_data%var(iLookMVAR%scalarLatHeatGround)%dat(1),               & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
+
+                        ! advective heat flux
+                        mvar_data%var(iLookMVAR%scalarAdvectiveHeatFlux)%dat(1),           & ! intent(out): heat advected to the surface with precipitation (W m-2)
 
                         ! mass fluxes
                         mvar_data%var(iLookMVAR%scalarCanopyTranspiration)%dat(1),         & ! intent(out): canopy transpiration (kg m-2 s-1)
@@ -424,7 +428,8 @@ contains
                               scalarVPair,                       & ! intent(in): vapor pressure at some height above the surface (Pa)
                               scalarO2air,                       & ! intent(in): atmospheric o2 concentration (Pa)
                               scalarCO2air,                      & ! intent(in): atmospheric co2 concentration (Pa)
-                              scalarSnowfall,                    & ! intent(in): snowfall rate (kg m-2 s-1)
+                              scalarRainfall,                    & ! intent(in): computed rainfall rate (kg m-2 s-1)
+                              scalarSnowfall,                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
                               scalarCosZenith,                   & ! intent(in): cosine of the solar zenith angle (0-1)
                               spectralIncomingDirect,            & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
                               spectralIncomingDiffuse,           & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
@@ -513,6 +518,9 @@ contains
                               scalarLatHeatCanopyTrans,          & ! intent(out): latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
                               scalarSenHeatGround,               & ! intent(out): sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
                               scalarLatHeatGround,               & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
+
+                              ! advective heat flux
+                              scalarAdvectiveHeatFlux,           & ! intent(out): heat advected to the surface with precipitation (W m-2)
 
                               ! mass fluxes
                               scalarCanopyTranspiration,         & ! intent(out): canopy transpiration (kg m-2 s-1)
@@ -611,7 +619,8 @@ contains
  real(dp),intent(in)            :: scalarVPair                     ! vapor pressure at some height above the surface (Pa)
  real(dp),intent(in)            :: scalarO2air                     ! atmospheric o2 concentration (Pa)
  real(dp),intent(in)            :: scalarCO2air                    ! atmospheric co2 concentration (Pa)
- real(dp),intent(in)            :: scalarSnowfall                  ! snowfall rate (kg m-2 s-1)
+ real(dp),intent(in)            :: scalarRainfall                  ! computed rainfall rate (kg m-2 s-1)
+ real(dp),intent(in)            :: scalarSnowfall                  ! computed snowfall rate (kg m-2 s-1)
  real(dp),intent(in)            :: scalarCosZenith                 ! cosine of the solar zenith angle (0-1)
  real(dp),intent(in)            :: spectralIncomingDirect(:)       ! incoming direct solar radiation in each wave band (w m-2)
  real(dp),intent(in)            :: spectralIncomingDiffuse(:)      ! incoming diffuse solar radiation in each wave band (w m-2)
@@ -701,6 +710,9 @@ contains
  real(dp),intent(out)           :: scalarSenHeatGround             ! sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
  real(dp),intent(out)           :: scalarLatHeatGround             ! latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
+ ! advective heat flux
+ real(dp),intent(out)           :: scalarAdvectiveHeatFlux         ! heat advected to the surface with precipitation (W m-2)
+
  ! mass fluxes
  real(dp),intent(out)           :: scalarCanopyTranspiration       ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(out)           :: scalarCanopyEvaporation         ! canopy evaporation/condensation (kg m-2 s-1)
@@ -742,7 +754,7 @@ contains
  integer(i4b)                  :: nFlux                            ! number of flux evaluations
  real(dp)                      :: canopyTemp                       ! value of canopy temperature used in flux calculations (may be perturbed)
  real(dp)                      :: groundTemp                       ! value of ground temperature used in flux calculations (may be perturbed)
- real(dp)                      :: try0,try1,try2                   ! trial values to evaluate specific derivatives (testing only)
+ !real(dp)                      :: try0,try1,try2                   ! trial values to evaluate specific derivatives (testing only)
  ! local (saturation vapor pressure of veg)
  real(dp)                      :: TV_celcius                       ! vegetaion temperature (C)
  real(dp)                      :: TG_celcius                       ! ground temperature (C)
@@ -750,7 +762,6 @@ contains
  real(dp)                      :: dSVPGround_dGroundTemp           ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
  ! local (longwave radiation)
  real(dp)                      :: expi                             ! exponential integral
- real(dp)                      :: expint                           ! exponential integral function
  real(dp)                      :: scaleLAI                         ! scaled LAI (computing diffuse transmissivity)
  real(dp)                      :: diffuseTrans                     ! diffuse transmissivity (-)
  real(dp)                      :: groundEmissivity                 ! emissivity of the ground surface (-)
@@ -1447,6 +1458,10 @@ contains
  !print*, '*****'
  !pause
 
+ ! compute the heat advected with precipitation (W m-2)
+ ! NOTE: rainfall is in kg m-2 s-1, so no need to use density of water here
+ scalarAdvectiveHeatFlux = -Cp_water*scalarRainfall*(groundTempTrial - airtemp)
+
  ! compute the mass flux associated with transpiration and evaporation/sublimation (J m-2 s-1 --> kg m-2 s-1)
  ! NOTE: remove water from the snow on the ground in preference to removing water from the water in soil pores
  ! (transpiration)
@@ -1480,7 +1495,7 @@ contains
 
  ! compute net fluxes at the canopy and ground surface
  canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy
- groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround
+ groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround !+ scalarAdvectiveHeatFlux
  !print*, 'canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy = ', canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy
  !print*, 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround = ', groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround
 
@@ -1489,7 +1504,7 @@ contains
  dCanopyNetFlux_dCanopyTemp = dLWNetCanopy_dTCanopy + dTurbFluxCanopy_dTCanopy
  dGroundNetFlux_dCanopyTemp = dLWNetGround_dTCanopy + dTurbFluxGround_dTCanopy 
  dCanopyNetFlux_dGroundTemp = dLWNetCanopy_dTGround + dTurbFluxCanopy_dTGround
- dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround
+ dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround !- Cp_water*scalarRainfall
 
  !print*, (ix_fDerivMeth == numerical)
  !print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp

@@ -30,15 +30,12 @@ integer(i4b),parameter,public :: specified            =  32    ! LAI/SAI compute
 integer(i4b),parameter,public :: moisture             =  41    ! moisture-based form of Richards' equation
 integer(i4b),parameter,public :: mixdform             =  42    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
-integer(i4b),parameter,public :: equilWaterTable      =  51    ! equilibrium water table
-integer(i4b),parameter,public :: pseudoWaterTable     =  52    ! pseudo water table
-integer(i4b),parameter,public :: bigBucket            =  53    ! a big bucket (lumped aquifer model)
-integer(i4b),parameter,public :: noExplicit           =  54    ! no explicit groundwater parameterization
+integer(i4b),parameter,public :: qbaseTopmodel        =  51    ! TOPMODEL-ish baseflow parameterization
+integer(i4b),parameter,public :: bigBucket            =  52    ! a big bucket (lumped aquifer model)
+integer(i4b),parameter,public :: noExplicit           =  53    ! no explicit groundwater parameterization
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant             =  61    ! constant hydraulic conductivity with depth
-integer(i4b),parameter,public :: exp_profile          =  62    ! exponential profile
-integer(i4b),parameter,public :: powerLaw_profile     =  63    ! power-law profile
-integer(i4b),parameter,public :: linear_profile       =  64    ! linear profile
+integer(i4b),parameter,public :: powerLaw_profile     =  62    ! power-law profile
 ! look-up values for the choice of boundary conditions for thermodynamics
 integer(i4b),parameter,public :: prescribedTemp       =  71    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           =  72    ! energy flux
@@ -245,8 +242,7 @@ contains
 
  ! (F-05) identify the groundwater parameterization
  select case(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision))
-  case('zEquilWT'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = equilWaterTable     ! equilibrium water table
-  case('pseudoWT'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = pseudoWaterTable    ! pseudo water table
+  case('qTopmodl'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = qbaseTopmodel       ! TOPMODEL-ish baseflow parameterization
   case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
   case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
   case default
@@ -256,9 +252,7 @@ contains
  ! (F-06) identify the hydraulic conductivity profile
  select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
   case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
-  case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = exp_profile         ! exponential profile
   case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
-  case('lin_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = linear_profile      ! linear profile
   case default
    err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
  end select
@@ -375,13 +369,33 @@ contains
 
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! check for consistency among options
+ ! -----------------------------------------------------------------------------------------------------------------------------------------------
+
+ ! check zero flux lower boundary for topmodel baseflow option
  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
-  case(equilWaterTable,pseudoWaterTable)
+  case(qbaseTopmodel)
    if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
-    message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with (zEquilWT or pseudoWT) options for groundwater'
+    message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater'
     err=20; return 
    endif
  end select
+
+ ! check power-law profile is selected when using topmodel baseflow option
+ select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
+  case(qbaseTopmodel)
+   if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
+    message=trim(message)//'power-law transmissivity profile must be selected when using topmodel baseflow option'
+    err=20; return
+   endif
+ end select
+
+ ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
+ if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
+   message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw'
+   err=20; return
+  endif
+ endif
 
  end subroutine mDecisions
 
@@ -414,6 +428,7 @@ contains
  err=0; message='readoption/'
  ! build filename
  infile = trim(SETNGS_PATH)//trim(M_DECISIONS)
+ print*, 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

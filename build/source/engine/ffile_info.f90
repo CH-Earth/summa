@@ -105,7 +105,7 @@ contains
   forcFileInfo(iHRU)%data_ix(:) = imiss
   ! build filename
   infile = trim(SETNGS_PATH)//trim(forcFileInfo(iHRU)%filenmDesc)
-  print*, 'infile = ', trim(infile)
+  !print*, 'infile = ', trim(infile)
   ! open file
   call file_open(trim(infile),unt,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -125,8 +125,8 @@ contains
    ! save data into a temporary variables
    read(temp,trim(ffmt),iostat=err) varname, dLim, vardata
    if (err/=0) then; err=30; message=trim(message)//"errorReadLine[file="//trim(infile)//"; line="//trim(temp)//"]"; return; endif
-   print*, 'varname = ', trim(varname)
-   print*, 'vardata = ', trim(vardata)
+   !print*, 'varname = ', trim(varname)
+   !print*, 'vardata = ', trim(vardata)
    ! put data into data structure
    select case(trim(varname))
     case('filenmData'); read(vardata,*) forcFileInfo(iHRU)%filenmData

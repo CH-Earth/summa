@@ -64,8 +64,6 @@ contains
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  ! look-up values for the choice of groundwater parameterization
  USE mDecisions_module,only: &
- equilWaterTable,            & ! equilibrium water table
- pseudoWaterTable,           & ! pseudo water table
  bigBucket,                  & ! a big bucket (lumped aquifer model)
  noExplicit                    ! no explicit groundwater parameterization
  ! model variables, parameters, forcing data, etc.
@@ -163,9 +161,7 @@ contains
  ! look-up values for the choice of groundwater parameterization
  USE mDecisions_module,only: &
   constant,                  & ! constant hydraulic conductivity with depth
-  exp_profile,               & ! exponential profile
-  powerLaw_profile,          & ! power-law profile
-  linear_profile               ! linear profile
+  powerLaw_profile             ! power-law profile
  ! model variables, parameters, forcing data, etc.
  USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
@@ -176,7 +172,7 @@ contains
  ! declare pointers to data in parameter structures
  real(dp),pointer         :: k_soil                ! saturated hydraulic conductivity at the compacted depth (m s-1)
  real(dp),pointer         :: compactedDepth        ! the depth at which k_soil reaches the compacted value given by CH78 (m)
- real(dp),pointer         :: zScale_TOPMODEL       ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+ real(dp),pointer         :: aquiferBaseflowExp    ! exponent for the TOPMODEL-ish baseflow parameterization (-)
  ! declare pointers to data in model variable structures
  real(dp),pointer         :: mLayerSatHydCond(:)   ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
  real(dp),pointer         :: iLayerSatHydCond(:)   ! saturated hydraulic conductivity at the interface of each layer (m s-1)
@@ -192,22 +188,23 @@ contains
  err=0; message='satHydCond/'
 
  ! assign local pointers to the values in the parameter structures
- k_soil           => mpar_data%var(iLookPARAM%k_soil)              ! saturated hydraulic conductivity at the compacted depth (m s-1)
- compactedDepth   => mpar_data%var(iLookPARAM%compactedDepth)      ! the depth at which k_soil reaches the compacted value given by CH78 (m)
- zScale_TOPMODEL  => mpar_data%var(iLookPARAM%zScale_TOPMODEL)     ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+ k_soil             => mpar_data%var(iLookPARAM%k_soil)              ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ compactedDepth     => mpar_data%var(iLookPARAM%compactedDepth)      ! the depth at which k_soil reaches the compacted value given by CH78 (m)
+ aquiferBaseflowExp => mpar_data%var(iLookPARAM%aquiferBaseflowExp)  ! exponent for the TOPMODEL-ish baseflow parameterization (-)
  ! assign local pointers to the values in the model variable structures
- mLayerSatHydCond => mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
- iLayerSatHydCond => mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat ! saturated hydraulic conductivity at the interface of each layer (m s-1)
- mLayerHeight     => mvar_data%var(iLookMVAR%mLayerHeight)%dat     ! height at the mid-point of each layer (m)
- iLayerHeight     => mvar_data%var(iLookMVAR%iLayerHeight)%dat     ! height at the interface of each layer (m)
+ mLayerSatHydCond   => mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ iLayerSatHydCond   => mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat ! saturated hydraulic conductivity at the interface of each layer (m s-1)
+ mLayerHeight       => mvar_data%var(iLookMVAR%mLayerHeight)%dat     ! height at the mid-point of each layer (m)
+ iLayerHeight       => mvar_data%var(iLookMVAR%iLayerHeight)%dat     ! height at the interface of each layer (m)
  ! assign local pointers to the model index structures
- nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)      ! number of layers
- layerType        => indx_data%var(iLookINDEX%layerType)%dat       ! layer type (ix_soil or ix_snow)
+ nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1)      ! number of layers
+ layerType          => indx_data%var(iLookINDEX%layerType)%dat       ! layer type (ix_soil or ix_snow)
  ! identify the number of snow and soil layers
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
 
  ! loop through soil layers
+ ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
  do iLayer=nSnow,nLayers
   select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
    ! constant hydraulic conductivity with depth
@@ -215,15 +212,13 @@ contains
     iLayerSatHydCond(iLayer-nSnow) = k_soil
     if(iLayer > nSnow)& ! avoid layer 0
      mLayerSatHydCond(iLayer-nSnow) = k_soil
-   ! exponential profile
-   case(exp_profile)
-    iLayerSatHydCond(iLayer-nSnow) = k_soil * exp(-(iLayerHeight(iLayer) - compactedDepth)/zScale_TOPMODEL)
+   ! power-law profile
+   case(powerLaw_profile)
+    iLayerSatHydCond(iLayer-nSnow) = k_soil * ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(aquiferBaseflowExp - 1._dp) ) &
+                                            / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(aquiferBaseflowExp - 1._dp) )
     if(iLayer > nSnow)& ! avoid layer 0
-     mLayerSatHydCond(iLayer-nSnow) = k_soil * exp(-(mLayerHeight(iLayer) - compactedDepth)/zScale_TOPMODEL)
-   ! power-law and linear profile (not implemented yet)
-   case(powerLaw_profile,linear_profile)
-    message=trim(message)//"hydraulic conductivity profile not implemented yet [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
-    err=10; return
+     mLayerSatHydCond(iLayer-nSnow) = k_soil * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(aquiferBaseflowExp - 1._dp) ) &
+                                             / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(aquiferBaseflowExp - 1._dp) )
    ! error check (errors checked earlier also, so should not get here)
    case default
     message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
@@ -232,6 +227,8 @@ contains
   !if(iLayer > nSnow)& ! avoid layer 0
   ! write(*,'(i4,1x,2(f11.5,1x,e20.10,1x))') iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow), iLayerHeight(iLayer), iLayerSatHydCond(iLayer-nSnow)
  end do  ! looping through soil layers
+ !print*, trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)
+ !pause ' in satHydCond'
 
  end subroutine satHydCond
 

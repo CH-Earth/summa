@@ -37,7 +37,7 @@ USE modelwrite_module,only:writeAttrb,writeParam            ! module to write mo
 USE modelwrite_module,only:writeForce                       ! module to write model forcing data
 USE modelwrite_module,only:writeModel,writeBasin            ! module to write model output
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
-USE groundwatr_module,only:basinAqfr                        ! module to simulate regional groundwater balance
+USE groundwatr_module,only:groundwatr                       ! module to simulate regional groundwater balance
 USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
 ! provide access to data
 USE snow_fileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
@@ -71,12 +71,15 @@ USE var_lookup,only:iLookBVAR                               ! look-up values for
 USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 ! named variables for model decisions
+USE mDecisions_module,only:  &                              ! look-up values for method used to compute derivative
+ numerical,   & ! numerical solution
+ analytical     ! analytical solution
 USE mDecisions_module,only:&                                ! look-up values for LAI decisions
- monthlyTable,&  ! LAI/SAI taken directly from a monthly table for different vegetation classes
- specified       ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+ monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
+ specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
- localColumn, &  ! separate groundwater representation in each local soil column
- singleBasin     ! single groundwater store over the entire basin
+ localColumn, & ! separate groundwater representation in each local soil column
+ singleBasin    ! single groundwater store over the entire basin
 implicit none
 
 ! *****************************************************************************
@@ -106,7 +109,7 @@ integer(i4b),pointer      :: ifcSoilStartIndex=>null()      ! start index of the
 integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the ifcToto vector for a given timestep
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
 ! general local variables
-real(dp),pointer          :: fracHRU                        ! fractional area covered by a given HRU
+real(dp)                  :: fracHRU                        ! fractional area of a given HRU (-)
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
@@ -222,6 +225,7 @@ do iHRU=1,nHRU
  ! read description of model initial conditions -- also initializes model structure components
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
+ print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
  ! compute derived model variables that are pretty much constant over each HRU
  call E2T_lookup(err,message); call handle_err(err,message) ! calculate a look-up table for the temperature-enthalpy conversion
  call rootDensty(err,message); call handle_err(err,message) ! calculate vertical distribution of root density
@@ -321,6 +325,18 @@ do istep=1,numtim
  bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
  bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
 
+ ! initialize total inflow to each layer in a soil column 
+ do iHRU=1,nHRU
+  mvar_hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
+ end do
+
+ ! identify the total basin area (m2)
+ bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) = 0._dp
+ do iHRU=1,nHRU
+  bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) = bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) + attr_hru(iHRU)%var(iLookATTR%HRUarea)
+ end do
+
+
  ! ****************************************************************************
  ! (8) loop through HRUs
  ! ****************************************************************************
@@ -335,7 +351,7 @@ do istep=1,numtim
   indx_data => indx_hru(iHRU)
 
   ! identify the area covered by the current HRU
-  fracHRU => attr_data%var(iLookATTR%HRUfraction)
+  fracHRU =  attr_data%var(iLookATTR%HRUarea) / bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
 
   ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
   nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
@@ -404,7 +420,7 @@ do istep=1,numtim
   bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + &
                                                             mvar_data%var(iLookMVAR%averageAquiferTranspire)%dat(1) * fracHRU
 
-  ! increment baseflow itself -- ONLY if baseflow is computed locally
+  ! increment baseflow itself -- ONLY if baseflow is computed individually for each HRU
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn)then
    bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + &
@@ -431,35 +447,41 @@ do istep=1,numtim
 
  end do  ! (looping through HRUs)
 
- ! compute water balance for the aquifer
+ ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
-  call basinAqfr(&
+  call groundwatr(&
                  ! input
-                 data_step,                                              &  ! time step of the forcing data (s)
-                 bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), &  ! aquifer recharge (m s-1)
-                 bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),&  ! aquifer transpiration (m s-1)
+                 data_step,                                              & ! intent(in): time step of the forcing data (s)
+                 model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,   & ! intent(in): method used to calculate flux derivatives
+                 ! input: effective parameters
+                 bpar_data%var(iLookBPAR%basin__aquiferHydCond),         & ! intent(in): hydraulic conductivity (m s-1)
+                 bpar_data%var(iLookBPAR%basin__aquiferScaleFactor),     & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
+                 bpar_data%var(iLookBPAR%basin__aquiferBaseflowExp),     & ! intent(in): exponent in bucket baseflow parameterization (-)
+                 ! input: aquifer fluxes
+                 bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), & ! intent(in): aquifer recharge (m s-1)
+                 bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),& ! intent(in): aquifer transpiration (m s-1)
                  ! input-output
-                 bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  &  ! aquifer storage (m)
+                 bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  & ! intent(inout): aquifer storage (m)
                  ! output
-                 bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), &  ! aquifer baseflow (m s-1)
-                 err,message)                                               ! error control
+                 bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
+                 err,message)                                              ! intent(out): error control
   call handle_err(err,message)                
  endif
 
  ! perform the routing
  call qOverland(&
                 ! input
-                model_decisions(iLookDECISIONS%subRouting)%iDecision,   &  ! index for routing method
-                bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),   &  ! surface runoff (m s-1)
-                bvar_data%var(iLookBVAR%basin__SoilEjection)%dat(1),    &  ! ejected water from the soil profile (m s-1)
-                bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1),    &  ! baseflow from the soil profile (m s-1)
-                bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), &  ! baseflow from the aquifer (m s-1)
-                bvar_data%var(iLookBVAR%routingFractionFuture)%dat,     &  ! fraction of runoff in future time steps (m s-1)
-                bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,       &  ! runoff in future time steps (m s-1)
+                model_decisions(iLookDECISIONS%subRouting)%iDecision,   &  ! intent(in): index for routing method
+                bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),   &  ! intent(in): surface runoff (m s-1)
+                bvar_data%var(iLookBVAR%basin__SoilEjection)%dat(1),    &  ! intent(in): ejected water from the soil profile (m s-1)
+                bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1),    &  ! intent(in): baseflow from the soil profile (m s-1)
+                bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), &  ! intent(in): baseflow from the aquifer (m s-1)
+                bvar_data%var(iLookBVAR%routingFractionFuture)%dat,     &  ! intent(in): fraction of runoff in future time steps (m s-1)
+                bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,       &  ! intent(in): runoff in future time steps (m s-1)
                 ! output
-                bvar_data%var(iLookBVAR%averageInstantRunoff)%dat(1),   &  ! instantaneous runoff (m s-1)
-                bvar_data%var(iLookBVAR%averageRoutedRunoff)%dat(1),    &  ! routed runoff (m s-1)
-                err,message)                                               ! error control
+                bvar_data%var(iLookBVAR%averageInstantRunoff)%dat(1),   &  ! intent(out): instantaneous runoff (m s-1)
+                bvar_data%var(iLookBVAR%averageRoutedRunoff)%dat(1),    &  ! intent(out): routed runoff (m s-1)
+                err,message)                                               ! intent(out): error control
  call handle_err(err,message)
 
  ! write basin-average variables
@@ -506,16 +528,18 @@ contains
   print*, 'critSoilTranspire = ', mpar_data%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
  endif
  if(associated(mvar_data))then
-  print*, 'scalarSWE = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-  print*, 'scalarSnowDepth = ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)
-  print*, 'scalarCanopyTemp = ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1)
-  print*, 'scalarRainPlusMelt = ', mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)
-  write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indx_data%var(iLookINDEX%layerType)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', mvar_data%var(iLookMVAR%mLayerDepth)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', mvar_data%var(iLookMVAR%mLayerTemp)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat
-  print*, 'mLayerMatricHead   = ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat
+  if(associated(mvar_data%var(iLookMVAR%scalarSWE)%dat))then
+   print*, 'scalarSWE = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+   print*, 'scalarSnowDepth = ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)
+   print*, 'scalarCanopyTemp = ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1)
+   print*, 'scalarRainPlusMelt = ', mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)
+   write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indx_data%var(iLookINDEX%layerType)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', mvar_data%var(iLookMVAR%mLayerDepth)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', mvar_data%var(iLookMVAR%mLayerTemp)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat
+   print*, 'mLayerMatricHead   = ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat
+  endif
  endif
  print*,'error code = ', err
  if(associated(time_data)) print*, time_data%var

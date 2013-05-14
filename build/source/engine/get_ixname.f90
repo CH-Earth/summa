@@ -129,11 +129,13 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
-  case('latitude'   ); get_ixAttr = iLookATTR%latitude       ! latitude     (degrees north)
-  case('longitude'  ); get_ixAttr = iLookATTR%longitude      ! longitude    (degrees east)
-  case('elevation'  ); get_ixAttr = iLookATTR%elevation      ! elevation    (m)
-  case('HRUfraction'); get_ixAttr = iLookATTR%HRUfraction    ! HRU fraction (-)
-  case('mHeight'    ); get_ixAttr = iLookATTR%mHeight        ! measurement height above bare ground (m)
+  case('latitude'      ); get_ixAttr = iLookATTR%latitude       ! latitude (degrees north)
+  case('longitude'     ); get_ixAttr = iLookATTR%longitude      ! longitude (degrees east)
+  case('elevation'     ); get_ixAttr = iLookATTR%elevation      ! elevation (m)
+  case('tan_slope'     ); get_ixAttr = iLookATTR%tan_slope      ! tan water table slope, taken as tan local ground surface slope (-)
+  case('contourLength' ); get_ixAttr = iLookATTR%contourLength  ! length of contour at downslope edge of HRU (m)
+  case('HRUarea'       ); get_ixAttr = iLookATTR%HRUarea        ! area of each HRU (m2)
+  case('mHeight'       ); get_ixAttr = iLookATTR%mHeight        ! measurement height above bare ground (m)
   ! get to here if cannot find the variable
   case default
    get_ixAttr = imiss
@@ -158,6 +160,7 @@ contains
   case('vegTypeIndex'   ); get_ixType = iLookTYPE%vegTypeIndex       ! index defining vegetation type
   case('soilTypeIndex'  ); get_ixType = iLookTYPE%soilTypeIndex      ! index defining soil type
   case('slopeTypeIndex' ); get_ixType = iLookTYPE%slopeTypeIndex     ! index defining slope
+  case('downHRUindex'   ); get_ixType = iLookTYPE%downHRUindex       ! index of downslope HRU (0 = basin outlet)
   ! get to here if cannot find the variable
   case default
    get_ixType = imiss
@@ -257,13 +260,13 @@ contains
   case('vGn_n'               ); get_ixparam = iLookPARAM%vGn_n                ! van Genuchten "n" parameter (-) 
   case('k_soil'              ); get_ixparam = iLookPARAM%k_soil               ! saturated hydraulic conductivity (m s-1)
   case('kAnisotropic'        ); get_ixparam = iLookPARAM%kAnisotropic         ! anisotropy factor for lateral hydraulic conductivity (-)
-  case('zScale_TOPMODEL'     ); get_ixparam = iLookPARAM%zScale_TOPMODEL      ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+  case('zScale_TOPMODEL'     ); get_ixparam = iLookPARAM%zScale_TOPMODEL      ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
   case('compactedDepth'      ); get_ixparam = iLookPARAM%compactedDepth       ! depth where k_soil reaches the compacted value given by CH78 (m)
+  case('aquiferScaleFactor'  ); get_ixparam = iLookPARAM%aquiferScaleFactor   ! scaling factor for aquifer storage in the big bucket (m)
+  case('aquiferBaseflowExp'  ); get_ixparam = iLookPARAM%aquiferBaseflowExp   ! baseflow exponent (-)
   case('bpar_VIC'            ); get_ixparam = iLookPARAM%bpar_VIC             ! b-parameter in the VIC surface runoff parameterization (-)
   case('specificYield'       ); get_ixparam = iLookPARAM%specificYield        ! specific yield (-)
   case('specificStorage'     ); get_ixparam = iLookPARAM%specificStorage      ! specific storage coefficient (m-1)
-  case('aquiferScaleFactor'  ); get_ixparam = iLookPARAM%aquiferScaleFactor   ! scaling factor for aquifer storage in the big bucket (m)
-  case('bucketBaseflowExp'   ); get_ixparam = iLookPARAM%bucketBaseflowExp    ! baseflow exponent for the big bucket (-)
   case('f_impede'            ); get_ixparam = iLookPARAM%f_impede             ! ice impedence factor (-)
   ! algorithmic control parameters
   case('minwind'             ); get_ixparam = iLookPARAM%minwind              ! minimum wind speed (m s-1)
@@ -347,7 +350,7 @@ contains
   case('scalarSWE'                      ); get_ixmvar = iLookMVAR%scalarSWE                        ! snow water equivalent (kg m-2)
   case('scalarSfcMeltPond'              ); get_ixmvar = iLookMVAR%scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   case('scalarAquiferStorage'           ); get_ixmvar = iLookMVAR%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
-  case('scalarWaterTableDepth'          ); get_ixmvar = iLookMVAR%scalarWaterTableDepth            ! depth of the water table (m)
+  case('scalarSurfaceTemp'              ); get_ixmvar = iLookMVAR%scalarSurfaceTemp                ! surface temperature (K)  
   ! NOAH-MP vegetation variables (general)
   case('scalarGreenVegFraction'         ); get_ixmvar = iLookMVAR%scalarGreenVegFraction           ! green vegetation fraction used to compute LAI (-) 
   case('scalarBulkVolHeatCapVeg'        ); get_ixmvar = iLookMVAR%scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
@@ -414,6 +417,7 @@ contains
   case('scalarLatHeatCanopyEvap'        ); get_ixmvar = iLookMVAR%scalarLatHeatCanopyEvap          ! evaporation latent heat from the canopy to the canopy air space (W m-2)
   case('scalarLatHeatCanopyTrans'       ); get_ixmvar = iLookMVAR%scalarLatHeatCanopyTrans         ! transpiration latent heat from the canopy to the canopy air space (W m-2)
   case('scalarLatHeatGround'            ); get_ixmvar = iLookMVAR%scalarLatHeatGround              ! latent heat from the ground (below canopy or non-vegetated) (W m-2)
+  case('scalarAdvectiveHeatFlux'        ); get_ixmvar = iLookMVAR%scalarAdvectiveHeatFlux          ! heat advected to the surface with precipitation (W m-2)
   case('scalarCanopyTranspiration'      ); get_ixmvar = iLookMVAR%scalarCanopyTranspiration        ! canopy transpiration (kg m-2 s-1)
   case('scalarCanopyEvaporation'        ); get_ixmvar = iLookMVAR%scalarCanopyEvaporation          ! canopy evaporation/condensation (kg m-2 s-1)
   case('scalarCanopySublimation'        ); get_ixmvar = iLookMVAR%scalarCanopySublimation          ! canopy sublimation/frost (kg m-2 s-1)
@@ -479,9 +483,13 @@ contains
   case('mLayerEjectWater'               ); get_ixmvar = iLookMVAR%mLayerEjectWater                 ! water ejected from each soil layer (m s-1)
   case('mLayerInitBaseflow'             ); get_ixmvar = iLookMVAR%mLayerInitBaseflow               ! baseflow from each soil layer at the start of the time step (m s-1)
   case('mLayerBaseflow'                 ); get_ixmvar = iLookMVAR%mLayerBaseflow                   ! baseflow from each soil layer (m s-1)
+  case('mLayerColumnInflow'             ); get_ixmvar = iLookMVAR%mLayerColumnInflow               ! total inflow to each layer in a given soil column (m3 s-1)
+  case('mLayerColumnOutflow'            ); get_ixmvar = iLookMVAR%mLayerColumnOutflow              ! total outflow from each layer in a given soil column (m3 s-1)
   ! variables at the interface of each layer
   case('iLayerHeight'                   ); get_ixmvar = iLookMVAR%iLayerHeight                     ! height at the interface of each layer (m)
   case('iLayerThermalC'                 ); get_ixmvar = iLookMVAR%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
+  case('iLayerConductiveFlux'           ); get_ixmvar = iLookMVAR%iLayerConductiveFlux             ! conductive energy flux at layer interfaces at end of time step (W m-2)
+  case('iLayerAdvectiveFlux'            ); get_ixmvar = iLookMVAR%iLayerAdvectiveFlux              ! advective energy flux at layer interfaces at end of time step (W m-2)
   case('iLayerInitNrgFlux'              ); get_ixmvar = iLookMVAR%iLayerInitNrgFlux                ! energy flux at layer interfaces at the start of the time step (W m-2)
   case('iLayerNrgFlux'                  ); get_ixmvar = iLookMVAR%iLayerNrgFlux                    ! energy flux at layer interfaces at the end of the time step (W m-2)
   case('iLayerSatHydCond'               ); get_ixmvar = iLookMVAR%iLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
@@ -551,12 +559,9 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! baseflow
-  case('basin__hydCond'           ); get_ixbpar = iLookBPAR%basin__hydCond            ! hydraulic conductivity (m s-1)
-  case('basin__kAnisotropic'      ); get_ixbpar = iLookBPAR%basin__kAnisotropic       ! anisotropy factor for lateral hydraulic conductivity (-)
-  case('basin__zScale_TOPMODEL'   ); get_ixbpar = iLookBPAR%basin__zScale_TOPMODEL    ! scale factor for TOPMODEL-ish baseflow parameterization (m)
-  case('basin__specificYield'     ); get_ixbpar = iLookBPAR%basin__specificYield      ! specific yield (-)
+  case('basin__aquiferHydCond'    ); get_ixbpar = iLookBPAR%basin__aquiferHydCond     ! hydraulic conductivity of the basin aquifer (m s-1)
   case('basin__aquiferScaleFactor'); get_ixbpar = iLookBPAR%basin__aquiferScaleFactor ! scaling factor for aquifer storage in the big bucket (m)
-  case('basin__bucketBaseflowExp' ); get_ixbpar = iLookBPAR%basin__bucketBaseflowExp  ! baseflow exponent for the big bucket (-)
+  case('basin__aquiferBaseflowExp'); get_ixbpar = iLookBPAR%basin__aquiferBaseflowExp ! baseflow exponent for the big bucket (-)
   ! sub-grid routing
   case('routingGammaShape'        ); get_ixbpar = iLookBPAR%routingGammaShape         ! shape parameter in Gamma distribution used for sub-grid routing (-)
   case('routingGammaScale'        ); get_ixbpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
@@ -580,6 +585,8 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
+  ! derived variables
+  case('basin__totalArea'              ); get_ixbvar = iLookBVAR%basin__totalArea                ! total basin area (m2)
   ! scalar variables -- basin-average runoff and aquifer fluxes
   case('basin__SurfaceRunoff'          ); get_ixbvar = iLookBVAR%basin__SurfaceRunoff            ! surface runoff (m s-1)
   case('basin__SoilEjection'           ); get_ixbvar = iLookBVAR%basin__SoilEjection             ! ejected water from the soil profile (m s-1)

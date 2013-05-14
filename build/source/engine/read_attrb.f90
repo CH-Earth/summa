@@ -117,12 +117,12 @@ contains
   ! find attribute name
   select case(trim(attNames(iAtt)))
    ! categorical data
-   case('hruIndex','vegTypeIndex','soilTypeIndex','slopeTypeIndex')
+   case('hruIndex','vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
     varType(iAtt) = categorical
     varIndx(iAtt) = get_ixType(attNames(iAtt))
     checkType(varIndx(iAtt)) = .true.
    ! numerical data
-   case('latitude','longitude','elevation','HRUfraction','mHeight')
+   case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight')
     varType(iAtt) = numerical
     varIndx(iAtt) = get_ixAttr(attNames(iAtt))
     checkAttr(varIndx(iAtt)) = .true.

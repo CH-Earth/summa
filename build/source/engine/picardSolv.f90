@@ -10,6 +10,11 @@ USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
+! look-up values for the choice of groundwater parameterization
+USE mDecisions_module,only:  &
+ qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
+ bigBucket,                  & ! a big bucket (lumped aquifer model)
+ noExplicit                    ! no explicit groundwater parameterization
 implicit none
 private
 public::picardSolv
@@ -79,6 +84,11 @@ contains
  ! identify the number of soil layers to use in the soil hydrology routine
  nLevels = nSoil  ! NOTE: always pass the full number of soil layers
 
+ ! initialize the liquid flux variables (used in the energy routines, which is called before the hydrology routines)
+ if(nSnow > 0)&
+ mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat(0:nSnow) = 0._dp
+ mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0:nSoil) = 0._dp
+
  ! *****
  ! preliminaries for the picard solver...
  ! **************************************
@@ -118,6 +128,7 @@ contains
 
                         ! input: soil parameters
                         mpar_data%var(iLookPARAM%soil_dens_intr),                    & ! intent(in): intrinsic density of soil (kg m-3)
+                        mpar_data%var(iLookPARAM%theta_res),                         & ! intent(in): residual volumetric liquid water content (-)
                         mpar_data%var(iLookPARAM%theta_sat),                         & ! intent(in): soil porosity (-)
                         mpar_data%var(iLookPARAM%frac_sand),                         & ! intent(in): fraction of sand (-)
                         mpar_data%var(iLookPARAM%frac_silt),                         & ! intent(in): fraction of silt (-)
@@ -186,6 +197,7 @@ contains
                         mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,               & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                         mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,               & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                         mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,               & ! intent(in): matric head at the current iteration start of the sub-step (m)
+                        mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),        & ! intent(in): aquifer storage at the start of the sub-step (m)
 
                         ! input: diagnostic variables
                         mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
@@ -432,6 +444,7 @@ contains
 
                               ! input: soil parameters
                               soil_dens_intr,                & ! intent(in): intrinsic density of soil (kg m-3)
+                              theta_res,                     & ! intent(in): residual volumetric liquid water content (-)
                               theta_sat,                     & ! intent(in): soil porosity (-)
                               frac_sand,                     & ! intent(in): fraction of sand (-)
                               frac_silt,                     & ! intent(in): fraction of silt (-)
@@ -489,6 +502,7 @@ contains
  real(dp),intent(in)            :: rootingDepth                ! rooting depth of the vegetation (m)
  ! input: soil parameters
  real(dp),intent(in)            :: soil_dens_intr              ! intrinsic density of soil (kg m-3)
+ real(dp),intent(in)            :: theta_res                   ! residual volumetric liquid water content (-)
  real(dp),intent(in)            :: theta_sat                   ! soil porosity (-)
  real(dp),intent(in)            :: frac_sand                   ! fraction of sand (-)
  real(dp),intent(in)            :: frac_silt                   ! fraction of silt (-)
@@ -618,6 +632,7 @@ contains
                               mLayerVolFracIce,              & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                               mLayerVolFracLiq,              & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                               mLayerMatricHead,              & ! intent(in): matric head at the start of the sub-step (-)
+                              scalarAquiferStorage,          & ! intent(in): aquifer storage at the start of the sub-step (m)
 
                               ! input: diagnostic variables
                               scalarBulkVolHeatCapVeg,       & ! intent(in): volumetric heat capacity of vegetation (J m-3 K-1)
@@ -691,6 +706,7 @@ contains
  real(dp),intent(in)            :: mLayerVolFracIce(:)         ! volumetric fraction of ice in each layer (-)
  real(dp),intent(in)            :: mLayerVolFracLiq(:)         ! volumetric fraction of liquid water in each layer (-)
  real(dp),intent(in)            :: mLayerMatricHead(:)         ! matric head in each layer (-)
+ real(dp),intent(in)            :: scalarAquiferStorage        ! aquifer storage at the start of the sub-step (m)
  ! input: diagnostic variables
  real(dp),intent(in)            :: scalarBulkVolHeatCapVeg     ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
  real(dp),intent(in)            :: mLayerVolHtCapBulk(:)       ! volumetric heat capacity in each layer (J m-3 K-1) 
@@ -798,18 +814,21 @@ contains
  scalarCanopyTempIter = scalarCanopyTemp
 
  ! initialize canopy water
- scalarCanopyIceIter = scalarCanopyIce   ! mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiqIter = scalarCanopyLiq   ! mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyIceIter = scalarCanopyIce            ! mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiqIter = scalarCanopyLiq            ! mass of liquid water on the vegetation canopy (kg m-2)
 
  ! initialize layer temperatures
- mLayerTempIter = mLayerTemp
+ mLayerTempIter = mLayerTemp                      ! temperature (K)
 
  ! initialize volumetric liquid and ice content
- mLayerVolFracIceIter = mLayerVolFracIce   ! volumetric ice content (-)
- mLayerVolFracLiqIter = mLayerVolFracLiq   ! volumetric liquid water content (-)
+ mLayerVolFracIceIter = mLayerVolFracIce          ! volumetric ice content (-)
+ mLayerVolFracLiqIter = mLayerVolFracLiq          ! volumetric liquid water content (-)
 
  ! initialize matric head
- mLayerMatricHeadIter = mLayerMatricHead   ! matric lead (m)
+ mLayerMatricHeadIter = mLayerMatricHead          ! matric lead (m)
+
+ ! initialize the aquifer storage
+ scalarAquiferStorageIter = scalarAquiferStorage  ! aquifer storage (m)
 
  ! calculate the critical soil temperature above which all water is unfrozen (K)
  do iLayer=nSnow+1,nSoil
@@ -831,6 +850,11 @@ contains
  ! **********************************************************************************************************************
  ! **********************************************************************************************************************
  do iter=1,maxiter
+
+  !print*, '***************************************************************'
+  !print*, '***** iter = ', iter, '*****'
+  !print*, '***************************************************************'
+  
 
   ! *****
   ! * thermodynamics...
@@ -958,6 +982,13 @@ contains
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
+  !print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
+  !print*, 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+  !print*, 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter
+  !print*, 'mLayerVolFracLiqNew  = ', mLayerVolFracLiqNew
+  !print*, 'mLayerMatIncr = ', mLayerMatIncr
+  !print*, 'mLayerLiqIncr = ', mLayerLiqIncr
+  !pause
 
   ! compute the iteration increment for aquifer storage
   scalarAqiIncr = scalarAquiferStorageNew - scalarAquiferStorageIter
@@ -998,6 +1029,10 @@ contains
    mLayerVolFracLiqNew = mLayerVolFracLiqIter
    mLayerVolFracIceNew = mLayerVolFracIceIter
   endif
+
+  !print*, 'after phase change = '
+  !print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
+  !print*, 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
 
   ! compute melt/freeze of infiltrating liquid water in each layer (kg m-3 s-1) -- melt is negative
   mLayerInfilFreeze = mLayerInfilFreeze + iden_ice*(mLayerVolFracIceIter - mLayerVolFracIceNew)/dt
@@ -1188,8 +1223,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! look-up values for the choice of groundwater parameterization
  USE mDecisions_module,only:       &
-  equilWaterTable,                 & ! equilibrium water table
-  pseudoWaterTable,                & ! pseudo water table
+  qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
   bigBucket,                       & ! a big bucket (lumped aquifer model)
   noExplicit                         ! no explicit groundwater parameterization
  ! look-up values for the choice of groundwater representation (local-column, or single-basin)
@@ -1342,10 +1376,10 @@ contains
  if(ix_spatialGW == localColumn)then
   select case(ix_groundwatr)
    ! no explicit aquifer
-   case(noExplicit,equilWaterTable)
+   case(noExplicit,qbaseTopmodel)
     scalarAquiferBalError = 0._dp
    ! explicit aquifer
-   case(bigBucket,pseudoWaterTable)
+   case(bigBucket)
     ! check the aquifer water balance
     scalarAquiferBalError = balanceAquifer1 - (balanceAquifer0 + (iden_water*(wimplicit*scalarInitAquiferTranspire + (1._dp - wimplicit)*scalarAquiferTranspire)*dt) + &
                                                                  (iden_water*(wimplicit*scalarInitAquiferRecharge  + (1._dp - wimplicit)*scalarAquiferRecharge) *dt) - &
