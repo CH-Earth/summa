@@ -65,6 +65,7 @@ contains
  real(dp)                      :: dt_dz                      ! dt/dz (s m-1)
  real(dp)                      :: lin_error                  ! linearization error [-residual] (-)
  real(dp)                      :: increment                  ! iteration increment (-)
+ real(dp),parameter            :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
  real(dp),parameter            :: dx=1.e-8_dp                ! finite difference increment (-)
  real(dp),parameter            :: atol=1.d-6                 ! absolute iteration tolerance (-)
  integer(i4b),parameter        :: maxiter=10                 ! maximum number of iterations
@@ -124,12 +125,16 @@ contains
    ! compute the reduction in liquid water holding capacity at high snow density (-)
    multResid = 1._dp / ( 1._dp + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
    ! compute the pore space (-)
-   mLayerPoreSpace(iLayer)  = 1._dp - mLayerVolFracIce(iLayer)
+   mLayerPoreSpace(iLayer)  = (iden_ice/iden_water) - mLayerVolFracIce(iLayer)
    ! compute the residual volumetric liquid water content (-)
    mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
    ! **(2)** compute the initial drainage flux
-   call mw_func( mLayerVolFracLiq(iLayer),mLayerThetaResid(iLayer),mLayerPoreSpace(iLayer), & ! input
-                 iLayerInitLiqFluxSnow(iLayer) )                                              ! output
+   if(mLayerVolFracIceIter(iLayer) > maxVolIceContent)then
+    iLayerInitLiqFluxSnow(iLayer) = iLayerLiqFluxSnow(iLayer-1)
+   else
+    call mw_func( mLayerVolFracLiq(iLayer),mLayerThetaResid(iLayer),mLayerPoreSpace(iLayer), & ! input
+                  iLayerInitLiqFluxSnow(iLayer) )                                              ! output
+   endif
   end do  ! (looping through snow layers)
  endif  ! (if the first iteration)
 
@@ -139,47 +144,57 @@ contains
   dt_dz     = dt/mLayerDepth(iLayer)
   ! compute the liquid water equivalent associated with phase change
   phseChnge = (iden_ice/iden_water)*(mLayerVolFracIceIter(iLayer) - mLayerVolFracIce(iLayer))
-  ! initialize bounds
-  xmin = 0._dp
-  xmax = mLayerPoreSpace(iLayer)
-  ! ****************************
-  ! ***** begin iterations *****
-  ! ****************************
-  ! initialize the volumetric fraction of liquid water (-)
-  volFracLiqTrial = mLayerVolFracLiqIter(iLayer)
-  do jiter=1,maxiter
-   ! compute the drainage flux and its derivative
-   call mw_func(volFracLiqTrial,mLayerThetaResid(iLayer),mLayerPoreSpace(iLayer), & ! input
-                vDrainage, dflw_dliq)
-   ! compute the residual (-)
-   lin_error = dt_dz*(          wimplicit *(iLayerInitLiqFluxSnow(iLayer-1) - iLayerInitLiqFluxSnow(iLayer)) +   &
-                       (1._dp - wimplicit)*(iLayerLiqFluxSnow(iLayer-1)     - vDrainage                    ) ) - &
-               phseChnge - (volFracLiqTrial - mLayerVolFracLiq(iLayer))
-   ! compute the iteration increment (-) and new value
-   increment = lin_error/(1._dp + dt_dz*(1._dp - wimplicit)*dflw_dliq)
-   volFracLiqNew = volFracLiqTrial + increment
-   ! update bounds
-   if(increment> 0._dp) xmin = volFracLiqTrial
-   if(increment<=0._dp) xmax = volFracLiqTrial
-   ! use bi-section if outside bounds
-   if(volFracLiqNew<xmin .or. volFracLiqNew>xmax) then
-    volFracLiqNew = 0.5_dp*(xmin+xmax)
-    increment = volFracLiqNew - volFracLiqTrial
-   endif
-   ! test
-   if(iLayer==1 .and. printflag)then
-    write(*,'(a)')      'in snowHydrol, iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge = '
-    write(*,'(3(i4,1x),10(f20.10,1x))') iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge
-   endif
-   ! check for convergence
-   if(abs(increment) < atol) exit
-   ! get ready for next iteration
-   volFracLiqTrial = volFracLiqNew
-  end do  ! (end iterations)
-  ! save state
-  mLayerVolFracLiqNew(iLayer) = volFracLiqNew
-  ! get ready to process the next snow layer
-  iLayerLiqFluxSnow(iLayer) = vDrainage + dflw_dliq*increment ! second term will be zero if converge completely
+  ! ** allow liquid water to pass through under very high density
+  if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
+   iLayerLiqFluxSnow(iLayer)   = iLayerLiqFluxSnow(iLayer-1)
+   mLayerVolFracLiqNew(iLayer) = mLayerVolFracLiq(iLayer) + &
+                                 (          wimplicit *(iLayerInitLiqFluxSnow(iLayer-1) - iLayerInitLiqFluxSnow(iLayer)) +        &
+                                   (1._dp - wimplicit)*(iLayerLiqFluxSnow(iLayer-1)     - iLayerLiqFluxSnow(iLayer)    ) )*dt_dz  &
+                                      - phseChnge
+  else
+  ! ** iterate
+   ! initialize bounds
+   xmin = 0._dp
+   xmax = mLayerPoreSpace(iLayer)
+   ! ****************************
+   ! ***** begin iterations *****
+   ! ****************************
+   ! initialize the volumetric fraction of liquid water (-)
+   volFracLiqTrial = mLayerVolFracLiqIter(iLayer)
+   do jiter=1,maxiter
+    ! compute the drainage flux and its derivative
+    call mw_func(volFracLiqTrial,mLayerThetaResid(iLayer),mLayerPoreSpace(iLayer), & ! input
+                 vDrainage, dflw_dliq)
+    ! compute the residual (-)
+    lin_error = dt_dz*(          wimplicit *(iLayerInitLiqFluxSnow(iLayer-1) - iLayerInitLiqFluxSnow(iLayer)) +   &
+                        (1._dp - wimplicit)*(iLayerLiqFluxSnow(iLayer-1)     - vDrainage                    ) ) - &
+                phseChnge - (volFracLiqTrial - mLayerVolFracLiq(iLayer))
+    ! compute the iteration increment (-) and new value
+    increment = lin_error/(1._dp + dt_dz*(1._dp - wimplicit)*dflw_dliq)
+    volFracLiqNew = volFracLiqTrial + increment
+    ! update bounds
+    if(increment> 0._dp) xmin = volFracLiqTrial
+    if(increment<=0._dp) xmax = volFracLiqTrial
+    ! use bi-section if outside bounds
+    if(volFracLiqNew<xmin .or. volFracLiqNew>xmax) then
+     volFracLiqNew = 0.5_dp*(xmin+xmax)
+     increment = volFracLiqNew - volFracLiqTrial
+    endif
+    ! test
+    if(iLayer==1 .and. printflag)then
+     write(*,'(a)')      'in snowHydrol, iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge = '
+     write(*,'(3(i4,1x),10(f20.10,1x))') iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge
+    endif
+    ! check for convergence
+    if(abs(increment) < atol) exit
+    ! get ready for next iteration
+    volFracLiqTrial = volFracLiqNew
+   end do  ! (end iterations)
+   ! save state
+   mLayerVolFracLiqNew(iLayer) = volFracLiqNew
+   ! get ready to process the next snow layer
+   iLayerLiqFluxSnow(iLayer) = vDrainage + dflw_dliq*increment ! second term will be zero if converge completely
+  endif  ! (if ice content is so high we need the direct pass through)
   ! *** now process the next layer
  end do  ! (looping through snow layers)
 

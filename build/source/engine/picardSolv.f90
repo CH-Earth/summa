@@ -1087,11 +1087,14 @@ contains
   matric_max = maxval(abs(mLayerMatIncr) - (absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew) )  )
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
+  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
+  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  !print*, 'canopyNrgIncr = ', canopyNrgIncr
 
   ! test
   !write(*,'(a25,1x,i4,1x,10(e20.3,1x))') 'temperature increment = ', energy_pos, scalarCanopyTempIncr, mLayerTempIncr(minLayer:maxLayer)
@@ -1113,6 +1116,7 @@ contains
   if(niter==maxiter)then; err=-30; message=trim(message)//'failed to converge'; return; endif
 
  end do  ! (iterating)
+ !print*, 'after iterations: mLayerVolFracIceNew(1) = ', mLayerVolFracIceNew(1)
 
 
  ! *****************************************************************************************************************************************
@@ -1129,6 +1133,14 @@ contains
  ! *****
  ! * basic checks.....
  ! *******************
+
+ ! check volumetric ice content is less than the intrinsic density of ice
+ do iLayer=1,nSnow
+  if(mLayerVolFracIceNew(iLayer) > iden_ice/iden_water)then
+   message=trim(message)//'volumetric ice content > intrinsic density of ice'
+   err=20; return ! (negative error code forces a reduction in the length of the sub-step and another trial)
+  endif
+ end do
 
  ! check that we did not melt all of the ice
  do iLayer=1,nSnow
