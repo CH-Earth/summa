@@ -214,6 +214,7 @@ contains
 
                         ! model parameters (soil stress) -- intent(in)
                         mpar_data%var(iLookPARAM%theta_sat),                               & ! intent(in): soil porosity (-)
+                        mpar_data%var(iLookPARAM%theta_res),                               & ! intent(in): residual volumetric liquid water content (-)
                         mpar_data%var(iLookPARAM%plantWiltPsi),                            & ! intent(in): matric head at wilting point (m)
                         mpar_data%var(iLookPARAM%soilStressParam),                         & ! intent(in): parameter in the exponential soil stress function (-)
                         mpar_data%var(iLookPARAM%critSoilWilting),                         & ! intent(in): critical vol. liq. water content when plants are wilting (-)
@@ -413,6 +414,7 @@ contains
 
                               ! model parameters (soil stress) -- intent(in)
                               theta_sat,                         & ! intent(in): soil porosity (-)
+                              theta_res,                         & ! intent(in): residual volumetric liquid water content (-)
                               plantWiltPsi,                      & ! intent(in): matric head at wilting point (m)
                               soilStressParam,                   & ! intent(in): parameter in the exponential soil stress function (-)
                               critSoilWilting,                   & ! intent(in): critical vol. liq. water content when plants are wilting (-)
@@ -604,6 +606,7 @@ contains
 
  ! model parameters (soil stress) -- intent(in)
  real(dp),intent(in)            :: theta_sat                       ! soil porosity (-)
+ real(dp),intent(in)            :: theta_res                       ! residual volumetric liquid water content (-)
  real(dp),intent(in)            :: plantWiltPsi                    ! matric head at wilting point (m)
  real(dp),intent(in)            :: soilStressParam                 ! parameter in the exponential soil stress function (-)
  real(dp),intent(in)            :: critSoilWilting                 ! critical vol. liq. water content when plants are wilting (-)
@@ -1308,9 +1311,9 @@ contains
 
   ! compute the relative humidity in the top soil layer and the resistance at the ground surface
   ! NOTE: computations are based on start-of-step values, so only compute at the first iteration
-  if(iter ==1)then
+  if(iter == 1)then
    ! (soil water evaporation factor [0-1])
-   soilEvapFactor = mLayerVolFracLiq(1)/theta_sat
+   soilEvapFactor = mLayerVolFracLiq(1)/(theta_sat - theta_res)
    ! (resistance from the soil [s m-1])
    !scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
    scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
@@ -1321,6 +1324,7 @@ contains
     soilRelHumidity_noSnow = 0._dp
    endif ! (if matric head is very low)
    scalarSoilRelHumidity  = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*soilRelHumidity_noSnow
+   !print*, 'mLayerMatricHead(1), scalarSoilRelHumidity = ', mLayerMatricHead(1), scalarSoilRelHumidity
   endif  ! (if the first iteration)
 
   ! compute turbulent heat fluxes

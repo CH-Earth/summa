@@ -237,7 +237,10 @@ contains
    ! if not ok, reduce time step and try again
    dt_sub = dt_sub*0.1_dp
    print*, dt_sub, minstep, trim(message)//trim(cmessage)
-   !pause
+   !if(dt_sub < 10._dp)then
+   ! pause ' dt_sub < 10'
+   ! err=20; return
+   !endif
    ! check that the step size is still appropriate -- if not, use non-iterative solution
    if(dt_sub < minstep)then
     if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif

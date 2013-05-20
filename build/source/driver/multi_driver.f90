@@ -86,7 +86,7 @@ implicit none
 ! (0) variable definitions
 ! *****************************************************************************
 ! define counters
-integer(i4b)              :: iHRU                           ! index of the hydrologic response unit
+integer(i4b)              :: iHRU,jHRU                      ! index of the hydrologic response unit
 integer(i4b)              :: nHRU                           ! number of hydrologic response units
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
@@ -406,6 +406,14 @@ do istep=1,numtim
   !print*, time_data%var, nSnow
   !pause
 
+  ! add inflow to the downslope HRU
+  do jHRU=1,nHRU
+   if(type_hru(iHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
+    mvar_hru(jHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = mvar_hru(jHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) &
+                                                                 + mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat(:) 
+   endif
+  end do
+
   ! increment runoff variables
   bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)   = bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    + &
                                                            mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)    * fracHRU
@@ -515,6 +523,9 @@ contains
  print*, 'error, variable dump:'
  if(allocated(dt_init)) print*, 'dt = ', dt_init
  print*, 'istep = ', istep
+ if(associated(type_data))then
+  print*, 'HRU index = ', type_data%var(iLookTYPE%hruIndex)
+ endif
  if(associated(forc_data))then
   print*, 'pptrate            = ', forc_data%var(iLookFORCE%pptrate)
   print*, 'airtemp            = ', forc_data%var(iLookFORCE%airtemp)
@@ -539,6 +550,8 @@ contains
    write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat
    write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat
    print*, 'mLayerMatricHead   = ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat
+   print*, 'column inflow = ', mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat
+
   endif
  endif
  print*,'error code = ', err

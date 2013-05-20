@@ -55,6 +55,8 @@ contains
                        mLayerVolFracLiqIter,    & ! volumetric fraction of liquid water at the current iteration (-)
                        mLayerVolFracIceIter,    & ! volumetric fraction of ice at the current iteration (-)
                        scalarAquiferStorageIter,& ! aquifer storage (m)
+                       mLayerMatricIncrOld,     & ! iteration increment for matric head of soil layers in the previous iteration (m)
+                       mLayerLiquidIncrOld,     & ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-) 
                        ! output
                        mLayerMatricHeadNew,     & ! matric head in each layer at the next iteration (m)
                        mLayerVolFracLiqNew,     & ! volumetric fraction of liquid water at the next iteration (-)
@@ -75,6 +77,8 @@ contains
  real(dp),intent(in)           :: mLayerVolFracLiqIter(:)  ! volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)           :: mLayerVolFracIceIter(:)  ! volumetric fraction of ice at the current iteration (-)
  real(dp),intent(in)           :: scalarAquiferStorageIter ! aquifer storage (m)
+ real(dp),intent(in)           :: mLayerMatricIncrOld(:)   ! iteration increment for matric head of soil layers in the previous iteration (m)
+ real(dp),intent(in)           :: mLayerLiquidIncrOld(:)   ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-)
  ! output
  real(dp),intent(out)          :: mLayerMatricHeadNew(:)   ! matric head in each layer at the next iteration (m)
  real(dp),intent(out)          :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water at the next iteration (-)
@@ -123,6 +127,8 @@ contains
                         mLayerVolFracLiqIter,                                         & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
                         mLayerVolFracIceIter,                                         & ! intent(in): volumetric fraction of ice at the current iteration (-)
                         scalarAquiferStorageIter,                                     & ! intent(in): aquifer storage (m)
+                        mLayerMatricIncrOld,                                          & ! intent(in): iteration increment for matric head of soil layers in the previous iteration (m)
+                        mLayerLiquidIncrOld,                                          & ! intent(in): iteration increment for volumetric liquid water content of soil layers in the previous iteration (-) 
 
                         ! named variables for model decisions
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,         & ! intent(in): method used to calculate flux derivatives 
@@ -264,6 +270,8 @@ contains
                               mLayerVolFracLiqIter,        & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
                               mLayerVolFracIceIter,        & ! intent(in): volumetric fraction of ice at the current iteration (-)
                               scalarAquiferStorageIter,    & ! intent(in): aquifer storage (m)
+                              mLayerMatricIncrOld,         & ! intent(in): iteration increment for matric head of soil layers in the previous iteration (m)
+                              mLayerLiquidIncrOld,         & ! intent(in): iteration increment for volumetric liquid water content of soil layers in the previous iteration (-) 
 
                               ! model decisions
                               ixDerivMethod,               & ! intent(in): choice of method used to compute derivative
@@ -387,6 +395,8 @@ contains
  real(dp),intent(in)              :: mLayerVolFracLiqIter(:)      ! volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)              :: mLayerVolFracIceIter(:)      ! volumetric fraction of ice at the current iteration (-)
  real(dp),intent(in)              :: scalarAquiferStorageIter     ! aquifer storage (m)
+ real(dp),intent(in)              :: mLayerMatricIncrOld(:)   ! iteration increment for matric head of soil layers in the previous iteration (m)
+ real(dp),intent(in)              :: mLayerLiquidIncrOld(:)   ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-)
  ! model decisions
  integer(i4b),intent(in)          :: ixDerivMethod                ! choice of method used to compute derivative
  integer(i4b),intent(in)          :: ixRichards                   ! choice of the form of Richards' equation
@@ -835,6 +845,15 @@ contains
   end do
  endif
 
+ ! adjust iteration increments in cases where iterations are oscillating
+ !if(iter > 5)then
+ ! select case(ixRichards)
+ !  case(moisture); if(any(mLayerLiquidIncrOld(1:nLevels)*mLayerVolFracLiqDiff(1:nLevels) < 0._dp))then; mLayerVolFracLiqDiff(1:nLevels) = 0.5_dp*mLayerVolFracLiqDiff(1:nLevels); pause; endif
+ !  case(mixdform); if(any(mLayerMatricIncrOld(1:nLevels)*mLayerMatricHeadDiff(1:nLevels) < 0._dp))then; mLayerMatricHeadDiff(1:nLevels) = 0.5_dp*mLayerMatricHeadDiff(1:nLevels); pause; endif
+ !  case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
+ ! endselect
+ !endif
+
  ! *****
  ! update the fluxes and state variables for the soil layers
  do iLayer=0,nLevels
@@ -1002,6 +1021,7 @@ contains
   integer(i4b)                     :: ixPerturb                     ! index of element in 2-element vector to perturb
   integer(i4b)                     :: ixOriginal                    ! index of perturbed element in the original vector
   real(dp)                         :: scalardPsi_dTheta             ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
+  real(dp)                         :: sumDepthAvgCond               ! sum of depth-weighted hydraulic conductivity (m2 s-1)
   real(dp)                         :: aquiferHydCond                ! effective hydraulic conductivity of the aquifer (m s-1)
   real(dp)                         :: totalSoilWater                ! total water stored in the soil column (m)
   real(dp)                         :: maximumSoilWater              ! maximum water stored in the soil column (m)
@@ -1625,29 +1645,48 @@ contains
    ! baseflow using the TOPMODEL-ish parameterization
    case(qbaseTopmodel)
 
-    ! compute effective parameters
-    maximumSoilWater = iLayerHeight(nSoil)*(theta_sat - theta_res)                                      ! maximum aquifer storage (m)
-    maximumFlowRate  = tan_slope*iLayerSatHydCond(0)*maximumSoilWater*contourLength/aquiferBaseflowExp  ! effective hydraulic conductivity (m3/s)
+    ! only compute baseflow at the start of the time step (avoid convergence problems)
+    if(iter == 1)then
 
-    ! compute total water stored in the soil column (m)
-    totalSoilWater = sum((mLayerVolFracLiqTrial(1:nLevels) - theta_res)*mLayerDepth(1:nLevels))
+     ! compute effective parameters
+     maximumSoilWater = iLayerHeight(nSoil)*(theta_sat - theta_res)                                                                ! maximum aquifer storage (m)
+     maximumFlowRate  = tan_slope*iLayerSatHydCond(0)*maximumSoilWater*contourLength/((theta_sat - theta_res)*aquiferBaseflowExp)  ! effective hydraulic conductivity (m3/s)
+     !print*, 'tan_slope, iLayerSatHydCond(0), maximumSoilWater, contourLength, aquiferBaseflowExp = ', &
+     !         tan_slope, iLayerSatHydCond(0), maximumSoilWater, contourLength, aquiferBaseflowExp
+     !print*, 'maximumFlowRate/HRUarea = ', maximumFlowRate/HRUarea
+ 
+     ! compute total water stored in the soil column (m)
+     totalSoilWater = sum((mLayerVolFracLiqTrial(1:nLevels) - theta_res)*mLayerDepth(1:nLevels))
+ 
+     ! compute total outflow from the entire soil column (m3 s-1)
+     totalOutflow   = maximumFlowRate*(totalSoilWater/maximumSoilWater)**aquiferBaseflowExp
+     !print*, 'totalSoilWater, maximumSoilWater, maximumFlowRate, totalOutflow = ', totalSoilWater, maximumSoilWater, maximumFlowRate*3600._dp, totalOutflow*3600._dp
+ 
+     ! compute the depth-weighted hydraulic conductivity (m2 s-1)
+     sumDepthAvgCond = sum(mLayerHydCond(1:nLevels)*mLayerDepth(1:nLevels))
+     !print*, 'sumDepthAvgCond, epsilon(theta_sat) = ', sumDepthAvgCond, epsilon(theta_sat)
+ 
+     ! compute the fraction of outflow apportioned to each layer (-)
+     if(sumDepthAvgCond > epsilon(theta_sat))then
+      fracTotalOutflow(1:nLevels) = (mLayerHydCond(1:nLevels)*mLayerDepth(1:nLevels)) / sumDepthAvgCond
+     else
+      fracTotalOutflow(1:nLevels) = 0._dp !(mLayerSatHydCond(1:nLevels)*mLayerDepth(1:nLevels)) / sum(mLayerSatHydCond(1:nLevels)*mLayerDepth(1:nLevels))
+     endif
+ 
+     ! compute the outflow from each soil layer (m3 s-1)
+     mLayerColumnOutflow(1:nLevels) = fracTotalOutflow(1:nLevels)*totalOutflow
+     !print*, 'mLayerColumnOutflow(1:nLevels), fracTotalOutflow(1:nLevels), totalOutflow = ', mLayerColumnOutflow(1:nLevels), fracTotalOutflow(1:nLevels), totalOutflow
+     !pause
+ 
+     ! compute the net baseflow from each soil layer (m s-1)
+     mLayerBaseflow(1:nLevels) = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflow(1:nLevels))/HRUarea
+ 
+     ! no explicit aquifer (only use soil layers)
+     scalarAquiferBaseflow      = 0._dp
+     scalarAquiferBaseflowDeriv = 0._dp
 
-    ! compute total outflow from the entire soil column (m3 s-1)
-    totalOutflow   = maximumFlowRate*(totalSoilWater/maximumSoilWater)**aquiferBaseflowExp
-
-    ! compute the fraction of outflow apportioned to each layer (-)
-    fracTotalOutflow(1:nLevels)   = (mLayerHydCond(1:nLevels)*mLayerDepth(1:nLevels)) / sum(mLayerHydCond(1:nLevels)*mLayerDepth(1:nLevels))
-
-    ! compute the outflow from each soil layer (m3 s-1)
-    mLayerColumnOutflow(1:nLevels) = fracTotalOutflow(1:nLevels)*totalOutflow
-
-    ! compute the net baseflow from each soil layer (m s-1)
-    mLayerBaseflow(1:nLevels) = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflow(1:nLevels))/HRUarea
-
-    ! no explicit aquifer (only use soil layers)
-    scalarAquiferBaseflow      = 0._dp
-    scalarAquiferBaseflowDeriv = 0._dp
-
+    endif  ! (if the first iteration)
+ 
    ! ------------------------------------------------------------------------------------------------------------------------------------------------
    ! no explicit baseflow
    case(noExplicit)
@@ -2634,8 +2673,8 @@ contains
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
  ! local variables
- real(dp),parameter            :: supersatScale=0.001_dp    ! scaling factor for the water ejection function (-)
- real(dp),parameter            :: xMatch = 0.999_dp         ! point where x-value and function value match (-)
+ real(dp),parameter            :: supersatScale=0.01_dp     ! scaling factor for the water ejection function (-)
+ real(dp),parameter            :: xMatch = 0.99_dp          ! point where x-value and function value match (-)
  real(dp),parameter            :: fSmall = epsilon(xMatch)  ! smallest possible value to test
  real(dp)                      :: supersatThresh            ! threshold in super-saturation function (-)
  real(dp)                      :: fracMin                   ! minimum fraction of pore space required to be filled in order for lateral flow to occur (-)
@@ -2791,8 +2830,9 @@ contains
   residualVec(iLayer) = mLayerTrialVolFracLiq(iLayer) - (mLayerInitVolFracLiq(iLayer) + mFlux + mEvap - mEjct - mBase - mPhse - compressibility)
 
   ! print progress
-  !if(iLayer==1)    write(*,'(a)') 'iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), bottom flux, mFlux, mEvap, mEjct, mBase, mPhse'
+  !if(iLayer==1)  write(*,'(a)') 'iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), bottom flux, mFlux, mEvap, mEjct, mBase, mPhse'
   !if(iLayer < 5) write(*,'(i4,1x,10(e20.10,1x))') iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), iLayerTrialLiqFluxSoil(iLayer)*dt_dz, mFlux, mEvap, mEjct, mBase, mPhse
+
  end do  ! (looping through soil layers)
 
  end subroutine liqResidual

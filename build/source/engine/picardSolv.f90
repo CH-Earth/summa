@@ -783,6 +783,8 @@ contains
  real(dp),dimension(nSoil)      :: mLayerMatIncr               ! iteration increment for matric head in soil layers (m)
  real(dp)                       :: canopyTempIncrOld           ! iteration increment for temperature of the vegetation canopy in the previous iteration (K)
  real(dp),dimension(nLayers)    :: mLayerTempIncrOld           ! iteration increment for temperature of the snow-soil vector in the previous iteration (K)
+ real(dp),dimension(nSoil)      :: mLayerMatricIncrOld         ! iteration increment for matric head of soil layers in the previous iteration (m)
+ real(dp),dimension(nSoil)      :: mLayerLiquidIncrOld         ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-)
  ! define error monitoring variables
  real(dp)                       :: canopyTempComponent         ! veg canopy: temperature component of the energy increment (J m-3)
  real(dp),dimension(nLayers)    :: mLayerTempComponent         ! snow-soil vector: temperature component of the energy increment (J m-3)
@@ -967,7 +969,9 @@ contains
                   mLayerVolFracLiqIter(nSnow+1:nSnow+nLevels),& ! volumetric fraction of liquid water at the current iteration (-)
                   mLayerVolFracIceNew(nSnow+1:nSnow+nLevels), & ! volumetric fraction of ice at the current iteration (-)
                   scalarAquiferStorageIter,                   & ! aquifer storage (m)
-                  !output
+                  mLayerMatricIncrOld(1:nLevels),             & ! iteration increment for matric head of soil layers in the previous iteration (m)
+                  mLayerLiquidIncrOld(1:nLevels),             & ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-) 
+                  ! output
                   mLayerMatricHeadNew(1:nLevels),             & ! matric head in each layer at the next iteration (m)
                   mLayerVolFracLiqNew(nSnow+1:nSnow+nLevels), & ! volumetric fraction of liquid water at the next iteration (-)
                   scalarAquiferStorageNew,                    & ! aquifer storage (m)
@@ -978,6 +982,10 @@ contains
    mLayerMatricHeadNew(nLevels+1:nSoil)         = mLayerMatricHeadIter(nLevels+1:nSoil)
    mLayerVolFracLiqNew(nSnow+nLevels+1:nLayers) = mLayerVolFracLiqIter(nSnow+nLevels+1:nLayers)
   endif
+
+  ! save iteration increments
+  mLayerMatricIncrOld(1:nSoil) = mLayerMatricHeadNew(1:nSoil) - mLayerMatricHeadIter(1:nSoil)
+  mLayerLiquidIncrOld(1:nSoil) = mLayerVolFracLiqNew(nSnow+1:nSnow+nSoil) - mLayerVolFracLiqIter(nSnow+1:nSnow+nSoil)
 
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
@@ -1076,7 +1084,7 @@ contains
 
   ! compute maximum iteration increment
   liquid_max = maxval(abs(mLayerLiqIncr))
-  matric_max = maxval(abs(mLayerMatIncr))
+  matric_max = maxval(abs(mLayerMatIncr) - (absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew) )  )
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
 
@@ -1092,10 +1100,14 @@ contains
 
   ! convergence check: 
   if(liquid_max(1) < absConvTol_liquid .and. &   ! volumetric fraction of liquid water (-)
-     matric_max(1) < absConvTol_matric .and. &   ! matric head (m)
+     matric_max(1) < 0._dp             .and. &   ! matric head (m)
      energy_max(1) < absConvTol_energy .and. &   ! energy (J m-3)
      aquifr_max    < absConvTol_aquifr)      &   ! aquifer storage (m)
    exit
+
+  !print*, 'mLayerMatIncr(matric_pos(1)), absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew(matric_pos(1))) = ', &
+  !         mLayerMatIncr(matric_pos(1)), absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew(matric_pos(1)))
+  !pause
 
   ! check for lack of convergence
   if(niter==maxiter)then; err=-30; message=trim(message)//'failed to converge'; return; endif
