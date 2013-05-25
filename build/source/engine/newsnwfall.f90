@@ -33,10 +33,6 @@ contains
  real(dp),intent(in)                 :: dt                       ! time step (seconds)
  integer(i4b),intent(out)            :: err                      ! error code
  character(*),intent(out)            :: message                  ! error message
- ! local pointers to model parameters (new snow density)
- real(dp),pointer                    :: newSnowDenMin            ! minimum new snow density (kg m-3)
- real(dp),pointer                    :: newSnowDenMult           ! multiplier for new snow density (kg m-3)
- real(dp),pointer                    :: newSnowDenScal           ! scaling factor for new snow density (K)
  ! assign pointers to model parameters (compute layer temperature)
  real(dp),pointer                    :: fc_param                 ! freeezing curve parameter for snow (K-1)
  ! local pointers to model forcing data
@@ -51,13 +47,13 @@ contains
  real(dp),pointer                     :: scalarSWE               ! SWE (kg m-2)
  real(dp),pointer                     :: scalarSnowfall          ! snowfall flux (kg m-2 s-1)
  real(dp),pointer                     :: scalarSnowfallTemp      ! computed temperature of fresh snow (K) 
+ real(dp),pointer                     :: scalarNewSnowDensity    ! computed density of new snow (kg m-3)
  ! local pointers to model index variables
  integer(i4b),pointer                :: nLayers                  ! number of layers
  integer(i4b),pointer                :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local variables
  integer(i4b)                        :: nSoil                    ! number of soil layers
  integer(i4b)                        :: nSnow                    ! number of snow layers
- real(dp)                            :: newSnowDensity           ! new snow density (kg m-3)
  real(dp)                            :: newSnowDepth             ! newSnowDepth (m)
  real(dp),parameter                  :: unfrozenLiq=0.01_dp      ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
  real(dp)                            :: totalMassIceSurfLayer    ! total mass of ice in the surface layer (kg m-2)
@@ -66,31 +62,30 @@ contains
  real(dp)                            :: fracLiq                  ! fraction of liquid water (-)
  ! initialize error control
  err=0; message="newsnwfall/"
- ! assign pointers to model parameters (new snow density)
- newSnowDenMin          => mpar_data%var(iLookPARAM%newSnowDenMin)            ! minimum new snow density (kg m-3)
- newSnowDenMult         => mpar_data%var(iLookPARAM%newSnowDenMult)           ! multiplier for new snow density (kg m-3)
- newSnowDenScal         => mpar_data%var(iLookPARAM%newSnowDenScal)           ! scaling factor for new snow density (K)
  ! assign pointers to model parameters (compute layer temperature)
- fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)            ! freezing curve parameter for snow (K-1)
+ fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)              ! freezing curve parameter for snow (K-1)
  ! assign pointers to model forcing variables
- airtemp                => forc_data%var(iLookFORCE%airtemp)                  ! air temperature at 2 meter height (K)
+ airtemp                => forc_data%var(iLookFORCE%airtemp)                    ! air temperature at 2 meter height (K)
  ! assign local pointers to diagnostic scalar variables
- scalarSnowfall         => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)     ! snowfall flux (kg m-2 s-1)
- scalarSnowfallTemp     => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1) ! computed temperature of fresh snow (K)
- scalarSnowDepth        => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)    ! total snow depth (m)
- scalarSWE              => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)          ! SWE (kg m-2)
+ scalarSnowDepth        => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)      ! total snow depth (m)
+ scalarSWE              => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)            ! SWE (kg m-2)
+ scalarSnowfall         => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)       ! snowfall flux (kg m-2 s-1)
+ scalarSnowfallTemp     => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1)   ! computed temperature of fresh snow (K)
+ scalarNewSnowDensity   => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1) ! computed density of new snow (kg m-3) 
 
  ! assign local pointers to the model index structures
- nLayers                => indx_data%var(iLookINDEX%nLayers)%dat(1)           ! number of layers
- layerType              => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
+ nLayers                => indx_data%var(iLookINDEX%nLayers)%dat(1)             ! number of layers
+ layerType              => indx_data%var(iLookINDEX%layerType)%dat              ! layer type (ix_soil or ix_snow)
 
  ! identify the number of snow and soil layers
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
 
- ! compute density and depth of new snow
- newSnowDensity = newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal)  ! new snow density (kg m-3)
- newSnowDepth   = dt*scalarSnowfall/newSnowDensity  ! new snow depth (m)
+ ! early return if there is no snowfall
+ if(scalarSnowfall < tiny(dt)) return
+
+ ! compute depth of new snow
+ newSnowDepth     = dt*scalarSnowfall/scalarNewSnowDensity  ! new snow depth (m)
 
  ! process special case of "snow without a layer"
  if(nSnow==0)then

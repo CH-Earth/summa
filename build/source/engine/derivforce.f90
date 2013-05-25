@@ -44,6 +44,9 @@ contains
  real(dp),pointer              :: tempCritRain               ! critical temperature where precipitation is rain (K)
  real(dp),pointer              :: tempRangeTimestep          ! temperature range over the time step (K)
  real(dp),pointer              :: frozenPrecipMultip         ! frozen precipitation multiplier (-)
+ real(dp),pointer              :: newSnowDenMin              ! minimum new snow density (kg m-3)
+ real(dp),pointer              :: newSnowDenMult             ! multiplier for new snow density (kg m-3)
+ real(dp),pointer              :: newSnowDenScal             ! scaling factor for new snow density (K)
  ! local pointers to model forcing data
  real(dp),pointer              :: SWRadAtm                   ! downward shortwave radiation (W m-2)
  real(dp),pointer              :: airtemp                    ! air temperature at 2 meter height (K)
@@ -62,7 +65,9 @@ contains
  real(dp),pointer              :: rainfall                   ! computed rainfall rate (kg m-2 s-1)
  real(dp),pointer              :: snowfall                   ! computed snowfall rate (kg m-2 s-1)
  real(dp),pointer              :: snowfallTemp               ! computed temperature of fresh snow (K)
+ real(dp),pointer              :: newSnowDensity             ! computed density of fresh snow (kg m-3)
  ! local variables
+ real(dp),parameter            :: valueMissing=-9999._dp     ! missing value
  real(dp),parameter            :: co2Factor=355.e-6_dp       ! empirical factor to obtain partial pressure of co2
  real(dp),parameter            :: o2Factor=0.209_dp          ! empirical factor to obtain partial pressure of o2
  real(dp)                      :: relhum                     ! relative humidity (-)
@@ -81,6 +86,9 @@ contains
  tempCritRain       => mpar_data%var(iLookPARAM%tempCritRain)       ! critical temperature where precipitation is rain (K)
  tempRangeTimestep  => mpar_data%var(iLookPARAM%tempRangeTimestep)  ! temperature range over the time step (K)
  frozenPrecipMultip => mpar_data%var(iLookPARAM%frozenPrecipMultip) ! frozen precipitation multiplier (-)
+ newSnowDenMin      => mpar_data%var(iLookPARAM%newSnowDenMin)      ! minimum new snow density (kg m-3)
+ newSnowDenMult     => mpar_data%var(iLookPARAM%newSnowDenMult)     ! multiplier for new snow density (kg m-3)
+ newSnowDenScal     => mpar_data%var(iLookPARAM%newSnowDenScal)     ! scaling factor for new snow density (K)
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
@@ -105,11 +113,12 @@ contains
   err=20; message=trim(message)//'expect only two spectral classes for radiation'; return
  endif
  ! assign pointers to snow accumulation variables
- VPair        => mvar_data%var(iLookMVAR%scalarVPair)%dat(1)        ! vapor pressure of the air above the vegetation canopy (Pa)
- twetbulb     => mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1)     ! wet bulb temperature (K)
- rainfall     => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)     ! computed rainfall rate (kg m-2 s-1)
- snowfall     => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)     ! computed snowfall rate (kg m-2 s-1)
- snowfallTemp => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1) ! computed temperature of fresh snow (K)
+ VPair          => mvar_data%var(iLookMVAR%scalarVPair)%dat(1)          ! vapor pressure of the air above the vegetation canopy (Pa)
+ twetbulb       => mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1)       ! wet bulb temperature (K)
+ rainfall       => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)       ! computed rainfall rate (kg m-2 s-1)
+ snowfall       => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)       ! computed snowfall rate (kg m-2 s-1)
+ snowfallTemp   => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1)   ! computed temperature of fresh snow (K)
+ newSnowDensity => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1) ! computed density of new snow (kg m-3) 
 
  ! compute the partial pressure of o2 and co2
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
@@ -182,6 +191,15 @@ contains
  snowfall = (1._dp - fracrain)*pptrate*frozenPrecipMultip
  !print*, 'tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp = '
  !print*, tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp
+
+ ! compute density of new snow
+ if(snowfall > tiny(fracrain))then
+  newSnowDensity = newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal)  ! new snow density (kg m-3)
+ else
+  newSnowDensity = valueMissing
+  rainfall = rainfall + snowfall ! in most cases snowfall will be zero here
+  snowfall = 0._dp
+ endif
 
  end subroutine derivforce
 

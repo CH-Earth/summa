@@ -119,12 +119,15 @@ contains
   ! compute the start index
   iStart = nint( (dJulianStart - juldayFirst)*secprday/data_step )
   if(iStart < 0)then
-   message=trim(message)//'simulation start time is before the firrst time index in the datafile ['//trim(infile)//']'
+   message=trim(message)//'simulation start time is before the first time index in the datafile ['//trim(infile)//']'
    err=20; return
   endif
   ! read until just before start index
   if(iStart /= 0)then
-   do iline=1,iStart-1; read(unt,'(a)'); end do
+   do iline=1,iStart-1
+    read(unt,'(a)',iostat=err)
+    if(err/=0)then; err=20; message=trim(message)//'problemLineRead[is there any data within the simulation period?]'; return; endif
+   end do
   endif
   ! handle situation where istep>1
   if (istep>1) then

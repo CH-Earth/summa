@@ -549,6 +549,8 @@ contains
  ! * COMPUTE FLUXES...
  ! --------------------------------------------------------------------------------------------------------------------------------
 
+ print*, 'scalarTemp_CanopyAir, scalarCanopyTempIter = ', scalarTemp_CanopyAir, scalarCanopyTempIter
+
  ! check temperatures
  if(computeVegFlux)then
   if(scalarCanopyTempIter < 200._dp)then; message=trim(message)//'canopy temperature is very cold'; err=20; return; endif
@@ -821,6 +823,15 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! * COMPUTE PHASE CHANGE...
  ! --------------------------------------------------------------------------------------------------------------------------------
+
+ ! compute phase change of water in the vegetation canopy
+ if(computeVegFlux)then
+  ! compute the fraction of liquid water
+  fLiq = fracliquid(scalarCanopyTempNew,snowfrz_scale)
+  tWat = 
+
+
+ endif
 
  ! compute phase change
  call phsechange(mLayerTempNew,       & ! intent(in): new temperature vector (K)

@@ -163,11 +163,9 @@ contains
   nsub = nsub+1
 
   ! add new snowfall
-  if(scalarSnowfall > 0._dp)then
-   call newsnwfall(dt_sub,            & ! time step (seconds)
-                   err,cmessage)        ! error control
-   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
-  endif
+  call newsnwfall(dt_sub,            & ! time step (seconds)
+                  err,cmessage)        ! error control
+  if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
 
   ! divide snow layers if too thick
   call layerDivide(err,cmessage)        ! error control

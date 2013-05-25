@@ -23,6 +23,8 @@ integer(i4b)        :: nSoil        ! number of soil layers
 integer(i4b)        :: nSnow        ! number of snow layers
 integer(i4b)        :: nLayers      ! total number of layers
 integer(i4b)        :: nLevels      ! number of soil layers to use in the soil hydrology routine
+! missing value
+real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
 contains
 
  ! ************************************************************************************************
@@ -61,7 +63,6 @@ contains
  ! local
  character(LEN=256)                   :: cmessage                 ! error message of downwind routine
  logical(lgt)                         :: computeVegFlux           ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- real(dp)                             :: exposedVAI               ! exposed vegetation area index (m2 m-2)
  real(dp)                             :: scalarCanopyTempNew      ! temperature of the vegetation canopy at the end of the sub-step (K)
  real(dp)                             :: scalarCanopyIceNew       ! mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
  real(dp)                             :: scalarCanopyLiqNew       ! mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
@@ -116,12 +117,15 @@ contains
                         yearLength,                                                  & ! intent(in): number of days in the current year
                         fracJulday,                                                  & ! intent(in): fractional julian days since the start of year
                         mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),             & ! intent(in): snow depth on the ground surface (m)
+                        mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),        & ! intent(in): density of fresh snow (kg m-3)
                         mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                   & ! intent(inout): one-sided leaf area index (m2 m-2)
                         mvar_data%var(iLookMVAR%scalarSAI)%dat(1),                   & ! intent(inout): one-sided stem area index (m2 m-2)
 
                         ! input: vegetation parameters
                         mpar_data%var(iLookPARAM%heightCanopyTop),                   & ! intent(in): height of top of the vegetation canopy above ground surface (m)
                         mpar_data%var(iLookPARAM%heightCanopyBottom),                & ! intent(in): height of bottom of the vegetation canopy above ground surface (m)
+                        mpar_data%var(iLookPARAM%refInterceptCapSnow),               & ! intent(in): reference canopy interception capacity per unit leaf area (snow) (kg m-2)
+                        mpar_data%var(iLookPARAM%refInterceptCapRain),               & ! intent(in): canopy interception capacity per unit leaf area (rain) (kg m-2)
                         mpar_data%var(iLookPARAM%specificHeatVeg),                   & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                         mpar_data%var(iLookPARAM%maxMassVegetation),                 & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
                         mpar_data%var(iLookPARAM%rootingDepth),                      & ! intent(in): rooting depth of the vegetation (m)
@@ -141,6 +145,10 @@ contains
                         mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),            & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
                         mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),            & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
 
+                        ! output: canopy interception capacity
+                        mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),          & ! intent(out): maximum interception storage capacity for ice (kg m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),          & ! intent(out): maximum interception storage capacity for liquid water (kg m-2)
+
                         ! output: thermal properties
                         mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(out): bulk volumetric heat capacity of vegetation (J m-3 K-1)
                         mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,             & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
@@ -148,15 +156,14 @@ contains
                         mvar_data%var(iLookMVAR%iLayerThermalC)%dat,                 & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
                         mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat,               & ! intent(out): volumetric fraction of air in each layer (-)
 
+                        ! output: decision to compute vegetation fluxes
+                        computeVegFlux,                                              & ! intent(out): flag to denote if computing energy flux over vegetation
+
                         ! output: error control
                         err,cmessage)                                                  ! intent(out): error control
 
  ! check for errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! determine if need to include vegetation in the energy flux routines
- exposedVAI     = mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1) + mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1)
- computeVegFlux = (exposedVAI > 0.01_dp)
 
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
@@ -244,7 +251,7 @@ contains
 
  ! check for errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+ print*, 'after picardSolv: scalarCanopyLiqNew = ', scalarCanopyLiqNew
 
  ! *****
  ! compute sublimation of snow...
@@ -432,12 +439,15 @@ contains
                               yearLength,                    & ! intent(in): number of days in the current year
                               fracJulday,                    & ! intent(in): fractional julian days since the start of year
                               scalarSnowDepth,               & ! intent(in): snow depth on the ground surface (m)
+                              scalarNewSnowDensity,          & ! intent(in): density of fresh snow (kg m-3)
                               scalarLAI,                     & ! intent(inout): one-sided leaf area index (m2 m-2)
                               scalarSAI,                     & ! intent(inout): one-sided stem area index (m2 m-2)
 
                               ! input: vegetation parameters
                               heightCanopyTop,               & ! intent(in): height at the top of the veg canopy (m)
                               heightCanopyBottom,            & ! intent(in): height at the bottom of the veg canopy (m)
+                              refInterceptCapSnow,           & ! intent(in): reference canopy interception capacity per unit leaf area (snow) (kg m-2)
+                              refInterceptCapRain,           & ! intent(in): canopy interception capacity per unit leaf area (rain) (kg m-2)
                               specificHeatVeg,               & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                               maxMassVegetation,             & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
                               rootingDepth,                  & ! intent(in): rooting depth of the vegetation (m)
@@ -457,12 +467,19 @@ contains
                               scalarExposedLAI,              & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
                               scalarExposedSAI,              & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
 
+                              ! output: canopy interception capacity
+                              scalarCanopyIceMax,            & ! intent(out): maximum interception storage capacity for ice (kg m-2)
+                              scalarCanopyLiqMax,            & ! intent(out): maximum interception storage capacity for liquid water (kg m-2)
+
                               ! output: thermal properties
                               scalarBulkVolHeatCapVeg,       & ! intent(out): bulk volumetric heat capacity of vegetation (J m-3 K-1)
                               mLayerVolHtCapBulk,            & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
                               mLayerThermalC,                & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
                               iLayerThermalC,                & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
                               mLayerVolFracAir,              & ! intent(out): volumetric fraction of air in each layer (-)
+
+                              ! output: decision to compute vegetation fluxes
+                              computeVegFlux,                & ! intent(out): flag to denote if computing energy flux over vegetation
 
                               ! output: error control
                               err,message)                     ! intent(out): error control
@@ -492,11 +509,14 @@ contains
  integer(i4b),intent(in)        :: yearLength                  ! number of days in the current year
  real(dp),intent(in)            :: fracJulday                  ! fractional julian days since the start of year
  real(dp),intent(in)            :: scalarSnowDepth             ! snow depth on the ground surface (m)
+ real(dp),intent(in)            :: scalarNewSnowDensity        ! density of fresh snow (kg m-3)
  real(dp),intent(inout)         :: scalarLAI                   ! one-sided leaf area index (m2 m-2)
  real(dp),intent(inout)         :: scalarSAI                   ! one-sided stem area index (m2 m-2)
  ! input: vegetation parameters
  real(dp),intent(in)            :: heightCanopyTop             ! height at the top of the veg canopy
  real(dp),intent(in)            :: heightCanopyBottom          ! height at the bottom of the veg canopy
+ real(dp),intent(in)            :: refInterceptCapSnow         ! reference canopy interception capacity per unit leaf area (snow) (kg m-2)
+ real(dp),intent(in)            :: refInterceptCapRain         ! canopy interception capacity per unit leaf area (rain) (kg m-2)
  real(dp),intent(in)            :: specificHeatVeg             ! specific heat of vegetation (J kg-1 K-1)
  real(dp),intent(in)            :: maxMassVegetation           ! maximum mass of vegetation (full foliage) (kg m-2)
  real(dp),intent(in)            :: rootingDepth                ! rooting depth of the vegetation (m)
@@ -514,12 +534,17 @@ contains
  real(dp),intent(out)           :: scalarRootZoneTemp          ! root zone temperature (K)
  real(dp),intent(out)           :: scalarExposedLAI            ! exposed leaf area index after burial by snow (m2 m-2)
  real(dp),intent(out)           :: scalarExposedSAI            ! exposed stem area index after burial by snow (m2 m-2)
+ ! output: canopy interception capacity
+ real(dp),intent(out)           :: scalarCanopyIceMax          ! maximum interception storage capacity for ice (kg m-2)
+ real(dp),intent(out)           :: scalarCanopyLiqMax          ! maximum interception storage capacity for liquid water (kg m-2)
  ! output: thermal properties
  real(dp),intent(out)           :: scalarBulkVolHeatCapVeg     ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
  real(dp),intent(out)           :: mLayerVolHtCapBulk(:)       ! volumetric heat capacity in each layer (J m-3 K-1) 
  real(dp),intent(out)           :: mLayerThermalC(:)           ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
  real(dp),intent(out)           :: iLayerThermalC(0:)          ! thermal conductivity at the interface of each layer (W m-1 K-1)
  real(dp),intent(out)           :: mLayerVolFracAir(:)         ! volumetric fraction of air in each layer (-)
+ ! output: decision to compute vegetation fluxes
+ logical(lgt),intent(out)       :: computeVegFlux              ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! output: error control
  integer(i4b),intent(out)       :: err                         ! error code
  character(*),intent(out)       :: message                     ! error message
@@ -530,6 +555,7 @@ contains
  real(dp),parameter             :: verySmall=epsilon(1._dp)    ! a very small number
  real(dp)                       :: notUsed_heightCanopyTop     ! for some reason the Noah-MP phenology routines output canopy height
  real(dp)                       :: exposedVAI                  ! exposed vegetation area index (LAI + SAI)
+ real(dp)                       :: leafInterceptCapSnow        ! interception capacity for snow per unit leaf area (kg m-2)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="picardSolv_prelim/"
@@ -595,6 +621,23 @@ contains
                  ! output: error control
                  err,cmessage)                ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! determine if need to include vegetation in the energy flux routines
+ exposedVAI     = scalarExposedLAI + scalarExposedSAI
+ computeVegFlux = (exposedVAI > 0.01_dp)
+
+ ! compute storage capacity for snow (kg m-2) -- only defined when it is snowing
+ if(scalarNewSnowDensity > 0._dp)then ! snow density only defined when it is snowing
+  leafInterceptCapSnow = refInterceptCapSnow*(0.27_dp + 46._dp/scalarNewSnowDensity)  ! per unit leaf area (kg m-2)
+  scalarCanopyIceMax   = leafInterceptCapSnow*exposedVAI
+  pause 'it is snowing!'
+ else
+  scalarCanopyIceMax = valueMissing
+ endif
+
+ ! compute storage capacity for rain (kg m-2) -- always defined
+ scalarCanopyLiqMax = refInterceptCapRain*exposedVAI
+ print*, 'exposedVAI, refInterceptCapRain, scalarCanopyLiqMax = ', exposedVAI, refInterceptCapRain, scalarCanopyLiqMax
 
  end subroutine picardSolv_prelim
 
@@ -904,8 +947,8 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! test
-  !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
-  !                                                     iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
+                                                       iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
   !pause
 
   ! compute melt/freeze in each layer (kg m-3 s-1) -- melt is negative
@@ -939,12 +982,13 @@ contains
                   ! input
                   dt,                       & ! intent(in): time step (seconds)
                   iter,                     & ! intent(in): iteration index
+                  computeVegFlux,           & ! intent(in): flag to denote if computing energy flux over vegetation
                   scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                   scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                   ! output
                   scalarCanopyIceNew,       & ! intent(out): updated mass of ice on the vegetation canopy at the current iteration (kg m-2)
                   scalarCanopyLiqNew,       & ! intent(out): updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                  err,cmessage)               ! intent(out): error control
+                  err,message)                ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! compute the volumetric liquid water content at the next iteration (note: only use snow vectors)
@@ -1001,7 +1045,11 @@ contains
   ! compute the iteration increment for aquifer storage
   scalarAqiIncr = scalarAquiferStorageNew - scalarAquiferStorageIter
 
-  ! update the state variables -- used in phase change below
+  ! update the canopy variables -- used in phase change below
+  scalarCanopyIceIter = scalarCanopyIceNew
+  scalarCanopyLiqIter = scalarCanopyLiqNew
+
+  ! update the variables in the snow-soil vector -- used in phase change below
   mLayerMatricHeadIter = mLayerMatricHeadNew
   mLayerVolFracLiqIter = mLayerVolFracLiqNew
   mLayerVolFracIceIter = mLayerVolFracIceNew
@@ -1100,6 +1148,8 @@ contains
   !write(*,'(a25,1x,i4,1x,10(e20.3,1x))') 'temperature increment = ', energy_pos, scalarCanopyTempIncr, mLayerTempIncr(minLayer:maxLayer)
   !write(*,'(a25,1x,i4,1x,10(f20.7,1x))') 'energy increment = ', energy_pos, canopyNrgIncr, mLayerNrgIncr(minLayer:maxLayer)
   !pause
+
+  print*, 'iterating..., scalarCanopyLiqNew = ', scalarCanopyLiqNew
 
   ! convergence check: 
   if(liquid_max(1) < absConvTol_liquid .and. &   ! volumetric fraction of liquid water (-)

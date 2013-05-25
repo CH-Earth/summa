@@ -196,8 +196,8 @@ contains
                         ! model parameters (phenology) -- intent(in)
                         mpar_data%var(iLookPARAM%heightCanopyTop),                         & ! intent(in): height at the top of the vegetation canopy (m)
                         mpar_data%var(iLookPARAM%heightCanopyBottom),                      & ! intent(in): height at the bottom of the vegetation canopy (m)
-                        mpar_data%var(iLookPARAM%maxCanopyLiquid),                         & ! intent(in): maximum storage of liquid water on the vegetation canopy (kg m-2)
-                        mpar_data%var(iLookPARAM%maxCanopyIce),                            & ! intent(in): maximum storage of ice on the vegetation canopy (kg m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),                & ! intent(in): maximum interception storage capacity for ice (kg m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),                & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
 
                         ! model parameters (aerodynamic resistance) -- intent(in)
                         mpar_data%var(iLookPARAM%z0Snow),                                  & ! intent(in): roughness length of snow (m)
@@ -396,8 +396,8 @@ contains
                               ! model parameters (phenology) -- intent(in)
                               heightCanopyTop,                   & ! intent(in): height at the top of the vegetation canopy (m)
                               heightCanopyBottom,                & ! intent(in): height at the bottom of the vegetation canopy (m)
-                              maxCanopyLiquid,                   & ! intent(in): maximum storage of liquid water on the vegetation canopy (kg m-2)
-                              maxCanopyIce,                      & ! intent(in): maximum storage of ice on the vegetation canopy (kg m-2)
+                              scalarCanopyIceMax,                & ! intent(in): maximum interception storage capacity for ice (kg m-2)
+                              scalarCanopyLiqMax,                & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
 
                               ! model parameters (aerodynamic resistance) -- intent(in)
                               z0Snow,                            & ! intent(in): roughness length of snow (m)
@@ -588,8 +588,8 @@ contains
  ! model parameters (phenology) -- intent(in)
  real(dp),intent(in)            :: heightCanopyTop                 ! height at the top of the vegetation canopy (m)
  real(dp),intent(in)            :: heightCanopyBottom              ! height at the bottom of the vegetation canopy (m)
- real(dp),intent(in)            :: maxCanopyLiquid                 ! maximum storage of liquid water on the vegetation canopy (kg m-2)
- real(dp),intent(in)            :: maxCanopyIce                    ! maximum storage of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)            :: scalarCanopyIceMax              ! maximum interception storage capacity for ice (kg m-2)
+ real(dp),intent(in)            :: scalarCanopyLiqMax              ! maximum interception storage capacity for liquid water (kg m-2)
 
  ! model parameters (aerodynamic resistance) -- intent(in)
  real(dp),intent(in)            :: z0Snow                          ! roughness length of snow (m)
@@ -919,14 +919,15 @@ contains
   ! compute the fraction of canopy that is wet
   if(exposedVAI>0._dp .and. computeVegFlux)then
    if(canopyIceTrial > 0._dp)then
-    relativeCanopyWater = (canopyIceTrial + canopyLiqTrial) / (maxCanopyIce*exposedVAI)
+    relativeCanopyWater = (canopyIceTrial + canopyLiqTrial) / scalarCanopyIceMax
    else
-    relativeCanopyWater = canopyLiqTrial / (maxCanopyLiquid*exposedVAI)
+    relativeCanopyWater = canopyLiqTrial / scalarCanopyLiqMax
    endif
    scalarCanopyWetFraction = min(relativeCanopyWater, 1._dp)*0.666667_dp
   else
    scalarCanopyWetFraction = 0._dp
   endif
+  print*, 'scalarCanopyWetFraction = ', scalarCanopyWetFraction
 
   ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
   snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
@@ -1402,6 +1403,7 @@ contains
                   ! output: error control
                   err,cmessage                          ) ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  print*, 'after turbFluxes: scalarTemp_CanopyAir = ', scalarTemp_CanopyAir
 
   !print*, 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
   !print*, 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
@@ -1490,6 +1492,8 @@ contains
   scalarGroundEvaporation = scalarLatHeatGround/LH_vap
   scalarSnowSublimation   = 0._dp  ! no sublimation from snow if no snow layers have formed
  endif
+
+ print*, 'scalarCanopyEvaporation, scalarCanopySublimation, scalarLatHeatCanopyEvap = ', scalarCanopyEvaporation, scalarCanopySublimation, scalarLatHeatCanopyEvap
 
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
@@ -2200,6 +2204,7 @@ contains
    !                                        tempAboveGround, tempAboveGroundNew, tempAboveGroundIncr, groundStabilityCorrection, groundResistance
 
    ! update value for the next iteration
+   print*, iTry, tempAboveGround, tempAboveGroundNew, tempAboveGroundIncr
    tempAboveGround = tempAboveGroundNew
 
    ! check if satisfied convergence criteria
@@ -2934,6 +2939,8 @@ contains
   senHeatCanopy      = -volHeatCapacityAir*leafConductance*(canopyTemp - temp_CanopyAir)        ! (positive downwards)
   latHeatCanopyEvap  = -latHeatSubVapCanopy*latentHeatConstant*evapConductance*(satVP_CanopyTemp - VP_CanopyAir)    ! (positive downwards)
   latHeatCanopyTrans =              -LH_vap*latentHeatConstant*transConductance*(satVP_CanopyTemp - VP_CanopyAir)   ! (positive downwards)
+  print*, 'satVP_CanopyTemp, VP_CanopyAir, latHeatCanopyEvap = ', satVP_CanopyTemp, VP_CanopyAir, latHeatCanopyEvap
+  
   ! check that energy for canopy evaporation does not exhaust the available water
   ! NOTE: do this here, rather than enforcing solution constraints, because energy and mass solutions may be uncoupled
   if(canopyTemp > Tfreeze)then
