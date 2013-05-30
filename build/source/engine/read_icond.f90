@@ -96,6 +96,12 @@ contains
  real(dp)                       :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
  real(dp)                       :: residlVolFracLiq    ! volumetric fraction of liquid water in tension storage (snow)
  real(dp)                       :: h1,h2               ! used to check depth and height are consistent
+ real(dp),pointer               :: scalarCanopyTemp    ! canopy temperature (K)
+ real(dp),pointer               :: scalarCanopyIce     ! mass of ice on the vegetation canopy (kg m-2)
+ real(dp),pointer               :: scalarCanopyLiq     ! mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                       :: fLiq                ! fraction of liquid water on the vegetation canopy (-)
+ real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2) 
+
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -354,6 +360,20 @@ contains
  vGn_m = 1._dp - 1._dp/vGn_n
  ! compute the constant in the freezing curve function (m K-1)
  kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
+
+ ! modify the liquid water and ice in the canopy
+ scalarCanopyTemp => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1)  ! canopy temperature
+ scalarCanopyIce  => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)   ! mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiq  => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)   ! mass of liquid water on the vegetation canopy (kg m-2)
+ if(scalarCanopyIce > 0._dp .and. scalarCanopyTemp > Tfreeze)then
+  message=trim(message)//'canopy ice > 0 when canopy temperature > Tfreeze'
+  err=20; return
+ endif
+ fLiq = fracliquid(scalarCanopyTemp,snowfrz_scale)  ! fraction of liquid water (-)
+ tWat = scalarCanopyLiq + scalarCanopyIce           ! total water (kg m-2)
+ scalarCanopyLiq = fLiq*tWat                        ! mass of liquid water on the canopy (kg m-2)
+ scalarCanopyIce = (1._dp - fLiq)*tWat              ! mass of ice on the canopy (kg m-2)
+
  ! loop through all layers
  do iLayer=1,nLayers
   ! define short-cuts

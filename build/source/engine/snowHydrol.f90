@@ -75,7 +75,7 @@ contains
  err=0; message="snowHydrol/"
 
  ! initialize printflag
- printflag=.false.
+ printflag=.true.
  
  ! assign local pointers to the model index structures
  layerType => indx_data%var(iLookINDEX%layerType)%dat              ! layer type (ix_soil or ix_snow)
@@ -144,6 +144,7 @@ contains
   dt_dz     = dt/mLayerDepth(iLayer)
   ! compute the liquid water equivalent associated with phase change
   phseChnge = (iden_ice/iden_water)*(mLayerVolFracIceIter(iLayer) - mLayerVolFracIce(iLayer))
+
   ! ** allow liquid water to pass through under very high density
   if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
    iLayerLiqFluxSnow(iLayer)   = iLayerLiqFluxSnow(iLayer-1)
@@ -181,9 +182,10 @@ contains
      increment = volFracLiqNew - volFracLiqTrial
     endif
     ! test
-    if(iLayer==1 .and. printflag)then
-     write(*,'(a)')      'in snowHydrol, iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge = '
-     write(*,'(3(i4,1x),10(f20.10,1x))') iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerInitLiqFluxSnow(iLayer-1), vDrainage, phseChnge
+    if(printflag)then
+     if(jiter==1)&
+     write(*,'(a)')      'in snowHydrol, iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerLiqFluxSnow(iLayer-1), vDrainage, phseChnge = '
+     write(*,'(3(i4,1x),10(f20.10,1x))') iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerLiqFluxSnow(iLayer-1), vDrainage, phseChnge
     endif
     ! check for convergence
     if(abs(increment) < atol) exit
@@ -195,6 +197,8 @@ contains
    ! get ready to process the next snow layer
    iLayerLiqFluxSnow(iLayer) = vDrainage + dflw_dliq*increment ! second term will be zero if converge completely
   endif  ! (if ice content is so high we need the direct pass through)
+  write(*,'(a)') 'in snowHydrol:  iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer) = '
+  write(*,'(i4,1x,9(f20.10,1x))') iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer)
   ! *** now process the next layer
  end do  ! (looping through snow layers)
 

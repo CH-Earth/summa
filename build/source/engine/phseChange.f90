@@ -54,6 +54,8 @@ contains
  real(dp),pointer              :: mLayerTcrit(:)           ! critical soil temperature above which all water is unfrozen (K)
  integer(i4b),pointer          :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local variables
+ real(dp)                      :: fLiq                     ! fraction of liquid water (-)
+ real(dp)                      :: dLiq                     ! change in volumetric liiquid water over the iteration (-)
  real(dp)                      :: theta                    ! liquid water equivalent of total water (-)
  integer(i4b)                  :: nSnow                    ! number of snow layers
  integer(i4b)                  :: iLayer                   ! index of model layer
@@ -91,8 +93,17 @@ contains
    ! ** snow
    case(ix_snow)
     ! compute the volumetric fraction of liquid water and ice (-)
-    mLayerVolFracLiqNew(iLayer) = fracliquid(mLayerTempNew(iLayer),snowfrz_scale)*theta
+    fLiq = fracliquid(mLayerTempNew(iLayer),snowfrz_scale)
+    mLayerVolFracLiqNew(iLayer) = fLiq*theta
     mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
+
+    ! avoid excessive change in a single iteration
+    dLiq = mLayerVolFracLiqNew(iLayer) - mLayerVolFracLiqIter(iLayer)
+    if(abs(dLiq) > 0.05_dp)then
+     print*, 'modifying dLiq; dLiq = ', dLiq
+     mLayerVolFracLiqNew(iLayer) = mLayerVolFracLiqIter(iLayer) + dLiq*0.5_dp
+     mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
+    endif
 
    ! ** soil
    case(ix_soil)
@@ -125,17 +136,21 @@ contains
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
 
   endselect
+
   ! print results
   !if(iLayer > nSnow .and. iLayer < nSnow+3) &
   ! write(*,'(a,i4,1x,10(f20.10,1x))') 'in phase change: temp, liquid (iter, new), ice (iter, new, diff)', &
   !  iLayer, mLayerTempNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracIceNew(iLayer), &
   !  mLayerVolFracIceNew(iLayer) - mLayerVolFracIceIter(iLayer)
+
+
   ! sanity check
   if(mLayerVolFracIceNew(iLayer) < 0._dp)then
    write(message,'(a,i0,a,e20.10,a)')trim(message)//"volumetric ice content < 0 [iLayer=",iLayer,&
                                      &"; mLayerVolFracIceNew(iLayer)=",mLayerVolFracIceNew(iLayer),"]"
    err=10; return
   endif
+
  end do ! (looping through layers)
  endsubroutine phseChange
 

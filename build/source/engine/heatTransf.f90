@@ -75,6 +75,8 @@ contains
                        scalarCanopyTempDiff,     & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                        mLayerTempDiff,           & ! intent(out): iteration increment for temperature of the snow-soil system (K)
                        scalarCanopyTempNew,      & ! intent(out): new temperature of the vegetation canopy (K)
+                       scalarCanopyIceNew,       & ! intent(out): mass of ice on the canopy (kg m-2) 
+                       scalarCanopyLiqNew,       & ! intent(out): mass of liquid water on the canopy (kg m-2)
                        mLayerTempNew,            & ! intent(out): new temperature of each model layer (K)
                        mLayerVolFracIceNew,      & ! intent(out): new volumetric fraction of ice (-)
                        mLayerVolFracLiqNew,      & ! intent(out): new volumetric fraction of liquid water (-)
@@ -113,6 +115,8 @@ contains
  real(dp),intent(out)          :: scalarCanopyTempDiff     ! iteration increment for temperature of the vegetation canopy (K)
  real(dp),intent(out)          :: mLayerTempDiff(:)        ! iteration increment for temperature of the snow-soil system (K)
  real(dp),intent(out)          :: scalarCanopyTempNew      ! new temperature of the vegetation canopy (K)
+ real(dp),intent(out)          :: scalarCanopyIceNew       ! mass of ice on the canopy (kg m-2) 
+ real(dp),intent(out)          :: scalarCanopyLiqNew       ! mass of liquid water on the canopy (kg m-2)
  real(dp),intent(out)          :: mLayerTempNew(:)         ! new temperature of each snow/soil layer (K)
  real(dp),intent(out)          :: mLayerVolFracIceNew(:)   ! new volumetric fraction of ice (-)
  real(dp),intent(out)          :: mLayerVolFracLiqNew(:)   ! new volumetric fraction of liquid water (-)
@@ -233,6 +237,8 @@ contains
                         scalarCanopyTempDiff,                                          & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                         mLayerTempDiff,                                                & ! intent(out): iteration increment for temperature of the snow-soil system (K) 
                         scalarCanopyTempNew,                                           & ! intent(out): new temperature of the vegetation canopy (K)
+                        scalarCanopyIceNew,                                            & ! intent(out): mass of ice on the canopy (kg m-2) 
+                        scalarCanopyLiqNew,                                            & ! intent(out): mass of liquid water on the canopy (kg m-2)
                         mLayerTempNew,                                                 & ! intent(out): new temperature of each snow/soil layer (K)
                         mLayerVolFracIceNew,                                           & ! intent(out): new volumetric fraction of ice (-)
                         mLayerVolFracLiqNew,                                           & ! intent(out): new volumetric fraction of liquid water (-)
@@ -356,6 +362,8 @@ contains
                               scalarCanopyTempDiff,         & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                               mLayerTempDiff,               & ! intent(out): iteration increment for temperature of the snow-soil system (K)
                               scalarCanopyTempNew,          & ! intent(out): new temperature of the vegetation canopy (K)
+                              scalarCanopyIceNew,           & ! intent(out): mass of ice on the canopy (kg m-2) 
+                              scalarCanopyLiqNew,           & ! intent(out): mass of liquid water on the canopy (kg m-2)
                               mLayerTempNew,                & ! intent(out): new temperature of the snow-soil system (K)
                               mLayerVolFracIceNew,          & ! intent(out): new volumetric fraction of ice (-)
                               mLayerVolFracLiqNew,          & ! intent(out): new volumetric fraction of liquid water (-)
@@ -365,6 +373,7 @@ contains
  ! utility module
  USE vegNrgFlux_module,only:vegNrgFlux                        ! compute energy fluxes for vegetation and ground surface
  USE phseChange_module,only:phseChange                        ! compute change in phase over the time step
+ USE snow_utils_module,only:fracliquid                        ! compute the fraction of liquid water at a given temperature (snow)
  USE snow_utils_module,only:dFracLiq_dTk                      ! differentiate the freezing curve w.r.t. temperature (snow)
  USE soil_utils_module,only:dTheta_dTk                        ! differentiate the freezing curve w.r.t. temperature (soil)
  USE conv_funcs_module,only:relhm2sphm                        ! compute specific humidity 
@@ -453,6 +462,8 @@ contains
  real(dp),intent(out)           :: scalarCanopyTempDiff        ! iteration increment for temperature of the vegetation canopy (K)
  real(dp),intent(out)           :: mLayerTempDiff(:)           ! iteration increment for temperature of the snow-soil system (K) 
  real(dp),intent(out)           :: scalarCanopyTempNew         ! new temperature of the vegetation canopy (K)
+ real(dp),intent(out)           :: scalarCanopyIceNew          ! mass of ice on the canopy (kg m-2) 
+ real(dp),intent(out)           :: scalarCanopyLiqNew          ! mass of liquid water on the canopy (kg m-2)
  real(dp),intent(out)           :: mLayerTempNew(:)            ! new temperature of each model layer (K)
  real(dp),intent(out)           :: mLayerVolFracIceNew(:)      ! new volumetric fraction of ice (-)
  real(dp),intent(out)           :: mLayerVolFracLiqNew(:)      ! new volumetric fraction of liquid water (-)
@@ -485,7 +496,7 @@ contains
  real(dp)                       :: dGroundNetFlux_dCanopyTemp ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp)                       :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
  ! define fluxes at the start of the sub-step
- real(dp)                       :: canopyNetFluxInit          ! net energy flux at the canopy at the start of the substep (W m-2)
+ real(dp),save                  :: canopyNetFluxInit          ! net energy flux at the canopy at the start of the substep (W m-2)
  real(dp),dimension(0:nLayers)  :: iLayerNrgFluxInit          ! flux at layer interfaces of the snow-soil system at the start of the substep (W m-2)
  ! define the local variables for the solution
  real(dp)                       :: dTheta_dTkCanopy           ! derivative in fraction liquid water w.r.t. canopy temperature (K-1)
@@ -511,6 +522,9 @@ contains
  real(dp),allocatable           :: d_p1(:)                    ! super-diagonal elements of the tridiagonal system (J m-3 K-1)
  real(dp),allocatable           :: rvec(:)                    ! residual vector (J m-3)
  real(dp),allocatable           :: sInc(:)                    ! state increment (K)
+ ! define local variables for phase change
+ real(dp)                       :: fLiq                       ! fraction of liquid water on the vegetation canopy (-)
+ real(dp)                       :: tWat                       ! total water on the vegetation canopy (kg m-2) 
  ! ---------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="heatTransf_muster/"
@@ -548,8 +562,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! * COMPUTE FLUXES...
  ! --------------------------------------------------------------------------------------------------------------------------------
-
- print*, 'scalarTemp_CanopyAir, scalarCanopyTempIter = ', scalarTemp_CanopyAir, scalarCanopyTempIter
 
  ! check temperatures
  if(computeVegFlux)then
@@ -648,8 +660,11 @@ contains
   phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
   ! (compute residuals)
   canopyResidual = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
-  !write(*,'(a,1x,10(f20.10,1x))') 'canopy: scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse = ', &
-  !                                         scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse
+  print*, 'scalarCanopyIceIter, scalarCanopyIce = ', scalarCanopyIceIter, scalarCanopyIce
+  print*, 'nrg0, nrg1, nrg1 - nrg0 = ', nrg0, nrg1, nrg1 - nrg0
+  print*, 'wimplicit, scalarBulkVolHeatCapVeg, canopyResidual = ', wimplicit, scalarBulkVolHeatCapVeg, canopyResidual
+  write(*,'(a,1x,10(f20.10,1x))') 'canopy: scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse = ', &
+                                           scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse
  endif
 
  ! ***** compute the residual vector for all snow/soil layers (J m-3)
@@ -679,7 +694,8 @@ contains
  ! * vegetation canopy
  if(computeVegFlux)then
   if(scalarCanopyIceIter > 0._dp)then
-   dTheta_dTkCanopy = dFracLiq_dTk(scalarCanopyTempIter,snowfrz_scale)
+   theta = (scalarCanopyIceIter + scalarCanopyLiqIter)/(canopyDepth*iden_water)
+   dTheta_dTkCanopy = dFracLiq_dTk(scalarCanopyTempIter,snowfrz_scale)*theta
   else
    dTheta_dTkCanopy = 0._dp
   endif
@@ -708,6 +724,7 @@ contains
 
  ! ***** assemble the tri-diagonal matrix for the canopy
  if(computeVegFlux)then
+  print*, 'dTheta_dTkCanopy = ', dTheta_dTkCanopy
   diagCanopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dCanopyTemp) + dTheta_dTkCanopy*LH_fus*iden_water + scalarBulkVolHeatCapVeg
   d_m1Canopy = (wtim/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
   d_p1Canopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dGroundTemp)
@@ -758,6 +775,7 @@ contains
  ! get the canopy increment
  if(computeVegFlux)then
   scalarCanopyTempDiff = sInc(0)
+  print*, 'rvec(0), scalarCanopyTempDiff, scalarCanopyTempDiff*scalarBulkVolHeatCapVeg = ', rvec(0), scalarCanopyTempDiff, scalarCanopyTempDiff*scalarBulkVolHeatCapVeg 
  else
   scalarCanopyTempDiff = 0._dp
  endif
@@ -777,6 +795,18 @@ contains
   !pause ' excessive increment'
  endif
 
+ ! adjust iteration increment near the freezing point
+ ! (use simplified bisection to take smaller steps near freezing)
+ if(scalarCanopyIceIter > 0.01_dp .and. scalarCanopyTempIter + scalarCanopyTempDiff > Tfreeze)then
+  scalarCanopyTempDiff = (Tfreeze - scalarCanopyTempIter)*0.5_dp  ! go halfway to the freezing point
+ endif
+ ! (get the difference from freezing point (K)
+ critDiff = Tfreeze - scalarCanopyTempIter
+ ! (set temperature close to freezing point when it crosses freezing)
+ if(critDiff > 0._dp)then; if(scalarCanopyTempDiff > critDiff) scalarCanopyTempDiff = critDiff + epsT  ! below freezing crossing zero --> slightly above freezing
+                     else; if(scalarCanopyTempDiff < critDiff) scalarCanopyTempDiff = critDiff - epsT  ! above freezing crossing zero --> slightly below freezing
+ endif
+
  ! adjust iteration increments in cases where iterations are oscillating
  if(iter > 5)then
   if(scalarCanopyTempDiff*canopyTempIncrOld < -0.01_dp .or. any(mLayerTempIncrOld(1:nLayers)*mLayerTempDiff(1:nLayers) < -0.01_dp) )then
@@ -792,7 +822,7 @@ contains
  if(nSnow>0)then
   do iLayer=1,nSnow
    ! adjust del temperature in cases where snow temperature exceeds Tfreeze -- use bi-section
-   if(mLayerTempIter(iLayer)+mLayerTempDiff(iLayer) > Tfreeze)then
+   if(mLayerTempIter(iLayer) + mLayerTempDiff(iLayer) > Tfreeze)then
     mLayerTempDiff(iLayer) = (Tfreeze-mLayerTempIter(iLayer))*0.5_dp
    endif
    ! check that temperature increment is not too large
@@ -827,13 +857,13 @@ contains
  ! compute phase change of water in the vegetation canopy
  if(computeVegFlux)then
   ! compute the fraction of liquid water
-  fLiq = fracliquid(scalarCanopyTempNew,snowfrz_scale)
-  tWat = 
-
-
+  fLiq = fracliquid(scalarCanopyTempNew,snowfrz_scale)  ! fraction of liquid water (-)
+  tWat = scalarCanopyLiqIter + scalarCanopyIceIter      ! total water (kg m-2)
+  scalarCanopyLiqNew = fLiq*tWat                        ! mass of liquid water on the canopy (kg m-2)
+  scalarCanopyIceNew = (1._dp - fLiq)*tWat              ! mass of ice on the canopy (kg m-2)
  endif
 
- ! compute phase change
+ ! compute phase change for the snow-soil vector
  call phsechange(mLayerTempNew,       & ! intent(in): new temperature vector (K)
                  mLayerMatricHeadIter,& ! intent(in): matric head at the current iteration (m)
                  mLayerVolFracLiqIter,& ! intent(in): volumetric fraction of liquid water at the current iteration (-)

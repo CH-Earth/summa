@@ -13,11 +13,10 @@ contains
                        dt,                       & ! intent(in): time step (seconds)
                        iter,                     & ! intent(in): iteration index
                        computeVegFlux,           & ! intent(in): flag to denote if computing energy flux over vegetation
-                       ! input: state variables
+                       ! input: state variables at the current iteration
                        scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                        scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                        ! output: updated state variables
-                       scalarCanopyIceNew,       & ! intent(out): updated mass of ice on the vegetation canopy at the current iteration (kg m-2)
                        scalarCanopyLiqNew,       & ! intent(out): updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                        ! output: error control
                        err,message)                ! intent(out): error control
@@ -29,12 +28,11 @@ contains
  real(dp),intent(in)           :: dt                         ! time step (seconds)
  integer(i4b),intent(in)       :: iter                       ! current iteration count
  logical(lgt),intent(in)       :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- ! input: state variables
- real(dp),intent(in)           :: scalarCanopyLiqIter        ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+ ! input: state variables at the current iteration
  real(dp),intent(in)           :: scalarCanopyIceIter        ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+ real(dp),intent(in)           :: scalarCanopyLiqIter        ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
  ! output: updated state variables
  real(dp),intent(out)          :: scalarCanopyLiqNew         ! updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
- real(dp),intent(out)          :: scalarCanopyIceNew         ! updated mass of ice on the vegetation canopy at the current iteration (kg m-2)
  ! output: error control
  integer(i4b),intent(out)      :: err                        ! error code
  character(*),intent(out)      :: message                    ! error message
@@ -56,29 +54,26 @@ contains
                         dt,                                                        & ! intent(in): time step (seconds)
                         iter,                                                      & ! intent(in): iteration index
                         computeVegFlux,                                            & ! intent(in): flag to denote if computing energy flux over vegetation
-                        ! input: state variables
+                        ! input: state variables at the current iteration
                         scalarCanopyIceIter,                                       & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                         scalarCanopyLiqIter,                                       & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                        ! input: forcing variables
-                        mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),            & ! intent(in): computed snowfall rate (kg m-2 s-1)
+                        ! input: state variables at the start of the sub-step
+                        mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
+                        ! input: forcing and diagnostic variables
                         mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),            & ! intent(in): computed rainfall rate (kg m-2 s-1)
-                        ! input: diagnostic variables
                         mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),          & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
                         mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),          & ! intent(in): exposed stem area index after burial by snow (m2 m-2)                       
-                        mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),        & ! intent(in): maximum interception storage capacity for ice (kg m-2)
-                        mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),        & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyEvaporation)%dat(1),   & ! intent(in): canopy evaporation (kg m-2 s-1)
                         ! input: parameters
-                        mpar_data%var(iLookPARAM%throughfallScaleSnow),            & ! intent(in): scaling factor for throughfall (snow) (-)
+                        mpar_data%var(iLookPARAM%refInterceptCapRain),             & ! intent(in): reference canopy interception capacity for rain per unit leaf area (kg m-2)
                         mpar_data%var(iLookPARAM%throughfallScaleRain),            & ! intent(in): scaling factor for throughfall (rain) (-)
-                        mpar_data%var(iLookPARAM%snowUnloadingCoeff),              & ! intent(in): time constant for unloading of snow from the forest canopy (s-1)
                         mpar_data%var(iLookPARAM%canopyDrainageCoeff),             & ! intent(in): time constant for drainage of liquid water from the forest canopy (s-1)
                         ! output: diagnostic variables
-                        mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),     & ! intent(out): snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),        & ! intent(out): maximum interception storage capacity for liquid water (kg m-2)
                         mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1),     & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1), & ! intent(out): unloading of snow from the vegetion canopy (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1),   & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
                         ! output: updated state variables
-                        scalarCanopyIceNew,                                        & ! intent(out): updated mass of ice on the vegetation canopy at the current iteration (kg m-2)
                         scalarCanopyLiqNew,                                        & ! intent(out): updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                         ! output: error control
                         err,cmessage)                                                ! intent(out): error control
@@ -100,29 +95,26 @@ contains
                               dt,                          & ! intent(in): time step (seconds)
                               iter,                        & ! intent(in): iteration index
                               computeVegFlux,              & ! intent(in): flag to denote if computing energy flux over vegetation
-                              ! input: state variables
+                              ! input: state variables at the current iteration
                               scalarCanopyIceIter,         & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                               scalarCanopyLiqIter,         & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                              ! input: forcing variables
-                              scalarSnowfall,              & ! intent(in): computed snowfall rate (kg m-2 s-1)
+                              ! input: state variables at the start of the sub-step
+                              scalarCanopyIce,             & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
+                              scalarCanopyLiq,             & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
+                              ! input: forcing and diagnostic variables
                               scalarRainfall,              & ! intent(in): computed rainfall rate (kg m-2 s-1)
-                              ! input: diagnostic variables
                               scalarExposedLAI,            & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
                               scalarExposedSAI,            & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                              scalarCanopyIceMax,          & ! intent(in): maximum interception storage capacity for ice (kg m-2)
-                              scalarCanopyLiqMax,          & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
+                              scalarCanopyEvaporation,     & ! intent(in): canopy evaporation (kg m-2 s-1)
                               ! input: parameters
-                              throughfallScaleSnow,        & ! intent(in): scaling factor for throughfall (snow) (-)
+                              refInterceptCapRain,         & ! intent(in): reference canopy interception capacity for rain per unit leaf area (kg m-2)
                               throughfallScaleRain,        & ! intent(in): scaling factor for throughfall (rain) (-)
-                              snowUnloadingCoeff,          & ! intent(in): time constant for unloading of snow from the forest canopy (s-1)
                               canopyDrainageCoeff,         & ! intent(in): time constant for drainage of liquid water from the forest canopy (s-1)
                               ! output: diagnostic variables
-                              scalarThroughfallSnow,       & ! intent(out): snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+                              scalarCanopyLiqMax,          & ! intent(out): maximum interception storage capacity for liquid water (kg m-2)
                               scalarThroughfallRain,       & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-                              scalarCanopySnowUnloading,   & ! intent(out): unloading of snow from the vegetion canopy (kg m-2 s-1)
                               scalarCanopyLiqDrainage,     & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
                               ! output: updated state variables
-                              scalarCanopyIceNew,          & ! intent(out): updated mass of ice on the vegetation canopy at the current iteration (kg m-2)
                               scalarCanopyLiqNew,          & ! intent(out): updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                               ! output: error control
                               err,message)                   ! intent(out): error control
@@ -131,29 +123,26 @@ contains
  real(dp),intent(in)           :: dt                         ! time step (seconds)
  integer(i4b),intent(in)       :: iter                       ! current iteration count
  logical(lgt),intent(in)       :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- ! input: state variables
+ ! input: state variables at the current iteration
  real(dp),intent(in)           :: scalarCanopyIceIter        ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
  real(dp),intent(in)           :: scalarCanopyLiqIter        ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
- ! input: forcing variables
- real(dp),intent(in)           :: scalarSnowfall             ! computed snowfall rate (kg m-2 s-1)
+ ! input: state variables at the start of the sub-step
+ real(dp),intent(in)           :: scalarCanopyIce            ! mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
+ real(dp),intent(in)           :: scalarCanopyLiq            ! mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
+ ! input: forcing and diagnostic variables
  real(dp),intent(in)           :: scalarRainfall             ! computed rainfall rate (kg m-2 s-1)
- ! input: diagnostic variables
  real(dp),intent(in)           :: scalarExposedLAI           ! exposed leaf area index after burial by snow (m2 m-2)
  real(dp),intent(in)           :: scalarExposedSAI           ! exposed stem area index after burial by snow (m2 m-2)
- real(dp),intent(in)           :: scalarCanopyIceMax         ! maximum interception storage capacity for ice (kg m-2)
- real(dp),intent(in)           :: scalarCanopyLiqMax         ! maximum interception storage capacity for liquid water (kg m-2)
+ real(dp),intent(in)           :: scalarCanopyEvaporation    ! canopy evaporation (kg m-2 s-1)
  ! input: parameters
- real(dp),intent(in)           :: throughfallScaleSnow       ! scaling factor for throughfall (snow) (-)
+ real(dp),intent(in)           :: refInterceptCapRain        ! reference canopy interception capacity for rain per unit leaf area (kg m-2)
  real(dp),intent(in)           :: throughfallScaleRain       ! scaling factor for throughfall (rain) (-)
- real(dp),intent(in)           :: snowUnloadingCoeff         ! time constant for unloading of snow from the forest canopy (s-1)
  real(dp),intent(in)           :: canopyDrainageCoeff        ! time constant for drainage of liquid water from the forest canopy (s-1)
  ! output: diagnostic variables
- real(dp),intent(out)          :: scalarThroughfallSnow      ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ real(dp),intent(out)          :: scalarCanopyLiqMax         ! maximum interception storage capacity for liquid water (kg m-2)
  real(dp),intent(out)          :: scalarThroughfallRain      ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
- real(dp),intent(out)          :: scalarCanopySnowUnloading  ! unloading of snow from the vegetion canopy (kg m-2 s-1)
  real(dp),intent(out)          :: scalarCanopyLiqDrainage    ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
  ! output: updated state variables
- real(dp),intent(out)          :: scalarCanopyIceNew         ! updated mass of ice on the vegetation canopy at the current iteration (kg m-2)
  real(dp),intent(out)          :: scalarCanopyLiqNew         ! updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
  ! output: error control
  integer(i4b),intent(out)      :: err                        ! error code
@@ -161,65 +150,73 @@ contains
  ! ----------------------------------------------------------------------------------------------------
  ! define local variables
  integer(i4b)                  :: jiter                      ! local iteration
- integer(i4b),parameter        :: maxiter=1                  ! maximum number of iterations
+ integer(i4b),parameter        :: maxiter=10                 ! maximum number of iterations
  real(dp)                      :: exposedVAI                 ! exposed vegetation area index (LAI + SAI)
+ real(dp)                      :: scalarCanopyLiqTrial       ! trial value of canopy liquid water (kg m-2)
  real(dp)                      :: canopyLiqDrainageDeriv     ! derivative in the drainage function for canopy liquid water (s-1)
-
+ real(dp)                      :: flux                       ! net flux (kg m-2 s-1)
+ real(dp)                      :: delS                       ! change in storage (kg m-2)
+ real(dp)                      :: res                        ! residual (kg m-2)
+ real(dp),parameter            :: convToler=0.0001_dp        ! convergence tolerance (kg m-2)
+ ! ----------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="can_Hydrol_muster/"
 
  ! set throughfall to inputs if vegetation is completely buried with snow
  if(.not.computeVegFlux)then
-  scalarThroughfallSnow     = scalarSnowfall
   scalarThroughfallRain     = scalarRainfall
-  scalarCanopySnowUnloading = 0._dp
   scalarCanopyLiqDrainage   = 0._dp
   return
  endif
 
- print*, 'scalarCanopyLiqIter, scalarCanopyLiqMax = ', scalarCanopyLiqIter, scalarCanopyLiqMax
+ ! initialize canopy liquid water
+ scalarCanopyLiqTrial = scalarCanopyLiqIter
 
- ! compute the exposed vegetation area index (m2 m-2)
- exposedVAI = scalarExposedSAI + scalarExposedLAI
+ ! compute the maximum storage of liquid water (kg m-2)
+ scalarCanopyLiqMax = refInterceptCapRain*(scalarExposedSAI + scalarExposedLAI)
 
- ! compute throughfall (kg m-2 s-1)
- scalarThroughfallSnow = scalarSnowfall*exp(-throughfallScaleSnow*exposedVAI)
- scalarThroughfallRain = scalarRainfall*exp(-throughfallScaleRain*exposedVAI)
-
- ! compute unloading of snow from the canopy (kg m-2 s-1)
- scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
+ ! set throughfall to zero (kg m-2)
+ scalarThroughfallRain = 0._dp
 
  ! ***** estimate the updated value for liquid water
  do jiter=1,maxiter
 
   ! compute drainage of liquid water from the canopy (kg m-2 s-1)
-  if(scalarCanopyLiqIter > scalarCanopyLiqMax)then
-   scalarCanopyLiqDrainage = canopyDrainageCoeff*(scalarCanopyLiqIter - scalarCanopyLiqMax)
+  if(scalarCanopyLiqTrial > scalarCanopyLiqMax)then
+   scalarCanopyLiqDrainage = canopyDrainageCoeff*(scalarCanopyLiqTrial - scalarCanopyLiqMax)
    canopyLiqDrainageDeriv  = canopyDrainageCoeff
   else
    scalarCanopyLiqDrainage = 0._dp
    canopyLiqDrainageDeriv  = 0._dp
   endif
 
-  print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage  
+  ! ** compute iteration increment  
+  flux = scalarRainfall - scalarThroughfallRain + scalarCanopyEvaporation - scalarCanopyLiqDrainage  ! net flux (kg m-2 s-1)
+  delS = (flux*dt - (scalarCanopyLiqTrial - scalarCanopyLiq) - (scalarCanopyIceIter - scalarCanopyIce) ) / (1._dp + canopyLiqDrainageDeriv*dt)
+  !print*, 'scalarRainfall, scalarThroughfallRain, scalarCanopyEvaporation, scalarCanopyLiqDrainage = ', &
+  !         scalarRainfall, scalarThroughfallRain, scalarCanopyEvaporation, scalarCanopyLiqDrainage
+  !print*, 'jiter, scalarCanopyLiqTrial, scalarCanopyLiq, scalarCanopyIceIter, scalarCanopyIce = ', &
+  !         jiter, scalarCanopyLiqTrial, scalarCanopyLiq, scalarCanopyIceIter, scalarCanopyIce
+  !print*, '-(scalarCanopyLiqTrial - scalarCanopyLiq) = ', -(scalarCanopyLiqTrial - scalarCanopyLiq)
+  !print*, '(scalarCanopyIceIter - scalarCanopyIce) = ', (scalarCanopyIceIter - scalarCanopyIce)
+  !print*, '-(scalarCanopyLiqTrial - scalarCanopyLiq) - (scalarCanopyIceIter - scalarCanopyIce) = ', &
+  !         -(scalarCanopyLiqTrial - scalarCanopyLiq) - (scalarCanopyIceIter - scalarCanopyIce)
 
- end do  ! iterations for canopy liquid water 
+  ! ** check for convergence
+  res = scalarCanopyLiqTrial - (scalarCanopyLiq + flux*dt) + (scalarCanopyIceIter - scalarCanopyIce)
+  !print*, 'res, delS = ', res, delS
+  if(abs(res) < convToler)exit
 
+  ! ** check for non-convengence
+  if(jiter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
 
+  ! ** update value  
+  scalarCanopyLiqTrial = scalarCanopyLiqTrial + delS
 
-
-
- ! check parameters
- print*, 'throughfallScaleSnow  = ', throughfallScaleSnow     ! scaling factor for throughfall (snow) (-)
- print*, 'throughfallScaleRain  = ', throughfallScaleRain     ! scaling factor for throughfall (rain) (-)
- print*, 'snowUnloadingCoeff    = ', snowUnloadingCoeff       ! time constant for unloading of snow from the forest canopy (s-1)
- print*, 'canopyDrainageCoeff   = ', canopyDrainageCoeff      ! time constant for drainage of liquid water from the forest canopy (s-1)
- pause 'in can_Hydrol'
-
+ end do  ! iterating
 
  ! update state variables
- scalarCanopyIceNew = scalarCanopyIceIter
- scalarCanopyLiqNew = scalarCanopyLiqIter
+ scalarCanopyLiqNew = scalarCanopyLiqTrial
 
  end subroutine can_Hydrol_muster
 

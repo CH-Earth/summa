@@ -115,6 +115,7 @@ FUSE_MODRUN = \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
+		canopySnow.f90 \
 		newsnwfall.f90 \
 		layerMerge.f90 \
 		layerDivide.f90 \
