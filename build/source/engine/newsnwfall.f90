@@ -36,12 +36,14 @@ contains
  ! assign pointers to model parameters (compute layer temperature)
  real(dp),pointer                    :: fc_param                   ! freeezing curve parameter for snow (K-1)
  ! local pointers to model state variables (surface layer only)
+ real(dp),pointer                    :: surfaceLayerTemp           ! temperature of each layer (K)
  real(dp),pointer                    :: surfaceLayerDepth          ! depth of each layer (m)
  real(dp),pointer                    :: surfaceLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
  real(dp),pointer                    :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
  ! local pointers to diagnostic scalar variables
  real(dp),pointer                    :: scalarSWE                  ! SWE (kg m-2)
  real(dp),pointer                    :: scalarSnowDepth            ! total snow depth (m)
+ real(dp),pointer                    :: scalarSnowfallTemp         ! computed temperature of fresh snow (K) 
  real(dp),pointer                    :: scalarNewSnowDensity       ! computed density of new snow (kg m-3)
  real(dp),pointer                    :: scalarThroughfallSnow      ! throughfall of snow through the canopy (kg m-2 s-1)
  real(dp),pointer                    :: scalarCanopySnowUnloading  ! unloading of snow from the canopy (kg m-2 s-1)
@@ -53,9 +55,11 @@ contains
  integer(i4b)                        :: nSnow                      ! number of snow layers
  real(dp)                            :: newSnowfall                ! new snowfall -- throughfall and unloading (kg m-2 s-1)
  real(dp)                            :: newSnowDepth               ! new snow depth (m)
+ real(dp),parameter                  :: densityCanopySnow=200._dp  ! density of snow on the vegetation canopy (kg m-3)
  real(dp)                            :: totalMassIceSurfLayer      ! total mass of ice in the surface layer (kg m-2)
- real(dp)                            :: totalMassLiqSurfLayer      ! total mass of liquid water in the surface layer (kg m-2)
  real(dp)                            :: totalDepthSurfLayer        ! total depth of the surface layer (m)
+ real(dp)                            :: volFracWater               ! volumetric fraction of total water, liquid and ice (-)
+ real(dp)                            :: fracLiq                    ! fraction of liquid water (-)
  ! initialize error control
  err=0; message="newsnwfall/"
  ! assign pointers to model parameters (compute layer temperature)
@@ -63,6 +67,7 @@ contains
  ! assign local pointers to diagnostic scalar variables
  scalarSWE                 => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)                  ! SWE (kg m-2)
  scalarSnowDepth           => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)            ! total snow depth (m)
+ scalarSnowfallTemp        => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1)         ! computed temperature of fresh snow (K)
  scalarNewSnowDensity      => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1)       ! computed density of new snow (kg m-3) 
  scalarThroughfallSnow     => mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1)      ! throughfall of snow through the canopy (kg m-2 s-1)
  scalarCanopySnowUnloading => mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1)  ! unloading of snow from the canopy (kg m-2 s-1)
@@ -82,7 +87,7 @@ contains
  if(newSnowfall < tiny(dt)) return
 
  ! compute depth of new snow
- newSnowDepth     = dt*newSnowfall/scalarNewSnowDensity  ! new snow depth (m)
+ newSnowDepth     = dt*(scalarThroughfallSnow/scalarNewSnowDensity + scalarCanopySnowUnloading/densityCanopySnow)  ! new snow depth (m)
 
  ! process special case of "snow without a layer"
  if(nSnow==0)then
@@ -93,17 +98,21 @@ contains
  ! add snow to the top layer (more typical case where snow layers already exist)
  else
   ! assign pointers to model state variables -- all surface layer only
+  surfaceLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)        ! temperature of the surface layer (K)
   surfaceLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat(1)       ! depth of the surface layer (m)
   surfaceLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1)  ! volumetric fraction of ice in the surface layer  (-)
   surfaceLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1)  ! volumetric fraction of liquid water in the surface layer (-)
   ! get the total mass of liquid water and ice (kg m-2)
   totalMassIceSurfLayer  = iden_ice*surfaceLayerVolFracIce*surfaceLayerDepth + newSnowfall*dt
-  totalMassLiqSurfLayer  = iden_water*surfaceLayerVolFracLiq*surfaceLayerDepth
   ! get the total snow depth
   totalDepthSurfLayer    = surfaceLayerDepth + newSnowDepth
-  ! get the volumetric fraction of liquid water and ice (-)
-  surfaceLayerVolFracIce = totalMassIceSurfLayer/(iden_ice*totalDepthSurfLayer)
-  surfaceLayerVolFracLiq = totalMassLiqSurfLayer/(iden_water*totalDepthSurfLayer)
+  ! compute the new temperature
+  surfaceLayerTemp       = (surfaceLayerTemp*surfaceLayerDepth + scalarSnowfallTemp*newSnowDepth) / totalDepthSurfLayer
+  ! compute new volumetric fraction of liquid water and ice
+  volFracWater = (totalMassIceSurfLayer/totalDepthSurfLayer)/iden_water + surfaceLayerVolFracLiq  ! volumetric fraction of total water (liquid and ice)
+  fracLiq      = fracliquid(surfaceLayerTemp,fc_param)                           ! fraction of liquid water
+  surfaceLayerVolFracIce = (1._dp - fracLiq)*volFracWater*(iden_water/iden_ice)  ! volumetric fraction of ice (-)
+  surfaceLayerVolFracLiq =          fracLiq *volFracWater                        ! volumetric fraction of liquid water (-)
   ! update new layer depth (m)
   surfaceLayerDepth      = totalDepthSurfLayer
   ! re-compute snow depth and SWE

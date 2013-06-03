@@ -177,10 +177,10 @@ contains
  endif
 
  ! check
- print*, 'before sub-division'
- do kLayer=1,nLayers
-  write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
- end do
+ !print*, 'before sub-division'
+ !do kLayer=1,nLayers
+ ! write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
+ !end do
  !if(scalarSnowDepth > 0.5_dp) pause ' deep snow'
 
  ! ***** sub-divide snow layers, if necessary
@@ -218,10 +218,10 @@ contains
    mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
    mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer (-)
    mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
-   print*, 'after sub-division'
-   do kLayer=1,nLayers
-    write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
-   end do
+   !print*, 'after sub-division'
+   !do kLayer=1,nLayers
+   ! write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
+   !end do
    print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
    !pause ' check layer sub-division'
    exit  ! NOTE: only sub-divide one layer per substep

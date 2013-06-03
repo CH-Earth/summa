@@ -100,7 +100,7 @@ contains
     ! avoid excessive change in a single iteration
     dLiq = mLayerVolFracLiqNew(iLayer) - mLayerVolFracLiqIter(iLayer)
     if(abs(dLiq) > 0.05_dp)then
-     print*, 'modifying dLiq; dLiq = ', dLiq
+     !print*, 'modifying dLiq; dLiq = ', dLiq
      mLayerVolFracLiqNew(iLayer) = mLayerVolFracLiqIter(iLayer) + dLiq*0.5_dp
      mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
     endif

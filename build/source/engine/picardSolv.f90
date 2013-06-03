@@ -204,6 +204,7 @@ contains
                         mvar_data%var(iLookMVAR%scalarTemp_CanopyAir)%dat(1),        & ! intent(inout): trial temperature of the canopy air space (K)
                         mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),          & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
                         mvar_data%var(iLookMVAR%mLayerTcrit)%dat,                    & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
+                        mvar_data%var(iLookMVAR%scalarCanopyMeltFreeze)%dat(1),      & ! intent(out): melt/freeze of water stored in the canopy (kg m-2 s-1)
 
                         ! output: model state variables at the end of the step
                         ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
@@ -231,10 +232,7 @@ contains
   
  ! compute sublimation from the vegetation canopy
  if(computeVegFlux)then
-  print*, 'scalarCanopyIceNew = ', scalarCanopyIceNew
   scalarCanopyIceNew = scalarCanopyIceNew + mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt
-  print*, 'scalarCanopyIceNew, mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1), dt = ', &
-           scalarCanopyIceNew, mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1), dt
   if(scalarCanopyIceNew < 0._dp)then
    message=trim(message)//'ice content on canopy is less than zero'
    err=-20; return  ! (negative error code forces a reduction in the length of the sub-step and another trial)
@@ -253,8 +251,6 @@ contains
  endif
 
  
- print*, 'after picardSolv: mLayerVolFracLiqNew(1:nSnow) =  ', mLayerVolFracLiqNew(1:nSnow)
-
 
 
  ! *****
@@ -285,8 +281,6 @@ contains
 
  ! check for errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- print*, 'after snwDensify: mLayerVolFracLiqNew(1:nSnow) =  ', mLayerVolFracLiqNew(1:nSnow)
 
  ! update coordinate variables
  call calcHeight(err,cmessage)
@@ -379,8 +373,6 @@ contains
  endif
 
 
- print*, 'after update: mLayerVolFracLiqNew(1:nSnow) =  ', mLayerVolFracLiqNew(1:nSnow)
- print*, 'after update: mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow) = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)
 
  ! deallocate space for snow-soil vectors
  deallocate(mLayerTempNew,mLayerVolFracIceNew,mLayerVolFracLiqNew,mLayerMatricHeadNew, stat=err)
@@ -591,6 +583,7 @@ contains
                               scalarTemp_CanopyAir,          & ! intent(inout): trial temperature of the canopy air space (K)
                               scalarVP_CanopyAir,            & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
                               mLayerTcrit,                   & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
+                              scalarCanopyMeltFreeze,        & ! intent(out): melt/freeze of water stored in the canopy (kg m-2 s-1)
 
                               ! output: model state variables at the end of the step
                               ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
@@ -665,6 +658,7 @@ contains
  real(dp),intent(inout)         :: scalarTemp_CanopyAir        ! trial temperature of the canopy air space (K)
  real(dp),intent(inout)         :: scalarVP_CanopyAir          ! trial vapor pressure of the canopy air space (Pa)
  real(dp),intent(out)           :: mLayerTcrit(:)              ! critical soil temperature where liquid water begins to freeze (K)
+ real(dp),intent(out)           :: scalarCanopyMeltFreeze      ! melt/freeze of water stored in the canopy (kg m-2 s-1)
  ! output: model state variables at the end of the step
  ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
  real(dp),intent(out)           :: scalarCanopyTempNew         ! temperature of the vegetation canopy at the end of the sub-step (K)
@@ -674,7 +668,7 @@ contains
  real(dp),intent(out)           :: mLayerVolFracIceNew(:)      ! volumetric fraction of ice at the end of the sub-step (-)
  real(dp),intent(out)           :: mLayerVolFracLiqNew(:)      ! volumetric fraction of liquid water at the end of the sub-step (-)
  real(dp),intent(out)           :: mLayerMatricHeadNew(:)      ! matric head at the current iteration end of the sub-step (m)
- real(dp),intent(out)           :: scalarAquiferStorageNew  ! aquifer storage at the end of the sub-step (m)
+ real(dp),intent(out)           :: scalarAquiferStorageNew     ! aquifer storage at the end of the sub-step (m)
  ! output: number of iterations
  integer(i4b),intent(out)       :: niter                       ! number of iterations
  ! output: error control
@@ -791,9 +785,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  print*, '***************************************************************'
-  print*, '***** iter = ', iter, '*****'
-  print*, '***************************************************************'
+  !print*, '***************************************************************'
+  !print*, '***** iter = ', iter, '*****'
+  !print*, '***************************************************************'
   
 
   ! *****
@@ -844,13 +838,13 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! test
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqIter(1:nSnow) = ', iter, mLayerVolFracLiqIter(1:nSnow)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqNew(1:nSnow)  = ', iter, mLayerVolFracLiqNew(1:nSnow)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow) = ', iter, mLayerVolFracIceIter(1:nSnow)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow)  = ', iter, mLayerVolFracIceNew(1:nSnow)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow)       = ', iter, mLayerTempIncr(1:nSnow)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow)       = ', iter, mLayerTempIter(1:nSnow)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow)        = ', iter, mLayerTempNew(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqIter(1:nSnow) = ', iter, mLayerVolFracLiqIter(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqNew(1:nSnow)  = ', iter, mLayerVolFracLiqNew(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow) = ', iter, mLayerVolFracIceIter(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow)  = ', iter, mLayerVolFracIceNew(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow)       = ', iter, mLayerTempIncr(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow)       = ', iter, mLayerTempIter(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow)        = ', iter, mLayerTempNew(1:nSnow)
 
   !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
   !                                                     iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
@@ -914,8 +908,8 @@ contains
                    err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
-  print*, 'after snowHydrol: mLayerVolFracLiqIter(1:nSnow) = ', mLayerVolFracLiqIter(1:nSnow)
-  print*, 'after snowHydrol: mLayerVolFracLiqNew(1:nSnow)  = ', mLayerVolFracLiqNew(1:nSnow)
+  !print*, 'after snowHydrol: mLayerVolFracLiqIter(1:nSnow) = ', mLayerVolFracLiqIter(1:nSnow)
+  !print*, 'after snowHydrol: mLayerVolFracLiqNew(1:nSnow)  = ', mLayerVolFracLiqNew(1:nSnow)
 
   ! compute the matric head at the next iteration (note liquid water and ice vectors are defined for all layers)
   ! NOTE: ice not modified in the soil hydrology routines, so can stay as "New"
@@ -1008,14 +1002,17 @@ contains
    mLayerVolFracIceNew = mLayerVolFracIceIter
   endif
 
-  write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceIter(1:nSnow) = ', mLayerVolFracIceIter(1:nSnow)
-  write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqIter(1:nSnow) = ', mLayerVolFracLiqIter(1:nSnow)
-  write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceNew(1:nSnow)  = ', mLayerVolFracIceNew(1:nSnow)
-  write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqNew(1:nSnow)  = ', mLayerVolFracLiqNew(1:nSnow)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceIter(1:nSnow) = ', mLayerVolFracIceIter(1:nSnow)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceNew(1:nSnow)  = ', mLayerVolFracIceNew(1:nSnow)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqIter(1:nSnow) = ', mLayerVolFracLiqIter(1:nSnow)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqNew(1:nSnow)  = ', mLayerVolFracLiqNew(1:nSnow)
 
   !print*, 'after phase change = '
   !print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
   !print*, 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+
+  ! compute total melt/freeze of canopy water
+  scalarCanopyMeltFreeze = (scalarCanopyIceNew - scalarCanopyIce)/dt     ! melt/freeze of water stored in the canopy (kg m-2 s-1)
 
   ! compute melt/freeze of infiltrating liquid water in each layer (kg m-3 s-1) -- melt is negative
   mLayerInfilFreeze = mLayerInfilFreeze + iden_ice*(mLayerVolFracIceIter - mLayerVolFracIceNew)/dt
@@ -1027,9 +1024,9 @@ contains
   mLayerInflComponent = iden_ice*LH_fus*(mLayerVolFracIceNew - mLayerVolFracIceIter)
   mLayerNrgIncr       = mLayerTempComponent - mLayerPhseComponent - mLayerInflComponent
 
-  print*, '*****'
-  write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerPhseComponent(1:nSnow) = ', mLayerPhseComponent(1:nSnow)
-  write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerInflComponent(1:nSnow) = ', mLayerInflComponent(1:nSnow)
+  !print*, '*****'
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerPhseComponent(1:nSnow) = ', mLayerPhseComponent(1:nSnow)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerInflComponent(1:nSnow) = ', mLayerInflComponent(1:nSnow)
 
   ! check for phase change oscillation
   !if(iter>3 .and. nSnow>0)then
@@ -1049,13 +1046,13 @@ contains
   ! * get ready for the next iteration.....
   ! ***************************************
 
-  ! update scalar variables
+  ! update scalar state variables
   scalarCanopyTempIter = scalarCanopyTempNew
   scalarCanopyIceIter  = scalarCanopyIceNew
   scalarCanopyLiqIter  = scalarCanopyLiqNew
   scalarAquiferStorageIter = scalarAquiferStorageNew
 
-  ! update the state variables -- used in phase change below
+  ! update the state variables in the snow-soil vector
   mLayerTempIter       = mLayerTempNew
   mLayerMatricHeadIter = mLayerMatricHeadNew
   mLayerVolFracLiqIter = mLayerVolFracLiqNew
@@ -1078,14 +1075,14 @@ contains
   matric_max = maxval(abs(mLayerMatIncr) - (absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew) )  )
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
-  print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
+  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
-  print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
-  print*, 'canopyNrgIncr = ', canopyNrgIncr
+  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  !print*, 'canopyNrgIncr = ', canopyNrgIncr
 
   ! test
   !write(*,'(a25,1x,i4,1x,10(e20.3,1x))') 'temperature increment = ', energy_pos, scalarCanopyTempIncr, mLayerTempIncr(minLayer:maxLayer)
@@ -1122,12 +1119,13 @@ contains
  ! =================================================================================================================================================
  ! =================================================================================================================================================
 
+ ! 
+
+
 
  ! *****
  ! * basic checks.....
  ! *******************
-
- print*, 'after iterations: mLayerVolFracLiqNew(1:nSnow) = ', mLayerVolFracLiqNew(1:nSnow)
 
  ! check volumetric ice content is less than the intrinsic density of ice
  do iLayer=1,nSnow

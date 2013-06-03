@@ -931,7 +931,6 @@ contains
   ! compute the fraction of canopy that is wet
   if(exposedVAI>0._dp .and. computeVegFlux)then
    if(canopyIceTrial > 0._dp)then
-    print*, 'canopyIceTrial, canopyLiqTrial, scalarCanopyIceMax = ', canopyIceTrial, canopyLiqTrial, scalarCanopyIceMax
     relativeCanopyWater = (canopyIceTrial + canopyLiqTrial) / scalarCanopyIceMax
    else
     relativeCanopyWater = canopyLiqTrial / scalarCanopyLiqMax
@@ -940,8 +939,6 @@ contains
   else
    scalarCanopyWetFraction = 0._dp
   endif
-  print*, 'canopyLiqTrial, scalarCanopyLiqMax, relativeCanopyWater = ', canopyLiqTrial, scalarCanopyLiqMax, relativeCanopyWater
-  print*, 'scalarCanopyWetFraction = ', scalarCanopyWetFraction
 
   ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
   snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
@@ -1485,8 +1482,8 @@ contains
                                  -Cp_ice  *scalarThroughfallSnow*(groundTempTrial - scalarTwetbulb)         !+ &
  !                                -Cp_water*scalarCanopyLiqDrainage  *(groundTempTrial - canopyTempTrial) + &
  !                                -Cp_ice  *scalarCanopySnowUnloading*(groundTempTrial - canopyTempTrial)
- print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow = ', scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow
- print*, 'scalarCanopyAdvectiveHeatFlux, scalarGroundAdvectiveHeatFlux = ', scalarCanopyAdvectiveHeatFlux, scalarGroundAdvectiveHeatFlux
+ !print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow = ', scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow
+ !print*, 'scalarCanopyAdvectiveHeatFlux, scalarGroundAdvectiveHeatFlux = ', scalarCanopyAdvectiveHeatFlux, scalarGroundAdvectiveHeatFlux
 
  ! compute the mass flux associated with transpiration and evaporation/sublimation (J m-2 s-1 --> kg m-2 s-1)
  ! NOTE: remove water from the snow on the ground in preference to removing water from the water in soil pores
@@ -1512,7 +1509,7 @@ contains
   scalarGroundEvaporation = scalarLatHeatGround/LH_vap
   scalarSnowSublimation   = 0._dp  ! no sublimation from snow if no snow layers have formed
  endif
- print*, 'scalarCanopySublimation, scalarLatHeatCanopyEvap = ', scalarCanopySublimation, scalarLatHeatCanopyEvap
+ !print*, 'scalarCanopySublimation, scalarLatHeatCanopyEvap = ', scalarCanopySublimation, scalarLatHeatCanopyEvap
 
 
  ! *******************************************************************************************************************************************************************
@@ -2966,9 +2963,7 @@ contains
   if(latHeatSubVapCanopy > LH_vap+verySmall)then
    if(-latHeatCanopyEvap > canopyIce*LH_sub/dt)    latHeatCanopyEvap = -canopyIce*LH_sub/dt
   else
-   print*, 'latHeatCanopyEvap, canopyIce = ', latHeatCanopyEvap, canopyIce
    if(-latHeatCanopyEvap > canopyLiquid*LH_vap/dt) latHeatCanopyEvap = -canopyLiquid*LH_vap/dt
-   print*, 'latHeatCanopyEvap, canopyIce = ', latHeatCanopyEvap, canopyIce
   endif
  ! * no vegetation, so fluxes are zero
  else

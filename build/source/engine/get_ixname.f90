@@ -322,6 +322,11 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! define timestep-average fluxes for a few key variables
+  case('averageThroughfallSnow'         ); get_ixmvar = iLookMVAR%averageThroughfallSnow           ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+  case('averageThroughfallRain'         ); get_ixmvar = iLookMVAR%averageThroughfallRain           ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+  case('averageCanopySnowUnloading'     ); get_ixmvar = iLookMVAR%averageCanopySnowUnloading       ! unloading of snow from the vegetion canopy (kg m-2 s-1)
+  case('averageCanopyLiqDrainage'       ); get_ixmvar = iLookMVAR%averageCanopyLiqDrainage         ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+  case('averageCanopyMeltFreeze'        ); get_ixmvar = iLookMVAR%averageCanopyMeltFreeze          ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   case('averageSnowSublimation'         ); get_ixmvar = iLookMVAR%averageSnowSublimation           ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   case('averageGroundEvaporation'       ); get_ixmvar = iLookMVAR%averageGroundEvaporation         ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
   case('averageRainPlusMelt'            ); get_ixmvar = iLookMVAR%averageRainPlusMelt              ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
@@ -446,6 +451,7 @@ contains
   case('scalarThroughfallRain'          ); get_ixmvar = iLookMVAR%scalarThroughfallRain            ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('scalarCanopySnowUnloading'      ); get_ixmvar = iLookMVAR%scalarCanopySnowUnloading        ! unloading of snow from the vegetion canopy (kg m-2 s-1)
   case('scalarCanopyLiqDrainage'        ); get_ixmvar = iLookMVAR%scalarCanopyLiqDrainage          ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+  case('scalarCanopyMeltFreeze'         ); get_ixmvar = iLookMVAR%scalarCanopyMeltFreeze           ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   ! scalar variables -- soil and aquifer fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)

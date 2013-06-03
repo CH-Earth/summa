@@ -153,7 +153,8 @@ contains
                         mpar_data%var(iLookPARAM%upperBoundTheta),                    & ! intent(in): upper boundary condition (-)
 
                         ! model forcing
-                        mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),               & ! intent(in): computed rainfall rate (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1),        & ! intent(in): computed throughfall rate (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1),      & ! intent(in): computed drainage of liquid water (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat(nSnow),        & ! intent(in): liquid flux from the base of the snowpack (m s-1)
 
                         ! column inflow
@@ -296,7 +297,8 @@ contains
                               upperBoundTheta,             & ! intent(in): upper boundary condition (-)
 
                               ! model forcing
-                              scalarRainfall,              & ! intent(in): computed rainfall rate (kg m-2 s-1)
+                              scalarThroughfallRain,       & ! intent(in): computed throughfall rate (kg m-2 s-1)
+                              scalarCanopyLiqDrainage,     & ! intent(in): computed drainage of liquid water (kg m-2 s-1)
                               scalarLiqFluxSnow,           & ! intent(in): liquid flux from the base of the snowpack (m s-1)
 
                               ! column inflow
@@ -416,7 +418,8 @@ contains
  real(dp),intent(in)              :: upperBoundTheta              ! upper boundary condition for volumetric liquid water content (-)
  real(dp),intent(in)              :: lowerBoundTheta              ! lower boundary condition for volumetric liquid water content (-)
  ! model forcing
- real(dp),intent(in)              :: scalarRainfall               ! computed rainfall rate (kg m-2 s-1)
+ real(dp),intent(in)              :: scalarThroughfallRain        ! computed throughfall rate (kg m-2 s-1)
+ real(dp),intent(in)              :: scalarCanopyLiqDrainage      ! computed drainage of liquid water (kg m-2 s-1)
  real(dp),intent(in)              :: scalarLiqFluxSnow            ! liquid flux from the base of the snowpack (m s-1)
  ! column inflow
  real(dp),intent(in)              :: mLayerColumnInflow(:)        ! total inflow to each layer in the soil column (m3 s-1)
@@ -547,7 +550,7 @@ contains
 
  ! define upper boundary fluxes (m s-1)
  if(ixBcUpperSoilHydrology==liquidFlux)then
-  if(nSnow==0) scalarRainPlusMelt = scalarRainfall/iden_water + (scalarSfcMeltPond/dt)/iden_water  ! rainfall plus melt of the snow without a layer (convert to m s-1)
+  if(nSnow==0) scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water + (scalarSfcMeltPond/dt)/iden_water  ! rainfall plus melt of the snow without a layer (convert to m s-1)
   if(nSnow>0)  scalarRainPlusMelt = scalarLiqFluxSnow                                              ! liquid water flux from the base of the snowpack (m s-1)
  endif
  if(ixBcUpperSoilHydrology==prescribedHead)then

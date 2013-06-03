@@ -660,11 +660,11 @@ contains
   phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
   ! (compute residuals)
   canopyResidual = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
-  print*, 'scalarCanopyIceIter, scalarCanopyIce = ', scalarCanopyIceIter, scalarCanopyIce
-  print*, 'nrg0, nrg1, nrg1 - nrg0 = ', nrg0, nrg1, nrg1 - nrg0
-  print*, 'wimplicit, scalarBulkVolHeatCapVeg, canopyResidual = ', wimplicit, scalarBulkVolHeatCapVeg, canopyResidual
-  write(*,'(a,1x,10(f20.10,1x))') 'canopy: scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse = ', &
-                                           scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse
+  !print*, 'scalarCanopyIceIter, scalarCanopyIce = ', scalarCanopyIceIter, scalarCanopyIce
+  !print*, 'nrg0, nrg1, nrg1 - nrg0 = ', nrg0, nrg1, nrg1 - nrg0
+  !print*, 'wimplicit, scalarBulkVolHeatCapVeg, canopyResidual = ', wimplicit, scalarBulkVolHeatCapVeg, canopyResidual
+  !write(*,'(a,1x,10(f20.10,1x))') 'canopy: scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse = ', &
+  !                                         scalarCanopyTempIter, scalarCanopyTemp, canopyNetFluxInit, canopyNetFlux, canopyDepth, flx1*dt, phse
  endif
 
  ! ***** compute the residual vector for all snow/soil layers (J m-3)
@@ -724,7 +724,7 @@ contains
 
  ! ***** assemble the tri-diagonal matrix for the canopy
  if(computeVegFlux)then
-  print*, 'dTheta_dTkCanopy = ', dTheta_dTkCanopy
+  !print*, 'dTheta_dTkCanopy = ', dTheta_dTkCanopy
   diagCanopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dCanopyTemp) + dTheta_dTkCanopy*LH_fus*iden_water + scalarBulkVolHeatCapVeg
   d_m1Canopy = (wtim/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
   d_p1Canopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dGroundTemp)
@@ -775,7 +775,6 @@ contains
  ! get the canopy increment
  if(computeVegFlux)then
   scalarCanopyTempDiff = sInc(0)
-  print*, 'rvec(0), scalarCanopyTempDiff, scalarCanopyTempDiff*scalarBulkVolHeatCapVeg = ', rvec(0), scalarCanopyTempDiff, scalarCanopyTempDiff*scalarBulkVolHeatCapVeg 
  else
   scalarCanopyTempDiff = 0._dp
  endif

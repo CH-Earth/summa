@@ -34,7 +34,8 @@ contains
  ! local pointers to algorithmic control parameters
  real(dp),pointer              :: wimplicit                  ! weight assigned to start-of-step fluxes (-)
  ! local pointers to model forcing data
- real(dp),pointer              :: rainfall                   ! rainfall (kg m-2 s-1) 
+ real(dp),pointer              :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
+ real(dp),pointer              :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
  ! local pointers to model state variables 
  real(dp),pointer              :: mLayerDepth(:)             ! depth of the layer (m)
  real(dp),pointer              :: mLayerVolFracLiq(:)        ! volumetric fraction of liquid water in each snow layer (-)
@@ -75,7 +76,7 @@ contains
  err=0; message="snowHydrol/"
 
  ! initialize printflag
- printflag=.true.
+ printflag=.false.
  
  ! assign local pointers to the model index structures
  layerType => indx_data%var(iLookINDEX%layerType)%dat              ! layer type (ix_soil or ix_snow)
@@ -97,7 +98,8 @@ contains
  wimplicit     => mpar_data%var(iLookPARAM%wimplicit)        ! weight assigned to start-of-step fluxes (-)
 
  ! assign pointers to model forcing data
- rainfall => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)  ! computed rainfall rate (kg m-2 s-1)
+ scalarThroughfallRain   => mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1)   ! computed throughfall rate (kg m-2 s-1)
+ scalarCanopyLiqDrainage => mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) ! computed drainage of liquid water (kg m-2 s-1)
 
  ! assign pointers to model state variables
  mLayerDepth       => mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow)         ! depth of the layer (m)
@@ -111,8 +113,8 @@ contains
  iLayerLiqFluxSnow     => mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat        ! liquid flux at layer interfaces at the end of the time step (m s-1)
 
  ! define the liquid flux at the upper boundary -- include evaporation/dew (m s-1)
- iLayerInitLiqFluxSnow(0) = rainfall/iden_water
- iLayerLiqFluxSnow(0)     = rainfall/iden_water
+ iLayerLiqFluxSnow(0) = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
+ if(iter==1) iLayerInitLiqFluxSnow(0) = iLayerLiqFluxSnow(0)
 
  ! check the meltwater exponent is >=1
  if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; endif
@@ -197,8 +199,8 @@ contains
    ! get ready to process the next snow layer
    iLayerLiqFluxSnow(iLayer) = vDrainage + dflw_dliq*increment ! second term will be zero if converge completely
   endif  ! (if ice content is so high we need the direct pass through)
-  write(*,'(a)') 'in snowHydrol:  iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer) = '
-  write(*,'(i4,1x,9(f20.10,1x))') iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer)
+  !write(*,'(a)') 'in snowHydrol:  iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer) = '
+  !write(*,'(i4,1x,9(f20.10,1x))') iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer)
   ! *** now process the next layer
  end do  ! (looping through snow layers)
 
