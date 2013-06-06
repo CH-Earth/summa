@@ -253,36 +253,6 @@ contains
                                                              Cp_water*mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)/canopyDepth                              + & ! liquid water component
                                                              Cp_ice*mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)/canopyDepth                                    ! ice component
  
-
-  ! compute the net change in snow in the vegetation canopy
-  call canopySnow(&
-                  ! input: model control
-                  dt_sub,                                                      & ! time step (seconds)
-                  computeVegFlux,                                              & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                  ! input-output: state variables
-                  mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(inout): storage of ice on the vegetation canopy (kg m-2)
-                  mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),             & ! intent(inout): storage of liquid water on the vegetation canopy (kg m-2)
-                  mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),            & ! intent(inout): temperature of the vegetation canopy (kg m-2)
-                  ! input: diagnostic variables
-                  exposedVAI,                                                  & ! intent(in): exposed vegetation area index (m2 m-2)
-                  canopyDepth,                                                 & ! intent(in): canopy depth (m)
-                  mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1),              & ! intent(in): wetbulb temperature (K)
-                  mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),              & ! intent(in): computed snowfall rate (kg m-2 s-1)
-                  mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),        & ! intent(in): density of new snow (kg m-3)
-                  mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
-                  ! input: parameters
-                  mpar_data%var(iLookPARAM%refInterceptCapSnow),               & ! intent(in): reference canopy interception capacity for snow per unit leaf area (kg m-2)
-                  mpar_data%var(iLookPARAM%throughfallScaleSnow),              & ! intent(in): scaling factor for throughfall (snow) (-)
-                  mpar_data%var(iLookPARAM%snowUnloadingCoeff),                & ! intent(in): time constant for unloading of snow from the forest canopy (s-1)
-                  mpar_data%var(iLookPARAM%snowfrz_scale),                     & ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                  ! output: diagnostic variables
-                  mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),          & ! intent(out): maximum interception storage capacity for ice (kg m-2)
-                  mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),       & ! intent(out): snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
-                  mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1),   & ! intent(out): unloading of snow from the vegetion canopy (kg m-2 s-1)
-                  ! output: error control
-                  err,cmessage                                                 ) ! intent(out): error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
   ! initialize drainage and throughfall
   if(.not.computeVegFlux)then
    mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1)   = mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)
@@ -300,6 +270,8 @@ contains
 
   ! add new snowfall to the snow-soil system
   call newsnwfall(dt_sub,            & ! time step (seconds)
+                  exposedVAI,        & ! intent(in): exposed vegetation area index (m2 m-2)
+                  computeVegFlux,    & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                   err,cmessage)        ! error control
   if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
 

@@ -783,10 +783,14 @@ contains
 
  !if(any(mLayerVolFracIce*iden_ice > 700._dp)) printflag=.true.
 
- ! check the canopy temperature is reasonable
- if(scalarCanopyTempIter > Tfreeze .and. scalarCanopyIceIter > 0._dp)then
-  message=trim(message)//'ice content above zero when temperature is above freezing'
-  err=20; return
+ ! calculate phase change of water on the vegetation canopy
+ ! NOTE: this is necessary to ensure consistency at the start of the iterations (e.g., snowfall on warm canopy)
+ if(computeVegFlux)then
+  ! compute the fraction of liquid water
+  fLiq = fracliquid(scalarCanopyTemp,snowfrz_scale)  ! fraction of liquid water (-)
+  tWat = scalarCanopyLiq + scalarCanopyIce           ! total water (kg m-2)
+  scalarCanopyLiqIter = fLiq*tWat                    ! mass of liquid water on the canopy (kg m-2)
+  scalarCanopyIceIter = (1._dp - fLiq)*tWat          ! mass of ice on the canopy (kg m-2)
  endif
 
  ! **********************************************************************************************************************
