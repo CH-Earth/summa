@@ -802,8 +802,8 @@ contains
  ! (get the difference from freezing point (K)
  critDiff = Tfreeze - scalarCanopyTempIter
  ! (set temperature close to freezing point when it crosses freezing)
- if(critDiff > 0._dp)then; if(scalarCanopyTempDiff > critDiff) scalarCanopyTempDiff = critDiff + epsT  ! below freezing crossing zero --> slightly above freezing
-                     else; if(scalarCanopyTempDiff < critDiff) scalarCanopyTempDiff = critDiff - epsT  ! above freezing crossing zero --> slightly below freezing
+ if(critDiff > 0._dp)then; if(scalarCanopyTempDiff > critDiff) scalarCanopyTempDiff = critDiff + 0.01_dp  ! below freezing crossing zero --> slightly above freezing
+                     else; if(scalarCanopyTempDiff < critDiff) scalarCanopyTempDiff = critDiff - 0.01_dp  ! above freezing crossing zero --> slightly below freezing
  endif
 
  ! adjust iteration increments in cases where iterations are oscillating

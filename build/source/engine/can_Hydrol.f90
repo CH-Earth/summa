@@ -215,6 +215,8 @@ contains
 
  end do  ! iterating
 
+ !write(*,'(a,1x,10(e20.10,1x))') 'scalarCanopyLiqTrial, scalarCanopyLiqDrainage = ', scalarCanopyLiqTrial, scalarCanopyLiqDrainage
+
  ! update state variables
  scalarCanopyLiqNew = scalarCanopyLiqTrial
 

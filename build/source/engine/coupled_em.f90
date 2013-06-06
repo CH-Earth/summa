@@ -35,6 +35,8 @@ contains
  USE multiconst,only:&
                      Tfreeze,     &         ! temperature at freezing              (K)
                      LH_fus,      &         ! latent heat of fusion                (J kg-1)
+                     Cp_ice,      &         ! specific heat of ice                 (J kg-1 K-1)
+                     Cp_water,    &         ! specific heat of liquid water        (J kg-1 K-1)
                      iden_ice,    &         ! intrinsic density of ice             (kg m-3)
                      iden_water             ! intrinsic density of liquid water    (kg m-3)
  implicit none
@@ -112,6 +114,7 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage               ! error message
  real(dp)                             :: exposedVAI             ! exposed vegetation area index (LAI + SAI)
+ real(dp)                             :: canopyDepth            ! canopy depth (m)
  logical(lgt)                         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp),parameter                   :: verySmall=epsilon(1._dp)  ! a very small number
@@ -238,7 +241,19 @@ contains
   ! determine if need to include vegetation in the energy flux routines
   exposedVAI     = mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1) + mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1)
   computeVegFlux = (exposedVAI > 0.01_dp)
+
+  ! compute the canopy depth (m)
+  canopyDepth = mpar_data%var(iLookPARAM%heightCanopyTop) - mpar_data%var(iLookPARAM%heightCanopyBottom)
+  if(mpar_data%var(iLookPARAM%heightCanopyBottom) > mpar_data%var(iLookPARAM%heightCanopyTop))then
+   err=20; message=trim(message)//'height of the bottom of the canopy > top of the canopy'; return
+  endif
+
+  ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
+  mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)  = mpar_data%var(iLookPARAM%specificHeatVeg)*mpar_data%var(iLookPARAM%maxMassVegetation)/canopyDepth + & ! vegetation component
+                                                             Cp_water*mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)/canopyDepth                              + & ! liquid water component
+                                                             Cp_ice*mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)/canopyDepth                                    ! ice component
  
+
   ! compute the net change in snow in the vegetation canopy
   call canopySnow(&
                   ! input: model control
@@ -246,14 +261,20 @@ contains
                   computeVegFlux,                                              & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                   ! input-output: state variables
                   mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(inout): storage of ice on the vegetation canopy (kg m-2)
+                  mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),             & ! intent(inout): storage of liquid water on the vegetation canopy (kg m-2)
+                  mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),            & ! intent(inout): temperature of the vegetation canopy (kg m-2)
                   ! input: diagnostic variables
                   exposedVAI,                                                  & ! intent(in): exposed vegetation area index (m2 m-2)
+                  canopyDepth,                                                 & ! intent(in): canopy depth (m)
+                  mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1),              & ! intent(in): wetbulb temperature (K)
                   mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),              & ! intent(in): computed snowfall rate (kg m-2 s-1)
                   mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),        & ! intent(in): density of new snow (kg m-3)
+                  mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
                   ! input: parameters
                   mpar_data%var(iLookPARAM%refInterceptCapSnow),               & ! intent(in): reference canopy interception capacity for snow per unit leaf area (kg m-2)
                   mpar_data%var(iLookPARAM%throughfallScaleSnow),              & ! intent(in): scaling factor for throughfall (snow) (-)
                   mpar_data%var(iLookPARAM%snowUnloadingCoeff),                & ! intent(in): time constant for unloading of snow from the forest canopy (s-1)
+                  mpar_data%var(iLookPARAM%snowfrz_scale),                     & ! intent(in): scaling parameter for the snow freezing curve (K-1)
                   ! output: diagnostic variables
                   mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),          & ! intent(out): maximum interception storage capacity for ice (kg m-2)
                   mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),       & ! intent(out): snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -461,14 +482,16 @@ contains
 
  end do  ! (sub-step loop)
 
+ !print*, 'mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1) = ', mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1)
+
  ! save the surface temperature (just to make things easier to visualize)
  mvar_data%var(iLookMVAR%scalarSurfaceTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)
 
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
  print*, 'nsub = ', nsub
- if(nsub>100)then
-  message=trim(message)//'number of sub-steps > 100'
+ if(nsub>1000)then
+  message=trim(message)//'number of sub-steps > 1000'
   err=20; return
  endif
 

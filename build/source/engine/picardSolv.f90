@@ -226,13 +226,21 @@ contains
  ! check for errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+ ! print progress
+ !write(*,'(a,1x,10(e20.10,1x))') , 'scalarCanopyLiqNew, mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) = ', &
+ !                                   scalarCanopyLiqNew, mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1)
+
  ! *****
  ! compute sublimation of snow...
  ! ******************************
   
  ! compute sublimation from the vegetation canopy
  if(computeVegFlux)then
-  scalarCanopyIceNew = scalarCanopyIceNew + mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt
+  if(scalarCanopyTempNew < Tfreeze)then
+   scalarCanopyIceNew = scalarCanopyIceNew + mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt
+  else
+   scalarCanopyLiqNew = scalarCanopyLiqNew + mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt
+  endif
   if(scalarCanopyIceNew < 0._dp)then
    message=trim(message)//'ice content on canopy is less than zero'
    err=-20; return  ! (negative error code forces a reduction in the length of the sub-step and another trial)
@@ -371,7 +379,6 @@ contains
   mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum(iden_ice*  mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow)) + &  ! total ice
                                                     sum(iden_water*mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
  endif
-
 
 
  ! deallocate space for snow-soil vectors
@@ -776,6 +783,12 @@ contains
 
  !if(any(mLayerVolFracIce*iden_ice > 700._dp)) printflag=.true.
 
+ ! check the canopy temperature is reasonable
+ if(scalarCanopyTempIter > Tfreeze .and. scalarCanopyIceIter > 0._dp)then
+  message=trim(message)//'ice content above zero when temperature is above freezing'
+  err=20; return
+ endif
+
  ! **********************************************************************************************************************
  ! **********************************************************************************************************************
  ! **********************************************************************************************************************
@@ -785,9 +798,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  !print*, '***************************************************************'
-  !print*, '***** iter = ', iter, '*****'
-  !print*, '***************************************************************'
+  print*, '***************************************************************'
+  print*, '***** iter = ', iter, '*****'
+  print*, '***************************************************************'
   
 
   ! *****
@@ -846,11 +859,11 @@ contains
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow)       = ', iter, mLayerTempIter(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow)        = ', iter, mLayerTempNew(1:nSnow)
 
-  !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
-  !                                                     iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
+                                                       iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
 
-  !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew = ', &
-  !                                                     iter, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew
+  write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew = ', &
+                                                       iter, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew
 
   !pause
 
@@ -976,6 +989,12 @@ contains
    tWat = scalarCanopyLiqIter + scalarCanopyIceIter      ! total water (kg m-2)
    scalarCanopyLiqNew = fLiq*tWat                        ! mass of liquid water on the canopy (kg m-2)
    scalarCanopyIceNew = (1._dp - fLiq)*tWat              ! mass of ice on the canopy (kg m-2)
+  endif
+
+  ! check
+  if(scalarCanopyTempNew > Tfreeze .and. scalarCanopyIceNew > 0._dp)then
+   message=trim(message)//'ice content above zero when temperature is above freezing'
+   err=20; return
   endif
 
   ! calculate the critical soil temperature above which all water is unfrozen (K)
@@ -1120,7 +1139,6 @@ contains
  ! =================================================================================================================================================
 
  ! 
-
 
 
  ! *****
