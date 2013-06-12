@@ -10,12 +10,12 @@ contains
  ! ************************************************************************************************
  subroutine coupled_em(dt_init,err,message)
  ! data structures and named variables
- USE data_struc,only:data_step                                           ! time step of forcing data (s)
- USE data_struc,only:model_decisions                                     ! model decision structure
- USE data_struc,only:type_data,attr_data,mpar_data,mvar_data,indx_data   ! data structures
- USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
- USE data_struc,only:ix_soil,ix_snow                                     ! named variables for snow and soil
- USE var_lookup,only:iLookTYPE,iLookATTR,iLookPARAM,iLookMVAR,iLookINDEX ! named variables for structure elements
+ USE data_struc,only:data_step                                                      ! time step of forcing data (s)
+ USE data_struc,only:model_decisions                                                ! model decision structure
+ USE data_struc,only:type_data,attr_data,forc_data,mpar_data,mvar_data,indx_data    ! data structures
+ USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
+ USE data_struc,only:ix_soil,ix_snow                                                ! named variables for snow and soil
+ USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookINDEX ! named variables for structure elements
  ! common variables
  USE data_struc,only:urbanVegCategory       ! vegetation category for urban areas
  USE data_struc,only:fracJulday             ! fractional julian days since the start of year
@@ -51,9 +51,9 @@ contains
  integer(i4b)                         :: nsub                   ! number of sub-steps
  integer(i4b)                         :: niter                  ! number of iterations
  integer(i4b),parameter               :: n_inc=5                ! minimum number of iterations to increase time step
- integer(i4b),parameter               :: n_dec=9                ! maximum number of iterations to decrease time step
+ integer(i4b),parameter               :: n_dec=12               ! maximum number of iterations to decrease time step
  real(dp),parameter                   :: F_inc = 1.25_dp        ! factor used to increase time step
- real(dp),parameter                   :: F_dec = 0.5_dp         ! factor used to decrease time step
+ real(dp),parameter                   :: F_dec = 0.50_dp        ! factor used to decrease time step
  integer(i4b)                         :: maxiter                ! maxiumum number of iterations
  integer(i4b)                         :: iSnow                  ! index for snow layers
  ! local pointers to model forcing data
@@ -115,6 +115,7 @@ contains
  character(len=256)                   :: cmessage               ! error message
  real(dp)                             :: exposedVAI             ! exposed vegetation area index (LAI + SAI)
  real(dp)                             :: canopyDepth            ! canopy depth (m)
+ real(dp)                             :: heightAboveSnow        ! height top of canopy is above the snow surface (m)
  logical(lgt)                         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp),parameter                   :: verySmall=epsilon(1._dp)  ! a very small number
@@ -239,8 +240,9 @@ contains
                  mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1)     ) ! intent(out): growing season index (0=off, 1=on)
 
   ! determine if need to include vegetation in the energy flux routines
-  exposedVAI     = mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1) + mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1)
-  computeVegFlux = (exposedVAI > 0.01_dp)
+  exposedVAI      = mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1) + mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1)   ! exposed vegetation area index (m2 m-2)
+  heightAboveSnow = mpar_data%var(iLookPARAM%heightCanopyTop) - mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)           ! height top of canopy is above the snow surface (m)
+  computeVegFlux  = (exposedVAI > 0.05_dp .and. heightAboveSnow > 0.05_dp)
 
   ! compute the canopy depth (m)
   canopyDepth = mpar_data%var(iLookPARAM%heightCanopyTop) - mpar_data%var(iLookPARAM%heightCanopyBottom)
@@ -252,7 +254,33 @@ contains
   mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)  = mpar_data%var(iLookPARAM%specificHeatVeg)*mpar_data%var(iLookPARAM%maxMassVegetation)/canopyDepth + & ! vegetation component
                                                              Cp_water*mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)/canopyDepth                              + & ! liquid water component
                                                              Cp_ice*mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)/canopyDepth                                    ! ice component
+
  
+  ! compute the net change in snow in the vegetation canopy
+  call canopySnow(&
+                  ! input: model control
+                  dt_sub,                                                      & ! intent(in): time step (seconds)
+                  computeVegFlux,                                              & ! intent(in): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                  model_decisions(iLookDECISIONS%snowIncept)%iDecision,        & ! intent(in): choice of option to determine maximum snow interception capacity
+                  ! input-output: state variables
+                  mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(inout): storage of ice on the vegetation canopy (kg m-2)
+                  ! input: diagnostic variables
+                  exposedVAI,                                                  & ! intent(in): exposed vegetation area index (m2 m-2)
+                  forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): air temperature (K)
+                  mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),              & ! intent(in): computed snowfall rate (kg m-2 s-1)
+                  mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),        & ! intent(in): density of new snow (kg m-3)
+                  ! input: parameters
+                  mpar_data%var(iLookPARAM%refInterceptCapSnow),               & ! intent(in): reference canopy interception capacity for snow per unit leaf area (kg m-2)
+                  mpar_data%var(iLookPARAM%throughfallScaleSnow),              & ! intent(in): scaling factor for throughfall (snow) (-)
+                  mpar_data%var(iLookPARAM%snowUnloadingCoeff),                & ! intent(in): time constant for unloading of snow from the forest canopy (s-1)
+                  ! output: diagnostic variables
+                  mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),          & ! intent(out): maximum interception storage capacity for ice (kg m-2)
+                  mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),       & ! intent(out): snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+                  mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1),   & ! intent(out): unloading of snow from the vegetion canopy (kg m-2 s-1)
+                  ! output: error control
+                  err,cmessage                                                 ) ! intent(out): error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
   ! initialize drainage and throughfall
   if(.not.computeVegFlux)then
    mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1)   = mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)
@@ -270,8 +298,6 @@ contains
 
   ! add new snowfall to the snow-soil system
   call newsnwfall(dt_sub,            & ! time step (seconds)
-                  exposedVAI,        & ! intent(in): exposed vegetation area index (m2 m-2)
-                  computeVegFlux,    & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                   err,cmessage)        ! error control
   if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
 
@@ -334,7 +360,6 @@ contains
   ! save the volumetric fraction of ice
   arrTemp = mLayerDepth
  
-
 
   ! use Picard iteration to solve model equations
   do
@@ -462,8 +487,8 @@ contains
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
  print*, 'nsub = ', nsub
- if(nsub>1000)then
-  message=trim(message)//'number of sub-steps > 1000'
+ if(nsub>10000)then
+  message=trim(message)//'number of sub-steps > 10000'
   err=20; return
  endif
 

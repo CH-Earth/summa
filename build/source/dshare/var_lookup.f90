@@ -30,13 +30,14 @@ MODULE var_lookup
   integer(i4b)    :: bcLowrSoiH       = 16 ! type of lower boundary condition for soil hydrology
   integer(i4b)    :: veg_traits       = 17 ! choice of parameterization for vegetation roughness length and displacement height
   integer(i4b)    :: canopyEmis       = 18 ! choice of parameterization for canopy emissivity 
-  integer(i4b)    :: astability       = 19 ! choice of stability function
-  integer(i4b)    :: alb_method       = 20 ! choice of albedo representation
-  integer(i4b)    :: snowLayers       = 21 ! choice of method to combine and sub-divide snow layers
-  integer(i4b)    :: compaction       = 22 ! choice of compaction routine
-  integer(i4b)    :: thermlcond       = 23 ! choice of thermal conductivity representation
-  integer(i4b)    :: spatial_gw       = 24 ! choice of method for spatial representation of groundwater
-  integer(i4b)    :: subRouting       = 25 ! choice of method for sub-grid routing
+  integer(i4b)    :: snowIncept       = 19 ! choice of parameterization for snow interception
+  integer(i4b)    :: astability       = 20 ! choice of stability function
+  integer(i4b)    :: alb_method       = 21 ! choice of albedo representation
+  integer(i4b)    :: snowLayers       = 22 ! choice of method to combine and sub-divide snow layers
+  integer(i4b)    :: compaction       = 23 ! choice of compaction routine
+  integer(i4b)    :: thermlcond       = 24 ! choice of thermal conductivity representation
+  integer(i4b)    :: spatial_gw       = 25 ! choice of method for spatial representation of groundwater
+  integer(i4b)    :: subRouting       = 26 ! choice of method for sub-grid routing
  endtype iLook_decision
  ! ***********************************************************************************************************
  ! (1) define model time
@@ -159,54 +160,55 @@ MODULE var_lookup
   integer(i4b)    :: refInterceptCapRain  = 60  ! canopy interception capacity per unit leaf area (rain) (kg m-2)
   integer(i4b)    :: snowUnloadingCoeff   = 61  ! time constant for unloading of snow from the forest canopy (s-1)
   integer(i4b)    :: canopyDrainageCoeff  = 62  ! time constant for drainage of liquid water from the forest canopy (s-1)
+  integer(i4b)    :: ratioDrip2Unloading  = 63  ! ratio of canopy drip to unloading of snow from the forest canopy (-)
   ! soil properties
-  integer(i4b)    :: soil_dens_intr       = 63  ! intrinsic soil density (kg m-3)
-  integer(i4b)    :: frac_sand            = 64  ! fraction of sand (-)
-  integer(i4b)    :: frac_silt            = 65  ! fraction of silt (-)
-  integer(i4b)    :: frac_clay            = 66  ! fraction of clay (-)
-  integer(i4b)    :: theta_sat            = 67  ! porosity (-)
-  integer(i4b)    :: theta_res            = 68  ! volumetric residual water content (-)
-  integer(i4b)    :: vGn_alpha            = 69  ! van Genuchten "alpha" parameter (m-1)
-  integer(i4b)    :: vGn_n                = 70  ! van Genuchten "n" parameter (-)
-  integer(i4b)    :: k_soil               = 71  ! hydraulic conductivity of soil (m s-1) 
-  integer(i4b)    :: kAnisotropic         = 72  ! anisotropy factor for lateral hydraulic conductivity (-)
-  integer(i4b)    :: zScale_TOPMODEL      = 73  ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
-  integer(i4b)    :: compactedDepth       = 74  ! depth where k_soil reaches the compacted value given by CH78 (m)
-  integer(i4b)    :: aquiferScaleFactor   = 75  ! scaling factor for aquifer storage in the big bucket (m)
-  integer(i4b)    :: aquiferBaseflowExp   = 76  ! baseflow exponent (-)
-  integer(i4b)    :: bpar_VIC             = 77  ! b-parameter in the VIC surface runoff parameterization (-)
-  integer(i4b)    :: specificYield        = 78  ! specific yield (-)
-  integer(i4b)    :: specificStorage      = 79  ! specific storage coefficient (m-1)
-  integer(i4b)    :: f_impede             = 80  ! ice impedence factor (-)
+  integer(i4b)    :: soil_dens_intr       = 64  ! intrinsic soil density (kg m-3)
+  integer(i4b)    :: frac_sand            = 65  ! fraction of sand (-)
+  integer(i4b)    :: frac_silt            = 66  ! fraction of silt (-)
+  integer(i4b)    :: frac_clay            = 67  ! fraction of clay (-)
+  integer(i4b)    :: theta_sat            = 68  ! porosity (-)
+  integer(i4b)    :: theta_res            = 69  ! volumetric residual water content (-)
+  integer(i4b)    :: vGn_alpha            = 70  ! van Genuchten "alpha" parameter (m-1)
+  integer(i4b)    :: vGn_n                = 71  ! van Genuchten "n" parameter (-)
+  integer(i4b)    :: k_soil               = 72  ! hydraulic conductivity of soil (m s-1) 
+  integer(i4b)    :: kAnisotropic         = 73  ! anisotropy factor for lateral hydraulic conductivity (-)
+  integer(i4b)    :: zScale_TOPMODEL      = 74  ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
+  integer(i4b)    :: compactedDepth       = 75  ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: aquiferScaleFactor   = 76  ! scaling factor for aquifer storage in the big bucket (m)
+  integer(i4b)    :: aquiferBaseflowExp   = 77  ! baseflow exponent (-)
+  integer(i4b)    :: bpar_VIC             = 78  ! b-parameter in the VIC surface runoff parameterization (-)
+  integer(i4b)    :: specificYield        = 79  ! specific yield (-)
+  integer(i4b)    :: specificStorage      = 80  ! specific storage coefficient (m-1)
+  integer(i4b)    :: f_impede             = 81  ! ice impedence factor (-)
   ! algorithmic control parameters
-  integer(i4b)    :: minwind              = 81  ! minimum wind speed (m s-1)
-  integer(i4b)    :: minstep              = 82  ! minimum length of the time step
-  integer(i4b)    :: maxstep              = 83  ! maximum length of the time step
-  integer(i4b)    :: wimplicit            = 84  ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter              = 85  ! maximum number of iteration 
-  integer(i4b)    :: relConvTol_liquid    = 86  ! relative convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: absConvTol_liquid    = 87  ! absolute convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: relConvTol_matric    = 88  ! relative convergence tolerance for matric head (-)
-  integer(i4b)    :: absConvTol_matric    = 89  ! absolute convergence tolerance for matric head (m)
-  integer(i4b)    :: relConvTol_energy    = 90  ! relative convergence tolerance for energy (-)
-  integer(i4b)    :: absConvTol_energy    = 91  ! absolute convergence tolerance for energy (J m-3)
-  integer(i4b)    :: relConvTol_aquifr    = 92  ! relative convergence tolerance for aquifer storage (-)
-  integer(i4b)    :: absConvTol_aquifr    = 93  ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: zmin                 = 94  ! minimum layer depth (m)
-  integer(i4b)    :: zmax                 = 95  ! maximum layer depth (m)
-  integer(i4b)    :: zminLayer1           = 96  ! minimum layer depth for the 1st (top) layer (m)
-  integer(i4b)    :: zminLayer2           = 97  ! minimum layer depth for the 2nd layer (m) 
-  integer(i4b)    :: zminLayer3           = 98  ! minimum layer depth for the 3rd layer (m) 
-  integer(i4b)    :: zminLayer4           = 99  ! minimum layer depth for the 4th layer (m) 
-  integer(i4b)    :: zminLayer5           = 100 ! minimum layer depth for the 5th (bottom) layer (m) 
-  integer(i4b)    :: zmaxLayer1_lower     = 101 ! maximum layer depth for the 1st (top) layer when only 1 layer (m) 
-  integer(i4b)    :: zmaxLayer2_lower     = 102 ! maximum layer depth for the 2nd layer when only 2 layers (m) 
-  integer(i4b)    :: zmaxLayer3_lower     = 103 ! maximum layer depth for the 3rd layer when only 3 layers (m) 
-  integer(i4b)    :: zmaxLayer4_lower     = 104 ! maximum layer depth for the 4th layer when only 4 layers (m) 
-  integer(i4b)    :: zmaxLayer1_upper     = 105 ! maximum layer depth for the 1st (top) layer when > 1 layer (m) 
-  integer(i4b)    :: zmaxLayer2_upper     = 106 ! maximum layer depth for the 2nd layer when > 2 layers (m) 
-  integer(i4b)    :: zmaxLayer3_upper     = 107 ! maximum layer depth for the 3rd layer when > 3 layers (m) 
-  integer(i4b)    :: zmaxLayer4_upper     = 108 ! maximum layer depth for the 4th layer when > 4 layers (m) 
+  integer(i4b)    :: minwind              = 82  ! minimum wind speed (m s-1)
+  integer(i4b)    :: minstep              = 83  ! minimum length of the time step
+  integer(i4b)    :: maxstep              = 84  ! maximum length of the time step
+  integer(i4b)    :: wimplicit            = 85  ! weight assigned to the start-of-step fluxes
+  integer(i4b)    :: maxiter              = 86  ! maximum number of iteration 
+  integer(i4b)    :: relConvTol_liquid    = 87  ! relative convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: absConvTol_liquid    = 88  ! absolute convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: relConvTol_matric    = 89  ! relative convergence tolerance for matric head (-)
+  integer(i4b)    :: absConvTol_matric    = 90  ! absolute convergence tolerance for matric head (m)
+  integer(i4b)    :: relConvTol_energy    = 91  ! relative convergence tolerance for energy (-)
+  integer(i4b)    :: absConvTol_energy    = 92  ! absolute convergence tolerance for energy (J m-3)
+  integer(i4b)    :: relConvTol_aquifr    = 93  ! relative convergence tolerance for aquifer storage (-)
+  integer(i4b)    :: absConvTol_aquifr    = 94  ! absolute convergence tolerance for aquifer storage (J m-3)
+  integer(i4b)    :: zmin                 = 95  ! minimum layer depth (m)
+  integer(i4b)    :: zmax                 = 96  ! maximum layer depth (m)
+  integer(i4b)    :: zminLayer1           = 97  ! minimum layer depth for the 1st (top) layer (m)
+  integer(i4b)    :: zminLayer2           = 98  ! minimum layer depth for the 2nd layer (m) 
+  integer(i4b)    :: zminLayer3           = 99  ! minimum layer depth for the 3rd layer (m) 
+  integer(i4b)    :: zminLayer4           = 100 ! minimum layer depth for the 4th layer (m) 
+  integer(i4b)    :: zminLayer5           = 101 ! minimum layer depth for the 5th (bottom) layer (m) 
+  integer(i4b)    :: zmaxLayer1_lower     = 102 ! maximum layer depth for the 1st (top) layer when only 1 layer (m) 
+  integer(i4b)    :: zmaxLayer2_lower     = 103 ! maximum layer depth for the 2nd layer when only 2 layers (m) 
+  integer(i4b)    :: zmaxLayer3_lower     = 104 ! maximum layer depth for the 3rd layer when only 3 layers (m) 
+  integer(i4b)    :: zmaxLayer4_lower     = 105 ! maximum layer depth for the 4th layer when only 4 layers (m) 
+  integer(i4b)    :: zmaxLayer1_upper     = 106 ! maximum layer depth for the 1st (top) layer when > 1 layer (m) 
+  integer(i4b)    :: zmaxLayer2_upper     = 107 ! maximum layer depth for the 2nd layer when > 2 layers (m) 
+  integer(i4b)    :: zmaxLayer3_upper     = 108 ! maximum layer depth for the 3rd layer when > 3 layers (m) 
+  integer(i4b)    :: zmaxLayer4_upper     = 109 ! maximum layer depth for the 4th layer when > 4 layers (m) 
  endtype ilook_param
  ! ***********************************************************************************************************
  ! (6) define model variables
@@ -475,7 +477,7 @@ MODULE var_lookup
  ! define look-up structures
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25)
+                                                                         21, 22, 23, 24, 25, 26)
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5)
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   (  1,  2,  3,  4,  5,  6,  7,  8)
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
@@ -490,7 +492,7 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103,104,105,106,107,108)
+                                                                        101,102,103,104,105,106,107,108,109)
  type(iLook_mvar),    public,parameter :: iLookMVAR     =ilook_mvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
@@ -515,12 +517,12 @@ MODULE var_lookup
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12)
  ! define maximum number of variables of each type
- integer(i4b),parameter,public :: maxvarDecisions= 25
+ integer(i4b),parameter,public :: maxvarDecisions= 26
  integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarAttr     = 7
  integer(i4b),parameter,public :: maxvarType     = 5
- integer(i4b),parameter,public :: maxvarMpar     = 108
+ integer(i4b),parameter,public :: maxvarMpar     = 109
  integer(i4b),parameter,public :: maxvarMvar     = 189
  integer(i4b),parameter,public :: maxvarIndx     = 10
  integer(i4b),parameter,public :: maxvarBpar     = 5

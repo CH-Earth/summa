@@ -3,6 +3,7 @@ USE nrtype
 implicit none
 private
 public::init_metad
+public::alloc_stim
 public::alloc_time
 public::alloc_forc
 public::alloc_attr
@@ -51,10 +52,11 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
  end subroutine init_metad
 
+
  ! ************************************************************************************************
- ! new subroutine: initialize data structures for time structures
+ ! new subroutine: initialize data structures for scalar time structures
  ! ************************************************************************************************
- subroutine alloc_time(datastr,err,message)
+ subroutine alloc_stim(datastr,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:var_i,time_meta                 ! data structures
  implicit none
@@ -63,7 +65,7 @@ contains
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! initialize errors
- err=0; message="f-alloc_time/"
+ err=0; message="alloc_stim/"
  ! check that the metadata structure is allocated
  if(.not.associated(time_meta))then
   err=10; message=trim(message)//"metadataNotInitialized"; return
@@ -77,6 +79,40 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
  ! set values to missing
  datastr%var(:) = missingInteger
+ end subroutine alloc_stim
+
+ ! ************************************************************************************************
+ ! new subroutine: initialize data structures for time structures
+ ! ************************************************************************************************
+ subroutine alloc_time(nHRU,err,message)
+ ! used to initialize structure components for model variables
+ USE data_struc,only:time_hru,time_meta              ! data structures
+ implicit none
+ ! dummy variables
+ integer(i4b),intent(in)              :: nHRU        ! number of HRUs
+ integer(i4b),intent(out)             :: err         ! error code
+ character(*),intent(out)             :: message     ! error message
+ ! local variables
+ integer(i4b)                         :: iHRU        ! loop through HRUs
+ integer(i4b)                         :: nVar        ! number of variables
+ ! initialize errors
+ err=0; message="alloc_time/"
+ ! check that the metadata structure is allocated
+ if(.not.associated(time_meta))then
+  err=10; message=trim(message)//"metadataNotInitialized"; return
+ endif
+ ! initialize top-level data structure
+ if(associated(time_hru)) deallocate(time_hru)
+ allocate(time_hru(nHRU),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
+ ! initialize second level data structure
+ nVar = size(time_meta)
+ do iHRU=1,nHRU
+  allocate(time_hru(iHRU)%var(nVar),stat=err)
+  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
+  ! set values to missing
+  time_hru(iHRU)%var(:) = missingInteger
+ end do
  end subroutine alloc_time
 
  

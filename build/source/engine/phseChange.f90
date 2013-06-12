@@ -96,6 +96,8 @@ contains
     fLiq = fracliquid(mLayerTempNew(iLayer),snowfrz_scale)
     mLayerVolFracLiqNew(iLayer) = fLiq*theta
     mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
+    !write(*,'(a,1x,i4,1x,4(f20.10,1x))') 'in phase change: iLayer, fLiq, theta, mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer) = ', &
+    !                                                       iLayer, fLiq, theta, mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer)
 
     ! avoid excessive change in a single iteration
     dLiq = mLayerVolFracLiqNew(iLayer) - mLayerVolFracLiqIter(iLayer)

@@ -374,6 +374,7 @@ contains
  USE vegNrgFlux_module,only:vegNrgFlux                        ! compute energy fluxes for vegetation and ground surface
  USE phseChange_module,only:phseChange                        ! compute change in phase over the time step
  USE snow_utils_module,only:fracliquid                        ! compute the fraction of liquid water at a given temperature (snow)
+ USE snow_utils_module,only:templiquid                        ! compute the temperature at a given fraction of liquid water (snow)
  USE snow_utils_module,only:dFracLiq_dTk                      ! differentiate the freezing curve w.r.t. temperature (snow)
  USE soil_utils_module,only:dTheta_dTk                        ! differentiate the freezing curve w.r.t. temperature (soil)
  USE conv_funcs_module,only:relhm2sphm                        ! compute specific humidity 
@@ -523,8 +524,20 @@ contains
  real(dp),allocatable           :: rvec(:)                    ! residual vector (J m-3)
  real(dp),allocatable           :: sInc(:)                    ! state increment (K)
  ! define local variables for phase change
+ integer(i4b)                   :: iSnow                      ! index of snow layer
  real(dp)                       :: fLiq                       ! fraction of liquid water on the vegetation canopy (-)
  real(dp)                       :: tWat                       ! total water on the vegetation canopy (kg m-2) 
+ real(dp)                       :: aflx                       ! average flux from start and end of time step (J m-3 s-1)
+ real(dp)                       :: xres                       ! trial residual (J m-3)
+ real(dp)                       :: delT                       ! temperature increment (K)
+ real(dp)                       :: dTheta_dT                  ! derivative in volume fraction of total water w.r.t. temperature (K-1) 
+ real(dp)                       :: tempTrial                  ! trial temperature value (K)
+ real(dp)                       :: tempVolFracLiq             ! temporary value of volumetric fraction of liquid water (-)
+ real(dp)                       :: tempVolFracIce             ! temporary value of volumetric fraction of ice (-)
+ real(dp)                       :: xmin,xmax                  ! bounds for fraction of liquid water (used in bi-section) 
+ real(dp),parameter             :: nrgToler=1._dp             ! energy tolerance (J m-3)
+ integer(i4b)                   :: jiter                      ! iteration index when attempting to correct phase change
+ integer(i4b),parameter         :: maxiter=50                 ! maximum number of iterations used in phase change correction
  ! ---------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="heatTransf_muster/"
@@ -557,7 +570,6 @@ contains
  saveVP_CanopyAir   = scalarVP_CanopyAir         ! trial vapor pressure of the canopy air space (Pa)
 
  ! --------------------------------------------------------------------------------------------------------------------------------
-
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! * COMPUTE FLUXES...
@@ -802,8 +814,8 @@ contains
  ! (get the difference from freezing point (K)
  critDiff = Tfreeze - scalarCanopyTempIter
  ! (set temperature close to freezing point when it crosses freezing)
- if(critDiff > 0._dp)then; if(scalarCanopyTempDiff > critDiff) scalarCanopyTempDiff = critDiff + 0.01_dp  ! below freezing crossing zero --> slightly above freezing
-                     else; if(scalarCanopyTempDiff < critDiff) scalarCanopyTempDiff = critDiff - 0.01_dp  ! above freezing crossing zero --> slightly below freezing
+ if(critDiff > 0._dp)then; if(scalarCanopyTempDiff > critDiff) scalarCanopyTempDiff = critDiff + 0.0001_dp  ! below freezing crossing zero --> slightly above freezing
+                     else; if(scalarCanopyTempDiff < critDiff) scalarCanopyTempDiff = critDiff - 0.0001_dp  ! above freezing crossing zero --> slightly below freezing
  endif
 
  ! adjust iteration increments in cases where iterations are oscillating
@@ -860,7 +872,67 @@ contains
   tWat = scalarCanopyLiqIter + scalarCanopyIceIter      ! total water (kg m-2)
   scalarCanopyLiqNew = fLiq*tWat                        ! mass of liquid water on the canopy (kg m-2)
   scalarCanopyIceNew = (1._dp - fLiq)*tWat              ! mass of ice on the canopy (kg m-2)
+ else
+  scalarCanopyLiqNew = scalarCanopyLiqIter
+  scalarCanopyIceNew = scalarCanopyIceIter
  endif
+
+ ! try and avoid oscillations associated with phase change
+ if(nSnow>0)then
+  if(iter>3)then
+   do iSnow=1,nSnow
+    ! get a trial temperature value
+    tempTrial = mLayerTempNew(iSnow)
+    ! check if there is liquid water
+    fLiq = fracliquid(tempTrial,snowfrz_scale)  ! fraction of liquid water (-)
+    if(fLiq > 0.01_dp)then
+     ! save fluxes 
+     nrg0 = mLayerVolHtCapBulk(iSnow)*mLayerTemp(iSnow)                                      ! energy content at the start of the time step (J m-3)
+     flx0 = -(iLayerInitNrgFlux(iSnow) - iLayerInitNrgFlux(iSnow-1))/mLayerDepth(iSnow)      ! flux at the start of the time step (J m-3 s-1)
+     flx1 = -(iLayerNrgFlux(iSnow) - iLayerNrgFlux(iSnow-1))/mLayerDepth(iSnow)              ! flux at the current iteration (J m-3 s-1)
+     aflx = flx0*wimplicit + flx1*(1._dp - wimplicit)                                        ! average flux from start and end of time step (J m-3 s-1)
+     ! get volumetric fraction of the liquid equivalent of total water (-)
+     theta = mLayerVolFracIceIter(iSnow)*(iden_ice/iden_water) + mLayerVolFracLiqIter(iSnow)
+     ! get initial bounds of fraction of liquid water for bi-section
+     xmin = 0._dp
+     xmax = 1._dp
+     ! iterate
+     do jiter=1,maxiter
+      ! update temperature
+      if(jiter > 1) tempTrial = templiquid(fLiq,snowfrz_scale)
+      ! update liquid and ice content
+      tempVolFracLiq = fLiq*theta
+      tempVolFracIce = (theta - tempVolFracLiq)*(iden_water/iden_ice)
+      ! re-compute residuals
+      nrg1 = mLayerVolHtCapBulk(iSnow)*tempTrial                                              ! energy content at the current iteration (J m-3)
+      phse = LH_fus*iden_ice*(tempVolFracIce - mLayerVolFracIce(iSnow))                       ! phase change term (J m-3)
+      xres = nrg1 - (nrg0 + aflx*dt + phse)                                                   ! residual (J m-3)
+      !write(*,'(a,1x,2(i4,1x),2(f20.10,1x),2(e20.10,1x),4(f20.10,1x))') 'iSnow, jiter, xmin, xmax, xres, phse, fLiq, tempTrial, tempVolFracIce = ', &
+      !                                                                   iSnow, jiter, xmin, xmax, xres, phse, fLiq, tempTrial, tempVolFracIce 
+      ! check convergence
+      if(abs(xres) < nrgToler)exit
+      if(jiter==maxiter)then; err=20; message=trim(message)//'failed to converge [bi-section phase]'; return; endif
+      ! update bounds
+      if(xres < 0._dp)then
+       xmin = fLiq
+      else
+       xmax = fLiq
+      endif
+      ! try and refine residuals
+      dTheta_dT = dFracLiq_dTk(tempTrial,snowfrz_scale)*theta ! derivative in volume fraction of total water w.r.t. temperature (K-1)     
+      delT      = -xres/(mLayerVolHtCapBulk(iSnow) + LH_fus*iden_water*dTheta_dT)
+      fLiq      = fracliquid(tempTrial+delT,snowfrz_scale)
+      ! use bi-section if outside bounds
+      if(fLiq < xmin .or. fLiq > xmax) fLiq = 0.5_dp*(xmin+xmax)
+     end do  ! (iterating)
+     ! update temperature (NOTE: constrain temperature)
+     if(tempTrial > (mLayerTempNew(iSnow)-1._dp)) mLayerTempNew(iSnow) = tempTrial
+     !write(*,'(a,1x,3(f20.10,1x))') 'theta, fLiq, fracliquid(tempTrial,snowfrz_scale) = ', theta, fLiq, fracliquid(tempTrial,snowfrz_scale)
+     !write(*,'(a,1x,2(f20.10,1x))') 'tempVolFracLiq, tempVolFracIce = ', tempVolFracLiq, tempVolFracIce
+    endif   ! if sufficient liquid water to try and correct phase change
+   end do  ! looping through snow layers
+  endif   ! if sufficient iterations to try and correct phase change
+ endif   ! if snow is present
 
  ! compute phase change for the snow-soil vector
  call phsechange(mLayerTempNew,       & ! intent(in): new temperature vector (K)
@@ -872,6 +944,10 @@ contains
                  mLayerVolFracIceNew, & ! intent(out): new volumetric fraction of ice (-)
                  err,cmessage)          ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ !write(*,'(a,1x,10(f20.10,1x))') 'after phase change: mLayerVolFracLiqNew(1:nSnow) = ', mLayerVolFracLiqNew(1:nSnow)
+ !write(*,'(a,1x,10(f20.10,1x))') 'after phase change: mLayerVolFracIceNew(1:nSnow) = ', mLayerVolFracIceNew(1:nSnow)
+ !if(iter > 3) pause
 
  ! ***** update the fluxes at the layer interfaces
  do iLayer=0,nLayers

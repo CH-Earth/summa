@@ -18,7 +18,8 @@ contains
  USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
  USE data_struc,only:yearLength                        ! number of days in the current year
  USE data_struc,only:time_meta,forc_meta               ! metadata structures
- USE data_struc,only:time_data,forc_data               ! data structures
+ USE data_struc,only:time_data,time_hru                ! time information
+ USE data_struc,only:forc_data,forc_hru                ! forcing data
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements 
  implicit none
  ! define dummy variables
@@ -50,12 +51,21 @@ contains
  integer(i4b),pointer              :: data_ix(:)       ! column index for forcing data
  ! Start procedure here
  err=0; message="read_force/"
+ ! **********************************************************************************************
+ ! early return: check if we have the data already
+ ! NOTE: scalar data structures are pointing to the HRU data structures
+ if(forcFileInfo(iHRU)%ixFirstHRU > 0)then
+  time_data = time_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information  
+  forc_data = forc_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! forcing data
+  return
+ endif
+ ! **********************************************************************************************
+ ! define the file unit
+ unt = baseUnit + iHRU
  ! define local pointers to data structures
  ncols   => forcFileInfo(iHRU)%ncols   ! number of columns in the forcing data file
  time_ix => forcFileInfo(iHRU)%time_ix ! column index for time
  data_ix => forcFileInfo(iHRU)%data_ix ! column index for forcing data
- ! define the file unit
- unt = baseUnit + iHRU
  ! allocate space for the character vector
  allocate(cline(ncols),stat=err)
  if (err/=0) then; err=10; message=trim(message)//"problemAllocate"; return; endif

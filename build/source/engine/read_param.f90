@@ -116,13 +116,13 @@ contains
   end do
   ! assign mpar_data to the given parameter set
   mpar_data => mpar_hru(kHRU)
-  ! ***** populate parameter set with default model parameters *****
-  mpar_data%var(:) = localParFallback(:)%default_val
   ! ***** overwrite default model parameters with information from the Noah-MP tables
   call pOverwrite(type_hru(kHRU)%var(iLookTYPE%vegTypeIndex),  &  ! vegetation category
                   type_hru(kHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category                     
                   err,cmessage)                                   ! error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  ! ***** populate parameter set with default model parameters *****
+  mpar_data%var(:) = localParFallback(:)%default_val
   ! loop through the model parameters
   do ipar=2,nPars  ! start at #2 because the first "word" is the HRU index
    ! get the variable index
@@ -132,7 +132,9 @@ contains
    read(chardata(ipar),*,iostat=err) mpar_data%var(jpar)
    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
   end do    ! (looping through model parameters)
- end do    ! (looping through model parameter sets)
+  !write(*,'(a,2(i4,1x),2(f20.10,1x))') 'in read_param 2: iHRU, kHRU, mpar_data%var(iLookPARAM%vGn_alpha), mpar_hru(kHRU)%var(iLookPARAM%vGn_alpha) = ', & 
+  !                                                       iHRU, kHRU, mpar_data%var(iLookPARAM%vGn_alpha), mpar_hru(kHRU)%var(iLookPARAM%vGn_alpha)
+ end do    ! (looping through HRUs)
  ! **********************************************************************************************
  deallocate(varnames,charline,chardata,stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemDeallocate"; return; endif

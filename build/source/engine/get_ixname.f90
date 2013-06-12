@@ -49,13 +49,14 @@ contains
   case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (16) type of lower boundary condition for soil hydrology
   case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (17) choice of parameterization for vegetation roughness length and displacement height
   case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (18) choice of parameterization for canopy emissivity
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (19) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (20) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (21) choice of method to combine and sub-divide snow layers
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (22) choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (23) choice of albedo representation
-  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (24) choice of method for spatial representation of groundwater
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (25) choice of method for sub-grid routing
+  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (19) choice of parameterization for snow interception 
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (20) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (21) choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (22) choice of method to combine and sub-divide snow layers
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (23) choice of thermal conductivity representation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (24) choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (25) choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (26) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -253,6 +254,7 @@ contains
   case('refInterceptCapRain' ); get_ixparam = iLookPARAM%refInterceptCapRain  ! canopy interception capacity per unit leaf area (rain) (kg m-2)
   case('snowUnloadingCoeff'  ); get_ixparam = iLookPARAM%snowUnloadingCoeff   ! time constant for unloading of snow from the forest canopy (s-1)
   case('canopyDrainageCoeff' ); get_ixparam = iLookPARAM%canopyDrainageCoeff  ! time constant for drainage of liquid water from the forest canopy (s-1)
+  case('ratioDrip2Unloading' ); get_ixparam = iLookPARAM%ratioDrip2Unloading  ! ratio of canopy drip to unloading of snow from the forest canopy (-)
   ! soil properties
   case('soil_dens_intr'      ); get_ixparam = iLookPARAM%soil_dens_intr       ! intrinsic soil density (kg m-3)
   case('frac_sand'           ); get_ixparam = iLookPARAM%frac_sand            ! fraction of sand (-)

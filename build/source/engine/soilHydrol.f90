@@ -557,6 +557,11 @@ contains
   scalarRainPlusMelt = 0._dp
  endif
 
+ ! check
+ !if(scalarRainPlusMelt*iden_water > 0.0001_dp)then
+ ! write(*,'(a,3(f20.10,1x))') 'scalarThroughfallRain, scalarCanopyLiqDrainage, scalarSfcMeltPond/dt = ', scalarThroughfallRain, scalarCanopyLiqDrainage, scalarSfcMeltPond/dt
+ !endif
+
  ! compute the fraction of transpiration loss from each snow-soil layer, and the aquifer
  if(scalarTranspireLim > epsilon(scalarTranspireLim))then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
   mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
@@ -2241,6 +2246,9 @@ contains
    fInfArea = (1._dp - fracCap)**bpar_VIC
    ! compute the rate of infiltration over the non-saturated area (m s-1)
    fInfRate = min(surfaceSatHydCond,scalarRainPlusMelt)!*iceImpedeFac  ! (m s-1)
+   !if(scalarRainPlusMelt*iden_ice > 0.0001_dp)then
+   ! write(*,'(a,1x,2(f20.10,1x))') 'surfaceSatHydCond, scalarRainPlusMelt = ', surfaceSatHydCond, scalarRainPlusMelt
+   !endif
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff = (1._dp - fInfArea)*scalarRainPlusMelt + fInfArea*(scalarRainPlusMelt - fInfRate)
    ! compute the flux at the upper boundary

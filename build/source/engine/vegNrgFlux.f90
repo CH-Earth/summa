@@ -62,6 +62,8 @@ real(dp),parameter     :: missingValue=-9999._dp  ! missing value, used when dia
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
 real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
+! control
+logical(lgt)           :: printflag            ! flag to turn on printing
 contains
 
  ! ************************************************************************************************
@@ -761,6 +763,10 @@ contains
  real(dp)                      :: exposedVAI                       ! exposed vegetation area index (m2 m-2)
  real(dp),parameter            :: vegFraction=1._dp                ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
  real(dp)                      :: relativeCanopyWater              ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
+ real(dp)                      :: xArg                             ! argument used in the smoothing function (-)
+ real(dp)                      :: smoothFunc                       ! smoothing function used to improve numerical stability at times with limited water storage (-)
+ real(dp),parameter            :: smoothThresh=0.01_dp             ! mid-point of the smoothing function (kg m-2 s-1)
+ real(dp),parameter            :: smoothScale=0.001_dp             ! scaling factor for the smoothing function (kg m-2 s-1)
  ! local (compute numerical derivatives)
  integer(i4b),parameter        :: unperturbed=1                    ! named variable to identify the case of unperturbed state variables
  integer(i4b),parameter        :: perturbStateCanopy=2             ! named variable to identify the case where we perturb the canopy temperature
@@ -769,7 +775,7 @@ contains
  integer(i4b)                  :: nFlux                            ! number of flux evaluations
  real(dp)                      :: canopyTemp                       ! value of canopy temperature used in flux calculations (may be perturbed)
  real(dp)                      :: groundTemp                       ! value of ground temperature used in flux calculations (may be perturbed)
- !real(dp)                      :: try0,try1,try2                   ! trial values to evaluate specific derivatives (testing only)
+ real(dp)                      :: try0,try1,try2                   ! trial values to evaluate specific derivatives (testing only)
  ! local (saturation vapor pressure of veg)
  real(dp)                      :: TV_celcius                       ! vegetaion temperature (C)
  real(dp)                      :: TG_celcius                       ! ground temperature (C)
@@ -791,7 +797,6 @@ contains
  real(dp)                      :: z0Ground                         ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
  real(dp)                      :: soilEvapFactor                   ! soil water control on evaporation from non-vegetated surfaces
  real(dp)                      :: soilRelHumidity_noSnow           ! relative humidity in the soil pores [0-1]
- real(dp)                      :: initTemp_CanopyAir               ! initial temperature of the canopy air space (K)
  real(dp)                      :: scalarLeafConductance            ! leaf conductance (m s-1)
  real(dp)                      :: scalarCanopyConductance          ! canopy conductance (m s-1)
  real(dp)                      :: scalarGroundConductanceSH        ! ground conductance for sensible heat (m s-1)
@@ -839,6 +844,9 @@ contains
  ! initialize error control
  err=0; message="vegNrgFlux_muster/"
 
+ ! initialize printflag
+ printflag = .false.
+
  ! initialize variables to compute stomatal resistance
  if(iter==1 .and. firstSubStep)then
   ! vapor pressure in the canopy air space initialized as vapor pressure of air above the vegetation canopy
@@ -854,10 +862,6 @@ contains
    dTempCanopyAir_dTGround = 1._dp
   endif
  endif
-
- ! save the temperature of the canopy air space, in order to calculate numerical derivatives
- ! NOTE: the temperature of the canopy air space is intent(inout), which causes problems in calculation of numerical derivatives in the resistance calculations
- initTemp_CanopyAir = scalarTemp_CanopyAir
 
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
@@ -916,6 +920,33 @@ contains
  ! compute emissivity of the ground surface (-)
  groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._dp - scalarGroundSnowFraction)*soilEmissivity  ! emissivity of the ground surface (-)
  
+ ! compute the fraction of canopy that is wet
+ ! NOTE: we either sublimate or evaporate over the entire substep
+ if(exposedVAI>0._dp .and. computeVegFlux)then
+  if(scalarLatHeatSubVapCanopy > LH_vap+verySmall)then ! sublimation
+   xarg = (canopyIceTrial - smoothThresh)/smoothScale
+   relativeCanopyWater = canopyIceTrial / scalarCanopyIceMax
+  else  ! evaporation
+   xArg = (canopyLiqTrial - smoothThresh)/smoothScale
+   relativeCanopyWater = canopyLiqTrial / scalarCanopyLiqMax
+  endif
+  !print*, 'relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax = ', relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax
+  scalarCanopyWetFraction = min(max(0._dp, relativeCanopyWater), 1._dp)**0.666667_dp
+ else
+  scalarCanopyWetFraction = 0._dp
+ endif
+
+ ! smooth the function near zero, to improve numerical stability
+ if(xArg < 50._dp)then
+  if(xArg > -50._dp)then
+   smoothFunc = 1._dp / (1._dp + exp(-xarg))
+  else
+   smoothFunc = 0._dp
+  endif
+  scalarCanopyWetFraction = scalarCanopyWetFraction*smoothFunc
+  !if(smoothFunc < 0.7_dp) pause  ' smoothing canopy wet fraction'
+ endif
+
 
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
@@ -927,18 +958,6 @@ contains
  ! NOTE: canopy radiation does depend on canopy temperature (to distinguish between snow covered canopy, for albedo calculations) and this dependency
  !       is not included on the assumption that albedo changes over the sub-step are small compared to other fluxes
  if(computeShortwave)then
-
-  ! compute the fraction of canopy that is wet
-  if(exposedVAI>0._dp .and. computeVegFlux)then
-   if(canopyIceTrial > 0._dp)then
-    relativeCanopyWater = (canopyIceTrial + canopyLiqTrial) / scalarCanopyIceMax
-   else
-    relativeCanopyWater = canopyLiqTrial / scalarCanopyLiqMax
-   endif
-   scalarCanopyWetFraction = min(relativeCanopyWater, 1._dp)*0.666667_dp
-  else
-   scalarCanopyWetFraction = 0._dp
-  endif
 
   ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
   snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
@@ -1010,7 +1029,7 @@ contains
                  ! input: model control
                  iter,                               & ! intent(in): iteration index
                  computeVegFlux,                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                 (ix_fDerivMeth ==analytical),       & ! intent(in): logical flag if would like to compute analytical derivaties
+                 (ix_fDerivMeth == analytical),      & ! intent(in): logical flag if would like to compute analytical derivaties
                  ix_veg_traits,                      & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
                  ix_astability,                      & ! intent(in): choice of stability function
                  ! input: above-canopy forcing data
@@ -1021,9 +1040,6 @@ contains
                  canopyTempTrial,                    & ! intent(in): temperature of the vegetation canopy (K)
                  groundTempTrial,                    & ! intent(in): temperature of the ground surface (K)
                  ! input: diagnostic variables
-                 initTemp_CanopyAir,                 & ! intent(in): temperature of the canopy air space (K)
-                 dTempCanopyAir_dTCanopy,            & ! intent(in): derivative in temperature of the canopy air space w.r.t. temperature of the vegetation canopy (K K-1)
-                 dTempCanopyAir_dTGround,            & ! intent(in): derivative in temperature of the canopy air space w.r.t. temperature of the ground surface (K K-1)
                  exposedVAI,                         & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
                  scalarSnowDepth,                    & ! intent(in): snow depth (m)
                  ! input: parameters
@@ -1244,7 +1260,6 @@ contains
   TG_celcius = groundTemp - Tfreeze
   call satVapPress(TG_celcius, scalarSatVP_GroundTemp, dSVPGround_dGroundTemp)
 
-
   ! -------------------------------------------------------------------------------------
   ! calculation block (unperturbed fluxes returned [computed last])
   ! -------------------------------------------------------------------------------------
@@ -1267,9 +1282,6 @@ contains
                    canopyTemp,                              & ! intent(in): canopy temperature (K)
                    groundTemp,                              & ! intent(in): ground temperature (K)
                    ! input: diagnostic variables
-                   initTemp_CanopyAir,                      & ! intent(in): temperature of the canopy air space (K)
-                   dTempCanopyAir_dTCanopy,                 & ! intent(in): derivative in temperature of the canopy air space w.r.t. temperature of the vegetation canopy (K K-1)
-                   dTempCanopyAir_dTGround,                 & ! intent(in): derivative in temperature of the canopy air space w.r.t. temperature of the ground surface (K K-1)
                    exposedVAI,                              & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
                    scalarSnowDepth,                         & ! intent(in): snow depth (m)
                    ! input: parameters
@@ -1436,10 +1448,10 @@ contains
   if(ix_fDerivMeth == numerical)then
    select case(itry) ! (select type of perturbation)
     case(unperturbed)
-     !try0 = scalarGroundStabilityCorrection
+     !try0 = scalarGroundResistance
      exit
     case(perturbStateCanopy)
-     !try1 = notUsed_scalarGroundStabilityCorrection
+     !try1 = trialGroundResistance
      turbFluxCanopy_dStateCanopy = turbFluxCanopy         ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
      turbFluxGround_dStateCanopy = turbFluxGround         ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
     case(perturbStateGround)
@@ -1453,7 +1465,7 @@ contains
 
  ! test derivative
  !if(ix_fDerivMeth == numerical)  print*, 'derivative = ', (ix_fDerivMeth == numerical), (try1 - try0)/dx
- !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dCanopyResistance_dTCanopy
+ !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dGroundResistance_dTCanopy
 
  ! compute numerical derivatives
  if(ix_fDerivMeth == numerical)then
@@ -1464,6 +1476,8 @@ contains
   dTurbFluxCanopy_dTGround = (turbFluxCanopy_dStateGround - turbFluxCanopy) / dx  ! derivative in net canopy turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
   dTurbFluxGround_dTGround = (turbFluxGround_dStateGround - turbFluxGround) / dx  ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
  endif
+
+ !if(heightCanopyBottom < scalarSnowDepth+z0Ground) pause 'bottom of the canopy is covered'
 
  ! test
  !print*, (ix_fDerivMeth == numerical)
@@ -1476,8 +1490,8 @@ contains
 
  ! compute the heat advected with precipitation (W m-2)
  ! NOTE: fluxes are in kg m-2 s-1, so no need to use density of water/ice here
- scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(canopyTempTrial - scalarTwetbulb) !+ &
- !                                -Cp_ice*(scalarSnowfall - scalarThroughfallSnow)*(canopyTempTrial - scalarTwetbulb)
+ scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(canopyTempTrial - scalarTwetbulb) + &
+                                 -Cp_ice*(scalarSnowfall - scalarThroughfallSnow)*(canopyTempTrial - scalarTwetbulb)
  scalarGroundAdvectiveHeatFlux = -Cp_water*scalarThroughfallRain*(groundTempTrial - scalarTwetbulb)         + &
                                  -Cp_ice  *scalarThroughfallSnow*(groundTempTrial - scalarTwetbulb)         !+ &
  !                                -Cp_water*scalarCanopyLiqDrainage  *(groundTempTrial - canopyTempTrial) + &
@@ -1519,17 +1533,17 @@ contains
  ! *******************************************************************************************************************************************************************
 
  ! compute net fluxes at the canopy and ground surface
- canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy !+ scalarCanopyAdvectiveHeatFlux
- groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround !+ scalarGroundAdvectiveHeatFlux
+ canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy + scalarCanopyAdvectiveHeatFlux
+ groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround + scalarGroundAdvectiveHeatFlux
  !print*, 'canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy = ', canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy
  !print*, 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround = ', groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround
 
 
  ! compute the derivatives
- dCanopyNetFlux_dCanopyTemp = dLWNetCanopy_dTCanopy + dTurbFluxCanopy_dTCanopy !- Cp_water*(scalarRainfall - scalarThroughfallRain) - Cp_ice*(scalarSnowfall - scalarThroughfallSnow)
+ dCanopyNetFlux_dCanopyTemp = dLWNetCanopy_dTCanopy + dTurbFluxCanopy_dTCanopy - Cp_water*(scalarRainfall - scalarThroughfallRain) - Cp_ice*(scalarSnowfall - scalarThroughfallSnow)
  dGroundNetFlux_dCanopyTemp = dLWNetGround_dTCanopy + dTurbFluxGround_dTCanopy 
  dCanopyNetFlux_dGroundTemp = dLWNetCanopy_dTGround + dTurbFluxCanopy_dTGround 
- dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround !- Cp_water*scalarThroughfallRain - Cp_ice*scalarThroughfallSnow
+ dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround - Cp_water*scalarThroughfallRain - Cp_ice*scalarThroughfallSnow
 
  !print*, (ix_fDerivMeth == numerical)
  !print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
@@ -1796,7 +1810,7 @@ contains
                        ! input: model control
                        iter,                          & ! intent(in): iteration index
                        computeVegFlux,                & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                       derivDesired,                  & ! intent(in): flag to indicate if derivatives are desired
+                       derivDesired,                  & ! intent(in): flag to indicate if analytical derivatives are desired
                        ixVegTraits,                   & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
                        ixStability,                   & ! intent(in): choice of stability function
                        ! input: above-canopy forcing data
@@ -1807,9 +1821,6 @@ contains
                        canopyTemp,                    & ! intent(in): canopy temperature (K)
                        groundTemp,                    & ! intent(in): ground temperature (K)
                        ! input: diagnostic variables
-                       temp_CanopyAir,                & ! intent(in): temperature of the canopy air space (K)
-                       dTempCanopyAir_dTCanopy,       & ! intent(in): derivative in temperature of the canopy air space w.r.t. temperature of the vegetation canopy (K K-1)
-                       dTempCanopyAir_dTGround,       & ! intent(in): derivative in temperature of the canopy air space w.r.t. temperature of the ground surface (K K-1)
                        exposedVAI,                    & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
                        snowDepth,                     & ! intent(in): snow depth (m)
                        ! input: parameters
@@ -1857,7 +1868,7 @@ contains
  ! input: model control
  integer(i4b),intent(in)       :: iter                          ! iteration index
  logical(lgt),intent(in)       :: computeVegFlux                ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
- logical(lgt),intent(in)       :: derivDesired                  ! logical flag to indicate if derivatives are desired
+ logical(lgt),intent(in)       :: derivDesired                  ! logical flag to indicate if analytical derivatives are desired
  integer(i4b),intent(in)       :: ixVegTraits                   ! choice of parameterization for vegetation roughness length and displacement height
  integer(i4b),intent(in)       :: ixStability                   ! choice of stability function
  ! input: above-canopy forcing data
@@ -1868,9 +1879,6 @@ contains
  real(dp),intent(in)           :: canopyTemp                    ! canopy temperature (K)
  real(dp),intent(in)           :: groundTemp                    ! ground temperature (K)
  ! input: diagnostic variables
- real(dp),intent(in)           :: temp_CanopyAir                ! temperature of the canopy air space (K)
- real(dp),intent(in)           :: dTempCanopyAir_dTCanopy       ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy (K K-1)
- real(dp),intent(in)           :: dTempCanopyAir_dTGround       ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground (K K-1)
  real(dp),intent(in)           :: exposedVAI                    ! exposed vegetation area index -- leaf plus stem (m2 m-2)
  real(dp),intent(in)           :: snowDepth                     ! snow depth (m)
  ! input: parameters
@@ -1911,8 +1919,9 @@ contains
  integer(i4b),intent(out)      :: err                           ! error code
  character(*),intent(out)      :: message                       ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
- ! local variables
+ ! local variables: general
  character(LEN=256)            :: cmessage                      ! error message of downwind routine
+ ! local variables: vegetation roughness and dispalcement height
  real(dp),parameter            :: oneThird=1._dp/3._dp          ! 1/3
  real(dp),parameter            :: twoThirds=2._dp/3._dp         ! 2/3
  real(dp),parameter            :: C_r = 0.3                     ! roughness element drag coefficient (-) from Raupach (BLM, 1994) 
@@ -1924,46 +1933,23 @@ contains
  real(dp)                      :: funcLAI                       ! temporary variable to calculate zero plane displacement for the canopy
  real(dp)                      :: fracCanopyHeight              ! zero plane displacement expressed as a fraction of canopy height
  real(dp)                      :: approxDragCoef                ! approximate drag coefficient used in the computation of canopy roughness length (-)
+ ! local variables: resistance
  real(dp)                      :: canopyExNeut                  ! surface-atmosphere exchange coefficient under neutral conditions (-)
  real(dp)                      :: groundExNeut                  ! surface-atmosphere exchange coefficient under neutral conditions (-)
  real(dp)                      :: sfc2AtmExchangeCoeff_canopy   ! surface-atmosphere exchange coefficient after stability corrections (-)
- !real(dp)                      :: sfc2AtmExchangeCoeff_ground   ! surface-atmosphere exchange coefficient after stability corrections (-)
  real(dp)                      :: groundResistanceNeutral       ! ground resistance under neutral conditions (s m-1)
  real(dp)                      :: windConvFactorTop             ! factor to convert friction velocity to wind speed at top of canopy (-)
  real(dp)                      :: windConvFactorBottom          ! factor to convert wind speed at top of canopy to wind speed at bottom of canopy (-)
  real(dp)                      :: referenceHeight               ! reference height used to compute above-ground windspeed (m)
- real(dp)                      :: windspdAboveGround            ! windspeed above the ground surface -- either measured windspeed or windspeed at canopy bottom (m s-1)
- real(dp)                      :: heightAboveGround             ! height above the ground surface (accounts for snow depth) -- based on either measurement height or height at canopy bottom (m)
- real(dp)                      :: tempAboveGround               ! temperature above the ground surface -- either measured temperature or temperatre of canopy air space (K)
- integer(i4b)                  :: iTry,jTry                     ! iteration loop to refine estimate of canopy temperature
- integer(i4b),parameter        :: maxIter=15                    ! maximum number of iterations in attempt to refine canopy air temperature
- real(dp),parameter            :: convTol=1.e-8_dp              ! convergence tolerance for attempt to refine canopy air temperature (K)
- !real(dp)                      :: try0,try1                     ! trial values used to calculate numerical derivatives (testing)
- real(dp)                      :: fPart1                        ! 1st part of a function evaluation
- real(dp)                      :: fPart2                        ! 2nd part of a function evaluation
- real(dp)                      :: dPart1                        ! derivative of the 1st part of a function
- real(dp)                      :: dPart2                        ! derivative of the 2nd part of a function
- real(dp)                      :: RiMult                        ! temperature-independent multiplier in the Bulk Richardson function (-)
- !real(dp)                      :: canopyTempTrial               ! trial value for canopy temperature (K)
- !real(dp)                      :: groundTempTrial               ! trial value for ground temperature (K)
- real(dp)                      :: tempAboveGroundTrial          ! trial value for temperature of the canopy air space (K)
- real(dp)                      :: tempAboveGroundIncr           ! iteration increment for temperature of the canopy air space (K)
- real(dp)                      :: tempAboveGroundNew            ! updated value for temperature of the canopy air space (K)
- real(dp)                      :: leafConductance               ! leaf conductance (m s-1) -- used to compute a "refined" value of canopy air temperature
- real(dp)                      :: canopyConductance             ! canopy conductance (m s-1) -- used to compute a "refined" value of canopy air temperature
- real(dp)                      :: groundConductance             ! ground conductance (m s-1) -- used to compute a "refined" value of canopy air temperature
- real(dp)                      :: totalConductance              ! total conductance (m s-1) -- used to compute a "refined" value of canopy air temperature
- real(dp)                      :: dGc_dT                        ! derivative in ground conductance w.r.t. temperature of the canopy air space (m s-1 K-1)
- real(dp)                      :: dTa_dT                        ! derivative in the canopy air space temperature fn w.r.t. canopy air space temperature (-)
+ real(dp)                      :: heightAboveGround             ! height above the snow surface (m)
+ ! local variables: derivatives
  real(dp)                      :: dFV_dT                        ! derivative in friction velocity w.r.t. canopy temperature
- !real(dp)                      :: dUC_dT                        ! derivative in wind speed at canopy top w.r.t. canopy temperature
- !real(dp)                      :: dUB_dT                        ! derivative in wind speed at canopy bottom w.r.t. canopy temperature
- !real(dp)                      :: dLC_dT                        ! derivative in canopy-average leaf conductance w.r.t. canopy temperature
  real(dp)                      :: dED_dT                        ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy temperature
- real(dp)                      :: dGR_dT                        ! derivative in NEUTRAL ground resistance w.r.t. canopy temperature
- real(dp)                      :: dSC_dT                        ! derivative in stability correction (denominator) w.r.t. canopy temperature
- real(dp)                      :: dRb_dT                        ! derivative in Richardson number w.r.t. canopy temperature
  real(dp)                      :: tmp1,tmp2                     ! temporary variables used in calculation of ground resistance
+ real(dp)                      :: dLeafResistance_dStateCanopy     ! leaf resistance after perturbing canopy temperature (s m-1)
+ real(dp)                      :: dCanopyResistance_dStateCanopy   ! canopy resistance after perturbing canopy temperature (s m-1)   
+ real(dp)                      :: dGroundResistance_dStateCanopy   ! ground resistance after perturbing canopy temperature (s m-1)
+ real(dp)                      :: dGroundResistance_dStateGround   ! ground resistance after perturbing ground temperature (s m-1)
  real(dp)                      :: dStabilityCorrection_dCanopyRich ! derivative in stability correction w.r.t. Richardson number for the canopy (-)
  real(dp)                      :: dStabilityCorrection_dGroundRich ! derivative in stability correction w.r.t. Richardson number for the ground surface (-)
  real(dp)                      :: dStabilityCorrection_dCanopyTemp ! derivative in stability correction w.r.t. canopy temperature (K-1)
@@ -1980,10 +1966,10 @@ contains
   err=20; message=trim(message)//'measurement height is below the top of the canopy'; return
  endif
 
- if(computeVegFlux) then ! (if vegetation is exposed)
+ ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! * compute vegetation poperties (could be done at the same time as phenology.. does not have to be in the flux routine!)
 
-  ! -----------------------------------------------------------------------------------------------------------------------------------------
-  ! * compute vegetation poperties (could be done at the same time as phenology.. does not have to be in the flux routine!)
+ if(computeVegFlux) then ! (if vegetation is exposed)
 
   ! ***** identify zero plane displacement, roughness length, and surface temperature for the canopy (m)
   select case(ixVegTraits)
@@ -2026,34 +2012,39 @@ contains
   if(mHeight < zeroPlaneDisplacement)then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; endif
   if(mHeight < z0Canopy)then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; endif
 
-  ! -----------------------------------------------------------------------------------------------------------------------------------------
-  ! -----------------------------------------------------------------------------------------------------------------------------------------
-  ! * compute canopy and leaf resistances, and neutral ground resistance
+ endif  ! if there is a canopy
+
+ ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! * compute resistance for the case where the canopy is exposed
+
+ ! check if vegetation is exposed
+ if(computeVegFlux) then 
 
   ! compute the stability correction for resistance from canopy to air above the canopy (-)
   call aStability(&
                   ! input
-                  derivDesired,                         & ! input: logical flag to compute analytical derivatives
-                  ixStability,                          & ! input: choice of stability function
+                  derivDesired,                                     & ! input: logical flag to compute analytical derivatives
+                  ixStability,                                      & ! input: choice of stability function
                   ! input: forcing data, diagnostic and state variables
-                  mHeight,                              & ! input: measurement height (m)
-                  airTemp,                              & ! input: air temperature (K)
-                  canopyTemp,                           & ! input: trial value of surface temperature -- "surface" is either canopy or ground (K)
-                  windspd,                              & ! input: wind speed (m s-1)
+                  mHeight,                                          & ! input: measurement height (m)
+                  airTemp,                                          & ! input: air temperature (K)
+                  canopyTemp,                                       & ! input: trial value of surface temperature -- "surface" is either canopy or ground (K)
+                  windspd,                                          & ! input: wind speed (m s-1)
                   ! input: stability parameters
-                  critRichNumber,                       & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
-                  Louis79_bparam,                       & ! input: parameter in Louis (1979) stability function
-                  Louis79_cStar,                        & ! input: parameter in Louis (1979) stability function
-                  Mahrt87_eScale,                       & ! input: exponential scaling factor in the Mahrt (1987) stability function
+                  critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
+                  Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
+                  Louis79_cStar,                                    & ! input: parameter in Louis (1979) stability function
+                  Mahrt87_eScale,                                   & ! input: exponential scaling factor in the Mahrt (1987) stability function
                   ! output
-                  RiBulkCanopy,                         & ! output: bulk Richardson number (-)
-                  canopyStabilityCorrection,            & ! output: stability correction for turbulent heat fluxes (-)
-                  dStabilityCorrection_dCanopyRich,     & ! output: derivative in stability correction w.r.t. Richardson number for the canopy (-)
-                  dStabilityCorrection_dCanopyTemp,     & ! output: derivative in stability correction w.r.t. temperature (K-1)
-                  err, cmessage                         ) ! output: error control
+                  RiBulkCanopy,                                     & ! output: bulk Richardson number (-)
+                  canopyStabilityCorrection,                        & ! output: stability correction for turbulent heat fluxes (-)
+                  dStabilityCorrection_dCanopyRich,                 & ! output: derivative in stability correction w.r.t. Richardson number for the canopy (-)
+                  dStabilityCorrection_dCanopyTemp,                 & ! output: derivative in stability correction w.r.t. temperature (K-1)
+                  err, cmessage                                     ) ! output: error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  !write(*,'(a,1x,4(e20.5,1x))') 'canopyStabilityCorrection, dStabilityCorrection_dCanopyRich, dStabilityCorrection_dCanopyTemp = ', &
-  !                               canopyStabilityCorrection, dStabilityCorrection_dCanopyRich, dStabilityCorrection_dCanopyTemp
+  !write(*,'(a,1x,4(e20.5,1x))') 'canopyStabilityCorrection, dStabilityCorrection_dCanopyRich, dStabilityCorrection_dCanopyTempTrial = ', &
+  !                               canopyStabilityCorrection, dStabilityCorrection_dCanopyRich, dStabilityCorrection_dCanopyTempTrial
 
   ! compute turbulent exchange coefficient (-)
   canopyExNeut = (vkc**2._dp) / ( log((mHeight - zeroPlaneDisplacement)/z0Canopy))**2._dp ! coefficient under conditions of neutral stability
@@ -2064,10 +2055,12 @@ contains
 
   ! compute the above-canopy resistance (s m-1)
   canopyResistance = 1._dp/(sfc2AtmExchangeCoeff_canopy*windspd)
+  if(canopyResistance < 0._dp)then; err=20; message=trim(message)//'canopy resistance < 0'; return; endif
 
   ! compute windspeed at the top of the canopy (m s-1)
   ! NOTE: stability corrections cancel out
-  windspdCanopyTop  = windspd * log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - zeroPlaneDisplacement)/z0Canopy)
+  windConvFactorTop = log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - zeroPlaneDisplacement)/z0Canopy)
+  windspdCanopyTop  = windspd*windConvFactorTop
   !windConvFactorTop = log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy)/(sqrt(canopyStabilityCorrection)*vkc)
   !windspdCanopyTop  = frictionVelocity*windConvFactorTop
 
@@ -2078,15 +2071,17 @@ contains
 
   ! compute windspeed at the bottom of the canopy (m s-1)
   !referenceHeight      = max(heightCanopyBottom, min(0.5_dp, heightCanopyTop))
-  referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground+0.05_dp)
+  referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground)
   windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
   windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
+  if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then; err=20; message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'; return; endif
 
   ! compute the leaf boundary layer resistance (s m-1)
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
   leaf2CanopyScaleFactor = (2._dp/windReductionFactor) * (1._dp - exp(-windReductionFactor/2._dp)) ! factor to scale from the leaf to the canopy
   canopyLeafConductance  = singleLeafConductance*leaf2CanopyScaleFactor
   leafResistance  = 1._dp/(canopyLeafConductance)
+  if(leafResistance < 0._dp)then; err=20; message=trim(message)//'leaf resistance < 0'; return; endif
 
   ! compute eddy diffusivity for heat at the top of the canopy (m2 s-1)
   !   Note: use of friction velocity here includes stability adjustments
@@ -2096,42 +2091,80 @@ contains
   !  assume exponential profile extends from the surface roughness length to the displacement height plus vegetation roughness
   tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTop)
   tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTop)
-  groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
-                                + (1._dp/(windspdCanopyBottom*vkc**2._dp))*(log(referenceHeight/z0Ground))**2._dp
+  !print*, 'referenceHeight = ', referenceHeight
+ ! print*, 'snowDepth+z0Ground = ', snowDepth+z0Ground
+  if(referenceHeight > heightCanopyBottom)then  ! snow is above the bottom of the canopy -- just use the exponential profile
+   !printflag = .true. ! limit printing to this special case
+   !write(*,'(a)') 'snow above bottom of the canopy, referenceHeight, z0Canopy+zeroPlaneDisplacement, heightCanopyTop = '
+   !write(*,'(10(f20.10,1x))')                       referenceHeight, z0Canopy+zeroPlaneDisplacement, heightCanopyTop
+   groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
+  else  ! snow is below the bottom of the canopy
+   groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
+                                + (1._dp/(windspdCanopyBottom*vkc**2._dp))*(log(referenceHeight/(snowDepth+z0Ground)))**2._dp
+  endif
+  !print*, 'heightCanopyTop, referenceHeight, z0Canopy+zeroPlaneDisplacement, z0Ground = ', &
+  !         heightCanopyTop, referenceHeight, z0Canopy+zeroPlaneDisplacement, z0Ground
 
-  ! define variables immediately above the ground surface
-  ! NOTE: these are used in the stability calculations
-  windspdAboveGround = max(0.01_dp, windspdCanopyBottom)
-  heightAboveGround  = referenceHeight - snowDepth
-  tempAboveGround    = temp_CanopyAir
-  !tempAboveGround    = airtemp ! NOTE: use air temperature instead of temperature of the canopy air space to simplify calculations
+  ! compute the ground resistance
+  ! NOTE: no stability correction when a canopy is present
+  groundResistance = groundResistanceNeutral
+  if(groundResistance < 0._dp)then; err=20; message=trim(message)//'ground resistance < 0 [vegetation is present]'; return; endif
 
-  !write(*,'(a,5(f20.10,1x))'), 'referenceHeight, heightCanopyTop, windConvFactorBottom, windspdCanopyBottom, windspdAboveGround = ', &
-  !                              referenceHeight, heightCanopyTop, windConvFactorBottom, windspdCanopyBottom, windspdAboveGround
-
- ! ***** no canopy
+ ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! -----------------------------------------------------------------------------------------------------------------------------------------
+ ! * compute resistance for the case without a canopy (bare ground, or canopy completely buried with snow)
  else
-
-  ! -----------------------------------------------------------------------------------------------------------------------------------------
-  ! -----------------------------------------------------------------------------------------------------------------------------------------
-  ! * compute neutral resistance for the case without a canopy
 
   ! no canopy, so set huge resistances (not used)
   canopyResistance = 1.e12_dp   ! not used: huge resistance, so conductance is essentially zero
   leafResistance   = 1.e12_dp   ! not used: huge resistance, so conductance is essentially zero
-
+ 
   ! check that measurement height above the ground surface is above the roughness length
   if(mHeight < snowDepth+z0Ground)then; err=20; message=trim(message)//'measurement height < snow depth + roughness length'; return; endif
-
+ 
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
   groundExNeut = (vkc**2._dp) / ( log((mHeight - snowDepth)/z0Ground)**2._dp) ! turbulent transfer coefficient under conditions of neutral stability (-)
   groundResistanceNeutral = 1._dp / (groundExNeut*windspd)
-
-  ! define variables immediately above the ground surface
-  ! NOTE: these are used in the stability calculations
-  windspdAboveGround = windspd
+ 
+  ! define height above the snow surface
   heightAboveGround  = mHeight - snowDepth
-  tempAboveGround    = airtemp
+ 
+  ! check that measurement height above the ground surface is above the roughness length
+  if(heightAboveGround < z0Ground)then
+   print*, 'z0Ground = ', z0Ground
+   print*, 'mHeight  = ', mHeight
+   print*, 'snowDepth = ', snowDepth
+   print*, 'heightAboveGround = ', heightAboveGround
+   message=trim(message)//'height above ground < roughness length [likely due to snow accumulation]'
+   err=20; return
+  endif
+
+  ! compute ground stability correction
+  call aStability(&
+                   ! input
+                  derivDesired,                                     & ! input: logical flag to compute analytical derivatives
+                  ixStability,                                      & ! input: choice of stability function
+                  ! input: forcing data, diagnostic and state variables
+                  heightAboveGround,                                & ! input: measurement height above the ground surface (m)
+                  airtemp,                                          & ! input: temperature above the ground surface (K)
+                  groundTemp,                                       & ! input: trial value of surface temperature -- "surface" is either canopy or ground (K)
+                  windspd,                                          & ! input: wind speed above the ground surface (m s-1)
+                  ! input: stability parameters
+                  critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
+                  Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
+                  Louis79_cStar,                                    & ! input: parameter in Louis (1979) stability function
+                  Mahrt87_eScale,                                   & ! input: exponential scaling factor in the Mahrt (1987) stability function
+                  ! output
+                  RiBulkGround,                                     & ! output: bulk Richardson number (-)
+                  groundStabilityCorrection,                        & ! output: stability correction for turbulent heat fluxes (-)
+                  dStabilityCorrection_dGroundRich,                 & ! output: derivative in stability correction w.r.t. Richardson number for the ground surface (-)
+                  dStabilityCorrection_dGroundTemp,                 & ! output: derivative in stability correction w.r.t. temperature (K-1)
+                  err, cmessage                                     ) ! output: error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ 
+  ! compute the ground resistance (after stability corrections)
+  groundResistance = groundResistanceNeutral/groundStabilityCorrection
+  if(groundResistance < 0._dp)then; err=20; message=trim(message)//'ground resistance < 0 [no vegetation]'; return; endif
 
   ! set all canopy variables to missing (no canopy!)
   z0Canopy                   = missingValue   ! roughness length of the vegetation canopy (m)
@@ -2146,234 +2179,64 @@ contains
 
  endif  ! (if no canopy)
 
-
-
- ! -----------------------------------------------------------------------------------------------------------------------------------------
- ! -----------------------------------------------------------------------------------------------------------------------------------------
- ! * compute below-canopy (or no-canopy) stability corrections
- !   NOTE: this is a bit tricky, as ground resistance depends on canopy air space temperature, which, in turn, depends on ground resistance
- !           --> iterate to refine initial estimate of canopy air space temperature and resistance
-
- ! check that measurement height above the ground surface is above the roughness length
- if(heightAboveGround < z0Ground)then
-  print*, 'z0Ground = ', z0Ground
-  print*, 'mHeight  = ', mHeight
-  print*, 'snowDepth = ', snowDepth
-  print*, 'heightAboveGround = ', heightAboveGround
-  message=trim(message)//'height above ground < roughness length [likely due to snow accumulation]'
-  err=20; return
- endif
-
- ! try and improve estimate of canopy temperature used in the stability calculations
- do iTry=1,maxIter  ! (we will exit immediately if non-vegetated)
-
-  ! ***** compute stability corrections for below-canopy turbulence
-  ! NOTE: always compute analytical derivatives here, as the analytical derivatives used in the canopy air space calculations
-  !       are also used when computing numerical derivatives
-  call aStability(&
-                  ! input
-                  .true.,                               & ! input: logical flag to compute analytical derivatives
-                  ixStability,                          & ! input: choice of stability function
-                  ! input: forcing data, diagnostic and state variables
-                  heightAboveGround,                    & ! input: measurement height above the ground surface (m)
-                  tempAboveGround,                      & ! input: temperature above the ground surface (K)
-                  groundTemp,                           & ! input: trial value of surface temperature -- "surface" is either canopy or ground (K)
-                  windspdAboveGround,                   & ! input: wind speed above the ground surface (m s-1)
-                  ! input: stability parameters
-                  critRichNumber,                       & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
-                  Louis79_bparam,                       & ! input: parameter in Louis (1979) stability function
-                  Louis79_cStar,                        & ! input: parameter in Louis (1979) stability function
-                  Mahrt87_eScale,                       & ! input: exponential scaling factor in the Mahrt (1987) stability function
-                  ! output
-                  RiBulkGround,                         & ! output: bulk Richardson number (-)
-                  groundStabilityCorrection,            & ! output: stability correction for turbulent heat fluxes (-)
-                  dStabilityCorrection_dGroundRich,     & ! output: derivative in stability correction w.r.t. Richardson number for the ground surface (-)
-                  dStabilityCorrection_dGroundTemp,     & ! output: derivative in stability correction w.r.t. temperature (K-1)
-                  err, cmessage                         ) ! output: error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  !write(*,'(a,1x,4(e20.5,1x))') 'groundStabilityCorrection, dStabilityCorrection_dGroundRich, dStabilityCorrection_dGroundTemp = ', &
-  !                               groundStabilityCorrection, dStabilityCorrection_dGroundRich, dStabilityCorrection_dGroundTemp
-
-  ! compute the ground resistance (after stability corrections)
-  groundResistance = groundResistanceNeutral/groundStabilityCorrection
-
-  ! try and refine the estimate of the canopy air temperature
-  if(computeVegFlux)then 
-
-   ! compute the conductances
-   leafConductance   = exposedVAI/leafResistance
-   canopyConductance = 1._dp/canopyResistance
-   groundConductance = 1._dp/groundResistance
-   totalConductance  = leafConductance + groundConductance + canopyConductance
-
-   ! get a "better" estimate of the canopy air temperature
-   fPart1               = canopyConductance*airtemp + leafConductance*canopyTemp + groundConductance*groundTemp
-   tempAboveGroundTrial = fPart1/totalConductance
-
-   ! compute derivative in the temperature estimate w.r.t. temperature of the canopy air space
-   dGc_dT = -dStabilityCorrection_dGroundTemp/groundResistanceNeutral  ! derivative in ground conductance w.r.t. temperature of the canopy air space (m s-1 K-1)
-   dTa_dT = groundTemp*dGc_dT/totalConductance - dGc_dT*fPart1/(totalConductance**2._dp) ! derivative in the temperature estimate w.r.t. temperature of the canopy air space (K K-1)
-
-   ! compute the new tempetature value
-   tempAboveGroundIncr = (tempAboveGroundTrial - tempAboveGround)/(1._dp - dTa_dT)
-   tempAboveGroundNew  = tempAboveGround + tempAboveGroundIncr
-   !write(*,'(a,2(f15.8,1x),3(e20.5,1x))') 'tempAboveGround, tempAboveGroundNew, tempAboveGroundIncr, groundStabilityCorrection, groundResistance = ', &
-   !                                        tempAboveGround, tempAboveGroundNew, tempAboveGroundIncr, groundStabilityCorrection, groundResistance
-
-   ! update value for the next iteration
-   !print*, iTry, tempAboveGround, tempAboveGroundNew, tempAboveGroundIncr
-   tempAboveGround = tempAboveGroundNew
-
-   ! check if satisfied convergence criteria
-   if(abs(tempAboveGroundIncr) < convTol) exit
-
-   ! check non-convergence
-   if(iTry==maxIter)then; err=20; message=trim(message)//'failed to converge in iterations to refine canopy air temperature'; return; endif
-
-  else
-   exit  ! no need to refine canopy air temperature if there is no canopy!
-  endif
-
- end do  ! trying to refine temperature of the canopy air space
-
-
-
-
- ! **************************************************************************************************************************************************************************
- ! **************************************************************************************************************************************************************************
- ! **************************************************************************************************************************************************************************
- ! **************************************************************************************************************************************************************************
- ! **************************************************************************************************************************************************************************
- ! TEST CODE
-!
-! do jtry=2,1,-1
-!
-!  if(jtry==1) canopyTempTrial = canopyTemp
-!  if(jtry==2) canopyTempTrial = canopyTemp + dx
-!
-!  ! get an estimate of the canopy air temperature
-!  ! NOTE: using canopyTempTrial
-!  fPart1          = canopyConductance*airtemp + leafConductance*canopyTempTrial + groundConductance*groundTemp
-!  tempAboveGround = fPart1/totalConductance
-!
-!  ! compute atmospheric stability
-!  call aStability(&
-!                   ! input
-!                   derivDesired,                         & ! input: logical flag to compute analytical derivatives
-!                   ixStability,                          & ! input: choice of stability function
-!                   ! input: forcing data, diagnostic and state variables
-!                   heightAboveGround,                    & ! input: measurement height above the ground surface (m)
-!                   tempAboveGround,                      & ! input: temperature above the ground surface (K)
-!                   groundTemp,                           & ! input: trial value of surface temperature -- "surface" is either canopy or ground (K)
-!                   windspdAboveGround,                   & ! input: wind speed above the ground surface (m s-1)
-!                   ! input: stability parameters
-!                   critRichNumber,                       & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
-!                   Louis79_bparam,                       & ! input: parameter in Louis (1979) stability function
-!                   Louis79_cStar,                        & ! input: parameter in Louis (1979) stability function
-!                   Mahrt87_eScale,                       & ! input: exponential scaling factor in the Mahrt (1987) stability function
-!                   ! output
-!                   RiBulkGround,                         & ! output: bulk Richardson number (-)
-!                   groundStabilityCorrection,            & ! output: stability correction for turbulent heat fluxes (-)
-!                   dStabilityCorrection_dGroundRich,     & ! output: derivative in stability correction w.r.t. Richardson number for the ground surface (-)
-!                   dStabilityCorrection_dGroundTemp,     & ! output: derivative in stability correction w.r.t. temperature (K-1)
-!                   err, cmessage                         ) ! output: error control
-!  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-!
-!  ! compute the ground resistance (after stability corrections)
-!  groundResistance = groundResistanceNeutral/groundStabilityCorrection
-!
-!  if(jtry==1) try0 = groundStabilityCorrection
-!  if(jtry==2) try1 = groundStabilityCorrection
-!
-! end do  ! calculating numerical derivatives
-!
-! print*, 'test numerical derivatives = ', (try1 - try0)/dx
-! 
-!  
- !END TEST CODE
- ! **************************************************************************************************************************************************************************
- ! **************************************************************************************************************************************************************************
-
-
-
-
-
-
-
-
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! * compute derivatives
+ if(derivDesired)then  ! if analytical derivatives are desired
 
- if(derivDesired)then
- 
   ! derivatives for the vegetation canopy
   if(computeVegFlux) then ! (if vegetation is exposed) 
-
+  
    ! ***** compute derivative in canopy resistance w.r.t. canopy temperature (s m-1 K-1)
    dCanopyResistance_dTCanopy = -canopyExNeut*dStabilityCorrection_dCanopyTemp/(windspd*sfc2AtmExchangeCoeff_canopy**2._dp)
    !print*, 'dCanopyResistance_dTCanopy = ', dCanopyResistance_dTCanopy
-
+  
    ! ***** compute derivative in leaf resistance w.r.t. canopy temperature (s m-1 K-1)
    dLeafResistance_dTCanopy = 0._dp  ! stability corrections cancel out for windspeed at the top of the canopy
    !print*, 'dLeafResistance_dTCanopy = ', dLeafResistance_dTCanopy
-
+  
    ! ***** compute derivative in ground resistance w.r.t. canopy temperature (s m-1 K-1)
    ! compute derivative in NEUTRAL ground resistance w.r.t. canopy temperature (s m-1 K-1)
+   ! NOTE: stability corrections not used below the vegetation canopy
    dFV_dT = windspd*canopyExNeut*dStabilityCorrection_dCanopyTemp/(sqrt(sfc2AtmExchangeCoeff_canopy)*2._dp)                   ! d(frictionVelocity)/d(canopy temperature)
    dED_dT = dFV_dT*vkc*(heightCanopyTop - zeroPlaneDisplacement)                                                              ! d(eddyDiffusCanopyTop)d(canopy temperature)
-   dGR_dT = -dED_dT*(tmp1 - tmp2)*heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp)  ! d(groundResistanceNeutral)/d(canopy temperature)
-   ! ... now add BELOW-CANOPY stability corrections
-   dSC_dT = -dStabilityCorrection_dGroundTemp*leafConductance/totalConductance   ! d(StabilityCorrection)/d(canopy temperature)
-   dGroundResistance_dTCanopy = dGR_dT/groundStabilityCorrection - groundResistanceNeutral*dSC_dT/(groundStabilityCorrection**2._dp)
-   !print*, 'dFV_dT = ', dFV_dT
-   !print*, 'dED_dT = ', dED_dT
-   !print*, 'dGR_dT = ', dGR_dT
-   !print*, 'dSC_dT = ', dSC_dT 
-   !print*, 'dGroundResistance_dTCanopy ', dGroundResistance_dTCanopy
+   dGroundResistance_dTCanopy = -dED_dT*(tmp1 - tmp2)*heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp)  ! d(groundResistanceNeutral)/d(canopy temperature)
+   !if(referenceHeight > heightCanopyBottom)then
+   ! print*, 'dGroundResistance_dTCanopy ', dGroundResistance_dTCanopy
+   !endif 
 
    ! ***** compute derivative in ground resistance w.r.t. ground temperature (s m-1 K-1)
-   ! compute derivative in canopy air temperature w.r.t. ground temperature
-   dTa_dT = groundConductance/totalConductance  ! d(canopy air temperature)/d(ground temperature)
-   ! compute derivative in Richardson number w.r.t. ground temperature (K-1)
-   RiMult = (gravity*heightAboveGround)/(windspdAboveGround*windspdAboveGround)
-   fpart1 = RiMult*(tempAboveGround - groundTemp)
-   fpart2 = 0.5_dp*(tempAboveGround + groundTemp)
-   dpart1 = RiMult*(dTa_dT - 1._dp)
-   dpart2 = -0.5_dp*(dTa_dT + 1._dp)/(fpart2**2._dp)
-   dRb_dT = dPart1/fPart2 + fPart1*dPart2
-   ! compute the derivative in stability correction w.r.t. ground temperature (K-1)
-   dSC_dT = dStabilityCorrection_dGroundRich*dRb_dT
-   ! compute the derivative in ground resistance w.r.t. ground temperature
-   dGroundResistance_dTGround = -groundResistanceNeutral*dSC_dT/(groundStabilityCorrection**2._dp)
-   !print*, 'dTa_dT = ', dTa_dT
-   !print*, 'dRb_dT = ', dRb_dT
-   !print*, 'dSC_dT = ', dSC_dT
-   !print*, 'dGroundResistance_dTGround = ', dGroundResistance_dTGround
-
+   dGroundResistance_dTGround = 0._dp
+ 
   ! ***** compute resistances for non-vegetated surfaces (e.g., snow)
   else
-
+ 
    ! set canopy derivatives to zero (non-vegetated, remember)
    dCanopyResistance_dTCanopy = 0._dp
    dLeafResistance_dTCanopy   = 0._dp
    dGroundResistance_dTCanopy = 0._dp
-
+ 
    ! compute derivatives for ground resistance
    dGroundResistance_dTGround = -dStabilityCorrection_dGroundTemp/(windspd*groundExNeut*groundStabilityCorrection**2._dp)
-
+ 
   endif  ! (switch between vegetated and non-vegetated surfaces)
-  
- ! * numerical derivatives (computed later)
+
+ ! * analytical derivatives not desired
  else
-   dGroundResistance_dTGround = 0._dp
-   dGroundResistance_dTCanopy = 0._dp
-   dCanopyResistance_dTCanopy = 0._dp
-   dLeafResistance_dTCanopy   = 0._dp
+  dGroundResistance_dTGround = missingValue
+  dGroundResistance_dTCanopy = missingValue
+  dCanopyResistance_dTCanopy = missingValue
+  dLeafResistance_dTCanopy   = missingValue
  endif
 
+ ! test
+ !print*, 'dGroundResistance_dTGround = ', dGroundResistance_dTGround
+ !print*, 'dGroundResistance_dTCanopy = ', dGroundResistance_dTCanopy
+ !print*, 'dCanopyResistance_dTCanopy = ', dCanopyResistance_dTCanopy
+ !print*, 'dLeafResistance_dTCanopy   = ', dLeafResistance_dTCanopy
+ !pause 'in aeroResist'
 
  end subroutine aeroResist
 
@@ -2781,6 +2644,11 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! local variables -- general
  real(dp)                      :: dpart1,dpart2                ! derivatives for different parts of a function
+ real(dp),parameter            :: evapSmooth=1._dp             ! smoothing parameter for latent heat (W m-2)
+ real(dp)                      :: damping                      ! damping factor used to maintain feasible solution (-)
+ real(dp)                      :: maxFlux                      ! maximum possible latent heat flux (W m-2) 
+ real(dp)                      :: nrgDiff                      ! initial change in energy associated with latent heat (W m-2)
+ real(dp)                      :: corDiff                      ! corrected change in energy after imposing solution constraints (W m-2)
  ! local variables -- "constants"
  real(dp)                      :: volHeatCapacityAir           ! volumetric heat capacity of air (J m-3)
  real(dp)                      :: latentHeatConstant           ! latent heat constant (kg m-3 K-1)
@@ -2898,6 +2766,8 @@ contains
   fPart_Temp     = canopyConductance*airtemp + leafConductance*canopyTemp + groundConductanceSH*groundTemp
   temp_CanopyAir = fPart_Temp/totalConductanceSH
   !print*, 'canopyConductance, leafConductance, groundConductanceSH = ', canopyConductance, leafConductance, groundConductanceSH
+  !print*, 'totalConductanceSH, temp_CanopyAir = ', totalConductanceSH, temp_CanopyAir
+  !print*, 'airtemp, canopyTemp, groundTemp = ', airtemp, canopyTemp, groundTemp
 
   ! compute the vapor pressure in the canopy air space (Pa)
   fPart_VP     = canopyConductance*VPair + (evapConductance + transConductance)*satVP_CanopyTemp + groundConductanceLH*satVP_GroundTemp*soilRelHumidity
@@ -2952,6 +2822,7 @@ contains
 
  ! * compute sensible and latent heat fluxes from the canopy to the canopy air space (W m-2)
  if(computeVegFlux)then
+
   ! compute fluxes
   senHeatCanopy      = -volHeatCapacityAir*leafConductance*(canopyTemp - temp_CanopyAir)        ! (positive downwards)
   latHeatCanopyEvap  = -latHeatSubVapCanopy*latentHeatConstant*evapConductance*(satVP_CanopyTemp - VP_CanopyAir)    ! (positive downwards)
@@ -2960,11 +2831,30 @@ contains
   
   ! check that energy for canopy evaporation does not exhaust the available water
   ! NOTE: do this here, rather than enforcing solution constraints, because energy and mass solutions may be uncoupled
-  if(latHeatSubVapCanopy > LH_vap+verySmall)then
-   if(-latHeatCanopyEvap > canopyIce*LH_sub/dt)    latHeatCanopyEvap = -canopyIce*LH_sub/dt
-  else
-   if(-latHeatCanopyEvap > canopyLiquid*LH_vap/dt) latHeatCanopyEvap = -canopyLiquid*LH_vap/dt
-  endif
+  !if(abs(latHeatCanopyEvap) > 0.01_dp)then  ! (only bother if there is an appreciable heat flux)
+   ! (compute maximum possible energy flux)
+   !print*, 'before correction: latHeatCanopyEvap = ', latHeatCanopyEvap
+   if(latHeatSubVapCanopy > LH_vap+verySmall)then ! (sublimation)
+    maxFlux = canopyIce*LH_sub/dt       ! W m-2
+   else ! (evaporation)
+    maxFlux = canopyLiquid*LH_vap/dt    ! W m-2
+   endif
+   if(maxFlux + latHeatCanopyEvap < 0._dp) latHeatCanopyEvap = maxFlux
+  ! ! compute difference in energy (NOTE: fluxes are positive downward, so evaporation is negative)
+  ! nrgDiff = maxFlux + latHeatCanopyEvap                             ! initial energy difference (W m-2)
+  ! corDiff = 0.5_dp*(nrgDiff + sqrt(nrgDiff**2._dp + evapSmooth) )   ! corrected energy difference (W m-2)
+  ! ! compute a damping parameter (-)
+  ! ! NOTE: damping parameter is used in derivative calculations later
+  ! damping = (latHeatCanopyEvap - (nrgDiff - corDiff))/latHeatCanopyEvap
+  ! !if(damping < 0._dp)then; err=-20; message=trim(message)//'damping of latent heat flux is negative -- try again'; return; endif
+  ! ! correct the flux
+  ! latHeatCanopyEvap = latHeatCanopyEvap*damping       ! corrected latent heat flux (W m-2)
+  ! print*, 'correction: damping, maxFlux, nrgDiff, corDiff, latHeatCanopyEvap = ', damping, maxFlux, nrgDiff, corDiff, latHeatCanopyEvap
+  ! if(damping < 0._dp) pause
+  !else  ! latent heat flux is minimal
+  ! damping = 0._dp   ! used in derivative calculations later 
+  !endif  ! (if there is an appreciable latent heat flux)
+
  ! * no vegetation, so fluxes are zero
  else
   senHeatCanopy      = 0._dp
@@ -2980,6 +2870,7 @@ contains
   senHeatGround      = -volHeatCapacityAir*groundConductanceSH*(groundTemp - airtemp)                                                 ! (positive downwards)
   latHeatGround      = -latHeatSubVapGround*latentHeatConstant*groundConductanceLH*(satVP_GroundTemp*soilRelHumidity - VPair)         ! (positive downwards)
  endif
+ !if(printflag) print*, 'senHeatGround, latHeatGround, senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans = ', senHeatGround, latHeatGround, senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans
 
  ! * compute derivatives
  if(ixDerivMethod == analytical)then
@@ -3008,6 +2899,12 @@ contains
    dLatHeatCanopyEvap_dTGround  = 0._dp
    dLatHeatCanopyTrans_dTGround = 0._dp
   endif
+
+  ! damp derivatives if close to zero canopy storage
+  !if(abs(damping) > 0.001_dp)then
+  ! dLatHeatCanopyEvap_dTCanopy = dLatHeatCanopyEvap_dTCanopy*damping
+  ! dLatHeatCanopyEvap_dTGround = dLatHeatCanopyEvap_dTGround*damping
+  !endif
 
   ! differentiate GROUND fluxes w.r.t. canopy temperature (product rule)
   if(computeVegFlux)then

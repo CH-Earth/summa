@@ -21,6 +21,7 @@ MODULE data_struc
   character(len=256)                     :: filenmDesc='notPopulatedYet' ! name of file that describes the data
   character(len=256)                     :: filenmData='notPopulatedYet' ! name of data file
   integer(i4b)                           :: ncols                    ! number of columns in the file
+  integer(i4b)                           :: ixFirstHRU               ! index of the first HRU to share the same data
   integer(i4b),pointer                   :: time_ix(:) => null()     ! column index for each time variable
   integer(i4b),pointer                   :: data_ix(:) => null()     ! column index for each forcing data variable
  end type file_info
@@ -97,9 +98,10 @@ MODULE data_struc
  endtype var_i
  ! define top-level derived types
  ! NOTE: either allocate directly, or use to point to higher dimensional structures
+ type(var_i),pointer,save,public         :: time_hru(:) => null()    ! model time data
+ type(var_d),pointer,save,public         :: forc_hru(:) => null()    ! model forcing data
  type(var_d),pointer,save,public         :: attr_hru(:) => null()    ! local attributes for each HRU
  type(var_i),pointer,save,public         :: type_hru(:) => null()    ! local classification of soil veg etc. for each HRU
- type(var_d),pointer,save,public         :: forc_hru(:) => null()    ! model forcing data
  type(var_d),pointer,save,public         :: mpar_hru(:) => null()    ! model parameters
  type(var_dlength),pointer,save,public   :: mvar_hru(:) => null()    ! model variables
  type(var_ilength),pointer,save,public   :: indx_hru(:) => null()    ! model indices

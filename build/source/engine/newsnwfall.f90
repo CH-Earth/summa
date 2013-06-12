@@ -10,8 +10,6 @@ contains
  ! new subroutine: add new snowfall to the system, and increase number of snow layers if needed
  ! ************************************************************************************************
  subroutine newsnwfall(dt,             & ! time step (seconds)
-                       exposedVAI,     & ! intent(in): exposed vegetation area index (m2 m-2)
-                       computeVegFlux, & ! flag to denote if computing energy flux over vegetation
                        err,message)      ! error control
  ! physical constants
  USE multiconst,only:&
@@ -33,16 +31,11 @@ contains
  implicit none
  ! dummy variables
  real(dp),intent(in)                 :: dt                         ! time step (seconds)
- real(dp),intent(in)                 :: exposedVAI                 ! exposed vegetation area index -- leaf + stem -- after burial by snow (m2 m-2)
- logical(lgt),intent(in)             :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  integer(i4b),intent(out)            :: err                        ! error code
  character(*),intent(out)            :: message                    ! error message
  ! assign pointers to model parameters
  real(dp),pointer                    :: fc_param                   ! freeezing curve parameter for snow (K-1)
- real(dp),pointer                    :: refInterceptCapSnow        ! reference canopy interception capacity for snow per unit leaf area (kg m-2)
- real(dp),pointer                    :: snowUnloadingCoeff         ! unloading of snow from the canopy (kg m-2 s-1)
  ! local pointers to model state variables
- real(dp),pointer                    :: scalarCanopyIce            ! ice content in the vegetation canopy (kg m-2)
  real(dp),pointer                    :: surfaceLayerTemp           ! temperature of each layer (K)
  real(dp),pointer                    :: surfaceLayerDepth          ! depth of each layer (m)
  real(dp),pointer                    :: surfaceLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
@@ -50,10 +43,8 @@ contains
  ! local pointers to diagnostic scalar variables
  real(dp),pointer                    :: scalarSWE                  ! SWE (kg m-2)
  real(dp),pointer                    :: scalarSnowDepth            ! total snow depth (m)
- real(dp),pointer                    :: scalarSnowfall             ! snowfall (kg m-2 s-1)
  real(dp),pointer                    :: scalarSnowfallTemp         ! computed temperature of fresh snow (K) 
  real(dp),pointer                    :: scalarNewSnowDensity       ! computed density of new snow (kg m-3)
- real(dp),pointer                    :: scalarCanopyIceMax         ! storage capacity for snow in the vegetation canopy (kg m-2)
  real(dp),pointer                    :: scalarThroughfallSnow      ! throughfall of snow through the canopy (kg m-2 s-1)
  real(dp),pointer                    :: scalarCanopySnowUnloading  ! unloading of snow from the canopy (kg m-2 s-1)
  ! local pointers to model index variables
@@ -62,11 +53,6 @@ contains
  ! define local variables
  integer(i4b)                        :: nSoil                      ! number of soil layers
  integer(i4b)                        :: nSnow                      ! number of snow layers
- real(dp)                            :: leafInterceptCapSnow       ! storage capacity for snow per unit leaf area (kg m-2)
- real(dp)                            :: flux                       ! net flux (kg m-2 s-1)
- real(dp)                            :: delS                       ! change in storage (kg m-2)
- real(dp),parameter                  :: convTolerMass=0.0001_dp    ! convergence tolerance for mass (kg m-2)
-
  real(dp)                            :: newSnowfall                ! new snowfall -- throughfall and unloading (kg m-2 s-1)
  real(dp)                            :: newSnowDepth               ! new snow depth (m)
  real(dp),parameter                  :: densityCanopySnow=200._dp  ! density of snow on the vegetation canopy (kg m-3)
@@ -78,17 +64,11 @@ contains
  err=0; message="newsnwfall/"
  ! assign pointers to model parameters (compute layer temperature)
  fc_param                  => mpar_data%var(iLookPARAM%snowfrz_scale)                    ! freezing curve parameter for snow (K-1)
- refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow)              ! reference canopy interception capacity for snow per unit leaf area (kg m-2)
- snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff)               ! unloading of snow from the canopy (kg m-2 s-1)
- ! assign pointers to model state variables
- scalarCanopyIce           => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)            ! ice content in the vegetation canopy (kg m-2)
  ! assign local pointers to diagnostic scalar variables
  scalarSWE                 => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)                  ! SWE (kg m-2)
  scalarSnowDepth           => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)            ! total snow depth (m)
- scalarSnowfall            => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)             ! snowfall (kg m-2 s-1)
  scalarSnowfallTemp        => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1)         ! computed temperature of fresh snow (K)
  scalarNewSnowDensity      => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1)       ! computed density of new snow (kg m-3) 
- scalarCanopyIceMax        => mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1)         ! storage capacity for snow in the vegetation canopy (kg m-2)
  scalarThroughfallSnow     => mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1)      ! throughfall of snow through the canopy (kg m-2 s-1)
  scalarCanopySnowUnloading => mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1)  ! unloading of snow from the canopy (kg m-2 s-1)
 
@@ -99,28 +79,6 @@ contains
  ! identify the number of snow and soil layers
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
-
- print*, 'scalarSnowfall, scalarNewSnowDensity = ', scalarSnowfall, scalarNewSnowDensity
- ! ** compute throughfall
- if(.not.computeVegFlux .or. scalarSnowfall<tiny(dt))then
-  scalarCanopyIceMax        = refInterceptCapSnow*exposedVAI    ! storage capacity for snow (kg m-2)
-  scalarThroughfallSnow     = scalarSnowfall                    ! throughfall of snow through the canopy (kg m-2 s-1)
- else
-  ! (check new snow density is valid)
-  if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; endif
-  ! (compute storage capacity of new snow)
-  leafInterceptCapSnow  = refInterceptCapSnow*(0.27_dp + 46._dp/scalarNewSnowDensity)  ! per unit leaf area (kg m-2)
-  scalarCanopyIceMax    = leafInterceptCapSnow*exposedVAI
-  ! (compute throughfall)
-  scalarThroughfallSnow = scalarSnowfall*(scalarCanopyIce/scalarCanopyIceMax)
- endif
-
- ! ** compute unloading
- flux = snowUnloadingCoeff*scalarCanopyIce 
- delS = (-flux*dt)/(1._dp + snowUnloadingCoeff*dt)
- scalarCanopySnowUnloading = flux + snowUnloadingCoeff*delS
- if(abs(-delS - scalarCanopySnowUnloading*dt) > convTolerMass)then; err=20; message='unreliable estimate of snow unloading'; return; endif
- scalarCanopyIce = scalarCanopyIce + delS
 
  ! compute the new snowfall
  newSnowfall = scalarThroughfallSnow + scalarCanopySnowUnloading

@@ -342,6 +342,8 @@ contains
  ! set iLayerHeight for the bottom layer
  mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers) = &
  mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers-1) + mvar_data%var(iLookMVAR%mLayerDepth)%dat(nLayers)
+ ! check matric head is read correctly
+ print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! ensure the initial conditions are consistent with the constitutive functions
@@ -483,8 +485,8 @@ contains
  do iLayer=1,nLayers
   h1 = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
   h2 = mvar_data%var(iLookMVAR%iLayerHeight)%dat(iLayer) - mvar_data%var(iLookMVAR%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
+  write(*,'(a,1x,10(e20.10,1x))') 'h1, h2, (h1 - h2) = ', h1, h2, (h1 - h2)
   if(abs(h1 - h2) > 1.e-12_dp)then
-  print*, 'h1, h2, (h1 - h2) = ', h1, h2, (h1 - h2)
    write(message,'(a,1x,i0)') trim(message)//'mis-match between layer depth and layer height [suggest round numbers in initial conditions file]; layer = ', iLayer
    err=20; return
   endif

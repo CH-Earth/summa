@@ -178,6 +178,9 @@ contains
  ! set throughfall to zero (kg m-2)
  scalarThroughfallRain = 0._dp
 
+ ! test
+ !print*, 'in canHydrol: scalarCanopyEvaporation = ', scalarCanopyEvaporation
+
  ! ***** estimate the updated value for liquid water
  do jiter=1,maxiter
 

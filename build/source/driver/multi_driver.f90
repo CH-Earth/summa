@@ -9,6 +9,7 @@ USE snow_fileManager,only:fuse_SetDirsUndPhiles             ! sets directories a
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
+USE allocspace_module,only:alloc_stim                       ! module to allocate space for scalar time structures 
 USE allocspace_module,only:alloc_time                       ! module to allocate space for model time structures 
 USE allocspace_module,only:alloc_forc                       ! module to allocate space for model forcing data strictures
 USE allocspace_module,only:alloc_mpar                       ! module to allocate space for local column model parameter structures
@@ -48,7 +49,7 @@ USE data_struc,only:localParFallback                        ! local column defau
 USE data_struc,only:basinParFallback                        ! basin-average default parameters
 USE data_struc,only:mpar_meta,bpar_meta                     ! metadata for local column and basin-average model parameters
 USE data_struc,only:data_step,numtim                        ! length of data step (s) and number of time steps
-USE data_struc,only:time_data,refTime                       ! time and reference time
+USE data_struc,only:time_data,time_hru,refTime              ! time and reference time
 USE data_struc,only:forc_data,forc_hru                      ! model forcing data
 USE data_struc,only:type_data,type_hru                      ! classification of veg, soils etc.
 USE data_struc,only:attr_data,attr_hru                      ! local attributes (lat, lon, elev, etc.)
@@ -162,8 +163,8 @@ call alloc_bpar(err,message); call handle_err(err,message)
 call alloc_bvar(err,message); call handle_err(err,message)
 ! allocate space for the forcing and time structures
 call alloc_forc(nHRU,err,message); call handle_err(err,message)
-call alloc_time(time_data,err,message); call handle_err(err,message)
-call alloc_time(refTime,err,message);   call handle_err(err,message)
+call alloc_time(nHRU,err,message); call handle_err(err,message)
+call alloc_stim(refTime,err,message); call handle_err(err,message)
 ! allocate space for the time step (recycled for each HRU for subsequent calls to coupled_em)
 allocate(dt_init(nHRU),stat=err); call handle_err(err,'problem allocating space for dt_init')
 
@@ -281,6 +282,18 @@ jstep=1
 ! ****************************************************************************
 do istep=1,numtim
 
+ ! read a line of forcing data (if not already opened, open file, and get to the correct place)
+ ! NOTE: only read data once: if same data used for multiple HRUs, data is copied across
+ do iHRU=1,nHRU  ! loop through HRUs
+  ! assign pointers to HRUs
+  time_data => time_hru(iHRU)
+  forc_data => forc_hru(iHRU)
+  ! read forcing data
+  call read_force(istep,iHRU,err,message); call handle_err(err,message)
+ end do  ! (end looping through HRUs)
+ print*, time_data%var
+
+
  ! *****************************************************************************
  ! (7) create a new NetCDF output file, and write parameters and forcing data
  ! *****************************************************************************
@@ -343,9 +356,10 @@ do istep=1,numtim
  do iHRU=1,nHRU
 
   ! assign pointers to HRUs
+  time_data => time_hru(iHRU)
+  forc_data => forc_hru(iHRU)
   attr_data => attr_hru(iHRU)
   type_data => type_hru(iHRU)
-  forc_data => forc_hru(iHRU)
   mpar_data => mpar_hru(iHRU)
   mvar_data => mvar_hru(iHRU)
   indx_data => indx_hru(iHRU)
@@ -371,10 +385,6 @@ do istep=1,numtim
   ifcSnowStartIndex => indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1)
   ifcSoilStartIndex => indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1)
   ifcTotoStartIndex => indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1)
-
-  ! read a line of forcing data (if not already opened, open file, and get to the correct place)
-  call read_force(istep,iHRU,err,message); call handle_err(err,message)
-  if(iHRU == 1) print*, time_data%var
 
   ! get NOAH-MP parameters
   call REDPRM(type_data%var(iLookTYPE%vegTypeIndex),                           & ! vegetation type index

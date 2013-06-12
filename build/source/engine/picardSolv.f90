@@ -23,8 +23,9 @@ integer(i4b)        :: nSoil        ! number of soil layers
 integer(i4b)        :: nSnow        ! number of snow layers
 integer(i4b)        :: nLayers      ! total number of layers
 integer(i4b)        :: nLevels      ! number of soil layers to use in the soil hydrology routine
-! missing value
+! control parameters
 real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
+real(dp),parameter  :: verySmall=1.e-6_dp         ! a very small number
 contains
 
  ! ************************************************************************************************
@@ -68,6 +69,7 @@ contains
  real(dp),allocatable                 :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water at the end of the sub-step (-)
  real(dp),allocatable                 :: mLayerMatricHeadNew(:)   ! matric head at the end of the sub-step (m)
  real(dp)                             :: scalarAquiferStorageNew  ! aquifer storage at the end of the sub-step (m)
+ real(dp)                             :: additionalUnloading      ! additional unloading of snow associated with melt drip (kg m-2 s-1)
 
  ! initialize error control
  err=0; message="picardSolv/"
@@ -138,8 +140,16 @@ contains
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
   ! (NOTE: if canopy temperature is below absolute zero then canopy was previously buried by snow)
-  if(mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) < 0._dp) mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) = forc_data%var(iLookFORCE%airtemp)
- endif
+  if(mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) < 0._dp)then
+   ! check there is snow (there really has to be)
+   if(nSnow == 0)then
+    message=trim(message)//'no snow when canopy temperature is undefined -- canopy temp can only be undefined when buried with snow'
+    err=20; return
+   endif
+   ! set canopy temperature to the temperature of the top snow layer
+   mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)
+  endif  ! (if canopy temperature undefined -- means canopy previously buried with snow)
+ endif  ! (if computing vegetation fluxes -- canopy exposed)
 
  ! allocate space for snow-soil vectors
  allocate(mLayerTempNew(nLayers),mLayerVolFracIceNew(nLayers),mLayerVolFracLiqNew(nLayers),mLayerMatricHeadNew(nSoil),stat=err)
@@ -176,7 +186,8 @@ contains
                         mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,               & ! intent(in): matric head at the current iteration start of the sub-step (m)
                         mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),        & ! intent(in): aquifer storage at the start of the sub-step (m)
 
-                        ! input: diagnostic variables
+                        ! input: forcing and diagnostic variables
+                        forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): air temperature (K)
                         mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
                         mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,             & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1) 
 
@@ -241,11 +252,18 @@ contains
   else
    scalarCanopyLiqNew = scalarCanopyLiqNew + mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt
   endif
+  ! check canopy ice content is realistic
   if(scalarCanopyIceNew < 0._dp)then
-   message=trim(message)//'ice content on canopy is less than zero'
-   err=-20; return  ! (negative error code forces a reduction in the length of the sub-step and another trial)
-  endif
- endif
+   if(scalarCanopyIceNew < -verySmall)then
+    write(*,'(a,1x,e20.10,1x,3(f20.10,1x))') 'scalarCanopyIceNew, mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt, dt = ', &
+                                              scalarCanopyIceNew, mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt, dt
+    message=trim(message)//'ice content on canopy is less than zero'
+    err=-20; return  ! (negative error code forces a reduction in the length of the sub-step and another trial)
+   endif
+   ! ensure tiny negative numbers are set to zero
+   scalarCanopyIceNew = 0._dp
+  endif  ! (if ice content is < 0)
+ endif  ! (if computing the vegetation flux)
 
  if(nSnow > 0._dp)then ! snow layers exist
   ! compute sublimation of snow -- included in densification
@@ -258,7 +276,25 @@ contains
   endif
  endif
 
- 
+
+
+ ! *****
+ ! compute unloading of snow during periods of canopy drip...
+ ! **********************************************************
+ if(computeVegFlux)then
+  if(scalarCanopyIceNew > 0._dp)then
+   ! compute the additional unloading of snow associated with melt drip (kg m-2 s-1)
+   additionalUnloading = mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1) + &
+                         mpar_data%var(iLookPARAM%ratioDrip2Unloading)*mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1)
+   ! ensure the additional unloading does not exceed the ice content
+   if(additionalUnloading*dt > scalarCanopyIceNew) additionalUnloading = scalarCanopyIceNew/dt
+   ! update the unloading flux
+   mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1) = mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1) + additionalUnloading
+   ! update the ice content on the vegetation canopy
+   scalarCanopyIceNew = scalarCanopyIceNew - additionalUnloading*dt
+  endif  ! (if there is ice on the canopy)
+ endif  ! (if the canopy is exposed)
+
 
 
  ! *****
@@ -562,7 +598,8 @@ contains
                               mLayerMatricHead,              & ! intent(in): matric head at the start of the sub-step (-)
                               scalarAquiferStorage,          & ! intent(in): aquifer storage at the start of the sub-step (m)
 
-                              ! input: diagnostic variables
+                              ! input: forcing and diagnostic variables
+                              airtemp,                       & ! intent(in): air temperature (K)
                               scalarBulkVolHeatCapVeg,       & ! intent(in): volumetric heat capacity of vegetation (J m-3 K-1)
                               mLayerVolHtCapBulk,            & ! intent(in): volumetric heat capacity of each layer in the snow-soil vector (J m-3 K-1)
 
@@ -640,7 +677,8 @@ contains
  real(dp),intent(in)            :: mLayerVolFracLiq(:)         ! volumetric fraction of liquid water in each layer (-)
  real(dp),intent(in)            :: mLayerMatricHead(:)         ! matric head in each layer (-)
  real(dp),intent(in)            :: scalarAquiferStorage        ! aquifer storage at the start of the sub-step (m)
- ! input: diagnostic variables
+ ! input: forcing and diagnostic variables
+ real(dp),intent(in)            :: airtemp                     ! air temperature (K)
  real(dp),intent(in)            :: scalarBulkVolHeatCapVeg     ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
  real(dp),intent(in)            :: mLayerVolHtCapBulk(:)       ! volumetric heat capacity in each layer (J m-3 K-1) 
  ! input: snow parameters
@@ -793,6 +831,8 @@ contains
   scalarCanopyIceIter = (1._dp - fLiq)*tWat          ! mass of ice on the canopy (kg m-2)
  endif
 
+ !print*, '*** dt = ', dt
+
  ! **********************************************************************************************************************
  ! **********************************************************************************************************************
  ! **********************************************************************************************************************
@@ -802,9 +842,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  print*, '***************************************************************'
-  print*, '***** iter = ', iter, '*****'
-  print*, '***************************************************************'
+  !print*, '***************************************************************'
+  !print*, '***** iter = ', iter, '*****'
+  !print*, '***************************************************************'
   
 
   ! *****
@@ -859,15 +899,16 @@ contains
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqNew(1:nSnow)  = ', iter, mLayerVolFracLiqNew(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow) = ', iter, mLayerVolFracIceIter(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow)  = ', iter, mLayerVolFracIceNew(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIncr(1:nSnow) = ', iter, mLayerVolFracIceNew(1:nSnow) - mLayerVolFracIceIter(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow)       = ', iter, mLayerTempIncr(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow)       = ', iter, mLayerTempIter(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow)        = ', iter, mLayerTempNew(1:nSnow)
 
-  write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
-                                                       iter, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
+  !                                                     iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
 
-  write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew = ', &
-                                                       iter, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew
+  !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew = ', &
+  !                                                     iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew
 
   !pause
 
@@ -913,6 +954,9 @@ contains
                   scalarCanopyLiqNew,       & ! intent(out): updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                   err,cmessage)               ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  !print*, 'after can_Hydrol: scalarCanopyLiqIter = ', scalarCanopyLiqIter
+  !print*, 'after can_Hydrol: scalarCanopyLiqNew = ', scalarCanopyLiqNew
+
 
   ! compute the volumetric liquid water content at the next iteration (note: only use snow vectors)
   ! NOTE: ice not modified in the snow hydrology routines, so can stay as "New"
@@ -981,6 +1025,10 @@ contains
   ! =================================================================================================================================================
   ! =================================================================================================================================================
 
+  !print*, 'scalarCanopyLiqIter = ', scalarCanopyLiqIter
+  !print*, 'scalarCanopyIceIter = ', scalarCanopyIceIter
+
+
 
   ! *****
   ! * phase change.....
@@ -993,7 +1041,15 @@ contains
    tWat = scalarCanopyLiqIter + scalarCanopyIceIter      ! total water (kg m-2)
    scalarCanopyLiqNew = fLiq*tWat                        ! mass of liquid water on the canopy (kg m-2)
    scalarCanopyIceNew = (1._dp - fLiq)*tWat              ! mass of ice on the canopy (kg m-2)
+  else
+   scalarCanopyLiqNew = scalarCanopyLiqIter
+   scalarCanopyIceNew = scalarCanopyIceIter
   endif
+
+  !print*, 'computeVegFlux = ', computeVegFlux
+  !print*, 'scalarCanopyLiqNew = ', scalarCanopyLiqNew
+  !print*, 'scalarCanopyIceNew = ', scalarCanopyIceNew
+
 
   ! check
   if(scalarCanopyTempNew > Tfreeze .and. scalarCanopyIceNew > 0._dp)then
@@ -1106,6 +1162,7 @@ contains
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
   !print*, 'canopyNrgIncr = ', canopyNrgIncr
+  !if(computeVegFlux) pause 'canopy is exposed'
 
   ! test
   !write(*,'(a25,1x,i4,1x,10(e20.3,1x))') 'temperature increment = ', energy_pos, scalarCanopyTempIncr, mLayerTempIncr(minLayer:maxLayer)
@@ -1183,7 +1240,7 @@ contains
    write(*,'(a,i4,1x,2(f15.10,1x))') 'iLayer, mLayerVolFracIceNew(iLayer), mLayerVolFracLiqNew(iLayer) = ',&
                                       iLayer, mLayerVolFracIceNew(iLayer), mLayerVolFracLiqNew(iLayer)
    write(message,'(a,i0,a,i0,a)')trim(message)//"(liquid + ice) > porosity [iLayer=",iLayer,"; iSoil=",iLayer-nSnow,"]"
-   err=20; return
+   err=-20; return
   endif  ! (if the total volumetric water -- liquid water plus ice -- exceeds porosity)
  end do ! (looping through soil layers)
 

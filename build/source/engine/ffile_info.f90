@@ -169,14 +169,13 @@ contains
   ! close file unit
   close(unt)
  end do  ! (looping through files describing each HRU)
- ! check that we don't have the same file for multiple HRUS
+ ! identify the first HRU to use a given data file
  do iHRU=1,nHRU
-  do jHRU=1,iHRU
-   if(iHRU/=jHRU)then
-    if(trim(forcFileInfo(iHRU)%filenmData) == trim(forcFileInfo(jHRU)%filenmData))then
-     message=trim(message)//'data file "'//trim(forcFileInfo(iHRU)%filenmData)//'" used for multiple HRUs'
-     err=20; return
-    endif
+  do jHRU=1,iHRU-1
+   if(trim(forcFileInfo(iHRU)%filenmData) == trim(forcFileInfo(jHRU)%filenmData))then
+    forcFileInfo(iHRU)%ixFirstHRU = jHRU  ! index of first HRU to share the same data
+   else
+    forcFileInfo(iHRU)%ixFirstHRU = 0
    endif
   end do
  end do

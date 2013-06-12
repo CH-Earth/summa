@@ -52,30 +52,33 @@ integer(i4b),parameter,public :: vegTypeTable         =  93    ! constant parame
 ! look-up values for the choice of parameterization for canopy emissivity
 integer(i4b),parameter,public :: simplExp             = 101    ! simple exponential function
 integer(i4b),parameter,public :: difTrans             = 102    ! parameterized as a function of diffuse transmissivity
+! look-up values for the choice of parameterization for snow interception
+integer(i4b),parameter,public :: stickySnow           = 111    ! maximum interception capacity an increasing function of temerature
+integer(i4b),parameter,public :: lightSnow            = 112    ! maximum interception capacity an inverse function of new snow densit
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard             = 111    ! standard MO similarity, a la Anderson (1976) 
-integer(i4b),parameter,public :: louisInversePower    = 112    ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential     = 113    ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard             = 121    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: louisInversePower    = 122    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential     = 123    ! Mahrt (1987) exponential
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: funcSnowAge          = 121    ! function of snow age
-integer(i4b),parameter,public :: BATSlike             = 122    ! BATS-like approach, with destructive metamorphism + soot content
+integer(i4b),parameter,public :: funcSnowAge          = 131    ! function of snow age
+integer(i4b),parameter,public :: BATSlike             = 132    ! BATS-like approach, with destructive metamorphism + soot content
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement   = 131    ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical    = 132    ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement   = 141    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical    = 142    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
-integer(i4b),parameter,public :: sameRulesAllLayers   = 141    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 142    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: sameRulesAllLayers   = 151    ! same combination/sub-division rules applied to all layers
+integer(i4b),parameter,public :: rulesDependLayerIndex= 152    ! combination/sub-dividion rules depend on layer index
 ! look-up values for the choice of thermal conductivity
-integer(i4b),parameter,public :: Yen1965              = 151    ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977           = 152    ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991           = 153    ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000         = 154    ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965              = 161    ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977           = 162    ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991           = 163    ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000         = 164    ! Smirnova et al. (2000)
 ! look-up values for the choice of method for the spatial representation of groundwater
-integer(i4b),parameter,public :: localColumn          = 161    ! separate groundwater representation in each local soil column
-integer(i4b),parameter,public :: singleBasin          = 162    ! single groundwater store over the entire basin
+integer(i4b),parameter,public :: localColumn          = 171    ! separate groundwater representation in each local soil column
+integer(i4b),parameter,public :: singleBasin          = 172    ! single groundwater store over the entire basin
 ! look-up values for the choice of sub-grid routing method
-integer(i4b),parameter,public :: timeDelay            = 161    ! time-delay histogram
-integer(i4b),parameter,public :: qInstant             = 162    ! instantaneous routing
+integer(i4b),parameter,public :: timeDelay            = 181    ! time-delay histogram
+integer(i4b),parameter,public :: qInstant             = 182    ! instantaneous routing
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -186,7 +189,7 @@ contains
  ! (0) set Noah-MP options
  DVEG=3      ! option for dynamic vegetation
  OPT_RAD=3   ! option for canopy radiation
- OPT_ALB=1   ! option for snow albedo
+ OPT_ALB=2   ! option for snow albedo
 
  ! (N-03) identify the choice of function for the soil moisture control on stomatal resistance
  select case(trim(model_decisions(iLookDECISIONS%soilStress)%cDecision))
@@ -308,7 +311,15 @@ contains
    err=10; message=trim(message)//"unknown parameterization for canopy emissivity [option="//trim(model_decisions(iLookDECISIONS%canopyEmis)%cDecision)//"]"; return
  end select
 
- ! (F-13) identify the choice of atmospheric stability function
+ ! (F-13) choice of parameterization for snow interception
+ select case(trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision))
+  case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
+  case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
+  case default
+   err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
+ end select
+
+ ! (F-14) identify the choice of atmospheric stability function
  select case(trim(model_decisions(iLookDECISIONS%astability)%cDecision))
   case('standard'); model_decisions(iLookDECISIONS%astability)%iDecision = standard            ! standard MO similarity, a la Anderson (1976)
   case('louisinv'); model_decisions(iLookDECISIONS%astability)%iDecision = louisInversePower   ! Louis (1979) inverse power function
@@ -317,7 +328,7 @@ contains
    err=10; message=trim(message)//"unknown stability function [option="//trim(model_decisions(iLookDECISIONS%astability)%cDecision)//"]"; return
  end select
 
- ! (F-14) choice of albedo representation
+ ! (F-15) choice of albedo representation
  select case(trim(model_decisions(iLookDECISIONS%alb_method)%cDecision))
   case('fsnowage'); model_decisions(iLookDECISIONS%alb_method)%iDecision = funcSnowAge         ! function of snow age
   case('BATSlike'); model_decisions(iLookDECISIONS%alb_method)%iDecision = BATSlike            ! BATS-like approach, with destructive metamorphism + soot content
@@ -325,7 +336,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow albedo [option="//trim(model_decisions(iLookDECISIONS%alb_method)%cDecision)//"]"; return
  end select
 
- ! (F-15) choice of snow compaction routine
+ ! (F-16) choice of snow compaction routine
  select case(trim(model_decisions(iLookDECISIONS%compaction)%cDecision))
   case('consettl'); model_decisions(iLookDECISIONS%compaction)%iDecision = constantSettlement  ! constant settlement rate
   case('anderson'); model_decisions(iLookDECISIONS%compaction)%iDecision = andersonEmpirical   ! semi-empirical method of Anderson (1976)
@@ -333,7 +344,7 @@ contains
    err=10; message=trim(message)//"unknown option for snow compaction [option="//trim(model_decisions(iLookDECISIONS%compaction)%cDecision)//"]"; return
  end select
 
- ! (F-16) choice of method to combine and sub-divide snow layers
+ ! (F-17) choice of method to combine and sub-divide snow layers
  select case(trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision))
   case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-dividion rules applied to all layers
   case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
@@ -341,7 +352,7 @@ contains
    err=10; message=trim(message)//"unknown option for combination/sub-division of snow layers [option="//trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision)//"]"; return
  end select
 
- ! (F-17) choice of thermal conductivity
+ ! (F-18) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
   case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
@@ -351,7 +362,7 @@ contains
    err=10; message=trim(message)//"unknown option for thermal conductivity [option="//trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision)//"]"; return
  end select
 
- ! (F-18) choice of method for the spatial representation of groundwater
+ ! (F-19) choice of method for the spatial representation of groundwater
  select case(trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision))
   case('localColumn'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = localColumn       ! separate groundwater in each local soil column
   case('singleBasin'); model_decisions(iLookDECISIONS%spatial_gw)%iDecision = singleBasin       ! single groundwater store over the entire basin
@@ -359,7 +370,7 @@ contains
    err=10; message=trim(message)//"unknown option for spatial representation of groundwater [option="//trim(model_decisions(iLookDECISIONS%spatial_gw)%cDecision)//"]"; return
  end select
 
- ! (F-19) choice of routing method
+ ! (F-20) choice of routing method
  select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
   case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
   case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing
