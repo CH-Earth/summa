@@ -489,8 +489,8 @@ contains
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
  print*, 'nsub = ', nsub
- if(nsub>1000)then
-  message=trim(message)//'number of sub-steps > 1000'
+ if(nsub>10000)then
+  message=trim(message)//'number of sub-steps > 10000'
   err=20; return
  endif
 
