@@ -810,7 +810,7 @@ contains
  scalarAquiferStorageIter = scalarAquiferStorage  ! aquifer storage (m)
 
  ! calculate the critical soil temperature above which all water is unfrozen (K)
- do iLayer=nSnow+1,nSoil
+ do iLayer=nSnow+1,nLayers
   theta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
   mLayerTcrit(iLayer-nSnow) = crit_soilT(theta,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
  end do
@@ -897,12 +897,12 @@ contains
   ! test
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqIter(1:nSnow) = ', iter, mLayerVolFracLiqIter(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqNew(1:nSnow)  = ', iter, mLayerVolFracLiqNew(1:nSnow)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow) = ', iter, mLayerVolFracIceIter(1:nSnow)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow)  = ', iter, mLayerVolFracIceNew(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow+2) = ', iter, mLayerVolFracIceIter(1:nSnow+2)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow+2)  = ', iter, mLayerVolFracIceNew(1:nSnow+2)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIncr(1:nSnow) = ', iter, mLayerVolFracIceNew(1:nSnow) - mLayerVolFracIceIter(1:nSnow)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow)       = ', iter, mLayerTempIncr(1:nSnow)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow)       = ', iter, mLayerTempIter(1:nSnow)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow)        = ', iter, mLayerTempNew(1:nSnow)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+2)       = ', iter, mLayerTempIter(1:nSnow+2)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+2)        = ', iter, mLayerTempNew(1:nSnow+2)
 
   !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
   !                                                     iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
@@ -972,6 +972,9 @@ contains
   !print*, 'after snowHydrol: mLayerVolFracLiqIter(1:nSnow) = ', mLayerVolFracLiqIter(1:nSnow)
   !print*, 'after snowHydrol: mLayerVolFracLiqNew(1:nSnow)  = ', mLayerVolFracLiqNew(1:nSnow)
 
+  !write(*,'(a,10(f20.10,1x))')  'before soilHydrol: mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1) = ', &
+  !                                                  mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1)
+
   ! compute the matric head at the next iteration (note liquid water and ice vectors are defined for all layers)
   ! NOTE: ice not modified in the soil hydrology routines, so can stay as "New"
   call soilHydrol(&
@@ -1010,6 +1013,9 @@ contains
   !print*, 'mLayerMatIncr = ', mLayerMatIncr
   !print*, 'mLayerLiqIncr = ', mLayerLiqIncr
   !pause
+
+  !write(*,'(a,10(f20.10,1x))')  'before phase change: mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1) = ', &
+  !                                                    mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1)
 
   ! compute the iteration increment for aquifer storage
   scalarAqiIncr = scalarAquiferStorageNew - scalarAquiferStorageIter
@@ -1080,6 +1086,9 @@ contains
    mLayerVolFracLiqNew = mLayerVolFracLiqIter
    mLayerVolFracIceNew = mLayerVolFracIceIter
   endif
+
+  !write(*,'(a,10(f20.10,1x))')  'after phase change: mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1) = ', &
+  !                                                   mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1)
 
   !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceIter(1:nSnow) = ', mLayerVolFracIceIter(1:nSnow)
   !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceNew(1:nSnow)  = ', mLayerVolFracIceNew(1:nSnow)
@@ -1185,6 +1194,9 @@ contains
   ! check for lack of convergence
   if(niter==maxiter)then; err=-30; message=trim(message)//'failed to converge'; return; endif
 
+  !print*, 'iter = ', iter
+  !pause 'iterating'
+
  end do  ! (iterating)
  !print*, 'after iterations: mLayerVolFracIceNew(1) = ', mLayerVolFracIceNew(1)
 
@@ -1234,11 +1246,11 @@ contains
  ! ** check that total volumetric water (liquid water plus ice) does not exceed porosity
  do iLayer=nSnow+1,nLayers
   ! compute total volumetric fraction filled with water (liquid plus ice)
-  volFrac_water = mLayerVolFracIceNew(iLayer) + mLayerVolFracLiqNew(iLayer)
+  volFrac_water = mLayerVolFracIceNew(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqNew(iLayer)
   ! check if the total volumetric water (liquid water plus ice) exceeds porosity
   if(volFrac_water > theta_sat)then
-   write(*,'(a,i4,1x,2(f15.10,1x))') 'iLayer, mLayerVolFracIceNew(iLayer), mLayerVolFracLiqNew(iLayer) = ',&
-                                      iLayer, mLayerVolFracIceNew(iLayer), mLayerVolFracLiqNew(iLayer)
+   write(*,'(a,i4,1x,3(f15.10,1x))') 'iLayer, volFrac_water, mLayerVolFracIceNew(iLayer), mLayerVolFracLiqNew(iLayer) = ',&
+                                      iLayer, volFrac_water, mLayerVolFracIceNew(iLayer), mLayerVolFracLiqNew(iLayer)
    write(message,'(a,i0,a,i0,a)')trim(message)//"(liquid + ice) > porosity [iLayer=",iLayer,"; iSoil=",iLayer-nSnow,"]"
    err=-20; return
   endif  ! (if the total volumetric water -- liquid water plus ice -- exceeds porosity)
@@ -1420,6 +1432,7 @@ contains
  scalarSoilDrainage      = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
  scalarSoilEjection      = (wimplicit*sum(mLayerInitEjectWater)      + (1._dp - wimplicit)*sum(mLayerEjectWater)     )
  scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)      ) 
+ !print*, 'iLayerLiqFluxSoil(0), scalarSoilInflux = ', iLayerLiqFluxSoil(0), scalarSoilInflux
 
  ! check ejected water
  if(scalarSoilEjection < 0._dp)then

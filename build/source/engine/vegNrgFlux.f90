@@ -932,19 +932,18 @@ contains
   endif
   !print*, 'relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax = ', relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax
   scalarCanopyWetFraction = min(max(0._dp, relativeCanopyWater), 1._dp)**0.666667_dp
+  ! smooth the function near zero, to improve numerical stability
+  if(xArg < 50._dp)then
+   if(xArg > -50._dp)then
+    smoothFunc = 1._dp / (1._dp + exp(-xarg))
+   else
+    smoothFunc = 0._dp
+   endif
+   scalarCanopyWetFraction = scalarCanopyWetFraction*smoothFunc
+   !if(smoothFunc < 0.7_dp) pause  ' smoothing canopy wet fraction'
+  endif
  else
   scalarCanopyWetFraction = 0._dp
- endif
-
- ! smooth the function near zero, to improve numerical stability
- if(xArg < 50._dp)then
-  if(xArg > -50._dp)then
-   smoothFunc = 1._dp / (1._dp + exp(-xarg))
-  else
-   smoothFunc = 0._dp
-  endif
-  scalarCanopyWetFraction = scalarCanopyWetFraction*smoothFunc
-  !if(smoothFunc < 0.7_dp) pause  ' smoothing canopy wet fraction'
  endif
 
 

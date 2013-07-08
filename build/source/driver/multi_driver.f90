@@ -114,6 +114,8 @@ real(dp)                  :: fracHRU                        ! fractional area of
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
+integer(i4b)              :: iSoil                          ! index of soil layer
+integer(i4b)              :: ixIce                          ! index of bottom-most ice layer
 ! error control
 integer(i4b)              :: err=0                          ! error code
 character(len=1024)       :: message=''                     ! error message
@@ -272,7 +274,7 @@ endselect
 
 
 ! initialize time step length for each HRU
-dt_init(:) = 3600._dp ! seconds
+dt_init(:) = 360._dp ! seconds
 
 ! initialize time step index
 jstep=1
@@ -400,6 +402,16 @@ do istep=1,numtim
   ! compute derived forcing variables
   call derivforce(err,message); call handle_err(err,message)
 
+  ! ensure that the HRU inflow is not flowing into an ice layer
+  ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
+  ! (identify the top ice layer)
+  do iSoil=1,nSoil-1 ! (loop through soil layers)
+   if(mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iSoil) > epsilon(dt_init(iHRU))) ixIce = iSoil
+  end do
+  ! (put inflow below ice)
+  if(ixIce > 0)then ! ice exists
+   mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) = sum(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce))
+  endif
   !print*, '*****'
   !print*, 'HRU, dt_init = ', iHRU, dt_init(iHRU)
 

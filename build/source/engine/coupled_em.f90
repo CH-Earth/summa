@@ -438,6 +438,8 @@ contains
   averageAquiferRecharge     = averageAquiferRecharge     + scalarAquiferRecharge     *dt_wght ! recharge to the aquifer (m s-1)
   averageAquiferBaseflow     = averageAquiferBaseflow     + scalarAquiferBaseflow     *dt_wght ! baseflow from the aquifer (m s-1)
   averageAquiferTranspire    = averageAquiferTranspire    + scalarAquiferTranspire    *dt_wght ! transpiration from the aquifer (m s-1)
+  !write(*,'(a,10(e20.10,1x))') 'scalarRainPlusMelt, scalarSurfaceRunoff, scalarSoilInflux = ', &
+  !                              scalarRainPlusMelt, scalarSurfaceRunoff, scalarSoilInflux
 
   ! check that snow depth is decreasing (can only increase in the top layer)
   if(nSnow>1)then
@@ -487,8 +489,8 @@ contains
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
  print*, 'nsub = ', nsub
- if(nsub>10000)then
-  message=trim(message)//'number of sub-steps > 10000'
+ if(nsub>1000)then
+  message=trim(message)//'number of sub-steps > 1000'
   err=20; return
  endif
 

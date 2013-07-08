@@ -911,7 +911,7 @@ contains
       !                                                                   iSnow, jiter, xmin, xmax, xres, phse, fLiq, tempTrial, tempVolFracIce 
       ! check convergence
       if(abs(xres) < nrgToler)exit
-      if(jiter==maxiter)then; err=20; message=trim(message)//'failed to converge [bi-section phase]'; return; endif
+      if(jiter==maxiter)then; err=-20; message=trim(message)//'failed to converge [bi-section phase]'; return; endif
       ! update bounds
       if(xres < 0._dp)then
        xmin = fLiq
@@ -933,6 +933,9 @@ contains
    end do  ! looping through snow layers
   endif   ! if sufficient iterations to try and correct phase change
  endif   ! if snow is present
+
+ ! check ice
+ !print*, 'before phase change: mLayerVolFracIceIter(1:nSnow+2) = ', mLayerVolFracIceIter(1:nSnow+2)
 
  ! compute phase change for the snow-soil vector
  call phsechange(mLayerTempNew,       & ! intent(in): new temperature vector (K)

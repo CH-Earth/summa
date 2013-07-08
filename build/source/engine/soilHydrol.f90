@@ -228,7 +228,7 @@ contains
                         mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0:nLevels),    & ! intent(out): liquid flux at layer interfaces at the end of the time step (m s-1)
                         mvar_data%var(iLookMVAR%mLayerEjectWater)%dat(1:nLevels),     & ! intent(out): water ejected from each soil layer (m s-1)
                         mvar_data%var(iLookMVAR%mLayerTranspire)%dat(1:nLevels),      & ! intent(out): transpiration loss from each soil layer (m s-1)
-                        mvar_data%var(iLookMVAR%mLayerBaseflow)%dat(1:nLevels),       & ! intent(out): baseflow from each soil layer (m s-1)
+                        mvar_data%var(iLookMVAR%mLayerBaseflow)%dat(1:nLevels),       & ! intent(inout): baseflow from each soil layer (m s-1)
 
                         ! output variables from the soilHydrol routine  -- NOTE: variables are already sized appropriately
                         mLayerMatricHeadNew,                                          & ! intent(out): matric head in each layer at the next iteration (m)
@@ -372,7 +372,7 @@ contains
                               iLayerLiqFluxSoil,           & ! intent(out): liquid flux at layer interfaces at the end of the time step (m s-1)
                               mLayerEjectWater,            & ! intent(out): water ejected from each soil layer (m s-1)
                               mLayerTranspire,             & ! intent(out): transpiration loss from each soil layer (m s-1)
-                              mLayerBaseflow,              & ! intent(out): baseflow from each soil layer (m s-1)
+                              mLayerBaseflow,              & ! intent(inout): baseflow from each soil layer -- only compute at the start of the step (m s-1)
 
                               ! output variables from the soilHydrol routine (intent out)
                               mLayerMatricHeadNew,         & ! intent(out): matric head in each layer at the next iteration (m)
@@ -487,7 +487,7 @@ contains
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)        ! liquid flux at soil layer interfaces at the end of the time step (m s-1)
  real(dp),intent(out)             :: mLayerEjectWater(:)          ! water ejected from each soil layer (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)           ! transpiration loss from each soil layer (m s-1)
- real(dp),intent(out)             :: mLayerBaseflow(:)            ! baseflow from each soil layer (m s-1)
+ real(dp),intent(inout)           :: mLayerBaseflow(:)            ! baseflow from each soil layer -- only compute at the start of the step (m s-1)
  ! output variables from the soilHydrol routine
  real(dp),intent(out)             :: mLayerMatricHeadNew(:)       ! matric head in each layer at the next iteration (m)
  real(dp),intent(out)             :: mLayerVolFracLiqNew(:)       ! volumetric fraction of liquid water at the next iteration (m)
@@ -680,7 +680,7 @@ contains
                     ! output: fluxes for the extended state vector (soil layers plus aquifer)
                     iLayerLiqFluxSoil,             & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                     mLayerEjectWater,              & ! intent(out): water ejected because pore volume is close to capacity (m s-1)
-                    mLayerBaseflow,                & ! intent(out): baseflow from each soil layer (m s-1)
+                    mLayerBaseflow,                & ! intent(inout): baseflow from each soil layer -- only compute at the start of the step (m s-1)
                     ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric liquid water -- in the layer above and layer below (m s-1 or s-1)
                     dq_dStateAbove,                & ! intent(out): derivatives in the flux w.r.t. state variable in the layer above (m s-1 or s-1)
                     dq_dStateBelow,                & ! intent(out): derivatives in the flux w.r.t. state variable in the layer below (m s-1 or s-1)
@@ -708,12 +708,16 @@ contains
   endif ! (if computing standard fluxes)
 
  end do  ! looping through initial vectors
- 
+
  !write(*,'(a,1x,i4,1x,e20.10)') 'ixDerivMethod, scalarAquiferRecharge = ', ixDerivMethod, scalarAquiferRecharge
  !write(*,'(a,1x,i4,1x,e20.10)') 'ixDerivMethod, scalarAquiferBaseflow = ', ixDerivMethod, scalarAquiferBaseflow
  !write(*,'(a,1x,i4,1x,e20.10)') 'ixDerivMethod, scalarAquiferRechargeDeriv = ', ixDerivMethod, scalarAquiferRechargeDeriv
  !write(*,'(a,1x,i4,1x,e20.10)') 'ixDerivMethod, scalarAquiferBaseflowDeriv = ', ixDerivMethod, scalarAquiferBaseflowDeriv
  !print*, 'specific Yield = ', specificYield
+
+ ! *************************************************************************************************************************
+ ! *************************************************************************************************************************
+ ! *************************************************************************************************************************
 
  ! *****
  ! compute the residual vector
@@ -753,26 +757,28 @@ contains
 
  ! *****
  ! compute the residual for the groundwater store
- call gw_residual(&
-                  ! input: control variables
-                  dt,                         & ! intent(in): length of the time step (s)
-                  wimplicit,                  & ! intent(in): weight assigned to the start-of-step
-                  ! input: model states
-                  scalarAquiferStorage,       & ! intent(in): aquifer storage at the start of the step (m)
-                  scalarAquiferStorageIter,   & ! intent(in): trial value of aquifer storage (m)
-                  ! input: start-of-step fluxes
-                  scalarInitAquiferTranspire, & ! intent(in): transpiration from the aquifer (m s-1)
-                  scalarInitAquiferRecharge,  & ! intent(in): recharge to the aquifer        (m s-1)
-                  scalarInitAquiferBaseflow,  & ! intent(in): baseflow from the aquifer      (m s-1)
-                  ! input: end-of-step fluxes
-                  scalarAquiferTranspire,     & ! intent(in): transpiration from the aquifer (m s-1)
-                  scalarAquiferRecharge,      & ! intent(in): recharge to the aquifer        (m s-1)
-                  scalarAquiferBaseflow,      & ! intent(in): baseflow from the aquifer      (m s-1)
-                  ! output: aquifer residual
-                  scalarAquiferResidual,      & ! intent(out): aquifer residual (m)
-                  ! output: error control
-                  err,cmessage)                 ! intent(out): error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(nState == nLevels+1)then
+  call gw_residual(&
+                   ! input: control variables
+                   dt,                         & ! intent(in): length of the time step (s)
+                   wimplicit,                  & ! intent(in): weight assigned to the start-of-step
+                   ! input: model states
+                   scalarAquiferStorage,       & ! intent(in): aquifer storage at the start of the step (m)
+                   scalarAquiferStorageIter,   & ! intent(in): trial value of aquifer storage (m)
+                   ! input: start-of-step fluxes
+                   scalarInitAquiferTranspire, & ! intent(in): transpiration from the aquifer (m s-1)
+                   scalarInitAquiferRecharge,  & ! intent(in): recharge to the aquifer        (m s-1)
+                   scalarInitAquiferBaseflow,  & ! intent(in): baseflow from the aquifer      (m s-1)
+                   ! input: end-of-step fluxes
+                   scalarAquiferTranspire,     & ! intent(in): transpiration from the aquifer (m s-1)
+                   scalarAquiferRecharge,      & ! intent(in): recharge to the aquifer        (m s-1)
+                   scalarAquiferBaseflow,      & ! intent(in): baseflow from the aquifer      (m s-1)
+                   ! output: aquifer residual
+                   scalarAquiferResidual,      & ! intent(out): aquifer residual (m)
+                   ! output: error control
+                   err,cmessage)                 ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
 
  ! *****
  ! populate the tri-diagnonal matrices for the soil layers
@@ -814,6 +820,8 @@ contains
                    ! input: model control
                    ixRichards,                   & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                    ixBcLowerSoilHydrology,       & ! intent(in): index defining the type of boundary conditions
+                   ! input: diagnostic variables
+                   mLayerBaseflow,               & ! intent(in): baseflow from each soil layer at the start of the step (m s-1)
                    ! input: state variables
                    mLayerMatricHeadIter,         & ! intent(in): matric head in each layer (m)
                    mLayerVolFracLiqIter,         & ! intent(in): volumetric liquid water content (-)
@@ -828,7 +836,13 @@ contains
  ! *****
  ! solve the tri-diagonal system of equations
  call tridag(d_m1,diag,d_p1,-rVec,sInc,err,cmessage)
- if(err/=0)then; err=-20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then
+  print*, 'd_m1 = ', d_m1
+  print*, 'diag = ', diag
+  print*, 'd_p1 = ', d_p1
+  message=trim(message)//trim(cmessage)
+  err=-20; return
+ endif
 
  ! *****
  ! extract the iteration increments for the soil layers
@@ -892,6 +906,7 @@ contains
     endif
    ! ***** mixed form of Richards' equation
    case(mixdform)
+
     if(iLayer==0)then;           iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dStateBelow(iLayer)*mLayerMatricHeadDiff(iLayer+1)
     elseif(iLayer==nLevels)then; iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dStateAbove(iLayer)*mLayerMatricHeadDiff(iLayer)
     else;                        iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dStateAbove(iLayer)*mLayerMatricHeadDiff(iLayer) &
@@ -905,10 +920,12 @@ contains
      mLayerVolFracLiqNew(iLayer) = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      if(mLayerVolFracLiqNew(iLayer) < epsilon(mLayerVolFracLiqNew))then; err=20; message=trim(message)//'very dry soil'; return; endif
      ! check for ponding on the soil surface
-     if(mLayerMatricHeadNew(1) > maxDepthPond)then
-      print*, 'mLayerMatricHeadNew(1:5) = ', mLayerMatricHeadNew(1:5)
-      print*, 'iLayerLiqFluxSoil(0:1) = ', iLayerLiqFluxSoil(0:1)
-      err=-20; message=trim(message)//'excessive ponding on the soil surface'; return
+     if(iLayer == 1)then
+      if(mLayerMatricHeadNew(1) > maxDepthPond)then
+       print*, 'ponding on the soil surface: mLayerMatricHeadNew(1:5) = ', mLayerMatricHeadNew(1:5)
+       print*, 'ponding on the soil surface: iLayerLiqFluxSoil(0:1) = ', iLayerLiqFluxSoil(0:1)
+       err=-20; message=trim(message)//'excessive ponding on the soil surface'; return
+      endif
      endif
      !if(iLayer < 5) write(*,'(2(a,1x,3(e20.10,1x)))') 'VolFracLiq = ', mLayerVolFracLiqNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqNew(iLayer) - mLayerVolFracLiqIter(iLayer), &
      !                                                 'matricHead = ', mLayerMatricHeadNew(iLayer), mLayerMatricHeadIter(iLayer), mLayerMatricHeadDiff(iLayer)
@@ -932,7 +949,6 @@ contains
   scalarAquiferRecharge   = 0._dp
   scalarAquiferBaseflow   = 0._dp
  endif
-
 
  ! *****
  ! deallocate space for the tri-diagonal vectors
@@ -970,7 +986,7 @@ contains
                          ! output: fluxes at layer interfaces
                          iLayerLiqFluxSoil,            & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                          mLayerEjectWater,             & ! intent(out): water ejected because pore volume is close to capacity (m s-1)
-                         mLayerBaseflow,               & ! intent(out): baseflow from each soil layer (m s-1)
+                         mLayerBaseflow,               & ! intent(inout): baseflow from each soil layer -- only compute at the start of the step (m s-1)
                          ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                          dq_dStateAbove,               & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
                          dq_dStateBelow,               & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
@@ -1000,7 +1016,7 @@ contains
   ! output: liquid fluxes at layer interfaces
   real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
   real(dp),intent(out)             :: mLayerEjectWater(:)           ! water ejected because pore volume is close to capacity (m s-1)
-  real(dp),intent(out)             :: mLayerBaseflow(:)             ! baseflow from each soil layer (m s-1)
+  real(dp),intent(inout)           :: mLayerBaseflow(:)             ! baseflow from each soil layer -- only compute at the start of the step (m s-1)
   ! output: derivatives in fluxes w.r.t. state variables in the layer above and layer below (m s-1)
   real(dp),intent(out)             :: dq_dStateAbove(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   real(dp),intent(out)             :: dq_dStateBelow(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
@@ -1059,6 +1075,13 @@ contains
   real(dp),dimension(nLevels)      :: dHydCond_dVolLiq              ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
   real(dp),dimension(nLevels)      :: dDiffuse_dVolLiq              ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
   real(dp),dimension(nLevels)      :: dHydCond_dMatric              ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+  ! special case of exceeding porosity
+  integer(i4b)                     :: ixFlag_porosityCheck     ! flag to indicate if modified fluxes to handle solution constraints
+  logical(lgt),parameter           :: doPorosityFix=.true.     ! flag to do porosity fix
+  real(dp)                         :: xDamp                    ! damping parameter (-)
+  real(dp)                         :: aPor                     ! available porosity (-)
+  real(dp)                         :: qMax                     ! maximum possible flow into layer (m s-1)
+  real(dp)                         :: xFlx                     ! total flux into layer (m s-1)
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='computeFlux/'
@@ -1126,6 +1149,10 @@ contains
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
+
+  ! set derivative w.r.t. state above to missing (does not exist)
+  dq_dStateAbove(0) = valueMissing
+
   ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
   do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
 
@@ -1217,9 +1244,6 @@ contains
    endif
 
   end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
-
-  ! set derivative w.r.t. state above to missing (does not exist)
-  dq_dStateAbove(0) = valueMissing
 
   ! compute numerical derivatives
   if(deriv_desired .and. ixDerivMethod==numerical)then
@@ -1320,6 +1344,10 @@ contains
                     ! output: error control
                     err,cmessage)             ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    !if(desireAnal .and. iLayer < 5)then
+    ! write(*,'(a,i4,1x,10(e15.5,1x))') 'after iLayerFlux: iLayer, iLayerLiqFluxSoil(iLayer), dq_dStateAbove(iLayer)*wtim/mLayerDepth(iLayer+1), dq_dStateBelow(iLayer)*wtim/mLayerDepth(iLayer) = ', &
+    !                                                      iLayer, iLayerLiqFluxSoil(iLayer), dq_dStateAbove(iLayer)*wtim/mLayerDepth(iLayer+1), dq_dStateBelow(iLayer)*wtim/mLayerDepth(iLayer)
+    !endif
     !print*, 'iLayer, iLayerLiqFluxSoil(iLayer) = ', iLayer, iLayerLiqFluxSoil(iLayer)
 
     ! compute total vertical flux, to compute derivatives
@@ -1346,109 +1374,6 @@ contains
 
 
   end do  ! (looping through soil layers)
-
-  ! *************************************************************************************************************************************************
-  ! *************************************************************************************************************************************************
-
-  ! -------------------------------------------------------------------------------------------------------------------------------------------------
-  ! * compute water ejected from each layer when the total water content in the layer is approaching porosity
-  ! -------------------------------------------------------------------------------------------------------------------------------------------------
-  ! loop through all soil layers
-  do iLayer=1,nLevels
-
-   ! check if there is a need to eject water
-   if(ixRichards==moisture .or. & ! (moisture-based form of RE)
-     (ixRichards==mixdform .and. mLayerVolFracIceTrial(iLayer)>0._dp) .or. &  ! (mixed form of RE when ice is present)
-      iLayer==1)then ! (top soil layer)
-
-    ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
-    do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
- 
-     ! =====
-     ! get input state variables...
-     ! ============================
-     ! identify the type of perturbation
-     select case(itry)
- 
-      ! do not perturb states above/below -- keep cycling
-      case(perturbStateAbove); cycle
-      case(perturbStateBelow); cycle
- 
-      ! un-perturbed case
-      case(unperturbed)
-       scalarVolFracLiqTrial = mLayerVolFracLiqTrial(iLayer)
-       scalarMatricHeadTrial = mLayerMatricHeadTrial(iLayer)
- 
-      ! perturb soil state (one-sided finite differences)
-      case(perturbState)
-       ! (perturbation depends on the form of Richards' equation)
-       select case(ixRichards)
-        case(moisture)
-         scalarVolFracLiqTrial = mLayerVolFracLiqTrial(iLayer) + dx
-         scalarMatricHeadTrial = mLayerMatricHeadTrial(iLayer)
-        case(mixdform)
-         scalarVolFracLiqTrial = mLayerVolFracLiqTrial(iLayer)
-         scalarMatricHeadTrial = mLayerMatricHeadTrial(iLayer) + dx
-        case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
-      end select ! (form of Richards' equation)
-  
-      ! check for an unknown perturbation 
-      case default; err=10; message=trim(message)//"unknown perturbation"; return
-  
-     end select ! (type of perturbation)
- 
-     ! =====
-     ! compute water ejected from the current layer...
-     ! ===============================================
-     call ejectWater(&
-                     ! input: model control
-                     desireAnal,                       & ! intent(in): flag indicating if derivatives are desired
-                     ixRichards,                       & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
-                     ! input: state variables
-                     scalarMatricHeadTrial,            & ! intent(in): matric head in each layer (m)
-                     scalarVolFracLiqTrial,            & ! intent(in): volumetric liquid water content (-)
-                     mLayerVolFracIceTrial(iLayer),    & ! intent(in): volumetric ice content in each layer (-)
-                     ! input: derivative in the soil water characteristic w.r.t. psi
-                     mLayerdTheta_dPsi(iLayer),        & ! intent(in): derivative in the soil water characteristic w.r.t. psi (m-1)
-                     ! input: soil parameters
-                     vGn_alpha,                        & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                     vGn_n,                            & ! intent(in): van Genutchen "n" parameter (-)
-                     VGn_m,                            & ! intent(in): van Genutchen "m" parameter (-)
-                     theta_sat,                        & ! intent(in): soil porosity (-)
-                     theta_res,                        & ! intent(in): soil residual volumetric water content (-)
-                     ! input: saturated hydraulic conductivity at the surface
-                     iLayerSatHydCond(0),              & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                     ! output: ejected water flux and derivative
-                     mLayerEjectWater(iLayer),         & ! intent(out): water ejected because pore volume is filled (m s-1)
-                     mLayerEjectWaterDeriv(iLayer),    & ! intent(out): derivative in ejected water flux (m s-1 [moisture form] s-1 [mixed form])
-                     ! output: error control
-                     err,cmessage)                       ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     !print*, itry, iLayer, mLayerEjectWater(iLayer)
- 
-     ! get copies of surface flux to compute numerical derivatives
-     if(deriv_desired .and. ixDerivMethod==numerical)then
-      select case(itry)
-       case(unperturbed);  scalarFlux        = mLayerEjectWater(iLayer)
-       case(perturbState); scalarFlux_dState = mLayerEjectWater(iLayer)
-       case default; err=10; message=trim(message)//"unknown perturbation"; return
-      end select
-     endif
- 
-    end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
-
-    ! compute numerical derivatives
-    if(deriv_desired .and. ixDerivMethod==numerical)then
-     mLayerEjectWaterDeriv(iLayer) = (scalarFlux_dState - scalarFlux)/dx ! change in ejected flux w.r.t. change in the volumetric soil moisture or matric head in the current soil layer (m s-1, or s-1)
-    endif
-
-   ! not computing ejected water
-   else  
-    mLayerEjectWater(iLayer) = 0._dp         ! water ejected because pore volume is filled (m s-1)
-    mLayerEjectWaterDeriv(iLayer) = 0._dp    ! derivative in ejected water flux (m s-1 [moisture form] s-1 [mixed form])
-   endif
-
-  end do  ! looping through soil layers
 
   ! *************************************************************************************************************************************************
   ! *************************************************************************************************************************************************
@@ -1657,8 +1582,9 @@ contains
     if(iter == 1)then
 
      ! compute effective parameters
-     maximumSoilWater = iLayerHeight(nSoil)*(theta_sat - theta_res)                                                                ! maximum aquifer storage (m)
-     maximumFlowRate  = tan_slope*iLayerSatHydCond(0)*maximumSoilWater*contourLength/((theta_sat - theta_res)*aquiferBaseflowExp)  ! effective hydraulic conductivity (m3/s)
+     maximumSoilWater = iLayerHeight(nSoil)*(theta_sat - theta_res)       ! maximum aquifer storage (m)
+     maximumFlowRate  = tan_slope*iLayerSatHydCond(0)*kAnisotropic*maximumSoilWater*contourLength &
+                          / ((theta_sat - theta_res)*aquiferBaseflowExp)  ! effective hydraulic conductivity (m3/s)
      !print*, 'tan_slope, iLayerSatHydCond(0), maximumSoilWater, contourLength, aquiferBaseflowExp = ', &
      !         tan_slope, iLayerSatHydCond(0), maximumSoilWater, contourLength, aquiferBaseflowExp
      !print*, 'maximumFlowRate/HRUarea = ', maximumFlowRate/HRUarea
@@ -1688,13 +1614,14 @@ contains
  
      ! compute the net baseflow from each soil layer (m s-1)
      mLayerBaseflow(1:nLevels) = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflow(1:nLevels))/HRUarea
+     !print*, 'mLayerBaseflow = ', mLayerBaseflow
  
-     ! no explicit aquifer (only use soil layers)
-     scalarAquiferBaseflow      = 0._dp
-     scalarAquiferBaseflowDeriv = 0._dp
-
     endif  ! (if the first iteration)
  
+    ! no explicit aquifer (only use soil layers)
+    scalarAquiferBaseflow      = 0._dp
+    scalarAquiferBaseflowDeriv = 0._dp
+
    ! ------------------------------------------------------------------------------------------------------------------------------------------------
    ! no explicit baseflow
    case(noExplicit)
@@ -1714,8 +1641,146 @@ contains
  
   end select
 
-  ! *************************************************************************************************************************************************
-  ! *************************************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! ***** HANDLE SPECIAL CASE WHERE LIQUID WATER FILLS PARTIALLY FROZEN LAYER BEYOND AVAILABLE POROSITY *********************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+  ! *************************************************************************************************************************
+
+  ! check if desire the porosity fix
+  if(doPorosityFix)then
+
+   ! zero out the ejected water terms
+   mLayerInitEjectWater  = 0._dp
+   mLayerEjectWater      = 0._dp
+   mLayerEjectWaterDeriv = 0._dp
+
+   ! *****
+   ! handle special case where liquid flux exceeds available pore space
+   ! -- truncate fluxes (based on the SHAW model)
+   ! -- start at the bottom and work upwards
+   ixFlag_porosityCheck = 0
+   do iSoil=nLevels,2,-1
+    ! * only implement fix if layer has ice
+    if(mLayerVolFracIceIter(iSoil) > epsilon(dt))then
+
+     ! (compute maximum flux that can fill available pore space)
+     qMax  = (theta_sat - mLayerVolFracLiq(iSoil) - mLayerVolFracIce(iSoil))*mLayerDepth(iSoil)/dt ! m s-1
+     if(qMax < 0._dp) qMax = 0._dp
+     ! (compute the total flux)
+     xFlx = (iLayerLiqFluxSoil(iSoil-1) - iLayerLiqFluxSoil(iSoil)) - mLayerBaseflow(iSoil)     + mLayerTranspire(iSoil)
+     ! (check if the flux exceeds available pore space)
+     if(xFlx > qMax)then
+      ixFlag_porosityCheck = 1
+
+      ! part 1: downward flux at top of layer
+      !  -- try and truncate top flux first
+      if(iLayerLiqFluxSoil(iSoil-1) > 0._dp)then  ! (downward flux at top of layer)
+       iLayerLiqFluxSoil(iSoil-1) = iLayerLiqFluxSoil(iSoil) + qMax ! maximum possible flux
+       !dq_dStateAbove(iSoil-1)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer above (m s-1 or s-1)
+       !dq_dStateBelow(iSoil-1)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer below (m s-1 or s-1)
+       !print*, 'part1: iSoil, iLayerLiqFluxSoil(iSoil-1), qMax = ', iSoil, iLayerLiqFluxSoil(iSoil-1), qMax
+       ! (handle case where upward flux at layer bottom > qmax)
+       if(iLayerLiqFluxSoil(iSoil-1) < 0._dp)then
+        iLayerLiqFluxSoil(iSoil-1) = 0._dp
+        iLayerLiqFluxSoil(iSoil)   = -qMax
+        if(iSoil == nLevels)then; err=20; message=trim(message)//'negative flow at lower boundary (part1) -- check if this is possible'; return; endif
+       endif  ! if upward flux at layer bottom > qmax
+
+      ! part 2: upward flux at top of layer
+      !  -- we can only exceed porosity here if upward flux at bottom exceeds upward flux at top
+      !  -- reduce upward flux at bottom
+      else  ! (upward flux at top of layer)
+       iLayerLiqFluxSoil(iSoil) = iLayerLiqFluxSoil(iSoil-1) - qMax
+       !dq_dStateAbove(iSoil)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer above (m s-1 or s-1)
+       !dq_dStateBelow(iSoil)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer below (m s-1 or s-1)
+       !print*, 'part2: iSoil, iLayerLiqFluxSoil(iSoil), qMax = ', iSoil, iLayerLiqFluxSoil(iSoil), qMax
+       if(iLayerLiqFluxSoil(iSoil) > 0._dp)then; err=20; message=trim(message)//'unexpected positive flux while truncating'; return; endif
+       if(iSoil == nLevels)then; err=20; message=trim(message)//'negative flow at lower boundary (part 2) -- check if this is possible'; return; endif
+      endif  ! (switch between upward and downward flux at top of layer)
+
+     endif  ! (if exceed porosity)
+    endif  ! (if layer has ice)
+   end do ! (looping through soil layers)
+ 
+
+   ! *****
+   ! handle special case of the top soil layer (don't modify the upper flux)
+   ! (compute maximum flux that can fill available pore space)
+   if(mLayerVolFracIceIter(1) > epsilon(dt))then
+    aPor  = theta_sat - mLayerVolFracLiq(1) - mLayerVolFracIce(1)  ! available porosity (-)
+    qMax  = aPor*mLayerDepth(1)/dt ! m s-1
+    if(qMax < 0._dp) qMax = 0._dp
+    !print*, 'aPor, qMax, iLayerLiqFluxSoil(0), iLayerLiqFluxSoil(1) = ', aPor, qMax, iLayerLiqFluxSoil(0), iLayerLiqFluxSoil(1)
+    ! (compute the total flux)
+    xFlx = (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(1)) - mLayerBaseflow(1) + mLayerTranspire(1)
+    ! (check if the flux exceeds available pore space)
+    if(xFlx > qMax)then
+     ixFlag_porosityCheck = 1
+     ! NOTE: always downward flux at top of profile
+     !print*, 'before update: iLayerLiqFluxSoil(1), qMax = ', iLayerLiqFluxSoil(1), qMax
+     if(-iLayerLiqFluxSoil(1) > qMax)then
+      iLayerLiqFluxSoil(1) = -qMax ! maximum possible flux
+      !dq_dStateAbove(1)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer above (m s-1 or s-1)
+      !dq_dStateBelow(1)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer below (m s-1 or s-1)
+     endif   ! (if upward flux at the bottom of the top layer exceeds maximum possible flux)
+     !print*, 'after update: iLayerLiqFluxSoil(1) = ', iLayerLiqFluxSoil(1)
+    endif   ! (if the net flux exceeds maximum possible flux)
+   endif   ! (if layer has ice)
+
+
+
+   ! now move from the top to bottom to make everything honky-dory
+   if(ixFlag_porosityCheck > 0)then
+    do iSoil=2,nLevels
+     ! * only implement fix if layer has ice
+     if(mLayerVolFracIceIter(iSoil) > epsilon(dt))then
+  
+      ! (compute maximum flux that can fill available pore space)
+      qMax  = (theta_sat - mLayerVolFracLiq(iSoil) - mLayerVolFracIce(iSoil))*mLayerDepth(iSoil)/dt ! m s-1
+      if(qMax < 0._dp) qMax = 0._dp
+      ! (compute the total flux)
+      xFlx = (iLayerLiqFluxSoil(iSoil-1) - iLayerLiqFluxSoil(iSoil)) - mLayerBaseflow(iSoil)     + mLayerTranspire(iSoil)
+      ! (check if the flux exceeds available pore space)
+      if(xFlx > qMax)then
+
+       ! part 1: upward flux at bottom of layer
+       !  -- try and truncate bottom flux first
+       if(iLayerLiqFluxSoil(iSoil) < 0._dp)then
+        iLayerLiqFluxSoil(iSoil) = iLayerLiqFluxSoil(iSoil-1) - qMax ! ! maximum possible flux
+        !dq_dStateAbove(iSoil)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer above (m s-1 or s-1)
+        !dq_dStateBelow(iSoil)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer below (m s-1 or s-1)
+        !print*, 'part1: iSoil, iLayerLiqFluxSoil(iSoil), qMax = ', iSoil, iLayerLiqFluxSoil(iSoil), qMax
+        ! (handle case where downward flux at layer top > qmax)
+        if(iLayerLiqFluxSoil(iSoil) > 0._dp)then
+         iLayerLiqFluxSoil(iSoil)   = 0._dp
+         iLayerLiqFluxSoil(iSoil-1) = qMax
+        endif  ! if downward flux at layer top > qmax
+
+       ! part2: downward flux at bottom of layer
+       !  -- we can only exceed porosity here if downward flux at top exceeds downward flux at bottom
+       !  -- reduce downward flux at top
+       else
+        iLayerLiqFluxSoil(iSoil-1) = iLayerLiqFluxSoil(iSoil) + qMax
+        !dq_dStateAbove(iSoil-1)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer above (m s-1 or s-1)
+        !dq_dStateBelow(iSoil-1)    = 0._dp ! derivatives in the flux w.r.t. state variable in the layer below (m s-1 or s-1)
+        !print*, 'part2: iSoil, iLayerLiqFluxSoil(iSoil-1), qMax = ', iSoil, iLayerLiqFluxSoil(iSoil-1), qMax
+       endif  ! (switch between downward and upward flux at top of layer)
+
+      endif  ! (if exceed porosity)
+     endif   ! (if layer has ice)
+    end do ! (looping through soil layers)
+    !pause 'check porosity'
+   endif  ! (if previously modified fluxes to keep soil moisture within porosity)
+
+  endif  ! if conducting the porosity fix
+
+
+  
 
   end subroutine computeFlux
 
@@ -1728,6 +1793,8 @@ contains
                          ! input: model control
                          ixRichards,                   & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                          bc_lower,                     & ! intent(in): index defining the type of boundary conditions
+                         ! input: diagnostic variables
+                         mLayerBaseflowInput,          & ! intent(in): baseflow from each soil layer at the start of the step (m s-1)
                          ! input: state variables
                          mLayerMatricHeadInput,        & ! intent(in): matric head in each layer (m)
                          mLayerVolFracLiqInput,        & ! intent(in): volumetric liquid water content (-)
@@ -1739,6 +1806,8 @@ contains
   ! input: model control
   integer(i4b),intent(in)          :: ixRichards                  ! index defining the option for Richards' equation (moisture or mixdform)
   integer(i4b),intent(in)          :: bc_lower                    ! index defining the type of boundary conditions
+  ! input: diagnostic variables
+  real(dp),intent(in)              :: mLayerBaseflowInput(:)      ! baseflow from each soil layer at the start of the step (m s-1)
   ! input: trial model state variables
   real(dp),intent(in)              :: mLayerMatricHeadInput(:)    ! input value of matric head in each layer  (m)
   real(dp),intent(in)              :: mLayerVolFracLiqInput(:)    ! input value of volumetric fraction of liquid water in each layer (-)
@@ -1777,9 +1846,13 @@ contains
   real(dp),dimension(nState,nState):: jmat                        ! Jacobian matrix
   real, dimension(3)               :: xtry,ytry                   ! base and perturbed vectors used to compute the Jacobian
   real, dimension(3)               :: tdiag                       ! tri-diagonal matrix
+  character(len=64),parameter      :: jFormat='(2(i4,1x),2(a,1x,3(f30.10,1x)))'  ! format string
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='cmpJacobian/'
+
+  ! initialize baseflow
+  mLayerTempBaseflow = mLayerBaseflowInput
 
   ! get copies of the state vector to perturb
   mLayerMatricHeadTrial     = mLayerMatricHeadInput
@@ -1819,7 +1892,7 @@ contains
                     ! output: fluxes
                     iLayerTempLiqFluxSoil,       & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                     mLayerTempEjectWater,        & ! intent(out): water ejected because pore volume is close to capacity (m s-1)
-                    mLayerTempBaseflow,          & ! intent(out): baseflow flux from each soil layer (m s-1)
+                    mLayerTempBaseflow,          & ! intent(inout): baseflow flux from each soil layer (m s-1)
                     ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                     local_dq_dStateAbove,        & ! intent(out): derivatives in the flux w.r.t. state variable in the layer above (m s-1 or s-1)
                     local_dq_dStateBelow,        & ! intent(out): derivatives in the flux w.r.t. state variable in the layer below (m s-1 or s-1)
@@ -1879,26 +1952,28 @@ contains
 
    ! *****
    ! compute the residual for the groundwater store
-   call gw_residual(&
-                    ! input: control variables
-                    dt,                         & ! intent(in): length of the time step (s)
-                    wimplicit,                  & ! intent(in): weight assigned to the start-of-step
-                    ! input: model states
-                    scalarAquiferStorage,       & ! intent(in): aquifer storage at the start of the step (m)
-                    scalarAquiferStorageTrial,  & ! intent(in): trial value of aquifer storage (m)
-                    ! input: start-of-step fluxes
-                    scalarInitAquiferTranspire, & ! intent(in): transpiration from the aquifer (m s-1)
-                    scalarInitAquiferRecharge,  & ! intent(in): recharge to the aquifer        (m s-1)
-                    scalarInitAquiferBaseflow,  & ! intent(in): baseflow from the aquifer      (m s-1)
-                    ! input: end-of-step fluxes
-                    scalarAquiferTranspire,     & ! intent(in): transpiration from the aquifer (m s-1)
-                    scalarTempAquiferRecharge,  & ! intent(in): recharge to the aquifer        (m s-1)
-                    scalarTempAquiferBaseflow,  & ! intent(in): baseflow from the aquifer      (m s-1)
-                    ! output: aquifer residual
-                    fAquifer,                   & ! intent(out): aquifer residual (m)
-                    ! output: error control
-                    err,cmessage)                 ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if(iJac >  nLevels)then  ! (can ONLY happen if aquifer storage)
+    call gw_residual(&
+                     ! input: control variables
+                     dt,                         & ! intent(in): length of the time step (s)
+                     wimplicit,                  & ! intent(in): weight assigned to the start-of-step
+                     ! input: model states
+                     scalarAquiferStorage,       & ! intent(in): aquifer storage at the start of the step (m)
+                     scalarAquiferStorageTrial,  & ! intent(in): trial value of aquifer storage (m)
+                     ! input: start-of-step fluxes
+                     scalarInitAquiferTranspire, & ! intent(in): transpiration from the aquifer (m s-1)
+                     scalarInitAquiferRecharge,  & ! intent(in): recharge to the aquifer        (m s-1)
+                     scalarInitAquiferBaseflow,  & ! intent(in): baseflow from the aquifer      (m s-1)
+                     ! input: end-of-step fluxes
+                     scalarAquiferTranspire,     & ! intent(in): transpiration from the aquifer (m s-1)
+                     scalarTempAquiferRecharge,  & ! intent(in): recharge to the aquifer        (m s-1)
+                     scalarTempAquiferBaseflow,  & ! intent(in): baseflow from the aquifer      (m s-1)
+                     ! output: aquifer residual
+                     fAquifer,                   & ! intent(out): aquifer residual (m)
+                     ! output: error control
+                     err,cmessage)                 ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
    !if(ijac == nState)then
    ! write(*,'(a,2(e20.10,1x))') 'scalarAquiferResidual, faquifer, dg/dS = ', scalarAquiferResidual, fAquifer, (-(fAquifer - scalarAquiferResidual)/eps - 1._dp)/dt
    ! pause
@@ -1926,9 +2001,9 @@ contains
   ! print the Jacobian
   do iJac=minLayer,min(maxLayer,nState)
    ! print the Jacobian
-   if(iJac==1)then;          write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') ixDerivMethod, iJac, 'test hyd Jacobian', (/valueMissing,      jmat(iJac,1:iJac+1)/), '--> tri-diag = ', valueMissing, diag(iJac), d_p1(iJac)
-   elseif(iJac==nState)then; write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') ixDerivMethod, iJac, 'test hyd Jacobian', (/jmat(iJac,iJac-1:nState), valueMissing/), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), valueMissing
-   else;                     write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') ixDerivMethod, iJac, 'test hyd Jacobian', (/jmat(iJac,iJac-1:iJac+1)              /), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), d_p1(iJac) 
+   if(iJac==1)then;          write(*,jFormat) ixDerivMethod, iJac, 'test hyd Jacobian', (/valueMissing,      jmat(iJac,1:iJac+1)/), '--> tri-diag = ', valueMissing, diag(iJac)-local_mLayerdTheta_dPsi(iJac), d_p1(iJac)
+   elseif(iJac==nState)then; write(*,jFormat) ixDerivMethod, iJac, 'test hyd Jacobian', (/jmat(iJac,iJac-1:nState), valueMissing/), '--> tri-diag = ', d_m1(iJac-1), diag(iJac)-local_mLayerdTheta_dPsi(iJac), valueMissing
+   else;                     write(*,jFormat) ixDerivMethod, iJac, 'test hyd Jacobian', (/jmat(iJac,iJac-1:iJac+1)              /), '--> tri-diag = ', d_m1(iJac-1), diag(iJac)-local_mLayerdTheta_dPsi(iJac), d_p1(iJac) 
    endif
   end do
   !pause 'testing Jacobian' 
@@ -1983,6 +2058,7 @@ contains
                        ! output: error control
                        err,message)             ! intent(out): error control
  USE soil_utils_module,only:iceImpede       ! compute the ice impedence factor
+ USE soil_utils_module,only:volFracLiq      ! compute volumetric fraction of liquid water as a function of matric head
  USE soil_utils_module,only:hydCond_psi     ! compute hydraulic conductivity as a function of matric head
  USE soil_utils_module,only:hydCond_liq     ! compute hydraulic conductivity as a function of volumetric liquid water content
  USE soil_utils_module,only:dTheta_dPsi     ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
@@ -2024,6 +2100,8 @@ contains
  character(*),intent(out)      :: message                   ! error message
  ! local variables
  real(dp)                      :: dPsi_dTheta2a             ! derivative in dPsi_dTheta (analytical)
+ !real(dp)                      :: x1,x2                     ! trial values of theta (-)
+ !real(dp),parameter            :: dx = 1.e-8_dp             ! finite difference increment (m)
  ! initialize error control
  err=0; message="diagv_node/"
 
@@ -2035,6 +2113,9 @@ contains
    scalardTheta_dPsi = valueMissing  ! (deliberately cause problems if this is ever used)
   case(mixdform)
    scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   !x1 = volFracLiq(scalarMatricHeadTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   !x2 = volFracLiq(scalarMatricHeadTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   !print*, 'scalardTheta_dPsi = ', scalardTheta_dPsi, (x2 - x1)/dx
    scalardPsi_dTheta = valueMissing  ! (deliberately cause problems if this is ever used)
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  end select
@@ -2187,6 +2268,9 @@ contains
  real(dp)                      :: fInfRate                  ! infiltration rate at the surface (m s-1)
  real(dp)                      :: dInfArea                  ! derivative in the infiltrating area w.r.t. matric head (m-1)
  real(dp)                      :: dInfRate                  ! derivative in the infiltration rate w.r.t matric head (s-1)
+ real(dp),parameter            :: maxFracCap=0.9999_dp      ! maximum fraction capacity -- used to avoid numerical problems associated with an enormous derivative
+ real(dp)                      :: xMinInf                   ! minimum infiltrating fraction (-)
+ real(dp)                      :: xScaleF                   ! scaling factor to ensure fraction is zero at maximum capacity
  ! initialize error control
  err=0; message="surfaceFlx/"
 
@@ -2232,6 +2316,9 @@ contains
   ! flux condition
   case(liquidFlux)
 
+   ! check exponent is reasonable
+   if(bpar_VIC < 0.01_dp)then; err=20; message=trim(message)//'VIC surface runoff exponent "bpar_VIC" must be > 0.01'; return; endif
+
    ! hydraulic conductivity and diffusivity are not used
    surfaceHydCond = valueMissing
    surfaceDiffuse = valueMissing
@@ -2242,24 +2329,29 @@ contains
     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
    endselect
    ! compute the infiltrating area (-)
-   fracCap  = min((vFracLiq + scalarVolFracIce)/theta_sat, 1._dp - epsilon(fracCap))          ! fraction of capacity filled with liquid water and ice
-   fInfArea = (1._dp - fracCap)**bpar_VIC
+   fracCap  = min((vFracLiq + scalarVolFracIce)/theta_sat, maxFracCap)           ! fraction of capacity filled with liquid water and ice
+   xMinInf  = (1._dp - maxFracCap)**bpar_VIC                                     ! minimum infiltrating fraction
+   xScaleF  = 1._dp/(1._dp - xMinInf)                                            ! scaling factor to ensure fraction is zero at maximum capacity
+   fInfArea = xScaleF*(1._dp - fracCap)**bpar_VIC - xScaleF*xMinInf              ! fraction of infiltrating area
    ! compute the rate of infiltration over the non-saturated area (m s-1)
    fInfRate = min(surfaceSatHydCond,scalarRainPlusMelt)!*iceImpedeFac  ! (m s-1)
-   !if(scalarRainPlusMelt*iden_ice > 0.0001_dp)then
-   ! write(*,'(a,1x,2(f20.10,1x))') 'surfaceSatHydCond, scalarRainPlusMelt = ', surfaceSatHydCond, scalarRainPlusMelt
-   !endif
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff = (1._dp - fInfArea)*scalarRainPlusMelt + fInfArea*(scalarRainPlusMelt - fInfRate)
    ! compute the flux at the upper boundary
    scalarSurfaceInfiltration = scalarRainPlusMelt - scalarSurfaceRunoff
+   ! print progress
+   !if(scalarRainPlusMelt*iden_ice > 0.0001_dp)then
+   ! write(*,'(a,1x,10(f20.10,1x))') 'fInfArea, fracCap, xMinInf, xScaleF = ', fInfArea, fracCap, xMinInf, xScaleF
+   ! write(*,'(a,1x,3(f20.10,1x))') 'surfaceSatHydCond, scalarRainPlusMelt, scalarSurfaceInfiltration = ', &
+   !                                 surfaceSatHydCond, scalarRainPlusMelt, scalarSurfaceInfiltration
+   !endif
 
    ! compute analytical derivatives (product rule)
    if(deriv_desired)then
     dInfRate = 0._dp  ! NOTE: infiltration rate does not depend on state variables in the upper-most layer
     select case(ixRichards)
-     case(moisture); dInfArea = (-1._dp/theta_sat) * bpar_VIC*(1._dp - fracCap)**(bpar_VIC - 1._dp) ! derivative in the infiltrating area w.r.t. volumetric liquid water content (-)
-     case(mixdform); dInfArea = (-scalardTheta_dPsi/theta_sat) * bpar_VIC*(1._dp - fracCap)**(bpar_VIC - 1._dp) ! derivative in the infiltrating area w.r.t. matric head (m-1)
+     case(moisture); dInfArea = (-1._dp/theta_sat) * xScaleF*bpar_VIC*(1._dp - fracCap)**(bpar_VIC - 1._dp) ! derivative in the infiltrating area w.r.t. volumetric liquid water content (-)
+     case(mixdform); dInfArea = (-scalardTheta_dPsi/theta_sat) * xScaleF*bpar_VIC*(1._dp - fracCap)**(bpar_VIC - 1._dp) ! derivative in the infiltrating area w.r.t. matric head (m-1)
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
     dq_dState = dInfArea*fInfRate !+ fInfArea*dInfRate ! NOTE, only first term is used currently, but "future-proofing"
@@ -2684,8 +2776,8 @@ contains
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
  ! local variables
- real(dp),parameter            :: supersatScale=0.01_dp     ! scaling factor for the water ejection function (-)
- real(dp),parameter            :: xMatch = 0.99_dp          ! point where x-value and function value match (-)
+ real(dp),parameter            :: supersatScale=0.001_dp     ! scaling factor for the water ejection function (-)
+ real(dp),parameter            :: xMatch = 0.999_dp          ! point where x-value and function value match (-)
  real(dp),parameter            :: fSmall = epsilon(xMatch)  ! smallest possible value to test
  real(dp)                      :: supersatThresh            ! threshold in super-saturation function (-)
  real(dp)                      :: fracMin                   ! minimum fraction of pore space required to be filled in order for lateral flow to occur (-)
@@ -2841,8 +2933,8 @@ contains
   residualVec(iLayer) = mLayerTrialVolFracLiq(iLayer) - (mLayerInitVolFracLiq(iLayer) + mFlux + mEvap - mEjct - mBase - mPhse - compressibility)
 
   ! print progress
-  !if(iLayer==1)  write(*,'(a)') 'iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), bottom flux, mFlux, mEvap, mEjct, mBase, mPhse'
-  !if(iLayer < 5) write(*,'(i4,1x,10(e20.10,1x))') iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), iLayerTrialLiqFluxSoil(iLayer)*dt_dz, mFlux, mEvap, mEjct, mBase, mPhse
+  !if(iLayer==1)  write(*,'(a)') 'iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), top flux, mFlux, mEvap, mEjct, mBase, mPhse'
+  !if(iLayer < 10) write(*,'(i4,1x,10(e20.10,1x))') iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), iLayerTrialLiqFluxSoil(iLayer-1), mFlux, mEvap, mEjct, mBase, mPhse
 
  end do  ! (looping through soil layers)
 
@@ -2910,6 +3002,8 @@ contains
  netFlux  = wimplicit*netFlux0 + (1._dp - wimplicit)*netFlux1
  ! compute the residual
  scalarAquiferResidual = scalarAquiferStorageTrial - (scalarAquiferStorage + netFlux*dt)
+
+ err=20; message=trim(message)//'in gw residual -- should not be here'; return
  
  !write(*,'(a)') '***** computing the aquifer residual'
  !write(*,'(a,e20.10)') 'dt = ', dt

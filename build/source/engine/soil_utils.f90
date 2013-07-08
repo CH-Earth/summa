@@ -170,8 +170,9 @@ contains
  if(psi<=0._dp)then
   dTheta_dPsi = (theta_sat-theta_res) * &
      (-m*(1._dp + (psi*alpha)**n)**(-m-1._dp)) * n*(psi*alpha)**(n-1._dp) * alpha
+  if(abs(dTheta_dPsi) < epsilon(psi)) dTheta_dPsi = epsilon(psi)
  else
-  dTheta_dPsi = 0._dp
+  dTheta_dPsi = epsilon(psi)
  endif
  end function dTheta_dPsi
 

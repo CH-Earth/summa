@@ -109,10 +109,12 @@ contains
 
    ! ** soil
    case(ix_soil)
+    ! constrain theta
+    theta = min(theta,theta_sat)
     !print*, 'iLayer, mLayerVolFracIce(iLayer), mLayerTempNew(iLayer), mLayerTcrit(iLayer-nSnow) = ',&
     !         iLayer, mLayerVolFracIce(iLayer), mLayerTempNew(iLayer), mLayerTcrit(iLayer-nSnow)
     ! check that total volumetric water (liquid + ice) does not exceed soil porosity
-    if(theta > theta_sat)then; err=-20; message=trim(message)//'volumetric (liquid + ice) content exceeds soil porosity'; return; endif 
+    !if(theta > theta_sat)then; err=20; message=trim(message)//'volumetric (liquid + ice) content exceeds soil porosity'; return; endif 
     ! compute the matric head (m) volumetric fraction of liquid water and ice (-)
     if(mLayerTempNew(iLayer)<mLayerTcrit(iLayer-nSnow))then
      mLayerMatricHeadNew(iLayer-nSnow) = kappa*(mLayerTempNew(iLayer) - Tfreeze)
@@ -130,7 +132,7 @@ contains
       mLayerMatricHeadNew(iLayer-nSnow) = matricHead(min(theta,theta_sat),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      endif
      ! update liquid water and ice content 
-     mLayerVolFracLiqNew(iLayer)       = min(theta,theta_sat)
+     mLayerVolFracLiqNew(iLayer)       = theta
      mLayerVolFracIceNew(iLayer)       = 0._dp
     endif
 

@@ -2924,7 +2924,8 @@ contains
      P3 = B + TMP0
      P4 = B - TMP0
      S1 = EXP(-H*VAI)
-     S2 = EXP(-EXT*VAI)
+     ! MPC change: precision issues
+     S2 = max(epsilon(VAI),EXP(-EXT*VAI))
      IF (IC .EQ. 0) THEN
         U1 = B - C/ALBGRD(IB)
         U2 = B - C*ALBGRD(IB)
