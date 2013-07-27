@@ -273,14 +273,14 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyShadedLAI           = 52  ! shaded leaf area (-)
   integer(i4b)    :: scalarCanopySunlitPAR           = 53  ! average absorbed par for sunlit leaves (w m-2)
   integer(i4b)    :: scalarCanopyShadedPAR           = 54  ! average absorbed par for shaded leaves (w m-2)
-  integer(i4b)    :: scalarCanopyAbsorbedSolar       = 55  ! solar radiation absorbed by canopy (W m-2)
-  integer(i4b)    :: scalarGroundAbsorbedSolar       = 56  ! solar radiation absorbed by ground (W m-2)
-  integer(i4b)    :: scalarTotalReflectedSolar       = 57  ! total reflected solar radiation (W m-2)
-  integer(i4b)    :: scalarTotalAbsorbedSolar        = 58  ! total absorbed solar radiation (W m-2)
-  integer(i4b)    :: scalarCanopyReflectedSolar      = 59  ! solar radiation reflected from the canopy (W m-2)
-  integer(i4b)    :: scalarGroundReflectedSolar      = 60  ! solar radiation reflected from the ground (W m-2) 
-  integer(i4b)    :: scalarBetweenCanopyGapFraction  = 61  ! between canopy gap fraction for beam (-)
-  integer(i4b)    :: scalarWithinCanopyGapFraction   = 62  ! within canopy gap fraction for beam (-)
+  integer(i4b)    :: scalarBelowCanopySolar          = 55  ! solar radiation transmitted below the canopy (W m-2)
+  integer(i4b)    :: scalarCanopyAbsorbedSolar       = 56  ! solar radiation absorbed by canopy (W m-2)
+  integer(i4b)    :: scalarGroundAbsorbedSolar       = 57  ! solar radiation absorbed by ground (W m-2)
+  integer(i4b)    :: placeholder1                    = 58  ! placeholder
+  integer(i4b)    :: placeholder2                    = 59  ! placeholder
+  integer(i4b)    :: placeholder3                    = 60  ! placeholder
+  integer(i4b)    :: placeholder4                    = 61  ! placeholder
+  integer(i4b)    :: placeholder5                    = 62  ! placeholder
   ! define NOAH-MP vegetation variables -- longwave radiation
   integer(i4b)    :: scalarCanopyEmissivity          = 63  ! effective canopy emissivity (-)
   integer(i4b)    :: scalarLWRadCanopy               = 64  ! longwave radiation emitted from the canopy (W m-2)

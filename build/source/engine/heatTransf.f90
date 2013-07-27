@@ -167,6 +167,7 @@ contains
 
                         ! physical attributes
                         type_data%var(iLookTYPE%vegTypeIndex),                         & ! intent(in): vegetation type index
+                        type_data%var(iLookTYPE%soilTypeIndex),                        & ! intent(in): soil type index
 
                         ! general model parameters
                         mpar_data%var(iLookPARAM%wimplicit),                           & ! intent(in): weight assigned to start-of-step fluxes (-)
@@ -292,6 +293,7 @@ contains
 
                               ! physical attributes
                               vegTypeIndex,                 & ! intent(in): vegetation type index
+                              soilTypeIndex,                & ! intent(in): soil type index
 
                               ! general model parameters
                               wimplicit,                    & ! intent(in): weight assigned to start-of-step fluxes (-)
@@ -404,6 +406,7 @@ contains
  integer(i4b),intent(in)        :: layerType(:)                ! type of the layer (ix_soil or ix_snow)
  ! physical attributes
  integer(i4b),intent(in)        :: vegTypeIndex                ! vegetation type index
+ integer(i4b),intent(in)        :: soilTypeIndex               ! soil type index
  ! general model parameters
  real(dp),intent(in)            :: wimplicit                   ! weight assigned to start-of-step fluxes (-)
  real(dp),intent(in)            :: snowfrz_scale               ! scaling parameter for the snow freezing curve (K-1)
@@ -597,6 +600,7 @@ contains
                  scalarCanopyIceIter,           & ! intent(in): trial mass of ice on the vegetation canopy (kg m-2)
                  scalarCanopyLiqIter,           & ! intent(in): trial mass of liquid water on the vegetation canopy (kg m-2)
                  vegTypeIndex,                  & ! intent(in): vegetation type index
+                 soilTypeIndex,                 & ! intent(in): soil type index
                  scalarLAI,                     & ! intent(in): one-sided leaf area index (m2 m-2)
                  scalarSAI,                     & ! intent(in): one-sided stem area index (m2 m-2)
                  scalarExposedLAI,              & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
@@ -1064,6 +1068,7 @@ contains
                    scalarCanopyIceIter,                 & ! intent(in): trial mass of ice on the vegetation canopy (kg m-2)
                    scalarCanopyLiqIter,                 & ! intent(in): trial mass of liquid water on the vegetation canopy (kg m-2)
                    vegTypeIndex,                        & ! intent(in): vegetation type index
+                   soilTypeIndex,                       & ! intent(in): soil type index
                    scalarLAI,                           & ! intent(in): one-sided leaf area index (m2 m-2)
                    scalarSAI,                           & ! intent(in): one-sided stem area index (m2 m-2)
                    scalarExposedLAI,                    & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)

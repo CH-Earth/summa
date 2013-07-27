@@ -410,7 +410,9 @@ do istep=1,numtim
   end do
   ! (put inflow below ice)
   if(ixIce > 0)then ! ice exists
-   mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) = sum(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce))
+   mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) = mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) + &
+                                                              sum(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce))
+   mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce) = 0._dp
   endif
   !print*, '*****'
   !print*, 'HRU, dt_init = ', iHRU, dt_init(iHRU)

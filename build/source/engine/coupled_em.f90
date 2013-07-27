@@ -438,6 +438,8 @@ contains
   averageAquiferRecharge     = averageAquiferRecharge     + scalarAquiferRecharge     *dt_wght ! recharge to the aquifer (m s-1)
   averageAquiferBaseflow     = averageAquiferBaseflow     + scalarAquiferBaseflow     *dt_wght ! baseflow from the aquifer (m s-1)
   averageAquiferTranspire    = averageAquiferTranspire    + scalarAquiferTranspire    *dt_wght ! transpiration from the aquifer (m s-1)
+  !write(*,'(a,1x,f9.1,1x,10(e20.10,1x))') 'dt_sub, averageSoilBaseflow, scalarSoilBaseflow', &
+  !                                         dt_sub, averageSoilBaseflow, scalarSoilBaseflow
   !write(*,'(a,10(e20.10,1x))') 'scalarRainPlusMelt, scalarSurfaceRunoff, scalarSoilInflux = ', &
   !                              scalarRainPlusMelt, scalarSurfaceRunoff, scalarSoilInflux
 

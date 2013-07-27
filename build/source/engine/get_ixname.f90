@@ -382,14 +382,14 @@ contains
   case('scalarCanopyShadedLAI'          ); get_ixmvar = iLookMVAR%scalarCanopyShadedLAI            ! shaded leaf area (-)
   case('scalarCanopySunlitPAR'          ); get_ixmvar = iLookMVAR%scalarCanopySunlitPAR            ! average absorbed par for sunlit leaves (w m-2)
   case('scalarCanopyShadedPAR'          ); get_ixmvar = iLookMVAR%scalarCanopyShadedPAR            ! average absorbed par for shaded leaves (w m-2)
+  case('scalarBelowCanopySolar'         ); get_ixmvar = iLookMVAR%scalarBelowCanopySolar           ! solar radiation transmitted below the canopy (W m-2)
   case('scalarCanopyAbsorbedSolar'      ); get_ixmvar = iLookMVAR%scalarCanopyAbsorbedSolar        ! solar radiation absorbed by canopy (W m-2)
   case('scalarGroundAbsorbedSolar'      ); get_ixmvar = iLookMVAR%scalarGroundAbsorbedSolar        ! solar radiation absorbed by ground (W m-2)
-  case('scalarTotalReflectedSolar'      ); get_ixmvar = iLookMVAR%scalarTotalReflectedSolar        ! total reflected solar radiation (W m-2)
-  case('scalarTotalAbsorbedSolar'       ); get_ixmvar = iLookMVAR%scalarTotalAbsorbedSolar         ! total absorbed solar radiation (W m-2)
-  case('scalarCanopyReflectedSolar'     ); get_ixmvar = iLookMVAR%scalarCanopyReflectedSolar       ! solar radiation reflected from the canopy (W m-2)
-  case('scalarGroundReflectedSolar'     ); get_ixmvar = iLookMVAR%scalarGroundReflectedSolar       ! solar radiation reflected from the ground (W m-2) 
-  case('scalarBetweenCanopyGapFraction' ); get_ixmvar = iLookMVAR%scalarBetweenCanopyGapFraction   ! between canopy gap fraction for beam (-)
-  case('scalarWithinCanopyGapFraction'  ); get_ixmvar = iLookMVAR%scalarWithinCanopyGapFraction    ! within canopy gap fraction for beam (-)
+  case('placeholder1'                   ); get_ixmvar = iLookMVAR%placeholder1                     ! placeholder
+  case('placeholder2'                   ); get_ixmvar = iLookMVAR%placeholder2                     ! placeholder
+  case('placeholder3'                   ); get_ixmvar = iLookMVAR%placeholder3                     ! placeholder
+  case('placeholder4'                   ); get_ixmvar = iLookMVAR%placeholder4                     ! placeholder
+  case('placeholder5'                   ); get_ixmvar = iLookMVAR%placeholder5                     ! placeholder
   ! NOAH-MP vegetation variables (longwave radiation)
   case('scalarCanopyEmissivity'         ); get_ixmvar = iLookMVAR%scalarCanopyEmissivity           ! effective canopy emissivity (-)
   case('scalarLWRadCanopy'              ); get_ixmvar = iLookMVAR%scalarLWRadCanopy                ! longwave radiation emitted from the canopy (W m-2)

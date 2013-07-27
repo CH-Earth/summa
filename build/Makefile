@@ -66,6 +66,7 @@ MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODGUT))
 
 # Solver
 FUSE_SOLVER= \
+		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
 		groundwatr.f90 \
 		tridagSolv.f90 \

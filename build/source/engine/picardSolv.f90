@@ -1473,11 +1473,11 @@ contains
   print*, 'balanceSoilWater1 (kg m-2) = ',        balanceSoilWater1
   print*, 'balanceSoilInflux (kg m-2) = ',        balanceSoilInflux
   print*, 'balanceSoilDrainage (kg m-2) = ',      balanceSoilDrainage
-  print*, 'balanceSoilEjection (kg m-2) = ',      balanceSoilEjection
+  print*, 'balanceSoilBaseflow (kg m-2) = ',      balanceSoilBaseflow
   print*, 'balanceSoilTranspiration (kg m-2) = ', balanceSoilTranspiration, sum(mLayerTranspire)*dt*iden_water
   write(message,'(a,e20.10,a)')trim(message)//"abs(scalarSoilWatBalError) > 1.d-3 [error = ",&
                                scalarSoilWatBalError," ]"
-  err=10; return
+  err=-10; return
  endif
 
  ! check the aquifer water balance

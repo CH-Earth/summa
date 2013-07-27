@@ -725,6 +725,7 @@ contains
                   ! input: control variables
                   dt,                         & ! intent(in): length of the time step (s)
                   wimplicit,                  & ! intent(in): weight assigned to the start-of-step
+                  iter,                       & ! intent(in): iteration count
                   ! input: coordinate variables
                   mLayerDepth,                & ! intent(in): depth of each layer (m)
                   ! input: model parameters for the compressibility term
@@ -1052,6 +1053,8 @@ contains
   real(dp)                         :: maximumFlowRate               ! maximum flow rate for baseflow from the soil column (m3 s-1)
   real(dp)                         :: totalOutflow                  ! total outflow from the entire soil column (m3 s-1)
   real(dp),dimension(nLevels)      :: fracTotalOutflow              ! fraction of outflow apportioned to each layer (-)
+  real(dp),parameter               :: fracMinStorage=0.01_dp        ! minimum storage when baseflow occurs (used to avoid numerical problems associated with very dry soil)
+  real(dp)                         :: xMinStorage                   ! minimim storage when baseflow can occur
   ! local variables: scalar trial values
   real(dp)                         :: scalarVolFracLiqTrial         ! trial value of volumetric liquid water content (-)
   real(dp)                         :: scalarMatricHeadTrial         ! trial value of matric head (m)
@@ -1593,15 +1596,16 @@ contains
      totalSoilWater = sum((mLayerVolFracLiqTrial(1:nLevels) - theta_res)*mLayerDepth(1:nLevels))
  
      ! compute total outflow from the entire soil column (m3 s-1)
-     totalOutflow   = maximumFlowRate*(totalSoilWater/maximumSoilWater)**aquiferBaseflowExp
+     xMinStorage    = fracMinStorage*totalSoilWater
+     totalOutflow   = maximumFlowRate*((totalSoilWater - xMinStorage)/(maximumSoilWater - xMinStorage))**aquiferBaseflowExp
      !print*, 'totalSoilWater, maximumSoilWater, maximumFlowRate, totalOutflow = ', totalSoilWater, maximumSoilWater, maximumFlowRate*3600._dp, totalOutflow*3600._dp
  
      ! compute the depth-weighted hydraulic conductivity (m2 s-1)
      sumDepthAvgCond = sum(mLayerHydCond(1:nLevels)*mLayerDepth(1:nLevels))
-     !print*, 'sumDepthAvgCond, epsilon(theta_sat) = ', sumDepthAvgCond, epsilon(theta_sat)
+     !print*, 'sumDepthAvgCond, tiny(theta_sat) = ', sumDepthAvgCond, tiny(theta_sat)
  
      ! compute the fraction of outflow apportioned to each layer (-)
-     if(sumDepthAvgCond > epsilon(theta_sat))then
+     if(sumDepthAvgCond > tiny(theta_sat))then
       fracTotalOutflow(1:nLevels) = (mLayerHydCond(1:nLevels)*mLayerDepth(1:nLevels)) / sumDepthAvgCond
      else
       fracTotalOutflow(1:nLevels) = 0._dp !(mLayerSatHydCond(1:nLevels)*mLayerDepth(1:nLevels)) / sum(mLayerSatHydCond(1:nLevels)*mLayerDepth(1:nLevels))
@@ -1610,7 +1614,6 @@ contains
      ! compute the outflow from each soil layer (m3 s-1)
      mLayerColumnOutflow(1:nLevels) = fracTotalOutflow(1:nLevels)*totalOutflow
      !print*, 'mLayerColumnOutflow(1:nLevels), fracTotalOutflow(1:nLevels), totalOutflow = ', mLayerColumnOutflow(1:nLevels), fracTotalOutflow(1:nLevels), totalOutflow
-     !pause
  
      ! compute the net baseflow from each soil layer (m s-1)
      mLayerBaseflow(1:nLevels) = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflow(1:nLevels))/HRUarea
@@ -1921,6 +1924,7 @@ contains
                     ! control variables
                     dt,                        & ! intent(in): length of the time step (s)
                     wimplicit,                 & ! intent(in):weight assigned to the start-of-step
+                    iter,                      & ! intent(in): iteration count
                     ! coordinate variables
                     mLayerDepth,               & ! intent(in): depth of each layer (m)
                     ! input: model parameters for the compressibility term
@@ -2837,8 +2841,9 @@ contains
  ! ************************************************************************************************
  subroutine liqResidual(&
                         ! control variables
-                        dt,                              & ! length of the time step (s)
-                        wimplicit,                       & ! weight assigned to the start-of-step
+                        dt,                              & ! intent(in): length of the time step (s)
+                        wimplicit,                       & ! intent(in): weight assigned to the start-of-step
+                        iter,                            & ! intent(in): iteration count
                         ! coordinate variables
                         mLayerDepth,                     & ! depth of each layer (m)
                         ! input: model parameters for the compressibility term
@@ -2870,6 +2875,7 @@ contains
  ! control variables
  real(dp),intent(in)          :: dt                        ! length of the time step (s)
  real(dp),intent(in)          :: wimplicit                 ! weight assigned to the start-of-step
+ integer(i4b),intent(in)      :: iter                      ! iteration count
  ! coordinate variables
  real(dp),intent(in)          :: mLayerDepth(:)            ! depth of each layer (m)
  ! model parameters for the compressibility term
@@ -2933,8 +2939,10 @@ contains
   residualVec(iLayer) = mLayerTrialVolFracLiq(iLayer) - (mLayerInitVolFracLiq(iLayer) + mFlux + mEvap - mEjct - mBase - mPhse - compressibility)
 
   ! print progress
-  !if(iLayer==1)  write(*,'(a)') 'iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), top flux, mFlux, mEvap, mEjct, mBase, mPhse'
-  !if(iLayer < 10) write(*,'(i4,1x,10(e20.10,1x))') iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), iLayerTrialLiqFluxSoil(iLayer-1), mFlux, mEvap, mEjct, mBase, mPhse
+  if(iter > 30)then
+   if(iLayer==1)  write(*,'(a)') 'iter, iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), top flux, mFlux, mEvap, mEjct, mBase, mPhse'
+   if(iLayer < 10) write(*,'(2(i4,1x),10(e20.10,1x))') iter, iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), iLayerTrialLiqFluxSoil(iLayer-1), mFlux, mEvap, mEjct, mBase, mPhse
+  endif
 
  end do  ! (looping through soil layers)
 

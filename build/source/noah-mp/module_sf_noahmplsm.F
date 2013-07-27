@@ -487,14 +487,14 @@ MODULE NOAHMP_ROUTINES
   private ::       THERMOPROP
   private ::               CSNOW
   private ::               TDFCND
-  !private ::       RADIATION
-  public ::       RADIATION
+  private ::       RADIATION
   private ::               ALBEDO
   private ::                         SNOW_AGE
   private ::                         SNOWALB_BATS  
   private ::                         SNOWALB_CLASS
   private ::                         GROUNDALB
-  private ::                         TWOSTREAM
+  !private ::                         TWOSTREAM
+  public ::                         TWOSTREAM
   private ::               SURRAD
   private ::       VEGE_FLUX
   private ::               SFCDIF1                  
@@ -2566,6 +2566,7 @@ contains
           AGE2  = EXP(AMIN1(0.,10.*ARG))
           AGE3  = 0.3
           TAGE  = AGE1+AGE2+AGE3
+
           DELA  = DELA0*TAGE
           DELS  = AMAX1(0.0,SNEQV-SNEQVO) / SWEMX
           SGE   = (TAUSS+DELA)*(1.0-DELS)

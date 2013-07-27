@@ -128,6 +128,12 @@ contains
  call clrsky_rad(im,id,ahour,dataStep,   &  ! intent(in): time variables
                  slope,azimuth,latitude, &  ! intent(in): location variables
                  hri,cosZenith)             ! intent(out): cosine of the solar zenith angle
+ ! check that we don't have considerable shortwave when the zenith angle is low
+ ! NOTE: this is likely because the data are not in local time
+ if(cosZenith < epsilon(cosZenith) .and. SWRadAtm > 10._dp)then
+  message=trim(message)//'SWRadAtm > 10 W m-2 when cos zenith angle is zero -- check that data are in local time'
+  err=20; return
+ endif
  ! ensure solar radiation is zero between sunset and sunrise
  if(cosZenith <= 0._dp) SWRadAtm = 0._dp
  ! compute direct shortwave radiation, in the visible and near-infra-red part of the spectrum
