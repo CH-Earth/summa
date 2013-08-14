@@ -58,7 +58,7 @@ contains
  integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
- character(LEN=256)             :: namesScalarDesired(9) ! names of desired scalar variables
+ character(LEN=256)             :: namesScalarDesired(8) ! names of desired scalar variables
  logical(lgt),allocatable       :: checkGotVars(:) ! used to check if we have got desired variables
  character(LEN=256),allocatable :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable :: chardata(:)     ! vector of character data
@@ -112,18 +112,17 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
  ! define desired scalar variables
- if(size(namesScalarDesired)/=9)then
-  err=20; message=trim(message)//'expect 10 variables in namesScalarDesired'; return
+ if(size(namesScalarDesired)/=8)then
+  err=20; message=trim(message)//'expect 8 variables in namesScalarDesired'; return
  endif
  namesScalarDesired( 1) = 'scalarCanopyIce'
  namesScalarDesired( 2) = 'scalarCanopyLiq'
  namesScalarDesired( 3) = 'scalarCanopyTemp'
- namesScalarDesired( 4) = 'scalarSnowAge'
- namesScalarDesired( 5) = 'scalarAlbedo'
- namesScalarDesired( 6) = 'scalarSWE'
- namesScalarDesired( 7) = 'scalarSnowDepth'
- namesScalarDesired( 8) = 'scalarSfcMeltPond'
- namesScalarDesired( 9) = 'scalarAquiferStorage'
+ namesScalarDesired( 4) = 'scalarSnowAlbedo'
+ namesScalarDesired( 5) = 'scalarSWE'
+ namesScalarDesired( 6) = 'scalarSnowDepth'
+ namesScalarDesired( 7) = 'scalarSfcMeltPond'
+ namesScalarDesired( 8) = 'scalarAquiferStorage'
 
  ! **********************************************************************************************
  ! (1) open files, etc.
@@ -253,6 +252,8 @@ contains
    err=20; return
   endif
  end do
+ ! initialize the spectral albedo
+ mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1:nBand) = mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)
  ! **********************************************************************************************
  ! (5) read the layer initial conditions
  ! **********************************************************************************************
@@ -344,6 +345,26 @@ contains
  mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers-1) + mvar_data%var(iLookMVAR%mLayerDepth)%dat(nLayers)
  ! check matric head is read correctly
  print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
+ ! ***************************************************************************************
+ ! ***************************************************************************************
+ ! ensure the snow albedo is realistic
+ ! ***************************************************************************************
+ ! ***************************************************************************************
+ ! ensure the spectral average albedo is realistic
+ if(mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) > mpar_data%var(iLookPARAM%albedoMax)) &
+    mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) = mpar_data%var(iLookPARAM%albedoMax)
+ if(mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) < mpar_data%var(iLookPARAM%albedoMinWinter)) &
+    mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1) = mpar_data%var(iLookPARAM%albedoMinWinter)
+ ! ensure the visible albedo is realistic
+ if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) > mpar_data%var(iLookPARAM%albedoMaxVisible)) &
+    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) = mpar_data%var(iLookPARAM%albedoMaxVisible)
+ if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) < mpar_data%var(iLookPARAM%albedoMinVisible)) &
+    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) = mpar_data%var(iLookPARAM%albedoMinVisible)
+ ! ensure the nearIR albedo is realistic
+ if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) > mpar_data%var(iLookPARAM%albedoMaxNearIR)) &
+    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) = mpar_data%var(iLookPARAM%albedoMaxNearIR)
+ if(mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) < mpar_data%var(iLookPARAM%albedoMinNearIR)) &
+    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) = mpar_data%var(iLookPARAM%albedoMinNearIR)
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! ensure the initial conditions are consistent with the constitutive functions
@@ -499,20 +520,19 @@ contains
  deallocate(checkGotVars,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'deallocating logical check vector'; return; endif
  print*,'****************************************************************************************'
- print*,'mLayerDepth      ', mvar_data%var(iLookMVAR%mLayerDepth)%dat(:)
- print*,'iLayerHeight     ', mvar_data%var(iLookMVAR%iLayerHeight)%dat(:)
- print*,'mLayerTemp       ', mvar_data%var(iLookMVAR%mLayerTemp)%dat(:)
- print*,'mLayerVolFracIce ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(:)
- print*,'mLayerVolFracLiq ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(:)
- print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
- print*,'scalarCanopyIce  ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(:) 
- print*,'scalarCanopyLiq  ', mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(:)
- print*,'scalarCanopyTemp ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(:)
- print*,'scalarSnowAge    ', mvar_data%var(iLookMVAR%scalarSnowAge)%dat(:)
- print*,'scalarAlbedo     ', mvar_data%var(iLookMVAR%scalarAlbedo)%dat(:)
- print*,'scalarSnowDepth  ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(:)
- print*,'scalarSWE        ', mvar_data%var(iLookMVAR%scalarSWE)%dat(:)
- print*,'layerType        ', indx_data%var(iLookINDEX%layerType)%dat(:)
+ print*, 'mLayerDepth      ', mvar_data%var(iLookMVAR%mLayerDepth)%dat(:)
+ print*, 'iLayerHeight     ', mvar_data%var(iLookMVAR%iLayerHeight)%dat(:)
+ print*, 'mLayerTemp       ', mvar_data%var(iLookMVAR%mLayerTemp)%dat(:)
+ print*, 'mLayerVolFracIce ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(:)
+ print*, 'mLayerVolFracLiq ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(:)
+ print*, 'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
+ print*, 'scalarCanopyIce  ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(:) 
+ print*, 'scalarCanopyLiq  ', mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(:)
+ print*, 'scalarCanopyTemp ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(:)
+ print*, 'scalarSnowAlbedo ', mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(:)
+ print*, 'scalarSnowDepth  ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(:)
+ print*, 'scalarSWE        ', mvar_data%var(iLookMVAR%scalarSWE)%dat(:)
+ print*, 'layerType        ', indx_data%var(iLookINDEX%layerType)%dat(:)
  print*,'****************************************************************************************'
  !pause
  end subroutine read_icond

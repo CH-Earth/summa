@@ -23,6 +23,7 @@ contains
  ! subroutines
  USE NOAHMP_ROUTINES,only:phenology         ! determine vegetation phenology
  USE canopySnow_module,only:canopySnow      ! compute interception and unloading of snow from the vegetation canopy
+ USE snowAlbedo_module,only:snowAlbedo      ! compute snow albedo
  USE newsnwfall_module,only:newsnwfall      ! compute new snowfall
  USE layerMerge_module,only:layerMerge      ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide    ! sub-divide layers if they are too thick
@@ -32,6 +33,13 @@ contains
   iterative,                      &         ! iterative
   nonIterative,                   &         ! non-iterative
   iterSurfEnergyBal                         ! iterate only on the surface energy balance
+ ! look-up values for the choice of canopy shortwave radiation method
+ USE mDecisions_module,only:      &
+  noah_mp,                        &         ! full Noah-MP implementation (including albedo)
+  CLM_2stream,                    &         ! CLM 2-stream model (see CLM documentation)
+  UEB_2stream,                    &         ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+  NL_scatter,                     &         ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+  BeersLaw                                  ! Beer's Law (as implemented in VIC)
  USE multiconst,only:&
                      Tfreeze,     &         ! temperature at freezing              (K)
                      LH_fus,      &         ! latent heat of fusion                (J kg-1)
@@ -292,6 +300,41 @@ contains
 
   ! initialize maximum canopy liquid water (kg m-2)
   mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
+
+  ! compute the snow albedo
+  ! NOTE: albedo is computed within the Noah-MP radiation routine
+  if(model_decisions(iLookDECISIONS%canopySrad)%iDecision /= noah_mp)then
+   call snowAlbedo(&
+                   ! input: model control
+                   dt_sub,                                                 & ! intent(in): model time step
+                   (nSnow > 0),                                            & ! intent(in): logical flag to denote if snow is present
+                   model_decisions(iLookDECISIONS%alb_method)%iDecision,   & ! intent(in): index of method used for snow albedo
+                   ! input: model variables
+                   mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),         & ! intent(in): snowfall rate (kg m-2 s-1)
+                   mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),             & ! intent(in): surface temperature
+                   mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1),        & ! intent(in): cosine of the zenith angle (-)
+                   ! input: model parameters
+                   mpar_data%var(iLookPARAM%Frad_vis),                     & ! intent(in): fraction of radiation in visible part of spectrum (-)
+                   mpar_data%var(iLookPARAM%Frad_direct),                  & ! intent(in): fraction direct solar radiation (-)
+                   mpar_data%var(iLookPARAM%albedoMax),                    & ! intent(in): maximum snow albedo for a single spectral band (-)
+                   mpar_data%var(iLookPARAM%albedoMinWinter),              & ! intent(in): minimum snow albedo during winter for a single spectral band (-)
+                   mpar_data%var(iLookPARAM%albedoMinSpring),              & ! intent(in): minimum snow albedo during spring for a single spectral band (-)
+                   mpar_data%var(iLookPARAM%albedoMaxVisible),             & ! intent(in): maximum snow albedo in the visible part of the spectrum (-)
+                   mpar_data%var(iLookPARAM%albedoMinVisible),             & ! intent(in): minimum snow albedo in the visible part of the spectrum (-)
+                   mpar_data%var(iLookPARAM%albedoMaxNearIR),              & ! intent(in): maximum snow albedo in the near infra-red part of the spectrum (-)
+                   mpar_data%var(iLookPARAM%albedoMinNearIR),              & ! intent(in): minimum snow albedo in the near infra-red part of the spectrum (-)
+                   mpar_data%var(iLookPARAM%albedoDecayRate),              & ! intent(in): albedo decay rate (s)
+                   mpar_data%var(iLookPARAM%tempScalGrowth),               & ! intent(in): temperature scaling factor for grain growth (K-1) 
+                   mpar_data%var(iLookPARAM%albedoSootLoad),               & ! intent(in): soot load factor (-)
+                   mpar_data%var(iLookPARAM%albedoRefresh),                & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
+                   mpar_data%var(iLookPARAM%snowfrz_scale),                & ! intent(in): scaling parameter for the freezing curve for snow (K-1) 
+                   ! output
+                   mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat, & ! intent(inout): direct snow albedo in each spectral band (-)
+                   mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat,  & ! intent(inout): direct snow albedo in each spectral band (-)
+                   mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1),       & ! intent(inout): snow albedo for the entire spectral band (-)
+                   err,message)                                              ! intent(out): error control
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  endif  ! (if NOT using the Noah-MP radiation routine)
 
   ! **
   ! NOTE: add new snowfall and layer divide/combine here, as vector length changes

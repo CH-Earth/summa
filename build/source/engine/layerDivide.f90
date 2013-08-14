@@ -1,9 +1,23 @@
 module layerDivide_module
 USE nrtype
+
 ! define look-up values for the choice of method to combine and sub-divide snow layers
 USE mDecisions_module,only:&
- sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
- rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
+ sameRulesAllLayers,       & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+ rulesDependLayerIndex       ! CLM option: combination/sub-dividion rules depend on layer index
+
+! define look-up values for the choice of canopy shortwave radiation method
+USE mDecisions_module,only:&
+ noah_mp,                  & ! full Noah-MP implementation (including albedo)
+ CLM_2stream,              & ! CLM 2-stream model (see CLM documentation)
+ UEB_2stream,              & ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+ NL_scatter,               & ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+ BeersLaw                    ! Beer's Law (as implemented in VIC)
+
+! define look-up values for the choice of albedo method
+USE mDecisions_module,only:& ! identify model options for snow albedo
+ constantDecay,            & ! constant decay in snow albedo (e.g., VIC, CLASS)
+ variableDecay               ! variable decay in snow albedo (e.g., BATS approach, with destructive metamorphism + soot content)
 
 implicit none
 private
@@ -96,6 +110,9 @@ contains
  real(dp)                            :: volFracWater             ! volumetric fraction of total water, liquid and ice (-)
  real(dp)                            :: fracLiq                  ! fraction of liquid water (-)
  real(dp),parameter                  :: fracTop=0.5_dp           ! fraction of old layer used for the top layer
+ integer(i4b),parameter              :: ixVisible=1              ! named variable to define index in array of visible part of the spectrum
+ integer(i4b),parameter              :: ixNearIR=2               ! named variable to define index in array of near IR part of the spectrum
+
  ! initialize error control
  err=0; message="layerDivide/"
  ! assign pointers to model parameters (new snow density)
@@ -166,6 +183,23 @@ contains
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_ice  ! volumetric fraction of total water (liquid and ice)
    mLayerVolFracIce(1) = (1._dp - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
    mLayerVolFracLiq(1) =          fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
+   ! initialize albedo
+   ! NOTE: albedo is computed within the Noah-MP radiation routine
+   if(model_decisions(iLookDECISIONS%canopySrad)%iDecision /= noah_mp)then
+    select case(model_decisions(iLookDECISIONS%alb_method)%iDecision)
+     ! (constant decay rate -- albedo the same for all spectral bands)
+     case(constantDecay)
+      mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)          = mpar_data%var(iLookPARAM%albedoMax)
+      mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(:) = mpar_data%var(iLookPARAM%albedoMax)
+     ! (variable decay rate)
+     case(variableDecay)
+      mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(ixVisible) = mpar_data%var(iLookPARAM%albedoMaxVisible)
+      mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(ixNearIR)  = mpar_data%var(iLookPARAM%albedoMaxNearIR)
+      mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)                  = (        mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxVisible) + &
+                                                                          (1._dp - mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxNearIR)
+     case default; err=20; message=trim(message)//'unable to identify option for snow albedo'; return
+    end select  ! identify option for snow albedo
+   endif  ! (if NOT using the Noah-MP radiation routine)
    ! check
    do kLayer=1,nLayers
     write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)

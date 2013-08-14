@@ -54,9 +54,10 @@ contains
   case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (21) choice of compaction routine
   case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (22) choice of method to combine and sub-divide snow layers
   case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (23) choice of thermal conductivity representation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (24) choice of albedo representation
-  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (25) choice of method for spatial representation of groundwater
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (26) choice of method for sub-grid routing
+  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (24) choice of method for canopy shortwave radiation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (25) choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (26) choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (27) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -196,13 +197,16 @@ contains
   ! freezing curve for snow
   case('snowfrz_scale'       ); get_ixparam = iLookPARAM%snowfrz_scale        ! scaling parameter for the freezing curve for snow (K-1)
   ! snow albedo
-  case('snw_crit'            ); get_ixparam = iLookPARAM%snw_crit             ! critical mass necessary for albedo refreshment (kg m-2)
-  case('alb_fresh'           ); get_ixparam = iLookPARAM%alb_fresh            ! fresh snow albedo (-)
-  case('alb_dry'             ); get_ixparam = iLookPARAM%alb_dry              ! minimum snow albedo during winter (-)
-  case('alb_wet'             ); get_ixparam = iLookPARAM%alb_wet              ! minimum snow albedo during spring (-)
-  case('alb_decay'           ); get_ixparam = iLookPARAM%alb_decay            ! temporal decay factor for snow albedo (s-1)
-  case('alb_scale'           ); get_ixparam = iLookPARAM%alb_scale            ! albedo scaling factor (s)
-  case('soot_load'           ); get_ixparam = iLookPARAM%soot_load            ! temporal decay in snow albedo associated with the soot load (days-1)
+  case('albedoMax'           ); get_ixparam = iLookPARAM%albedoMax            ! maximum snow albedo for a single spectral band (-)
+  case('albedoMinWinter'     ); get_ixparam = iLookPARAM%albedoMinWinter      ! minimum snow albedo during winter for a single spectral band (-)
+  case('albedoMinSpring'     ); get_ixparam = iLookPARAM%albedoMinSpring      ! minimum snow albedo during spring for a single spectral band (-)
+  case('albedoMaxVisible'    ); get_ixparam = iLookPARAM%albedoMaxVisible     ! maximum snow albedo in the visible part of the spectrum (-)
+  case('albedoMinVisible'    ); get_ixparam = iLookPARAM%albedoMinVisible     ! minimum snow albedo in the visible part of the spectrum (-)
+  case('albedoMaxNearIR'     ); get_ixparam = iLookPARAM%albedoMaxNearIR      ! maximum snow albedo in the near infra-red part of the spectrum (-)
+  case('albedoMinNearIR'     ); get_ixparam = iLookPARAM%albedoMinNearIR      ! minimum snow albedo in the near infra-red part of the spectrum (-)
+  case('albedoDecayRate'     ); get_ixparam = iLookPARAM%albedoDecayRate      ! albedo decay rate (s)
+  case('albedoSootLoad'      ); get_ixparam = iLookPARAM%albedoSootLoad       ! soot load factor (-)
+  case('albedoRefresh'       ); get_ixparam = iLookPARAM%albedoRefresh        ! critical mass necessary for albedo refreshment (kg m-2)
   ! radiation transfer
   case('radExt_snow'         ); get_ixparam = iLookPARAM%radExt_snow          ! extinction coefficient for radiation penetration within the snowpack (m-1)
   case('Frad_direct'         ); get_ixparam = iLookPARAM%Frad_direct          ! fraction of direct radiation (-)
@@ -356,8 +360,10 @@ contains
   case('scalarCanopyIce'                ); get_ixmvar = iLookMVAR%scalarCanopyIce                  ! mass of ice on the vegetation canopy (kg m-2)
   case('scalarCanopyLiq'                ); get_ixmvar = iLookMVAR%scalarCanopyLiq                  ! mass of liquid water on the vegetation canopy (kg m-2)
   case('scalarCanopyTemp'               ); get_ixmvar = iLookMVAR%scalarCanopyTemp                 ! temperature of the vegetation canopy (K)
-  case('scalarAlbedo'                   ); get_ixmvar = iLookMVAR%scalarAlbedo                     ! albedo of the surface, soil or snow (-)
   case('scalarSnowAge'                  ); get_ixmvar = iLookMVAR%scalarSnowAge                    ! non-dimensional snow age (-)
+  case('scalarSnowAlbedo'               ); get_ixmvar = iLookMVAR%scalarSnowAlbedo                 ! snow albedo for the entire spectral band (-)
+  case('spectralSnowAlbedoDirect'       ); get_ixmvar = iLookMVAR%spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
+  case('spectralSnowAlbedoDiffuse'      ); get_ixmvar = iLookMVAR%spectralSnowAlbedoDiffuse        ! diffuse snow albedo for individual spectral bands (-)
   case('scalarSnowDepth'                ); get_ixmvar = iLookMVAR%scalarSnowDepth                  ! total snow depth (m)
   case('scalarSWE'                      ); get_ixmvar = iLookMVAR%scalarSWE                        ! snow water equivalent (kg m-2)
   case('scalarSfcMeltPond'              ); get_ixmvar = iLookMVAR%scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
@@ -388,8 +394,6 @@ contains
   case('placeholder1'                   ); get_ixmvar = iLookMVAR%placeholder1                     ! placeholder
   case('placeholder2'                   ); get_ixmvar = iLookMVAR%placeholder2                     ! placeholder
   case('placeholder3'                   ); get_ixmvar = iLookMVAR%placeholder3                     ! placeholder
-  case('placeholder4'                   ); get_ixmvar = iLookMVAR%placeholder4                     ! placeholder
-  case('placeholder5'                   ); get_ixmvar = iLookMVAR%placeholder5                     ! placeholder
   ! NOAH-MP vegetation variables (longwave radiation)
   case('scalarCanopyEmissivity'         ); get_ixmvar = iLookMVAR%scalarCanopyEmissivity           ! effective canopy emissivity (-)
   case('scalarLWRadCanopy'              ); get_ixmvar = iLookMVAR%scalarLWRadCanopy                ! longwave radiation emitted from the canopy (W m-2)

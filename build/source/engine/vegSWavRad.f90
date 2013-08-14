@@ -24,19 +24,23 @@ contains
  ! new subroutine: muster program to compute energy fluxes at vegetation and ground surfaces
  ! ************************************************************************************************
  subroutine vegSWavRad(&
-                       ! input
+                       ! input: model control
                        vegTypeIndex,                                       & ! intent(in): index of vegetation type
                        soilTypeIndex,                                      & ! intent(in): index of soil type
                        computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                       ! input: model variables
                        scalarCosZenith,                                    & ! intent(in): cosine of direct zenith angle (0-1)
                        spectralIncomingDirect,                             & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
                        spectralIncomingDiffuse,                            & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+                       spectralSnowAlbedoDirect,                           & ! intent(in): direct albedo of snow in each spectral band (-)
+                       spectralSnowAlbedoDiffuse,                          & ! intent(in): diffuse albedo of snow in each spectral band (-)
                        scalarExposedLAI,                                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
                        scalarExposedSAI,                                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
                        scalarVegFraction,                                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
                        scalarCanopyWetFraction,                            & ! intent(in): fraction of lai, sai that is wetted (-)
+                       scalarGroundSnowFraction,                           & ! intent(in): fraction of ground that is snow covered (-)
                        scalarVolFracLiqUpper,                              & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
-                       scalarCanopyTempTrial,                              & ! intent(in): canopy temperature (k)
+                       scalarCanopyTempTrial,                              & ! intent(in): canopy temperature (K)
                        ! output
                        scalarBelowCanopySolar,                             & ! intent(out): radiation transmitted below the canopy (W m-2)
                        scalarCanopyAbsorbedSolar,                          & ! intent(out): radiation absorbed by the vegetation canopy (W m-2)
@@ -59,10 +63,13 @@ contains
  real(dp),intent(in)            :: scalarCosZenith                           ! cosine of the solar zenith angle (0-1)
  real(dp),intent(in)            :: spectralIncomingDirect(:)                 ! incoming direct solar radiation in each wave band (w m-2)
  real(dp),intent(in)            :: spectralIncomingDiffuse(:)                ! incoming diffuse solar radiation in each wave band (w m-2)
+ real(dp),intent(in)            :: spectralSnowAlbedoDirect(:)               ! direct albedo of snow in each spectral band (-)
+ real(dp),intent(in)            :: spectralSnowAlbedoDiffuse(:)              ! diffuse albedo of snow in each spectral band (-)
  real(dp),intent(in)            :: scalarExposedLAI                          ! exposed leaf area index after burial by snow (m2 m-2)
  real(dp),intent(in)            :: scalarExposedSAI                          ! exposed stem area index after burial by snow (m2 m-2)
  real(dp),intent(in)            :: scalarVegFraction                         ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
- real(dp),intent(in)            :: scalarCanopyWetFraction                   ! fraction of canopy that is wet
+ real(dp),intent(in)            :: scalarCanopyWetFraction                   ! fraction of canopy that is wet (-)
+ real(dp),intent(in)            :: scalarGroundSnowFraction                  ! fraction of ground that is snow covered (-)
  real(dp),intent(in)            :: scalarVolFracLiqUpper                     ! volumetric liquid water content in the upper-most soil layer (-)
  real(dp),intent(in)            :: scalarCanopyTempTrial                     ! trial value of canopy temperature (K)
  ! output
@@ -125,12 +132,15 @@ contains
  ! compute the albedo of the ground surface
  call gndAlbedo(&
                 ! input
-                soilTypeIndex,                         &  ! intent(in): index of soil type
-                scalarVolFracLiqUpper,                 &  ! intent(in): volumetric liquid water content in upper-most soil layer (-)
+                soilTypeIndex,                         & ! intent(in): index of soil type
+                scalarGroundSnowFraction,              & ! intent(in): fraction of ground that is snow covered (-)
+                scalarVolFracLiqUpper,                 & ! intent(in): volumetric liquid water content in upper-most soil layer (-)
+                spectralSnowAlbedoDirect,              & ! intent(in): direct albedo of snow in each spectral band (-)
+                spectralSnowAlbedoDiffuse,             & ! intent(in): diffuse albedo of snow in each spectral band (-)
                 ! output
-                spectralAlbGndDirect,                  &  ! intent(out): direct  albedo of underlying surface (-)
-                spectralAlbGndDiffuse,                 &  ! intent(out): diffuse albedo of underlying surface (-)
-                err,message)                              ! intent(out): error control
+                spectralAlbGndDirect,                  & ! intent(out): direct  albedo of underlying surface (-)
+                spectralAlbGndDiffuse,                 & ! intent(out): diffuse albedo of underlying surface (-)
+                err,message)                             ! intent(out): error control
 
  ! initialize accumulated fluxes
  scalarBelowCanopySolar    = 0._dp  ! radiation transmitted below the canopy (W m-2)
@@ -139,11 +149,30 @@ contains
 
  ! check for an early return (no radiation or no exposed canopy)
  if(.not.computeVegFlux .or. scalarCosZenith < tiny(scalarCosZenith))then
+  ! set canopy radiation to zero
   scalarCanopySunlitFraction = 0._dp                ! sunlit fraction of canopy (-)
   scalarCanopySunlitLAI      = 0._dp                ! sunlit leaf area (-)
   scalarCanopyShadedLAI      = scalarExposedLAI     ! shaded leaf area (-)
   scalarCanopySunlitPAR      = 0._dp                ! average absorbed par for sunlit leaves (w m-2)
   scalarCanopyShadedPAR      = 0._dp                ! average absorbed par for shaded leaves (w m-2)
+  ! compute below-canopy radiation
+  do iBand=1,nBands
+   ! (set below-canopy radiation to incoming radiation)
+   if(scalarCosZenith > tiny(scalarCosZenith))then
+    spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)
+    spectralBelowCanopyDiffuse(iBand) = spectralIncomingDiffuse(iBand)
+   else
+    spectralBelowCanopyDirect(iBand)  = 0._dp 
+    spectralBelowCanopyDiffuse(iBand) = 0._dp
+   endif
+   ! (accumulate radiation transmitted below the canopy)
+   scalarBelowCanopySolar    = scalarBelowCanopySolar + &                                                  ! contribution from all previous wave bands
+                               spectralBelowCanopyDirect(iBand) + spectralBelowCanopyDiffuse(iBand)        ! contribution from current wave band
+   ! (accumulate radiation absorbed by the ground)
+   scalarGroundAbsorbedSolar = scalarGroundAbsorbedSolar + &                                               ! contribution from all previous wave bands
+                               spectralBelowCanopyDirect(iBand)*(1._dp - spectralAlbGndDirect(iBand)) + &  ! direct radiation from current wave band
+                               spectralBelowCanopyDiffuse(iBand)*(1._dp - spectralAlbGndDiffuse(iBand))    ! diffuse radiation from current wave band
+  end do  ! looping through wave bands
   return
  endif
 
@@ -277,16 +306,25 @@ contains
  ! *************************************************************************************************************************************
  subroutine gndAlbedo(&
                       ! input
-                      soilTypeIndex,                         &  ! intent(in): index of soil type
-                      scalarVolFracLiqUpper,                 &  ! intent(in): volumetric liquid water content in upper-most soil layer (-)
+                      soilTypeIndex,                         & ! intent(in): index of soil type
+                      scalarGroundSnowFraction,              & ! intent(in): fraction of ground that is snow covered (-)
+                      scalarVolFracLiqUpper,                 & ! intent(in): volumetric liquid water content in upper-most soil layer (-)
+                      spectralSnowAlbedoDirect,              & ! intent(in): direct albedo of snow in each spectral band (-)
+                      spectralSnowAlbedoDiffuse,             & ! intent(in): diffuse albedo of snow in each spectral band (-)
                       ! output
-                      spectralAlbGndDirect,                  &  ! intent(out): direct  albedo of underlying surface (-)
-                      spectralAlbGndDiffuse,                 &  ! intent(out): diffuse albedo of underlying surface (-)
-                      err,message)                              ! intent(out): error control
+                      spectralAlbGndDirect,                  & ! intent(out): direct  albedo of underlying surface (-)
+                      spectralAlbGndDiffuse,                 & ! intent(out): diffuse albedo of underlying surface (-)
+                      err,message)                             ! intent(out): error control
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! identify parameters for soil albedo
  USE NOAHMP_RAD_PARAMETERS, only: ALBSAT,ALBDRY  ! Noah-MP: saturated and dry soil albedos for each wave band
- ! input
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! input: model control
  integer(i4b),intent(in)        :: soilTypeIndex                ! index of soil type
+ real(dp),intent(in)            :: scalarGroundSnowFraction     ! fraction of ground that is snow covered (-)
  real(dp),intent(in)            :: scalarVolFracLiqUpper        ! volumetric liquid water content in upper-most soil layer (-)
+ real(dp),intent(in)            :: spectralSnowAlbedoDirect(:)  ! direct albedo of snow in each spectral band (-)
+ real(dp),intent(in)            :: spectralSnowAlbedoDiffuse(:) ! diffuse albedo of snow in each spectral band (-)
  ! output
  real(dp),intent(out)           :: spectralAlbGndDirect(:)      ! direct  albedo of underlying surface (-)
  real(dp),intent(out)           :: spectralAlbGndDiffuse(:)     ! diffuse albedo of underlying surface (-)
@@ -295,110 +333,23 @@ contains
  ! local variables
  integer(i4b)                   :: iBand                        ! index of spectral band
  real(dp)                       :: xInc                         ! soil water correction factor for soil albedo
- real(dp),dimension(1:nBands)   :: albSoilDirect                ! soil albedo (direct)
- real(dp),dimension(1:nBands)   :: albSoilDiffuse               ! soil albedo (diffuse)
+ real(dp),dimension(1:nBands)   :: spectralSoilAlbedo           ! soil albedo in each spectral band
  ! initialize error control
  err=0; message='gndAlbedo/'
 
  ! compute soil albedo
  do iBand=1,nBands   ! loop through spectral bands
   xInc = max(0.11_dp - 0.40_dp*scalarVolFracLiqUpper, 0._dp)
-  albSoilDirect(iBand)  = min(ALBSAT(soilTypeIndex,iBand)+xInc,ALBDRY(soilTypeIndex,iBand))
-  albSoilDiffuse(iBand) = albSoilDirect(iBand)
+  spectralSoilAlbedo(iBand)  = min(ALBSAT(soilTypeIndex,iBand)+xInc,ALBDRY(soilTypeIndex,iBand))
  end do  ! (looping through spectral bands)
-
- ! 
-
 
  ! compute surface albedo (weighted combination of snow and soil)
  do iBand=1,nBands
-  spectralAlbGndDirect(iBand)  = albSoilDirect(iBand)
-  spectralAlbGndDiffuse(iBand) = albSoilDiffuse(iBand)
+  spectralAlbGndDirect(iBand)  = (1._dp - scalarGroundSnowFraction)*spectralSoilAlbedo(iBand)  + scalarGroundSnowFraction*spectralSnowAlbedoDirect(iBand)
+  spectralAlbGndDiffuse(iBand) = (1._dp - scalarGroundSnowFraction)*spectralSoilAlbedo(iBand)  + scalarGroundSnowFraction*spectralSnowAlbedoDiffuse(iBand)
  end do  ! (looping through spectral bands)
 
  end subroutine gndAlbedo
-
-
- ! *************************************************************************************************************************************
- ! ***** PRIVATE SUBROUTINE: SNOW_AGE: compute "aging" of the snow surface
- ! *************************************************************************************************************************************
- SUBROUTINE SNOW_AGE (DT,TG,SNEQVO,SNEQV,TAUSS,FAGE)
- ! NOTE: modified from Noah-MP to make parameters visible
- implicit none
- real(dp),intent(in)                   :: dt              ! length of sub-step
- 
-
-
-! --------------------------------------------------------------------------------------------------
-  IMPLICIT NONE
-! ------------------------ code history ------------------------------------------------------------
-! from BATS
-! ------------------------ input/output variables --------------------------------------------------
-!input
-   REAL, INTENT(IN) :: DT        !main time step (s)
-   REAL, INTENT(IN) :: TG        !ground temperature (k)
-   REAL, INTENT(IN) :: SNEQVO    !snow mass at last time step(mm)
-   REAL, INTENT(IN) :: SNEQV     !snow water per unit ground area (mm)
-
-!output
-   REAL, INTENT(OUT) :: FAGE     !snow age
-
-!input/output
-   REAL, INTENT(INOUT) :: TAUSS      !non-dimensional snow age
-!local
-   REAL            :: TAGE       !total aging effects
-   REAL            :: AGE1       !effects of grain growth due to vapor diffusion
-   REAL            :: AGE2       !effects of grain growth at freezing of melt water
-   REAL            :: AGE3       !effects of soot
-   REAL            :: DELA       !temporary variable
-   REAL            :: SGE        !temporary variable
-   REAL            :: DELS       !temporary variable
-   REAL            :: DELA0      !temporary variable
-   REAL            :: ARG        !temporary variable
-! See Yang et al. (1997) J.of Climate for detail.
-!---------------------------------------------------------------------------------------------------
-
-
-  integer(i4b)    :: snw_crit             = 11  ! critical mass necessary for albedo refreshment (kg m-2)
-  integer(i4b)    :: alb_fresh            = 12  ! fresh snow albedo (-)
-  integer(i4b)    :: alb_dry              = 13  ! minimum snow albedo during winter (-)
-  integer(i4b)    :: alb_wet              = 14  ! minimum snow albedo during spring (-)
-  integer(i4b)    :: alb_decay            = 15  ! temporal decay factor for snow albedo (s-1)
-  integer(i4b)    :: alb_scale            = 16  ! albedo scaling factor (s)
-  integer(i4b)    :: soot_load            = 17  ! temporal decay in snow albedo associated with the soot load (days-1)
-
-
-  ! snow-free case
-  if(scalarSWE < tiny(scalarSWE))then
-   tauss = 0._dp
-
-  ! snow-covered case
-  else
-
-   ! compute aging factors
-   AGE1  = EXP(5000._dp*(1._dp/Tfreeze - 1._dp/scalarGroundTemp))  ! effects of grain growth due to vapor diffusion
-   AGE2  = min(AGE1**10._dp, 1._dp)                                ! additional effects of grain growth at or near the freezing point
-   AGE3  = soot_load                                               ! effects of dirt and soot 
-   TAGE  = AGE1+AGE2+AGE3                                          ! total aging factor
-
-   ! compute increase in aging
-   DELA  = TAGE*dt/alb_scale       ! aging effects
-   DELS  = scalarSnowfall/snw_crit ! accumulation effects
-   SGE   = (TAUSS + DELA)*(1._dp - DELS)  
-   TAUSS = max(0._dp, SGE)
-  
-  endif  ! if snow-covered
-
-  ! compute snow-age factor
-  FAGE = TAUSS / (TAUSS + 1._dp)
-
-  END SUBROUTINE SNOW_AGE
-
-
-
-
-
-
 
 
 end module vegSWavRad_module

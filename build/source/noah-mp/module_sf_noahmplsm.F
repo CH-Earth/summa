@@ -487,7 +487,8 @@ MODULE NOAHMP_ROUTINES
   private ::       THERMOPROP
   private ::               CSNOW
   private ::               TDFCND
-  private ::       RADIATION
+  !private ::       RADIATION
+  public ::       RADIATION
   private ::               ALBEDO
   private ::                         SNOW_AGE
   private ::                         SNOWALB_BATS  
