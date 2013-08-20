@@ -274,6 +274,8 @@ contains
                         mvar_data%var(iLookMVAR%scalarCanopyShadedLAI)%dat(1),             & ! intent(inout): shaded leaf area (-)
                         mvar_data%var(iLookMVAR%scalarCanopySunlitPAR)%dat(1),             & ! intent(inout): average absorbed par for sunlit leaves (w m-2)
                         mvar_data%var(iLookMVAR%scalarCanopyShadedPAR)%dat(1),             & ! intent(inout): average absorbed par for shaded leaves (w m-2)
+                        mvar_data%var(iLookMVAR%spectralBelowCanopyDirect)%dat,            & ! intent(inout): downward direct flux below veg layer for each spectral band  W m-2)
+                        mvar_data%var(iLookMVAR%spectralBelowCanopyDiffuse)%dat,           & ! intent(inout): downward diffuse flux below veg layer for each spectral band (W m-2)
                         mvar_data%var(iLookMVAR%scalarBelowCanopySolar)%dat(1),            & ! intent(inout): solar radiation transmitted below the canopy (W m-2)
                         mvar_data%var(iLookMVAR%scalarCanopyAbsorbedSolar)%dat(1),         & ! intent(inout): solar radiation absorbed by canopy (W m-2)
                         mvar_data%var(iLookMVAR%scalarGroundAbsorbedSolar)%dat(1),         & ! intent(inout): solar radiation absorbed by ground (W m-2)
@@ -479,6 +481,8 @@ contains
                               scalarCanopyShadedLAI,             & ! intent(inout): shaded leaf area (-)
                               scalarCanopySunlitPAR,             & ! intent(inout): average absorbed par for sunlit leaves (w m-2)
                               scalarCanopyShadedPAR,             & ! intent(inout): average absorbed par for shaded leaves (w m-2)
+                              spectralBelowCanopyDirect,         & ! intent(inout): downward direct flux below veg layer for each spectral band  W m-2)
+                              spectralBelowCanopyDiffuse,        & ! intent(inout): downward diffuse flux below veg layer for each spectral band (W m-2)
                               scalarBelowCanopySolar,            & ! intent(inout): radiation transmitted below the canopy (W m-2)
                               scalarCanopyAbsorbedSolar,         & ! intent(inout): solar radiation absorbed by canopy (W m-2)
                               scalarGroundAbsorbedSolar,         & ! intent(inout): solar radiation absorbed by ground (W m-2)
@@ -677,6 +681,8 @@ contains
  real(dp),intent(inout)         :: scalarCanopyShadedLAI           ! shaded leaf area (-)
  real(dp),intent(inout)         :: scalarCanopySunlitPAR           ! average absorbed par for sunlit leaves (w m-2)
  real(dp),intent(inout)         :: scalarCanopyShadedPAR           ! average absorbed par for shaded leaves (w m-2)
+ real(dp),intent(inout)         :: spectralBelowCanopyDirect(:)    ! downward direct flux below veg layer for each spectral band  W m-2)
+ real(dp),intent(inout)         :: spectralBelowCanopyDiffuse(:)   ! downward diffuse flux below veg layer for each spectral band (W m-2)
  real(dp),intent(inout)         :: scalarBelowCanopySolar          ! solar radiation transmitted below the canopy (W m-2)
  real(dp),intent(inout)         :: scalarCanopyAbsorbedSolar       ! solar radiation absorbed by canopy (W m-2)
  real(dp),intent(inout)         :: scalarGroundAbsorbedSolar       ! solar radiation absorbed by ground (W m-2)
@@ -1034,6 +1040,7 @@ contains
                     vegTypeIndex,                                       & ! intent(in): index of vegetation type
                     soilTypeIndex,                                      & ! intent(in): index of soil type
                     computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                    ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
                     ! input: model variables
                     scalarCosZenith,                                    & ! intent(in): cosine of direct zenith angle (0-1)
                     spectralIncomingDirect(1:nBands),                   & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
@@ -1048,6 +1055,8 @@ contains
                     mLayerVolFracLiq(1),                                & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
                     canopyTempTrial,                                    & ! intent(in): canopy temperature (k)
                     ! output
+                    spectralBelowCanopyDirect,                          & ! intent(out): downward direct flux below veg layer for each spectral band  W m-2)
+                    spectralBelowCanopyDiffuse,                         & ! intent(out): downward diffuse flux below veg layer for each spectral band (W m-2)
                     scalarBelowCanopySolar,                             & ! intent(out): solar radiation transmitted below the canopy (W m-2)
                     scalarCanopyAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the vegetation canopy (W m-2)
                     scalarGroundAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the ground (W m-2)

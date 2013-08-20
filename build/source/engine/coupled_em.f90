@@ -332,7 +332,7 @@ contains
                    mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat, & ! intent(inout): direct snow albedo in each spectral band (-)
                    mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat,  & ! intent(inout): direct snow albedo in each spectral band (-)
                    mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1),       & ! intent(inout): snow albedo for the entire spectral band (-)
-                   err,message)                                              ! intent(out): error control
+                   err,cmessage)                                             ! intent(out): error control
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
   endif  ! (if NOT using the Noah-MP radiation routine)
 

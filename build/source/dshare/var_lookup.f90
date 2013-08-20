@@ -279,12 +279,12 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyShadedLAI           = 54  ! shaded leaf area (-)
   integer(i4b)    :: scalarCanopySunlitPAR           = 55  ! average absorbed par for sunlit leaves (w m-2)
   integer(i4b)    :: scalarCanopyShadedPAR           = 56  ! average absorbed par for shaded leaves (w m-2)
-  integer(i4b)    :: scalarBelowCanopySolar          = 57  ! solar radiation transmitted below the canopy (W m-2)
-  integer(i4b)    :: scalarCanopyAbsorbedSolar       = 58  ! solar radiation absorbed by canopy (W m-2)
-  integer(i4b)    :: scalarGroundAbsorbedSolar       = 59  ! solar radiation absorbed by ground (W m-2)
-  integer(i4b)    :: placeholder1                    = 60  ! placeholder
-  integer(i4b)    :: placeholder2                    = 61  ! placeholder
-  integer(i4b)    :: placeholder3                    = 62  ! placeholder
+  integer(i4b)    :: spectralBelowCanopyDirect       = 57  ! downward direct flux below veg layer for each spectral band  W m-2)
+  integer(i4b)    :: spectralBelowCanopyDiffuse      = 58  ! downward diffuse flux below veg layer for each spectral band (W m-2)
+  integer(i4b)    :: scalarBelowCanopySolar          = 59  ! solar radiation transmitted below the canopy (W m-2)
+  integer(i4b)    :: scalarCanopyAbsorbedSolar       = 60  ! solar radiation absorbed by canopy (W m-2)
+  integer(i4b)    :: scalarGroundAbsorbedSolar       = 61  ! solar radiation absorbed by ground (W m-2)
+  integer(i4b)    :: placeholder1                    = 62  ! placeholder
   ! define NOAH-MP vegetation variables -- longwave radiation
   integer(i4b)    :: scalarCanopyEmissivity          = 63  ! effective canopy emissivity (-)
   integer(i4b)    :: scalarLWRadCanopy               = 64  ! longwave radiation emitted from the canopy (W m-2)

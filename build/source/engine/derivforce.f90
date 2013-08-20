@@ -131,7 +131,8 @@ contains
  ! check that we don't have considerable shortwave when the zenith angle is low
  ! NOTE: this is likely because the data are not in local time
  if(cosZenith < epsilon(cosZenith) .and. SWRadAtm > 10._dp)then
-  message=trim(message)//'SWRadAtm > 10 W m-2 when cos zenith angle is zero -- check that data are in local time'
+  message=trim(message)//'SWRadAtm > 10 W m-2 when cos zenith angle is zero -- check that forcing data are in local time'&
+                         ' and that the time stamp in forcing data is at the end of the data interval'
   err=20; return
  endif
  ! ensure solar radiation is zero between sunset and sunrise
