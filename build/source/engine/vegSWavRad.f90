@@ -54,6 +54,9 @@ contains
                        spectralBelowCanopyDirect,                          & ! intent(out): downward direct flux below veg layer (W m-2)
                        spectralBelowCanopyDiffuse,                         & ! intent(out): downward diffuse flux below veg layer (W m-2)
                        scalarBelowCanopySolar,                             & ! intent(out): radiation transmitted below the canopy (W m-2)
+                       spectralAlbGndDirect,                               & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
+                       spectralAlbGndDiffuse,                              & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
+                       scalarGroundAlbedo,                                 & ! intent(out): albedo of the ground surface (-)
                        scalarCanopyAbsorbedSolar,                          & ! intent(out): radiation absorbed by the vegetation canopy (W m-2)
                        scalarGroundAbsorbedSolar,                          & ! intent(out): radiation absorbed by the ground (W m-2)
                        scalarCanopySunlitFraction,                         & ! intent(out): sunlit fraction of canopy (-)
@@ -90,6 +93,9 @@ contains
  real(dp),intent(out)           :: spectralBelowCanopyDirect(:)              ! downward direct flux below veg layer (W m-2)
  real(dp),intent(out)           :: spectralBelowCanopyDiffuse(:)             ! downward diffuse flux below veg layer (W m-2)
  real(dp),intent(out)           :: scalarBelowCanopySolar                    ! radiation transmitted below the canopy (W m-2)
+ real(dp),intent(out)           :: spectralAlbGndDirect(:)                   ! direct  albedo of underlying surface (1:nBands) (-)
+ real(dp),intent(out)           :: spectralAlbGndDiffuse(:)                  ! diffuse albedo of underlying surface (1:nBands) (-)
+ real(dp),intent(out)           :: scalarGroundAlbedo                        ! albedo of the ground surface (-)
  real(dp),intent(out)           :: scalarCanopyAbsorbedSolar                 ! radiation absorbed by the vegetation canopy (W m-2)
  real(dp),intent(out)           :: scalarGroundAbsorbedSolar                 ! radiation absorbed by the ground (W m-2)
  real(dp),intent(out)           :: scalarCanopySunlitFraction                ! sunlit fraction of canopy (-)
@@ -108,16 +114,12 @@ contains
  integer(i4b)                          :: iBand                              ! index of wave band
  integer(i4b)                          :: ic                                 ! 0=unit incoming direct; 1=unit incoming diffuse
  character(LEN=256)                    :: cmessage                           ! error message of downwind routine
- ! albedo
- real(dp),dimension(1:nBands)          :: spectralAlbGndDirect               ! direct  albedo of underlying surface (1:nBands) (-)
- real(dp),dimension(1:nBands)          :: spectralAlbGndDiffuse              ! diffuse albedo of underlying surface (1:nBands) (-)
  ! variables used in Nijssen-Lettenmaier method
  real(dp),parameter                    :: multScatExp=0.81_dp                ! multiple scattering exponent (-)
  real(dp),parameter                    :: bulkCanopyAlbedo=0.25_dp           ! bulk canopy albedo (-), smaller than actual canopy albedo because of shading in the canopy
  real(dp),dimension(1:nBands)          :: spectralIncomingSolar              ! total incoming solar radiation in each spectral band (W m-2)
  real(dp),dimension(1:nBands)          :: spectralGroundAbsorbedDirect       ! total direct radiation absorbed at the ground surface (W m-2)
  real(dp),dimension(1:nBands)          :: spectralGroundAbsorbedDiffuse      ! total diffuse radiation absorbed at the ground surface (W m-2)
- real(dp)                              :: scalarGroundAlbedo                 ! albedo of the ground surface (-)
  real(dp)                              :: fractionSolarReflected             ! fraction of solar radiation reflected (-)
  real(dp)                              :: Fdirect                            ! fraction of direct radiation (-)
  real(dp)                              :: tauInitial                         ! transmission in the absence of scattering and multiple reflections (-)
@@ -140,6 +142,8 @@ contains
  real(dp)                              :: taudFinite                         ! diffuse transmission for a finite canopy (-)
  real(dp)                              :: betadFinite                        ! diffuse reflectance for a finite canopy (-)
  real(dp)                              :: refMult                            ! multiple reflection factor (-)
+ real(dp)                              :: fracRadAbsDown                     ! fraction of radiation absorbed by vegetation on the way down
+ real(dp)                              :: fracRadAbsUp                       ! fraction of radiation absorbed by vegetation on the way up
  real(dp)                              :: tauDirect                          ! total transmission of direct radiation (-)
  real(dp)                              :: tauDiffuse                         ! total transmission of diffuse radiation (-)
  real(dp)                              :: fractionRefDirect                  ! fraction of direct radiaiton lost to space (-)
@@ -178,6 +182,8 @@ contains
  real(dp)                              :: fractionLAI                        ! fraction of vegetation that is leaves
  real(dp)                              :: visibleAbsDirect                   ! direct-beam radiation absorbed in the visible part of the spectrum (W m-2)
  real(dp)                              :: visibleAbsDiffuse                  ! diffuse radiation absorbed in the visible part of the spectrum (W m-2)
+
+
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='vegSWavRad/'
@@ -193,7 +199,8 @@ contains
                 ! output
                 spectralAlbGndDirect,                  & ! intent(out): direct  albedo of underlying surface (-)
                 spectralAlbGndDiffuse,                 & ! intent(out): diffuse albedo of underlying surface (-)
-                err,message)                             ! intent(out): error control
+                err,cmessage)                             ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! initialize accumulated fluxes
  scalarBelowCanopySolar    = 0._dp  ! radiation transmitted below the canopy (W m-2)
@@ -240,6 +247,102 @@ contains
  select case(ix_canopySrad)
 
   ! -----------------------------------------------------------------------------------------------------------------------------------------------------------
+  ! Beer's Law
+  case(BeersLaw)
+
+   ! define transmission coefficient (-)
+   scalarGproj = gProjParam
+   transCoef   = scalarGproj/scalarCosZenith
+
+   ! compute transmission of direct radiation according to Beer's Law (-)
+   tauTotal = exp(-transCoef*scalarExposedVAI)
+   !print*, 'tauTotal = ', tauTotal
+
+   ! compute ground albedo (-)
+   groundAlbedoDirect  = Frad_vis*spectralAlbGndDirect(ixVisible)  + (1._dp - Frad_vis)*spectralAlbGndDirect(ixNearIR)
+   groundAlbedoDiffuse = Frad_vis*spectralAlbGndDiffuse(ixVisible) + (1._dp - Frad_vis)*spectralAlbGndDiffuse(ixNearIR)
+
+   ! compute radiation in each spectral band (W m-2)
+   do iBand=1,nBands
+
+    ! compute total incoming solar radiation
+    spectralIncomingSolar(iBand) = spectralIncomingDirect(iBand) + spectralIncomingDiffuse(iBand)
+
+    ! compute fraction of direct radiation
+    Fdirect = spectralIncomingDirect(iBand) / (spectralIncomingSolar(iBand) + verySmall)
+    if(Fdirect < 0._dp .or. Fdirect > 1._dp)then
+     print*, 'spectralIncomingDirect(iBand) = ', spectralIncomingDirect(iBand)
+     print*, 'spectralIncomingSolar(iBand)  = ', spectralIncomingSolar(iBand)
+     print*, 'Fdirect = ', Fdirect
+     message=trim(message)//'BeersLaw: Fdirect is less than zero or greater than one'
+     err=20; return
+    endif
+
+    ! compute ground albedo (-)
+    scalarGroundAlbedo  = Fdirect*groundAlbedoDirect + (1._dp - Fdirect)*groundAlbedoDiffuse
+    if(scalarGroundAlbedo < 0._dp .or. scalarGroundAlbedo > 1._dp)then
+     print*, 'groundAlbedoDirect = ',  groundAlbedoDirect
+     print*, 'groundAlbedoDiffuse = ', groundAlbedoDiffuse
+     message=trim(message)//'BeersLaw: albedo is less than zero or greater than one'
+     err=20; return
+    endif
+
+    ! compute below-canopy radiation (W m-2)
+    spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)*tauTotal              ! direct radiation from current wave band
+    spectralBelowCanopyDiffuse(iBand) = spectralIncomingDiffuse(iBand)*tauTotal             ! diffuse radiation from current wave band
+    spectralBelowCanopySolar(iBand)   = spectralBelowCanopyDirect(iBand) + spectralBelowCanopyDiffuse(iBand)
+
+    ! compute radiation absorbed by the ground in given wave band (W m-2)
+    spectralGroundAbsorbedDirect(iBand)  = (1._dp - scalarGroundAlbedo)*spectralBelowCanopyDirect(iBand)
+    spectralGroundAbsorbedDiffuse(iBand) = (1._dp - scalarGroundAlbedo)*spectralBelowCanopyDiffuse(iBand)
+    spectralGroundAbsorbedSolar(iBand)   = spectralGroundAbsorbedDirect(iBand) + spectralGroundAbsorbedDiffuse(iBand)
+
+    ! compute radiation absorbed by vegetation in current wave band (W m-2)
+    fracRadAbsDown = (1._dp - tauTotal)*(1._dp - bulkCanopyAlbedo)                            ! (fraction of radiation absorbed on the way down)
+    fracRadAbsUp   = tauTotal*scalarGroundAlbedo*(1._dp - tauTotal)   ! (fraction of radiation absorbed on the way up)
+    spectralCanopyAbsorbedDirect(iBand)  = spectralIncomingDirect(iBand)*(fracRadAbsDown + fracRadAbsUp)
+    spectralCanopyAbsorbedDiffuse(iBand) = spectralIncomingDiffuse(iBand)*(fracRadAbsDown + fracRadAbsUp)
+    spectralCanopyAbsorbedSolar(iBand)   = spectralCanopyAbsorbedDirect(iBand) + spectralCanopyAbsorbedDiffuse(iBand)
+    ! (check)
+    if(spectralCanopyAbsorbedDirect(iBand) > spectralIncomingDirect(iBand) .or. spectralCanopyAbsorbedDiffuse(iBand) > spectralIncomingDiffuse(iBand))then
+     print*, 'tauTotal = ', tauTotal
+     print*, 'bulkCanopyAlbedo = ', bulkCanopyAlbedo
+     print*, 'scalarGroundAlbedo = ', scalarGroundAlbedo
+     message=trim(message)//'BeersLaw: problem with the canopy radiation balance'
+     err=20; return
+    endif
+
+    ! compute solar radiation lost to space in given wave band (W m-2)
+    spectralTotalReflectedDirect(iBand)  = spectralIncomingDirect(iBand) - spectralGroundAbsorbedDirect(iBand) - spectralCanopyAbsorbedDirect(iBand)
+    spectralTotalReflectedDiffuse(iBand) = spectralIncomingDiffuse(iBand) - spectralGroundAbsorbedDiffuse(iBand) - spectralCanopyAbsorbedDiffuse(iBand)
+    spectralTotalReflectedSolar(iBand)   = spectralTotalReflectedDirect(iBand) + spectralTotalReflectedDiffuse(iBand)
+    if(spectralTotalReflectedDirect(iBand) < 0._dp .or. spectralTotalReflectedDiffuse(iBand) < 0._dp)then
+     print*, 'scalarGroundAlbedo = ', scalarGroundAlbedo
+     print*, 'tauTotal = ', tauTotal
+     print*, 'fracRadAbsDown = ', fracRadAbsDown
+     print*, 'fracRadAbsUp = ', fracRadAbsUp
+     print*, 'spectralBelowCanopySolar(iBand) = ', spectralBelowCanopySolar(iBand)
+     print*, 'spectralGroundAbsorbedSolar(iBand) = ', spectralGroundAbsorbedSolar(iBand)
+     print*, 'spectralCanopyAbsorbedSolar(iBand) = ', spectralCanopyAbsorbedSolar(iBand)
+     message=trim(message)//'BeersLaw: reflected radiation is less than zero'
+     err=20; return
+    endif
+
+    ! save canopy radiation absorbed in visible wavelengths
+    if(iBand == ixVisible)then
+     visibleAbsDirect  = spectralCanopyAbsorbedDirect(ixVisible)
+     visibleAbsDiffuse = spectralCanopyAbsorbedDiffuse(ixVisible)
+    endif
+
+    ! accumulate fluxes
+    scalarBelowCanopySolar    = scalarBelowCanopySolar + spectralBelowCanopySolar(iBand)
+    scalarGroundAbsorbedSolar = scalarGroundAbsorbedSolar + spectralGroundAbsorbedSolar(iBand)
+    scalarCanopyAbsorbedSolar = scalarCanopyAbsorbedSolar + spectralCanopyAbsorbedSolar(iBand)
+
+   end do  ! (looping through spectral bands)
+
+
+  ! -----------------------------------------------------------------------------------------------------------------------------------------------------------
   ! method of Nijssen and Lettenmaier (JGR, 1999)
   case(NL_scatter)
 
@@ -267,32 +370,36 @@ contains
 
     ! compute fraction of direct radiation
     Fdirect = spectralIncomingDirect(iBand) / (spectralIncomingSolar(iBand) + verySmall)
+    if(Fdirect < 0._dp .or. Fdirect > 1._dp)then
+     print*, 'spectralIncomingDirect(iBand) = ', spectralIncomingDirect(iBand)
+     print*, 'spectralIncomingSolar(iBand)  = ', spectralIncomingSolar(iBand)
+     print*, 'Fdirect = ', Fdirect
+     message=trim(message)//'NL_scatter: Fdirect is less than zero or greater than one'
+     err=20; return
+    endif
 
     ! compute ground albedo (-)
-    scalarGroundAlbedo = Fdirect*groundAlbedoDirect + (1._dp - Fdirect)*groundAlbedoDiffuse
+    scalarGroundAlbedo  = Fdirect*groundAlbedoDirect + (1._dp - Fdirect)*groundAlbedoDiffuse
+    if(scalarGroundAlbedo < 0._dp .or. scalarGroundAlbedo > 1._dp)then
+     print*, 'groundAlbedoDirect = ',  groundAlbedoDirect
+     print*, 'groundAlbedoDiffuse = ', groundAlbedoDiffuse
+     message=trim(message)//'NL_scatter: albedo is less than zero or greater than one'
+     err=20; return
+    endif
 
     ! compute initial transmission in the absence of scattering and multiple reflections (-)
     tauInitial = Fdirect*tauFinite + (1._dp - Fdirect)*taudFinite
 
-    ! compute increase in transmission due to scattering and multiple reflections (-)
-    tauTotal = (tauInitial**multScatExp)/(1._dp - scalarGroundAlbedo*bulkCanopyAlbedo)
+    ! compute increase in transmission due to scattering (-)
+    tauTotal = (tauInitial**multScatExp)
+
+    ! compute multiple reflections factor
+    refMult = 1._dp / (1._dp - scalarGroundAlbedo*bulkCanopyAlbedo*(1._dp - taudFinite**multScatExp) )
 
     ! compute below-canopy radiation (W m-2)
-    spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)*tauTotal              ! direct radiation from current wave band
-    spectralBelowCanopyDiffuse(iBand) = spectralIncomingDiffuse(iBand)*tauTotal             ! diffuse radiation from current wave band
+    spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)*tauTotal*refMult              ! direct radiation from current wave band
+    spectralBelowCanopyDiffuse(iBand) = spectralIncomingDiffuse(iBand)*tauTotal*refMult             ! diffuse radiation from current wave band
     spectralBelowCanopySolar(iBand)   = spectralBelowCanopyDirect(iBand) + spectralBelowCanopyDiffuse(iBand)
-
-    ! compute fraction of solar radiation reflected (-)
-    fractionSolarReflected = bulkCanopyAlbedo + tauTotal*scalarGroundAlbedo*taudFinite
-    if(fractionSolarReflected > 1._dp)then
-     message=trim(message)//'NL_scatter: fractionSolarReflected > 1'
-     err=20; return
-    endif
-
-    ! compute solar radiation lost to space in given wave band (W m-2)
-    spectralTotalReflectedDirect(iBand)  = spectralIncomingDirect(iBand)*fractionSolarReflected
-    spectralTotalReflectedDiffuse(iBand) = spectralIncomingDiffuse(iBand)*fractionSolarReflected
-    spectralTotalReflectedSolar(iBand)   = spectralTotalReflectedDirect(iBand) + spectralTotalReflectedDiffuse(iBand)
 
     ! compute radiation absorbed by the ground in given wave band (W m-2)
     spectralGroundAbsorbedDirect(iBand)  = (1._dp - scalarGroundAlbedo)*spectralBelowCanopyDirect(iBand)
@@ -300,9 +407,20 @@ contains
     spectralGroundAbsorbedSolar(iBand)   = spectralGroundAbsorbedDirect(iBand) + spectralGroundAbsorbedDiffuse(iBand)
 
     ! compute radiation absorbed by vegetation in current wave band (W m-2)
-    spectralCanopyAbsorbedDirect(iBand)  = spectralIncomingDirect(iBand) - spectralTotalReflectedDirect(iBand) - spectralGroundAbsorbedDirect(iBand)
-    spectralCanopyAbsorbedDiffuse(iBand) = spectralIncomingDiffuse(iBand) - spectralTotalReflectedDiffuse(iBand) - spectralGroundAbsorbedDiffuse(iBand)
+    fracRadAbsDown = (1._dp - tauTotal)*(1._dp - bulkCanopyAlbedo)                            ! (fraction of radiation absorbed on the way down)
+    fracRadAbsUp   = tauTotal*refMult*scalarGroundAlbedo*(1._dp - taudFinite**multScatExp)   ! (fraction of radiation absorbed on the way up)
+    spectralCanopyAbsorbedDirect(iBand)  = spectralIncomingDirect(iBand)*(fracRadAbsDown + fracRadAbsUp)
+    spectralCanopyAbsorbedDiffuse(iBand) = spectralIncomingDiffuse(iBand)*(fracRadAbsDown + fracRadAbsUp)
     spectralCanopyAbsorbedSolar(iBand)   = spectralCanopyAbsorbedDirect(iBand) + spectralCanopyAbsorbedDiffuse(iBand)
+
+    ! compute solar radiation lost to space in given wave band (W m-2)
+    spectralTotalReflectedDirect(iBand)  = spectralIncomingDirect(iBand) - spectralGroundAbsorbedDirect(iBand) - spectralCanopyAbsorbedDirect(iBand)
+    spectralTotalReflectedDiffuse(iBand) = spectralIncomingDiffuse(iBand) - spectralGroundAbsorbedDiffuse(iBand) - spectralCanopyAbsorbedDiffuse(iBand)
+    spectralTotalReflectedSolar(iBand)   = spectralTotalReflectedDirect(iBand) + spectralTotalReflectedDiffuse(iBand)
+    if(spectralTotalReflectedDirect(iBand) < 0._dp .or. spectralTotalReflectedDiffuse(iBand) < 0._dp)then
+     message=trim(message)//'NL-scatter: reflected radiation is less than zero'
+     err=20; return
+    endif
 
     ! save canopy radiation absorbed in visible wavelengths
     if(iBand == ixVisible)then
@@ -357,6 +475,8 @@ contains
 
    ! compute total transmission of direct and diffuse radiation, accounting for multiple reflections (-)
    refMult    = 1._dp / (1._dp - groundAlbedoDiffuse*betadFinite*(1._dp - taudFinite) )
+
+
    tauDirect  = tauFinite*refMult
    tauDiffuse = taudFinite*refMult
 
@@ -368,35 +488,35 @@ contains
    do iBand=1,nBands
 
     ! compute below-canopy radiation (W m-2)
-    spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)*tauDirect                ! direct radiation from current wave band
-    spectralBelowCanopyDiffuse(iBand) = spectralIncomingDiffuse(iBand)*tauDiffuse              ! diffuse radiation from current wave band
+    spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)*tauFinite*refMult                ! direct radiation from current wave band
+    spectralBelowCanopyDiffuse(iBand) = spectralIncomingDiffuse(iBand)*taudFinite*refMult              ! diffuse radiation from current wave band
     spectralBelowCanopySolar(iBand)   = spectralBelowCanopyDirect(iBand) + spectralBelowCanopyDiffuse(iBand)
 
-    ! compute solar radiation lost to space in given wave band (W m-2)
-    spectralTotalReflectedDirect(iBand)  = spectralIncomingDirect(iBand)*fractionRefDirect
-    spectralTotalReflectedDiffuse(iBand) = spectralIncomingDiffuse(iBand)*fractionRefDiffuse
-    spectralTotalReflectedSolar(iBand)   = spectralTotalReflectedDirect(iBand) + spectralTotalReflectedDiffuse(iBand)
-
     ! compute radiation absorbed by the ground in given wave band (W m-2)
-    spectralGroundAbsorbedDirect(iBand)  = (1._dp - groundAlbedoDirect)*refMult*spectralBelowCanopyDirect(iBand)
-    spectralGroundAbsorbedDiffuse(iBand) = (1._dp - groundAlbedoDiffuse)*refMult*spectralBelowCanopyDiffuse(iBand)
+    spectralGroundAbsorbedDirect(iBand)  = (1._dp - groundAlbedoDirect)*spectralBelowCanopyDirect(iBand)
+    spectralGroundAbsorbedDiffuse(iBand) = (1._dp - groundAlbedoDiffuse)*spectralBelowCanopyDiffuse(iBand)
     spectralGroundAbsorbedSolar(iBand)   = spectralGroundAbsorbedDirect(iBand) + spectralGroundAbsorbedDiffuse(iBand)
 
     ! compute radiation absorbed by vegetation in current wave band (W m-2)
-    spectralCanopyAbsorbedDirect(iBand)  = spectralIncomingDirect(iBand) - spectralTotalReflectedDirect(iBand) - spectralGroundAbsorbedDirect(iBand)
-    spectralCanopyAbsorbedDiffuse(iBand) = spectralIncomingDiffuse(iBand) - spectralTotalReflectedDiffuse(iBand) - spectralGroundAbsorbedDiffuse(iBand)
+    spectralCanopyAbsorbedDirect(iBand)  = spectralIncomingDirect(iBand)*(1._dp - tauFinite)*(1._dp - betaFinite) + &    ! (radiation absorbed on the way down)
+                                           spectralBelowCanopyDirect(iBand)*groundAlbedoDirect*(1._dp - taudFinite)      ! (radiation absorbed on the way up)
+    spectralCanopyAbsorbedDiffuse(iBand) = spectralIncomingDiffuse(iBand)*(1._dp - taudFinite)*(1._dp - betadFinite) + & ! (radiation absorbed on the way down)
+                                           spectralBelowCanopyDiffuse(iBand)*groundAlbedoDiffuse*(1._dp - taudFinite)    ! (radiation absorbed on the way up)
     spectralCanopyAbsorbedSolar(iBand)   = spectralCanopyAbsorbedDirect(iBand) + spectralCanopyAbsorbedDiffuse(iBand)
+
+    ! compute solar radiation lost to space in given wave band (W m-2)
+    spectralTotalReflectedDirect(iBand)  = spectralIncomingDirect(iBand) - spectralGroundAbsorbedDirect(iBand) - spectralCanopyAbsorbedDirect(iBand)
+    spectralTotalReflectedDiffuse(iBand) = spectralIncomingDiffuse(iBand) - spectralGroundAbsorbedDiffuse(iBand) - spectralCanopyAbsorbedDiffuse(iBand)
+    spectralTotalReflectedSolar(iBand)   = spectralTotalReflectedDirect(iBand) + spectralTotalReflectedDiffuse(iBand)
+    if(spectralTotalReflectedDirect(iBand) < 0._dp .or. spectralTotalReflectedDiffuse(iBand) < 0._dp)then
+     message=trim(message)//'UEB_2stream: reflected radiation is less than zero'
+     err=20; return
+    endif
 
     ! save canopy radiation absorbed in visible wavelengths
     if(iBand == ixVisible)then
      visibleAbsDirect  = spectralCanopyAbsorbedDirect(ixVisible)
      visibleAbsDiffuse = spectralCanopyAbsorbedDiffuse(ixVisible)
-    endif
-
-    ! check fluxes balance
-    if(spectralTotalReflectedSolar(iBand) + spectralGroundAbsorbedSolar(iBand) > spectralIncomingSolar(iBand))then
-     message=trim(message)//'UEB_2stream: total radiation reflected plus radiation absorbed at the ground surface > total incoming radiation'
-     err=20; return
     endif
 
     ! accumulate fluxes

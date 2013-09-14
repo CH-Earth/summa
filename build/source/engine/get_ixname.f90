@@ -391,9 +391,11 @@ contains
   case('spectralBelowCanopyDirect'      ); get_ixmvar = iLookMVAR%spectralBelowCanopyDirect        ! downward direct flux below veg layer for each spectral band  W m-2)
   case('spectralBelowCanopyDiffuse'     ); get_ixmvar = iLookMVAR%spectralBelowCanopyDiffuse       ! downward diffuse flux below veg layer for each spectral band (W m-2)
   case('scalarBelowCanopySolar'         ); get_ixmvar = iLookMVAR%scalarBelowCanopySolar           ! solar radiation transmitted below the canopy (W m-2)
+  case('spectralAlbGndDirect'           ); get_ixmvar = iLookMVAR%spectralAlbGndDirect             ! direct  albedo of underlying surface for each spectral band (-)
+  case('spectralAlbGndDiffuse'          ); get_ixmvar = iLookMVAR%spectralAlbGndDiffuse            ! diffuse albedo of underlying surface for each spectral band (-)
+  case('scalarGroundAlbedo'             ); get_ixmvar = iLookMVAR%scalarGroundAlbedo               ! albedo of the ground surface (-)
   case('scalarCanopyAbsorbedSolar'      ); get_ixmvar = iLookMVAR%scalarCanopyAbsorbedSolar        ! solar radiation absorbed by canopy (W m-2)
   case('scalarGroundAbsorbedSolar'      ); get_ixmvar = iLookMVAR%scalarGroundAbsorbedSolar        ! solar radiation absorbed by ground (W m-2)
-  case('placeholder1'                   ); get_ixmvar = iLookMVAR%placeholder1                     ! placeholder
   ! NOAH-MP vegetation variables (longwave radiation)
   case('scalarCanopyEmissivity'         ); get_ixmvar = iLookMVAR%scalarCanopyEmissivity           ! effective canopy emissivity (-)
   case('scalarLWRadCanopy'              ); get_ixmvar = iLookMVAR%scalarLWRadCanopy                ! longwave radiation emitted from the canopy (W m-2)

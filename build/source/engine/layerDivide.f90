@@ -199,12 +199,15 @@ contains
                                                                           (1._dp - mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxNearIR)
      case default; err=20; message=trim(message)//'unable to identify option for snow albedo'; return
     end select  ! identify option for snow albedo
+    ! set direct albedo to diffuse albedo
+    mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat(:) = mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(:)
    endif  ! (if NOT using the Noah-MP radiation routine)
    ! check
    do kLayer=1,nLayers
     write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
    end do
    print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+   print*, 'snow albedo = ', mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)
    !pause ' check layer sub-division'
   endif  ! if creating a new layer
   return

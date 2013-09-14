@@ -174,6 +174,8 @@ contains
 
  ! compute the maximum storage of liquid water (kg m-2)
  scalarCanopyLiqMax = refInterceptCapRain*(scalarExposedSAI + scalarExposedLAI)
+ !print*, 'refInterceptCapRain, (scalarExposedSAI + scalarExposedLAI), scalarCanopyLiqMax = ', &
+ !         refInterceptCapRain, (scalarExposedSAI + scalarExposedLAI), scalarCanopyLiqMax
 
  ! set throughfall to zero (kg m-2)
  scalarThroughfallRain = 0._dp

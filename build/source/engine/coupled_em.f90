@@ -251,6 +251,11 @@ contains
   exposedVAI      = mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1) + mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1)   ! exposed vegetation area index (m2 m-2)
   heightAboveSnow = mpar_data%var(iLookPARAM%heightCanopyTop) - mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)           ! height top of canopy is above the snow surface (m)
   computeVegFlux  = (exposedVAI > 0.05_dp .and. heightAboveSnow > 0.05_dp)
+  ! check that we have not buried trees
+  if(.not.computeVegFlux .and. mpar_data%var(iLookPARAM%heightCanopyTop) > 5._dp)then
+   message=trim(message)//'unexpected burial of trees'
+   err=20; return
+  endif
 
   ! compute the canopy depth (m)
   canopyDepth = mpar_data%var(iLookPARAM%heightCanopyTop) - mpar_data%var(iLookPARAM%heightCanopyBottom)
@@ -302,7 +307,7 @@ contains
   mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
 
   ! compute the snow albedo
-  ! NOTE: albedo is computed within the Noah-MP radiation routine
+  ! NOTE: if canopy radiation is noah-mp, then albedo is computed within the Noah-MP radiation routine
   if(model_decisions(iLookDECISIONS%canopySrad)%iDecision /= noah_mp)then
    call snowAlbedo(&
                    ! input: model control
@@ -402,7 +407,6 @@ contains
 
   ! save the volumetric fraction of ice
   arrTemp = mLayerDepth
- 
 
   ! use Picard iteration to solve model equations
   do
@@ -422,7 +426,7 @@ contains
    !endif
    ! check that the step size is still appropriate -- if not, use non-iterative solution
    if(dt_sub < minstep)then
-    if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
+    !if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
     dt_sub  = minstep
     ! just iterate once
     call picardSolv(dt_sub,1,(nsub==1),computeVegFlux,     &  ! input

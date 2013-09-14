@@ -76,7 +76,7 @@ contains
   err=20; return
  endif
  ! **********************************************************************************************
- ! (3) read the initial conditions data (continue reading from previous point in the file)
+ ! (3) read parameter data (continue reading from previous point in the file)
  ! **********************************************************************************************
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,charline,err,cmessage)
@@ -131,6 +131,7 @@ contains
    ! populate the appropriate element of the parameter vector
    read(chardata(ipar),*,iostat=err) mpar_data%var(jpar)
    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
+   print*, trim(varnames(ipar)), mpar_data%var(jpar)
   end do    ! (looping through model parameters)
   !write(*,'(a,2(i4,1x),2(f20.10,1x))') 'in read_param 2: iHRU, kHRU, mpar_data%var(iLookPARAM%vGn_alpha), mpar_hru(kHRU)%var(iLookPARAM%vGn_alpha) = ', & 
   !                                                       iHRU, kHRU, mpar_data%var(iLookPARAM%vGn_alpha), mpar_hru(kHRU)%var(iLookPARAM%vGn_alpha)

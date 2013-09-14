@@ -904,8 +904,8 @@ contains
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+2)       = ', iter, mLayerTempIter(1:nSnow+2)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+2)        = ', iter, mLayerTempNew(1:nSnow+2)
 
-  !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = ', &
-  !                                                     iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  !write(*,'(a)')  'in picardSolv: iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = '
+  !write(*,'(i4,1x,10(f12.5,1x))') iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
 
   !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew = ', &
   !                                                     iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew

@@ -1070,8 +1070,8 @@ contains
      LAI = WT1*LAIM(VEGTYP,IT1) + WT2*LAIM(VEGTYP,IT2)
      SAI = WT1*SAIM(VEGTYP,IT1) + WT2*SAIM(VEGTYP,IT2)
   ENDIF
-  IF (SAI < 0.1) SAI = 0.0  ! MB: SAI CHECK
-  IF (LAI < 0.1 .OR. SAI == 0.0) LAI = 0.0  ! MB: LAI CHECK
+  IF (SAI < 0.05) SAI = 0.0  ! MB: SAI CHECK
+  IF (LAI < 0.05 .OR. SAI == 0.0) LAI = 0.0  ! MB: LAI CHECK
 
   IF ( ( VEGTYP == ISWATER ) .OR. ( VEGTYP == ISBARREN ) .OR. ( VEGTYP == ISSNOW ) .or. ( VEGTYP == ISURBAN) ) THEN
      LAI  = 0.
@@ -1082,6 +1082,7 @@ contains
 
      DB = MIN( MAX(SNOWH - HVB(VEGTYP),0.), HVT(VEGTYP)-HVB(VEGTYP) )
      FB = DB / MAX(1.E-06,HVT(VEGTYP)-HVB(VEGTYP))
+     !print*, 'HVB(VEGTYP), HVT(VEGTYP), DB, FB = ', HVB(VEGTYP), HVT(VEGTYP), DB, FB
 
      IF(HVT(VEGTYP)> 0. .AND. HVT(VEGTYP) <= 0.5) THEN
        SNOWHC = HVT(VEGTYP)*EXP(-SNOWH/0.1)
@@ -1090,8 +1091,8 @@ contains
 
      ELAI =  LAI*(1.-FB)
      ESAI =  SAI*(1.-FB)
-     IF (ESAI < 0.1) ESAI = 0.0  ! MB: ESAI CHECK
-     IF (ELAI < 0.1 .OR. ESAI == 0.0) ELAI = 0.0  ! MB: LAI CHECK
+     IF (ESAI < 0.05) ESAI = 0.0  ! MB: ESAI CHECK
+     IF (ELAI < 0.05 .OR. ESAI == 0.0) ELAI = 0.0  ! MB: LAI CHECK
 
      IF (TV .GT. TMIN(VEGTYP)) THEN
          IGS = 1.
@@ -2667,6 +2668,7 @@ contains
 ! when cosz > 0
 
          ALB = 0.55 + (ALBOLD-0.55) * EXP(-0.01*DT/3600.)
+
 
 ! 1 mm fresh snow(SWE) -- 10mm snow depth, assumed the fresh snow density 100kg/m3
 ! here assume 1cm snow depth will fully cover the old snow

@@ -277,6 +277,9 @@ contains
                         mvar_data%var(iLookMVAR%spectralBelowCanopyDirect)%dat,            & ! intent(inout): downward direct flux below veg layer for each spectral band  W m-2)
                         mvar_data%var(iLookMVAR%spectralBelowCanopyDiffuse)%dat,           & ! intent(inout): downward diffuse flux below veg layer for each spectral band (W m-2)
                         mvar_data%var(iLookMVAR%scalarBelowCanopySolar)%dat(1),            & ! intent(inout): solar radiation transmitted below the canopy (W m-2)
+                        mvar_data%var(iLookMVAR%spectralAlbGndDirect)%dat,                 & ! intent(inout): direct  albedo of underlying surface (1:nBands) (-)
+                        mvar_data%var(iLookMVAR%spectralAlbGndDiffuse)%dat,                & ! intent(inout): diffuse albedo of underlying surface (1:nBands) (-)
+                        mvar_data%var(iLookMVAR%scalarGroundAlbedo)%dat(1),                & ! intent(inout): albedo of the ground surface (-)
                         mvar_data%var(iLookMVAR%scalarCanopyAbsorbedSolar)%dat(1),         & ! intent(inout): solar radiation absorbed by canopy (W m-2)
                         mvar_data%var(iLookMVAR%scalarGroundAbsorbedSolar)%dat(1),         & ! intent(inout): solar radiation absorbed by ground (W m-2)
 
@@ -484,6 +487,9 @@ contains
                               spectralBelowCanopyDirect,         & ! intent(inout): downward direct flux below veg layer for each spectral band  W m-2)
                               spectralBelowCanopyDiffuse,        & ! intent(inout): downward diffuse flux below veg layer for each spectral band (W m-2)
                               scalarBelowCanopySolar,            & ! intent(inout): radiation transmitted below the canopy (W m-2)
+                              spectralAlbGndDirect,              & ! intent(inout): direct  albedo of underlying surface (1:nBands) (-)
+                              spectralAlbGndDiffuse,             & ! intent(inout): diffuse albedo of underlying surface (1:nBands) (-)
+                              scalarGroundAlbedo,                & ! intent(inout): albedo of the ground surface (-)
                               scalarCanopyAbsorbedSolar,         & ! intent(inout): solar radiation absorbed by canopy (W m-2)
                               scalarGroundAbsorbedSolar,         & ! intent(inout): solar radiation absorbed by ground (W m-2)
 
@@ -684,6 +690,9 @@ contains
  real(dp),intent(inout)         :: spectralBelowCanopyDirect(:)    ! downward direct flux below veg layer for each spectral band  W m-2)
  real(dp),intent(inout)         :: spectralBelowCanopyDiffuse(:)   ! downward diffuse flux below veg layer for each spectral band (W m-2)
  real(dp),intent(inout)         :: scalarBelowCanopySolar          ! solar radiation transmitted below the canopy (W m-2)
+ real(dp),intent(inout)         :: spectralAlbGndDirect(:)         ! direct  albedo of underlying surface (1:nBands) (-)
+ real(dp),intent(inout)         :: spectralAlbGndDiffuse(:)        ! diffuse albedo of underlying surface (1:nBands) (-)
+ real(dp),intent(inout)         :: scalarGroundAlbedo              ! albedo of the ground surface (-)
  real(dp),intent(inout)         :: scalarCanopyAbsorbedSolar       ! solar radiation absorbed by canopy (W m-2)
  real(dp),intent(inout)         :: scalarGroundAbsorbedSolar       ! solar radiation absorbed by ground (W m-2)
 
@@ -1032,6 +1041,7 @@ contains
                    scalarBetweenCanopyGapFraction,     & ! intent(out): between canopy gap fraction for beam (-)
                    scalarWithinCanopyGapFraction       ) ! intent(out): within canopy gap fraction for beam (-)
 
+
    ! **** all other options 
    case(CLM_2stream,UEB_2stream,NL_scatter,BeersLaw)
 
@@ -1058,6 +1068,9 @@ contains
                     spectralBelowCanopyDirect,                          & ! intent(out): downward direct flux below veg layer for each spectral band  W m-2)
                     spectralBelowCanopyDiffuse,                         & ! intent(out): downward diffuse flux below veg layer for each spectral band (W m-2)
                     scalarBelowCanopySolar,                             & ! intent(out): solar radiation transmitted below the canopy (W m-2)
+                    spectralAlbGndDirect,                               & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
+                    spectralAlbGndDiffuse,                              & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
+                    scalarGroundAlbedo,                                 & ! intent(out): albedo of the ground surface (-)
                     scalarCanopyAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the vegetation canopy (W m-2)
                     scalarGroundAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the ground (W m-2)
                     scalarCanopySunlitFraction,                         & ! intent(out): sunlit fraction of canopy (-)
@@ -1403,7 +1416,7 @@ contains
    soilEvapFactor = mLayerVolFracLiq(1)/(theta_sat - theta_res)
    ! (resistance from the soil [s m-1])
    !scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
-   scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
+   scalarSoilResistance = scalarGroundSnowFraction*0._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
    ! (relative humidity in the soil pores [0-1])
    if(mLayerMatricHead(1) > -1.e+5_dp)then  ! avoid problems with numerical precision when soil is very dry
     soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTemp*R_wv) )
@@ -2775,7 +2788,7 @@ contains
   evapConductance    = 0._dp
   transConductance   = 0._dp
  endif
- groundConductanceLH = 1._dp/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =1 when snow cover is 100%
+ groundConductanceLH = 1._dp/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
  totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
 
  ! * compute derivatives

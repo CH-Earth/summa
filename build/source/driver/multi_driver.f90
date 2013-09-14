@@ -61,6 +61,7 @@ USE data_struc,only:bvar_data                               ! basin-average mode
 USE data_struc,only:model_decisions                         ! model decisions
 USE data_struc,only:urbanVegCategory                        ! vegetation category for urban areas
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
+USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
 ! named variables for elements of model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
@@ -235,6 +236,9 @@ do iHRU=1,nHRU
  call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
  call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
  call v_shortcut(err,message); call handle_err(err,message) ! calculate "short-cut" variables such as volumetric heat capacity
+ ! overwrite the vegetation height
+ HVT(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyTop)
+ HVB(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyBottom)
  ! overwrite the tables for LAI and SAI
  if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
   SAIM(type_data%var(iLookTYPE%vegTypeIndex),:) = mpar_data%var(iLookPARAM%winterSAI)
@@ -274,7 +278,7 @@ endselect
 
 
 ! initialize time step length for each HRU
-dt_init(:) = 360._dp ! seconds
+dt_init(:) = 3600._dp ! seconds
 
 ! initialize time step index
 jstep=1
@@ -395,6 +399,16 @@ do istep=1,numtim
               zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
               nSoil,                                                           & ! number of soil layers
               urbanVegCategory)                                                  ! vegetation category for urban areas
+
+  ! overwrite the vegetation height
+  HVT(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyTop)
+  HVB(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyBottom)
+
+  ! overwrite the tables for LAI and SAI
+  if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
+   SAIM(type_data%var(iLookTYPE%vegTypeIndex),:) = mpar_data%var(iLookPARAM%winterSAI)
+   LAIM(type_data%var(iLookTYPE%vegTypeIndex),:) = mpar_data%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
+  endif
 
   ! define the green vegetation fraction of the grid box (used to compute LAI)
   mvar_data%var(iLookMVAR%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(time_data%var(iLookTIME%im))

@@ -426,11 +426,11 @@ contains
  endif
 
  ! ensure that the LAI seaonality option is switched off (this was a silly idea, in retrospect)
- if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
-  message=trim(message)//'parameterization of LAI in terms of seasonal cycle of green veg fraction was a silly idea '&
-                       //' -- the LAI_method option ["specified"] is no longer supported'
-  err=20; return
- endif
+ !if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
+ ! message=trim(message)//'parameterization of LAI in terms of seasonal cycle of green veg fraction was a silly idea '&
+ !                      //' -- the LAI_method option ["specified"] is no longer supported'
+ ! err=20; return
+ !endif
 
  end subroutine mDecisions
 
