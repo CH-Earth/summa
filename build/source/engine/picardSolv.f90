@@ -165,74 +165,76 @@ contains
  call picardSolv_muster(&
 
                         ! input: input variables from picardSolv
-                        dt,                                                          & ! intent(in): time step (s)
-                        maxiter,                                                     & ! intent(in): maximum number of iterations
-                        firstSubstep,                                                & ! intent(in): flag to denote first sub-step
-                        computeVegFlux,                                              & ! intent(in): flag to denote if computing energy flux over vegetation
+                        dt,                                                              & ! intent(in): time step (s)
+                        maxiter,                                                         & ! intent(in): maximum number of iterations
+                        firstSubstep,                                                    & ! intent(in): flag to denote first sub-step
+                        computeVegFlux,                                                  & ! intent(in): flag to denote if computing energy flux over vegetation
 
                         ! input: coordinate variables
-                        indx_data%var(iLookINDEX%layerType)%dat,                     & ! intent(in): layer type (ix_soil or ix_snow)
-                        mvar_data%var(iLookMVAR%mLayerDepth)%dat,                    & ! intent(in): depth of each layer (m)
-                        mvar_data%var(iLookMVAR%mLayerHeight)%dat,                   & ! intent(in): height at the mid-point of each layer (m)
-                        mvar_data%var(iLookMVAR%iLayerHeight)%dat,                   & ! intent(in): height at the interface of each layer (m)
+                        indx_data%var(iLookINDEX%layerType)%dat,                         & ! intent(in): layer type (ix_soil or ix_snow)
+                        mvar_data%var(iLookMVAR%mLayerDepth)%dat,                        & ! intent(in): depth of each layer (m)
+                        mvar_data%var(iLookMVAR%mLayerHeight)%dat,                       & ! intent(in): height at the mid-point of each layer (m)
+                        mvar_data%var(iLookMVAR%iLayerHeight)%dat,                       & ! intent(in): height at the interface of each layer (m)
 
                         ! input: state variables at the start of the step
-                        mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),            & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
-                        mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
-                        mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),             & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
-                        mvar_data%var(iLookMVAR%mLayerTemp)%dat,                     & ! intent(in): temperature of each snow/soil layer at the start of the sub-step (K)
-                        mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,               & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                        mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,               & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                        mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,               & ! intent(in): matric head at the current iteration start of the sub-step (m)
-                        mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),        & ! intent(in): aquifer storage at the start of the sub-step (m)
+                        mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),                & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
+                        mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),                 & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),                 & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
+                        mvar_data%var(iLookMVAR%mLayerTemp)%dat,                         & ! intent(in): temperature of each snow/soil layer at the start of the sub-step (K)
+                        mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,                   & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                        mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,                   & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                        mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                   & ! intent(in): matric head at the current iteration start of the sub-step (m)
+                        mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),            & ! intent(in): aquifer storage at the start of the sub-step (m)
 
                         ! input: forcing and diagnostic variables
-                        forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): air temperature (K)
-                        mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
-                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,             & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1) 
+                        forc_data%var(iLookFORCE%airtemp),                               & ! intent(in): air temperature (K)
+                        mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),         & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
+                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,                 & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1) 
 
                         ! input: snow parameters
-                        mpar_data%var(iLookPARAM%snowfrz_scale),                     & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                        mpar_data%var(iLookPARAM%snowfrz_scale),                         & ! intent(in): scaling parameter for the snow freezing curve (K-1)
 
                         ! input: van Genutchen soil parameters
-                        mpar_data%var(iLookPARAM%vGn_alpha),                         & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                        mpar_data%var(iLookPARAM%vGn_n),                             & ! intent(in): van Genutchen "n" parameter (-)
-                        mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1),                 & ! intent(in): van Genutchen "m" parameter (-)
-                        mpar_data%var(iLookPARAM%theta_sat),                         & ! intent(in): soil porosity (-)
-                        mpar_data%var(iLookPARAM%theta_res),                         & ! intent(in): soil residual volumetric water content (-)
+                        mpar_data%var(iLookPARAM%vGn_alpha),                             & ! intent(in): van Genutchen "alpha" parameter (m-1)
+                        mpar_data%var(iLookPARAM%vGn_n),                                 & ! intent(in): van Genutchen "n" parameter (-)
+                        mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1),                     & ! intent(in): van Genutchen "m" parameter (-)
+                        mpar_data%var(iLookPARAM%theta_sat),                             & ! intent(in): soil porosity (-)
+                        mpar_data%var(iLookPARAM%theta_res),                             & ! intent(in): soil residual volumetric water content (-)
 
                         ! input: algorithmic control parameters
-                        mpar_data%var(iLookPARAM%relConvTol_liquid),                 & ! intent(in): relative convergence tolerance for vol frac liq water (-)
-                        mpar_data%var(iLookPARAM%absConvTol_liquid),                 & ! intent(in): absolute convergence tolerance for vol frac liq water (-)
-                        mpar_data%var(iLookPARAM%relConvTol_matric),                 & ! intent(in): relative convergence tolerance for matric head (-)
-                        mpar_data%var(iLookPARAM%absConvTol_matric),                 & ! intent(in): absolute convergence tolerance for matric head (m)
-                        mpar_data%var(iLookPARAM%relConvTol_energy),                 & ! intent(in): relative convergence tolerance for energy (-)
-                        mpar_data%var(iLookPARAM%absConvTol_energy),                 & ! intent(in): absolute convergence tolerance for energy (J m-3)
-                        mpar_data%var(iLookPARAM%relConvTol_aquifr),                 & ! intent(in): relative convergence tolerance for aquifer storage (-)
-                        mpar_data%var(iLookPARAM%absConvTol_aquifr),                 & ! intent(in): absolute convergence tolerance for aquifer storage (m)
+                        mpar_data%var(iLookPARAM%relConvTol_liquid),                     & ! intent(in): relative convergence tolerance for vol frac liq water (-)
+                        mpar_data%var(iLookPARAM%absConvTol_liquid),                     & ! intent(in): absolute convergence tolerance for vol frac liq water (-)
+                        mpar_data%var(iLookPARAM%relConvTol_matric),                     & ! intent(in): relative convergence tolerance for matric head (-)
+                        mpar_data%var(iLookPARAM%absConvTol_matric),                     & ! intent(in): absolute convergence tolerance for matric head (m)
+                        mpar_data%var(iLookPARAM%relConvTol_energy),                     & ! intent(in): relative convergence tolerance for energy (-)
+                        mpar_data%var(iLookPARAM%absConvTol_energy),                     & ! intent(in): absolute convergence tolerance for energy (J m-3)
+                        mpar_data%var(iLookPARAM%relConvTol_aquifr),                     & ! intent(in): relative convergence tolerance for aquifer storage (-)
+                        mpar_data%var(iLookPARAM%absConvTol_aquifr),                     & ! intent(in): absolute convergence tolerance for aquifer storage (m)
 
                         ! output: diagnostic variables
-                        mvar_data%var(iLookMVAR%scalarTemp_CanopyAir)%dat(1),        & ! intent(inout): trial temperature of the canopy air space (K)
-                        mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),          & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                        mvar_data%var(iLookMVAR%mLayerTcrit)%dat,                    & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
-                        mvar_data%var(iLookMVAR%scalarCanopyMeltFreeze)%dat(1),      & ! intent(out): melt/freeze of water stored in the canopy (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarTemp_CanopyAir)%dat(1),            & ! intent(out): trial temperature of the canopy air space (K)
+                        mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),              & ! intent(out): trial vapor pressure of the canopy air space (Pa)
+                        mvar_data%var(iLookMVAR%scalarCanopyStabilityCorrection)%dat(1), & ! intent(out): stability correction for the canopy (-)
+                        mvar_data%var(iLookMVAR%scalarGroundStabilityCorrection)%dat(1), & ! intent(out): stability correction for the ground surface (-)
+                        mvar_data%var(iLookMVAR%mLayerTcrit)%dat,                        & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
+                        mvar_data%var(iLookMVAR%scalarCanopyMeltFreeze)%dat(1),          & ! intent(out): melt/freeze of water stored in the canopy (kg m-2 s-1)
 
                         ! output: model state variables at the end of the step
                         ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
-                        scalarCanopyTempNew,                                         & ! intent(out): temperature of the vegetation canopy at the end of the sub-step (K)
-                        scalarCanopyIceNew,                                          & ! intent(out): mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
-                        scalarCanopyLiqNew,                                          & ! intent(out): mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
-                        mLayerTempNew,                                               & ! intent(out): temperature of each snow/soil layer at the end of the sub-step (K)
-                        mLayerVolFracIceNew,                                         & ! intent(out): volumetric fraction of ice at the end of the sub-step (-)
-                        mLayerVolFracLiqNew,                                         & ! intent(out): volumetric fraction of liquid water at the end of the sub-step (-)
-                        mLayerMatricHeadNew,                                         & ! intent(out): matric head at the end of the sub-step (m)
-                        scalarAquiferStorageNew,                                     & ! intent(out): aquifer storage at the end of the sub-step (m)
-
+                        scalarCanopyTempNew,                                             & ! intent(out): temperature of the vegetation canopy at the end of the sub-step (K)
+                        scalarCanopyIceNew,                                              & ! intent(out): mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
+                        scalarCanopyLiqNew,                                              & ! intent(out): mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
+                        mLayerTempNew,                                                   & ! intent(out): temperature of each snow/soil layer at the end of the sub-step (K)
+                        mLayerVolFracIceNew,                                             & ! intent(out): volumetric fraction of ice at the end of the sub-step (-)
+                        mLayerVolFracLiqNew,                                             & ! intent(out): volumetric fraction of liquid water at the end of the sub-step (-)
+                        mLayerMatricHeadNew,                                             & ! intent(out): matric head at the end of the sub-step (m)
+                        scalarAquiferStorageNew,                                         & ! intent(out): aquifer storage at the end of the sub-step (m)
+  
                         ! output: number of iterations
-                        niter,                                                       & ! intent(out): number of iterations
+                        niter,                                                           & ! intent(out): number of iterations
 
                         ! output: error control
-                        err,cmessage)                                                  ! intent(out): error control
+                        err,cmessage)                                                      ! intent(out): error control
 
  ! check for errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -577,74 +579,76 @@ contains
  subroutine picardSolv_muster(&
 
                               ! input: input variables from picardSolv
-                              dt,                            & ! intent(in): time step (s)
-                              maxiter,                       & ! intent(in): maximum number of iterations
-                              firstSubstep,                  & ! intent(in): flag to denote first sub-step
-                              computeVegFlux,                & ! intent(in): flag to denote if computing energy flux over vegetation
+                              dt,                                & ! intent(in): time step (s)
+                              maxiter,                           & ! intent(in): maximum number of iterations
+                              firstSubstep,                      & ! intent(in): flag to denote first sub-step
+                              computeVegFlux,                    & ! intent(in): flag to denote if computing energy flux over vegetation
 
                               ! input: coordinate variables
-                              layerType,                     & ! intent(in): layer type (ix_soil or ix_snow)
-                              mLayerDepth,                   & ! intent(in): depth of each layer (m)
-                              mLayerHeight,                  & ! intent(in): height at the mid-point of each layer (m)
-                              iLayerHeight,                  & ! intent(in): height at the interface of each layer (m)
+                              layerType,                         & ! intent(in): layer type (ix_soil or ix_snow)
+                              mLayerDepth,                       & ! intent(in): depth of each layer (m)
+                              mLayerHeight,                      & ! intent(in): height at the mid-point of each layer (m)
+                              iLayerHeight,                      & ! intent(in): height at the interface of each layer (m)
 
                               ! input: model state variables
-                              scalarCanopyTemp,              & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
-                              scalarCanopyIce,               & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
-                              scalarCanopyLiq,               & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
-                              mLayerTemp,                    & ! intent(in): temperature of each snow/soil layer at the start of the sub-step (K)
-                              mLayerVolFracIce,              & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                              mLayerVolFracLiq,              & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                              mLayerMatricHead,              & ! intent(in): matric head at the start of the sub-step (-)
-                              scalarAquiferStorage,          & ! intent(in): aquifer storage at the start of the sub-step (m)
+                              scalarCanopyTemp,                  & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
+                              scalarCanopyIce,                   & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
+                              scalarCanopyLiq,                   & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
+                              mLayerTemp,                        & ! intent(in): temperature of each snow/soil layer at the start of the sub-step (K)
+                              mLayerVolFracIce,                  & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                              mLayerVolFracLiq,                  & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                              mLayerMatricHead,                  & ! intent(in): matric head at the start of the sub-step (-)
+                              scalarAquiferStorage,              & ! intent(in): aquifer storage at the start of the sub-step (m)
 
                               ! input: forcing and diagnostic variables
-                              airtemp,                       & ! intent(in): air temperature (K)
-                              scalarBulkVolHeatCapVeg,       & ! intent(in): volumetric heat capacity of vegetation (J m-3 K-1)
-                              mLayerVolHtCapBulk,            & ! intent(in): volumetric heat capacity of each layer in the snow-soil vector (J m-3 K-1)
+                              airtemp,                           & ! intent(in): air temperature (K)
+                              scalarBulkVolHeatCapVeg,           & ! intent(in): volumetric heat capacity of vegetation (J m-3 K-1)
+                              mLayerVolHtCapBulk,                & ! intent(in): volumetric heat capacity of each layer in the snow-soil vector (J m-3 K-1)
 
                               ! input: snow parameters
-                              snowfrz_scale,                 & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                              snowfrz_scale,                     & ! intent(in): scaling parameter for the snow freezing curve (K-1)
 
                               ! input: van Genutchen soil parameters
-                              vGn_alpha,                     & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                              vGn_n,                         & ! intent(in): van Genutchen "n" parameter (-)
-                              VGn_m,                         & ! intent(in): van Genutchen "m" parameter (-)
-                              theta_sat,                     & ! intent(in): soil porosity (-)
-                              theta_res,                     & ! intent(in): soil residual volumetric water content (-)
+                              vGn_alpha,                         & ! intent(in): van Genutchen "alpha" parameter (m-1)
+                              vGn_n,                             & ! intent(in): van Genutchen "n" parameter (-)
+                              VGn_m,                             & ! intent(in): van Genutchen "m" parameter (-)
+                              theta_sat,                         & ! intent(in): soil porosity (-)
+                              theta_res,                         & ! intent(in): soil residual volumetric water content (-)
 
                               ! input: algorithmic control parameters
-                              relConvTol_liquid,             & ! intent(in): relative convergence tolerance for vol frac liq water (-)
-                              absConvTol_liquid,             & ! intent(in): absolute convergence tolerance for vol frac liq water (-)
-                              relConvTol_matric,             & ! intent(in): relative convergence tolerance for matric head (-)
-                              absConvTol_matric,             & ! intent(in): absolute convergence tolerance for matric head (m)
-                              relConvTol_energy,             & ! intent(in): relative convergence tolerance for energy (-)
-                              absConvTol_energy,             & ! intent(in): absolute convergence tolerance for energy (J m-3)
-                              relConvTol_aquifr,             & ! intent(in): relative convergence tolerance for aquifer storage (-)
-                              absConvTol_aquifr,             & ! intent(in): absolute convergence tolerance for aquifer storage (m)
+                              relConvTol_liquid,                 & ! intent(in): relative convergence tolerance for vol frac liq water (-)
+                              absConvTol_liquid,                 & ! intent(in): absolute convergence tolerance for vol frac liq water (-)
+                              relConvTol_matric,                 & ! intent(in): relative convergence tolerance for matric head (-)
+                              absConvTol_matric,                 & ! intent(in): absolute convergence tolerance for matric head (m)
+                              relConvTol_energy,                 & ! intent(in): relative convergence tolerance for energy (-)
+                              absConvTol_energy,                 & ! intent(in): absolute convergence tolerance for energy (J m-3)
+                              relConvTol_aquifr,                 & ! intent(in): relative convergence tolerance for aquifer storage (-)
+                              absConvTol_aquifr,                 & ! intent(in): absolute convergence tolerance for aquifer storage (m)
                                
                               ! output: diagnostic variables
-                              scalarTemp_CanopyAir,          & ! intent(inout): trial temperature of the canopy air space (K)
-                              scalarVP_CanopyAir,            & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                              mLayerTcrit,                   & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
-                              scalarCanopyMeltFreeze,        & ! intent(out): melt/freeze of water stored in the canopy (kg m-2 s-1)
+                              scalarTemp_CanopyAir,              & ! intent(out): trial temperature of the canopy air space (K)
+                              scalarVP_CanopyAir,                & ! intent(out): trial vapor pressure of the canopy air space (Pa)
+                              scalarCanopyStabilityCorrection,   & ! intent(out): stability correction for the canopy (-)
+                              scalarGroundStabilityCorrection,   & ! intent(out): stability correction for the ground surface (-)
+                              mLayerTcrit,                       & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
+                              scalarCanopyMeltFreeze,            & ! intent(out): melt/freeze of water stored in the canopy (kg m-2 s-1)
 
                               ! output: model state variables at the end of the step
                               ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
-                              scalarCanopyTempNew,           & ! intent(out): temperature of the vegetation canopy at the end of the sub-step (K)
-                              scalarCanopyIceNew,            & ! intent(out): mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
-                              scalarCanopyLiqNew,            & ! intent(out): mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
-                              mLayerTempNew,                 & ! intent(out): temperature of each snow/soil layer at the end of the sub-step (K)
-                              mLayerVolFracIceNew,           & ! intent(out): volumetric fraction of ice at the end of the sub-step (-)
-                              mLayerVolFracLiqNew,           & ! intent(out): volumetric fraction of liquid water at the end of the sub-step (-)
-                              mLayerMatricHeadNew,           & ! intent(out): matric head at the end of the sub-step (m)
-                              scalarAquiferStorageNew,       & ! intent(out): aquifer storage at the end of the sub-step (m)
+                              scalarCanopyTempNew,               & ! intent(out): temperature of the vegetation canopy at the end of the sub-step (K)
+                              scalarCanopyIceNew,                & ! intent(out): mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
+                              scalarCanopyLiqNew,                & ! intent(out): mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
+                              mLayerTempNew,                     & ! intent(out): temperature of each snow/soil layer at the end of the sub-step (K)
+                              mLayerVolFracIceNew,               & ! intent(out): volumetric fraction of ice at the end of the sub-step (-)
+                              mLayerVolFracLiqNew,               & ! intent(out): volumetric fraction of liquid water at the end of the sub-step (-)
+                              mLayerMatricHeadNew,               & ! intent(out): matric head at the end of the sub-step (m)
+                              scalarAquiferStorageNew,           & ! intent(out): aquifer storage at the end of the sub-step (m)
 
                               ! output: number of iterations
-                              niter,                         & ! intent(out): number of iterations
+                              niter,                             & ! intent(out): number of iterations
 
                               ! output: error control
-                              err,message)                     ! intent(out): error control
+                              err,message)                         ! intent(out): error control
 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
@@ -700,8 +704,10 @@ contains
  real(dp),intent(in)            :: absConvTol_aquifr           ! absolute convergence tolerance for aquifer storage (m)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! output: diagnostic variables
- real(dp),intent(inout)         :: scalarTemp_CanopyAir        ! trial temperature of the canopy air space (K)
- real(dp),intent(inout)         :: scalarVP_CanopyAir          ! trial vapor pressure of the canopy air space (Pa)
+ real(dp),intent(out)           :: scalarTemp_CanopyAir        ! trial temperature of the canopy air space (K)
+ real(dp),intent(out)           :: scalarVP_CanopyAir          ! trial vapor pressure of the canopy air space (Pa)
+ real(dp),intent(out)           :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
+ real(dp),intent(out)           :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
  real(dp),intent(out)           :: mLayerTcrit(:)              ! critical soil temperature where liquid water begins to freeze (K)
  real(dp),intent(out)           :: scalarCanopyMeltFreeze      ! melt/freeze of water stored in the canopy (kg m-2 s-1)
  ! output: model state variables at the end of the step
@@ -789,6 +795,10 @@ contains
  ! * initialize...
  ! ***************
 
+ ! initialize stability correction (no stability correction)
+ scalarCanopyStabilityCorrection = 1._dp          ! stability correction for the canopy (-)
+ scalarGroundStabilityCorrection = 1._dp          ! stability correction for the ground surface (-)
+
  ! initialize canopy temperature
  scalarCanopyTempIter = scalarCanopyTemp
 
@@ -842,9 +852,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  !print*, '***************************************************************'
-  !print*, '***** iter = ', iter, '*****'
-  !print*, '***************************************************************'
+  print*, '***************************************************************'
+  print*, '***** iter = ', iter, '*****'
+  print*, '***************************************************************'
   
 
   ! *****
@@ -857,40 +867,38 @@ contains
   ! compute the temperature and ice content at the next iteration
   call heatTransf(&
                   ! input
-                  dt,&                        ! intent(in): time step (seconds)
-                  iter,&                      ! intent(in): current iteration count
-                  firstSubstep,             & ! intent(in): flag to indicate if we are processing the first sub-step
-                  computeVegFlux,           & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
-                  scalarCanopyTempIter,     & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
-                  scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
-                  scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                  mLayerTempIter,           & ! intent(in): trial temperature of each snow/soil layer at the current iteration (K)
-                  mLayerVolFracIceIter,     & ! intent(in): trial volumetric fraction of ice in each snow/soil layer at the current iteration (-)
-                  mLayerVolFracLiqIter,     & ! intent(in): trial volumetric fraction of liquid water in each snow/soil layer at the current iteration (-)
-                  mLayerMatricHeadIter,     & ! intent(in): trial matric head of each snow/soil layer at the current iteration (m)
-                  canopyTempIncrOld,        & ! intent(in): previous iteration increment in canopy temperature (K)
-                  mLayerTempIncrOld,        & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
+                  dt,&                              ! intent(in): time step (seconds)
+                  iter,&                            ! intent(in): current iteration count
+                  firstSubstep,                   & ! intent(in): flag to indicate if we are processing the first sub-step
+                  computeVegFlux,                 & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
+                  scalarCanopyTempIter,           & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
+                  scalarCanopyIceIter,            & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+                  scalarCanopyLiqIter,            & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                  mLayerTempIter,                 & ! intent(in): trial temperature of each snow/soil layer at the current iteration (K)
+                  mLayerVolFracIceIter,           & ! intent(in): trial volumetric fraction of ice in each snow/soil layer at the current iteration (-)
+                  mLayerVolFracLiqIter,           & ! intent(in): trial volumetric fraction of liquid water in each snow/soil layer at the current iteration (-)
+                  mLayerMatricHeadIter,           & ! intent(in): trial matric head of each snow/soil layer at the current iteration (m)
+                  canopyTempIncrOld,              & ! intent(in): previous iteration increment in canopy temperature (K)
+                  mLayerTempIncrOld,              & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
 
                   ! input/output variables from heatTransf subroutine: canopy air space variables
-                  scalarTemp_CanopyAir,     & ! intent(inout): trial temperature of the canopy air space (K)
-                  scalarVP_CanopyAir,       & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                  dTempCanopyAir_dTCanopy,  & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
-                  dTempCanopyAir_dTGround,  & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the ground
-                  dVPCanopyAir_dTCanopy,    & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
-                  dVPCanopyAir_dTGround,    & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+                  scalarTemp_CanopyAir,           & ! intent(inout): trial temperature of the canopy air space (K)
+                  scalarVP_CanopyAir,             & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
+                  scalarCanopyStabilityCorrection,& ! intent(inout): stability correction for the canopy (-)
+                  scalarGroundStabilityCorrection,& ! intent(inout): stability correction for the ground surface (-)
 
                   ! output
-                  scalarCanopyTempIncr,     & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
-                  mLayerTempIncr,           & ! intent(out): iteration increment for temperature of the snow-soil system (K)
-                  scalarCanopyTempNew,      & ! intent(out): new temperature of the vegetation canopy (K)
-                  scalarCanopyIceNew,       & ! intent(out): mass of ice on the canopy (kg m-2) 
-                  scalarCanopyLiqNew,       & ! intent(out): mass of liquid water on the canopy (kg m-2)
-                  mLayerTempNew,            & ! intent(out): new temperature each snow/soil layer (K)
-                  mLayerVolFracIceNew,      & ! intent(out): new volumetric fraction of ice in each snow/soil layer (-)
-                  mLayerVolFracLiqNew,      & ! intent(out): new volumetric fraction of liquid water in each snow/soil layer (-)
-                  mLayerMatricHeadNew,      & ! intent(out): new matric head in each snow/soil layer (m)
-                  
-                  err,cmessage)               ! intent(out): error control
+                  scalarCanopyTempIncr,           & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
+                  mLayerTempIncr,                 & ! intent(out): iteration increment for temperature of the snow-soil system (K)
+                  scalarCanopyTempNew,            & ! intent(out): new temperature of the vegetation canopy (K)
+                  scalarCanopyIceNew,             & ! intent(out): mass of ice on the canopy (kg m-2) 
+                  scalarCanopyLiqNew,             & ! intent(out): mass of liquid water on the canopy (kg m-2)
+                  mLayerTempNew,                  & ! intent(out): new temperature each snow/soil layer (K)
+                  mLayerVolFracIceNew,            & ! intent(out): new volumetric fraction of ice in each snow/soil layer (-)
+                  mLayerVolFracLiqNew,            & ! intent(out): new volumetric fraction of liquid water in each snow/soil layer (-)
+                  mLayerMatricHeadNew,            & ! intent(out): new matric head in each snow/soil layer (m)
+                   
+                  err,cmessage)                     ! intent(out): error control
   ! check errors
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -904,8 +912,8 @@ contains
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+2)       = ', iter, mLayerTempIter(1:nSnow+2)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+2)        = ', iter, mLayerTempNew(1:nSnow+2)
 
-  !write(*,'(a)')  'in picardSolv: iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = '
-  !write(*,'(i4,1x,10(f12.5,1x))') iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  write(*,'(a)')  'in picardSolv: iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = '
+  write(*,'(i4,1x,10(f12.5,1x))') iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
 
   !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew = ', &
   !                                                     iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew
@@ -1163,14 +1171,14 @@ contains
   matric_max = maxval(abs(mLayerMatIncr) - (absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew) )  )
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
-  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
+  print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
-  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
-  !print*, 'canopyNrgIncr = ', canopyNrgIncr
+  print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  print*, 'canopyNrgIncr = ', canopyNrgIncr
   !if(computeVegFlux) pause 'canopy is exposed'
 
   ! test
@@ -1206,6 +1214,8 @@ contains
  ! ***** END OF ITERATIONS *****************************************************************************************************************
  ! *****************************************************************************************************************************************
  ! *****************************************************************************************************************************************
+ write(*,'(a)') '================================================================================================================================='
+ write(*,'(a)') '================================================================================================================================='
  !pause 'after iterations'
 
  ! =================================================================================================================================================

@@ -50,81 +50,82 @@ contains
  ! new subroutine: compute change in temperature over the time step
  ! ************************************************************************************************
  subroutine heatTransf(&
+
                        ! input
-                       dt,                       & ! intent(in): time step (seconds)
-                       iter,                     & ! intent(in): current iteration count
-                       firstSubstep,             & ! intent(in): flag to indicate if we are processing the first sub-step
-                       computeVegFlux,           & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
-                       scalarCanopyTempIter,     & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
-                       scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
-                       scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                       mLayerTempIter,           & ! intent(in): trial temperature of each model layer at the current iteration (K)
-                       mLayerVolFracIceIter,     & ! intent(in): trial volumetric fraction of ice at the current iteration (-)
-                       mLayerVolFracLiqIter,     & ! intent(in): trial volumetric fraction of liquid water at the current iteration (-)
-                       mLayerMatricHeadIter,     & ! intent(in): trial matric head at the current iteration (m)
-                       canopyTempIncrOld,        & ! intent(in): previous iteration increment in canopy temperature (K)
-                       mLayerTempIncrOld,        & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
+                       dt,                               & ! intent(in): time step (seconds)
+                       iter,                             & ! intent(in): current iteration count
+                       firstSubstep,                     & ! intent(in): flag to indicate if we are processing the first sub-step
+                       computeVegFlux,                   & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
+                       scalarCanopyTempIter,             & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
+                       scalarCanopyIceIter,              & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+                       scalarCanopyLiqIter,              & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                       mLayerTempIter,                   & ! intent(in): trial temperature of each model layer at the current iteration (K)
+                       mLayerVolFracIceIter,             & ! intent(in): trial volumetric fraction of ice at the current iteration (-)
+                       mLayerVolFracLiqIter,             & ! intent(in): trial volumetric fraction of liquid water at the current iteration (-)
+                       mLayerMatricHeadIter,             & ! intent(in): trial matric head at the current iteration (m)
+                       canopyTempIncrOld,                & ! intent(in): previous iteration increment in canopy temperature (K)
+                       mLayerTempIncrOld,                & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
+
                        ! input/output variables from heatTransf subroutine: canopy air space variables
-                       scalarTemp_CanopyAir,     & ! intent(inout): trial temperature of the canopy air space (K)
-                       scalarVP_CanopyAir,       & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                       dTempCanopyAir_dTCanopy,  & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
-                       dTempCanopyAir_dTGround,  & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the ground
-                       dVPCanopyAir_dTCanopy,    & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
-                       dVPCanopyAir_dTGround,    & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+                       scalarTemp_CanopyAir,             & ! intent(inout): trial temperature of the canopy air space (K)
+                       scalarVP_CanopyAir,               & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
+                       scalarCanopyStabilityCorrection,  & ! intent(inout): stability correction for the canopy (-)
+                       scalarGroundStabilityCorrection,  & ! intent(inout): stability correction for the ground surface (-)
+
                        ! output
-                       scalarCanopyTempDiff,     & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
-                       mLayerTempDiff,           & ! intent(out): iteration increment for temperature of the snow-soil system (K)
-                       scalarCanopyTempNew,      & ! intent(out): new temperature of the vegetation canopy (K)
-                       scalarCanopyIceNew,       & ! intent(out): mass of ice on the canopy (kg m-2) 
-                       scalarCanopyLiqNew,       & ! intent(out): mass of liquid water on the canopy (kg m-2)
-                       mLayerTempNew,            & ! intent(out): new temperature of each model layer (K)
-                       mLayerVolFracIceNew,      & ! intent(out): new volumetric fraction of ice (-)
-                       mLayerVolFracLiqNew,      & ! intent(out): new volumetric fraction of liquid water (-)
-                       mLayerMatricHeadNew,      & ! intent(out): new matric head (m)
-                       err,message)                ! intent(out): error control
+                       scalarCanopyTempDiff,             & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
+                       mLayerTempDiff,                   & ! intent(out): iteration increment for temperature of the snow-soil system (K)
+                       scalarCanopyTempNew,              & ! intent(out): new temperature of the vegetation canopy (K)
+                       scalarCanopyIceNew,               & ! intent(out): mass of ice on the canopy (kg m-2) 
+                       scalarCanopyLiqNew,               & ! intent(out): mass of liquid water on the canopy (kg m-2)
+                       mLayerTempNew,                    & ! intent(out): new temperature of each model layer (K)
+                       mLayerVolFracIceNew,              & ! intent(out): new volumetric fraction of ice (-)
+                       mLayerVolFracLiqNew,              & ! intent(out): new volumetric fraction of liquid water (-)
+                       mLayerMatricHeadNew,              & ! intent(out): new matric head (m)
+
+                       ! error control
+                       err,message)                        ! intent(out): error control
  ! model decisions
- USE data_struc,only:model_decisions                            ! model decision structure
- USE var_lookup,only:iLookDECISIONS                             ! named variables for elements of the decision structure
+ USE data_struc,only:model_decisions                       ! model decision structure
+ USE var_lookup,only:iLookDECISIONS                        ! named variables for elements of the decision structure
  ! model variables, parameters, forcing data, etc.
  USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  ! compute change in temperature over the time step
  implicit none
  ! input
- real(dp),intent(in)           :: dt                       ! time step (seconds)
- integer(i4b),intent(in)       :: iter                     ! iteration count
- logical(lgt),intent(in)       :: firstSubStep             ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(in)       :: computeVegFlux           ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- real(dp),intent(in)           :: scalarCanopyTempIter     ! trial temperature of the vegetation canopy at the current iteration (K)
- real(dp),intent(in)           :: scalarCanopyIceIter      ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
- real(dp),intent(in)           :: scalarCanopyLiqIter      ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
- real(dp),intent(in)           :: mLayerTempIter(:)        ! trial temperature of each snow/soil layer at the current iteration (K)
- real(dp),intent(in)           :: mLayerVolFracIceIter(:)  ! trial volumetric fraction of ice at the current iteration (-)
- real(dp),intent(in)           :: mLayerVolFracLiqIter(:)  ! trial volumetric fraction of liquid water at the current iteration (-)
- real(dp),intent(in)           :: mLayerMatricHeadIter(:)  ! trial matric head at the current iteration (m)
- real(dp),intent(in)           :: canopyTempIncrOld        ! iteration increment for temperature of the vegetation canopy in the previous iteration (K)
- real(dp),intent(in)           :: mLayerTempIncrOld(:)     ! iteration increment for temperature of the snow-soil vector in the previous iteration (K)
+ real(dp),intent(in)           :: dt                            ! time step (seconds)
+ integer(i4b),intent(in)       :: iter                          ! iteration count
+ logical(lgt),intent(in)       :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)       :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ real(dp),intent(in)           :: scalarCanopyTempIter          ! trial temperature of the vegetation canopy at the current iteration (K)
+ real(dp),intent(in)           :: scalarCanopyIceIter           ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+ real(dp),intent(in)           :: scalarCanopyLiqIter           ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+ real(dp),intent(in)           :: mLayerTempIter(:)             ! trial temperature of each snow/soil layer at the current iteration (K)
+ real(dp),intent(in)           :: mLayerVolFracIceIter(:)       ! trial volumetric fraction of ice at the current iteration (-)
+ real(dp),intent(in)           :: mLayerVolFracLiqIter(:)       ! trial volumetric fraction of liquid water at the current iteration (-)
+ real(dp),intent(in)           :: mLayerMatricHeadIter(:)       ! trial matric head at the current iteration (m)
+ real(dp),intent(in)           :: canopyTempIncrOld             ! iteration increment for temperature of the vegetation canopy in the previous iteration (K)
+ real(dp),intent(in)           :: mLayerTempIncrOld(:)          ! iteration increment for temperature of the snow-soil vector in the previous iteration (K)
  ! input/output variables from the heatTransf subroutine: canopy air space variables
- real(dp),intent(inout)        :: scalarTemp_CanopyAir     ! trial temperature of the canopy air space (K)
- real(dp),intent(inout)        :: scalarVP_CanopyAir       ! trial vapor pressure of the canopy air space (Pa)
- real(dp),intent(inout)        :: dTempCanopyAir_dTCanopy  ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
- real(dp),intent(inout)        :: dTempCanopyAir_dTGround  ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground
- real(dp),intent(inout)        :: dVPCanopyAir_dTCanopy    ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
- real(dp),intent(inout)        :: dVPCanopyAir_dTGround    ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+ real(dp),intent(inout)        :: scalarTemp_CanopyAir          ! trial temperature of the canopy air space (K)
+ real(dp),intent(inout)        :: scalarVP_CanopyAir            ! trial vapor pressure of the canopy air space (Pa)
+ real(dp),intent(inout)        :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
+ real(dp),intent(inout)        :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
  ! output
- real(dp),intent(out)          :: scalarCanopyTempDiff     ! iteration increment for temperature of the vegetation canopy (K)
- real(dp),intent(out)          :: mLayerTempDiff(:)        ! iteration increment for temperature of the snow-soil system (K)
- real(dp),intent(out)          :: scalarCanopyTempNew      ! new temperature of the vegetation canopy (K)
- real(dp),intent(out)          :: scalarCanopyIceNew       ! mass of ice on the canopy (kg m-2) 
- real(dp),intent(out)          :: scalarCanopyLiqNew       ! mass of liquid water on the canopy (kg m-2)
- real(dp),intent(out)          :: mLayerTempNew(:)         ! new temperature of each snow/soil layer (K)
- real(dp),intent(out)          :: mLayerVolFracIceNew(:)   ! new volumetric fraction of ice (-)
- real(dp),intent(out)          :: mLayerVolFracLiqNew(:)   ! new volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: mLayerMatricHeadNew(:)   ! new matric head (m)
- integer(i4b),intent(out)      :: err                      ! error code
- character(*),intent(out)      :: message                  ! error message
+ real(dp),intent(out)          :: scalarCanopyTempDiff          ! iteration increment for temperature of the vegetation canopy (K)
+ real(dp),intent(out)          :: mLayerTempDiff(:)             ! iteration increment for temperature of the snow-soil system (K)
+ real(dp),intent(out)          :: scalarCanopyTempNew           ! new temperature of the vegetation canopy (K)
+ real(dp),intent(out)          :: scalarCanopyIceNew            ! mass of ice on the canopy (kg m-2) 
+ real(dp),intent(out)          :: scalarCanopyLiqNew            ! mass of liquid water on the canopy (kg m-2)
+ real(dp),intent(out)          :: mLayerTempNew(:)              ! new temperature of each snow/soil layer (K)
+ real(dp),intent(out)          :: mLayerVolFracIceNew(:)        ! new volumetric fraction of ice (-)
+ real(dp),intent(out)          :: mLayerVolFracLiqNew(:)        ! new volumetric fraction of liquid water (-)
+ real(dp),intent(out)          :: mLayerMatricHeadNew(:)        ! new matric head (m)
+ integer(i4b),intent(out)      :: err                           ! error code
+ character(*),intent(out)      :: message                       ! error message
  ! internal
- character(LEN=256)            :: cmessage                 ! error message of downwind routine
+ character(LEN=256)            :: cmessage                      ! error message of downwind routine
  ! initialize error control
  err=0; message="heatTransf/"
 
@@ -228,10 +229,8 @@ contains
                         ! input/output variables from heatTransf subroutine: canopy air space variables
                         scalarTemp_CanopyAir,                                          & ! intent(inout): trial temperature of the canopy air space (K)
                         scalarVP_CanopyAir,                                            & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                        dTempCanopyAir_dTCanopy,                                       & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
-                        dTempCanopyAir_dTGround,                                       & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the ground
-                        dVPCanopyAir_dTCanopy,                                         & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
-                        dVPCanopyAir_dTGround,                                         & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+                        scalarCanopyStabilityCorrection,                               & ! intent(inout): stability correction for the canopy (-)
+                        scalarGroundStabilityCorrection,                               & ! intent(inout): stability correction for the ground surface (-)
 
                         ! output variables from heatTransf subroutine
                         scalarCanopyTempDiff,                                          & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
@@ -353,10 +352,8 @@ contains
                               ! input/output variables from heatTransf subroutine: canopy air space variables
                               scalarTemp_CanopyAir,         & ! intent(inout): trial temperature of the canopy air space (K)
                               scalarVP_CanopyAir,           & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                              dTempCanopyAir_dTCanopy,      & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
-                              dTempCanopyAir_dTGround,      & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the ground
-                              dVPCanopyAir_dTCanopy,        & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
-                              dVPCanopyAir_dTGround,        & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+                              scalarCanopyStabilityCorrection,& ! intent(inout): stability correction for the canopy (-)
+                              scalarGroundStabilityCorrection,& ! intent(inout): stability correction for the ground surface (-)
 
                               ! output variables from heatTransf subroutine
                               scalarCanopyTempDiff,         & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
@@ -455,10 +452,8 @@ contains
  ! input/output variables from the heatTransf subroutine: canopy air space variables
  real(dp),intent(inout)         :: scalarTemp_CanopyAir        ! trial temperature of the canopy air space (K)
  real(dp),intent(inout)         :: scalarVP_CanopyAir          ! trial vapor pressure of the canopy air space (Pa)
- real(dp),intent(inout)         :: dTempCanopyAir_dTCanopy     ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
- real(dp),intent(inout)         :: dTempCanopyAir_dTGround     ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground
- real(dp),intent(inout)         :: dVPCanopyAir_dTCanopy       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
- real(dp),intent(inout)         :: dVPCanopyAir_dTGround       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+ real(dp),intent(inout)         :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
+ real(dp),intent(inout)         :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
  ! output variables from the heatTransf subroutine
  real(dp),intent(out)           :: scalarCanopyTempDiff        ! iteration increment for temperature of the vegetation canopy (K)
  real(dp),intent(out)           :: mLayerTempDiff(:)           ! iteration increment for temperature of the snow-soil system (K) 
@@ -490,6 +485,8 @@ contains
  ! define local variables for the fluxes at vegetation and ground surfaces
  real(dp)                       :: saveTemp_CanopyAir         ! trial temperature of the canopy air space (K)
  real(dp)                       :: saveVP_CanopyAir           ! trial vapor pressure of the canopy air space (Pa)
+ real(dp)                       :: saveCanopyStabilityCorrection ! stability correction for the canopy (-)
+ real(dp)                       :: saveGroundStabilityCorrection ! stability correction for the ground surface (-)
  real(dp)                       :: canopyNetFlux              ! net energy flux for the vegetation canopy (W m-2)
  real(dp)                       :: groundNetFlux              ! net energy flux for the ground surface (W m-2) 
  real(dp)                       :: dCanopyNetFlux_dCanopyTemp ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
@@ -568,6 +565,9 @@ contains
  ! NOTE: canopy air space values are intent(inout), which muck up derivative calculations if used directly
  saveTemp_CanopyAir = scalarTemp_CanopyAir       ! trial temperature of the canopy air space (K)
  saveVP_CanopyAir   = scalarVP_CanopyAir         ! trial vapor pressure of the canopy air space (Pa)
+ saveCanopyStabilityCorrection = scalarCanopyStabilityCorrection    ! stability correction for the canopy (-)
+ saveGroundStabilityCorrection = scalarGroundStabilityCorrection    ! stability correction for the ground surface (-)
+
 
  ! --------------------------------------------------------------------------------------------------------------------------------
 
@@ -607,10 +607,8 @@ contains
                  ! input/output: canopy air space variables
                  scalarTemp_CanopyAir,          & ! intent(inout): trial temperature of the canopy air space (K)
                  scalarVP_CanopyAir,            & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                 dTempCanopyAir_dTCanopy,       & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
-                 dTempCanopyAir_dTGround,       & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the ground
-                 dVPCanopyAir_dTCanopy,         & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
-                 dVPCanopyAir_dTGround,         & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+                 scalarCanopyStabilityCorrection,& ! intent(inout): stability correction for the canopy (-)
+                 scalarGroundStabilityCorrection,& ! intent(inout): stability correction for the ground surface (-)
                  ! output: fluxes
                  canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                  groundNetFlux,                 & ! intent(out): net energy flux for the ground surface (W m-2)
@@ -1001,10 +999,8 @@ contains
   ! local variables for the canopy air space variables
   real(dp)                      :: local_Temp_CanopyAir             ! trial temperature of the canopy air space (K)
   real(dp)                      :: local_VP_CanopyAir               ! trial vapor pressure of the canopy air space (Pa)
-  real(dp)                      :: local_dTempCanopyAir_dTCanopy    ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
-  real(dp)                      :: local_dTempCanopyAir_dTGround    ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground
-  real(dp)                      :: local_dVPCanopyAir_dTCanopy      ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
-  real(dp)                      :: local_dVPCanopyAir_dTGround      ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+  real(dp)                      :: local_canopyStabilityCorrection  ! stability correction for the canopy (-)
+  real(dp)                      :: local_groundStabilityCorrection  ! stability correction for the ground surface (-)
   ! local variables for the fluxes at vegetation and ground surfaces
   real(dp)                      :: local_canopyNetFlux              ! net energy flux for the vegetation canopy (W m-2)
   real(dp)                      :: local_groundNetFlux              ! net energy flux for the ground surface (W m-2) 
@@ -1051,6 +1047,10 @@ contains
    ! re-set the canopy air space variables
    local_Temp_CanopyAir = saveTemp_CanopyAir
    local_VP_CanopyAir   = saveVP_CanopyAir  
+
+   ! re-set the stability corrections
+   local_CanopyStabilityCorrection = saveCanopyStabilityCorrection
+   local_GroundStabilityCorrection = saveGroundStabilityCorrection
  
    ! ***** compute energy fluxes at vegetation and ground surfaces
    call vegNrgFlux(&
@@ -1075,10 +1075,8 @@ contains
                    ! input/output: canopy air space variables
                    local_Temp_CanopyAir,                & ! intent(inout): trial temperature of the canopy air space (K)
                    local_VP_CanopyAir,                  & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                   local_dTempCanopyAir_dTCanopy,       & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the canopy (K K-1)
-                   local_dTempCanopyAir_dTGround,       & ! intent(inout): derivative in the temperature of the canopy air space w.r.t. temperature of the ground (K K-1)
-                   local_dVPCanopyAir_dTCanopy,         & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy (Pa K-1)
-                   local_dVPCanopyAir_dTGround,         & ! intent(inout): derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground (Pa K-1)
+                   local_CanopyStabilityCorrection,     & ! intent(inout): stability correction for the canopy (-)
+                   local_GroundStabilityCorrection,     & ! intent(inout): stability correction for the ground surface (-)
                    ! output: fluxes
                    local_canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                    local_groundNetFlux,                 & ! intent(out): net energy flux for the ground surface (W m-2)
