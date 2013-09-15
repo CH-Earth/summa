@@ -61,6 +61,7 @@ contains
  character(*),intent(out)             :: message                  ! error message
  ! local
  character(LEN=256)                   :: cmessage                 ! error message of downwind routine
+ real(dp)                             :: scalarCanairTempNew      ! temperature of the canopy air space at the end of the sub-step (K)
  real(dp)                             :: scalarCanopyTempNew      ! temperature of the vegetation canopy at the end of the sub-step (K)
  real(dp)                             :: scalarCanopyIceNew       ! mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
  real(dp)                             :: scalarCanopyLiqNew       ! mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
@@ -140,14 +141,16 @@ contains
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
   ! (NOTE: if canopy temperature is below absolute zero then canopy was previously buried by snow)
-  if(mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) < 0._dp)then
+  if(mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) < 0._dp .or. &
+     mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(1) < 0._dp)then
    ! check there is snow (there really has to be)
    if(nSnow == 0)then
     message=trim(message)//'no snow when canopy temperature is undefined -- canopy temp can only be undefined when buried with snow'
     err=20; return
    endif
-   ! set canopy temperature to the temperature of the top snow layer
-   mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)
+   ! set canopy temperature to the temperature of the top snow layer + small offset to check derivative calculations
+   mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1) + 0.1_dp
+   mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1) + 0.1_dp 
   endif  ! (if canopy temperature undefined -- means canopy previously buried with snow)
  endif  ! (if computing vegetation fluxes -- canopy exposed)
 
@@ -177,6 +180,7 @@ contains
                         mvar_data%var(iLookMVAR%iLayerHeight)%dat,                       & ! intent(in): height at the interface of each layer (m)
 
                         ! input: state variables at the start of the step
+                        mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(1),                & ! intent(in): temperature of the canopy air space at the start of the sub-step (K)
                         mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),                & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
                         mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),                 & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
                         mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),                 & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
@@ -212,8 +216,7 @@ contains
                         mpar_data%var(iLookPARAM%absConvTol_aquifr),                     & ! intent(in): absolute convergence tolerance for aquifer storage (m)
 
                         ! output: diagnostic variables
-                        mvar_data%var(iLookMVAR%scalarTemp_CanopyAir)%dat(1),            & ! intent(out): trial temperature of the canopy air space (K)
-                        mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),              & ! intent(out): trial vapor pressure of the canopy air space (Pa)
+                        mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),              & ! intent(out): vapor pressure of the canopy air space (Pa)
                         mvar_data%var(iLookMVAR%scalarCanopyStabilityCorrection)%dat(1), & ! intent(out): stability correction for the canopy (-)
                         mvar_data%var(iLookMVAR%scalarGroundStabilityCorrection)%dat(1), & ! intent(out): stability correction for the ground surface (-)
                         mvar_data%var(iLookMVAR%mLayerTcrit)%dat,                        & ! intent(out): critical soil temperature where liquid water begins to freeze (K)
@@ -221,6 +224,7 @@ contains
 
                         ! output: model state variables at the end of the step
                         ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
+                        scalarCanairTempNew,                                             & ! intent(out): temperature of the canopy air space at the end of the sub-step (K)
                         scalarCanopyTempNew,                                             & ! intent(out): temperature of the vegetation canopy at the end of the sub-step (K)
                         scalarCanopyIceNew,                                              & ! intent(out): mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
                         scalarCanopyLiqNew,                                              & ! intent(out): mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
@@ -591,6 +595,7 @@ contains
                               iLayerHeight,                      & ! intent(in): height at the interface of each layer (m)
 
                               ! input: model state variables
+                              scalarCanairTemp,                  & ! intent(in): temperature of the canopy air space at the start of the sub-step (K)
                               scalarCanopyTemp,                  & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
                               scalarCanopyIce,                   & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
                               scalarCanopyLiq,                   & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
@@ -626,7 +631,6 @@ contains
                               absConvTol_aquifr,                 & ! intent(in): absolute convergence tolerance for aquifer storage (m)
                                
                               ! output: diagnostic variables
-                              scalarTemp_CanopyAir,              & ! intent(out): trial temperature of the canopy air space (K)
                               scalarVP_CanopyAir,                & ! intent(out): trial vapor pressure of the canopy air space (Pa)
                               scalarCanopyStabilityCorrection,   & ! intent(out): stability correction for the canopy (-)
                               scalarGroundStabilityCorrection,   & ! intent(out): stability correction for the ground surface (-)
@@ -635,6 +639,7 @@ contains
 
                               ! output: model state variables at the end of the step
                               ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
+                              scalarCanairTempNew,               & ! intent(out): temperature of the canopy air space at the end of the sub-step (K)
                               scalarCanopyTempNew,               & ! intent(out): temperature of the vegetation canopy at the end of the sub-step (K)
                               scalarCanopyIceNew,                & ! intent(out): mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
                               scalarCanopyLiqNew,                & ! intent(out): mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
@@ -673,6 +678,7 @@ contains
  real(dp),intent(in)            :: mLayerHeight(:)             ! height at the mid-point of each layer (m)
  real(dp),intent(in)            :: iLayerHeight(0:)            ! height at the interface of each layer (m)
  ! input: model state variables
+ real(dp),intent(in)            :: scalarCanairTemp            ! temperature of the canopy air space (K)
  real(dp),intent(in)            :: scalarCanopyTemp            ! temperature of the vegetation canopy (K)
  real(dp),intent(in)            :: scalarCanopyIce             ! mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)            :: scalarCanopyLiq             ! mass of liquid water on the vegetation canopy (kg m-2)
@@ -704,7 +710,6 @@ contains
  real(dp),intent(in)            :: absConvTol_aquifr           ! absolute convergence tolerance for aquifer storage (m)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! output: diagnostic variables
- real(dp),intent(out)           :: scalarTemp_CanopyAir        ! trial temperature of the canopy air space (K)
  real(dp),intent(out)           :: scalarVP_CanopyAir          ! trial vapor pressure of the canopy air space (Pa)
  real(dp),intent(out)           :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
  real(dp),intent(out)           :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
@@ -712,6 +717,7 @@ contains
  real(dp),intent(out)           :: scalarCanopyMeltFreeze      ! melt/freeze of water stored in the canopy (kg m-2 s-1)
  ! output: model state variables at the end of the step
  ! NOTE: use intent(out) instead of intent(inout) to protect start-of-step variables
+ real(dp),intent(out)           :: scalarCanairTempNew         ! temperature of the canopy air space at the end of the sub-step (K)
  real(dp),intent(out)           :: scalarCanopyTempNew         ! temperature of the vegetation canopy at the end of the sub-step (K)
  real(dp),intent(out)           :: scalarCanopyIceNew          ! mass of ice on the vegetation canopy at the end of the sub-step (kg m-2)
  real(dp),intent(out)           :: scalarCanopyLiqNew          ! mass of liquid water on the vegetation canopy at the end of the sub-step (kg m-2)
@@ -743,6 +749,7 @@ contains
  real(dp)                       :: dVPCanopyAir_dTCanopy       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
  real(dp)                       :: dVPCanopyAir_dTGround       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
  ! define state variables for the vegetation canopy
+ real(dp)                       :: scalarCanairTempIter        ! trial value of temperature of the canopy air space (K)
  real(dp)                       :: scalarCanopyTempIter        ! trial value of temperature of the vegetation canopy (K)
  real(dp)                       :: scalarCanopyIceIter         ! trial value of mass of ice on the vegetation canopy (kg m-2)
  real(dp)                       :: scalarCanopyLiqIter         ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
@@ -799,7 +806,8 @@ contains
  scalarCanopyStabilityCorrection = 1._dp          ! stability correction for the canopy (-)
  scalarGroundStabilityCorrection = 1._dp          ! stability correction for the ground surface (-)
 
- ! initialize canopy temperature
+ ! initialize temperature of the vegetation canopy and the canopy air space
+ scalarCanairTempIter = scalarCanairTemp
  scalarCanopyTempIter = scalarCanopyTemp
 
  ! initialize canopy water
@@ -871,6 +879,7 @@ contains
                   iter,&                            ! intent(in): current iteration count
                   firstSubstep,                   & ! intent(in): flag to indicate if we are processing the first sub-step
                   computeVegFlux,                 & ! intent(in): flag to indicate if we computing fluxes ovser vegetation (.false. means veg is buried with snow)
+                  scalarCanairTempIter,           & ! intent(in): trial temperature of the canopy air space at the current iteration (K)
                   scalarCanopyTempIter,           & ! intent(in): trial temperature of the vegetation canopy at the current iteration (K)
                   scalarCanopyIceIter,            & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                   scalarCanopyLiqIter,            & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
@@ -882,7 +891,6 @@ contains
                   mLayerTempIncrOld,              & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
 
                   ! input/output variables from heatTransf subroutine: canopy air space variables
-                  scalarTemp_CanopyAir,           & ! intent(inout): trial temperature of the canopy air space (K)
                   scalarVP_CanopyAir,             & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
                   scalarCanopyStabilityCorrection,& ! intent(inout): stability correction for the canopy (-)
                   scalarGroundStabilityCorrection,& ! intent(inout): stability correction for the ground surface (-)
@@ -890,6 +898,7 @@ contains
                   ! output
                   scalarCanopyTempIncr,           & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                   mLayerTempIncr,                 & ! intent(out): iteration increment for temperature of the snow-soil system (K)
+                  scalarCanairTempNew,            & ! intent(out): new temperature of the canopy air space (K)
                   scalarCanopyTempNew,            & ! intent(out): new temperature of the vegetation canopy (K)
                   scalarCanopyIceNew,             & ! intent(out): mass of ice on the canopy (kg m-2) 
                   scalarCanopyLiqNew,             & ! intent(out): mass of liquid water on the canopy (kg m-2)
@@ -912,8 +921,8 @@ contains
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+2)       = ', iter, mLayerTempIter(1:nSnow+2)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+2)        = ', iter, mLayerTempNew(1:nSnow+2)
 
-  write(*,'(a)')  'in picardSolv: iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = '
-  write(*,'(i4,1x,10(f12.5,1x))') iter, airtemp, scalarTemp_CanopyAir, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
+  write(*,'(a)')  'in picardSolv: iter, airtemp, scalarCanairTempIter, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1) = '
+  write(*,'(i4,1x,10(f12.5,1x))') iter, airtemp, scalarCanairTempIter, scalarVP_CanopyAir, scalarCanopyTempNew, mLayerTempNew(1), scalarCanopyTempIncr, mLayerTempIncr(1)
 
   !write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'in picardSolv: iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew = ', &
   !                                                     iter, dt, scalarCanopyIceIter, scalarCanopyLiqIter, scalarCanopyIceNew, scalarCanopyLiqNew
