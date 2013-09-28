@@ -50,14 +50,15 @@ contains
   case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (17) choice of parameterization for vegetation roughness length and displacement height
   case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (18) choice of parameterization for canopy emissivity
   case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (19) choice of parameterization for snow interception 
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (20) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (21) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (22) choice of method to combine and sub-divide snow layers
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (23) choice of thermal conductivity representation
-  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (24) choice of method for canopy shortwave radiation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (25) choice of albedo representation
-  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (26) choice of method for spatial representation of groundwater
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (27) choice of method for sub-grid routing
+  case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! (20) choice of canopy wind profile
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (21) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (22) choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (23) choice of method to combine and sub-divide snow layers
+  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (24) choice of thermal conductivity representation
+  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (25) choice of method for canopy shortwave radiation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (26) choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (27) choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (28) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -465,6 +466,7 @@ contains
   ! scalar variables -- soil and aquifer fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)
+  case('scalarMaxSurfInfiltration'      ); get_ixmvar = iLookMVAR%scalarMaxSurfInfiltration        ! maximum surface infiltration rate (m s-1)
   case('scalarInitAquiferRecharge'      ); get_ixmvar = iLookMVAR%scalarInitAquiferRecharge        ! recharge to the aquifer -- at the start of the step (m s-1)
   case('scalarAquiferRecharge'          ); get_ixmvar = iLookMVAR%scalarAquiferRecharge            ! recharge to the aquifer (m s-1)
   case('scalarInitAquiferTranspire'     ); get_ixmvar = iLookMVAR%scalarInitAquiferTranspire       ! transpiration from the aquifer (m s-1)

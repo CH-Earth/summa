@@ -44,7 +44,8 @@ NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(FUSE_NRUTIL))
 FUSE_NRPROC= \
 		expIntegral.f90 \
 		spline_int.f90 \
-		intgr8func.f90
+		intgr8func.f90 \
+		matrixSolv.f90
 NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(FUSE_NRPROC))
 
 # Hook-up modules (set files and directory paths)

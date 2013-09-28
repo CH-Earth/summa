@@ -43,12 +43,14 @@ end function vapPress
 
 ! ----------------------------------------------------------------------
 ! ----------------------------------------------------------------------
-subroutine satVapPress(TC, SVP, dSVP_dT)
+subroutine satVapPress_noah(TC, SVP, dSVP_dT)
 !---------------------------------------------------------------------------------------------------
 ! Modified from Noah-MP
 ! Use polynomials to calculate saturation vapor pressure and derivative with
 ! respect to temperature: over water when t > 0 c and over ice when t <= 0 c
 ! NOTE: temperature units are degC !!!!
+! NOTE: analytical derivatives do not match analytical derivatives
+!         --> there may be a problem in one of the constants....
 IMPLICIT NONE
 ! input
 real(dp), intent(in)            :: TC       ! temperature (C)
@@ -60,6 +62,9 @@ REAL(DP) :: A0,A1,A2,A3,A4,A5,A6  !coefficients for esat over water
 REAL(DP) :: B0,B1,B2,B3,B4,B5,B6  !coefficients for esat over ice
 REAL(DP) :: C0,C1,C2,C3,C4,C5,C6  !coefficients for dsat over water
 REAL(DP) :: D0,D1,D2,D3,D4,D5,D6  !coefficients for dsat over ice
+! local (testing)
+real(dp), parameter             :: X1 = 17.27_dp
+real(dp), parameter             :: X2 = 237.30_dp
 ! parameters
 PARAMETER (A0=6.107799961_dp    , A1=4.436518521E-01_dp,  &
            A2=1.428945805E-02_dp, A3=2.650648471E-04_dp,  &
@@ -86,6 +91,36 @@ else
  SVP     = 100._dp*(B0+TC*(B1+TC*(B2+TC*(B3+TC*(B4+TC*(B5+TC*B6))))))
  dSVP_dT = 100._dp*(D0+TC*(D1+TC*(D2+TC*(D3+TC*(D4+TC*(D5+TC*D6))))))
 endif
+print*, 'noah: SVP, dSVP_dT = ', SVP, dSVP_dT
+! test
+SVP     = SATVPFRZ * EXP( (X1*TC)/(X2 + TC) ) ! Saturated Vapour Press (Pa)
+dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2._dp)
+print*, 'test: SVP, dSVP_dT = ', SVP, dSVP_dT
+END SUBROUTINE satVapPress_noah
+
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+subroutine satVapPress(TC, SVP, dSVP_dT)
+!---------------------------------------------------------------------------------------------------
+! Uses Teten's formula to compute saturated vapor pressure (Pa)
+! NOTE: temperature units are degC !!!!
+IMPLICIT NONE
+! input
+real(dp), intent(in)            :: TC       ! temperature (C)
+! output
+real(dp), intent(out)           :: SVP      ! saturation vapor pressure (Pa)
+real(dp), intent(out)           :: dSVP_dT  ! d(SVP)/dT
+! local
+real(dp), parameter             :: X1 = 17.27_dp
+real(dp), parameter             :: X2 = 237.30_dp
+! local (use to test derivative calculations)
+real(dp),parameter              :: dx = 1.e-8_dp  ! finite difference increment
+!---------------------------------------------------------------------------------------------------
+! Units note :              Pa = N m-2 = kg m-1 s-2
+! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
+SVP     = SATVPFRZ * EXP( (X1*TC)/(X2 + TC) ) ! Saturated Vapour Press (Pa)
+dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2._dp)
+!print*, 'dSVP_dT check... ', SVP, dSVP_dT, (SATVPRESS(TC+dx) - SVP)/dx
 END SUBROUTINE satVapPress
 
 ! ----------------------------------------------------------------------
@@ -341,7 +376,7 @@ FUNCTION SATVPRESS(TCEL)
 IMPLICIT NONE
 REAL(DP),INTENT(IN) :: TCEL      ! Temperature (C)
 REAL(DP)            :: SATVPRESS ! Saturated vapor pressure (Pa)
-SATVPRESS = SATVPFRZ * EXP( (17.27*TCEL)/(237.30 + TCEL) ) ! Saturated Vapour Press (Pa)
+SATVPRESS = SATVPFRZ * EXP( (17.27_dp*TCEL)/(237.30_dp + TCEL) ) ! Saturated Vapour Press (Pa)
 END FUNCTION SATVPRESS
 
 

@@ -121,6 +121,10 @@ contains
      mLayerVolFracLiqNew(iLayer)       = volFracLiq(mLayerMatricHeadNew(iLayer-nSnow),&
                                                     vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      mLayerVolFracIceNew(iLayer)       = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
+     if(mLayerVolFracLiqNew(iLayer) > theta)then
+      message=trim(message)//'volumetric liquid water content exceeds total water'
+      err=20; return
+     endif
     else
      ! update matric head when all water is **unfrozen** -- if matric head > 0 at iter=m then no change in matric head
      !if(mLayerMatricHeadIter(iLayer-nSnow) > 0._dp)then ! saturated at the start of the iteration

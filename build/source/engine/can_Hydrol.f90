@@ -16,6 +16,8 @@ contains
                        ! input: state variables at the current iteration
                        scalarCanopyIceIter,      & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                        scalarCanopyLiqIter,      & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                       ! input: canopy evaporation (from energy routine)
+                       scalarCanopyEvaporation,  & ! intent(in): canopy evaporation/condensation (kg m-2 s-1)
                        ! output: updated state variables
                        scalarCanopyLiqNew,       & ! intent(out): updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                        ! output: error control
@@ -31,6 +33,8 @@ contains
  ! input: state variables at the current iteration
  real(dp),intent(in)           :: scalarCanopyIceIter        ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
  real(dp),intent(in)           :: scalarCanopyLiqIter        ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+ ! input: canopy evaporation (from energy routine)
+ real(dp),intent(in)           :: scalarCanopyEvaporation    ! canopy evaporation (kg m-2 s-1)
  ! output: updated state variables
  real(dp),intent(out)          :: scalarCanopyLiqNew         ! updated mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
  ! output: error control
@@ -57,6 +61,8 @@ contains
                         ! input: state variables at the current iteration
                         scalarCanopyIceIter,                                       & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                         scalarCanopyLiqIter,                                       & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                        ! input: canopy evaporation (from energy routine)
+                        scalarCanopyEvaporation,                                   & ! intent(in): canopy evaporation/condensation (kg m-2 s-1)
                         ! input: state variables at the start of the sub-step
                         mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
                         mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
@@ -64,7 +70,6 @@ contains
                         mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),            & ! intent(in): computed rainfall rate (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),          & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
                         mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),          & ! intent(in): exposed stem area index after burial by snow (m2 m-2)                       
-                        mvar_data%var(iLookMVAR%scalarCanopyEvaporation)%dat(1),   & ! intent(in): canopy evaporation (kg m-2 s-1)
                         ! input: parameters
                         mpar_data%var(iLookPARAM%refInterceptCapRain),             & ! intent(in): reference canopy interception capacity for rain per unit leaf area (kg m-2)
                         mpar_data%var(iLookPARAM%throughfallScaleRain),            & ! intent(in): scaling factor for throughfall (rain) (-)
@@ -98,6 +103,8 @@ contains
                               ! input: state variables at the current iteration
                               scalarCanopyIceIter,         & ! intent(in): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
                               scalarCanopyLiqIter,         & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                              ! input: canopy evaporation (from energy routine)
+                              scalarCanopyEvaporation,     & ! intent(in): canopy evaporation (kg m-2 s-1)
                               ! input: state variables at the start of the sub-step
                               scalarCanopyIce,             & ! intent(in): mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
                               scalarCanopyLiq,             & ! intent(in): mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
@@ -105,7 +112,6 @@ contains
                               scalarRainfall,              & ! intent(in): computed rainfall rate (kg m-2 s-1)
                               scalarExposedLAI,            & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
                               scalarExposedSAI,            & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                              scalarCanopyEvaporation,     & ! intent(in): canopy evaporation (kg m-2 s-1)
                               ! input: parameters
                               refInterceptCapRain,         & ! intent(in): reference canopy interception capacity for rain per unit leaf area (kg m-2)
                               throughfallScaleRain,        & ! intent(in): scaling factor for throughfall (rain) (-)
@@ -126,6 +132,8 @@ contains
  ! input: state variables at the current iteration
  real(dp),intent(in)           :: scalarCanopyIceIter        ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
  real(dp),intent(in)           :: scalarCanopyLiqIter        ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+ ! input: canopy evaporation (from energy routine)
+ real(dp),intent(in)           :: scalarCanopyEvaporation    ! canopy evaporation (kg m-2 s-1)
  ! input: state variables at the start of the sub-step
  real(dp),intent(in)           :: scalarCanopyIce            ! mass of ice on the vegetation canopy at the start of the sub-step (kg m-2)
  real(dp),intent(in)           :: scalarCanopyLiq            ! mass of liquid water on the vegetation canopy at the start of the sub-step (kg m-2)
@@ -133,7 +141,6 @@ contains
  real(dp),intent(in)           :: scalarRainfall             ! computed rainfall rate (kg m-2 s-1)
  real(dp),intent(in)           :: scalarExposedLAI           ! exposed leaf area index after burial by snow (m2 m-2)
  real(dp),intent(in)           :: scalarExposedSAI           ! exposed stem area index after burial by snow (m2 m-2)
- real(dp),intent(in)           :: scalarCanopyEvaporation    ! canopy evaporation (kg m-2 s-1)
  ! input: parameters
  real(dp),intent(in)           :: refInterceptCapRain        ! reference canopy interception capacity for rain per unit leaf area (kg m-2)
  real(dp),intent(in)           :: throughfallScaleRain       ! scaling factor for throughfall (rain) (-)

@@ -2,6 +2,7 @@ module soil_utils_module
 USE nrtype
 implicit none
 private
+! routines to make public
 public::iceImpede
 public::hydCond_psi
 public::hydCond_liq
@@ -16,41 +17,69 @@ public::dPsi_dTheta2
 public::RH_soilair
 public::dTheta_dTk
 public::crit_soilT
+! constant parameters
+real(dp),parameter     :: valueMissing=-9999._dp    ! missing value parameter
+real(dp),parameter     :: verySmall=epsilon(1.0_dp) ! a very small number (used to avoid divide by zero)
+real(dp),parameter     :: dx=1.e-8_dp               ! finite difference increment
 contains
 
  ! ***********************************************************************************************************
  ! new function: compute the ice impedence factor
  ! ***********************************************************************************************************
- function iceImpede(volFracIce,theta_res,theta_sat,f_impede)
+ subroutine iceImpede(volFracIce,volFracLiq,theta_sat,f_impede,lTangent, &  ! input
+                      iceImpedeFactor,dIceImpede_dLiq)                      ! output
  ! computes the ice impedence factor (separate function, as used multiple times)
  implicit none
- ! dummy variables
- real(dp),intent(in) :: volFracIce  ! volumetric fraction of ice
- real(dp),intent(in) :: theta_res   ! residual volumetric liquid water content (-)
- real(dp),intent(in) :: theta_sat   ! soil porosity (-)
- real(dp),intent(in) :: f_impede    ! ice impedence parameter (-)
- real(dp)            :: iceImpede   ! ice impedence factor (-)
+ ! input variables
+ real(dp),intent(in)     :: volFracIce        ! volumetric fraction of ice (-)
+ real(dp),intent(in)     :: volFracLiq        ! volumetric fraction of liquid water (-)
+ real(dp),intent(in)     :: theta_sat         ! soil porosity (-)
+ real(dp),intent(in)     :: f_impede          ! ice impedence parameter (-)
+ logical(lgt),intent(in) :: lTangent          ! method used to compute derivative (.true. = analytical)
+ ! output variables
+ real(dp)                :: iceImpedeFactor   ! ice impedence factor (-)
+ real(dp)                :: dIceImpede_dLiq   ! derivative in ice impedence factor w.r.t. volumetric liquid water content (-) 
  ! local variables
- real(dp)            :: relIce      ! relative fraction of ice
- ! compute relative fraction of ice
- relIce = volFracIce/(theta_sat - theta_res)
- ! compute the ice impedence factor
- iceImpede = 10._dp**(-f_impede*relIce)
- end function iceImpede
+ real(dp)                :: avCapIce          ! available capacity for ice
+ real(dp)                :: xArg              ! argument in the power function
+ real(dp)                :: f1                ! new function used to calculate numerical derivatives
+ ! compute volumetric fraction available for ice (-)
+ avCapIce = theta_sat - volFracLiq
+ if(volFracIce < avCapIce)then
+
+  ! compute the ice impedence factor
+  xArg = 1._dp - volFracIce/avCapIce
+  iceImpedeFactor = xArg**f_impede
+
+  ! compute derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
+  if(lTangent)then
+   dIceImpede_dLiq = -volFracIce*(f_impede*xArg**(f_impede - 1._dp))/(avCapIce**2._dp)
+  else  ! (numerical derivatives)
+   f1 = (1._dp - (volFracIce/ (theta_sat - (volFracLiq+dx)) ) )**f_impede
+   dIceImpede_dLiq = (f1 - iceImpedeFactor)/dx
+  endif
+
+ ! pore space completely filled with ice
+ else
+  iceImpedeFactor = 0._dp
+  dIceImpede_dLiq = 0._dp
+ endif
+ end subroutine iceImpede
 
 
  ! ***********************************************************************************************************
- ! new function: compute the hydraulic conductivity as a function of matric head (m s-1)
+ ! new subroutine: compute the hydraulic conductivity as a function of matric head (m s-1)
  ! ***********************************************************************************************************
  function hydCond_psi(psi,k_sat,alpha,n,m)
  ! computes hydraulic conductivity given psi and soil hydraulic parameters k_sat, alpha, n, and m
  implicit none
- real(dp),intent(in) :: psi      ! soil water suction (m)
- real(dp),intent(in) :: k_sat    ! saturated hydraulic conductivity (m s-1)
- real(dp),intent(in) :: alpha    ! scaling parameter (m-1)
- real(dp),intent(in) :: n        ! vGn "n" parameter (-)
- real(dp),intent(in) :: m        ! vGn "m" parameter (-)
- real(dp)            :: hydCond_psi  ! hydraulic conductivity (m s-1)
+ ! dummies
+ real(dp),intent(in)     :: psi           ! soil water suction (m)
+ real(dp),intent(in)     :: k_sat         ! saturated hydraulic conductivity (m s-1)
+ real(dp),intent(in)     :: alpha         ! scaling parameter (m-1)
+ real(dp),intent(in)     :: n             ! vGn "n" parameter (-)
+ real(dp),intent(in)     :: m             ! vGn "m" parameter (-)
+ real(dp)                :: hydCond_psi   ! hydraulic conductivity (m s-1)
  if(psi<0._dp)then
   hydCond_psi = k_sat * &
                 ( ( (1._dp - (psi*alpha)**(n-1._dp) * (1._dp + (psi*alpha)**n)**(-m))**2._dp ) &
@@ -233,7 +262,6 @@ contains
  real(dp)                :: theta_e      ! effective soil moisture
  ! locals for numerical derivative
  real(dp)                :: func0,func1  ! function evaluations
- real(dp),parameter      :: dx=1.e-5_dp  ! finite difference increment
  ! check if less than saturation
  if(volFracLiq < theta_sat)then
   ! ***** compute analytical derivatives
@@ -265,7 +293,7 @@ contains
  ! ***********************************************************************************************************
  ! new function: compute the derivative in hydraulic conductivity w.r.t. matric head (s-1)
  ! ***********************************************************************************************************
- function dHydCond_dPsi(psi,k_sat,alpha,n,m,iceImpede,lTangent)
+ function dHydCond_dPsi(psi,k_sat,alpha,n,m,lTangent)
  ! computes the derivative in hydraulic conductivity w.r.t matric head,
  !  given psi and soil hydraulic parameters k_sat, alpha, n, and m
  implicit none
@@ -275,20 +303,18 @@ contains
  real(dp),intent(in)     :: alpha      ! scaling parameter (m-1)
  real(dp),intent(in)     :: n          ! vGn "n" parameter (-)
  real(dp),intent(in)     :: m          ! vGn "m" parameter (-)
- real(dp),intent(in)     :: iceImpede  ! ice impedence factor (-)
  logical(lgt),intent(in) :: lTangent   ! method used to compute derivative (.true. = analytical)
  real(dp)                :: dHydCond_dPsi  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
  ! locals for analytical derivatives
- real(dp)                :: f_x1       ! f(x) for part of the numerator
- real(dp)                :: f_x2       ! f(x) for part of the numerator
- real(dp)                :: f_nm       ! f(x) for the numerator
- real(dp)                :: f_dm       ! f(x) for the denominator
- real(dp)                :: d_x1       ! df(x)/dpsi for part of the numerator
- real(dp)                :: d_x2       ! df(x)/dpsi for part of the numerator
- real(dp)                :: d_nm       ! df(x)/dpsi for the numerator
- real(dp)                :: d_dm       ! df(x)/dpsi for the denominator
+ real(dp)                :: f_x1          ! f(x) for part of the numerator
+ real(dp)                :: f_x2          ! f(x) for part of the numerator
+ real(dp)                :: f_nm          ! f(x) for the numerator
+ real(dp)                :: f_dm          ! f(x) for the denominator
+ real(dp)                :: d_x1          ! df(x)/dpsi for part of the numerator
+ real(dp)                :: d_x2          ! df(x)/dpsi for part of the numerator
+ real(dp)                :: d_nm          ! df(x)/dpsi for the numerator
+ real(dp)                :: d_dm          ! df(x)/dpsi for the denominator
  ! locals for numerical derivatives
- real(dp),parameter      :: dx=1.e-5_dp  ! finite difference increment
  real(dp)                :: hydCond0   ! hydraulic condictivity value for base case
  real(dp)                :: hydCond1   ! hydraulic condictivity value for perturbed case
  ! derivative is zero if saturated
@@ -306,11 +332,11 @@ contains
    f_dm = (1._dp + (psi*alpha)**n)**(m/2._dp)
    d_dm = alpha * n*(psi*alpha)**(n - 1._dp) * (m/2._dp)*(1._dp + (psi*alpha)**n)**(m/2._dp - 1._dp)
    ! and combine
-   dHydCond_dPsi = iceImpede*k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2._dp)
+   dHydCond_dPsi = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2._dp)
   else
    ! ***** compute numerical derivatives
-   hydcond0  = hydCond_psi(psi,   k_sat,alpha,n,m) * iceImpede
-   hydcond1  = hydCond_psi(psi+dx,k_sat,alpha,n,m) * iceImpede
+   hydcond0  = hydCond_psi(psi,   k_sat,alpha,n,m)
+   hydcond1  = hydCond_psi(psi+dx,k_sat,alpha,n,m)
    dHydCond_dPsi = (hydcond1 - hydcond0)/dx
   endif
  else
@@ -322,7 +348,7 @@ contains
  ! ***********************************************************************************************************
  ! new function: compute the derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
  ! ***********************************************************************************************************
- function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,iceImpede,lTangent)
+ function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
  ! computes the derivative in hydraulic conductivity w.r.t the volumetric fraction of liquid water,
  !  given volFracLiq and soil hydraulic parameters k_sat, theta_sat, theta_res, and m
  implicit none
@@ -332,7 +358,6 @@ contains
  real(dp),intent(in)     :: theta_res  ! soil residual volumetric water content (-)
  real(dp),intent(in)     :: theta_sat  ! soil porosity (-)
  real(dp),intent(in)     :: m          ! vGn "m" parameter (-)
- real(dp),intent(in)     :: iceImpede  ! ice impedence factor (-)
  logical(lgt),intent(in) :: lTangent   ! method used to compute derivative (.true. = analytical)
  real(dp)                :: dHydCond_dLiq  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
  ! locals for analytical derivatives
@@ -344,11 +369,9 @@ contains
  real(dp)                :: f2       ! f(x) for the second function
  real(dp)                :: d2       ! df(x)/dLiq for the second function
  ! locals for numerical derivatives
- real(dp),parameter      :: dx=1.e-5_dp  ! finite difference increment
  real(dp)                :: hydCond0 ! hydraulic condictivity value for base case
  real(dp)                :: hydCond1 ! hydraulic condictivity value for perturbed case
-
- ! derivative is zero id super-saturated
+ ! derivative is zero if super-saturated
  if(volFracLiq < theta_sat)then
   ! ***** compute analytical derivatives
   if(lTangent)then
@@ -370,11 +393,11 @@ contains
    ! (combine)
    d2 = p1*p2*p3
    ! pull it all together
-   dHydCond_dLiq = (d1*f2 + d2*f1) * iceImpede
+   dHydCond_dLiq = (d1*f2 + d2*f1)
   else
    ! ***** compute numerical derivatives
-   hydcond0 = hydCond_liq(volFracLiq,   k_sat,theta_res,theta_sat,m) * iceImpede
-   hydcond1 = hydCond_liq(volFracLiq+dx,k_sat,theta_res,theta_sat,m) * iceImpede
+   hydcond0 = hydCond_liq(volFracLiq,   k_sat,theta_res,theta_sat,m)
+   hydcond1 = hydCond_liq(volFracLiq+dx,k_sat,theta_res,theta_sat,m)
    dHydCond_dLiq = (hydcond1 - hydcond0)/dx
   endif
  else

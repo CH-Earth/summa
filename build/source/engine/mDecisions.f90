@@ -55,36 +55,39 @@ integer(i4b),parameter,public :: difTrans             = 102    ! parameterized a
 ! look-up values for the choice of parameterization for snow interception
 integer(i4b),parameter,public :: stickySnow           = 111    ! maximum interception capacity an increasing function of temerature
 integer(i4b),parameter,public :: lightSnow            = 112    ! maximum interception capacity an inverse function of new snow densit
+! look-up values for the choice of wind profile
+integer(i4b),parameter,public :: exponential          = 121    ! exponential wind profile extends to the surface
+integer(i4b),parameter,public :: logBelowCanopy       = 122    ! logarithmic profile below the vegetation canopy
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard             = 121    ! standard MO similarity, a la Anderson (1976) 
-integer(i4b),parameter,public :: louisInversePower    = 122    ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential     = 123    ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard             = 131    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: louisInversePower    = 132    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential     = 133    ! Mahrt (1987) exponential
 ! look-up values for the choice of canopy shortwave radiation method
-integer(i4b),parameter,public :: noah_mp              = 131    ! full Noah-MP implementation (including albedo)
-integer(i4b),parameter,public :: CLM_2stream          = 132    ! CLM 2-stream model (see CLM documentation)
-integer(i4b),parameter,public :: UEB_2stream          = 133    ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
-integer(i4b),parameter,public :: NL_scatter           = 134    ! Simplified method Nijssen and Lettenmaier (JGR 1999)
-integer(i4b),parameter,public :: BeersLaw             = 135    ! Beer's Law (as implemented in VIC)
+integer(i4b),parameter,public :: noah_mp              = 141    ! full Noah-MP implementation (including albedo)
+integer(i4b),parameter,public :: CLM_2stream          = 142    ! CLM 2-stream model (see CLM documentation)
+integer(i4b),parameter,public :: UEB_2stream          = 143    ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+integer(i4b),parameter,public :: NL_scatter           = 144    ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+integer(i4b),parameter,public :: BeersLaw             = 145    ! Beer's Law (as implemented in VIC)
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: constantDecay        = 141    ! constant decay (e.g., VIC, CLASS)
-integer(i4b),parameter,public :: variableDecay        = 142    ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
+integer(i4b),parameter,public :: constantDecay        = 151    ! constant decay (e.g., VIC, CLASS)
+integer(i4b),parameter,public :: variableDecay        = 152    ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement   = 151    ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical    = 152    ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement   = 161    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical    = 162    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
-integer(i4b),parameter,public :: sameRulesAllLayers   = 161    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 162    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: sameRulesAllLayers   = 171    ! same combination/sub-division rules applied to all layers
+integer(i4b),parameter,public :: rulesDependLayerIndex= 172    ! combination/sub-dividion rules depend on layer index
 ! look-up values for the choice of thermal conductivity
-integer(i4b),parameter,public :: Yen1965              = 171    ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977           = 172    ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991           = 173    ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000         = 174    ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965              = 181    ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977           = 182    ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991           = 183    ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000         = 184    ! Smirnova et al. (2000)
 ! look-up values for the choice of method for the spatial representation of groundwater
-integer(i4b),parameter,public :: localColumn          = 181    ! separate groundwater representation in each local soil column
-integer(i4b),parameter,public :: singleBasin          = 182    ! single groundwater store over the entire basin
+integer(i4b),parameter,public :: localColumn          = 191    ! separate groundwater representation in each local soil column
+integer(i4b),parameter,public :: singleBasin          = 192    ! single groundwater store over the entire basin
 ! look-up values for the choice of sub-grid routing method
-integer(i4b),parameter,public :: timeDelay            = 191    ! time-delay histogram
-integer(i4b),parameter,public :: qInstant             = 192    ! instantaneous routing
+integer(i4b),parameter,public :: timeDelay            = 201    ! time-delay histogram
+integer(i4b),parameter,public :: qInstant             = 202    ! instantaneous routing
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -323,6 +326,14 @@ contains
   case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
   case default
    err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
+ end select
+
+ ! identify the choice of wind profile
+ select case(trim(model_decisions(iLookDECISIONS%windPrfile)%cDecision))
+  case('exponential'   ); model_decisions(iLookDECISIONS%windPrfile)%iDecision = exponential      ! exponential wind profile extends to the surface
+  case('logBelowCanopy'); model_decisions(iLookDECISIONS%windPrfile)%iDecision = logBelowCanopy   ! logarithmic profile below the vegetation canopy
+  case default
+   err=10; message=trim(message)//"unknown option for choice of wind profile[option="//trim(model_decisions(iLookDECISIONS%windPrfile)%cDecision)//"]"; return
  end select
 
  ! (F-14) identify the choice of atmospheric stability function

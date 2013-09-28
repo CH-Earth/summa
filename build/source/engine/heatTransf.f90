@@ -73,6 +73,10 @@ contains
                        scalarGroundStabilityCorrection,  & ! intent(inout): stability correction for the ground surface (-)
 
                        ! output
+                       scalarCanopyTranspiration,        & ! intent(out): canopy transpiration (kg m-2 s-1)
+                       scalarCanopyEvaporation,          & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                       scalarGroundEvaporation,          & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+                       scalarCanairTempDiff,             & ! intent(out): iteration increment for temperature of the canopy air space (K)
                        scalarCanopyTempDiff,             & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                        mLayerTempDiff,                   & ! intent(out): iteration increment for temperature of the snow-soil system (K)
                        scalarCanairTempNew,              & ! intent(out): new temperature of the canopy air space (K)
@@ -114,6 +118,10 @@ contains
  real(dp),intent(inout)        :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
  real(dp),intent(inout)        :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
  ! output
+ real(dp),intent(out)          :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
+ real(dp),intent(out)          :: scalarCanopyEvaporation       ! canopy evaporation/condensation (kg m-2 s-1)
+ real(dp),intent(out)          :: scalarGroundEvaporation       ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ real(dp),intent(out)          :: scalarCanairTempDiff          ! iteration increment for temperature of the canopy air space (K)
  real(dp),intent(out)          :: scalarCanopyTempDiff          ! iteration increment for temperature of the vegetation canopy (K)
  real(dp),intent(out)          :: mLayerTempDiff(:)             ! iteration increment for temperature of the snow-soil system (K)
  real(dp),intent(out)          :: scalarCanairTempNew           ! new temperature of the canopy air space (K)
@@ -236,6 +244,10 @@ contains
                         scalarGroundStabilityCorrection,                               & ! intent(inout): stability correction for the ground surface (-)
 
                         ! output variables from heatTransf subroutine
+                        scalarCanopyTranspiration,                                     & ! intent(out): canopy transpiration (kg m-2 s-1)
+                        scalarCanopyEvaporation,                                       & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                        scalarGroundEvaporation,                                       & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+                        scalarCanairTempDiff,                                          & ! intent(out): iteration increment for temperature of the canopy air space (K)
                         scalarCanopyTempDiff,                                          & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                         mLayerTempDiff,                                                & ! intent(out): iteration increment for temperature of the snow-soil system (K) 
                         scalarCanairTempNew,                                           & ! intent(out): new temperature of the canopy air space (K)
@@ -361,6 +373,10 @@ contains
                               scalarGroundStabilityCorrection,& ! intent(inout): stability correction for the ground surface (-)
 
                               ! output variables from heatTransf subroutine
+                              scalarCanopyTranspiration,    & ! intent(out): canopy transpiration (kg m-2 s-1)
+                              scalarCanopyEvaporation,      & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                              scalarGroundEvaporation,      & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+                              scalarCanairTempDiff,         & ! intent(out): iteration increment for temperature of the canopy air space (K)
                               scalarCanopyTempDiff,         & ! intent(out): iteration increment for temperature of the vegetation canopy (K)
                               mLayerTempDiff,               & ! intent(out): iteration increment for temperature of the snow-soil system (K)
                               scalarCanairTempNew,          & ! intent(out): new temperature of the canopy air space (K)
@@ -381,6 +397,7 @@ contains
  USE snow_utils_module,only:dFracLiq_dTk                      ! differentiate the freezing curve w.r.t. temperature (snow)
  USE soil_utils_module,only:dTheta_dTk                        ! differentiate the freezing curve w.r.t. temperature (soil)
  USE conv_funcs_module,only:relhm2sphm                        ! compute specific humidity 
+ USE matrixSolv_module,only:matrixSolv                        ! solve full matrix
  USE tridagSolv_module,only:tridag                            ! solve tridiagonal system of equations
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------
  implicit none
@@ -462,6 +479,10 @@ contains
  real(dp),intent(inout)         :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
  real(dp),intent(inout)         :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
  ! output variables from the heatTransf subroutine
+ real(dp),intent(out)           :: scalarCanopyTranspiration   ! canopy transpiration (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarCanopyEvaporation     ! canopy evaporation/condensation (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarGroundEvaporation     ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ real(dp),intent(out)           :: scalarCanairTempDiff        ! iteration increment for temperature of the canopy air space (K)
  real(dp),intent(out)           :: scalarCanopyTempDiff        ! iteration increment for temperature of the vegetation canopy (K)
  real(dp),intent(out)           :: mLayerTempDiff(:)           ! iteration increment for temperature of the snow-soil system (K) 
  real(dp),intent(out)           :: scalarCanairTempNew         ! new temperature of the canopy air space (K)
@@ -479,7 +500,7 @@ contains
  ! ---------------------------------------------------------------------------------------------------------------------------------
  ! define general local variables
  character(LEN=256)             :: cmessage                   ! error message of downwind routine
- integer(i4b)                   :: iLayer                     ! index of model layers
+ integer(i4b)                   :: iLayer,jLayer              ! index of model layers
  logical(lgt)                   :: printflag                  ! .true. if print progress to the screen
  logical(lgt)                   :: fTranspire                 ! .true. if computing transpiration
  logical(lgt),parameter         :: computeJacobian=.false.    ! .true. if desire to compute the Jacobian matrix (just used for testing)
@@ -511,6 +532,14 @@ contains
  real(dp),save                  :: canairNetFluxInit          ! net energy flux at the canopy air space at the start of the substep (W m-2)
  real(dp),save                  :: canopyNetFluxInit          ! net energy flux at the canopy at the start of the substep (W m-2)
  real(dp),dimension(0:nLayers)  :: iLayerNrgFluxInit          ! flux at layer interfaces of the snow-soil system at the start of the substep (W m-2)
+ ! define the Jacobian matrices
+ integer(i4b)                   :: nState                     ! number of state variables
+ integer(i4b),parameter         :: ixCas=1                    ! index of layer for the canopy air space
+ integer(i4b),parameter         :: ixVeg=2                    ! index of layer for the vegetation canopy
+ integer(i4b),parameter         :: ixSfc=3                    ! index of layer for the top snow or soil layer
+ real(dp),dimension(nLayers+2,nLayers+2) :: aJac              ! Jacobian matrix
+ real(dp),dimension(nLayers+2)           :: rVec              ! residual vector
+ real(dp),dimension(nLayers+2)           :: xInc              ! iteration increment
  ! define the local variables for the solution
  real(dp)                       :: dTheta_dTkCanopy           ! derivative in fraction liquid water w.r.t. canopy temperature (K-1)
  real(dp),dimension(0:nLayers)  :: dFlux_dTempAbove           ! derivative in flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
@@ -527,15 +556,9 @@ contains
  real(dp)                       :: d_m1Canopy                 ! sub-diagonal element for the derivative in net ground flux w.r.t. canopy temperature (J m-3 K-1)
  real(dp)                       :: d_p1Canopy                 ! super-diagonal element for the derivative in net canopy flux w.r.t. ground temperature (J m-3 K-1)
  ! define tri-diagonal matrix elements for the snow-soil system
- real(dp),dimension(nLayers)    :: diagVector                 ! diagonal (J m-3 K-1)
- real(dp),dimension(nLayers-1)  :: d_m1Vector                 ! sub-diagonal (J m-3 K-1)
- real(dp),dimension(nLayers-1)  :: d_p1Vector                 ! super-diagonal (J m-3 K-1)
- ! define the tri-diagonal matrix
- real(dp),allocatable           :: d_m1(:)                    ! sub-diagonal elements of the tridiagonal system (J m-3 K-1)
- real(dp),allocatable           :: diag(:)                    ! diagonal elements of the tridiagonal system (J m-3 K-1)
- real(dp),allocatable           :: d_p1(:)                    ! super-diagonal elements of the tridiagonal system (J m-3 K-1)
- real(dp),allocatable           :: rvec(:)                    ! residual vector (J m-3)
- real(dp),allocatable           :: sInc(:)                    ! state increment (K)
+ real(dp),dimension(nLayers)    :: diag                       ! diagonal (J m-3 K-1)
+ real(dp),dimension(nLayers-1)  :: d_m1                       ! sub-diagonal (J m-3 K-1)
+ real(dp),dimension(nLayers-1)  :: d_p1                       ! super-diagonal (J m-3 K-1)
  ! define local variables for phase change
  integer(i4b)                   :: iSnow                      ! index of snow layer
  real(dp)                       :: fLiq                       ! fraction of liquid water on the vegetation canopy (-)
@@ -569,13 +592,12 @@ contains
   err=20; message=trim(message)//'height of the bottom of the canopy > top of the canopy'; return
  endif
 
- ! ***** allocate space for the tri-diagonal matrix
+ ! define the number of state variables
  if(computeVegFlux)then
-  allocate(d_m1(0:nLayers-1),diag(0:nLayers),d_p1(0:nLayers-1),rvec(0:nLayers),sInc(0:nLayers), stat=err)
+  nState = nLayers+2 ! +2 accounts for (1) canopy air space; and (2) vegetation canopy
  else
-  allocate(d_m1(1:nLayers-1),diag(1:nLayers),d_p1(1:nLayers-1),rvec(1:nLayers),sInc(1:nLayers), stat=err)
- endif 
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the tri-diag matrix'; return; endif
+  nState = nLayers
+ endif
 
  ! get an initial value for the canopy air space variables, to be used in the Jacobian calculations
  ! NOTE: canopy air space values are intent(inout), which muck up derivative calculations if used directly
@@ -603,45 +625,51 @@ contains
  ! ***** compute energy fluxes at vegetation and ground surfaces
  call vegNrgFlux(&
                  ! input
-                 dt,                            & ! intent(in): time step (seconds)
-                 iter,                          & ! intent(in): iteration index
-                 firstSubStep,                  & ! intent(in): flag to indicate if we are processing the first sub-step
-                 computeVegFlux,                & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
-                 (iter==1),                     & ! intent(in): flag to indicate if we need to compute shortwave radiation
-                 scalarCanairTempIter,          & ! intent(in): trial temperature of the canopy air space (K)
-                 scalarCanopyTempIter,          & ! intent(in): trial value of canopy temperature (K)
-                 mLayerTempIter(1),             & ! intent(in): trial value of ground temperature (K)
-                 scalarCanopyIceIter,           & ! intent(in): trial mass of ice on the vegetation canopy (kg m-2)
-                 scalarCanopyLiqIter,           & ! intent(in): trial mass of liquid water on the vegetation canopy (kg m-2)
-                 vegTypeIndex,                  & ! intent(in): vegetation type index
-                 soilTypeIndex,                 & ! intent(in): soil type index
-                 scalarLAI,                     & ! intent(in): one-sided leaf area index (m2 m-2)
-                 scalarSAI,                     & ! intent(in): one-sided stem area index (m2 m-2)
-                 scalarExposedLAI,              & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                 scalarExposedSAI,              & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                 scalarGrowingSeasonIndex,      & ! intent(in): growing season index (0=off, 1=on)
-                 scalarFoliageNitrogenFactor,   & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
+                 dt,                              & ! intent(in): time step (seconds)
+                 iter,                            & ! intent(in): iteration index
+                 firstSubStep,                    & ! intent(in): flag to indicate if we are processing the first sub-step
+                 computeVegFlux,                  & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                 (iter==1),                       & ! intent(in): flag to indicate if we need to compute shortwave radiation
+                 scalarCanairTempIter,            & ! intent(in): trial temperature of the canopy air space (K)
+                 scalarCanopyTempIter,            & ! intent(in): trial value of canopy temperature (K)
+                 mLayerTempIter(1),               & ! intent(in): trial value of ground temperature (K)
+                 scalarCanopyIceIter,             & ! intent(in): trial mass of ice on the vegetation canopy (kg m-2)
+                 scalarCanopyLiqIter,             & ! intent(in): trial mass of liquid water on the vegetation canopy (kg m-2)
+                 vegTypeIndex,                    & ! intent(in): vegetation type index
+                 soilTypeIndex,                   & ! intent(in): soil type index
+                 scalarLAI,                       & ! intent(in): one-sided leaf area index (m2 m-2)
+                 scalarSAI,                       & ! intent(in): one-sided stem area index (m2 m-2)
+                 scalarExposedLAI,                & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                 scalarExposedSAI,                & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                 scalarGrowingSeasonIndex,        & ! intent(in): growing season index (0=off, 1=on)
+                 scalarFoliageNitrogenFactor,     & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
                  ! input/output: canopy air space variables
-                 scalarVP_CanopyAir,            & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                 scalarCanopyStabilityCorrection,& ! intent(inout): stability correction for the canopy (-)
-                 scalarGroundStabilityCorrection,& ! intent(inout): stability correction for the ground surface (-)
+                 scalarVP_CanopyAir,              & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
+                 scalarCanopyStabilityCorrection, & ! intent(inout): stability correction for the canopy (-)
+                 scalarGroundStabilityCorrection, & ! intent(inout): stability correction for the ground surface (-)
+                 ! output: liquid water fluxes associated with evaporation/transpiration
+                 scalarCanopyTranspiration,       & ! intent(out): canopy transpiration (kg m-2 s-1)
+                 scalarCanopyEvaporation,         & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                 scalarGroundEvaporation,         & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
                  ! output: fluxes
-                 canairNetFlux,                 & ! intent(out): net energy flux for the canopy air space (W m-2)
-                 canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
-                 groundNetFlux,                 & ! intent(out): net energy flux for the ground surface (W m-2)
+                 canairNetFlux,                   & ! intent(out): net energy flux for the canopy air space (W m-2)
+                 canopyNetFlux,                   & ! intent(out): net energy flux for the vegetation canopy (W m-2)
+                 groundNetFlux,                   & ! intent(out): net energy flux for the ground surface (W m-2)
                  ! output: flux derivatives
-                 dCanairNetFlux_dCanairTemp,    & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
-                 dCanairNetFlux_dCanopyTemp,    & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
-                 dCanairNetFlux_dGroundTemp,    & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
-                 dCanopyNetFlux_dCanairTemp,    & ! intent(out): derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
-                 dCanopyNetFlux_dCanopyTemp,    & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
-                 dCanopyNetFlux_dGroundTemp,    & ! intent(out): derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
-                 dGroundNetFlux_dCanairTemp,    & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
-                 dGroundNetFlux_dCanopyTemp,    & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
-                 dGroundNetFlux_dGroundTemp,    & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                 dCanairNetFlux_dCanairTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
+                 dCanairNetFlux_dCanopyTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
+                 dCanairNetFlux_dGroundTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
+                 dCanopyNetFlux_dCanairTemp,      & ! intent(out): derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
+                 dCanopyNetFlux_dCanopyTemp,      & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+                 dCanopyNetFlux_dGroundTemp,      & ! intent(out): derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+                 dGroundNetFlux_dCanairTemp,      & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
+                 dGroundNetFlux_dCanopyTemp,      & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+                 dGroundNetFlux_dGroundTemp,      & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
                  ! output: error control
-                 err,cmessage)                    ! intent(out): error control
+                 err,cmessage)                      ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ !write(*,'(a,1x,2(f20.8,1x))') 'scalarCanopyStabilityCorrection, scalarGroundStabilityCorrection = ', &
+ !                               scalarCanopyStabilityCorrection, scalarGroundStabilityCorrection
 
  ! ***** compute fluxes at layer interfaces and their derivatives (J m-2 s-1)
  call iLayer_nrg(&
@@ -697,6 +725,7 @@ contains
   phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
   ! (compute residuals)
   canopyResidual = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
+  !print*, 'nrg1, nrg0, flx1, canopyResidual = ', nrg1, nrg0, flx1, canopyResidual
   !print*, 'scalarCanopyIceIter, scalarCanopyIce = ', scalarCanopyIceIter, scalarCanopyIce
   !print*, 'nrg0, nrg1, nrg1 - nrg0 = ', nrg0, nrg1, nrg1 - nrg0
   !print*, 'wimplicit, scalarBulkVolHeatCapVeg, canopyResidual = ', wimplicit, scalarBulkVolHeatCapVeg, canopyResidual
@@ -711,6 +740,7 @@ contains
   flx1 = canairNetFlux/canopyDepth                                     ! flux at the current iteration (J m-3 s-1)
   ! (compute residuals)
   canairResidual = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt)
+  !print*, 'nrg1, nrg0, flx1, canairResidual = ', nrg1, nrg0, flx1, canairResidual
 
  endif
 
@@ -726,10 +756,9 @@ contains
   phse = LH_fus*iden_ice*(mLayerVolFracIceIter(iLayer) - mLayerVolFracIce(iLayer))            ! phase change term (J m-3)
   ! (compute residuals)
   mLayerResidual(iLayer) = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
-  !if(iLayer==1)&
-  !write(*,'(a,1x,i4,1x,f13.9,1x,2(f9.5,1x),5(e14.4,1x))') &
-  ! 'mLayer: iLayer, mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse = ', &
-  !          iLayer, mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse
+  ! (print progress)
+  !if(iLayer==1) write(*,'(a)')                                'iLayer, mLayerResidual(iLayer), mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse = '
+  !write(*,'(i4,1x,e20.10,5x,f13.9,1x,2(f9.5,1x),5(e14.4,1x))') iLayer, mLayerResidual(iLayer), mLayerTempIter(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), iLayerNrgFlux(iLayer-1), iLayerNrgFlux(iLayer), flx1*dt, phse
  end do
 
 
@@ -769,72 +798,90 @@ contains
  ! compute the weighted time for end-of-step values
  wtim = (1._dp - wimplicit)*dt  ! weighted time
 
- ! ***** assemble the tri-diagonal matrix for the canopy
- if(computeVegFlux)then
-  !print*, 'dTheta_dTkCanopy = ', dTheta_dTkCanopy
-  diagCanopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dCanopyTemp) + dTheta_dTkCanopy*LH_fus*iden_water + scalarBulkVolHeatCapVeg
-  d_m1Canopy = (wtim/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
-  d_p1Canopy = (wtim/canopyDepth)   *(-dCanopyNetFlux_dGroundTemp)
- endif
-
  ! ***** assemble the tri-diagonal matrix for the snow-soil layers
- diagVector = (wtim/mLayerDepth)*(-dFlux_dTempBelow(0:nLayers-1) + dFlux_dTempAbove(1:nLayers)) + mLayerVolHtCapBulk + mLayerdTheta_dTk*LH_fus*iden_water
- d_m1Vector = (wtim/mLayerDepth(2:nLayers  ))*(-dFlux_dTempAbove(1:nLayers-1) )
- d_p1Vector = (wtim/mLayerDepth(1:nLayers-1))*( dFlux_dTempBelow(1:nLayers-1) )
+ if(.not.computeVegFlux)then
+  diag = (wtim/mLayerDepth)*(-dFlux_dTempBelow(0:nLayers-1) + dFlux_dTempAbove(1:nLayers)) + mLayerVolHtCapBulk + mLayerdTheta_dTk*LH_fus*iden_water
+  d_m1 = (wtim/mLayerDepth(2:nLayers  ))*(-dFlux_dTempAbove(1:nLayers-1) )
+  d_p1 = (wtim/mLayerDepth(1:nLayers-1))*( dFlux_dTempBelow(1:nLayers-1) )
+ endif
 
- ! ***** combine vectors
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! * COMPUTE JACOBIAN MATRIX...
+ ! --------------------------------------------------------------------------------------------------------------------------------
+
+ ! case of exposed vegetation
  if(computeVegFlux)then
-  d_m1 = (/d_m1Canopy,d_m1Vector/)
-  diag = (/diagCanopy,diagVector/)
-  d_p1 = (/d_p1Canopy,d_p1Vector/)
-  rvec = (/canopyResidual,mLayerResidual/)
- else
-  d_m1 = d_m1Vector
-  diag = diagVector
-  d_p1 = d_p1Vector
-  rvec = mLayerResidual
- endif
 
- ! compute Jacobian matrix (just used for testing)
- if(computeJacobian)then
-  call cmpJacobian(&
-                   dt,                           & ! intent(in): time step (seconds)
-                   scalarCanairTempIter,         & ! intent(in): trial value of canopy air space temperature (K)
-                   scalarCanopyTempIter,         & ! intent(in): trial value of canopy temperature (K)
-                   mLayerTempIter,               & ! intent(in): trial temperature at the current iteration (K)
-                   err,message)                    ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- endif
+  ! ***** assemble the Jacobian matrix for the full system
+  ! initialize the Jacobian as all zeros
+  aJac(1:nState,1:nState) = 0._dp
+  ! define Jacobian matrix for the canopy air space (J m-3 K-1)
+  aJac(ixCas,ixCas) = (wtim/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + Cp_air*iden_air
+  aJac(ixCas,ixVeg) = (wtim/canopyDepth)*(-dCanairNetFlux_dCanopyTemp)
+  aJac(ixCas,ixSfc) = (wtim/canopyDepth)*(-dCanairNetFlux_dGroundTemp)
+  ! define Jacobian matrix for the vegetation canopy (J m-3 K-1)
+  aJac(ixVeg,ixCas) = (wtim/canopyDepth)*(-dCanopyNetFlux_dCanairTemp)
+  aJac(ixVeg,ixVeg) = (wtim/canopyDepth)*(-dCanopyNetFlux_dCanopyTemp) + scalarBulkVolHeatCapVeg + dTheta_dTkCanopy*LH_fus*iden_water
+  aJac(ixVeg,ixSfc) = (wtim/canopyDepth)*(-dCanopyNetFlux_dGroundTemp)
+  ! define Jacobian matric for the surface (J m-3 K-1)
+  aJac(ixSfc,ixCas) = (wtim/mLayerDepth(1))*(-dGroundNetFlux_dCanairTemp)
+  aJac(ixSfc,ixVeg) = (wtim/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
+  ! define Jacobian matrix for the snow-soil system
+  do iLayer=1,nLayers  ! loop through layers in the snow-soil system
+   jLayer = iLayer+2
+   aJac(jLayer,jLayer)   = (wtim/mLayerDepth(iLayer))*(-dFlux_dTempBelow(iLayer-1) + dFlux_dTempAbove(iLayer)) + mLayerVolHtCapBulk(iLayer) + mLayerdTheta_dTk(iLayer)*LH_fus*iden_water
+   if(iLayer > 1)       aJac(jLayer-1,jLayer) = (wtim/mLayerDepth(iLayer-1))*( dFlux_dTempBelow(iLayer-1) )
+   if(iLayer < nLayers) aJac(jLayer+1,jLayer) = (wtim/mLayerDepth(iLayer+1))*(-dFlux_dTempAbove(iLayer  ) )
+  end do  ! (looping through layers in the snow-soil system)
 
+  ! compute Jacobian matrix (just used for testing)
+  if(computeJacobian)then
+   call cmpJacobian(&
+                    dt,                           & ! intent(in): time step (seconds)
+                    scalarCanairTempIter,         & ! intent(in): trial value of canopy air space temperature (K)
+                    scalarCanopyTempIter,         & ! intent(in): trial value of canopy temperature (K)
+                    mLayerTempIter,               & ! intent(in): trial temperature at the current iteration (K)
+                    err,message)                    ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+ endif   ! (if computing veg flux)
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! * COMPUTE ITERATION INCREMENT...
  ! --------------------------------------------------------------------------------------------------------------------------------
 
  ! ***** solve the tridiagonal system of equations -- returns mLayerTempDiff
- call tridag(d_m1,                    & ! intent(in): sub-diagonal elements of the tridiagonal system (J m-3 K-1)
-             diag,                    & ! intent(in): diagonal elements of the tridiagonal system (J m-3 K-1)
-             d_p1,                    & ! intent(in): super-diagonal elements of the tridiagonal system (J m-3 K-1)
-             -rvec,                   & ! intent(in): residual vector (J m-3)
-             sInc,                    & ! intent(out): temperature increment (K)
-             err,cmessage)              ! intent(out): error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get the canopy increment
- if(computeVegFlux)then
-  scalarCanopyTempDiff = sInc(0)
- else
+ if(.not.computeVegFlux)then
+  call tridag(d_m1,                    & ! intent(in): sub-diagonal elements of the tridiagonal system (J m-3 K-1)
+              diag,                    & ! intent(in): diagonal elements of the tridiagonal system (J m-3 K-1)
+              d_p1,                    & ! intent(in): super-diagonal elements of the tridiagonal system (J m-3 K-1)
+              -mLayerResidual,         & ! intent(in): residual vector (J m-3)
+              mLayerTempDiff,          & ! intent(out): temperature increment (K)
+              err,cmessage)              ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! ensure that the canopy temperature increments are zero
+  scalarCanairTempDiff = 0._dp
   scalarCanopyTempDiff = 0._dp
  endif
 
- ! get the temperature increment for all snow-soil layers
- mLayerTempDiff(1:nLayers) = sInc(1:nLayers)
+ ! ***** solve the full matrix
+ if(computeVegFlux)then
+  rVec = (/canairResidual,canopyResidual,mLayerResidual/)
+  call matrixSolv(aJac,-rVec,xInc,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! save iteration increments
+  scalarCanairTempDiff = xInc(ixCas)
+  scalarCanopyTempDiff = xInc(ixVeg)
+  mLayerTempDiff(1:nLayers) = xInc(1+ixVeg:nLayers+ixVeg)
+ endif
 
  ! adjust iteration increments in cases where iteration increments are too large
- if(abs(scalarCanopyTempDiff) > 1._dp .or. any(abs(mLayerTempDiff(1:nLayers)) > 1._dp) )then
-  amaxIncrement = maxval(abs((/scalarCanopyTempDiff,mLayerTempDiff(1:nLayers)/)))
+ if(abs(scalarCanairTempDiff) > 1._dp .or. abs(scalarCanopyTempDiff) > 1._dp .or. any(abs(mLayerTempDiff(1:nLayers)) > 1._dp) )then
+  amaxIncrement = maxval(abs((/scalarCanairTempDiff,scalarCanopyTempDiff,mLayerTempDiff(1:nLayers)/)))
   !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
   !print*, 'mLayerTempDiff(1:nLayers) = ', mLayerTempDiff(1:nLayers)
+  scalarCanairTempDiff      = scalarCanairTempDiff/amaxIncrement(1)
   scalarCanopyTempDiff      = scalarCanopyTempDiff/amaxIncrement(1)
   mLayerTempDiff(1:nLayers) = mLayerTempDiff(1:nLayers)/amaxIncrement(1)
   !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
@@ -891,11 +938,13 @@ contains
 
  ! update temperatures
  if(computeVegFlux)then
+  scalarCanairTempNew = scalarCanairTempIter + scalarCanairTempDiff
   scalarCanopyTempNew = scalarCanopyTempIter + scalarCanopyTempDiff
  else
+  scalarCanairTempNew = missingValue_belowAbsoluteZero
   scalarCanopyTempNew = missingValue_belowAbsoluteZero
  endif
- mLayerTempNew       = mLayerTempIter + mLayerTempDiff
+ mLayerTempNew        = mLayerTempIter + mLayerTempDiff
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! * COMPUTE PHASE CHANGE...
@@ -971,6 +1020,7 @@ contains
  endif   ! if snow is present
 
  ! check ice
+ !print*, 'before phase change: mLayerTempNew(1:nSnow+2) = ', mLayerTempNew(1:nSnow+2)
  !print*, 'before phase change: mLayerVolFracIceIter(1:nSnow+2) = ', mLayerVolFracIceIter(1:nSnow+2)
 
  ! compute phase change for the snow-soil vector
@@ -984,8 +1034,8 @@ contains
                  err,cmessage)          ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- !write(*,'(a,1x,10(f20.10,1x))') 'after phase change: mLayerVolFracLiqNew(1:nSnow) = ', mLayerVolFracLiqNew(1:nSnow)
- !write(*,'(a,1x,10(f20.10,1x))') 'after phase change: mLayerVolFracIceNew(1:nSnow) = ', mLayerVolFracIceNew(1:nSnow)
+ !write(*,'(a,1x,10(f20.10,1x))') 'after phase change: mLayerVolFracLiqNew(nSnow+1) = ', mLayerVolFracLiqNew(nSnow+1)
+ !write(*,'(a,1x,10(f20.10,1x))') 'after phase change: mLayerVolFracIceNew(nSnow+1) = ', mLayerVolFracIceNew(nSnow+1)
  !if(iter > 3) pause
 
  ! ***** update the fluxes at the layer interfaces
@@ -996,10 +1046,6 @@ contains
                                                                              + dFlux_dTempBelow(iLayer)*mLayerTempDiff(iLayer+1)
   endif
  end do ! (looping through layers)
-
- ! deallocate space for the tri-diagonal matrix
- deallocate(d_m1,diag,d_p1,rvec,sInc, stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem deallocating space for the tri-diag matrix'; return; endif
 
  ! ====================================================================================================================
 
@@ -1034,13 +1080,20 @@ contains
   real(dp)                      :: scalarCanopyTempTrial  ! trial value of canopy temperature (K)
   real(dp),dimension(nLayers)   :: mLayerTempTrial        ! trial temperature at the current iteration (K)
   real(dp),allocatable          :: jMat(:,:)              ! jacobian matrix
+  real(dp)                      :: fCanair                ! function test (canopy air space)
   real(dp)                      :: fCanopy                ! function test (canopy)
   real(dp),dimension(nLayers)   :: fVector                ! function test (residual snow-soil vector)
+  integer(i4b),parameter        :: ixCas=1                ! index for the canopy air space
+  integer(i4b),parameter        :: ixVeg=2                ! index for the vegetation canopy
   ! local variables for the canopy air space variables
   real(dp)                      :: local_Temp_CanopyAir             ! trial temperature of the canopy air space (K)
   real(dp)                      :: local_VP_CanopyAir               ! trial vapor pressure of the canopy air space (Pa)
   real(dp)                      :: local_canopyStabilityCorrection  ! stability correction for the canopy (-)
   real(dp)                      :: local_groundStabilityCorrection  ! stability correction for the ground surface (-)
+  ! local variables for the mass fluxes associated with evaporation/transpiration
+  real(dp)                      :: local_scalarCanopyTranspiration  ! canopy transpiration (kg m-2 s-1)
+  real(dp)                      :: local_scalarCanopyEvaporation    ! canopy evaporation/condensation (kg m-2 s-1)
+  real(dp)                      :: local_scalarGroundEvaporation    ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
   ! local variables for the fluxes at vegetation and ground surfaces
   real(dp)                      :: local_canairNetFlux              ! net energy flux for the canopy air space (W m-2)
   real(dp)                      :: local_canopyNetFlux              ! net energy flux for the vegetation canopy (W m-2)
@@ -1067,13 +1120,8 @@ contains
   ! initialize error control
   err=0; message='cmpJacobian/'
 
-  ! identify the start index in the Jacobian matrix
-  if(computeVegFlux)then; jStart=0
-  else; jStart=1
-  endif
-
   ! allocate space for the Jacobian matrix
-  allocate(jMat(jStart:nLayers,jStart:nLayers), stat=err)
+  allocate(jMat(nState,nState), stat=err)
   if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the Jacobian matrix'; return; endif
 
   ! get copies of the state vector to perturb
@@ -1084,19 +1132,20 @@ contains
   mLayerTempTrial = mLayerTempInput
  
   ! loop through desired layers
-  do ijac=jStart,nLayers
+  do ijac=1,nState
+
+   ! re-initialize vapor pressure of the canopy air space
+   local_VP_CanopyAir = saveVP_CanopyAir
+   !print*, 'local_VP_CanopyAir = ', local_VP_CanopyAir
 
    ! ***** perturb states
-   if(iJac == 0)then  ! (can ONLY happen if canopy)
-    scalarCanairTempTrial = scalarCanairTempInput + dx
-    scalarCanopyTempTrial = scalarCanopyTempInput + dx
-   else
-    mLayerTempTrial(iJac) = mLayerTempInput(iJac) + dx
+   if(computeVegFlux)then
+    if(iJac==ixCas) scalarCanairTempTrial = scalarCanairTempInput + dx
+    if(iJac==ixVeg) scalarCanopyTempTrial = scalarCanopyTempInput + dx
    endif
-
-   ! re-set the canopy air space variables
-   local_Temp_CanopyAir = saveTemp_CanopyAir
-   local_VP_CanopyAir   = saveVP_CanopyAir  
+   if(iJac > ixVeg) mLayerTempTrial(iJac-ixVeg) = mLayerTempInput(iJac-ixVeg) + dx
+   !write(*,'(a,i4,1x,10(f20.8,1x))') 'iJac, scalarCanairTempTrial, scalarCanopyTempTrial, mLayerTempTrial(1) = ', &
+   !                                   iJac, scalarCanairTempTrial, scalarCanopyTempTrial, mLayerTempTrial(1)
 
    ! re-set the stability corrections
    local_CanopyStabilityCorrection = saveCanopyStabilityCorrection
@@ -1127,6 +1176,10 @@ contains
                    local_VP_CanopyAir,                  & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
                    local_CanopyStabilityCorrection,     & ! intent(inout): stability correction for the canopy (-)
                    local_GroundStabilityCorrection,     & ! intent(inout): stability correction for the ground surface (-)
+                   ! output: liquid water fluxes associated with evaporation/transpiration
+                   local_scalarCanopyTranspiration,     & ! intent(out): canopy transpiration (kg m-2 s-1)
+                   local_scalarCanopyEvaporation,       & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                   local_scalarGroundEvaporation,       & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
                    ! output: fluxes
                    local_canairNetFlux,                 & ! intent(out): net energy flux for the canopy air space (W m-2)
                    local_canopyNetFlux,                 & ! intent(out): net energy flux for the vegetation canopy (W m-2)
@@ -1144,6 +1197,8 @@ contains
                    ! output: error control
                    err,cmessage)                          ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   !write(*,'(a,i4,10(f30.8,1x))') 'iJac, scalarCanairTempTrial, scalarCanopyTempTrial, local_canairNetFlux, local_canopyNetFlux, local_groundNetFlux = ', &
+   !                                iJac, scalarCanairTempTrial, scalarCanopyTempTrial, local_canairNetFlux, local_canopyNetFlux, local_groundNetFlux
  
    ! ***** compute fluxes at layer interfaces and their derivatives (J m-2 s-1)
    call iLayer_nrg(&
@@ -1169,16 +1224,22 @@ contains
                    err,cmessage)                          ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
-   ! ***** compute the residual for the vegetation canopy (J m-3)
-   ! (compute individual terms)
+   ! ***** compute the residual for the vegetation canopy and the canopy air space (J m-3)
    if(computeVegFlux)then
+    ! compute the residual for the vegetation canopy 
     nrg0 = scalarBulkVolHeatCapVeg*scalarCanopyTemp                      ! energy content at the start of the time step (J m-3)
     nrg1 = scalarBulkVolHeatCapVeg*scalarCanopyTempTrial                 ! energy content at the current iteration (J m-3)
     flx0 = canopyNetFluxInit/canopyDepth                                 ! flux at the start of the time step (J m-3 s-1)
     flx1 = local_canopyNetFlux/canopyDepth                               ! flux at the current iteration (J m-3 s-1)
     phse = LH_fus*(scalarCanopyIceIter - scalarCanopyIce)/canopyDepth    ! phase change term (J m-3)
-    ! (compute residuals)
     fCanopy = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
+    ! compute the residual for the canopy air space
+    nrg0 = Cp_air*iden_air*scalarCanairTemp                              ! energy content at the start of the time step (J m-3)
+    nrg1 = Cp_air*iden_air*scalarCanairTempTrial                         ! energy content at the current iteration (J m-3)
+    flx0 = canairNetFluxInit/canopyDepth                                 ! flux at the start of the time step (J m-3 s-1)
+    flx1 = local_canairNetFlux/canopyDepth                               ! flux at the current iteration (J m-3 s-1)
+    ! (compute residuals)
+    fCanair = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt)
    endif 
 
    ! ***** compute the residual vector for all snow/soil layers (J m-3)
@@ -1207,29 +1268,37 @@ contains
     ! (compute residuals)
     fVector(iLayer) = nrg1 - (nrg0 + (flx0*wimplicit + flx1*(1._dp - wimplicit))*dt + phse)
    end do
+   !write(*,'(a,10(e20.10,1x))') 'fCanair,        fCanopy        = ', fCanair,        fCanopy
+   !write(*,'(a,10(e20.10,1x))') 'canairResidual, canopyResidual = ', canairResidual, canopyResidual
+   !write(*,'(a,10(e20.10,1x))') 'fVector        = ', fVector
+   !write(*,'(a,10(e20.10,1x))') 'mLayerResidual = ', mLayerResidual
  
    ! compute Jacobian
    if(computeVegFlux)then
-    jmat(:,ijac) = ( (/fCanopy,fVector(:)/) - (/canopyResidual,mLayerResidual(:)/) ) / dx
+    jmat(:,ijac) = ( (/fCanair,fCanopy,fVector(:)/) - (/canairResidual,canopyResidual,mLayerResidual(:)/) ) / dx
    else
     jmat(:,ijac) = (fVector(:) - mLayerResidual(:) ) / dx
    endif
+   !print*, '=========='
  
    ! set the state back to the input value
-   if(iJac == 0)then  ! (can ONLY happen if canopy)
-    scalarCanopyTempTrial = scalarCanopyTempInput
-   else
-    mLayerTempTrial(iJac) = mLayerTempInput(iJac)
+   if(computeVegFlux)then
+    if(iJac==ixCas) scalarCanairTempTrial = scalarCanairTempInput
+    if(iJac==ixVeg) scalarCanopyTempTrial = scalarCanopyTempInput
    endif
+   if(iJac > ixVeg) mLayerTempTrial(iJac-ixVeg) = mLayerTempInput(iJac-ixVeg)
  
   end do  ! looping through snow-soil layers
 
   ! print the Jacobian
-  do iJac=jStart,nLayers
-   if(iJac==jStart)then;      write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'test HT Jacobian', (/valueMissing,       jmat(iJac,jStart:iJac+1)/), '--> tri-diag = ', valueMissing, diag(iJac), d_p1(iJac)
-   elseif(iJac==nLayers)then; write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'test HT Jacobian', (/jmat(iJac,iJac-1:nLayers),      valueMissing/), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), valueMissing
-   else;                      write(*,'(2(i4,1x),2(a,1x,3(f30.10,1x)))') fDerivMeth, iJac, 'test HT Jacobian', (/jmat(iJac,iJac-1:iJac+1)                    /), '--> tri-diag = ', d_m1(iJac-1), diag(iJac), d_p1(iJac)
-   endif
+  ! print Jacobian
+  print*, 'analytical jacobian'
+  do iLayer=1,nState
+   write(*,'(15(f18.5,1x))') aJac(:,iLayer)
+  end do
+  print*, 'numerical Jacobian'
+  do iLayer=1,nState
+   write(*,'(15(f18.5,1x))') jMat(:,iLayer)
   end do
   !pause 'testing Jacobian'
 
