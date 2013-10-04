@@ -336,7 +336,7 @@ do istep=1,numtim
 
  ! initialize runoff variables
  bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)   = 0._dp  ! surface runoff (m s-1)
- bvar_data%var(iLookBVAR%basin__SoilEjection)%dat(1)    = 0._dp  ! ejected water from the soil profile (m s-1)
+ bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1)  = 0._dp  ! macropore flow from the soil profile (m s-1)
  bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)    = 0._dp  ! baseflow from the soil profile (m s-1)
 
  ! initialize baseflow variables
@@ -455,8 +455,8 @@ do istep=1,numtim
   ! increment runoff variables
   bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)   = bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    + &
                                                            mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)    * fracHRU
-  bvar_data%var(iLookBVAR%basin__SoilEjection)%dat(1)    = bvar_data%var(iLookBVAR%basin__SoilEjection)%dat(1)     + &
-                                                           mvar_data%var(iLookMVAR%averageSoilEjection)%dat(1)     * fracHRU
+  bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1)  = bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1)   + &
+                                                           mvar_data%var(iLookMVAR%averageSoilQMacropore)%dat(1)   * fracHRU
   bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)    = bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)     + &
                                                            mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)     * fracHRU
 
@@ -519,7 +519,7 @@ do istep=1,numtim
                 ! input
                 model_decisions(iLookDECISIONS%subRouting)%iDecision,   &  ! intent(in): index for routing method
                 bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),   &  ! intent(in): surface runoff (m s-1)
-                bvar_data%var(iLookBVAR%basin__SoilEjection)%dat(1),    &  ! intent(in): ejected water from the soil profile (m s-1)
+                bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1),  &  ! intent(in): macropore flow from the soil profile (m s-1)
                 bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1),    &  ! intent(in): baseflow from the soil profile (m s-1)
                 bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), &  ! intent(in): baseflow from the aquifer (m s-1)
                 bvar_data%var(iLookBVAR%routingFractionFuture)%dat,     &  ! intent(in): fraction of runoff in future time steps (m s-1)

@@ -40,30 +40,35 @@ contains
  real(dp)                :: iceImpedeFactor   ! ice impedence factor (-)
  real(dp)                :: dIceImpede_dLiq   ! derivative in ice impedence factor w.r.t. volumetric liquid water content (-) 
  ! local variables
- real(dp)                :: avCapIce          ! available capacity for ice
- real(dp)                :: xArg              ! argument in the power function
- real(dp)                :: f1                ! new function used to calculate numerical derivatives
+ !real(dp)                :: avCapIce          ! available capacity for ice
+ !real(dp)                :: xArg              ! argument in the power function
+ !real(dp)                :: f1                ! new function used to calculate numerical derivatives
+ ! compute ice impedance factor
+ ! NOTE: simplify so just a function of volumetric ice content
+ iceImpedeFactor = 10._dp**(-f_impede*volFracIce)
+ dIceImpede_dLiq = 0._dp
+
  ! compute volumetric fraction available for ice (-)
- avCapIce = theta_sat - volFracLiq
- if(volFracIce < avCapIce)then
-
-  ! compute the ice impedence factor
-  xArg = 1._dp - volFracIce/avCapIce
-  iceImpedeFactor = xArg**f_impede
-
-  ! compute derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
-  if(lTangent)then
-   dIceImpede_dLiq = -volFracIce*(f_impede*xArg**(f_impede - 1._dp))/(avCapIce**2._dp)
-  else  ! (numerical derivatives)
-   f1 = (1._dp - (volFracIce/ (theta_sat - (volFracLiq+dx)) ) )**f_impede
-   dIceImpede_dLiq = (f1 - iceImpedeFactor)/dx
-  endif
-
+ !avCapIce = theta_sat - volFracLiq
+ !if(volFracIce < avCapIce)then
+ !
+ ! ! compute the ice impedence factor
+ ! xArg = 1._dp - volFracIce/avCapIce
+ ! iceImpedeFactor = xArg**f_impede
+ !
+ ! ! compute derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
+ ! if(lTangent)then
+ !  dIceImpede_dLiq = -volFracIce*(f_impede*xArg**(f_impede - 1._dp))/(avCapIce**2._dp)
+ ! else  ! (numerical derivatives)
+ !  f1 = (1._dp - (volFracIce/ (theta_sat - (volFracLiq+dx)) ) )**f_impede
+ !  dIceImpede_dLiq = (f1 - iceImpedeFactor)/dx
+ ! endif
+ !
  ! pore space completely filled with ice
- else
-  iceImpedeFactor = 0._dp
-  dIceImpede_dLiq = 0._dp
- endif
+ !else
+ ! iceImpedeFactor = 0._dp
+ ! dIceImpede_dLiq = 0._dp
+ !endif
  end subroutine iceImpede
 
 

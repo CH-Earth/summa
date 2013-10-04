@@ -2308,7 +2308,7 @@ contains
   !referenceHeight      = max(heightCanopyBottom, min(0.5_dp, heightCanopyTop))
   referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground)
   windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
-  windspdCanopyBottom  = max(0.1_dp, windspdCanopyTop*windConvFactorBottom)
+  windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
   if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then; err=20; message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'; return; endif
 
   ! compute the leaf boundary layer resistance (s m-1)
@@ -2337,7 +2337,7 @@ contains
      groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
     else  ! snow is below the bottom of the canopy
      groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
-                                  + (1._dp/(windspdCanopyBottom*vkc**2._dp))*(log((referenceHeight - snowDepth)/z0Ground))**2._dp
+                                  + (1._dp/(max(0.1_dp,windspdCanopyBottom)*vkc**2._dp))*(log((referenceHeight - snowDepth)/z0Ground))**2._dp
     endif
    ! check that we identified the option   
    case default
@@ -2353,7 +2353,7 @@ contains
                   referenceHeight,                                  & ! input: reference height of wind within the canopy (m)
                   canairTemp,                                       & ! input: temperature of the canopy air space (K)
                   groundTemp,                                       & ! input: temperature of the ground surface (K)
-                  windspdCanopyBottom,                              & ! input: wind speed at the reference height (m s-1)
+                  max(0.1_dp,windspdCanopyBottom),                  & ! input: wind speed at the reference height (m s-1)
                   ! input: stability parameters
                   critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
                   Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
