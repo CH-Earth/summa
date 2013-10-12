@@ -6,6 +6,7 @@ private
 public::iceImpede
 public::hydCond_psi
 public::hydCond_liq
+public::hydCondMP_liq
 public::dHydCond_dPsi
 public::dHydCond_dLiq
 public::satDeficit
@@ -73,7 +74,35 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new subroutine: compute the hydraulic conductivity as a function of matric head (m s-1)
+ ! new function: compute the hydraulic conductivity of macropores as a function of liquid water content (m s-1)
+ ! ***********************************************************************************************************
+ function hydCondMP_liq(volFracLiq,theta_sat,theta_mp,mpExp,satHydCond_ma,satHydCond_mi)
+ ! computes hydraulic conductivity given volFracLiq and soil hydraulic parameters
+ !  theta_sat, theta_mp, mpExp, satHydCond_ma, and satHydCond_mi
+ implicit none
+ ! dummies
+ real(dp),intent(in) :: volFracLiq    ! volumetric liquid water content (-)
+ real(dp),intent(in) :: theta_sat     ! soil porosity (-)
+ real(dp),intent(in) :: theta_mp      ! minimum volumetric liquid water content for macropore flow (-)
+ real(dp),intent(in) :: mpExp         ! empirical exponent in macropore flow equation (-)
+ real(dp),intent(in) :: satHydCond_ma ! saturated hydraulic conductivity for macropores (m s-1)
+ real(dp),intent(in) :: satHydCond_mi ! saturated hydraulic conductivity for micropores (m s-1)
+ real(dp)            :: hydCondMP_liq ! hydraulic conductivity (m s-1)
+ ! locals
+ real(dp)            :: theta_e     ! effective soil moisture
+ if(volFracLiq > theta_mp)then
+  theta_e       = (volFracLiq - theta_mp) / (theta_sat - theta_mp)
+  hydCondMP_liq = (satHydCond_ma - satHydCond_mi) * (theta_e**mpExp)
+ else
+  hydCondMP_liq = 0._dp
+ endif
+ !write(*,'(a,4(f9.3,1x),2(e20.10))') 'in soil_utils: theta_mp, theta_sat, volFracLiq, hydCondMP_liq, satHydCond_ma, satHydCond_mi = ', &
+ !                                                    theta_mp, theta_sat, volFracLiq, hydCondMP_liq, satHydCond_ma, satHydCond_mi
+ end function hydCondMP_liq
+
+
+ ! ***********************************************************************************************************
+ ! new function: compute the hydraulic conductivity as a function of matric head (m s-1)
  ! ***********************************************************************************************************
  function hydCond_psi(psi,k_sat,alpha,n,m)
  ! computes hydraulic conductivity given psi and soil hydraulic parameters k_sat, alpha, n, and m

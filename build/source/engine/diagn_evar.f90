@@ -13,7 +13,6 @@ USE multiconst,only:&
                     ! thermal conductivity
                     lambda_air,  & ! thermal conductivity of air   (J s-1 m-1)
                     lambda_ice,  & ! thermal conductivity of ice   (J s-1 m-1)
-                    lambda_soil, & ! thermal conductivity of soil  (J s-1 m-1)
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
 ! named variables that define the layer type
 USE data_struc,only:ix_soil        ! soil
@@ -42,6 +41,7 @@ contains
                        specificHeatVeg,         & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                        maxMassVegetation,       & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
                        iden_soil,               & ! intent(in): intrinsic density of soil (kg m-3)
+                       thCond_soil,             & ! intent(in): thermal conductivity of soil (W m-1 K-1)
                        theta_sat,               & ! intent(in): soil porosity (-)
                        frac_sand,               & ! intent(in): fraction of sand (-)
                        frac_silt,               & ! intent(in): fraction of silt (-)
@@ -73,6 +73,7 @@ contains
  real(dp),intent(in)           :: specificHeatVeg         ! specific heat of vegetation (J kg-1 K-1)
  real(dp),intent(in)           :: maxMassVegetation       ! maximum mass of vegetation (full foliage) (kg m-2)
  real(dp),intent(in)           :: iden_soil               ! intrinsic density of soil (kg m-3)
+ real(dp),intent(in)           :: thCond_soil             ! thermal conductivity of soil (W m-1 K-1)
  real(dp),intent(in)           :: theta_sat               ! soil porosity (-)
  real(dp),intent(in)           :: frac_sand               ! fraction of sand (-)
  real(dp),intent(in)           :: frac_silt               ! fraction of silt (-)
@@ -164,16 +165,16 @@ contains
   select case(layerType(iLayer))
    ! * soil
    case(ix_soil)
-    !mLayerThermalC(iLayer) = lambda_soil * (1._dp - theta_sat)      + & ! soil component
-    !                         lambda_ice  * mLayerVolFracIce(iLayer) + & ! ice component
-    !                         lambda_water* mLayerVolFracLiq(iLayer) + & ! liquid water component
-    !                         lambda_air  * mLayerVolFracAir(iLayer)     ! air component
+    mLayerThermalC(iLayer) = thCond_soil * (1._dp - theta_sat)      + & ! soil component
+                             lambda_ice  * mLayerVolFracIce(iLayer) + & ! ice component
+                             lambda_water* mLayerVolFracLiq(iLayer) + & ! liquid water component
+                             lambda_air  * mLayerVolFracAir(iLayer)     ! air component
     ! compute the thermal conductivity of the wet material (W m-1)
-    lambda_wet = lambda_wetsoil**(1._dp - theta_sat) * lambda_water**theta_sat * lambda_ice**(theta_sat - mLayerVolFracLiq(iLayer))
+    !lambda_wet = lambda_wetsoil**(1._dp - theta_sat) * lambda_water**theta_sat * lambda_ice**(theta_sat - mLayerVolFracLiq(iLayer))
     ! compute the Kersten number (-)
-    kerstenNum = log10( (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat ) + 1._dp
+    !kerstenNum = log10( (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat ) + 1._dp
     ! ...and, compute the thermal conductivity
-    mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._dp - kerstenNum)*lambda_drysoil
+    !mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._dp - kerstenNum)*lambda_drysoil
    ! * snow
    case(ix_snow)
     call tcond_snow(mLayerVolFracIce(iLayer)*iden_ice,mLayerThermalC(iLayer),err,cmessage)

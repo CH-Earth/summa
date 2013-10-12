@@ -186,7 +186,7 @@ call mDecisions(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! define monthly fraction of green vegetation
 !                           J        F        M        A        M        J        J        A        S        O        N        D
-greenVegFrac_monthly = (/0.01_dp, 0.02_dp, 0.03_dp, 0.07_dp, 0.15_dp, 0.80_dp, 0.95_dp, 0.96_dp, 0.65_dp, 0.24_dp, 0.11_dp, 0.02_dp/)
+greenVegFrac_monthly = (/0.01_dp, 0.02_dp, 0.03_dp, 0.07_dp, 0.50_dp, 0.90_dp, 0.95_dp, 0.96_dp, 0.65_dp, 0.24_dp, 0.11_dp, 0.02_dp/)
 ! read Noah soil and vegetation tables
 call soil_veg_gen_parm(trim(SETNGS_PATH)//'VEGPARM.TBL',                              & ! filename for vegetation table
                        trim(SETNGS_PATH)//'SOILPARM.TBL',                             & ! filename for soils table

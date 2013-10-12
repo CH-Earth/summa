@@ -41,6 +41,11 @@ USE mDecisions_module,only:  &
 USE mDecisions_module,only:  &
  exponential,                & ! exponential wind profile extends to the surface
  logBelowCanopy                ! logarithmic profile below the vegetation canopy
+! look-up values for the stomatal resistance formulation
+USE mDecisions_module,only:  &
+ BallBerry,                  & ! Ball-Berry
+ Jarvis,                     & ! Jarvis
+ simpleResistance              ! simple resistance formulation
 ! look-up values for choice of stability function
 USE mDecisions_module,only:  &
  standard,                   & ! standard MO similarity, a la Anderson (1976) 
@@ -231,7 +236,7 @@ contains
                         model_decisions(iLookDECISIONS%windPrfile)%iDecision,              & ! intent(in): choice of canopy wind profile
                         model_decisions(iLookDECISIONS%astability)%iDecision,              & ! intent(in): choice of stability function
                         model_decisions(iLookDECISIONS%soilStress)%iDecision,              & ! intent(in): choice of function for the soil moisture control on stomatal resistance
-                        model_decisions(iLookDECISIONS%groundwatr)%iDecision,              & ! intent(in): groundwater parameterization
+                        model_decisions(iLookDECISIONS%groundwatr)%iDecision,              & ! intent(in): choice of groundwater parameterization
                         model_decisions(iLookDECISIONS%stomResist)%iDecision,              & ! intent(in): choice of function for stomatal resistance
 
                         ! model parameters (phenology) -- intent(in)
@@ -261,6 +266,7 @@ contains
                         mpar_data%var(iLookPARAM%critSoilWilting),                         & ! intent(in): critical vol. liq. water content when plants are wilting (-)
                         mpar_data%var(iLookPARAM%critSoilTranspire),                       & ! intent(in): critical vol. liq. water content when transpiration is limited (-)
                         mpar_data%var(iLookPARAM%critAquiferTranspire),                    & ! intent(in): critical aquifer storage value when transpiration is limited (m)
+                        mpar_data%var(iLookPARAM%minStomatalResistance),                   & ! intent(in): mimimum stomatal resistance (s m-1) 
        
                         ! forcing at the upper boundary -- intent(in)
                         attr_data%var(iLookATTR%mHeight),                                  & ! intent(in): measurement height (m)
@@ -482,6 +488,7 @@ contains
                               critSoilWilting,                   & ! intent(in): critical vol. liq. water content when plants are wilting (-)
                               critSoilTranspire,                 & ! intent(in): critical vol. liq. water content when transpiration is limited (-)
                               critAquiferTranspire,              & ! intent(in): critical aquifer storage value when transpiration is limited (m)
+                              minStomatalResistance,             & ! intent(in): mimimum stomatal resistance (s m-1) 
 
                               ! forcing at the upper boundary -- intent(in)
                               mHeight,                           & ! intent(in): measurement height (m)
@@ -696,6 +703,7 @@ contains
  real(dp),intent(in)            :: critSoilWilting                 ! critical vol. liq. water content when plants are wilting (-)
  real(dp),intent(in)            :: critSoilTranspire               ! critical vol. liq. water content when transpiration is limited (-)
  real(dp),intent(in)            :: critAquiferTranspire            ! critical aquifer storage value when transpiration is limited (m)
+ real(dp),intent(in)            :: minStomatalResistance           ! mimimum stomatal resistance (s m-1) 
 
  ! forcing at the upper boundary -- intent(in)
  real(dp),intent(in)            :: mHeight                         ! measurement height (m)
@@ -1288,36 +1296,55 @@ contains
   !write(*,'(a,1x,10(f20.10,1x))') 'canopyTempTrial, scalarSatVP_CanopyTemp, scalarVP_CanopyAir = ', &
   !                                 canopyTempTrial, scalarSatVP_CanopyTemp, scalarVP_CanopyAir
 
-  ! compute stomatal resistance (wrapper sound the Noah-MP routines)
-  ! NOTE: canopy temperature and canopy air vapor pressure are from the previous time step
-  call stomResist(&
-                  ! input (model decisions)
-                  ix_stomResist,                     & ! intent(in): choice of function for stomatal resistance
-                  ! input (local attributes)
-                  vegTypeIndex,                      & ! intent(in): vegetation type index
-                  iLoc, jLoc,                        & ! intent(in): spatial location indices      
-                  ! input (forcing)
-                  airtemp,                           & ! intent(in): air temperature at some height above the surface (K)
-                  airpres,                           & ! intent(in): air pressure at some height above the surface (Pa)
-                  scalarO2air,                       & ! intent(in): atmospheric o2 concentration (Pa)
-                  scalarCO2air,                      & ! intent(in): atmospheric co2 concentration (Pa)
-                  scalarCanopySunlitPAR,             & ! intent(in): average absorbed par for sunlit leaves (w m-2)
-                  scalarCanopyShadedPAR,             & ! intent(in): average absorbed par for shaded leaves (w m-2)
-                  ! input (state and diagnostic variables)
-                  scalarGrowingSeasonIndex,          & ! intent(in): growing season index (0=off, 1=on)
-                  scalarFoliageNitrogenFactor,       & ! intent(in): foliage nitrogen concentration (1=saturated)
-                  scalarTranspireLim,                & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
-                  scalarLeafResistance,              & ! intent(in): leaf boundary layer resistance (s m-1)
-                  canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
-                  scalarSatVP_CanopyTemp,            & ! intent(in): saturation vapor pressure at the temperature of the veg canopy (Pa)
-                  scalarVP_CanopyAir,                & ! intent(in): canopy air vapor pressure (Pa)
-                  ! output
-                  scalarStomResistSunlit,            & ! intent(out): stomatal resistance for sunlit leaves (s m-1)
-                  scalarStomResistShaded,            & ! intent(out): stomatal resistance for shaded leaves (s m-1)
-                  scalarPhotosynthesisSunlit,        & ! intent(out): sunlit photosynthesis (umolco2 m-2 s-1)
-                  scalarPhotosynthesisShaded,        & ! intent(out): shaded photosynthesis (umolco2 m-2 s-1)
-                  err,cmessage                       ) ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! compute stomatal resistance
+  select case(ix_stomResist)
+
+   case(simpleResistance)
+    ! check that we don't divide by zero -- should be set to minimum of tiny in runroutine soilResist
+    if(scalarTranspireLim < tiny(dt))then; err=20; message=trim(message)//'soil moisture stress factor is < tiny -- this will cause problems'; return; endif
+    ! compute stomatal resistance (assume equal for sunlit and shaded leaves)
+    scalarStomResistSunlit = minStomatalResistance/scalarTranspireLim
+    scalarStomResistShaded = scalarStomResistSunlit
+    ! set photosynthesis to missing (not computed)
+    scalarPhotosynthesisSunlit = missingValue
+    scalarPhotosynthesisShaded = missingValue 
+
+   ! compute stomatal resistance (wrapper around the Noah-MP routines)
+   ! NOTE: canopy air vapor pressure is from the previous time step
+   case(BallBerry,Jarvis)
+    call stomResist(&
+                    ! input (model decisions)
+                    ix_stomResist,                     & ! intent(in): choice of function for stomatal resistance
+                    ! input (local attributes)
+                    vegTypeIndex,                      & ! intent(in): vegetation type index
+                    iLoc, jLoc,                        & ! intent(in): spatial location indices      
+                    ! input (forcing)
+                    airtemp,                           & ! intent(in): air temperature at some height above the surface (K)
+                    airpres,                           & ! intent(in): air pressure at some height above the surface (Pa)
+                    scalarO2air,                       & ! intent(in): atmospheric o2 concentration (Pa)
+                    scalarCO2air,                      & ! intent(in): atmospheric co2 concentration (Pa)
+                    scalarCanopySunlitPAR,             & ! intent(in): average absorbed par for sunlit leaves (w m-2)
+                    scalarCanopyShadedPAR,             & ! intent(in): average absorbed par for shaded leaves (w m-2)
+                    ! input (state and diagnostic variables)
+                    scalarGrowingSeasonIndex,          & ! intent(in): growing season index (0=off, 1=on)
+                    scalarFoliageNitrogenFactor,       & ! intent(in): foliage nitrogen concentration (1=saturated)
+                    scalarTranspireLim,                & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
+                    scalarLeafResistance,              & ! intent(in): leaf boundary layer resistance (s m-1)
+                    canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
+                    scalarSatVP_CanopyTemp,            & ! intent(in): saturation vapor pressure at the temperature of the veg canopy (Pa)
+                    scalarVP_CanopyAir,                & ! intent(in): canopy air vapor pressure (Pa)
+                    ! output
+                    scalarStomResistSunlit,            & ! intent(out): stomatal resistance for sunlit leaves (s m-1)
+                    scalarStomResistShaded,            & ! intent(out): stomatal resistance for shaded leaves (s m-1)
+                    scalarPhotosynthesisSunlit,        & ! intent(out): sunlit photosynthesis (umolco2 m-2 s-1)
+                    scalarPhotosynthesisShaded,        & ! intent(out): shaded photosynthesis (umolco2 m-2 s-1)
+                    err,cmessage                       ) ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! error check
+   case default; err=20; message=trim(message)//'unable to identify option for stomatal resistance'; return
+
+  endselect  ! (identifying option for stomatal resistance)
 
  endif  ! (if the first iteration in a given sub-step)
 
@@ -3075,6 +3102,7 @@ contains
  else
   senHeatGround      = -volHeatCapacityAir*groundConductanceSH*(groundTemp - airtemp)                                                 ! (positive downwards)
   latHeatGround      = -latHeatSubVapGround*latentHeatConstant*groundConductanceLH*(satVP_GroundTemp*soilRelHumidity - VPair)         ! (positive downwards)
+  senHeatTotal       = senHeatGround
  endif
 
  ! compute latent heat flux from the canopy air space to the atmosphere

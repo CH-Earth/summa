@@ -133,6 +133,7 @@ contains
 
                         ! input: soil parameters
                         mpar_data%var(iLookPARAM%soil_dens_intr),                    & ! intent(in): intrinsic density of soil (kg m-3)
+                        mpar_data%var(iLookPARAM%thCond_soil),                       & ! intent(in): thermal conductivity of soil (W m-1 K-1)
                         mpar_data%var(iLookPARAM%theta_res),                         & ! intent(in): residual volumetric liquid water content (-)
                         mpar_data%var(iLookPARAM%theta_sat),                         & ! intent(in): soil porosity (-)
                         mpar_data%var(iLookPARAM%vGn_alpha),                         & ! intent(in): van Genutchen "alpha" parameter
@@ -504,6 +505,7 @@ contains
 
                               ! input: soil parameters
                               soil_dens_intr,                & ! intent(in): intrinsic density of soil (kg m-3)
+                              thCond_soil,                   & ! intent(in): thermal conductivity of soil (W m-1 K-1)
                               theta_res,                     & ! intent(in): residual volumetric liquid water content (-)
                               theta_sat,                     & ! intent(in): soil porosity (-)
                               vGn_alpha,                     & ! intent(in): van Genutchen "alpha" parameter
@@ -558,6 +560,7 @@ contains
  real(dp),intent(in)            :: maxMassVegetation           ! maximum mass of vegetation (full foliage) (kg m-2)
  ! input: soil parameters
  real(dp),intent(in)            :: soil_dens_intr              ! intrinsic density of soil (kg m-3)
+ real(dp),intent(in)            :: thCond_soil                 ! thermal conductivity of soil (W m-1 K-1)
  real(dp),intent(in)            :: theta_res                   ! residual volumetric liquid water content (-)
  real(dp),intent(in)            :: theta_sat                   ! soil porosity (-)
  real(dp),intent(in)            :: vGn_alpha                   ! van Genutchen "alpha" parameter
@@ -622,6 +625,7 @@ contains
                  specificHeatVeg,           & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                  maxMassVegetation,         & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
                  soil_dens_intr,            & ! intent(in): intrinsic density of soil (kg m-3)
+                 thCond_soil,               & ! intent(in): thermal conductivity of soil (W m-1 K-1)
                  theta_sat,                 & ! intent(in): soil porosity (-)
                  frac_sand,                 & ! intent(in): fraction of sand (-)
                  frac_silt,                 & ! intent(in): fraction of silt (-)
@@ -1024,9 +1028,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  !print*, '***************************************************************'
-  !print*, '***** iter = ', iter, '*****'
-  !print*, '***************************************************************'
+  print*, '***************************************************************'
+  print*, '***** iter = ', iter, '*****'
+  print*, '***************************************************************'
   
 
   ! *****
@@ -1196,8 +1200,8 @@ contains
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
-  !print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
-  !print*, 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+  print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
+  print*, 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
   !print*, 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter
   !print*, 'mLayerVolFracLiqNew  = ', mLayerVolFracLiqNew
   !print*, 'mLayerMatIncr = ', mLayerMatIncr
@@ -1354,13 +1358,14 @@ contains
   matric_max = maxval(abs(mLayerMatIncr) - (absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew) )  )
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
-  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
+  print*, 'mLayerMatIncr = ', mLayerMatIncr
+  print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
-  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
   !print*, 'canopyNrgIncr = ', canopyNrgIncr
   !if(computeVegFlux) pause 'canopy is exposed'
 
@@ -1629,7 +1634,7 @@ contains
  scalarSoilDrainage      = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
  scalarSoilQMacropore    = (wimplicit*sum(mLayerInitQMacropore)      + (1._dp - wimplicit)*sum(mLayerQMacropore)     )
  scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)      ) 
- !print*, 'iLayerLiqFluxSoil(0), scalarSoilInflux = ', iLayerLiqFluxSoil(0), scalarSoilInflux
+ print*, 'iLayerLiqFluxSoil(0), scalarSoilInflux = ', iLayerLiqFluxSoil(0), scalarSoilInflux
 
  ! check liquid flux between micropores and macropores
  if(scalarSoilQMacropore < 0._dp)then
@@ -1647,7 +1652,7 @@ contains
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilQMacropore) )
- if(abs(scalarSoilWatBalError) > 1.d-3)then
+ if(abs(scalarSoilWatBalError) > 1.d-9)then
   ! check the balance of each layer
   write(*,'(a)') 'water balance of each layer'
   write(*,'(a)') 'Liq0 (-), Liq1 (-), Ice0 (-), Ice1 (-), totalChange (-), phaseChange (-), flux_Change, evap_Change, qbaseChange, macroChange, ',&
@@ -1672,9 +1677,11 @@ contains
   print*, 'balanceSoilDrainage (kg m-2) = ',      balanceSoilDrainage
   print*, 'balanceSoilBaseflow (kg m-2) = ',      balanceSoilBaseflow
   print*, 'balanceSoilTranspiration (kg m-2) = ', balanceSoilTranspiration, sum(mLayerTranspire)*dt*iden_water
-  write(message,'(a,e20.10,a)')trim(message)//"abs(scalarSoilWatBalError) > 1.d-3 [error = ",&
-                               scalarSoilWatBalError," ]"
-  err=-10; return
+  if(abs(scalarSoilWatBalError) > 1.d-3)then
+   write(message,'(a,e20.10,a)')trim(message)//"abs(scalarSoilWatBalError) > 1.d-3 [error = ",&
+                                scalarSoilWatBalError," ]"
+   err=10; return
+  endif
  endif
 
  ! check the aquifer water balance

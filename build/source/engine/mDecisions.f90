@@ -10,9 +10,10 @@ public::mDecisions
 integer(i4b),parameter,public :: NoahType          = 1    ! thresholded linear function of volumetric liquid water content
 integer(i4b),parameter,public :: CLM_Type          = 2    ! thresholded linear function of matric head
 integer(i4b),parameter,public :: SiB_Type          = 3    ! exponential of the log of matric head
-! look-up values for the choice of function for the soil moisture control on stomatal resistance
+! look-up values for the choice of stomatal resistance formulation
 integer(i4b),parameter,public :: BallBerry         = 1    ! Ball-Berry
 integer(i4b),parameter,public :: Jarvis            = 2    ! Jarvis
+integer(i4b),parameter,public :: simpleResistance  = 3    ! simple resistance formulation
 ! -----------------------------------------------------------------------------------------------------------
 ! ***** define look-up values for different FUSE model decisions *****
 ! -----------------------------------------------------------------------------------------------------------
@@ -211,8 +212,9 @@ contains
 
  ! (N-04) identify the choice of function for stomatal resistance
  select case(trim(model_decisions(iLookDECISIONS%stomResist)%cDecision))
-  case('BallBerry'); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerry           ! Ball-Berry
-  case('Jarvis'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = Jarvis              ! Jarvis
+  case('BallBerry'          ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerry           ! Ball-Berry
+  case('Jarvis'             ); model_decisions(iLookDECISIONS%stomResist)%iDecision = Jarvis              ! Jarvis
+  case('simpleResistance'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = simpleResistance    ! simple resistance formulation
   case default
    err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
  end select
