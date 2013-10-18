@@ -238,10 +238,10 @@ MODULE var_lookup
   integer(i4b)    :: averageSoilInflux               = 10  ! influx of water at the top of the soil profile (m s-1)
   integer(i4b)    :: averageSoilBaseflow             = 11  ! total baseflow from throughout the soil profile (m s-1)
   integer(i4b)    :: averageSoilDrainage             = 12  ! drainage from the bottom of the soil profile (m s-1)
-  integer(i4b)    :: averageSoilQMacropore           = 13  ! liquid flux from micropores to macropores (m s-1)
-  integer(i4b)    :: averageAquiferRecharge          = 14  ! recharge to the aquifer (m s-1)
-  integer(i4b)    :: averageAquiferBaseflow          = 15  ! baseflow from the aquifer (m s-1)
-  integer(i4b)    :: averageAquiferTranspire         = 16  ! transpiration from the aquifer (m s-1)
+  integer(i4b)    :: averageAquiferRecharge          = 13  ! recharge to the aquifer (m s-1)
+  integer(i4b)    :: averageAquiferBaseflow          = 14  ! baseflow from the aquifer (m s-1)
+  integer(i4b)    :: averageAquiferTranspire         = 15  ! transpiration from the aquifer (m s-1)
+  integer(i4b)    :: averageColumnOutflow            = 16  ! outflow from each layer in the soil profile (m3 s-1)
   ! define scalar variables -- forcing
   integer(i4b)    :: scalarCosZenith                 = 17  ! cosine of the solar zenith angle (0-1)
   integer(i4b)    :: spectralIncomingDirect          = 18  ! incoming direct solar radiation in each wave band (W m-2)
@@ -362,19 +362,19 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyMeltFreeze          = 126 ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   ! define scalar variables -- soil and aquifer fluxes
   integer(i4b)    :: scalarRainPlusMelt              = 127 ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
-  integer(i4b)    :: scalarSurfaceRunoff             = 128 ! surface runoff (m s-1)
-  integer(i4b)    :: scalarMaxSurfInfiltration       = 129 ! maximum surface infiltration rate (m s-1)
-  integer(i4b)    :: scalarInitAquiferRecharge       = 130 ! recharge to the aquifer at the start of the step (m s-1)
-  integer(i4b)    :: scalarAquiferRecharge           = 131 ! recharge to the aquifer (m s-1)
-  integer(i4b)    :: scalarInitAquiferTranspire      = 132 ! transpiration from the aquifer at the start of the step (m s-1)
-  integer(i4b)    :: scalarAquiferTranspire          = 133 ! transpiration from the aquifer (m s-1)
-  integer(i4b)    :: scalarInitAquiferBaseflow       = 134 ! baseflow from the aquifer at the start of the step (m s-1)
-  integer(i4b)    :: scalarAquiferBaseflow           = 135 ! baseflow from the aquifer (m s-1)
+  integer(i4b)    :: scalarExfiltration              = 128 ! exfiltration of water from the top of the soil profile (m s-1)
+  integer(i4b)    :: scalarSurfaceRunoff             = 129 ! surface runoff (m s-1)
+  integer(i4b)    :: scalarMaxSurfInfiltration       = 130 ! maximum surface infiltration rate (m s-1)
+  integer(i4b)    :: scalarInitAquiferRecharge       = 131 ! recharge to the aquifer at the start of the step (m s-1)
+  integer(i4b)    :: scalarAquiferRecharge           = 132 ! recharge to the aquifer (m s-1)
+  integer(i4b)    :: scalarInitAquiferTranspire      = 133 ! transpiration from the aquifer at the start of the step (m s-1)
+  integer(i4b)    :: scalarAquiferTranspire          = 134 ! transpiration from the aquifer (m s-1)
+  integer(i4b)    :: scalarInitAquiferBaseflow       = 135 ! baseflow from the aquifer at the start of the step (m s-1)
+  integer(i4b)    :: scalarAquiferBaseflow           = 136 ! baseflow from the aquifer (m s-1)
   ! scalar variables -- sub-step average fluxes for the soil zone
-  integer(i4b)    :: scalarSoilInflux                = 136 ! sub-step average: influx of water at the top of the soil profile (m s-1)
-  integer(i4b)    :: scalarSoilBaseflow              = 137 ! sub-step average: total baseflow from throughout the soil profile (m s-1)
-  integer(i4b)    :: scalarSoilDrainage              = 138 ! sub-step average: drainage from the bottom of the soil profile (m s-1) 
-  integer(i4b)    :: scalarSoilQMacropore            = 139 ! sub-step average: liquid flux from micropores to macropores (m s-1) 
+  integer(i4b)    :: scalarSoilInflux                = 137 ! sub-step average: influx of water at the top of the soil profile (m s-1)
+  integer(i4b)    :: scalarSoilBaseflow              = 138 ! sub-step average: total baseflow from throughout the soil profile (m s-1)
+  integer(i4b)    :: scalarSoilDrainage              = 139 ! sub-step average: drainage from the bottom of the soil profile (m s-1) 
   integer(i4b)    :: scalarSoilTranspiration         = 140 ! sub-step average: total transpiration from the soil (m s-1)
   ! define scalar variables -- mass balance check
   integer(i4b)    :: scalarSoilWatBalError           = 141 ! error in the total soil water balance (kg m-2)
@@ -423,19 +423,21 @@ MODULE var_lookup
   integer(i4b)    :: iLayerSatHydCond                = 181 ! saturated hydraulic conductivity at each layer interface (m s-1)
   integer(i4b)    :: iLayerInitLiqFluxSnow           = 182 ! liquid flux at snow layer interfaces at the start of the time step (m s-1) 
   integer(i4b)    :: iLayerInitLiqFluxSoil           = 183 ! liquid flux at soil layer interfaces at the start of the time step (m s-1) 
-  integer(i4b)    :: iLayerLiqFluxSnow               = 184 ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
-  integer(i4b)    :: iLayerLiqFluxSoil               = 185 ! liquid flux at soil layer interfaces at the end of the time step (m s-1) 
+  integer(i4b)    :: iLayerInitFluxReversal          = 184 ! start of step liquid flux at soil layer interfaces from impedance (m s-1)
+  integer(i4b)    :: iLayerLiqFluxSnow               = 185 ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
+  integer(i4b)    :: iLayerLiqFluxSoil               = 186 ! liquid flux at soil layer interfaces at the end of the time step (m s-1) 
+  integer(i4b)    :: iLayerFluxReversal              = 187 ! end of step liquid flux at soil layer interfaces from impedance (m s-1)
   ! define derived variables
-  integer(i4b)    :: scalarVGn_m                     = 186 ! van Genuchten "m" parameter (-)
-  integer(i4b)    :: scalarKappa                     = 187 ! constant in the freezing curve function (m K-1)
-  integer(i4b)    :: scalarVolHtCap_air              = 188 ! volumetric heat capacity air         (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_ice              = 189 ! volumetric heat capacity ice         (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_soil             = 190 ! volumetric heat capacity dry soil    (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_water            = 191 ! volumetric heat capacity liquid wat  (J m-3 K-1)
-  integer(i4b)    :: scalarLambda_drysoil            = 192 ! thermal conductivity of dry soil     (W m-1)
-  integer(i4b)    :: scalarLambda_wetsoil            = 193 ! thermal conductivity of wet soil     (W m-1)
-  integer(i4b)    :: scalarVolLatHt_fus              = 194 ! volumetric latent heat of fusion     (J m-3)
-  integer(i4b)    :: scalarAquiferRootFrac           = 195 ! fraction of roots below the soil profile (-)
+  integer(i4b)    :: scalarVGn_m                     = 188 ! van Genuchten "m" parameter (-)
+  integer(i4b)    :: scalarKappa                     = 189 ! constant in the freezing curve function (m K-1)
+  integer(i4b)    :: scalarVolHtCap_air              = 190 ! volumetric heat capacity air         (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_ice              = 191 ! volumetric heat capacity ice         (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_soil             = 192 ! volumetric heat capacity dry soil    (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_water            = 193 ! volumetric heat capacity liquid wat  (J m-3 K-1)
+  integer(i4b)    :: scalarLambda_drysoil            = 194 ! thermal conductivity of dry soil     (W m-1)
+  integer(i4b)    :: scalarLambda_wetsoil            = 195 ! thermal conductivity of wet soil     (W m-1)
+  integer(i4b)    :: scalarVolLatHt_fus              = 196 ! volumetric latent heat of fusion     (J m-3)
+  integer(i4b)    :: scalarAquiferRootFrac           = 197 ! fraction of roots below the soil profile (-)
  endtype iLook_mvar
 
  ! ***********************************************************************************************************
@@ -475,17 +477,16 @@ MODULE var_lookup
   integer(i4b)    :: basin__totalArea                =  1 ! total basin area (m2)
   ! define fluxes
   integer(i4b)    :: basin__SurfaceRunoff            =  2 ! surface runoff (m s-1)
-  integer(i4b)    :: basin__SoilQMacropore           =  3 ! macropore flow from the soil profile (m s-1)
-  integer(i4b)    :: basin__SoilBaseflow             =  4 ! baseflow from the soil profile (m s-1)
-  integer(i4b)    :: basin__AquiferStorage           =  5 ! aquifer storage (m s-1)  
-  integer(i4b)    :: basin__AquiferRecharge          =  6 ! recharge to the aquifer (m s-1)
-  integer(i4b)    :: basin__AquiferBaseflow          =  7 ! baseflow from the aquifer (m s-1)
-  integer(i4b)    :: basin__AquiferTranspire         =  8 ! transpiration from the aquifer (m s-1)
+  integer(i4b)    :: basin__ColumnOutflow            =  3 ! outflow from all "outlet" HRUs (those with no downstream HRU)
+  integer(i4b)    :: basin__AquiferStorage           =  4 ! aquifer storage (m s-1)  
+  integer(i4b)    :: basin__AquiferRecharge          =  5 ! recharge to the aquifer (m s-1)
+  integer(i4b)    :: basin__AquiferBaseflow          =  6 ! baseflow from the aquifer (m s-1)
+  integer(i4b)    :: basin__AquiferTranspire         =  7 ! transpiration from the aquifer (m s-1)
   ! define variables for runoff
-  integer(i4b)    :: routingRunoffFuture             =  9 ! runoff in future time steps (m s-1)
-  integer(i4b)    :: routingFractionFuture           = 10 ! fraction of runoff in future time steps (-)
-  integer(i4b)    :: averageInstantRunoff            = 11 ! instantaneous runoff (m s-1)
-  integer(i4b)    :: averageRoutedRunoff             = 12 ! routed runoff (m s-1)
+  integer(i4b)    :: routingRunoffFuture             =  8 ! runoff in future time steps (m s-1)
+  integer(i4b)    :: routingFractionFuture           =  9 ! fraction of runoff in future time steps (-)
+  integer(i4b)    :: averageInstantRunoff            = 10 ! instantaneous runoff (m s-1)
+  integer(i4b)    :: averageRoutedRunoff             = 11 ! routed runoff (m s-1)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -530,11 +531,11 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193,194,195)
+                                                                        191,192,193,194,195,196,197)
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10)
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12)
+                                                                         11)
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions= 28
  integer(i4b),parameter,public :: maxvarTime     = 5
@@ -542,9 +543,9 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarAttr     = 7
  integer(i4b),parameter,public :: maxvarType     = 5
  integer(i4b),parameter,public :: maxvarMpar     = 118
- integer(i4b),parameter,public :: maxvarMvar     = 195
+ integer(i4b),parameter,public :: maxvarMvar     = 197
  integer(i4b),parameter,public :: maxvarIndx     = 10
  integer(i4b),parameter,public :: maxvarBpar     = 5
- integer(i4b),parameter,public :: maxvarBvar     = 12
+ integer(i4b),parameter,public :: maxvarBvar     = 11
  ! ***********************************************************************************************************
 END MODULE var_lookup

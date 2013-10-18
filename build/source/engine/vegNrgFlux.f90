@@ -1717,9 +1717,9 @@ contains
  ! compute the heat advected with precipitation (W m-2)
  ! NOTE: fluxes are in kg m-2 s-1, so no need to use density of water/ice here
  scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(canopyTempTrial - scalarTwetbulb) + &
-                                 -Cp_ice*(scalarSnowfall - scalarThroughfallSnow)*(canopyTempTrial - scalarTwetbulb)
+                                 (-Cp_ice)*(scalarSnowfall - scalarThroughfallSnow)*(canopyTempTrial - scalarTwetbulb)
  scalarGroundAdvectiveHeatFlux = -Cp_water*scalarThroughfallRain*(groundTempTrial - scalarTwetbulb)         + &
-                                 -Cp_ice  *scalarThroughfallSnow*(groundTempTrial - scalarTwetbulb)         !+ &
+                                 (-Cp_ice)*scalarThroughfallSnow*(groundTempTrial - scalarTwetbulb)         !+ &
  !                                -Cp_water*scalarCanopyLiqDrainage  *(groundTempTrial - canopyTempTrial) + &
  !                                -Cp_ice  *scalarCanopySnowUnloading*(groundTempTrial - canopyTempTrial)
  !print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow = ', scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow

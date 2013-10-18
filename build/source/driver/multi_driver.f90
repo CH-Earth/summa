@@ -88,7 +88,7 @@ implicit none
 ! (0) variable definitions
 ! *****************************************************************************
 ! define counters
-integer(i4b)              :: iHRU,jHRU                      ! index of the hydrologic response unit
+integer(i4b)              :: iHRU,jHRU,kHRU                 ! index of the hydrologic response unit
 integer(i4b)              :: nHRU                           ! number of hydrologic response units
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
@@ -110,6 +110,22 @@ integer(i4b),pointer      :: ifcSnowStartIndex=>null()      ! start index of the
 integer(i4b),pointer      :: ifcSoilStartIndex=>null()      ! start index of the ifcSoil vector for a given timestep
 integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the ifcToto vector for a given timestep
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
+real(dp),pointer          :: totalArea=>null()              ! total basin area (m2)
+! exfiltration
+real(dp)                  :: totalStorage                   ! total water in the soil column (m)
+real(dp)                  :: availStorage                   ! water required to bring the entire soil column to saturation (m)
+real(dp)                  :: totalInflow                    ! total inflow to the soil column from upstream HRUs (m s-1)
+real(dp),parameter        :: supersatScale=0.001_dp         ! scaling factor for the logistic function (-)
+real(dp),parameter        :: xMatch = 0.99999_dp            ! point where x-value and function value match (-)
+real(dp),parameter        :: safety = 0.01_dp               ! safety factor to ensure logistic function is less than 1
+real(dp),parameter        :: fSmall = epsilon(xMatch)       ! smallest possible value to test
+real(dp)                  :: supersatThresh                 ! threshold in super-saturation function (-)
+real(dp)                  :: exfilMin                       ! minimum fraction of storage filled for exfiltration to occur (-)
+real(dp)                  :: expFunc                        ! exponential function used as part of the flux calculation (-)
+real(dp)                  :: logFunc                        ! logistic smoothing function (-)
+real(dp)                  :: fracCap                        ! fraction of storage filled with liquid water and ice (-)
+real(dp)                  :: exfiltration                   ! exfiltration (m3/s)
+real(dp),allocatable      :: upArea(:)                      ! area upslope of each HRU
 ! general local variables
 real(dp)                  :: fracHRU                        ! fractional area of a given HRU (-)
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
@@ -263,6 +279,39 @@ do iHRU=1,nHRU
 
 end do  ! (looping through HRUs)
 
+! allocate space for the upslope area
+allocate(upArea(nHRU),stat=err); call handle_err(err,'problem allocating space for upArea')
+
+! define threshold in the exfiltration function (-)
+supersatThresh = supersatScale * log(1._dp/xMatch - 1._dp) + (xMatch - safety)
+
+! define minimum value to calculate exfiltration
+exfilMin = -supersatScale*log(1._dp/fSmall - 1._dp) + supersatThresh
+
+! identify the total basin area (m2)
+totalArea => bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
+totalArea = 0._dp
+do iHRU=1,nHRU
+ totalArea = totalArea + attr_hru(iHRU)%var(iLookATTR%HRUarea)
+end do
+
+! compute total area of the upstream HRUS that flow into each HRU
+do iHRU=1,nHRU
+ upArea(iHRU) = 0._dp
+ do jHRU=1,nHRU
+  ! check if jHRU flows into iHRU
+  if(type_hru(jHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(iHRU)%var(iLookTYPE%hruIndex))then
+   upArea(iHRU) = upArea(iHRU) + attr_hru(jHRU)%var(iLookATTR%HRUarea)
+   ! check that jHRU does not have any upstream HRUs -- implement more complex topologies later
+   do kHRU=1,nHRU
+    if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
+     call handle_err(20,'currently only capable of a single upslope HRU')     
+    endif
+   end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
+  endif   ! (if jHRU is an upstream HRU)
+ end do  ! jHRU
+end do  ! iHRU
+
 ! initialize aquifer storage
 ! NOTE: this is ugly: need to add capabilities to initialize basin-wide state variables
 select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
@@ -275,7 +324,6 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
   end do
  case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
 endselect
-
 
 ! initialize time step length for each HRU
 dt_init(:) = 3600._dp ! seconds
@@ -335,9 +383,8 @@ do istep=1,numtim
  endif  ! if start of a new water year, and defining a new file
 
  ! initialize runoff variables
- bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)   = 0._dp  ! surface runoff (m s-1)
- bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1)  = 0._dp  ! macropore flow from the soil profile (m s-1)
- bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)    = 0._dp  ! baseflow from the soil profile (m s-1)
+ bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = 0._dp  ! surface runoff (m s-1)
+ bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1)    = 0._dp  ! outflow from all "outlet" HRUs (those with no downstream HRU)
 
  ! initialize baseflow variables
  bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = 0._dp ! recharge to the aquifer (m s-1)
@@ -347,12 +394,6 @@ do istep=1,numtim
  ! initialize total inflow to each layer in a soil column 
  do iHRU=1,nHRU
   mvar_hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
- end do
-
- ! identify the total basin area (m2)
- bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) = 0._dp
- do iHRU=1,nHRU
-  bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) = bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) + attr_hru(iHRU)%var(iLookATTR%HRUarea)
  end do
 
 
@@ -416,18 +457,59 @@ do istep=1,numtim
   ! compute derived forcing variables
   call derivforce(err,message); call handle_err(err,message)
 
+  !write(*,'(a,1x,10(f20.10,1x))') 'driver: mLayerColumnInflow = ', mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(:)
+
+  !exfiltration = 0._dp
+  !! compute available storage
+  !if(upArea(iHRU) > epsilon(data_step))then
+  ! totalStorage = sum(mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nSoil)*mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nSnow+nSoil) + &
+  !                    mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(nSnow+1:nSnow+nSoil)*mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nSnow+nSoil) )  ! m
+  ! availStorage = mpar_data%var(iLookPARAM%theta_sat)*mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+nSoil)                    ! m
+  ! !write(*,'(a,1x,2(f20.10,1x))') 'totalStorage, availStorage = ', totalStorage, availStorage
+  ! !write(*,'(a,1x,10(f20.10,1x))') 'mLayerColumnInflow = ', mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(:)
+  ! !write(*,'(a,1x,10(f20.10,1x))') 'volFracLiq         = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nSnow+nSoil)
+  ! !write(*,'(a,1x,10(f20.10,1x))') 'volFracIce         = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(nSnow+1:nSnow+nSoil)
+  ! !write(*,'(a,1x,10(f20.10,1x))') 'depth              = ', mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nSnow+nSoil)
+
+  ! ! compute exfiltration
+  ! fracCap = totalStorage/availStorage
+  ! !if(fracCap > exfilMin)then
+  ! if(fracCap > 100._dp)then  ! will not happen
+  !  ! (compute the logistic smoothing function)
+  !  expFunc = exp((fracCap - supersatThresh)/supersatScale)      ! argument in the logistic smoothing function
+  !  logFunc = 1._dp / (1._dp + expFunc)                          ! the logistic smoothing function itself
+  !  if(fracCap >= 1._dp) logFunc = 1._dp                         ! impose constraint
+  !  ! (compute exfiltration)
+  !  totalInflow  = sum(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(:))  ! m3/s
+  !  exfiltration = totalInflow*(1._dp - logFunc)                            ! m3/s
+  !  ! (constrain inflow)
+  !  mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(:) = mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(:)*logFunc  ! m3/s
+  !  ! (add exfiltration to basin surface runoff)
+  !  bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) = bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + exfiltration/upArea(iHRU)  ! m/s
+  !  ! (check)
+  !  if(abs(totalInflow - (sum(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(:)) + exfiltration)) > epsilon(data_step))then
+  !   call handle_err(20,'model driver: problem with the exfiltration calculations')
+  !  endif
+  ! endif  ! if sufficient storage to compute exfiltration
+  ! ! check inflow is positive
+  ! if(any(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(:) < 0._dp))then
+  !  call handle_err(20,'model_driver: inflow is negative')
+  ! endif
+  !endif  ! if there are some flow contributions from upstream
+
+
   ! ensure that the HRU inflow is not flowing into an ice layer
-  ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
+  !ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
   ! (identify the top ice layer)
-  do iSoil=1,nSoil-1 ! (loop through soil layers)
-   if(mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iSoil) > epsilon(dt_init(iHRU))) ixIce = iSoil
-  end do
+  !do iSoil=1,nSoil-1 ! (loop through soil layers)
+  ! if(mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iSoil) > epsilon(dt_init(iHRU))) ixIce = iSoil
+  !end do
   ! (put inflow below ice)
-  if(ixIce > 0)then ! ice exists
-   mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) = mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) + &
-                                                              sum(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce))
-   mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce) = 0._dp
-  endif
+  !if(ixIce > 0)then ! ice exists
+  ! mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) = mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(ixIce+1) + &
+  !                                                            sum(mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce))
+  ! mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce) = 0._dp
+  !endif
   !print*, '*****'
   !print*, 'HRU, dt_init = ', iHRU, dt_init(iHRU)
 
@@ -436,6 +518,7 @@ do istep=1,numtim
   ! ****************************************************************************
   ! run the model for a single parameter set and time step
   call coupled_em(dt_init(iHRU),err,message); call handle_err(err,message) 
+  !if(exfiltration > 0.0001_dp) call handle_err(20,'model driver: testing exfiltration')
   !if(istep>1000) stop 'FORTRAN STOP: after call to coupled_em'
   !if(associated(forc_data))then
   ! print*, 'pptrate            = ', forc_data%var(iLookFORCE%pptrate)
@@ -444,21 +527,34 @@ do istep=1,numtim
   !print*, time_data%var, nSnow
   !pause
 
-  ! add inflow to the downslope HRU
+  kHRU = 0
+  ! identify the downslope HRU
   do jHRU=1,nHRU
    if(type_hru(iHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
-    mvar_hru(jHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = mvar_hru(jHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) &
-                                                                 + mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat(:) 
-   endif
+    if(kHRU==0)then  ! check there is a unique match
+     kHRU=jHRU
+    else
+     call handle_err(20,'multi_driver: only expect there to be one downslope HRU')
+    endif  ! (check there is a unique match)
+   endif  ! (if identified a downslope HRU)
   end do
 
-  ! increment runoff variables
+  !write(*,'(a,1x,10(f20.10,1x))') 'averageColumnOutflow = ', mvar_data%var(iLookMVAR%averageColumnOutflow)%dat(:)
+
+  ! add inflow to the downslope HRU
+  if(kHRU > 0)then  ! if there is a downslope HRU
+   mvar_hru(kHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = mvar_hru(kHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) &
+                                                              + mvar_data%var(iLookMVAR%averageColumnOutflow)%dat(:)
+
+  ! increment basin column outflow
+  else
+   bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + &
+                                                          sum(mvar_data%var(iLookMVAR%averageColumnOutflow)%dat(:))
+  endif
+
+  ! increment basin surface runoff
   bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)   = bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    + &
                                                            mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)    * fracHRU
-  bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1)  = bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1)   + &
-                                                           mvar_data%var(iLookMVAR%averageSoilQMacropore)%dat(1)   * fracHRU
-  bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)    = bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1)     + &
-                                                           mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)     * fracHRU
 
   ! increment basin-average baseflow input variables
   bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + &
@@ -466,7 +562,7 @@ do istep=1,numtim
   bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + &
                                                             mvar_data%var(iLookMVAR%averageAquiferTranspire)%dat(1) * fracHRU
 
-  ! increment baseflow itself -- ONLY if baseflow is computed individually for each HRU
+  ! increment aquifer baseflow -- ONLY if baseflow is computed individually for each HRU
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn)then
    bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + &
@@ -517,17 +613,16 @@ do istep=1,numtim
  ! perform the routing
  call qOverland(&
                 ! input
-                model_decisions(iLookDECISIONS%subRouting)%iDecision,   &  ! intent(in): index for routing method
-                bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),   &  ! intent(in): surface runoff (m s-1)
-                bvar_data%var(iLookBVAR%basin__SoilQMacropore)%dat(1),  &  ! intent(in): macropore flow from the soil profile (m s-1)
-                bvar_data%var(iLookBVAR%basin__SoilBaseflow)%dat(1),    &  ! intent(in): baseflow from the soil profile (m s-1)
-                bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), &  ! intent(in): baseflow from the aquifer (m s-1)
-                bvar_data%var(iLookBVAR%routingFractionFuture)%dat,     &  ! intent(in): fraction of runoff in future time steps (m s-1)
-                bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,       &  ! intent(in): runoff in future time steps (m s-1)
+                model_decisions(iLookDECISIONS%subRouting)%iDecision,           &  ! intent(in): index for routing method
+                bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),           &  ! intent(in): surface runoff (m s-1)
+                bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea, &  ! intent(in): outflow from all "outlet" HRUs (those with no downstream HRU)
+                bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1),         &  ! intent(in): baseflow from the aquifer (m s-1)
+                bvar_data%var(iLookBVAR%routingFractionFuture)%dat,             &  ! intent(in): fraction of runoff in future time steps (m s-1)
+                bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,               &  ! intent(in): runoff in future time steps (m s-1)
                 ! output
-                bvar_data%var(iLookBVAR%averageInstantRunoff)%dat(1),   &  ! intent(out): instantaneous runoff (m s-1)
-                bvar_data%var(iLookBVAR%averageRoutedRunoff)%dat(1),    &  ! intent(out): routed runoff (m s-1)
-                err,message)                                               ! intent(out): error control
+                bvar_data%var(iLookBVAR%averageInstantRunoff)%dat(1),           &  ! intent(out): instantaneous runoff (m s-1)
+                bvar_data%var(iLookBVAR%averageRoutedRunoff)%dat(1),            &  ! intent(out): routed runoff (m s-1)
+                err,message)                                                       ! intent(out): error control
  call handle_err(err,message)
 
  ! write basin-average variables
@@ -537,6 +632,10 @@ do istep=1,numtim
  jstep = jstep+1
 
 end do  ! (looping through time)
+
+! deallocate space for dt_init and upArea
+deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
+
 call stop_program('finished simulation')
 
 contains

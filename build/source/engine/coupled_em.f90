@@ -95,10 +95,10 @@ contains
  real(dp),pointer                     :: scalarSoilInflux            ! influx of water at the top of the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilBaseflow          ! total baseflow from throughout the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilDrainage          ! drainage from the bottom of the soil profile (m s-1)
- real(dp),pointer                     :: scalarSoilQMacropore        ! liquid flux from micropores to macropores (m s-1)
  real(dp),pointer                     :: scalarAquiferRecharge       ! recharge to the aquifer (m s-1)
  real(dp),pointer                     :: scalarAquiferBaseflow       ! baseflow from the aquifer (m s-1)
  real(dp),pointer                     :: scalarAquiferTranspire      ! transpiration from the aquifer (m s-1)
+ real(dp),pointer                     :: mLayerColumnOutflow(:)      ! total outflow from each layer in a given soil column (m3 s-1)
  ! local pointers to timestep-average flux variables
  real(dp),pointer                     :: averageThroughfallSnow      ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
  real(dp),pointer                     :: averageThroughfallRain      ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -112,10 +112,10 @@ contains
  real(dp),pointer                     :: averageSoilInflux           ! influx of water at the top of the soil profile (m s-1)
  real(dp),pointer                     :: averageSoilBaseflow         ! total baseflow from throughout the soil profile (m s-1)
  real(dp),pointer                     :: averageSoilDrainage         ! drainage from the bottom of the soil profile (m s-1)
- real(dp),pointer                     :: averageSoilQMacropore       ! liquid flux from micropores to macropores (m s-1)
  real(dp),pointer                     :: averageAquiferRecharge      ! recharge to the aquifer (m s-1)
  real(dp),pointer                     :: averageAquiferBaseflow      ! baseflow from the aquifer (m s-1)
  real(dp),pointer                     :: averageAquiferTranspire     ! transpiration from the aquifer (m s-1)
+ real(dp),pointer                     :: averageColumnOutflow(:)     ! outflow from each layer in the soil profile (m3 s-1)
  ! local pointers to algorithmic control parameters
  real(dp),pointer                     :: minstep                ! minimum time step length (s)
  real(dp),pointer                     :: maxstep                ! maximum time step length (s)
@@ -164,10 +164,10 @@ contains
  averageSoilInflux          => mvar_data%var(iLookMVAR%averageSoilInflux)%dat(1)          ! influx of water at the top of the soil profile (m s-1)
  averageSoilBaseflow        => mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)        ! total baseflow from throughout the soil profile (m s-1)
  averageSoilDrainage        => mvar_data%var(iLookMVAR%averageSoilDrainage)%dat(1)        ! drainage from the bottom of the soil profile (m s-1)
- averageSoilQMacropore      => mvar_data%var(iLookMVAR%averageSoilQMacropore)%dat(1)      ! liquid flux from micropores to macropores (m s-1)
  averageAquiferRecharge     => mvar_data%var(iLookMVAR%averageAquiferRecharge)%dat(1)     ! recharge to the aquifer (m s-1)
  averageAquiferBaseflow     => mvar_data%var(iLookMVAR%averageAquiferBaseflow)%dat(1)     ! baseflow from the aquifer (m s-1)
  averageAquiferTranspire    => mvar_data%var(iLookMVAR%averageAquiferTranspire)%dat(1)    ! transpiration from the aquifer (m s-1)
+ averageColumnOutflow       => mvar_data%var(iLookMVAR%averageColumnOutflow)%dat          ! outflow from each layer in the soil profile (m3 s-1)
 
  ! assign pointers to algorithmic control parameters
  minstep => mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
@@ -187,10 +187,11 @@ contains
  averageSoilInflux          = 0._dp  ! influx of water at the top of the soil profile (m s-1)
  averageSoilBaseflow        = 0._dp  ! total baseflow from throughout the soil profile (m s-1)
  averageSoilDrainage        = 0._dp  ! drainage from the bottom of the soil profile (m s-1)
- averageSoilQMacropore      = 0._dp  ! liquid flux from micropores to macropores (m s-1)
  averageAquiferRecharge     = 0._dp  ! recharge to the aquifer (m s-1)
  averageAquiferBaseflow     = 0._dp  ! baseflow from the aquifer (m s-1)
  averageAquiferTranspire    = 0._dp  ! transpiration from the aquifer (m s-1)
+ averageColumnOutflow       = 0._dp  ! outflow from each layer in the soil profile (m3 s-1)
+
  ! get the length of the time step (seconds)
  dt = data_step
 
@@ -395,11 +396,10 @@ contains
   scalarSoilInflux          => mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1)          ! influx of water at the top of the soil profile (m s-1)
   scalarSoilBaseflow        => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)        ! total baseflow from throughout the soil profile (m s-1)
   scalarSoilDrainage        => mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1)        ! drainage from the bottom of the soil profile (m s-1)
-  scalarSoilQMacropore      => mvar_data%var(iLookMVAR%scalarSoilQMacropore)%dat(1)      ! liquid flux from micropores to macropores (m s-1)
   scalarAquiferRecharge     => mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1)     ! recharge to the aquifer (m s-1)
   scalarAquiferBaseflow     => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)     ! baseflow from the aquifer (m s-1)
   scalarAquiferTranspire    => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)    ! transpiration from the aquifer (m s-1)
-
+  mLayerColumnOutflow       => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat          ! total outflow from each layer in a given soil column (m3 s-1) 
 
   ! allocate temporary array
   allocate(arrTemp(nLayers),stat=err)
@@ -481,10 +481,11 @@ contains
   averageSoilInflux          = averageSoilInflux          + scalarSoilInflux          *dt_wght ! influx of water at the top of the soil profile (m s-1)
   averageSoilBaseflow        = averageSoilBaseflow        + scalarSoilBaseflow        *dt_wght ! total baseflow from throughout the soil profile (m s-1)
   averageSoilDrainage        = averageSoilDrainage        + scalarSoilDrainage        *dt_wght ! drainage from the bottom of the soil profile (m s-1)
-  averageSoilQMacropore      = averageSoilQMacropore      + scalarSoilQMacropore      *dt_wght ! liquid flux from micropores to macropores (m s-1)
   averageAquiferRecharge     = averageAquiferRecharge     + scalarAquiferRecharge     *dt_wght ! recharge to the aquifer (m s-1)
   averageAquiferBaseflow     = averageAquiferBaseflow     + scalarAquiferBaseflow     *dt_wght ! baseflow from the aquifer (m s-1)
   averageAquiferTranspire    = averageAquiferTranspire    + scalarAquiferTranspire    *dt_wght ! transpiration from the aquifer (m s-1)
+  averageColumnOutflow       = averageColumnOutflow       + mLayerColumnOutflow       *dt_wght ! outflow from each soil layer in a given soil column (m3 s-1)
+
   !write(*,'(a,1x,f9.1,1x,10(e20.10,1x))') 'dt_sub, averageSoilBaseflow, scalarSoilBaseflow', &
   !                                         dt_sub, averageSoilBaseflow, scalarSoilBaseflow
   !write(*,'(a,10(e20.10,1x))') 'scalarRainPlusMelt, scalarSurfaceRunoff, scalarSoilInflux = ', &

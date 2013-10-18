@@ -379,19 +379,25 @@ contains
                  model_decisions(iLookDECISIONS%groundwatr)%iDecision,               & ! intent(in): choice of groundwater parameterization
                  model_decisions(iLookDECISIONS%spatial_gw)%iDecision,               & ! intent(in): choice of method for the spatial representation of groundwater
 
+                 ! input: soil parameters
+                 mpar_data%var(iLookPARAM%theta_sat),                                & ! intent(in): soil porosity (-)
+                 mpar_data%var(iLookPARAM%specificStorage),                          & ! intent(in): specific storage (m-1)
+
                  ! input: state variables at the start of the sub-step
                  mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,                      & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                  mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,                      & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                 mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                      & ! intent(in): matric head at the start of the sub-step (m)
                  mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),               & ! intent(in): aquifer storage at the start of the sub-step (m)
 
                  ! input: state variables after iteration                
                  mLayerVolFracIceNew,                                                & ! intent(in): volumetric fraction of ice at the end of the sub-step (-)
                  mLayerVolFracLiqNew,                                                & ! intent(in): volumetric fraction of liquid water at the end of the sub-step (-)
+                 mLayerMatricHeadNew,                                                & ! intent(in): matric head at the end of the sub-step (-)
                  scalarAquiferStorageNew,                                            & ! intent(in): aquifer storage at the end of the sub-step (m)
 
                  ! input: model fluxes at the *START* of the sub-step
                  mvar_data%var(iLookMVAR%iLayerInitLiqFluxSoil)%dat,                 & ! intent(in): liquid water flux at the interface of each layer at the start of the sub-step (m s-1)
-                 mvar_data%var(iLookMVAR%mLayerInitQMacropore)%dat,                  & ! intent(in): liquid water flux from micropores to macropores at the start of the sub-step (m s-1)
+                 mvar_data%var(iLookMVAR%iLayerInitFluxReversal)%dat,                & ! intent(in): flow reversal flux at the interface of each layer at the start of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%mLayerInitBaseflow)%dat,                    & ! intent(in): baseflow from each layer at the start of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%mLayerInitTranspire)%dat,                   & ! intent(in): transpiration from each layer at the start of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%scalarInitAquiferRecharge)%dat(1),          & ! intent(in): recharge to the aquifer at the start of the sub-step (m s-1)
@@ -400,7 +406,7 @@ contains
 
                  ! input: model fluxes at the *END* of the sub-step
                  mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat,                     & ! intent(in): liquid water flux at the interface of each layer at the end of the sub-step (m s-1)
-                 mvar_data%var(iLookMVAR%mLayerQMacropore)%dat,                      & ! intent(in): liquid water flux from micropores to macropores at the end of the sub-step (m s-1)
+                 mvar_data%var(iLookMVAR%iLayerFluxReversal)%dat,                    & ! intent(in): flow reversal flux at the interface of each layer at the end of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%mLayerBaseflow)%dat,                        & ! intent(in): baseflow from each layer at the end of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%mLayerTranspire)%dat,                       & ! intent(in): transpiration from each layer at the end of the sub-step (m s-1)
                  mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1),              & ! intent(in): recharge to the aquifer at the end of the sub-step (m s-1)
@@ -410,7 +416,6 @@ contains
                  ! output: water balance of the soil zone
                  mvar_data%var(iLookMVAR%scalarSoilInflux)%dat(1),                   & ! intent(out): influx at the top of the soil zone (m s-1)
                  mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1),                 & ! intent(out): total baseflow from the soil zone (m s-1)
-                 mvar_data%var(iLookMVAR%scalarSoilQMacropore)%dat(1),               & ! intent(out): total macropore flow from all soil layers (m s-1)
                  mvar_data%var(iLookMVAR%scalarSoilDrainage)%dat(1),                 & ! intent(out): drainage from the bottom of the soil profile (m s-1)
                  mvar_data%var(iLookMVAR%scalarSoilTranspiration)%dat(1),            & ! intent(out): total soil transpiration (m s-1)
 
@@ -1028,9 +1033,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  print*, '***************************************************************'
-  print*, '***** iter = ', iter, '*****'
-  print*, '***************************************************************'
+  !print*, '***************************************************************'
+  !print*, '***** iter = ', iter, '*****'
+  !print*, '***************************************************************'
   
 
   ! *****
@@ -1200,8 +1205,9 @@ contains
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
-  print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
-  print*, 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+  !print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
+  !print*, 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+  !print*, 'after soilHydrol'
   !print*, 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter
   !print*, 'mLayerVolFracLiqNew  = ', mLayerVolFracLiqNew
   !print*, 'mLayerMatIncr = ', mLayerMatIncr
@@ -1284,10 +1290,11 @@ contains
   !write(*,'(a,10(f20.10,1x))')  'after phase change: mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1) = ', &
   !                                                   mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1)
 
-  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceIter(1:nSnow) = ', mLayerVolFracIceIter(1:nSnow)
-  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceNew(1:nSnow)  = ', mLayerVolFracIceNew(1:nSnow)
-  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqIter(1:nSnow) = ', mLayerVolFracLiqIter(1:nSnow)
-  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqNew(1:nSnow)  = ', mLayerVolFracLiqNew(1:nSnow)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: iLayerHeight(0:nSnow+2) = ', iLayerHeight(0:nSnow+2)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceIter(1:nSnow+2) = ', mLayerVolFracIceIter(1:nSnow+2)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracIceNew(1:nSnow+2)  = ', mLayerVolFracIceNew(1:nSnow+2)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqIter(1:nSnow+2) = ', mLayerVolFracLiqIter(1:nSnow+2)
+  !write(*,'(a,1x,100(f20.10,1x))') 'after phseChange: mLayerVolFracLiqNew(1:nSnow+2)  = ', mLayerVolFracLiqNew(1:nSnow+2)
 
   !print*, 'after phase change = '
   !print*, 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
@@ -1358,14 +1365,14 @@ contains
   matric_max = maxval(abs(mLayerMatIncr) - (absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew) )  )
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
-  print*, 'mLayerMatIncr = ', mLayerMatIncr
-  print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
+  !print*, 'mLayerMatIncr = ', mLayerMatIncr
+  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
-  print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
   !print*, 'canopyNrgIncr = ', canopyNrgIncr
   !if(computeVegFlux) pause 'canopy is exposed'
 
@@ -1395,10 +1402,12 @@ contains
   endif
 
   !print*, 'iter, dt = ', iter, dt
-  !pause 'iterating'
+  !print*, 'press enter key to continue'
+  !read(*,*)   ! same as a pause statement
 
  end do  ! (iterating)
  !print*, 'after iterations: mLayerVolFracIceNew(1) = ', mLayerVolFracIceNew(1)
+ !pause
 
 
  ! *****************************************************************************************************************************************
@@ -1484,21 +1493,26 @@ contains
                        mLayerDepth,                           & ! intent(in): depth of each layer (m)
                        ix_groundwatr,                         & ! intent(in): choice of groundwater parameterization
                        ix_spatialGW,                          & ! intent(in): choice of method for the spatial representation of groundwater
- 
 
+                       ! input: soil parameters
+                       theta_sat,                             & ! intent(in): soil porosity (-)
+                       specificStorage,                       & ! intent(in): specific storage (m-1)
+ 
                        ! input: state variables at the start of the sub-step
                        mLayerVolFracIce,                      & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                        mLayerVolFracLiq,                      & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                       mLayerMatricHead,                      & ! intent(in): matric head at the start of the sub-step (-)
                        scalarAquiferStorage,                  & ! intent(in): aquifer storage at the start of the sub-step (m)
 
                        ! input: state variables after iteration                
                        mLayerVolFracIceNew,                   & ! intent(in): volumetric fraction of ice at the end of the sub-step (-)
                        mLayerVolFracLiqNew,                   & ! intent(in): volumetric fraction of liquid water at the end of the sub-step (-)
+                       mLayerMatricHeadNew,                   & ! intent(in): matric head at the end of the sub-step (-)
                        scalarAquiferStorageNew,               & ! intent(in): aquifer storage at the end of the sub-step (m)
 
                        ! input: model fluxes at the *START* of the sub-step
                        iLayerInitLiqFluxSoil,                 & ! intent(in): liquid water flux at the interface of each layer at the start of the sub-step (m s-1)
-                       mLayerInitQMacropore,                  & ! intent(in): liquid water flux from micropores to macropores at the start of the sub-step (m s-1)
+                       iLayerInitFluxReversal,                & ! intent(in): flow reversal flux at the interface of each layer at the start of the sub-step (m s-1)
                        mLayerInitBaseflow,                    & ! intent(in): baseflow from each layer at the start of the sub-step (m s-1)
                        mLayerInitTranspire,                   & ! intent(in): transpiration from each layer at the start of the sub-step (m s-1)
                        scalarInitAquiferRecharge,             & ! intent(in): recharge to the aquifer at the start of the sub-step (m s-1)
@@ -1507,7 +1521,7 @@ contains
 
                        ! input: model fluxes at the *END* of the sub-step
                        iLayerLiqFluxSoil,                     & ! intent(in): liquid water flux at the interface of each layer at the end of the sub-step (m s-1)
-                       mLayerQMacropore,                      & ! intent(in): liquid water flux from micropores to macropores at the end of the sub-step (m s-1)
+                       iLayerFluxReversal,                    & ! intent(in): flow reversal flux at the interface of each layer at the end of the sub-step (m s-1)
                        mLayerBaseflow,                        & ! intent(in): baseflow from each layer at the end of the sub-step (m s-1)
                        mLayerTranspire,                       & ! intent(in): transpiration from each layer at the end of the sub-step (m s-1)
                        scalarAquiferRecharge,                 & ! intent(in): recharge to the aquifer at the end of the sub-step (m s-1)
@@ -1517,7 +1531,6 @@ contains
                        ! output: water balance of the soil zone
                        scalarSoilInflux,                      & ! intent(out): influx at the top of the soil zone (m s-1)
                        scalarSoilBaseflow,                    & ! intent(out): total baseflow from the soil zone (m s-1)
-                       scalarSoilQMacropore,                  & ! intent(out): total liquid flux from micropores to macropores from all soil layers (m s-1)
                        scalarSoilDrainage,                    & ! intent(out): drainage from the bottom of the soil profile (m s-1)
                        scalarSoilTranspiration,               & ! intent(out): total soil transpiration (m s-1)
 
@@ -1547,27 +1560,32 @@ contains
  real(dp),intent(in)            :: mLayerDepth(:)               ! depth of each layer (m)
  integer(i4b),intent(in)        :: ix_groundwatr                ! choice of groundwater parameterization
  integer(i4b),intent(in)        :: ix_spatialGW                 ! choice of method for the spatial representation of groundwater
+ ! input: soil parameters
+ real(dp),intent(in)            :: theta_sat                    ! soil porosity (-) 
+ real(dp),intent(in)            :: specificStorage              ! specific storage (m-1)
  ! input: state variables at the start of the sub-step
  real(dp),intent(in)            :: mLayerVolFracIce(:)          ! volumetric fraction of ice in each layer (-)
  real(dp),intent(in)            :: mLayerVolFracLiq(:)          ! volumetric fraction of liquid water in each layer (-)
+ real(dp),intent(in)            :: mLayerMatricHead(:)          ! matric head in each layer (-)
  real(dp),intent(in)            :: scalarAquiferStorage         ! aquifer storage at the start of the sub-step (m)
  ! input: state variables after iteration                
  real(dp),intent(in)            :: mLayerVolFracIceNew(:)       ! volumetric fraction of ice at the end of the sub-step (-)
  real(dp),intent(in)            :: mLayerVolFracLiqNew(:)       ! volumetric fraction of liquid water at the end of the sub-step (-)
+ real(dp),intent(in)            :: mLayerMatricHeadNew(:)       ! matric head at the end of the sub-step (-)
  real(dp),intent(in)            :: scalarAquiferStorageNew      ! aquifer storage at the end of the sub-step (m)
  ! input: model fluxes at the *START* of the sub-step
  real(dp),intent(in)            :: iLayerInitLiqFluxSoil(0:)    ! liquid water flux at the interface of each layer at the start of the sub-step (m s-1)
- real(dp),intent(in)            :: mLayerInitQMacropore(:)      ! liquid water flux from micropores to macropores at the start of the sub-step (m s-1)
+ real(dp),intent(in)            :: iLayerInitFluxReversal(0:)   ! flow reversal flux at the interface of each layer at the start of the sub-step (m s-1)
  real(dp),intent(in)            :: mLayerInitBaseflow(:)        ! baseflow from each layer at the start of the sub-step (m s-1)
  real(dp),intent(in)            :: mLayerInitTranspire(:)       ! transpiration from each layer at the start of the sub-step (m s-1)
  real(dp),intent(in)            :: scalarInitAquiferRecharge    ! recharge to the aquifer at the end of the sub-step (m s-1)
  real(dp),intent(in)            :: scalarInitAquiferBaseflow    ! baseflow from the aquifer at the end of the sub-step (m s-1)
  real(dp),intent(in)            :: scalarInitAquiferTranspire   ! transpiration from the aquifer at the end of the sub-step (m s-1)
  ! input: model fluxes at the *END* of the sub-step
- real(dp),intent(in)            :: iLayerLiqFluxSoil(0:)        ! liquid water flux at the interface of each layer at the start of the sub-step (m s-1)
- real(dp),intent(in)            :: mLayerQMacropore(:)          ! liquid water flux from micropores to macropores at the start of the sub-step (m s-1)
- real(dp),intent(in)            :: mLayerBaseflow(:)            ! baseflow from each layer at the start of the sub-step (m s-1)
- real(dp),intent(in)            :: mLayerTranspire(:)           ! transpiration from each layer at the start of the sub-step (m s-1)
+ real(dp),intent(in)            :: iLayerLiqFluxSoil(0:)        ! liquid water flux at the interface of each layer at the end of the sub-step (m s-1)
+ real(dp),intent(in)            :: iLayerFluxReversal(0:)       ! flow reversal flux at the interface of each layer at the end of the sub-step (m s-1)
+ real(dp),intent(in)            :: mLayerBaseflow(:)            ! baseflow from each layer at the end of the sub-step (m s-1)
+ real(dp),intent(in)            :: mLayerTranspire(:)           ! transpiration from each layer at the end of the sub-step (m s-1)
  real(dp),intent(in)            :: scalarAquiferRecharge        ! recharge to the aquifer at the end of the sub-step (m s-1)
  real(dp),intent(in)            :: scalarAquiferBaseflow        ! baseflow from the aquifer at the end of the sub-step (m s-1)
  real(dp),intent(in)            :: scalarAquiferTranspire       ! transpiration from the aquifer at the end of the sub-step (m s-1)
@@ -1575,7 +1593,6 @@ contains
  ! output: water balance of the soil zone
  real(dp),intent(out)           :: scalarSoilInflux             ! intent(out): influx at the top of the soil zone (m s-1)
  real(dp),intent(out)           :: scalarSoilBaseflow           ! intent(out): total baseflow from the soil zone (m s-1)
- real(dp),intent(out)           :: scalarSoilQMacropore         ! intent(out): total flux from micropores to macropores from all soil layers (m s-1)
  real(dp),intent(out)           :: scalarSoilDrainage           ! intent(out): drainage from the bottom of the soil profile (m s-1)
  real(dp),intent(out)           :: scalarSoilTranspiration      ! intent(out): total soil transpiration (m s-1)
  ! output: water balance check
@@ -1594,13 +1611,13 @@ contains
  real(dp)                       :: flux_Change                  ! change in volumetric liquid water content associated with fluxes
  real(dp)                       :: evap_Change                  ! change in volumetric liquid water content associated with transpiration
  real(dp)                       :: qbaseChange                  ! change in volumetric liquid water content associated with baseflow
- real(dp)                       :: macroChange                  ! change in volumetric liquid water content associated with fluxes to macropores
+ real(dp)                       :: stor_Change                  ! change in volumetric liquid water content from water released due to change in pressure
+ real(dp)                       :: scalarSoilRelease            ! total water released due to change in pressure (kg m-2)
  real(dp)                       :: balanceSoilWater0            ! total soil storage at the start of the step (kg m-2)
  real(dp)                       :: balanceSoilWater1            ! total soil storage at the end of the step (kg m-2)
  real(dp)                       :: balanceSoilInflux            ! input to the soil zone
  real(dp)                       :: balanceSoilBaseflow          ! output from the soil zone
  real(dp)                       :: balanceSoilDrainage          ! output from the soil zone
- real(dp)                       :: balanceSoilQMacropore          ! output from the soil zone
  real(dp)                       :: balanceSoilTranspiration     ! output from the soil zone
  real(dp)                       :: balanceAquifer0              ! total aquifer storage at the start of the step (kg m-2)
  real(dp)                       :: balanceAquifer1              ! total aquifer storage at the end of the step (kg m-2)
@@ -1628,46 +1645,44 @@ contains
  ! get the total aquifer storage at the start of the time step (kg m-2)
  balanceAquifer1 = scalarAquiferStorageNew*iden_water
 
- ! compute the influx, drainage and flow of water from micropores to macropores from the soil profile (m s-1)
- scalarSoilInflux        = (wimplicit*iLayerInitLiqFluxSoil(0)       + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)      )
+ ! compute the influx, drainage of water from the soil profile (m s-1)
+ scalarSoilInflux        = (wimplicit*iLayerInitLiqFluxSoil(0)       + (1._dp - wimplicit)*iLayerLiqFluxSoil(0)      ) + &
+                           (wimplicit*iLayerInitFluxReversal(0)      + (1._dp - wimplicit)*iLayerFluxReversal(0)     )
  scalarSoilBaseflow      = (wimplicit*sum(mLayerInitBaseflow)        + (1._dp - wimplicit)*sum(mLayerBaseflow)       )
  scalarSoilDrainage      = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
- scalarSoilQMacropore    = (wimplicit*sum(mLayerInitQMacropore)      + (1._dp - wimplicit)*sum(mLayerQMacropore)     )
  scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)      ) 
- print*, 'iLayerLiqFluxSoil(0), scalarSoilInflux = ', iLayerLiqFluxSoil(0), scalarSoilInflux
+ !print*, 'iLayerLiqFluxSoil(0), scalarSoilInflux = ', iLayerLiqFluxSoil(0), scalarSoilInflux
 
- ! check liquid flux between micropores and macropores
- if(scalarSoilQMacropore < 0._dp)then
-  print*, 'mLayerInitQMacropore = ', mLayerInitQMacropore
-  print*, 'mLayerQMacropore     = ', mLayerQMacropore
-  message=trim(message)//'macropore flow < 0'; err=20; return
- endif
+ ! get the total water released due to change in pressure (kg m-2)
+ scalarSoilRelease = sum( mLayerDepth(nSnow+1:nLayers)*(mLayerMatricHeadNew(1:nSoil) - mLayerMatricHead(1:nSoil))*mLayerVolFracLiqNew(nSnow+1:nLayers)*specificStorage/theta_sat )*iden_water
 
  ! get the input and output to/from the soil zone (kg m-2)
  balanceSoilInflux        = scalarSoilInflux*iden_water*dt
  balanceSoilBaseflow      = scalarSoilBaseflow*iden_water*dt
  balanceSoilDrainage      = scalarSoilDrainage*iden_water*dt
- balanceSoilQMacropore    = scalarSoilQMacropore*iden_water*dt
  balanceSoilTranspiration = scalarSoilTranspiration*iden_water*dt
 
  ! check the soil water balance
- scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilQMacropore) )
- if(abs(scalarSoilWatBalError) > 1.d-9)then
+ scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - scalarSoilRelease) )
+ if(abs(scalarSoilWatBalError) > 1.d-3)then
   ! check the balance of each layer
   write(*,'(a)') 'water balance of each layer'
-  write(*,'(a)') 'Liq0 (-), Liq1 (-), Ice0 (-), Ice1 (-), totalChange (-), phaseChange (-), flux_Change, evap_Change, qbaseChange, macroChange, ',&
-                 'phaseChange+flux_Change+evap_Change+qbaseChange+macroChange, totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-macroChange)'
+  write(*,'(a)') 'Liq0 (-), Liq1 (-), Ice0 (-), Ice1 (-), totalChange (-), phaseChange (-), flux_Change, evap_Change, qbaseChange, stor_Change',&
+                 'phaseChange+flux_Change+evap_Change+qbaseChange-stor_change, totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-stor_change)'
   do iLayer=1,nSoil
    totalChange = mLayerVolFracLiqNew(iLayer+nSnow) - mLayerVolFracLiq(iLayer+nSnow) ! total change in volumetric liquid water content
    phaseChange = -(iden_ice/iden_water)*(mLayerVolFracIceNew(iLayer+nSnow) - mLayerVolFracIce(iLayer+nSnow))  ! change in liquid water content associated with freezing
    evap_Change = dt*mLayerTranspire(iLayer)/mLayerDepth(iLayer)
    qbaseChange = dt*mLayerBaseflow(iLayer)/mLayerDepth(iLayer)
-   macroChange = dt*mLayerQMacropore(iLayer)/mLayerDepth(iLayer)
-   flux_Change = dt*(iLayerLiqFluxSoil(iLayer-1) - iLayerLiqFluxSoil(iLayer))/mLayerDepth(iLayer) ! change in volumetric liquid water content from the interface fluxes
+   flux_Change = dt*(iLayerLiqFluxSoil(iLayer-1)  - iLayerLiqFluxSoil(iLayer))/mLayerDepth(iLayer) + & ! change in volumetric liquid water content from the interface fluxes
+                 dt*(iLayerFluxReversal(iLayer-1) - iLayerFluxReversal(iLayer))/mLayerDepth(iLayer)     ! change in volumetric liquid water content from the interface fluxes
+   stor_Change = (mLayerMatricHeadNew(iLayer) - mLayerMatricHead(iLayer))*specificStorage*mLayerVolFracLiqNew(iLayer+nSnow)/theta_sat
+
    write(*,'(i4,1x,2(f15.8,1x),20(e15.5,1x))') iLayer, mLayerVolFracLiq(iLayer+nSnow), mLayerVolFracLiqNew(iLayer+nSnow), &
                                                        mLayerVolFracIce(iLayer+nSnow), mLayerVolFracIceNew(iLayer+nSnow), &
-                                                       totalChange, phaseChange, flux_Change, evap_Change, qbaseChange, macroChange, &
-                                                       phaseChange+flux_Change+evap_Change-qbaseChange-macroChange, totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-macroChange)
+                                                       totalChange, phaseChange, flux_Change, evap_Change, qbaseChange, stor_change, &
+                                                       phaseChange+flux_Change+evap_Change-qbaseChange-stor_change, &
+                                                       totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-stor_change)
   end do
   ! print the total water balance
   print*, 'dt = ', dt

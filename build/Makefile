@@ -149,8 +149,11 @@ FC  = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
- LIBNETCDF = -L/opt/netcdf-4.1.3/gcc-4.4.5/lib -lnetcdff -lnetcdf -L/opt/hdf5-1.8.7/lib -lhdf5_hl -lhdf5 -L/opt/lib -lsz -lz
- INCNETCDF = -I/opt/netcdf-4.1.3/gcc-4.4.5/include
+ HDF_PATH  = /usr/local/hdf5-1.8.7
+ NCDF_PATH = /usr/local/netcdf-4.2.1.1/gcc-4.4.5
+ LOCL_PATH = /usr/local
+ LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(HDF_PATH)/lib -lhdf5_hl -lhdf5 -L$(LOCL_PATH)/lib -lsz -lz
+ INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
 endif
 ifeq "$(FC)" "ifort"
  HDF_PATH  = /usr/local/hdf5-1.8.7
@@ -184,7 +187,8 @@ DRIVER__EX = fuse_snow.exe
 
 # Define flags
 ifeq "$(FC)" "gfortran"
- FLAGS = -static -Wall -g -ffree-line-length-none
+ FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace
+ FLAGS_FUSE = -static -g -ffree-line-length-none -fmax-errors=0 -fbacktrace
 endif
 ifeq "$(FC)" "ifort"
  FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
@@ -218,7 +222,7 @@ compile_fuse:
 
 # link routines
 link:
-	$(FC) -Bstatic *.o $(LIBNETCDF) -o $(DRIVER__EX)
+	$(FC) -static *.o $(LIBNETCDF) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

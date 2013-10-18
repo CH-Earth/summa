@@ -347,10 +347,10 @@ contains
   case('averageSoilInflux'              ); get_ixmvar = iLookMVAR%averageSoilInflux                ! influx of water at the top of the soil profile (m s-1)
   case('averageSoilBaseflow'            ); get_ixmvar = iLookMVAR%averageSoilBaseflow              ! total baseflow from throughout the soil profile (m s-1)
   case('averageSoilDrainage'            ); get_ixmvar = iLookMVAR%averageSoilDrainage              ! drainage from the bottom of the soil profile (m s-1)
-  case('averageSoilQMacropore'          ); get_ixmvar = iLookMVAR%averageSoilQMacropore            ! liquid flux from micropores to macropores (m s-1)
   case('averageAquiferRecharge'         ); get_ixmvar = iLookMVAR%averageAquiferRecharge           ! recharge to the aquifer (m s-1)
   case('averageAquiferBaseflow'         ); get_ixmvar = iLookMVAR%averageAquiferBaseflow           ! baseflow from the aquifer (m s-1)
   case('averageAquiferTranspire'        ); get_ixmvar = iLookMVAR%averageAquiferTranspire          ! transpiration from the aquifer (m s-1)
+  case('averageColumnOutflow'           ); get_ixmvar = iLookMVAR%averageColumnOutflow             ! outflow from each layer in the soil profile (m3 s-1) 
   ! scalar variables -- forcing
   case('scalarCosZenith'                ); get_ixmvar = iLookMVAR%scalarCosZenith                  ! cosine of the solar zenith angle (0-1)
   case('spectralIncomingDirect'         ); get_ixmvar = iLookMVAR%spectralIncomingDirect           ! incoming direct solar radiation in each wave band (W m-2)
@@ -471,6 +471,7 @@ contains
   case('scalarCanopyMeltFreeze'         ); get_ixmvar = iLookMVAR%scalarCanopyMeltFreeze           ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   ! scalar variables -- soil and aquifer fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  case('scalarExfiltration'             ); get_ixmvar = iLookMVAR%scalarExfiltration               ! exfiltration of water from the top of the soil profile (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)
   case('scalarMaxSurfInfiltration'      ); get_ixmvar = iLookMVAR%scalarMaxSurfInfiltration        ! maximum surface infiltration rate (m s-1)
   case('scalarInitAquiferRecharge'      ); get_ixmvar = iLookMVAR%scalarInitAquiferRecharge        ! recharge to the aquifer -- at the start of the step (m s-1)
@@ -483,7 +484,6 @@ contains
   case('scalarSoilInflux'               ); get_ixmvar = iLookMVAR%scalarSoilInflux                 ! sub-step average: influx of water at the top of the soil profile (m s-1)
   case('scalarSoilBaseflow'             ); get_ixmvar = iLookMVAR%scalarSoilBaseflow               ! sub-step average: total baseflow from throughout the soil profile (m s-1)
   case('scalarSoilDrainage'             ); get_ixmvar = iLookMVAR%scalarSoilDrainage               ! sub-step average: drainage from the bottom of the soil profile (m s-1)
-  case('scalarSoilQMacropore'           ); get_ixmvar = iLookMVAR%scalarSoilQmacropore             ! sub-step average: liquid flux from micropores to macropores (m s-1)
   case('scalarSoilTranspiration'        ); get_ixmvar = iLookMVAR%scalarSoilTranspiration          ! sub-step average: total transpiration from the soil (m s-1)
   ! scalar variables -- mass balance check
   case('scalarSoilWatBalError'          ); get_ixmvar = iLookMVAR%scalarSoilWatBalError            ! error in the total soil water balance (kg m-2)
@@ -532,8 +532,10 @@ contains
   case('iLayerSatHydCond'               ); get_ixmvar = iLookMVAR%iLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
   case('iLayerInitLiqFluxSnow'          ); get_ixmvar = iLookMVAR%iLayerInitLiqFluxSnow            ! liquid flux at snow layer interfaces at the start of the time step (m s-1)
   case('iLayerInitLiqFluxSoil'          ); get_ixmvar = iLookMVAR%iLayerInitLiqFluxSoil            ! liquid flux at soil layer interfaces at the start of the time step (m s-1)
+  case('iLayerInitFluxReversal'         ); get_ixmvar = iLookMVAR%iLayerInitFluxReversal           ! start of step liquid flux at soil layer interfaces from impedance (m s-1)
   case('iLayerLiqFluxSnow'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('iLayerLiqFluxSoil'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSoil                ! liquid flux at soil layer interfaces at the end of the time step (m s-1)
+  case('iLayerFluxReversal'             ); get_ixmvar = iLookMVAR%iLayerFluxReversal               ! end of step liquid flux at soil layer interfaces from impedance (m s-1)       
   ! "short-cut" variables
   case('scalarVGn_m'                    ); get_ixmvar = iLookMVAR%scalarVGn_m                      ! van Genuchten "m" parameter (-) 
   case('scalarKappa'                    ); get_ixmvar = iLookMVAR%scalarKappa                      ! constant in the freezing curve function (m K-1)
@@ -626,8 +628,7 @@ contains
   case('basin__totalArea'              ); get_ixbvar = iLookBVAR%basin__totalArea                ! total basin area (m2)
   ! scalar variables -- basin-average runoff and aquifer fluxes
   case('basin__SurfaceRunoff'          ); get_ixbvar = iLookBVAR%basin__SurfaceRunoff            ! surface runoff (m s-1)
-  case('basin__SoilQMacropore'         ); get_ixbvar = iLookBVAR%basin__SoilQMacropore           ! macropore flow from the soil profile (m s-1)
-  case('basin__SoilBaseflow'           ); get_ixbvar = iLookBVAR%basin__SoilBaseflow             ! baseflow from the soil profile (m s-1)
+  case('basin__ColumnOutflow'          ); get_ixbvar = iLookBVAR%basin__ColumnOutflow            ! outflow from all "outlet" HRUs (those with no downstream HRU)
   case('basin__AquiferStorage'         ); get_ixbvar = iLookBVAR%basin__AquiferStorage           ! aquifer storage (m s-1)
   case('basin__AquiferRecharge'        ); get_ixbvar = iLookBVAR%basin__AquiferRecharge          ! recharge to the aquifer (m s-1)
   case('basin__AquiferBaseflow'        ); get_ixbvar = iLookBVAR%basin__AquiferBaseflow          ! baseflow from the aquifer (m s-1)

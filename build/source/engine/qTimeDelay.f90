@@ -12,7 +12,6 @@ contains
                       ! input
                       ixRouting,             &  ! index for routing method
                       averageSurfaceRunoff,  &  ! surface runoff (m s-1)
-                      averageSoilQMacropore, &  ! macropore flow from the soil profile (m s-1)
                       averageSoilBaseflow,   &  ! baseflow from the soil profile (m s-1)
                       averageAquiferBaseflow,&  ! baseflow from the aquifer (m s-1)
                       fracFuture,            &  ! fraction of runoff in future time steps (m s-1)
@@ -29,7 +28,6 @@ contains
  ! input
  integer(i4b),intent(in)    :: ixRouting              ! index for routing method
  real(dp),intent(in)        :: averageSurfaceRunoff   ! surface runoff (m s-1)
- real(dp),intent(in)        :: averageSoilQMacropore  ! macropore flow from the soil profile (m s-1)
  real(dp),intent(in)        :: averageSoilBaseflow    ! baseflow from the soil profile (m s-1)
  real(dp),intent(in)        :: averageAquiferBaseflow ! baseflow from the aquifer (m s-1)
  real(dp),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
@@ -46,12 +44,7 @@ contains
  err=0; message='qOverland/'
 
  ! compute instantaneous runoff (m s-1)
- averageInstantRunoff = averageSurfaceRunoff + averageSoilQMacropore + averageAquiferBaseflow + averageSoilBaseflow
- ! check errors
- if(averageSoilQMacropore < 0._dp)then
-  message=trim(message)//'macropore flow from the soil matrix is less than zero'
-  err=20; return
- endif
+ averageInstantRunoff = averageSurfaceRunoff + averageAquiferBaseflow + averageSoilBaseflow
 
  ! compute routed runoff (m s-1)
  select case(ixRouting)  ! (select option for sub-grid routing)
