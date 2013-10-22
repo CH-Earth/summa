@@ -541,6 +541,8 @@ contains
  integer(i4b)                     :: ifluxInit                ! starting index for flux calculations (0 or 1)
  real(dp)                         :: maxdiffMatric(1)         ! used to check if we are starting on the first iteration
  ! flux derivatives
+ real(dp)                         :: fPart1,fPart2            ! different parts of a function
+ real(dp)                         :: dPart1,dPart2            ! derivatives of different parts of a function
  real(dp),dimension(0:nLevels)    :: dq_dStateAbove           ! change in the flux in layer interfaces w.r.t. state variable in the layer above
  real(dp),dimension(0:nLevels)    :: dq_dStateBelow           ! change in the flux in layer interfaces w.r.t. state variable in the layer below
  real(dp),dimension(0:nLevels)    :: dqRev_dStateAbove        ! change in the flow reversal flux in layer interfaces w.r.t. state variable in the layer above
@@ -563,11 +565,6 @@ contains
  real(dp),dimension(nLevels)      :: mLayerMatricHeadDiff     ! iteration increment for matric head (m)
  real(dp),dimension(nLevels)      :: mLayerVolFracLiqDiff     ! iteration increment for volumetric fraction of liquid water (m)
  real(dp)                         :: scalarAquiferStorageDiff ! iteration increment for aquifer storage (m)
- ! impose solution constraints
- integer(i4b),dimension(1)        :: iLayerViolated           ! index of layer that was violated
- real(dp),dimension(1)            :: constraintViolation      ! maximum constraint violation
- real(dp)                         :: scaleIncrement           ! scaling factor for the iteration increment
- real(dp)                         :: maxMatric                ! maximum possible value of matric head (m)
  ! initialize error control
  err=0; message='soilHydrol_muster/'
 
@@ -848,8 +845,14 @@ contains
  ! test exfiltration
  !if(scalarExfiltration > 0._dp) pause 'computing exfiltration'
 
- ! compute the compressibility term (m-1) 
- compressibility(1:nLevels) = specificStorage*(mLayerVolFracLiqIter(1:nLevels)/theta_sat)   ! compressibility term
+ ! compute the derivative for the compressibility term (m-1)
+ do iLayer=1,nLevels
+  fPart1 = specificStorage*(mLayerVolFracLiqIter(iLayer)/theta_sat)  ! function for the 1st part (m-1)
+  fPart2 = mLayerMatricHeadIter(iLayer) - mLayerMatricHead(iLayer)   ! function for the 2nd part (m)
+  dPart1 = mLayerdTheta_dPsi(iLayer)*specificStorage/theta_sat       ! derivative for the 1st part (m-2)
+  dPart2 = 1._dp                                                     ! derivative for the 2nd part (-)
+  compressibility(iLayer) = fPart1*dPart2 + dPart1*fPart2            ! m-1
+ end do
 
  ! *****
  ! populate the tri-diagnonal matrices for the soil layers
@@ -1011,70 +1014,11 @@ contains
   endselect
  end do  ! (loop through layers)
 
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracIce     = ', mLayerVolFracIce
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHead     = ', mLayerMatricHead
  !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
- !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadNew = ',  mLayerMatricHeadNew
-
- ! *****
- ! impose solution constraints to deal with excessive storage -- just reduce time step length
- if(ixRichards==mixdform)then
-  constraintViolation = maxval(mLayerVolFracLiqNew + mLayerVolFracIceIter*(iden_ice/iden_water))
-  if(constraintViolation(1) > theta_sat)then  ! at least one layer where volumetric (liquid + ice) content exceeds soil porosity
-   write(*,'(a,1x,10(f20.10,1x))') 'constraintViolation  = ', constraintViolation(1)
-   write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracIceIter = ', mLayerVolFracIceIter*(iden_ice/iden_water)
-   write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracLiqNew  = ', mLayerVolFracLiqNew
-   write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracWater   = ', mLayerVolFracIceIter*(iden_ice/iden_water) + mLayerVolFracLiqNew
-   err=-20; message=trim(message)//'excessive storage -- reduce time step'; return
-  endif  ! if there was a constraint violation
- endif  ! if using the mixed form of Richards' equation
-
- ! *****
- ! impose solution constraints to deal with excessive storage -- simplified bi-section method
- !if(ixRichards==mixdform)then
- ! constraintViolation = maxval(mLayerVolFracLiqNew + mLayerVolFracIceIter*(iden_ice/iden_water))
- ! if(constraintViolation(1) > theta_sat)then  ! at least one layer where volumetric (liquid + ice) content exceeds soil porosity
- !  ! print initial solution
- !  write(*,'(a,10(f20.10,1x))') 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
- !  write(*,'(a,10(f20.10,1x))') 'mLayerVolFracLiqNew  = ', mLayerVolFracLiqNew
- !  write(*,'(a,10(f20.10,1x))') 'mLayerVolFracIceIter = ', mLayerVolFracIceIter
- !  write(*,'(a,10(f20.10,1x))') 'mLayerVolFracWater   = ', mLayerVolFracIceIter + mLayerVolFracLiqNew
- !  write(*,'(a,10(f20.10,1x))') 'mLayerMatricHeadDiff = ', mLayerMatricHeadDiff
- !  ! identify the layer that was violated
- !  iLayerViolated       = maxloc(mLayerVolFracLiqNew + mLayerVolFracIceIter)
- !  ! identify the maximum possible matric head for the layer that was violated
- !  maxMatric            = matricHead(theta_sat-mLayerVolFracIceIter(iLayerViolated(1)),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)   
- !  ! scale the iteration increment to the midpoint between previous iteration and maximum value of matric head
- !  scaleIncrement       = 0.95_dp*(maxMatric - mLayerMatricHeadIter(iLayerViolated(1)))/mLayerMatricHeadDiff(iLayerViolated(1))
- !  mLayerMatricHeadDiff = mLayerMatricHeadDiff*scaleIncrement
- !  ! print new solution
- !  print*, 'iLayerViolated = ', iLayerViolated
- !  ! update model states again
- !  do iLayer=1,nLevels
- !   mLayerMatricHeadNew(iLayer) = mLayerMatricHeadIter(iLayer) + mLayerMatricHeadDiff(iLayer)
- !   mLayerVolFracLiqNew(iLayer) = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
- !   if(iLayer==1) write(*,'(a)')    'iLayer, mLayerMatricHeadDiff(iLayer), mLayerMatricHeadNew(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracWater(iLayer) = '
- !   write(*,'(i4,1x,10(f20.10,1x))') iLayer, mLayerMatricHeadDiff(iLayer), mLayerMatricHeadNew(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracIceIter(iLayer) + mLayerVolFracLiqNew(iLayer)
- !  end do
- !  pause 'constraint violation'
- ! endif  ! if there was a constraint violation
- !endif  ! if using the mixed form of Richards' equation
-
- ! *****
- ! impose solution constraints to deal with excessive pressure -- simplified bi-section method
- if(ixRichards==mixdform)then
-  constraintViolation = maxval(mLayerMatricHeadNew - mLayerHeight)
-  if(constraintViolation(1) > 0._dp)then  ! at least one layer where matric head is greater than soil depth
-   err=-20; message=trim(message)//'excessive pressure -- reduce time step'; return
-   ! scale the iteration increment to the midpoint between previous iteration and layer depth for the layer where constraints were violated
-   !iLayerViolated       = maxloc(mLayerMatricHeadNew - mLayerHeight)
-   !scaleIncrement       = 0.5_dp*(mLayerHeight(iLayerViolated(1)) - mLayerMatricHeadIter(iLayerViolated(1)))/mLayerMatricHeadDiff(iLayerViolated(1))
-   !mLayerMatricHeadDiff = mLayerMatricHeadDiff*scaleIncrement
-   ! update model states again
-   !do iLayer=1,nLevels
-   ! mLayerMatricHeadNew(iLayer) = mLayerMatricHeadIter(iLayer) + mLayerMatricHeadDiff(iLayer)
-   ! mLayerVolFracLiqNew(iLayer) = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   !end do
-  endif  ! if there was a constraint violation
- endif  ! if using the mixed form of Richards' equation
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadDiff = ', mLayerMatricHeadDiff  
 
  ! *****
  ! update the aquifer storage and fluxes
@@ -1236,6 +1180,8 @@ contains
   real(dp)                         :: aPor                     ! available porosity (-)
   real(dp)                         :: qMax                     ! maximum possible flow into layer (m s-1)
   real(dp)                         :: xFlx                     ! total flux into layer (m s-1)
+  real(dp)                         :: qFluxNet                 ! net flow into the layer (m s-1)
+  real(dp)                         :: availCapacity            ! available capacity of the layer (m)
   integer(i4b)                     :: iDesire                  ! desired soil layer to test
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -1748,14 +1694,15 @@ contains
                      ! input: model control
                      dt,                         & ! intent(in): model time step
                      ! input: initial state vectors (start of time step)
-                     mLayerVolFracLiq,           & ! intent(in): volumetric liquid water content in each layer (-)
-                     mLayerVolFracIce,           & ! intent(in): volumetric ice content in each layer (-)
+                     mLayerVolFracLiqTrial,      & ! intent(in): volumetric liquid water content in each layer (-)
+                     mLayerVolFracIceTrial,      & ! intent(in): volumetric ice content in each layer (-)
                      ! input: coordinate variables
                      mLayerDepth,                & ! intent(in): depth of each soil layer (m)
                      ! input: diagnostic variables
                      mLayerSatHydCondMP(1),      & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                      mLayerHydCond,              & ! intent(in): hydraulic conductivity in each layer (m s-1)
                      mLayerColumnInflow,         & ! intent(in): inflow into each layer (m3 s-1)
+                     iLayerLiqFluxSoil(0),       & ! intent(in): surface infiltration (m s-1)
                      ! input: local attributes
                      HRUarea,                    & ! intent(in): HRU area (m2)
                      tan_slope,                  & ! intent(in): tan water table slope, taken as tan local ground surface slope (-)
@@ -1841,13 +1788,16 @@ contains
     message=trim(message)//'before iqReversal: invalid layer index'
     err=20; return
    endif
+ 
+   ! compute net flow into the layer (m s-1)
+   qFluxNet = iLayerLiqFluxSoil(iDesire-1) + iLayerFluxReversal(iDesire-1) - iLayerLiqFluxSoil(iDesire) - mLayerBaseflow(iDesire)
+
+   ! compute available capacity of the layer (m)
+   availCapacity = (theta_sat - mLayerVolFracLiqTrial(iDesire) - mLayerVolFracIceTrial(iDesire))*mLayerDepth(iDesire)
 
    ! check if we need to compute flux reversals
-   if((mLayerVolFracIceIter(iDesire) > epsilon(dt) .or. ixRichards==moisture) .and. &                        ! if no ice, can be handled with the mixed form of Richards' equation
-       (iLayerLiqFluxSoil(iDesire-1) + iLayerFluxReversal(iDesire-1)) > iLayerLiqFluxSoil(iDesire))then      ! only consider cases where the net flux into the layer is positive
-
-    ! NOTE: need to compute net flux using the reversal fluxes!!
-    ! (maybe need to do a couple of passes...)
+   if((mLayerVolFracIce(iDesire) > epsilon(dt) .or. ixRichards==moisture) .and. &   ! (if no ice, can be handled with the mixed form of Richards' equation)
+       qFluxNet > 0._dp)then                                                             ! (only consider cases where net flux is positive)
 
     ! compute flow reversal fluxes at layer interfaces
     call iqReversal(&
@@ -3121,6 +3071,7 @@ contains
                        srfSatHydCond,              & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                        mLayerHydCond,              & ! intent(in): hydraulic conductivity in each layer (m s-1)
                        mLayerColumnInflow,         & ! intent(in): inflow into each layer (m3 s-1)
+                       surfaceInfiltration,        & ! intent(in): surface infiltration (m s-1)
                        ! input: local attributes
                        HRUarea,                    & ! intent(in): HRU area (m2)
                        tan_slope,                  & ! intent(in): tan water table slope, taken as tan local ground surface slope (-)
@@ -3149,6 +3100,7 @@ contains
  real(dp),intent(in)          :: srfSatHydCond              ! saturated hydraulic conductivity at the surface (m s-1) 
  real(dp),intent(in)          :: mLayerHydCond(:)           ! hydraulic conductivity in each layer (m s-1)
  real(dp),intent(in)          :: mLayerColumnInflow(:)      ! inflow into each layer (m3 s-1)
+ real(dp),intent(in)          :: surfaceInfiltration        ! surface infiltration (m s-1) 
  ! input: local attributes
  real(dp),intent(in)          :: HRUarea                    ! HRU area (m2)
  real(dp),intent(in)          :: tan_slope                  ! tan water table slope, taken as tan local ground surface slope (-)
@@ -3181,11 +3133,13 @@ contains
  real(dp)                     :: dQ_dStorage                ! derivative in total outflow w.r.t storage (m2 s-1)
  real(dp)                     :: xResidual                  ! residual (m)
  real(dp)                     :: xIncrement                 ! iteration increment (m)
- real(dp),parameter           :: resTol=1.e-8_dp            ! residual tolerance (m)
- real(dp),parameter           :: incTol=1.e-8_dp            ! interation icrement tolerance (m)
+ real(dp),parameter           :: resTol=1.e-10_dp           ! residual tolerance (m)
+ real(dp),parameter           :: incTol=1.e-10_dp           ! interation increment tolerance (m)
  real(dp)                     :: sumDepthAvgCond            ! sum of depth-weighted hydraulic conductivity (m2 s-1)
  real(dp),dimension(nLevels)  :: fracTotalOutflow           ! fraction of outflow apportioned to each layer (-)
  real(dp),dimension(nLevels)  :: mLayerColumnInflowAdjusted ! adjusted column inflow to ensure no inflow into ice layers (m3 s-1)
+ real(dp)                     :: qMax                       ! max inflow rate (m s-1)
+ real(dp)                     :: sink                       ! net source/sink (m s-1)
  ! ----------------------------------------------------------------------------------------------------------
  ! initialize error conteol
  err=0; message='q_topmodel/'
@@ -3197,7 +3151,7 @@ contains
  ! identify lowest soil layer with ice
  ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
  do iLayer=1,nLevels-1 ! (loop through soil layers)
-  if(mLayerVolFracIce(iLayer) > epsilon(dt)) ixIce = iLayer
+  if(mLayerVolFracIce(iLayer) > 0._dp) ixIce = iLayer
  end do
  if(ixIce == nLevels)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
 
@@ -3211,20 +3165,28 @@ contains
   !write(*,'(a,1x,10(e20.10,1x))') 'q_topmodel: mLayerColumnInflowAdjusted = ', mLayerColumnInflowAdjusted
  endif
 
- ! compute effective parameters
- maximumSoilWater = sum(mLayerDepth(:))*(theta_sat - fieldCapacity) &    ! maximum aquifer storage (m)
-                     - sum(mLayerDepth(:)*mLayerVolFracIce(:))
+ ! compute maximum possible sub-surface free storage
+ maximumSoilWater = sum(mLayerDepth(1:nLevels))*(theta_sat - fieldCapacity) &   ! maximum aquifer storage (m)
+                         - sum(mLayerVolFracIce(1:nLevels)*mLayerDepth(1:nLevels))
+ if(maximumSoilWater < 0._dp)then
+  message=trim(message)//'ice content is greater than the sub-surface free storage -- need additional code to handle this situation'
+  err=20; return
+ endif
+
+ ! compute maximum flow rate -- i.e., the flow rate under saturated conditions
  maximumFlowRate  = tan_slope*srfSatHydCond*kAnisotropic*maximumSoilWater*contourLength &
                       / ((theta_sat - fieldCapacity)*zScale_TOPMODEL)   ! effective hydraulic conductivity (m3/s)
 
- ! compute the "effective" sub-surface storage
+ ! compute the sub-surface storage
  do iLayer=nLevels,1,-1  ! start at the lowest soil layer and work upwards
+  !write(*,'(a,1x,3(f20.10,1x))') 'test saturation: mLayerVolFracLiq(iLayer), mLayerVolFracIce(iLayer) = ', &
+  !                                                 mLayerVolFracLiq(iLayer), mLayerVolFracIce(iLayer)
   if(mLayerVolFracLiq(iLayer) > fieldCapacity)then
    ixSaturation      = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
    subSurfaceStorage = subSurfaceStorage + (mLayerVolFracLiq(iLayer) - fieldCapacity)*mLayerDepth(iLayer)
    !write(*,'(a,1x,i4,1x,3(f20.10,1x))') 'ixSaturation, mLayerVolFracLiq(iLayer), fieldCapacity, subSurfaceStorage = ', ixSaturation, mLayerVolFracLiq(iLayer), fieldCapacity, subSurfaceStorage
   else
-   exit                          ! (only consider saturated layer at the bottom of the soil profile) 
+   exit                        ! (only consider saturated layer at the bottom of the soil profile) 
   endif
  end do  ! (looping through soil layers)
 
@@ -3242,41 +3204,38 @@ contains
   dQ_dStorage  = (maximumFlowRate/maximumSoilWater)*zScale_TOPMODEL*(subSurfaceStorageTrial/maximumSoilWater)**(zScale_TOPMODEL - 1._dp)  ! m2 s-1
 
   ! compute the residual (m)
-  xResidual  = dt*(totalInflow - totalOutflow)/HRUarea - (subSurfaceStorageTrial - subSurfaceStorage)
+  xResidual  = dt*(surfaceInfiltration + (totalInflow - totalOutflow)/HRUarea) - (subSurfaceStorageTrial - subSurfaceStorage)
 
   ! compute the iteration increment (m)
   xIncrement = xResidual / (1._dp + dt*dQ_dStorage/HRUarea)
-  !if(iter==1) write(*,'(a)') 'subSurfaceStorageTrial/maximumSoilWater, totalInflow, totalOutflow, (totalInflow - totalOutflow), dQ_dStorage, xResidual, xIncrement = '
-  ! write(*,'(10(e15.5,1x))') subSurfaceStorageTrial/maximumSoilWater, totalInflow, totalOutflow, (totalInflow - totalOutflow), dQ_dStorage, xResidual, xIncrement
 
-  ! check for convergence
-  if(abs(xResidual) < resTol .and. abs(xIncrement) < incTol) exit
-
-  ! check for non-convergance
-  if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
+  ! print progress
+  !if(iter==1) write(*,'(a)') 'subSurfaceStorageTrial, maximumSoilWater, surfaceInfiltration, totalInflow, totalOutflow, (totalInflow - totalOutflow), dQ_dStorage, xResidual, xIncrement = '
+  ! write(*,'(10(e15.5,1x))')  subSurfaceStorageTrial, maximumSoilWater, surfaceInfiltration, totalInflow, totalOutflow, (totalInflow - totalOutflow), dQ_dStorage, xResidual, xIncrement
 
   ! update state estimate (m)
   subSurfaceStorageTrial = subSurfaceStorageTrial + xIncrement
+
+  ! check for convergence
+  if(abs(xResidual) < resTol .and. abs(xIncrement) < incTol)then
+   totalOutflow = totalOutflow + dQ_dStorage*xIncrement
+   exit
+  endif
+
+  ! check for non-convergance
+  if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
 
  end do  ! iteration loop
 
  ! check for an early return
  if(totalOutflow < tiny(theta_sat))then
-  mLayerColumnOutflow(1:nLevels) = 0._dp
-  mLayerBaseflow(1:nLevels)      = 0._dp
+  mLayerColumnOutflow(1:nLevels) = totalOutflow/real(nLevels, kind(dp))
+  mLayerBaseflow(1:nLevels)      = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflowAdjusted(1:nLevels))/HRUarea
   return
  endif
 
  ! possible to start iterations with zero storage, and gain storage through inflow -- reset ixSaturation
  if(ixSaturation > nLevels) ixSaturation=nLevels
-
- ! compute exfiltration (m s-1)
- if(subSurfaceStorageTrial > maximumSoilWater)then
-  exfiltration = (subSurfaceStorageTrial - maximumSoilWater)/dt
-  !write(*,'(a,1x,10(e20.10,1x))') 'exfiltration, totalInflow = ', exfiltration, totalInflow/HRUarea
- else
-  exfiltration = 0._dp
- endif
 
  ! compute the depth-weighted hydraulic conductivity (m2 s-1)
  sumDepthAvgCond = sum(mLayerHydCond(ixSaturation:nLevels)*mLayerDepth(ixSaturation:nLevels))
@@ -3299,15 +3258,28 @@ contains
  ! compute the outflow from each soil layer (m3 s-1)
  mLayerColumnOutflow(1:nLevels) = fracTotalOutflow(1:nLevels)*totalOutflow
 
+ ! compute the exfiltration
+ !write(*,'(a,1x,i4,1x,10(e20.10,1x))') 'ixIce, subSurfaceStorageTrial, maximumSoilWater = ', &
+ !                                       ixIce, subSurfaceStorageTrial, maximumSoilWater
+ if(ixIce==0)then
+  exfiltration = max(0._dp, subSurfaceStorageTrial - maximumSoilWater)/dt
+ else
+  qMax = sum((theta_sat - mLayerVolFracLiq(ixIce+1:nLevels))*mLayerDepth(ixIce+1:nLevels))/dt  ! max inflow rate (m s-1)
+  sink = sum(mLayerColumnInflowAdjusted(ixIce+1:nLevels) - mLayerColumnOutflow(ixIce+1:nLevels))/HRUarea ! net source/sink (m s-1)
+  exfiltration = max(0._dp, sink - qMax)
+  write(*,'(a,1x,10(e20.10,1x))') 'qMax, sink = ', qMax, sink
+ endif
+ if(exfiltration > tiny(theta_sat)) write(*,'(a,1x,10(e20.10,1x))') 'exfiltration, totalInflow = ', exfiltration, totalInflow/HRUarea
+
  ! compute the net baseflow from each soil layer (m s-1)
  mLayerBaseflow(1:nLevels) = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflowAdjusted(1:nLevels))/HRUarea
  !write(*,'(a,1x,10(e20.10,1x))') 'mLayerColumnInflowAdjusted (m s-1)  = ', mLayerColumnInflowAdjusted(1:nLevels)/HRUarea
  !write(*,'(a,1x,10(e20.10,1x))') 'mLayerColumnOutflow (m s-1)         = ', mLayerColumnOutflow(1:nLevels)/HRUarea
  !write(*,'(a,1x,10(e20.10,1x))') 'mLayerBaseflow (m s-1)              = ', mLayerBaseflow(1:nLevels)
 
- ! add exfiltration to the baseflow flux at the top layer
- mLayerBaseflow(1)      = mLayerBaseflow(1) + exfiltration
- mLayerColumnOutflow(1) = mLayerColumnOutflow(1) + exfiltration*HRUarea
+ ! add exfiltration to the baseflow flux at the top unfrozen layer
+ mLayerBaseflow(ixIce+1)      = mLayerBaseflow(ixIce+1) + exfiltration
+ mLayerColumnOutflow(ixIce+1) = mLayerColumnOutflow(ixIce+1) + exfiltration*HRUarea
 
  end subroutine q_topmodel
 
@@ -3417,11 +3389,18 @@ contains
 
   ! print progress
   !if(iter > 30)then
-  ! if(iLayer==1)  write(*,'(a)') 'iter, iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), top flux, mFlux, mExpl, mEvap, mBase, mPhse, compressibility'
-  ! if(iLayer < 10) write(*,'(2(i4,1x),10(e20.10,1x))') iter, iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), iLayerTrialLiqFluxSoil(iLayer-1), mFlux, mExpl, mEvap, mBase, mPhse, compressibility
+  !if(iLayer==1)  write(*,'(a)')                      'iter, iLayer, residualVec(iLayer), mFlux, mExpl, mEvap, mBase, mPhse, compressibility'
+  !if(iLayer < 10) write(*,'(2(i4,1x),10(e20.10,1x))') iter, iLayer, residualVec(iLayer), mFlux, mExpl, mEvap, mBase, mPhse, compressibility
   !endif
 
  end do  ! (looping through soil layers)
+
+ ! print fluxes
+ !do iLayer=1,nLevels
+ ! if(iLayer==1)  write(*,'(a)') 'iter, iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), top flux, bot flux, top Rflux, bot Rflux'
+ ! if(iLayer < 10) write(*,'(2(i4,1x),10(e20.10,1x))') iter, iLayer, residualVec(iLayer), mLayerTrialVolFracLiq(iLayer), mLayerInitVolFracLiq(iLayer), &
+ !                                                       iLayerTrialLiqFluxSoil(iLayer-1:iLayer), iLayerTrialFluxReversal(iLayer-1:iLayer)
+ !end do
 
  end subroutine liqResidual
 

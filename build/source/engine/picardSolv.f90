@@ -826,8 +826,11 @@ contains
  USE snowHydrol_module,only:snowHydrol          ! compute liquid water flow through the snowpack
  USE soilHydrol_module,only:soilHydrol          ! compute change in mass over the time step for the soil
  USE snwDensify_module,only:snwDensify          ! compute densification of snow
- USE soil_utils_module,only:crit_soilT          ! compute the critical temperature above which all water is unfrozen
+ ! utility modules
  USE snow_utils_module,only:fracliquid          ! compute the fraction of liquid water at a given temperature (snow)
+ USE soil_utils_module,only:crit_soilT          ! compute the critical temperature above which all water is unfrozen
+ USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water
+ USE soil_utils_module,only:matricHead          ! compute matric head (m)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
@@ -944,6 +947,15 @@ contains
  real(dp),dimension(nLayers)    :: mLayerTempIncrOld           ! iteration increment for temperature of the snow-soil vector in the previous iteration (K)
  real(dp),dimension(nSoil)      :: mLayerMatricIncrOld         ! iteration increment for matric head of soil layers in the previous iteration (m)
  real(dp),dimension(nSoil)      :: mLayerLiquidIncrOld         ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-)
+ ! define solution constraint variables
+ integer(i4b),dimension(1)      :: iLayerViolated              ! index of layer that was violated
+ real(dp),dimension(1)          :: constraintViolation         ! maximum constraint violation
+ real(dp),dimension(nLevels)    :: mLayerMatricHeadDiff        ! iteration increment for matric head (m)
+ real(dp)                       :: scaleIncrement              ! scaling factor for the iteration increment
+ real(dp)                       :: maxMatric                   ! maximum possible value of matric head (m)
+ real(dp)                       :: allowablePressureViolation=0.0_dp ! allowable pressure violation before time step reduction (m)
+ real(dp),dimension(nLevels)    :: soilVolFracLiqNew           ! volumetric fraction of liquid water in the soil 
+ real(dp),dimension(nLevels)    :: soilVolFracIceIter          ! volumetric fraction of ice in the soil 
  ! define error monitoring variables
  real(dp)                       :: canopyTempComponent         ! veg canopy: temperature component of the energy increment (J m-3)
  real(dp),dimension(nLayers)    :: mLayerTempComponent         ! snow-soil vector: temperature component of the energy increment (J m-3)
@@ -1196,6 +1208,8 @@ contains
   if(nLevels < nSoil)then
    mLayerMatricHeadNew(nLevels+1:nSoil)         = mLayerMatricHeadIter(nLevels+1:nSoil)
    mLayerVolFracLiqNew(nSnow+nLevels+1:nLayers) = mLayerVolFracLiqIter(nSnow+nLevels+1:nLayers)
+   message=trim(message)//'not sure if nLevels < nSoil still works'
+   err=20; return
   endif
 
   ! save iteration increments
@@ -1214,11 +1228,69 @@ contains
   !print*, 'mLayerLiqIncr = ', mLayerLiqIncr
   !pause
 
-  !write(*,'(a,10(f20.10,1x))')  'before phase change: mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1) = ', &
-  !                                                    mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1)
-
   ! compute the iteration increment for aquifer storage
   scalarAqiIncr = scalarAquiferStorageNew - scalarAquiferStorageIter
+
+  ! copy across volumetric liquid and ice content in the soil
+  ! NOTE: this is done just to simplify the indices
+  soilVolFracIceIter = mLayerVolFracIceIter(nSnow+1:nSnow+nLevels)
+  soilVolFracLiqNew  = mLayerVolFracLiqNew(nSnow+1:nSnow+nLevels)
+
+  ! *****
+  ! impose solution constraints to deal with excessive storage -- simplified bi-section method
+  ! NOTE: doing this after computing the iteration increment to avoid premature convergence
+  constraintViolation = maxval(soilVolFracLiqNew + soilVolFracIceIter*(iden_ice/iden_water))
+  if(constraintViolation(1) > theta_sat)then  ! at least one layer where volumetric (liquid + ice) content exceeds soil porosity
+   ! print initial solution
+   write(*,'(a,10(f20.10,1x))') 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracIceIter = ', soilVolFracIceIter
+   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracLiqNew  = ', soilVolFracLiqNew
+   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracWater   = ', soilVolFracIceIter + soilVolFracLiqNew
+   write(*,'(a,10(f20.10,1x))') 'mLayerMatIncr        = ', mLayerMatIncr
+   ! identify the layer that was violated
+   iLayerViolated       = maxloc(soilVolFracLiqNew + soilVolFracIceIter*(iden_ice/iden_water))
+   ! identify the maximum possible matric head for the layer that was violated
+   maxMatric            = matricHead(theta_sat-soilVolFracIceIter(iLayerViolated(1)),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   ! scale the iteration increment to the midpoint between previous iteration and maximum value of matric head
+   scaleIncrement       = 0.95_dp*(maxMatric - mLayerMatricHeadIter(iLayerViolated(1))) / mLayerMatIncr(iLayerViolated(1))
+   mLayerMatricHeadDiff = mLayerMatIncr*scaleIncrement
+   ! print the layer that was violated
+   print*, 'iLayerViolated = ', iLayerViolated
+   ! update model states again
+   do iLayer=1,nLevels
+    mLayerMatricHeadNew(iLayer)   = mLayerMatricHeadIter(iLayer) + mLayerMatricHeadDiff(iLayer)
+    soilVolFracLiqNew(iLayer)     = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    if(iLayer==1) write(*,'(a)')    'iLayer, mLayerMatricHeadDiff(iLayer), mLayerMatricHeadNew(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracWater(iLayer) = '
+    write(*,'(i4,1x,10(f20.10,1x))') iLayer, mLayerMatricHeadDiff(iLayer), mLayerMatricHeadNew(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracIceIter(iLayer) + mLayerVolFracLiqNew(iLayer)
+   end do
+   !pause 'constraint violation'
+  endif  ! if there was a constraint violation
+
+  ! *****
+  ! impose solution constraints to deal with excessive pressure -- simplified bi-section method
+  ! NOTE: doing this after computing the iteration increment to avoid premature convergence
+  constraintViolation = maxval(mLayerMatricHeadNew - mLayerHeight(nSnow+1:nLevels))
+  if(constraintViolation(1) > allowablePressureViolation)then  ! at least one layer where matric head is greater than soil depth
+   print*, 'excessive pressure:'
+   write(*,'(a,10(f20.10,1x))') 'mLayerMatricHeadIter = ', mLayerMatricHeadIter
+   write(*,'(a,10(f20.10,1x))') 'mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracIceIter = ', soilVolFracIceIter
+   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracLiqNew  = ', soilVolFracLiqNew
+   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracWater   = ', soilVolFracIceIter + soilVolFracLiqNew
+   write(*,'(a,10(f20.10,1x))') 'mLayerMatIncr        = ', mLayerMatIncr
+   ! scale the iteration increment to the midpoint between previous iteration and layer depth for the layer where constraints were violated
+   iLayerViolated       = maxloc(mLayerMatricHeadNew - mLayerHeight(nSnow+1:nLevels))
+   scaleIncrement       = 0.5_dp*(mLayerHeight(nSnow+iLayerViolated(1)) - mLayerMatricHeadIter(iLayerViolated(1)))/mLayerMatIncr(iLayerViolated(1))
+   mLayerMatricHeadDiff = mLayerMatIncr*scaleIncrement
+   ! update model states again
+   do iLayer=1,nLevels
+    mLayerMatricHeadNew(iLayer) = mLayerMatricHeadIter(iLayer) + mLayerMatricHeadDiff(iLayer)
+    soilVolFracLiqNew(iLayer)   = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   end do
+  endif  ! if there was a constraint violation
+
+  !write(*,'(a,10(f20.10,1x))')  'before phase change: mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1) = ', &
+  !                                                    mLayerVolFracLiqNew(nSnow+1), mLayerVolFracIceNew(nSnow+1), mLayerVolFracLiqNew(nSnow+1) + mLayerVolFracIceNew(nSnow+1)
 
   ! update the canopy variables -- used in phase change below
   scalarCanopyLiqIter = scalarCanopyLiqNew
@@ -1668,7 +1740,7 @@ contains
   ! check the balance of each layer
   write(*,'(a)') 'water balance of each layer'
   write(*,'(a)') 'Liq0 (-), Liq1 (-), Ice0 (-), Ice1 (-), totalChange (-), phaseChange (-), flux_Change, evap_Change, qbaseChange, stor_Change',&
-                 'phaseChange+flux_Change+evap_Change+qbaseChange-stor_change, totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-stor_change)'
+                 'phaseChange+flux_Change+evap_Change-qbaseChange-stor_change, totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-stor_change)'
   do iLayer=1,nSoil
    totalChange = mLayerVolFracLiqNew(iLayer+nSnow) - mLayerVolFracLiq(iLayer+nSnow) ! total change in volumetric liquid water content
    phaseChange = -(iden_ice/iden_water)*(mLayerVolFracIceNew(iLayer+nSnow) - mLayerVolFracIce(iLayer+nSnow))  ! change in liquid water content associated with freezing

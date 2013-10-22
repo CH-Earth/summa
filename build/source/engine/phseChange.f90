@@ -110,6 +110,7 @@ contains
    ! ** soil
    case(ix_soil)
     ! constrain theta
+    !write(*,'(a,10(e20.10,1x))') 'theta, min(theta,theta_sat)', theta, min(theta,theta_sat)
     theta = min(theta,theta_sat)
     !print*, 'iLayer, mLayerVolFracIce(iLayer), mLayerTempNew(iLayer), mLayerTcrit(iLayer-nSnow) = ',&
     !         iLayer, mLayerVolFracIce(iLayer), mLayerTempNew(iLayer), mLayerTcrit(iLayer-nSnow)
@@ -125,10 +126,12 @@ contains
       message=trim(message)//'volumetric liquid water content exceeds total water'
       err=20; return
      endif
+     !write(*,'(a,1x,i4,1x,10(e20.10,1x))') 'in phase change: iLayer, theta, mLayerMatricHeadNew(iLayer-nSnow), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer) = ', &
+     !                                                        iLayer, theta, mLayerMatricHeadNew(iLayer-nSnow), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer)
     else
      ! update matric head when all water is **unfrozen** -- if matric head > 0 at iter=m then no change in matric head
      !if(mLayerMatricHeadIter(iLayer-nSnow) > 0._dp)then ! saturated at the start of the iteration
-     if(mLayerVolFracIce(iLayer) < tiny(theta))then ! no ice at the start of the iteration
+     if(mLayerVolFracIce(iLayer) < tiny(theta))then ! no ice at the start of the iterations
       mLayerMatricHeadNew(iLayer-nSnow) = mLayerMatricHeadIter(iLayer-nSnow)
      else
       ! some water is frozen at the start of the iteration
