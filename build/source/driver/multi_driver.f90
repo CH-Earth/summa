@@ -511,7 +511,7 @@ do istep=1,numtim
   ! mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:ixIce) = 0._dp
   !endif
   !print*, '*****'
-  !print*, 'HRU, dt_init = ', iHRU, dt_init(iHRU)
+  !print*, 'new HRU, dt_init = ', iHRU, dt_init(iHRU)
 
   ! ****************************************************************************
   ! (9) run the model
@@ -539,7 +539,7 @@ do istep=1,numtim
    endif  ! (if identified a downslope HRU)
   end do
 
-  !write(*,'(a,1x,10(f20.10,1x))') 'averageColumnOutflow = ', mvar_data%var(iLookMVAR%averageColumnOutflow)%dat(:)
+  !write(*,'(a,1x,i4,1x,10(f20.10,1x))') 'iHRU, averageColumnOutflow = ', iHRU, mvar_data%var(iLookMVAR%averageColumnOutflow)%dat(:)
 
   ! add inflow to the downslope HRU
   if(kHRU > 0)then  ! if there is a downslope HRU
