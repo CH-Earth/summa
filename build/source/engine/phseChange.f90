@@ -138,9 +138,12 @@ contains
       if(theta < epsilon(theta))then; err=20; message=trim(message)//'zero volumetric water content'; return; endif      
       mLayerMatricHeadNew(iLayer-nSnow) = matricHead(min(theta,theta_sat),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      endif
-     ! update liquid water and ice content 
-     mLayerVolFracLiqNew(iLayer)       = theta
-     mLayerVolFracIceNew(iLayer)       = 0._dp
+     ! update liquid water and ice content
+     mLayerVolFracLiqNew(iLayer) = theta
+     mLayerVolFracIceNew(iLayer) = 0._dp
+     !mLayerVolFracLiqNew(iLayer) = volFracLiq(mLayerMatricHeadNew(iLayer-nSnow),&
+     !                                               vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     !mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
     endif
 
    ! ** check errors
@@ -156,7 +159,7 @@ contains
 
 
   ! sanity check
-  if(mLayerVolFracIceNew(iLayer) < 0._dp)then
+  if(mLayerVolFracIceNew(iLayer) < -tiny(theta_sat))then
    write(message,'(a,i0,a,e20.10,a)')trim(message)//"volumetric ice content < 0 [iLayer=",iLayer,&
                                      &"; mLayerVolFracIceNew(iLayer)=",mLayerVolFracIceNew(iLayer),"]"
    err=10; return

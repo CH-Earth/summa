@@ -3,6 +3,11 @@ USE nrtype
 implicit none
 private
 public::coupled_em
+! algorithmic parameters
+real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
+real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
+real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
 contains
 
  ! ************************************************************************************************
@@ -60,7 +65,7 @@ contains
  integer(i4b)                         :: niter                  ! number of iterations
  integer(i4b),parameter               :: n_inc=5                ! minimum number of iterations to increase time step
  integer(i4b),parameter               :: n_dec=12               ! maximum number of iterations to decrease time step
- real(dp),parameter                   :: F_inc = 1.25_dp        ! factor used to increase time step
+ real(dp),parameter                   :: F_inc = 1.10_dp        ! factor used to increase time step
  real(dp),parameter                   :: F_dec = 0.50_dp        ! factor used to decrease time step
  integer(i4b)                         :: maxiter                ! maxiumum number of iterations
  integer(i4b)                         :: iSnow                  ! index for snow layers
@@ -265,10 +270,13 @@ contains
   endif
 
   ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
-  mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)  = mpar_data%var(iLookPARAM%specificHeatVeg)*mpar_data%var(iLookPARAM%maxMassVegetation)/canopyDepth + & ! vegetation component
-                                                             Cp_water*mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)/canopyDepth                              + & ! liquid water component
-                                                             Cp_ice*mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)/canopyDepth                                    ! ice component
-
+  if(computeVegFlux)then
+   mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)  = mpar_data%var(iLookPARAM%specificHeatVeg)*mpar_data%var(iLookPARAM%maxMassVegetation)/canopyDepth + & ! vegetation component
+                                                              Cp_water*mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)/canopyDepth                              + & ! liquid water component
+                                                              Cp_ice*mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)/canopyDepth                                    ! ice component
+  else
+   mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)  = valueMissing
+  endif
  
   ! compute the net change in snow in the vegetation canopy
   call canopySnow(&
@@ -513,8 +521,8 @@ contains
 
   ! save the time step to initialize the subsequent step
   if(dt_done<dt .or. nsub==1) dt_init = dt_sub
-  if(dt_init < 0.001_dp .and. nsub > 100) then
-   write(message,'(a,f13.10,a,f9.2,a,i0,a)')trim(message)//"dt < 0.001 and nsub > 100 [dt=",dt_init,"; dt_done=",&
+  if(dt_init < 0.00001_dp .and. nsub > 10000) then
+   write(message,'(a,f13.10,a,f9.2,a,i0,a)')trim(message)//"dt < 0.00001 and nsub > 10000 [dt=",dt_init,"; dt_done=",&
          dt_done,"; nsub=",nsub,"]"
    err=20; return
   endif
@@ -530,6 +538,7 @@ contains
   if(err/=0)then; err=20; message='problem deallocating space for temporary array'; return; endif
 
  end do  ! (sub-step loop)
+ !pause 'completed time step'
 
  !print*, 'mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1) = ', mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1)
 

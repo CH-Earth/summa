@@ -537,9 +537,12 @@ contains
  integer(i4b),parameter         :: ixCas=1                    ! index of layer for the canopy air space
  integer(i4b),parameter         :: ixVeg=2                    ! index of layer for the vegetation canopy
  integer(i4b),parameter         :: ixSfc=3                    ! index of layer for the top snow or soil layer
- real(dp),dimension(nLayers+2,nLayers+2) :: aJac              ! Jacobian matrix
- real(dp),dimension(nLayers+2)           :: rVec              ! residual vector
- real(dp),dimension(nLayers+2)           :: xInc              ! iteration increment
+ real(dp),allocatable           :: aJac(:,:)                  ! Jacobian matrix
+ real(dp),allocatable           :: rVec(:)                    ! residual vector
+ real(dp),allocatable           :: xInc(:)                    ! iteration increment
+ !real(dp),dimension(nLayers+2,nLayers+2) :: aJac              ! Jacobian matrix
+ !real(dp),dimension(nLayers+2)           :: rVec              ! residual vector
+ !real(dp),dimension(nLayers+2)           :: xInc              ! iteration increment
  ! define the local variables for the solution
  real(dp)                       :: dTheta_dTkCanopy           ! derivative in fraction liquid water w.r.t. canopy temperature (K-1)
  real(dp),dimension(0:nLayers)  :: dFlux_dTempAbove           ! derivative in flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
@@ -606,6 +609,11 @@ contains
  saveCanopyStabilityCorrection = scalarCanopyStabilityCorrection    ! stability correction for the canopy (-)
  saveGroundStabilityCorrection = scalarGroundStabilityCorrection    ! stability correction for the ground surface (-)
 
+ ! allocate space for the Jacobian matric
+ if(computeVegFlux)then
+  allocate(aJac(nLayers+2,nLayers+2),rVec(nLayers+2),xInc(nLayers+2),stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the Jacobian matrix'; return; endif
+ endif
 
  ! --------------------------------------------------------------------------------------------------------------------------------
 
@@ -877,28 +885,32 @@ contains
  endif
 
  ! adjust iteration increments in cases where iteration increments are too large
- if(abs(scalarCanairTempDiff) > 1._dp .or. abs(scalarCanopyTempDiff) > 1._dp .or. any(abs(mLayerTempDiff(1:nLayers)) > 1._dp) )then
-  amaxIncrement = maxval(abs((/scalarCanairTempDiff,scalarCanopyTempDiff,mLayerTempDiff(1:nLayers)/)))
-  !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
-  !print*, 'mLayerTempDiff(1:nLayers) = ', mLayerTempDiff(1:nLayers)
-  scalarCanairTempDiff      = scalarCanairTempDiff/amaxIncrement(1)
-  scalarCanopyTempDiff      = scalarCanopyTempDiff/amaxIncrement(1)
-  mLayerTempDiff(1:nLayers) = mLayerTempDiff(1:nLayers)/amaxIncrement(1)
-  !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
-  !print*, 'mLayerTempDiff(1:nLayers) = ', mLayerTempDiff(1:nLayers)
-  !pause ' excessive increment'
+ if(computeVegFlux)then
+  if(abs(scalarCanairTempDiff) > 1._dp .or. abs(scalarCanopyTempDiff) > 1._dp .or. any(abs(mLayerTempDiff(1:nLayers)) > 1._dp) )then
+   amaxIncrement = maxval(abs((/scalarCanairTempDiff,scalarCanopyTempDiff,mLayerTempDiff(1:nLayers)/)))
+   !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
+   !print*, 'mLayerTempDiff(1:nLayers) = ', mLayerTempDiff(1:nLayers)
+   scalarCanairTempDiff      = scalarCanairTempDiff/amaxIncrement(1)
+   scalarCanopyTempDiff      = scalarCanopyTempDiff/amaxIncrement(1)
+   mLayerTempDiff(1:nLayers) = mLayerTempDiff(1:nLayers)/amaxIncrement(1)
+   !print*, 'scalarCanopyTempDiff = ', scalarCanopyTempDiff
+   !print*, 'mLayerTempDiff(1:nLayers) = ', mLayerTempDiff(1:nLayers)
+   !pause ' excessive increment'
+  endif
  endif
 
  ! adjust iteration increment near the freezing point
  ! (use simplified bisection to take smaller steps near freezing)
- if(scalarCanopyIceIter > 0.01_dp .and. scalarCanopyTempIter + scalarCanopyTempDiff > Tfreeze)then
-  scalarCanopyTempDiff = (Tfreeze - scalarCanopyTempIter)*0.5_dp  ! go halfway to the freezing point
- endif
- ! (get the difference from freezing point (K)
- critDiff = Tfreeze - scalarCanopyTempIter
- ! (set temperature close to freezing point when it crosses freezing)
- if(critDiff > 0._dp)then; if(scalarCanopyTempDiff > critDiff) scalarCanopyTempDiff = critDiff + 0.0001_dp  ! below freezing crossing zero --> slightly above freezing
-                     else; if(scalarCanopyTempDiff < critDiff) scalarCanopyTempDiff = critDiff - 0.0001_dp  ! above freezing crossing zero --> slightly below freezing
+ if(computeVegFlux)then
+  if(scalarCanopyIceIter > 0.01_dp .and. scalarCanopyTempIter + scalarCanopyTempDiff > Tfreeze)then
+   scalarCanopyTempDiff = (Tfreeze - scalarCanopyTempIter)*0.5_dp  ! go halfway to the freezing point
+  endif
+  ! (get the difference from freezing point (K)
+  critDiff = Tfreeze - scalarCanopyTempIter
+  ! (set temperature close to freezing point when it crosses freezing)
+  if(critDiff > 0._dp)then; if(scalarCanopyTempDiff > critDiff) scalarCanopyTempDiff = critDiff + 0.0001_dp  ! below freezing crossing zero --> slightly above freezing
+                      else; if(scalarCanopyTempDiff < critDiff) scalarCanopyTempDiff = critDiff - 0.0001_dp  ! above freezing crossing zero --> slightly below freezing
+  endif
  endif
 
  ! adjust iteration increments in cases where iterations are oscillating
@@ -1046,6 +1058,12 @@ contains
                                                                              + dFlux_dTempBelow(iLayer)*mLayerTempDiff(iLayer+1)
   endif
  end do ! (looping through layers)
+
+ ! deallocate space for the Jacobian matric
+ if(computeVegFlux)then
+  deallocate(aJac,rVec,xInc,stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'problem deallocating space for the Jacobian matrix'; return; endif
+ endif
 
  ! ====================================================================================================================
 

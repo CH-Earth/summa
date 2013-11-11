@@ -125,7 +125,7 @@ contains
   endif
   !print*, 'iLayerHeight(iLayer-1:iLayer) = ', iLayerHeight(iLayer-1:iLayer)
   !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp = ', &
-  !!!                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp
+  !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp
  end do  ! (looping thru layers)
  !pause
 
@@ -141,6 +141,8 @@ contains
  else
   scalarAquiferRootFrac = 0._dp
   if(abs(sum(mLayerRootDensity) - 1._dp) > epsilon(rootingDepth))then
+   print*, 'sum of root density = ', sum(mLayerRootDensity)
+   print*, 'rootingDepth = ', rootingDepth
    message=trim(message)//'root density does not sum to one when rooting depth is within the soil profile'
    err=20; return
   endif

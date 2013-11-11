@@ -326,7 +326,7 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
 endselect
 
 ! initialize time step length for each HRU
-dt_init(:) = 3600._dp ! seconds
+dt_init(:) = 10._dp ! seconds
 
 ! initialize time step index
 jstep=1
@@ -546,17 +546,17 @@ do istep=1,numtim
    mvar_hru(kHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = mvar_hru(kHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) &
                                                               + mvar_data%var(iLookMVAR%averageColumnOutflow)%dat(:)
 
-  ! increment basin column outflow
+  ! increment basin column outflow (m3 s-1)
   else
    bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvar_data%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + &
                                                           sum(mvar_data%var(iLookMVAR%averageColumnOutflow)%dat(:))
   endif
 
-  ! increment basin surface runoff
+  ! increment basin surface runoff (m s-1)
   bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)   = bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    + &
                                                            mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)    * fracHRU
 
-  ! increment basin-average baseflow input variables
+  ! increment basin-average baseflow input variables (m s-1)
   bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + &
                                                             mvar_data%var(iLookMVAR%averageSoilDrainage)%dat(1)     * fracHRU
   bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + &

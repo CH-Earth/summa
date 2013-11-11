@@ -20,12 +20,19 @@ USE data_struc,only:ix_snow        ! snow
 implicit none
 private
 public::diagn_evar
+! algorithmic parameters
+real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
+real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
+real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
 contains
 
  ! ************************************************************************************************
  ! new subroutine: compute diagnostic energy variables (thermal conductivity and heat capacity) 
  ! ************************************************************************************************
  subroutine diagn_evar(&
+                       ! input: control variables
+                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
                        ! input: state variables
                        scalarCanopyIce,         & ! intent(in): mass of ice on the vegetation canopy (kg m-2)
                        scalarCanopyLiquid,      & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
@@ -58,6 +65,8 @@ contains
  USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
+ ! input: control variables
+ logical(lgt),intent(in)       :: computeVegFlux          ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! input: state variables
  real(dp),intent(in)           :: scalarCanopyIce         ! mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)           :: scalarCanopyLiquid      ! mass of liquid water on the vegetation canopy (kg m-2)
@@ -119,9 +128,13 @@ contains
  endif
 
  ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
- scalarBulkVolHeatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
-                           Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
-                           Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
+ if(computeVegFlux)then
+  scalarBulkVolHeatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
+                            Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
+                            Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
+ else
+  scalarBulkVolHeatCapVeg = valueMissing
+ endif 
 
  ! compute the thermal conductivity of dry and wet soils (W m-1)
  ! NOTE: this is actually constant over the simulation, and included here for clarity
