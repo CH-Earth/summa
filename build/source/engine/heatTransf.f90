@@ -171,6 +171,7 @@ contains
                         ! model decisions
                         model_decisions(iLookDECISIONS%num_method)%iDecision,          & ! intent(in): choice of numerical method
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,          & ! intent(in): method used to calculate flux derivatives
+                        model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,          & ! intent(in): type of upper boundary condition for thermodynamics
                         model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision,          & ! intent(in): type of lower boundary condition for thermodynamics
 
                         ! index variables
@@ -184,6 +185,7 @@ contains
                         ! general model parameters
                         mpar_data%var(iLookPARAM%wimplicit),                           & ! intent(in): weight assigned to start-of-step fluxes (-)
                         mpar_data%var(iLookPARAM%snowfrz_scale),                       & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                        forc_data%var(iLookFORCE%airtemp),                             & ! intent(in): temperature of the upper boundary: NOTE: use air temperature (K)
                         mpar_data%var(iLookPARAM%lowerBoundTemp),                      & ! intent(in): temperature of the lower boundary (K)
 
                         ! vegetation parameters
@@ -300,6 +302,7 @@ contains
                               ! model decisions
                               num_method,                   & ! intent(in): choice of numerical method
                               fDerivMeth,                   & ! intent(in): method used to calculate flux derivatives
+                              bcUpprTdyn,                   & ! intent(in): type of upper boundary condition for thermodynamics
                               bcLowrTdyn,                   & ! intent(in): type of lower boundary condition for thermodynamics
 
                               ! index variables
@@ -313,6 +316,7 @@ contains
                               ! general model parameters
                               wimplicit,                    & ! intent(in): weight assigned to start-of-step fluxes (-)
                               snowfrz_scale,                & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                              upperBoundTemp,               & ! intent(in): temperature of the upper boundary (K)
                               lowerBoundTemp,               & ! intent(in): temperature of the lower boundary (K)
 
                               ! vegetation parameters
@@ -419,7 +423,8 @@ contains
  ! model decisions
  integer(i4b),intent(in)        :: num_method                  ! choice of numerical method
  integer(i4b),intent(in)        :: fDerivMeth                  ! method used to calculate flux derivatives
- integer(i4b),intent(in)        :: bcLowrTdyn                  ! type of upper boundary condition for thermodynamics
+ integer(i4b),intent(in)        :: bcUpprTdyn                  ! type of upper boundary condition for thermodynamics
+ integer(i4b),intent(in)        :: bcLowrTdyn                  ! type of lower boundary condition for thermodynamics
  ! model index variables
  integer(i4b),intent(in)        :: nLayers                     ! number of layers
  integer(i4b),intent(in)        :: layerType(:)                ! type of the layer (ix_soil or ix_snow)
@@ -429,6 +434,7 @@ contains
  ! general model parameters
  real(dp),intent(in)            :: wimplicit                   ! weight assigned to start-of-step fluxes (-)
  real(dp),intent(in)            :: snowfrz_scale               ! scaling parameter for the snow freezing curve (K-1)
+ real(dp),intent(in)            :: upperBoundTemp              ! temperature of the upper boundary (K)
  real(dp),intent(in)            :: lowerBoundTemp              ! temperature of the lower boundary (K)
  ! vegetation parameters
  real(dp),intent(in)            :: heightCanopyTop             ! height of top of the vegetation canopy above ground surface (m)
@@ -630,54 +636,79 @@ contains
  ! print*, 'before flux computations: mLayerTempIter(1) = ', mLayerTempIter(1)
  !endif
 
- ! ***** compute energy fluxes at vegetation and ground surfaces
- call vegNrgFlux(&
-                 ! input
-                 dt,                              & ! intent(in): time step (seconds)
-                 iter,                            & ! intent(in): iteration index
-                 firstSubStep,                    & ! intent(in): flag to indicate if we are processing the first sub-step
-                 computeVegFlux,                  & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
-                 (iter==1),                       & ! intent(in): flag to indicate if we need to compute shortwave radiation
-                 scalarCanairTempIter,            & ! intent(in): trial temperature of the canopy air space (K)
-                 scalarCanopyTempIter,            & ! intent(in): trial value of canopy temperature (K)
-                 mLayerTempIter(1),               & ! intent(in): trial value of ground temperature (K)
-                 scalarCanopyIceIter,             & ! intent(in): trial mass of ice on the vegetation canopy (kg m-2)
-                 scalarCanopyLiqIter,             & ! intent(in): trial mass of liquid water on the vegetation canopy (kg m-2)
-                 vegTypeIndex,                    & ! intent(in): vegetation type index
-                 soilTypeIndex,                   & ! intent(in): soil type index
-                 scalarLAI,                       & ! intent(in): one-sided leaf area index (m2 m-2)
-                 scalarSAI,                       & ! intent(in): one-sided stem area index (m2 m-2)
-                 scalarExposedLAI,                & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                 scalarExposedSAI,                & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                 scalarGrowingSeasonIndex,        & ! intent(in): growing season index (0=off, 1=on)
-                 scalarFoliageNitrogenFactor,     & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
-                 ! input/output: canopy air space variables
-                 scalarVP_CanopyAir,              & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                 scalarCanopyStabilityCorrection, & ! intent(inout): stability correction for the canopy (-)
-                 scalarGroundStabilityCorrection, & ! intent(inout): stability correction for the ground surface (-)
-                 ! output: liquid water fluxes associated with evaporation/transpiration
-                 scalarCanopyTranspiration,       & ! intent(out): canopy transpiration (kg m-2 s-1)
-                 scalarCanopyEvaporation,         & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
-                 scalarGroundEvaporation,         & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-                 ! output: fluxes
-                 canairNetFlux,                   & ! intent(out): net energy flux for the canopy air space (W m-2)
-                 canopyNetFlux,                   & ! intent(out): net energy flux for the vegetation canopy (W m-2)
-                 groundNetFlux,                   & ! intent(out): net energy flux for the ground surface (W m-2)
-                 ! output: flux derivatives
-                 dCanairNetFlux_dCanairTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
-                 dCanairNetFlux_dCanopyTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
-                 dCanairNetFlux_dGroundTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
-                 dCanopyNetFlux_dCanairTemp,      & ! intent(out): derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
-                 dCanopyNetFlux_dCanopyTemp,      & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
-                 dCanopyNetFlux_dGroundTemp,      & ! intent(out): derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
-                 dGroundNetFlux_dCanairTemp,      & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
-                 dGroundNetFlux_dCanopyTemp,      & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
-                 dGroundNetFlux_dGroundTemp,      & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-                 ! output: error control
-                 err,cmessage)                      ! intent(out): error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- !write(*,'(a,1x,2(f20.8,1x))') 'scalarCanopyStabilityCorrection, scalarGroundStabilityCorrection = ', &
- !                               scalarCanopyStabilityCorrection, scalarGroundStabilityCorrection
+ ! identify the type of boundary condition for thermodynamics
+ select case(bcUpprTdyn)
+
+  ! * flux boundary condition
+  case(energyFlux)
+
+   ! ***** compute energy fluxes at vegetation and ground surfaces
+   call vegNrgFlux(&
+                   ! input
+                   dt,                              & ! intent(in): time step (seconds)
+                   iter,                            & ! intent(in): iteration index
+                   firstSubStep,                    & ! intent(in): flag to indicate if we are processing the first sub-step
+                   computeVegFlux,                  & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                   (iter==1),                       & ! intent(in): flag to indicate if we need to compute shortwave radiation
+                   scalarCanairTempIter,            & ! intent(in): trial temperature of the canopy air space (K)
+                   scalarCanopyTempIter,            & ! intent(in): trial value of canopy temperature (K)
+                   mLayerTempIter(1),               & ! intent(in): trial value of ground temperature (K)
+                   scalarCanopyIceIter,             & ! intent(in): trial mass of ice on the vegetation canopy (kg m-2)
+                   scalarCanopyLiqIter,             & ! intent(in): trial mass of liquid water on the vegetation canopy (kg m-2)
+                   vegTypeIndex,                    & ! intent(in): vegetation type index
+                   soilTypeIndex,                   & ! intent(in): soil type index
+                   scalarLAI,                       & ! intent(in): one-sided leaf area index (m2 m-2)
+                   scalarSAI,                       & ! intent(in): one-sided stem area index (m2 m-2)
+                   scalarExposedLAI,                & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                   scalarExposedSAI,                & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                   scalarGrowingSeasonIndex,        & ! intent(in): growing season index (0=off, 1=on)
+                   scalarFoliageNitrogenFactor,     & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
+                   ! input/output: canopy air space variables
+                   scalarVP_CanopyAir,              & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
+                   scalarCanopyStabilityCorrection, & ! intent(inout): stability correction for the canopy (-)
+                   scalarGroundStabilityCorrection, & ! intent(inout): stability correction for the ground surface (-)
+                   ! output: liquid water fluxes associated with evaporation/transpiration
+                   scalarCanopyTranspiration,       & ! intent(out): canopy transpiration (kg m-2 s-1)
+                   scalarCanopyEvaporation,         & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                   scalarGroundEvaporation,         & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+                   ! output: fluxes
+                   canairNetFlux,                   & ! intent(out): net energy flux for the canopy air space (W m-2)
+                   canopyNetFlux,                   & ! intent(out): net energy flux for the vegetation canopy (W m-2)
+                   groundNetFlux,                   & ! intent(out): net energy flux for the ground surface (W m-2)
+                   ! output: flux derivatives
+                   dCanairNetFlux_dCanairTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
+                   dCanairNetFlux_dCanopyTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
+                   dCanairNetFlux_dGroundTemp,      & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
+                   dCanopyNetFlux_dCanairTemp,      & ! intent(out): derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
+                   dCanopyNetFlux_dCanopyTemp,      & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+                   dCanopyNetFlux_dGroundTemp,      & ! intent(out): derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+                   dGroundNetFlux_dCanairTemp,      & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
+                   dGroundNetFlux_dCanopyTemp,      & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+                   dGroundNetFlux_dGroundTemp,      & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                   ! output: error control
+                   err,cmessage)                      ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   !write(*,'(a,1x,2(f20.8,1x))') 'scalarCanopyStabilityCorrection, scalarGroundStabilityCorrection = ', &
+   !                               scalarCanopyStabilityCorrection, scalarGroundStabilityCorrection
+
+  ! * temperature boundary condition
+  case(prescribedTemp)
+   ! liquid water fluxes associated with evaporation/transpiration
+   scalarCanopyTranspiration = 0._dp  ! canopy transpiration (kg m-2 s-1)
+   scalarCanopyEvaporation   = 0._dp  ! canopy evaporation/condensation (kg m-2 s-1)
+   scalarGroundEvaporation   = 0._dp  ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+   ! fluxes
+   canairNetFlux = 0._dp              ! net energy flux for the canopy air space (W m-2)
+   canopyNetFlux = 0._dp              ! net energy flux for the vegetation canopy (W m-2)
+   ! compute ground net flux
+   groundNetFlux = -iLayerThermalC(0)*(mLayerTempIter(1) - upperBoundTemp)/(mLayerDepth(1)*0.5_dp)
+
+  ! * check
+  case default; err=10; message=trim(message)//'unable to identify upper boundary condition for thermodynamics'; return
+
+ end select  ! upper boundary condition for thermodynamics
+
+
 
  ! ***** compute fluxes at layer interfaces and their derivatives (J m-2 s-1)
  call iLayer_nrg(&
