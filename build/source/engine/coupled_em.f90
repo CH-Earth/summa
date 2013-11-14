@@ -434,7 +434,7 @@ contains
    !endif
    ! check that the step size is still appropriate -- if not, use non-iterative solution
    if(dt_sub < minstep)then
-    if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
+    !if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
     dt_sub  = minstep
     ! just iterate once
     call picardSolv(dt_sub,1,(nsub==1),computeVegFlux,     &  ! input

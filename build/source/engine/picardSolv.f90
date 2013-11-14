@@ -956,7 +956,7 @@ contains
  real(dp),dimension(nLevels)    :: mLayerMatricHeadDiff        ! iteration increment for matric head (m)
  real(dp)                       :: scaleIncrement              ! scaling factor for the iteration increment
  real(dp)                       :: maxMatric                   ! maximum possible value of matric head (m)
- real(dp)                       :: allowablePressureViolation=100.0_dp ! allowable pressure violation before time step reduction (m)
+ real(dp)                       :: allowablePressureViolation=0.0_dp ! allowable pressure violation before time step reduction (m)
  real(dp),dimension(nLevels)    :: soilVolFracLiqNew           ! volumetric fraction of liquid water in the soil 
  real(dp),dimension(nLevels)    :: soilVolFracIceNew           ! volumetric fraction of ice in the soil 
  ! define error monitoring variables
@@ -1049,9 +1049,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  !print*, '***************************************************************'
-  !print*, '***** iter = ', iter, '*****'
-  !print*, '***************************************************************'
+  print*, '***************************************************************'
+  print*, '***** iter = ', iter, '*****'
+  print*, '***************************************************************'
   
 
   ! *****
@@ -1225,13 +1225,13 @@ contains
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
-  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadIter = ', mLayerMatricHeadIter
-  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+  write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadIter = ', mLayerMatricHeadIter
+  write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadNew  = ', mLayerMatricHeadNew
   !print*, 'after soilHydrol'
   !print*, 'mLayerVolFracLiq     = ', mLayerVolFracLiq
   !print*, 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter
   !print*, 'mLayerVolFracLiqNew  = ', mLayerVolFracLiqNew
-  !write(*,'(a,10(e20.10,1x))') 'in picardSolv: mLayerMatIncr = ', mLayerMatIncr
+  write(*,'(a,10(e20.10,1x))') 'in picardSolv: mLayerMatIncr = ', mLayerMatIncr
   !print*, 'mLayerLiqIncr = ', mLayerLiqIncr
   !pause
 
@@ -1249,17 +1249,19 @@ contains
   constraintViolation = maxval(soilVolFracLiqNew + soilVolFracIceNew*(iden_ice/iden_water))
   if(constraintViolation(1) > theta_sat)then  ! at least one layer where volumetric (liquid + ice) content exceeds soil porosity
    ! print initial solution
-   write(*,'(a,10(f20.10,1x))') 'mLayerMatricHeadNew = ', mLayerMatricHeadNew
-   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracIceNew = ', soilVolFracIceNew
-   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracLiqNew = ', soilVolFracLiqNew
-   write(*,'(a,10(f20.10,1x))') 'mLayerVolFracWater  = ', soilVolFracIceNew + soilVolFracLiqNew
-   write(*,'(a,10(f20.10,1x))') 'mLayerMatIncr       = ', mLayerMatIncr
+   write(*,'(a,5(f20.10,1x))') 'mLayerMatricHeadNew(1:5) = ', mLayerMatricHeadNew(1:5)
+   write(*,'(a,5(f20.10,1x))') 'mLayerVolFracIceNew(1:5) = ', soilVolFracIceNew(1:5)
+   write(*,'(a,5(f20.10,1x))') 'mLayerVolFracLiqNew(1:5) = ', soilVolFracLiqNew(1:5)
+   write(*,'(a,5(f20.10,1x))') 'mLayerVolFracWater(1:5)  = ', soilVolFracIceNew(1:5) + soilVolFracLiqNew(1:5)
+   write(*,'(a,5(e20.10,1x))') 'mLayerMatIncr(1:5)       = ', mLayerMatIncr(1:5)
    ! identify the layer that was violated
    iLayerViolated       = maxloc(soilVolFracLiqNew + soilVolFracIceNew*(iden_ice/iden_water))
    ! identify the maximum possible matric head for the layer that was violated
    maxMatric            = matricHead(theta_sat - soilVolFracIceNew(iLayerViolated(1))*(iden_ice/iden_water),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    ! check
-   if(maxMatric < mLayerMatricHeadIter(iLayerViolated(1)) .or. mLayerMatIncr(iLayerViolated(1)) < 0._dp)then
+   print*, 'iLayerViolated = ', iLayerViolated
+   print*, 'maxMatric      = ', maxMatric
+   if(maxMatric < mLayerMatricHeadIter(iLayerViolated(1)) .or. mLayerMatIncr(iLayerViolated(1)) < -tiny(dt))then
     message=trim(message)//'expect maximum matric head to be greater than initial matric head, and matric head increment to be positive'
     err=-20; return  ! force time step reduction
    endif
@@ -1267,7 +1269,6 @@ contains
    scaleIncrement       = 0.95_dp*(maxMatric - mLayerMatricHeadIter(iLayerViolated(1))) / mLayerMatIncr(iLayerViolated(1))
    mLayerMatricHeadDiff = mLayerMatIncr*scaleIncrement
    ! print the layer that was violated
-   print*, 'iLayerViolated = ', iLayerViolated
    print*, 'mLayerVolFracLiqIter(iLayerViolated(1)+nSnow) = ', mLayerVolFracLiqIter(iLayerViolated(1)+nSnow)
    print*, 'mLayerVolFracLiqNew(iLayerViolated(1)+nSnow)  = ', mLayerVolFracLiqNew(iLayerViolated(1)+nSnow)
    print*, 'theta_sat, soilVolFracIceNew(iLayerViolated(1)), soilVolFracLiqNew(iLayerViolated(1)) = ', &
@@ -1297,7 +1298,6 @@ contains
    write(*,'(a,10(f20.10,1x))') 'mLayerVolFracLiqNew  = ', soilVolFracLiqNew
    write(*,'(a,10(f20.10,1x))') 'mLayerVolFracWater   = ', soilVolFracIceNew + soilVolFracLiqNew
    write(*,'(a,10(f20.10,1x))') 'mLayerMatIncr        = ', mLayerMatIncr
-   stop
    ! scale the iteration increment to the midpoint between previous iteration and layer depth for the layer where constraints were violated
    iLayerViolated       = maxloc(mLayerMatricHeadNew - mLayerHeight(nSnow+1:nLevels))
    scaleIncrement       = 0.5_dp*(mLayerHeight(nSnow+iLayerViolated(1)) - mLayerMatricHeadIter(iLayerViolated(1)))/mLayerMatIncr(iLayerViolated(1))
@@ -1461,14 +1461,14 @@ contains
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
   !print*, 'mLayerMatIncr = ', mLayerMatIncr
-  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
+  print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
-  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
-  !print*, 'canopyNrgIncr = ', canopyNrgIncr
+  print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  print*, 'canopyNrgIncr = ', canopyNrgIncr
   !if(computeVegFlux) pause 'canopy is exposed'
 
   ! test
@@ -1480,7 +1480,7 @@ contains
 
   ! convergence check: 
   if( liquid_max(1) < absConvTol_liquid .and.                      & ! volumetric fraction of liquid water (-)
-     (matric_max(1) < 0._dp .and. hydrol_max(1) < 1.e-9_dp)  .and. & ! matric head (m)
+     (matric_max(1) < 0._dp .and. hydrol_max(1) < 1.e-6_dp)  .and. & ! matric head (m)
       energy_max(1) < absConvTol_energy .and.                      & ! energy (J m-3)
       aquifr_max    < absConvTol_aquifr)                           & ! aquifer storage (m)
    exit

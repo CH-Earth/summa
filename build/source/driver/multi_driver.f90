@@ -44,6 +44,7 @@ USE qTimeDelay_module,only:qOverland                        ! module to route wa
 USE snow_fileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
 USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE snow_fileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
+USE data_struc,only:doJacobian                              ! flag to compute the Jacobian
 USE data_struc,only:forcFileInfo                            ! information on forcing data file
 USE data_struc,only:localParFallback                        ! local column default parameters
 USE data_struc,only:basinParFallback                        ! basin-average default parameters
@@ -155,6 +156,8 @@ if (len_trim(fuseFileManager) == 0) then
 endif
 ! set directories and files -- fuseFileManager used as command-line argument
 call fuse_SetDirsUndPhiles(fuseFileManager,err,message); call handle_err(err,message)
+! initialize the Jacobian flag
+doJacobian=.false.
 
 ! *****************************************************************************
 ! (2) read model metadata
@@ -381,6 +384,14 @@ do istep=1,numtim
    indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
   end do  ! (looping through HRUs)
  endif  ! if start of a new water year, and defining a new file
+
+ ! define need to compute the Jacobian
+ !if(time_data%var(iLookTIME%im)  ==5   .and. &   ! month
+ !   time_data%var(iLookTIME%id)  ==5)then        ! day
+ ! doJacobian=.true.
+ !else
+ ! doJacobian=.false.
+ !endif
 
  ! initialize runoff variables
  bvar_data%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = 0._dp  ! surface runoff (m s-1)
