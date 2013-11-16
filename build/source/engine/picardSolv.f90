@@ -151,9 +151,6 @@ contains
                         mvar_data%var(iLookMVAR%iLayerThermalC)%dat,                 & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
                         mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat,               & ! intent(out): volumetric fraction of air in each layer (-)
 
-                        ! output: hydrology variables
-                        mvar_data%var(iLookMVAR%scalarMaxSurfInfiltration)%dat(1),   & ! intent(out): maximum surface infiltration rate (m s-1)
-
                         ! output: error control
                         err,cmessage)                                                  ! intent(out): error control
 
@@ -528,9 +525,6 @@ contains
                               iLayerThermalC,                & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
                               mLayerVolFracAir,              & ! intent(out): volumetric fraction of air in each layer (-)
 
-                              ! output: hydrology variables
-                              scalarMaxSurfInfiltration,     & ! intent(out): maximum surface infiltration rate (m s-1)
-
                               ! output: error control
                               err,message)                     ! intent(out): error control
 
@@ -582,8 +576,6 @@ contains
  real(dp),intent(out)           :: mLayerThermalC(:)           ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
  real(dp),intent(out)           :: iLayerThermalC(0:)          ! thermal conductivity at the interface of each layer (W m-1 K-1)
  real(dp),intent(out)           :: mLayerVolFracAir(:)         ! volumetric fraction of air in each layer (-)
- ! output: hydrology variables
- real(dp),intent(out)           :: scalarMaxSurfInfiltration   ! maximum surface infiltration rate (m s-1)
  ! output: error control
  integer(i4b),intent(out)       :: err                         ! error code
  character(*),intent(out)       :: message                     ! error message
@@ -917,8 +909,8 @@ contains
  integer(i4b)                   :: iter                        ! iteration index
  real(dp)                       :: theta                       ! liquid water equivalent of the volumetric fraction of total water, liquid plus ice (-)
  real(dp)                       :: volFrac_water               ! total volumetric fraction of water, liquid water plus ice (-) 
- real(dp)                       :: scalarSurfaceInfiltration   ! surface infiltration rate (m s-1)
  real(dp),parameter             :: eps=1.e-10_dp               ! small increment used to define ice content at the freezing point
+ real(dp)                       :: scalarSurfaceInfiltration   ! infiltration rate (m s-1)
  ! define derivatives in canopy air space variables
  real(dp)                       :: dTempCanopyAir_dTCanopy     ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
  real(dp)                       :: dTempCanopyAir_dTGround     ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground
@@ -1049,9 +1041,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  print*, '***************************************************************'
-  print*, '***** iter = ', iter, '*****'
-  print*, '***************************************************************'
+  !print*, '***************************************************************'
+  !print*, '***** iter = ', iter, '*****'
+  !print*, '***************************************************************'
   
 
   ! *****
@@ -1225,13 +1217,13 @@ contains
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
-  write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadIter = ', mLayerMatricHeadIter
-  write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadIter = ', mLayerMatricHeadIter
+  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadNew  = ', mLayerMatricHeadNew
   !print*, 'after soilHydrol'
   !print*, 'mLayerVolFracLiq     = ', mLayerVolFracLiq
   !print*, 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter
   !print*, 'mLayerVolFracLiqNew  = ', mLayerVolFracLiqNew
-  write(*,'(a,10(e20.10,1x))') 'in picardSolv: mLayerMatIncr = ', mLayerMatIncr
+  !write(*,'(a,10(e20.10,1x))') 'in picardSolv: mLayerMatIncr = ', mLayerMatIncr
   !print*, 'mLayerLiqIncr = ', mLayerLiqIncr
   !pause
 
@@ -1461,14 +1453,14 @@ contains
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
   !print*, 'mLayerMatIncr = ', mLayerMatIncr
-  print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
+  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
   matric_pos = maxloc(abs(mLayerMatIncr))
   energy_pos = maxloc(abs((/canopyNrgIncr,mLayerNrgIncr/)))
-  print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
-  print*, 'canopyNrgIncr = ', canopyNrgIncr
+  !print*, 'liquid_pos, matric_pos, energy_pos = ', liquid_pos, matric_pos, energy_pos
+  !print*, 'canopyNrgIncr = ', canopyNrgIncr
   !if(computeVegFlux) pause 'canopy is exposed'
 
   ! test

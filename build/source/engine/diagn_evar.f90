@@ -108,7 +108,7 @@ contains
  real(dp)                      :: zdn                    ! height difference between interface and lower value (m)
  real(dp)                      :: zdp                    ! height difference between interface and upper value (m)
  real(dp)                      :: lambda_wet             ! thermal conductivity of the wet material
- real(dp)                      :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
+ !real(dp)                      :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
  real(dp)                      :: bulkden_soil           ! bulk density of soil (kg m-3)
  real(dp)                      :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
  real(dp)                      :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)

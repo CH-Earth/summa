@@ -508,14 +508,12 @@ contains
  character(LEN=256)             :: cmessage                   ! error message of downwind routine
  integer(i4b)                   :: iLayer,jLayer              ! index of model layers
  logical(lgt)                   :: printflag                  ! .true. if print progress to the screen
- logical(lgt)                   :: fTranspire                 ! .true. if computing transpiration
  logical(lgt),parameter         :: computeJacobian=.false.    ! .true. if desire to compute the Jacobian matrix (just used for testing)
  real(dp)                       :: canopyDepth                ! depth of the vegetation canopy (m)
  real(dp)                       :: theta                      ! total volumetric water content (liquid plus ice)
  real(dp)                       :: critDiff                   ! temperature difference from critical temperature (K)
  real(dp)                       :: maxdiffTemp(1)             ! maximum difference between temperature input and start-of-step temperature (K)
  real(dp),parameter             :: epsT=1.d-10                ! offset from Tcrit when re-setting iterations at the critical temperature (K)
- integer(i4b)                   :: nUnsat                     ! number of unsaturated layers
  real(dp),dimension(1)          :: amaxIncrement              ! maximum iteration increment
  ! define local variables for the fluxes at vegetation and ground surfaces
  real(dp)                       :: saveTemp_CanopyAir         ! trial temperature of the canopy air space (K)
@@ -560,10 +558,6 @@ contains
  real(dp)                       :: canairResidual             ! residual for the energy of the canopy air space (J m-3)
  real(dp)                       :: canopyResidual             ! residual for the energy of the vegetation canopy (J m-3)
  real(dp),dimension(nLayers)    :: mLayerResidual             ! residual for the energy of the snow/soil layers (J m-3)
- ! define tri-diagonal matrix elements for the canopy
- real(dp)                       :: diagCanopy                 ! diagonal element for the canopy
- real(dp)                       :: d_m1Canopy                 ! sub-diagonal element for the derivative in net ground flux w.r.t. canopy temperature (J m-3 K-1)
- real(dp)                       :: d_p1Canopy                 ! super-diagonal element for the derivative in net canopy flux w.r.t. ground temperature (J m-3 K-1)
  ! define tri-diagonal matrix elements for the snow-soil system
  real(dp),dimension(nLayers)    :: diag                       ! diagonal (J m-3 K-1)
  real(dp),dimension(nLayers-1)  :: d_m1                       ! sub-diagonal (J m-3 K-1)

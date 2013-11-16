@@ -268,6 +268,7 @@ contains
   case('frac_silt'                ); get_ixparam = iLookPARAM%frac_silt              ! fraction of silt (-)
   case('frac_clay'                ); get_ixparam = iLookPARAM%frac_clay              ! fraction of clay (-)
   case('fieldCapacity'            ); get_ixparam = iLookPARAM%fieldCapacity          ! field capacity (-)
+  case('wettingFrontSuction'      ); get_ixparam = iLookPARAM%wettingFrontSuction    ! Green-Ampt wetting front suction (m)
   case('theta_mp'                 ); get_ixparam = iLookPARAM%theta_mp               ! volumetric liquid water content when macropore flow begins (-)
   case('theta_sat'                ); get_ixparam = iLookPARAM%theta_sat              ! soil porosity (-)
   case('theta_res'                ); get_ixparam = iLookPARAM%theta_res              ! volumetric residual water content (-)
@@ -285,6 +286,8 @@ contains
   case('specificYield'            ); get_ixparam = iLookPARAM%specificYield          ! specific yield (-)
   case('specificStorage'          ); get_ixparam = iLookPARAM%specificStorage        ! specific storage coefficient (m-1)
   case('f_impede'                 ); get_ixparam = iLookPARAM%f_impede               ! ice impedence factor (-)
+  case('soilIceScale'             ); get_ixparam = iLookPARAM%soilIceScale           ! scaling factor for depth of soil ice, used to get frozen fraction (m)
+  case('soilIceCV'                ); get_ixparam = iLookPARAM%soilIceCV              ! CV of depth of soil ice, used to get frozen fraction (-)
   ! algorithmic control parameters
   case('minwind'                  ); get_ixparam = iLookPARAM%minwind                ! minimum wind speed (m s-1)
   case('minstep'                  ); get_ixparam = iLookPARAM%minstep                ! minimum length of the time step
@@ -471,9 +474,11 @@ contains
   case('scalarCanopyMeltFreeze'         ); get_ixmvar = iLookMVAR%scalarCanopyMeltFreeze           ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   ! scalar variables -- soil and aquifer fluxes
   case('scalarRainPlusMelt'             ); get_ixmvar = iLookMVAR%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  case('scalarInfilArea'                ); get_ixmvar = iLookMVAR%scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
+  case('scalarFrozenArea'               ); get_ixmvar = iLookMVAR%scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
+  case('scalarInfiltration'             ); get_ixmvar = iLookMVAR%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
   case('scalarExfiltration'             ); get_ixmvar = iLookMVAR%scalarExfiltration               ! exfiltration of water from the top of the soil profile (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixmvar = iLookMVAR%scalarSurfaceRunoff              ! surface runoff (m s-1)
-  case('scalarMaxSurfInfiltration'      ); get_ixmvar = iLookMVAR%scalarMaxSurfInfiltration        ! maximum surface infiltration rate (m s-1)
   case('scalarInitAquiferRecharge'      ); get_ixmvar = iLookMVAR%scalarInitAquiferRecharge        ! recharge to the aquifer -- at the start of the step (m s-1)
   case('scalarAquiferRecharge'          ); get_ixmvar = iLookMVAR%scalarAquiferRecharge            ! recharge to the aquifer (m s-1)
   case('scalarInitAquiferTranspire'     ); get_ixmvar = iLookMVAR%scalarInitAquiferTranspire       ! transpiration from the aquifer (m s-1)
