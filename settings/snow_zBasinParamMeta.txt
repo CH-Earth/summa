@@ -21,12 +21,9 @@
 ! **********************************************************************************************************************
 ! baseflow
 ! **********************************************************************************************************************
-basin__hydCond            | hydraulic conductivity                                            | m s-1      | scalarv | T
-basin__kAnisotropic       | anisotropy factor for lateral hydraulic conductivity              | -          | scalarv | T
-basin__zScale_TOPMODEL    | scale factor for TOPMODEL-ish baseflow parameterization           | m          | scalarv | T
-basin__specificYield      | specific yield                                                    | -          | scalarv | T
+basin__aquiferHydCond     | hydraulic conductivity of the aquifer                             | m s-1      | scalarv | T
 basin__aquiferScaleFactor | scaling factor for aquifer storage in the big bucket              | m          | scalarv | T
-basin__bucketBaseflowExp  | baseflow exponent for the big bucket                              | -          | scalarv | T
+basin__aquiferBaseflowExp | baseflow exponent for the big bucket                              | -          | scalarv | T
 ! **********************************************************************************************************************
 ! sub-grid routing
 ! **********************************************************************************************************************

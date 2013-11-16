@@ -27,9 +27,9 @@
 ! *************************************************************************************************************************************
 ! scalar variables (runoff and aquifer fluxes)
 ! *************************************************************************************************************************************
+basin__totalArea                    | total basin area                                                  | m2              | scalarv | T
 basin__SurfaceRunoff                | surface runoff                                                    | m s-1           | scalarv | T
-basin__SoilEjection                 | ejected water from the soil profile                               | m s-1           | scalarv | T
-basin__SoilBaseflow                 | baseflow from the soil profile                                    | m s-1           | scalarv | T
+basin__ColumnOutflow                | outflow from all "outlet" HRUs (those with no downstream HRU)     | m3 s-1          | scalarv | T
 basin__AquiferStorage               | aquifer storage                                                   | m               | scalarv | T
 basin__AquiferRecharge              | recharge to the aquifer                                           | m s-1           | scalarv | T
 basin__AquiferBaseflow              | baseflow from the aquifer                                         | m s-1           | scalarv | T

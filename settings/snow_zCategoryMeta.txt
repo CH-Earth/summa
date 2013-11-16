@@ -23,4 +23,5 @@ hruIndex             | index defining the hydrologic response unit              
 vegTypeIndex         | index defining vegetation type                               | -          | scalarv | T
 soilTypeIndex        | index defining soil type                                     | -          | scalarv | T
 slopeTypeIndex       | index defining slope                                         | -          | scalarv | T
+downHRUindex         | index of downslope HRU (0 = basin outlet)                    | -          | scalarv | T
 ! ***************************************************************************************************************************

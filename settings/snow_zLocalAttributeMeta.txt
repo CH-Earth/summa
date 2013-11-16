@@ -22,6 +22,8 @@
 latitude        | latitude                                                | degrees north   | scalarv | T
 longitude       | longitude                                               | degrees east    | scalarv | T
 elevation       | elevation                                               | m               | scalarv | T
-HRUfraction     | fractional area covered by each HRU                     | -               | scalarv | T
+tan_slope       | tan water table slope (tan local ground surface slope)  | -               | scalarv | T
+contourLength   | length of contour at downslope edge of HRU              | m               | scalarv | T
+HRUarea         | area of each HRU                                        | m2              | scalarv | T
 mHeight         | measurement height above bare ground                    | m               | scalarv | T
 ! ***************************************************************************************************************************
