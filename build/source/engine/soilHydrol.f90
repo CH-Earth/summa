@@ -236,13 +236,13 @@ contains
                         mvar_data%var(iLookMVAR%scalarInitAquiferBaseflow)%dat(1),     & ! intent(inout): (scalar) baseflow from the aquifer at the start-of-step (m s-1)
 
                         ! diagnostic scalar variables
-                        mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1),            & ! intent(out): (scalar) rain plus melt (m s-1)
-                        mvar_data%var(iLookMVAR%scalarInfilArea)%dat(1),               & ! intent(out): (scalar) fraction of unfrozen area where water can infiltrate (-)
-                        mvar_data%var(iLookMVAR%scalarFrozenArea)%dat(1),              & ! intent(out): (scalar) fraction of area that is considered impermeable due to soil ice (-)
-                        mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1),           & ! intent(out): (scalar) surface runoff (m s-1)
-                        mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1),        & ! intent(out): (scalar) transpiration loss from the aquifer (m s-1)
-                        mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1),         & ! intent(out): (scalar) recharge to the aquifer at the end-of-step (m s-1)
-                        mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1),         & ! intent(out): (scalar) baseflow from the aquifer at the end-of-step (m s-1)
+                        mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1),            & ! intent(out):   (scalar) rain plus melt (m s-1)
+                        mvar_data%var(iLookMVAR%scalarInfilArea)%dat(1),               & ! intent(inout): (scalar) fraction of unfrozen area where water can infiltrate (-)
+                        mvar_data%var(iLookMVAR%scalarFrozenArea)%dat(1),              & ! intent(inout): (scalar) fraction of area that is considered impermeable due to soil ice (-)
+                        mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1),           & ! intent(inout): (scalar) surface runoff (m s-1)
+                        mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1),        & ! intent(out):   (scalar) transpiration loss from the aquifer (m s-1)
+                        mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1),         & ! intent(out):   (scalar) recharge to the aquifer at the end-of-step (m s-1)
+                        mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1),         & ! intent(out):   (scalar) baseflow from the aquifer at the end-of-step (m s-1)
                         mvar_data%var(iLookMVAR%scalarExfiltration)%dat(1),            & ! intent(inout): (scalar) exfiltration at the end-of-step (m s-1)
 
                         ! model diagnostic variables
@@ -393,13 +393,13 @@ contains
                               scalarInitAquiferBaseflow,   & ! intent(inout): baseflow from the aquifer at the start-of-step (m s-1)
 
                               ! diagnostic scalar variables (intent out)
-                              scalarRainPlusMelt,          & ! intent(out): rain plus melt (m s-1)
-                              scalarInfilArea,             & ! intent(out): fraction of unfrozen area where water can infiltrate (-)
-                              scalarFrozenArea,            & ! intent(out): fraction of area that is considered impermeable due to soil ice (-)
-                              scalarSurfaceRunoff,         & ! intent(out): surface runoff (m s-1)
-                              scalarAquiferTranspire,      & ! intent(out): transpiration loss from the aquifer (m s-1)
-                              scalarAquiferRecharge,       & ! intent(out): recharge to the aquifer at the end-of-step (m s-1)
-                              scalarAquiferBaseflow,       & ! intent(out): baseflow from the aquifer at the end-of-step (m s-1)
+                              scalarRainPlusMelt,          & ! intent(out):   rain plus melt (m s-1)
+                              scalarInfilArea,             & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+                              scalarFrozenArea,            & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
+                              scalarSurfaceRunoff,         & ! intent(inout): surface runoff (m s-1)
+                              scalarAquiferTranspire,      & ! intent(out):   transpiration loss from the aquifer (m s-1)
+                              scalarAquiferRecharge,       & ! intent(out):   recharge to the aquifer at the end-of-step (m s-1)
+                              scalarAquiferBaseflow,       & ! intent(out):   baseflow from the aquifer at the end-of-step (m s-1)
                               scalarExfiltration,          & ! intent(inout): exfiltration (m s-1)
 
                               ! model diagnostic variables (intent out)
@@ -523,9 +523,9 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! diagnostic scalar variables
  real(dp),intent(out)             :: scalarRainPlusMelt           ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
- real(dp),intent(out)             :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
- real(dp),intent(out)             :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
- real(dp),intent(out)             :: scalarSurfaceRunoff          ! surface runoff (m s-1)
+ real(dp),intent(inout)           :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
+ real(dp),intent(inout)           :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
+ real(dp),intent(inout)           :: scalarSurfaceRunoff          ! surface runoff (m s-1)
  real(dp),intent(out)             :: scalarAquiferTranspire       ! transpiration loss from the aquifer at the start-of-step (m s-1)
  real(dp),intent(out)             :: scalarAquiferRecharge        ! recharge to the aquifer at the end-of-step (m s-1)
  real(dp),intent(out)             :: scalarAquiferBaseflow        ! baseflow from the aquifer at the end-of-step (m s-1)
@@ -634,14 +634,15 @@ contains
  !print*, 'scalarRainPlusMelt = ', scalarRainPlusMelt
 
  ! identify the number of layers that contain roots
- nRoots = count(mLayerHeight(1:nLevels) < rootingDepth)
+ nRoots = count(iLayerHeight(0:nLevels-1) < rootingDepth)
 
  ! identify lowest soil layer with ice
+ ! NOTE: cannot use count because may be an unfrozen wedge
  ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
- do iLayer=1,nLevels-1 ! (loop through soil layers)
+ do iLayer=1,nLevels ! (loop through soil layers)
   if(mLayerVolFracIce(iLayer) > epsilon(dt)) ixIce = iLayer
  end do
- if(iLayerHeight(ixIce) > rootingDepth)then; err=20; message=trim(message)//'ice extends to the bottom of the root zone'; return; endif
+ if(ixIce==nLevels)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
 
  ! set macropore fluxes to zero (not used
  mLayerInitQMacropore(:) = 0._dp
@@ -1433,6 +1434,7 @@ contains
                    mLayerVolFracIceTrial,              & ! intent(in): volumetric ice content in each soil layer (-)
                    ! input: depth of upper-most soil layer (m)
                    mLayerDepth,                        & ! intent(in): depth of each soil layer (m)
+                   iLayerHeight,                       & ! intent(in): height at the interface of each layer (m)
                    ! input: boundary conditions
                    upperBoundHead,                     & ! intent(in): upper boundary condition (m)
                    upperBoundTheta,                    & ! intent(in): upper boundary condition (-)
@@ -1460,6 +1462,8 @@ contains
                    iLayerHydCond(0),                   & ! intent(inout): hydraulic conductivity at the surface (m s-1)
                    iLayerDiffuse(0),                   & ! intent(inout): hydraulic diffusivity at the surface (m2 s-1)
                    ! input-output: fluxes at layer interfaces and surface runoff
+                   scalarInfilArea,                    & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+                   scalarFrozenArea,                   & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
                    scalarSurfaceRunoff,                & ! intent(inout): surface runoff (m s-1)
                    scalarSurfaceInfiltration,          & ! intent(inout): surface infiltration (m s-1)
                    ! input-output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
@@ -2663,6 +2667,7 @@ contains
                        mLayerVolFracIce,          & ! intent(in): volumetric ice content in each soil layer (-)
                        ! input: depth of upper-most soil layer (m)
                        mLayerDepth,               & ! intent(in): depth of each soil layer (m)
+                       iLayerHeight,              & ! intent(in): height at the interface of each layer (m)
                        ! input: boundary conditions
                        upperBoundHead,            & ! intent(in): upper boundary condition (m)
                        upperBoundTheta,           & ! intent(in): upper boundary condition (-)
@@ -2690,6 +2695,8 @@ contains
                        surfaceHydCond,            & ! intent(inout): hydraulic conductivity at the surface (m s-1)
                        surfaceDiffuse,            & ! intent(inout): hydraulic diffusivity at the surface (m2 s-1)
                        ! input-output: fluxes at layer interfaces and surface runoff
+                       scalarInfilArea,           & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+                       scalarFrozenArea,          & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
                        scalarSurfaceRunoff,       & ! intent(inout): surface runoff (m s-1)
                        scalarSurfaceInfiltration, & ! intent(inout): surface infiltration (m s-1)
                        ! input-output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
@@ -2718,6 +2725,7 @@ contains
  real(dp),intent(in)           :: mLayerVolFracIce(:)       ! volumetric ice content in each soil layer (-)
  ! input: depth of upper-most soil layer (m)
  real(dp),intent(in)           :: mLayerDepth(:)            ! depth of upper-most soil layer (m)
+ real(dp),intent(in)           :: iLayerHeight(0:)          ! height at the interface of each layer (m)
  ! input: diriclet boundary conditions
  real(dp),intent(in)           :: upperBoundHead            ! upper boundary condition for matric head (m)
  real(dp),intent(in)           :: upperBoundTheta           ! upper boundary condition for volumetric liquid water content (-)
@@ -2747,6 +2755,8 @@ contains
  real(dp),intent(inout)        :: surfaceHydCond            ! hydraulic conductivity (m s-1)
  real(dp),intent(inout)        :: surfaceDiffuse            ! hydraulic diffusivity at the surface (m
  ! output: surface runoff and infiltration flux (m s-1)
+ real(dp),intent(inout)        :: scalarInfilArea           ! fraction of unfrozen area where water can infiltrate (-)
+ real(dp),intent(inout)        :: scalarFrozenArea          ! fraction of area that is considered impermeable due to soil ice (-)
  real(dp),intent(inout)        :: scalarSurfaceRunoff       ! surface runoff (m s-1)
  real(dp),intent(inout)        :: scalarSurfaceInfiltration ! surface infiltration (m s-1)
  ! output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
@@ -2774,13 +2784,11 @@ contains
  ! (saturated area associated with variable storage capacity)
  real(dp)                      :: fracCap                   ! fraction of pore space filled with liquid water and ice (-)
  real(dp)                      :: fInfRaw                   ! infiltrating area before imposing solution constraints (-)
- real(dp)                      :: fInfArea                  ! area of the landscape where water infiltrates (-)
  real(dp),parameter            :: maxFracCap=0.995_dp       ! maximum fraction capacity -- used to avoid numerical problems associated with an enormous derivative
  real(dp),parameter            :: scaleFactor=0.000001_dp   ! scale factor for the smoothing function (-)
  ! (fraction of impermeable area associated with frozen ground)
  real(dp)                      :: alpha                     ! shape parameter in the Gamma distribution
  real(dp)                      :: xLimg                     ! upper limit of the integral
- real(dp)                      :: fFrozen                   ! fraction of frozen area (-)
  ! initialize error control
  err=0; message="surfaceFlx/"
 
@@ -2840,10 +2848,17 @@ contains
     ! define the storage in the root zone (m)
     rootZoneLiq = 0._dp
     rootZoneIce = 0._dp
-    do iLayer=1,nRoots
-     rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer)
-     rootZoneIce = rootZoneIce + mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
-    enddo
+    ! (process layers where the roots extend to the bottom of the layer)
+    if(nRoots > 1)then
+     do iLayer=1,nRoots-1
+      rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer)
+      rootZoneIce = rootZoneIce + mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
+     enddo
+    endif
+    if(rootingDepth < iLayerHeight(nRoots-1))then; err=20; message=trim(message)//'problem with definition of nRoots'; return; endif
+    ! (process layers where the roots end in the current layer)
+    rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
+    rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
 
     ! define available capacity to hold water (m)
     availCapacity = theta_sat*rootingDepth - rootZoneIce
@@ -2861,22 +2876,24 @@ contains
     fInfRate = min(scalarRainPlusMelt,xMaxInfr)
 
     ! define the infiltrating area for the non-frozen part of the cell/basin
-    fracCap  = rootZoneLiq/(maxFracCap*availCapacity)                  ! fraction of available root zone filled with water
-    fInfRaw  = 1._dp - exp(-qSurfScale*(1._dp - fracCap))              ! infiltrating area -- allowed to violate solution constraints
-    fInfArea = 0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor))   ! infiltrating area -- constrained
-    if(sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.99_dp*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) fInfArea=1._dp
+    fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                  ! fraction of available root zone filled with water
+    fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))              ! infiltrating area -- allowed to violate solution constraints
+    scalarInfilArea = 0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor))   ! infiltrating area -- constrained
+
+    ! check to ensure we are not infiltrating into a fully saturated column
+    if(sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.99_dp*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) scalarInfilArea=0._dp
 
     ! define the impermeable area due to frozen ground
     if(rootZoneIce > tiny(rootZoneIce))then  ! (avoid divide by zero)
-     alpha   = 1._dp/(soilIceCV**2._dp)        ! shape parameter in the Gamma distribution
-     xLimg   = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
-     fFrozen = 1._dp - gammp(alpha,xLimg)      ! fraction of frozen area
+     alpha            = 1._dp/(soilIceCV**2._dp)        ! shape parameter in the Gamma distribution
+     xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
+     scalarFrozenArea = 1._dp - gammp(alpha,xLimg)      ! fraction of frozen area
     else
-     fFrozen = 0._dp
+     scalarFrozenArea = 0._dp
     endif
 
     ! compute infiltration (m s-1)
-    scalarSurfaceInfiltration = (1._dp - fFrozen)*fInfArea*fInfRate
+    scalarSurfaceInfiltration = (1._dp - scalarFrozenArea)*scalarInfilArea*fInfRate
 
     ! compute surface runoff (m s-1)
     scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
