@@ -130,8 +130,8 @@ contains
                  hri,cosZenith)             ! intent(out): cosine of the solar zenith angle
  ! check that we don't have considerable shortwave when the zenith angle is low
  ! NOTE: this is likely because the data are not in local time
- if(cosZenith < epsilon(cosZenith) .and. SWRadAtm > 20._dp)then
-  message=trim(message)//'SWRadAtm > 20 W m-2 when cos zenith angle is zero -- check that forcing data are in local time, '//&
+ if(cosZenith < epsilon(cosZenith) .and. SWRadAtm > 100._dp)then
+  message=trim(message)//'SWRadAtm > 100 W m-2 when cos zenith angle is zero -- check that forcing data are in local time, '//&
                          'that the time stamp in forcing data is at the end of the data interval, and that the lat-lon '//&
                          'in the site characteristix file is correct'
   err=20; return

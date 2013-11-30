@@ -206,6 +206,7 @@ contains
                      iden_ice,       & ! intrinsic density of ice             (kg m-3)
                      iden_water        ! intrinsic density of liquid water    (kg m-3)
  USE var_derive_module,only:calcHeight ! module to calculate height at layer interfaces and layer mid-point
+ USE snow_utils_module,only:fracliquid                                          ! compute fraction of liquid water
  USE convE2Temp_module,only:E2T_nosoil,temp2ethpy                               ! convert temperature to enthalpy
  USE data_struc,only:mpar_meta,forc_meta,mvar_meta,indx_meta                    ! metadata
  USE data_struc,only:mpar_data,forc_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
@@ -237,13 +238,15 @@ contains
  real(dp)                            :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
  real(dp)                            :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
  real(dp)                            :: cEnthalpy                ! combined layer enthalpy (J m-3)
+ real(dp)                            :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
+ real(dp),parameter                  :: eTol=1.e-4_dp            ! tolerance for the enthalpy-->temperature conversion (J m-3)
  ! initialize error control
  err=0; message="layer_combine/"
 
  ! identify the number of snow layers, and the total number of layers
  nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1) 
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- print*, '***** removing layer'
+ print*, '***** removing layer', iSnow
 
  ! ***** compute combined model state variables
  ! assign pointer to the freezing curve parameter
@@ -253,27 +256,49 @@ contains
  mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
  mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer  (-)
  mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
+ !write(*,'(a,1x,6(i12,1x))')   'layer_combine, before merge: indx_data%var(iLookINDEX%layerType)%dat(1:6) = ', &
+ !                                                            indx_data%var(iLookINDEX%layerType)%dat(1:6)
+ !write(*,'(a,1x,6(f12.3,1x))') 'layer_combine, before merge: mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6) = ', &
+ !                                                            mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6)
+ ! compute combined depth
+ cDepth       = mLayerDepth(isnow) + mLayerDepth(isnow+1)
+ !write(*,'(a,10(f12.4,1x))') 'cDepth = ', cDepth
  ! compute mass of each layer (kg m-2)
  massIce(1:2) = iden_ice*mLayerVolFracIce(iSnow:iSnow+1)*mLayerDepth(iSnow:iSnow+1)
  massLiq(1:2) = iden_water*mLayerVolFracLiq(iSnow:iSnow+1)*mLayerDepth(iSnow:iSnow+1)
+ !write(*,'(a,10(f12.4,1x))') 'massIce = ', massIce
+ !write(*,'(a,10(f12.4,1x))') 'massLiq = ', massLiq
  ! compute bulk density of water (kg m-3)
  bulkDenWat(1:2) = (massIce(1:2) + massLiq(1:2))/mLayerDepth(iSnow:iSnow+1)
- cBulkDenWat     = 0.5_dp*(bulkDenWat(1) + bulkDenWat(2))
- ! compute combined depth
- cDepth      = mLayerDepth(isnow) + mLayerDepth(isnow+1)
+ cBulkDenWat     = (mLayerDepth(isnow)*bulkDenWat(1) + mLayerDepth(isnow+1)*bulkDenWat(2))/cDepth
+ !write(*,'(a,10(f12.4,1x))') 'bulkDenWat  = ', bulkDenWat
+ !write(*,'(a,10(f12.4,1x))') 'cBulkDenWat = ', cBulkDenWat
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy  = temp2ethpy(mLayerTemp(iSnow),  0._dp,BulkDenWat(1),snowfrz_scale)
- l2Enthalpy  = temp2ethpy(mLayerTemp(iSnow+1),0._dp,BulkDenWat(2),snowfrz_scale)
+ l1Enthalpy  = temp2ethpy(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
+ l2Enthalpy  = temp2ethpy(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
+ !write(*,'(a,10(e20.9,1x))') 'l1Enthalpy = ', l1Enthalpy
+ !write(*,'(a,10(e20.9,1x))') 'l2Enthalpy = ', l2Enthalpy
  ! compute combined enthalpy (J m-3)
  cEnthalpy   = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
  ! convert enthalpy (J m-3) to temperature (K)
- call E2T_nosoil(cEnthalpy,0._dp,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
+ call E2T_nosoil(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
- !print*, 'temperature test ', cTemp, mLayerTemp(isnow:iSnow+1)
+ ! test enthalpy conversion
+ if(abs(temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
+  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
+  message=trim(message)//'problem with enthalpy-->temperature conversion'
+  err=20; return
+ endif
+ ! check temperature is within the two temperatures
+ if(cTemp > max(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; endif
+ if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; endif
+ ! compute volumetric fraction of liquid water
+ fLiq = fracLiquid(cTemp,snowfrz_scale)
  ! compute volumetric fraction of ice and liquid water
- cVolFracIce = (massIce(1) + massIce(2))/(cDepth*iden_ice)
- cVolFracLiq = (massLiq(1) + massLiq(2))/(cDepth*iden_water)
-
+ cVolFracLiq =          fLiq *cBulkDenWat/iden_water
+ cVolFracIce = (1._dp - fLiq)*cBulkDenWat/iden_ice
+ !cVolFracIce = (massIce(1) + massIce(2))/(cDepth*iden_ice)
+ !cVolFracLiq = (massLiq(1) + massLiq(2))/(cDepth*iden_water)
  ! remove a model layer from all model variable vectors
  call rmLyAllVars(iSnow,nSnow,nLayers,err,cmessage)
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
@@ -293,7 +318,10 @@ contains
  ! ***** adjust coordinate variables
  call calcHeight(err,cmessage) 
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
+ !write(*,'(a,1x,6(i12,1x))')   'layer_combine, after merge:  indx_data%var(iLookINDEX%layerType)%dat(1:6) = ', &
+ !                                                            indx_data%var(iLookINDEX%layerType)%dat(1:6)
+ !write(*,'(a,1x,6(f12.3,1x))') 'layer_combine, after merge:  mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6) = ', &
+ !                                                            mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6)
  end subroutine layer_combine
 
  ! ***********************************************************************************************************

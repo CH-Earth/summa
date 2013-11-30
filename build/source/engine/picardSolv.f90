@@ -997,6 +997,12 @@ contains
  ! initialize layer temperatures
  mLayerTempIter = mLayerTemp                      ! temperature (K)
 
+ ! check layer temperature
+ if(any(mLayerTemp < Tfreeze-80._dp))then
+  message=trim(message)//'layer temperature is very cold'
+  err=20; return
+ endif
+
  ! initialize volumetric liquid and ice content
  mLayerVolFracIceIter = mLayerVolFracIce          ! volumetric ice content (-)
  mLayerVolFracLiqIter = mLayerVolFracLiq          ! volumetric liquid water content (-)

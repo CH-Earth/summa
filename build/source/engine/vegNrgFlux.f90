@@ -1047,7 +1047,7 @@ contains
    relativeCanopyWater = canopyIceTrial / scalarCanopyIceMax
   else  ! evaporation
    xArg = (canopyLiqTrial - smoothThresh)/smoothScale
-   relativeCanopyWater = canopyLiqTrial / scalarCanopyLiqMax
+   relativeCanopyWater = canopyLiqTrial / max(scalarCanopyLiqMax,10._dp)
   endif
   !print*, 'relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax = ', relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax
   scalarCanopyWetFraction = min(max(0._dp, relativeCanopyWater), 1._dp)**0.666667_dp
@@ -1732,11 +1732,11 @@ contains
  ! (canopy transpiration/sublimation)
  if(scalarLatHeatSubVapCanopy > LH_vap+verySmall)then ! sublimation
   scalarCanopyEvaporation = 0._dp
-  scalarCanopySublimation = scalarLatHeatCanopyEvap/LH_sub
   if(scalarLatHeatCanopyTrans > 0._dp)then ! flux directed towards the veg
    scalarCanopySublimation   = scalarCanopySublimation + scalarLatHeatCanopyTrans/LH_sub ! frost
    scalarCanopyTranspiration = 0._dp
   else
+   scalarCanopySublimation   = scalarLatHeatCanopyEvap/LH_sub
    scalarCanopyTranspiration = scalarLatHeatCanopyTrans/LH_vap  ! transpiration is always vapor
   endif
  ! (canopy transpiration/evaporation)
