@@ -609,6 +609,37 @@ contains
  ! define flag to calculate the Jacobian
  calcJacobian=doJacobian
 
+ ! check if we need to actually compute flow
+ if(all(mLayerSatHydCond < tiny(dt)) .and. all(mLayerSatHydCondMP < tiny(dt)))then
+  ! set diagnostic variables to missing
+  scalarInfilArea           = valueMissing
+  scalarFrozenArea          = valueMissing
+  mLayerdTheta_dPsi         = valueMissing
+  mLayerdPsi_dTheta         = valueMissing
+  ! set scalar fluxes to zero
+  scalarRainPlusMelt        = 0._dp
+  scalarSurfaceRunoff       = 0._dp
+  scalarAquiferRecharge     = 0._dp
+  scalarAquiferBaseflow     = 0._dp
+  scalarAquiferTranspire    = 0._dp
+  scalarExfiltration        = 0._dp
+  scalarSurfaceInfiltration = 0._dp
+  ! set layer fluxes to zero
+  mLayerColumnOutflow       = 0._dp
+  iLayerLiqFluxSoil         = 0._dp
+  iLayerFluxReversal        = 0._dp
+  mLayerQMacropore          = 0._dp
+  mLayerTranspire           = 0._dp
+  mLayerBaseflow            = 0._dp
+  ! define solution variables
+  mLayerResidual(:)       = 0._dp
+  mLayerMatricHeadNew(:)  = mLayerMatricHeadIter(:)
+  mLayerVolFracLiqNew(:)  = mLayerVolFracLiqIter(:)
+  scalarAquiferStorageNew = scalarAquiferStorageIter
+  ! and return
+  return
+ endif
+
  ! check the size of the input arguments
  if(any((/size(mLayerMatricHeadIter),size(mLayerVolFracIceIter),size(mLayerVolFracLiqIter),size(mLayerMatricHeadNew)/) /= nLevels)) then
   err=20; message=trim(message)//'size mis-match for the input arguments'; return
@@ -1885,147 +1916,147 @@ contains
  
   end select
 
-  ! *************************************************************************************************************************
-  ! *************************************************************************************************************************
-  ! *************************************************************************************************************************
-  ! *************************************************************************************************************************
-  ! ***** HANDLE SPECIAL CASE WHERE LIQUID WATER FILLS PARTIALLY FROZEN LAYER BEYOND AVAILABLE POROSITY *********************
-  ! *************************************************************************************************************************
-  ! *************************************************************************************************************************
-  ! *************************************************************************************************************************
-  ! *************************************************************************************************************************
-
-  ! check that flow from the bottom of the profile is positive
-  !if(iLayerLiqFluxSoil(nLevels) < 0._dp)then
-  ! message=trim(message)//'before iqReversal: expect flow from the bottom of the soil profile to be positive'
-  ! err=20; return
-  !endif
-
-  ! initialize the flow reversal fluxes
-  iLayerFluxReversal(0:nLevels) = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
-  dqRev_dStateAbove(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
-  dqRev_dStateBelow(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
-
-  ! loop through soil layers
-  do iSoil=0,nLevels-1  ! don't consider flow from the bottom of the soil profile
-
-   ! identify cases where flow to the layer above
-   if(iLayerLiqFluxSoil(iSoil) <= 0._dp)then
-    ! handle special of negative flux at upper boundary (evap > precip)
-    if(iSoil==0)then
-     iLayerFluxReversal(iSoil)   = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
-     dqRev_dStateAbove(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
-     dqRev_dStateBelow(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
-     cycle
-    ! all other cases
-    else
-     iDesire = iSoil
-    endif
-
-   ! identify cases where flow to the layer below
-   else
-    iDesire = iSoil+1
-   endif
-   !print*, '*****'
-   !write(*,'(a,1x,2(i4,1x))') 'iqReversal flux: iSoil, iDesire = ', iSoil, iDesire
-
-   ! check desired layer is within range
-   if(iDesire < 1 .or. iDesire > nLevels)then
-    message=trim(message)//'before iqReversal: invalid layer index'
-    err=20; return
-   endif
-
-   ! compute net flow into the layer (m s-1)
-   qFluxNet = iLayerLiqFluxSoil(iDesire-1) + iLayerFluxReversal(iDesire-1) - iLayerLiqFluxSoil(iDesire) - mLayerBaseflow(iDesire)
-
-   ! compute available capacity of the layer (m)
-   availCapacity = (theta_sat - mLayerVolFracLiqTrial(iDesire) - mLayerVolFracIceTrial(iDesire))*mLayerDepth(iDesire)
-
-   ! check if we need to compute flux reversals
-   if((mLayerVolFracIce(iDesire) > epsilon(dt) .or. ixRichards==moisture) .and. &   ! (if no ice, can be handled with the mixed form of Richards' equation)
-       qFluxNet > 0._dp)then                                                        ! (only consider cases where net flux is positive)
-
-    ! define layers that need checking
-    if(iDesire==iSoil+1)then; ixCheck=1         ! positive net flux into the layer below: if reversed may affect mass balance in the layer above
-    else;                     ixCheck=iDesire   ! positive net flux into the layer above
-    endif
-
-    ! need to re-check all layers above
-    do jDesire=iDesire,ixCheck,-1
-
-     !print*, '**'
-
-     ! check layers above
-     if(jDesire /= iDesire)then
-      ! (compute net flow into the layer, not counting reversal flux for layer jDesire-1 [jDesire-1 = jsoil])
-      qFluxNet = iLayerLiqFluxSoil(jDesire-1) - (iLayerLiqFluxSoil(jDesire) + iLayerFluxReversal(jDesire)) - mLayerBaseflow(jDesire)
-      ! (check if need to process the layer)
-      if((mLayerVolFracIce(jDesire) < epsilon(dt) .and. ixRichards==mixdform) .or. &   ! (if no ice, can be handled with the mixed form of Richards' equation)
-       qFluxNet < 0._dp) exit                                                          ! (only consider cases where net flux is positive)
-      !write(*,'(a,1x,10(e20.10,1x))') 'qFluxNet, iLayerLiqFluxSoil(jDesire-1), (iLayerLiqFluxSoil(jDesire) + iLayerFluxReversal(jDesire)), mLayerBaseflow(jDesire) = ', &
-      !                                 qFluxNet, iLayerLiqFluxSoil(jDesire-1), (iLayerLiqFluxSoil(jDesire) + iLayerFluxReversal(jDesire)), mLayerBaseflow(jDesire)
-     endif  ! if one of the layers above
-
-     ! define index of layer interface
-     if(jDesire==iDesire)then
-      jSoil=iSoil
-     else
-      jSoil=jDesire-1  ! modify the flux at the top of the layer
-      if(iDesire /= iSoil+1)then; err=20; message=trim(message)//'expect to be modifying downward flux'; return; endif
-     endif
-     !write(*,'(a,1x,4(i4,1x),2(e20.10,1x))') 'iSoil, jSoil, iDesire, jDesire, iLayerLiqFluxSoil(jSoil), qFluxNet = ', &
-     !                                         iSoil, jSoil, iDesire, jDesire, iLayerLiqFluxSoil(jSoil), qFluxNet
-
-     ! compute flow reversal fluxes at layer interfaces
-     call iqReversal(&
-                   ! input: model control
-                   deriv_desired,                  & ! intent(in): flag determining if the derivative is desired
-                   ixRichards,                     & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
-                   ! input: soil parameters
-                   vGn_alpha,                      & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                   vGn_n,                          & ! intent(in): van Genutchen "n" parameter (-)
-                   VGn_m,                          & ! intent(in): van Genutchen "m" parameter (-)
-                   theta_sat,                      & ! intent(in): soil porosity (-)
-                   theta_res,                      & ! intent(in): soil residual volumetric water content (-)
-                   ! input: state variable and diagnostic variables
-                   mLayerMatricHeadTrial(jDesire), & ! intent(in): matric head in a given layer (m)
-                   mLayerVolFracLiqTrial(jDesire), & ! intent(in): volumetric liquid water content (-)
-                   mLayerVolFracIceTrial(jDesire), & ! intent(in): volumetric ice content in each layer (-)
-                   ! input: liquid flux at the layer interface
-                   iLayerLiqFluxSoil(jSoil),       & ! intent(in): liquid flux at layer interface (m s-1)
-                   ! input: derivatives in liquid fluxes
-                   dq_dStateAbove(jSoil),          & ! intent(in): derivatives in the liquid flux w.r.t. state variable in the layer above (m s-1 or s-1)
-                   dq_dStateBelow(jSoil),          & ! intent(in): derivatives in the liquid flux w.r.t. state variable in the layer below (m s-1 or s-1)
-                   ! input: derivative in the soil water characteristic w.r.t. psi
-                   mLayerdTheta_dPsi(jDesire),     & ! intent(in): derivative in the soil water characteristic w.r.t. psi (m-1)
-                   ! output: flow reversal fluxes
-                   iLayerFluxReversal(jSoil),      & ! intent(out): liquid water flux due to impedance at the layer interface (m s-1)
-                   ! output: derivative in flow reversal fluxes
-                   dqRev_dStateAbove(jSoil),       & ! intent(in): derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
-                   dqRev_dStateBelow(jSoil),       & ! intent(in): derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
-                   ! output: error control
-                   err,cmessage)                   ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
-    end do  ! jDesire: loop through layers above
-
-   ! computing flux reversal for iSoil   
-   else
-    iLayerFluxReversal(iSoil)   = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
-    dqRev_dStateAbove(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
-    dqRev_dStateBelow(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
-   endif
-
-   !write(*,'(a,1x,2(i4,1x),10(e20.10,1x))') 'iSoil, iDesire, dt, mLayerVolFracLiqTrial(iDesire), iLayerFluxReversal(iSoil) = ', &
-   !                                          iSoil, iDesire, dt, mLayerVolFracLiqTrial(iDesire), iLayerFluxReversal(iSoil)
-
-  end do  ! (looping through soil layers)
-  !print*, 'checking flow reversal derivatives -- press any key to continue'; read(*,*)
- 
-  ! add fluxes to surface runoff
-  if(iLayerFluxReversal(0) < 0._dp) scalarSurfaceRunoff = scalarSurfaceRunoff - iLayerFluxReversal(0)
-  !write(*,'(a,1x,2(f20.10,1x))') 'scalarSurfaceRunoff, iLayerFluxReversal(0) = ', scalarSurfaceRunoff*3600._dp*1000._dp, iLayerFluxReversal(0)*3600._dp*1000._dp
-
+!  ! *************************************************************************************************************************
+!  ! *************************************************************************************************************************
+!  ! *************************************************************************************************************************
+!  ! *************************************************************************************************************************
+!  ! ***** HANDLE SPECIAL CASE WHERE LIQUID WATER FILLS PARTIALLY FROZEN LAYER BEYOND AVAILABLE POROSITY *********************
+!  ! *************************************************************************************************************************
+!  ! *************************************************************************************************************************
+!  ! *************************************************************************************************************************
+!  ! *************************************************************************************************************************
+!
+!  ! check that flow from the bottom of the profile is positive
+!  !if(iLayerLiqFluxSoil(nLevels) < 0._dp)then
+!  ! message=trim(message)//'before iqReversal: expect flow from the bottom of the soil profile to be positive'
+!  ! err=20; return
+!  !endif
+!
+!  ! initialize the flow reversal fluxes
+!  iLayerFluxReversal(0:nLevels) = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
+!  dqRev_dStateAbove(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
+!  dqRev_dStateBelow(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
+!
+!  ! loop through soil layers
+!  do iSoil=0,nLevels-1  ! don't consider flow from the bottom of the soil profile
+!
+!   ! identify cases where flow to the layer above
+!   if(iLayerLiqFluxSoil(iSoil) <= 0._dp)then
+!    ! handle special of negative flux at upper boundary (evap > precip)
+!    if(iSoil==0)then
+!     iLayerFluxReversal(iSoil)   = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
+!     dqRev_dStateAbove(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
+!     dqRev_dStateBelow(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
+!     cycle
+!    ! all other cases
+!    else
+!     iDesire = iSoil
+!    endif
+!
+!   ! identify cases where flow to the layer below
+!   else
+!    iDesire = iSoil+1
+!   endif
+!   !print*, '*****'
+!   !write(*,'(a,1x,2(i4,1x))') 'iqReversal flux: iSoil, iDesire = ', iSoil, iDesire
+!
+!   ! check desired layer is within range
+!   if(iDesire < 1 .or. iDesire > nLevels)then
+!    message=trim(message)//'before iqReversal: invalid layer index'
+!    err=20; return
+!   endif
+!
+!   ! compute net flow into the layer (m s-1)
+!   qFluxNet = iLayerLiqFluxSoil(iDesire-1) + iLayerFluxReversal(iDesire-1) - iLayerLiqFluxSoil(iDesire) - mLayerBaseflow(iDesire)
+!
+!   ! compute available capacity of the layer (m)
+!   availCapacity = (theta_sat - mLayerVolFracLiqTrial(iDesire) - mLayerVolFracIceTrial(iDesire))*mLayerDepth(iDesire)
+!
+!   ! check if we need to compute flux reversals
+!   if((mLayerVolFracIce(iDesire) > epsilon(dt) .or. ixRichards==moisture) .and. &   ! (if no ice, can be handled with the mixed form of Richards' equation)
+!       qFluxNet > 0._dp)then                                                        ! (only consider cases where net flux is positive)
+!
+!    ! define layers that need checking
+!    if(iDesire==iSoil+1)then; ixCheck=1         ! positive net flux into the layer below: if reversed may affect mass balance in the layer above
+!    else;                     ixCheck=iDesire   ! positive net flux into the layer above
+!    endif
+!
+!    ! need to re-check all layers above
+!    do jDesire=iDesire,ixCheck,-1
+!
+!     !print*, '**'
+!
+!     ! check layers above
+!     if(jDesire /= iDesire)then
+!      ! (compute net flow into the layer, not counting reversal flux for layer jDesire-1 [jDesire-1 = jsoil])
+!      qFluxNet = iLayerLiqFluxSoil(jDesire-1) - (iLayerLiqFluxSoil(jDesire) + iLayerFluxReversal(jDesire)) - mLayerBaseflow(jDesire)
+!      ! (check if need to process the layer)
+!      if((mLayerVolFracIce(jDesire) < epsilon(dt) .and. ixRichards==mixdform) .or. &   ! (if no ice, can be handled with the mixed form of Richards' equation)
+!       qFluxNet < 0._dp) exit                                                          ! (only consider cases where net flux is positive)
+!      !write(*,'(a,1x,10(e20.10,1x))') 'qFluxNet, iLayerLiqFluxSoil(jDesire-1), (iLayerLiqFluxSoil(jDesire) + iLayerFluxReversal(jDesire)), mLayerBaseflow(jDesire) = ', &
+!      !                                 qFluxNet, iLayerLiqFluxSoil(jDesire-1), (iLayerLiqFluxSoil(jDesire) + iLayerFluxReversal(jDesire)), mLayerBaseflow(jDesire)
+!     endif  ! if one of the layers above
+!
+!     ! define index of layer interface
+!     if(jDesire==iDesire)then
+!      jSoil=iSoil
+!     else
+!      jSoil=jDesire-1  ! modify the flux at the top of the layer
+!      if(iDesire /= iSoil+1)then; err=20; message=trim(message)//'expect to be modifying downward flux'; return; endif
+!     endif
+!     !write(*,'(a,1x,4(i4,1x),2(e20.10,1x))') 'iSoil, jSoil, iDesire, jDesire, iLayerLiqFluxSoil(jSoil), qFluxNet = ', &
+!     !                                         iSoil, jSoil, iDesire, jDesire, iLayerLiqFluxSoil(jSoil), qFluxNet
+!
+!     ! compute flow reversal fluxes at layer interfaces
+!     call iqReversal(&
+!                   ! input: model control
+!                   deriv_desired,                  & ! intent(in): flag determining if the derivative is desired
+!                   ixRichards,                     & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
+!                   ! input: soil parameters
+!                   vGn_alpha,                      & ! intent(in): van Genutchen "alpha" parameter (m-1)
+!                   vGn_n,                          & ! intent(in): van Genutchen "n" parameter (-)
+!                   VGn_m,                          & ! intent(in): van Genutchen "m" parameter (-)
+!                   theta_sat,                      & ! intent(in): soil porosity (-)
+!                   theta_res,                      & ! intent(in): soil residual volumetric water content (-)
+!                   ! input: state variable and diagnostic variables
+!                   mLayerMatricHeadTrial(jDesire), & ! intent(in): matric head in a given layer (m)
+!                   mLayerVolFracLiqTrial(jDesire), & ! intent(in): volumetric liquid water content (-)
+!                   mLayerVolFracIceTrial(jDesire), & ! intent(in): volumetric ice content in each layer (-)
+!                   ! input: liquid flux at the layer interface
+!                   iLayerLiqFluxSoil(jSoil),       & ! intent(in): liquid flux at layer interface (m s-1)
+!                   ! input: derivatives in liquid fluxes
+!                   dq_dStateAbove(jSoil),          & ! intent(in): derivatives in the liquid flux w.r.t. state variable in the layer above (m s-1 or s-1)
+!                   dq_dStateBelow(jSoil),          & ! intent(in): derivatives in the liquid flux w.r.t. state variable in the layer below (m s-1 or s-1)
+!                   ! input: derivative in the soil water characteristic w.r.t. psi
+!                   mLayerdTheta_dPsi(jDesire),     & ! intent(in): derivative in the soil water characteristic w.r.t. psi (m-1)
+!                   ! output: flow reversal fluxes
+!                   iLayerFluxReversal(jSoil),      & ! intent(out): liquid water flux due to impedance at the layer interface (m s-1)
+!                   ! output: derivative in flow reversal fluxes
+!                   dqRev_dStateAbove(jSoil),       & ! intent(in): derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
+!                   dqRev_dStateBelow(jSoil),       & ! intent(in): derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
+!                   ! output: error control
+!                   err,cmessage)                   ! intent(out): error control
+!     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+!   
+!    end do  ! jDesire: loop through layers above
+!
+!   ! computing flux reversal for iSoil   
+!   else
+!    iLayerFluxReversal(iSoil)   = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
+!    dqRev_dStateAbove(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
+!    dqRev_dStateBelow(iSoil)    = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
+!   endif
+!
+!   !write(*,'(a,1x,2(i4,1x),10(e20.10,1x))') 'iSoil, iDesire, dt, mLayerVolFracLiqTrial(iDesire), iLayerFluxReversal(iSoil) = ', &
+!   !                                          iSoil, iDesire, dt, mLayerVolFracLiqTrial(iDesire), iLayerFluxReversal(iSoil)
+!
+!  end do  ! (looping through soil layers)
+!  !print*, 'checking flow reversal derivatives -- press any key to continue'; read(*,*)
+! 
+!  ! add fluxes to surface runoff
+!  if(iLayerFluxReversal(0) < 0._dp) scalarSurfaceRunoff = scalarSurfaceRunoff - iLayerFluxReversal(0)
+!  !write(*,'(a,1x,2(f20.10,1x))') 'scalarSurfaceRunoff, iLayerFluxReversal(0) = ', scalarSurfaceRunoff*3600._dp*1000._dp, iLayerFluxReversal(0)*3600._dp*1000._dp
+!
  
   end subroutine computeFlux
 

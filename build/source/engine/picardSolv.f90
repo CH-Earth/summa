@@ -911,6 +911,7 @@ contains
  real(dp)                       :: volFrac_water               ! total volumetric fraction of water, liquid water plus ice (-) 
  real(dp),parameter             :: eps=1.e-10_dp               ! small increment used to define ice content at the freezing point
  real(dp)                       :: scalarSurfaceInfiltration   ! infiltration rate (m s-1)
+ logical(lgt),dimension(nSoil)  :: isSaturated                 ! flag to denote if a frozen soil layer is saturated
  ! define derivatives in canopy air space variables
  real(dp)                       :: dTempCanopyAir_dTCanopy     ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
  real(dp)                       :: dTempCanopyAir_dTGround     ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground
@@ -982,6 +983,10 @@ contains
  ! * initialize...
  ! ***************
 
+ ! define saturated layers
+ isSaturated(:) = .false.
+ where(mLayerVolFracLiq+mLayerVolFracIce > theta_sat-epsilon(dt)) isSaturated=.true.
+
  ! initialize stability correction (no stability correction)
  scalarCanopyStabilityCorrection = 1._dp          ! stability correction for the canopy (-)
  scalarGroundStabilityCorrection = 1._dp          ! stability correction for the ground surface (-)
@@ -1047,9 +1052,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  !print*, '***************************************************************'
-  !print*, '***** iter = ', iter, '*****'
-  !print*, '***************************************************************'
+  print*, '***************************************************************'
+  print*, '***** iter = ', iter, '*****'
+  print*, '***************************************************************'
   
 
   ! *****
@@ -1076,6 +1081,7 @@ contains
                   mLayerMatricHeadIter,           & ! intent(in): trial matric head of each snow/soil layer at the current iteration (m)
                   canopyTempIncrOld,              & ! intent(in): previous iteration increment in canopy temperature (K)
                   mLayerTempIncrOld,              & ! intent(in): previous iteration increment in temperature of the snow-soil vector (K)
+                  isSaturated,                    & ! intent(in): flag to denote if each soil layer is saturated
 
                   ! input/output variables from heatTransf subroutine: canopy air space variables
                   scalarVP_CanopyAir,             & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
@@ -1108,9 +1114,9 @@ contains
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow+10) = ', iter, mLayerVolFracIceIter(1:nSnow+10)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow+10)  = ', iter, mLayerVolFracIceNew(1:nSnow+10)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIncr(1:nSnow) = ', iter, mLayerVolFracIceNew(1:nSnow) - mLayerVolFracIceIter(1:nSnow)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow)       = ', iter, mLayerTempIncr(1:nSnow)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+2)       = ', iter, mLayerTempIter(1:nSnow+2)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+2)        = ', iter, mLayerTempNew(1:nSnow+2)
+  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow+5)       = ', iter, mLayerTempIncr(1:nSnow+5)
+  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+5)       = ', iter, mLayerTempIter(1:nSnow+5)
+  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+5)        = ', iter, mLayerTempNew(1:nSnow+5)
 
   !write(*,'(a)')  'in picardSolv: iter, airtemp, scalarCanairTempIter, scalarCanopyTempIter, mLayerTempIter(1), scalarVP_CanopyAir, scalarCanairTempIncr, scalarCanopyTempIncr, mLayerTempIncr(1) = '
   !write(*,'(i4,1x,10(f12.5,1x))') iter, airtemp, scalarCanairTempIter, scalarCanopyTempIter, mLayerTempIter(1), scalarVP_CanopyAir, scalarCanairTempIncr, scalarCanopyTempIncr, mLayerTempIncr(1)
@@ -1223,8 +1229,9 @@ contains
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
   mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
   mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
-  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadIter = ', mLayerMatricHeadIter
-  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadNew  = ', mLayerMatricHeadNew
+  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadIter = ', mLayerMatricHeadIter(1:5)
+  !write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadNew  = ', mLayerMatricHeadNew(1:5)
+  !pause
   !print*, 'after soilHydrol'
   !print*, 'mLayerVolFracLiq     = ', mLayerVolFracLiq
   !print*, 'mLayerVolFracLiqIter = ', mLayerVolFracLiqIter
@@ -1362,7 +1369,8 @@ contains
   ! option to compute phase change associated with infiltrating liquid water
   if(freeze_infiltrate)then
    ! compute phase change associated with infiltrating liquid water
-   call phsechange(mLayerTempNew,        & ! intent(in): new temperature vector (K)
+   call phsechange(isSaturated,          & ! intent(in): flags to denote saturation
+                   mLayerTempNew,        & ! intent(in): new temperature vector (K)
                    mLayerMatricHeadIter, & ! intent(in): matric head at the current iteration (m)
                    mLayerVolFracLiqIter, & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
                    mLayerVolFracIceIter, & ! intent(in): volumetric fraction of ice at the current iteration (-)
@@ -1499,8 +1507,8 @@ contains
   !read(*,*)   ! same as a pause statement
 
  end do  ! (iterating)
- !print*, 'after iterations: mLayerVolFracIceNew(1) = ', mLayerVolFracIceNew(1)
- !pause 'after iterations'
+ print*, 'after iterations: mLayerVolFracIceNew(1) = ', mLayerVolFracIceNew(1)
+ pause 'after iterations'
 
 
  ! *****************************************************************************************************************************************
