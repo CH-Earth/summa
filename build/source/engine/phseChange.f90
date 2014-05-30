@@ -61,6 +61,7 @@ contains
  real(dp)                      :: fLiq                     ! fraction of liquid water (-)
  real(dp)                      :: dLiq                     ! change in volumetric liiquid water over the iteration (-)
  real(dp)                      :: theta                    ! liquid water equivalent of total water (-)
+ real(dp)                      :: vTheta                   ! fractional volume of total water (-)
  real(dp)                      :: xPsi00                   ! matric head when all water is unfrozen (m)
  real(dp)                      :: TcSoil                   ! critical soil temperature when all water is unfrozen (K)
  integer(i4b)                  :: nSnow                    ! number of snow layers
@@ -115,54 +116,32 @@ contains
 
    ! ** soil
    case(ix_soil)
-    ! compute liquid water equivalent of total water (liquid plus ice)
-    if(isSaturated(iLayer))then  ! saturated
-     theta = mLayerVolFracIceIter(iLayer) + mLayerVolFracLiqIter(iLayer)  ! don't allow volume expansion
-    else
-     theta = mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqIter(iLayer)
-    endif
+    ! compute fractional **volume** of total water (liquid plus ice)
+    vTheta = mLayerVolFracLiqIter(iLayer) + mLayerVolFracIceIter(iLayer)
+    if(vTheta > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porisity'; return; endif
     ! compute the matric potential corresponding to the total liquid water and ice (m)
-    xPsi00 = matricHead(theta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    xPsi00 = matricHead(vTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     ! compute the critical soil temperature where all water is unfrozen (K)
     TcSoil = Tfreeze + xPsi00*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
     ! check if soil temperature is less than the critical temperature
     if(mLayerTempNew(iLayer) < TcSoil)then
-     ! (compute the matric head and volumetric liquid water content)
-     mLayerMatricHeadNew(iLayer-nSnow) = xPsi00 + (LH_fus/(gravity*TcSoil))*(mLayerTempNew(iLayer) - TcSoil)
-     mLayerVolFracLiqNew(iLayer)       = volFracLiq(mLayerMatricHeadNew(iLayer-nSnow),&
+     ! (update state variables)
+     mLayerMatricHeadNew(iLayer-nSnow) = xPsi00
+     mLayerVolFracLiqNew(iLayer)       = volFracLiq(xPsi00 + (LH_fus/(gravity*TcSoil))*(mLayerTempNew(iLayer) - TcSoil), &
                                                     vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     write(*,'(a,1x,3(f20.10,1x))') 'in phase change: theta, xPsi00, TcSoil = ', theta, xPsi00, TcSoil
-     if(mLayerVolFracLiqNew(iLayer) > theta)then
-      message=trim(message)//'volumetric liquid water content exceeds total water'
-      err=20; return
-     endif
-     ! (...and compute volumetric ice content from volume considerations)
-     !      --> check saturation
-     if(isSaturated(iLayer))then  ! saturated
-      mLayerVolFracIceNew(iLayer) = theta - mLayerVolFracLiqNew(iLayer)  ! don't allow a change in volume
-     else
-      mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)  ! allow for change in volume from phase change
-     endif
-     write(*,'(a,1x,3(f20.10,1x))') 'in phase change: theta, mLayerTempNew(iLayer), mLayerVolFracIceNew(iLayer) = ', &
-                                                      theta, mLayerTempNew(iLayer), mLayerVolFracIceNew(iLayer)
-     !write(*,'(a,1x,i4,1x,10(e20.10,1x))') 'in phase change: iLayer, theta, mLayerMatricHeadNew(iLayer-nSnow), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer) = ', &
-     !                                                        iLayer, theta, mLayerMatricHeadNew(iLayer-nSnow), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer)
+     mLayerVolFracIceNew(iLayer)       = vTheta - mLayerVolFracLiqNew(iLayer)
+    ! soil temperature is greater than the critical temperature
     else
-     ! update matric head when all water is **unfrozen** -- if matric head > 0 at iter=m then no change in matric head
+     ! (update state variables based on the liquid water equivalent of total water at the last iteration)
+     mLayerVolFracIceNew(iLayer)       = 0._dp  ! (temperature greater than critical temperature, so no ice)
+     mLayerVolFracLiqNew(iLayer)       = mLayerVolFracLiqIter(iLayer) + mLayerVolFracIceIter(iLayer)!*(iden_ice/iden_water)
+     ! check if there is ice at the start of the iterations
      if(mLayerVolFracIce(iLayer) < tiny(theta))then ! no ice at the start of the iterations
-      mLayerMatricHeadNew(iLayer-nSnow) = mLayerMatricHeadIter(iLayer-nSnow)
+      mLayerMatricHeadNew(iLayer-nSnow) = mLayerMatricHeadIter(iLayer-nSnow)  ! (copy across state variables)
      else
-      ! some water is frozen at the start of the iteration
-      if(theta < epsilon(theta))then; err=20; message=trim(message)//'zero volumetric water content'; return; endif      
-      mLayerMatricHeadNew(iLayer-nSnow) = matricHead(min(theta,theta_sat),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     endif
-     ! update liquid water and ice content
-     mLayerVolFracLiqNew(iLayer) = theta
-     mLayerVolFracIceNew(iLayer) = 0._dp
-     !mLayerVolFracLiqNew(iLayer) = volFracLiq(mLayerMatricHeadNew(iLayer-nSnow),&
-     !                                               vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     !mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
-    endif
+      mLayerMatricHeadNew(iLayer-nSnow) = matricHead(mLayerVolFracLiqNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     endif  ! (ice at the start of the iterations)
+    endif  ! (soil temperature less than critical temperature)
 
    ! ** check errors
    case default; err=10; message=trim(message)//'unknown case for model layer'; return

@@ -64,9 +64,9 @@ contains
  integer(i4b)                         :: nsub                   ! number of sub-steps
  integer(i4b)                         :: niter                  ! number of iterations
  integer(i4b),parameter               :: n_inc=5                ! minimum number of iterations to increase time step
- integer(i4b),parameter               :: n_dec=12               ! maximum number of iterations to decrease time step
- real(dp),parameter                   :: F_inc = 1.10_dp        ! factor used to increase time step
- real(dp),parameter                   :: F_dec = 0.50_dp        ! factor used to decrease time step
+ integer(i4b),parameter               :: n_dec=20               ! maximum number of iterations to decrease time step
+ real(dp),parameter                   :: F_inc = 1.25_dp        ! factor used to increase time step
+ real(dp),parameter                   :: F_dec = 0.90_dp        ! factor used to decrease time step
  integer(i4b)                         :: maxiter                ! maxiumum number of iterations
  integer(i4b)                         :: iSnow                  ! index for snow layers
  ! local pointers to model forcing data
@@ -211,7 +211,7 @@ contains
  end select
 
  ! initialize the length of the sub-step
- dt_sub  = min(dt_init,dt)
+ dt_sub  = min(dt_init,min(dt,maxstep))
  dt_done = 0._dp
 
  ! initialize the number of sub-steps
@@ -428,13 +428,14 @@ contains
    ! if not ok, reduce time step and try again
    dt_sub = dt_sub*0.1_dp
    print*, dt_sub, minstep, trim(message)//trim(cmessage)
+   pause
    !if(dt_sub < 10._dp)then
    ! pause ' dt_sub < 10'
    ! err=20; return
    !endif
    ! check that the step size is still appropriate -- if not, use non-iterative solution
    if(dt_sub < minstep)then
-    !if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
+    if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
     dt_sub  = minstep
     ! just iterate once
     call picardSolv(dt_sub,1,(nsub==1),computeVegFlux,     &  ! input
@@ -516,8 +517,9 @@ contains
   !print*, '***** ', dt_done, dt_sub, niter
 
   ! modify the length of the time step
-  if(niter<n_inc) dt_sub = dt_sub*F_inc
-  if(niter>n_dec) dt_sub = dt_sub*F_dec
+  if(niter<n_inc) dt_sub = min(dt_sub*F_inc,maxstep)
+  if(niter>n_dec) dt_sub =     dt_sub*F_dec
+  if(dt_sub < minstep)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
 
   ! save the time step to initialize the subsequent step
   if(dt_done<dt .or. nsub==1) dt_init = dt_sub
@@ -560,7 +562,7 @@ contains
  !write(*,'(a)') '==========================================================================================================================='
 
  
- if(mLayerVolFracIce(iLayer) > 0.5_dp) pause 'ice content in top soil layer is huge...'
+ !if(mLayerVolFracIce(iLayer) > 0.5_dp) pause 'ice content in top soil layer is huge...'
  
  end subroutine coupled_em
 

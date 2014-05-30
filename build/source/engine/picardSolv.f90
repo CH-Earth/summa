@@ -1052,9 +1052,9 @@ contains
  ! **********************************************************************************************************************
  do iter=1,maxiter
 
-  print*, '***************************************************************'
-  print*, '***** iter = ', iter, '*****'
-  print*, '***************************************************************'
+  !print*, '***************************************************************'
+  !print*, '***** iter = ', iter, '*****'
+  !print*, '***************************************************************'
   
 
   ! *****
@@ -1109,14 +1109,14 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! test
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqIter(1:nSnow+10) = ', iter, mLayerVolFracLiqIter(1:nSnow+10)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqNew(1:nSnow+10)  = ', iter, mLayerVolFracLiqNew(1:nSnow+10)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow+10) = ', iter, mLayerVolFracIceIter(1:nSnow+10)
-  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow+10)  = ', iter, mLayerVolFracIceNew(1:nSnow+10)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqIter(1:nSnow+10) = ', iter, mLayerVolFracLiqIter(1:nSnow+5)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracLiqNew(1:nSnow+10)  = ', iter, mLayerVolFracLiqNew(1:nSnow+5)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIter(1:nSnow+10) = ', iter, mLayerVolFracIceIter(1:nSnow+5)
+  !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceNew(1:nSnow+10)  = ', iter, mLayerVolFracIceNew(1:nSnow+5)
   !write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerVolFracIceIncr(1:nSnow) = ', iter, mLayerVolFracIceNew(1:nSnow) - mLayerVolFracIceIter(1:nSnow)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow+5)       = ', iter, mLayerTempIncr(1:nSnow+5)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+5)       = ', iter, mLayerTempIter(1:nSnow+5)
-  write(*,'(a,1x,i4,1x,10(f12.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+5)        = ', iter, mLayerTempNew(1:nSnow+5)
+  !write(*,'(a,1x,i4,1x,10(f15.8,1x))') 'in picardSolv: iter, mLayerTempIncr(1:nSnow+5)       = ', iter, mLayerTempIncr(1:nSnow+5)
+  !write(*,'(a,1x,i4,1x,10(f15.8,1x))') 'in picardSolv: iter, mLayerTempIter(1:nSnow+5)       = ', iter, mLayerTempIter(1:nSnow+5)
+  !write(*,'(a,1x,i4,1x,10(f15.8,1x))') 'in picardSolv: iter, mLayerTempNew(1:nSnow+5)        = ', iter, mLayerTempNew(1:nSnow+5)
 
   !write(*,'(a)')  'in picardSolv: iter, airtemp, scalarCanairTempIter, scalarCanopyTempIter, mLayerTempIter(1), scalarVP_CanopyAir, scalarCanairTempIncr, scalarCanopyTempIncr, mLayerTempIncr(1) = '
   !write(*,'(i4,1x,10(f12.5,1x))') iter, airtemp, scalarCanairTempIter, scalarCanopyTempIter, mLayerTempIter(1), scalarVP_CanopyAir, scalarCanairTempIncr, scalarCanopyTempIncr, mLayerTempIncr(1)
@@ -1466,7 +1466,7 @@ contains
   matric_max = maxval(abs(mLayerMatIncr) - (absConvTol_matric + abs(relConvTol_matric*mLayerMatricHeadNew) )  )
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
-  !print*, 'mLayerMatIncr = ', mLayerMatIncr
+  !print*, 'mLayerMatIncr(1:5) = ', mLayerMatIncr(1:5)
   !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
@@ -1478,7 +1478,7 @@ contains
   !if(computeVegFlux) pause 'canopy is exposed'
 
   ! test
-  !write(*,'(a25,1x,i4,1x,10(e20.3,1x))') 'temperature increment = ', energy_pos, scalarCanopyTempIncr, mLayerTempIncr(minLayer:maxLayer)
+  !write(*,'(a25,1x,2(i4,1x),10(e20.3,1x))') 'temperature increment = ', iter, energy_pos, scalarCanopyTempIncr, mLayerTempIncr(minLayer:maxLayer)
   !write(*,'(a25,1x,i4,1x,10(f20.7,1x))') 'energy increment = ', energy_pos, canopyNrgIncr, mLayerNrgIncr(nSnow+1)
   !pause
 
@@ -1507,8 +1507,8 @@ contains
   !read(*,*)   ! same as a pause statement
 
  end do  ! (iterating)
- print*, 'after iterations: mLayerVolFracIceNew(1) = ', mLayerVolFracIceNew(1)
- pause 'after iterations'
+ !print*, 'after iterations: mLayerVolFracIceNew(1) = ', mLayerVolFracIceNew(1)
+ !pause 'after iterations'
 
 
  ! *****************************************************************************************************************************************
@@ -1524,7 +1524,17 @@ contains
  ! =================================================================================================================================================
 
  ! 
+ !write(*,'(a,1x,f20.10,1x,i5))') 'dt, niter = ', dt, niter
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanairTempNew      = ', scalarCanairTempNew
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyTempNew      = ', scalarCanopyTempNew
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyIceNew       = ', scalarCanopyIceNew
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyLiqNew       = ', scalarCanopyLiqNew
+ !write(*,'(a,1x,10(f16.10,1x))') 'mLayerTempNew(1:10)       = ', mLayerTempNew(1:10)
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracIceNew(1:3) = ', mLayerVolFracIceNew(1:3)
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracLiqNew(1:3) = ', mLayerVolFracLiqNew(1:3)
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadNew(1:3) = ', mLayerMatricHeadNew(1:3)
 
+ write(*,'(a,1x,i4,1x,20(f11.5,1x))') 'niter, dt, mLayerTempNew(1:10)       = ', niter, dt, mLayerTempNew(1:10)
 
  ! *****
  ! * basic checks.....
@@ -1728,7 +1738,8 @@ contains
 
  ! compute total soil moisture and ice at the *START* of the step (kg m-2)
  scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
- scalarTotalSoilIce = sum(iden_ice  *mLayerVolFracIce(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
+ scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
+ !scalarTotalSoilIce = sum(iden_ice  *mLayerVolFracIce(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
 
  ! get the total water in the soil (liquid plus ice) at the start of the time step (kg m-2)
  balanceSoilWater0 = scalarTotalSoilLiq + scalarTotalSoilIce
@@ -1738,7 +1749,8 @@ contains
 
  ! compute total soil moisture and ice at the *END* of the step (kg m-2)
  scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiqNew(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
- scalarTotalSoilIce = sum(iden_ice  *mLayerVolFracIceNew(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
+ scalarTotalSoilIce = sum(iden_water*mLayerVolFracIceNew(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
+ !scalarTotalSoilIce = sum(iden_ice  *mLayerVolFracIceNew(nSnow+1:nLayers)*mLayerDepth(nSnow+1:nLayers))
 
  ! get the total water in the soil (liquid plus ice) at the end of the time step (kg m-2)
  balanceSoilWater1 = scalarTotalSoilLiq + scalarTotalSoilIce
@@ -1770,9 +1782,10 @@ contains
   write(*,'(a)') 'water balance of each layer'
   write(*,'(a)') 'Liq0 (-), Liq1 (-), Ice0 (-), Ice1 (-), totalChange (-), phaseChange (-), flux_Change, evap_Change, qbaseChange, stor_Change',&
                  'phaseChange+flux_Change+evap_Change-qbaseChange-stor_change, totalChange - (phaseChange+flux_Change+evap_Change-qbaseChange-stor_change)'
-  do iLayer=1,nSoil
+  do iLayer=1,min(10,nSoil)
    totalChange = mLayerVolFracLiqNew(iLayer+nSnow) - mLayerVolFracLiq(iLayer+nSnow) ! total change in volumetric liquid water content
-   phaseChange = -(iden_ice/iden_water)*(mLayerVolFracIceNew(iLayer+nSnow) - mLayerVolFracIce(iLayer+nSnow))  ! change in liquid water content associated with freezing
+   !phaseChange = -(iden_ice/iden_water)*(mLayerVolFracIceNew(iLayer+nSnow) - mLayerVolFracIce(iLayer+nSnow))  ! change in liquid water content associated with freezing
+   phaseChange = -(mLayerVolFracIceNew(iLayer+nSnow) - mLayerVolFracIce(iLayer+nSnow))  ! change in liquid water content associated with freezing (NOTE: no volume expansion)
    evap_Change = dt*mLayerTranspire(iLayer)/mLayerDepth(iLayer)
    qbaseChange = dt*mLayerBaseflow(iLayer)/mLayerDepth(iLayer)
    flux_Change = dt*(iLayerLiqFluxSoil(iLayer-1)  - iLayerLiqFluxSoil(iLayer))/mLayerDepth(iLayer) + & ! change in volumetric liquid water content from the interface fluxes
@@ -1796,6 +1809,7 @@ contains
   if(abs(scalarSoilWatBalError) > 1.d-3)then
    write(message,'(a,e20.10,a)')trim(message)//"abs(scalarSoilWatBalError) > 1.d-3 [error = ",&
                                 scalarSoilWatBalError," ]"
+   pause 'water balance error'
    err=-10; return
   endif
  endif

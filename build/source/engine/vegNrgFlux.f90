@@ -1891,7 +1891,7 @@ contains
  real(dp)                      :: TCan                     ! value of canopy temperature used in flux calculations (may be perturbed)
  real(dp)                      :: TGnd                     ! value of ground temperature used in flux calculations (may be perturbed)
  real(dp)                      :: fluxBalance              ! check energy closure (W m-2)
- real(dp),parameter            :: fluxTolerance=1.e-12_dp  ! tolerance for energy closure (W m-2)
+ real(dp),parameter            :: fluxTolerance=1.e-10_dp  ! tolerance for energy closure (W m-2)
  real(dp)                      :: dLWRadCanopy_dTCanopy    ! derivative in emitted radiation at the canopy w.r.t. canopy temperature
  real(dp)                      :: dLWRadGround_dTGround    ! derivative in emitted radiation at the ground w.r.t. ground temperature
  real(dp)                      :: LWNetCanopy_dStateCanopy ! net lw canopy flux after perturbation in canopy temperature
@@ -1980,6 +1980,7 @@ contains
   if(abs(fluxBalance) > fluxTolerance)then
    print*, 'fluxBalance = ', fluxBalance
    print*, 'emg, emc = ', emg, emc
+   print*, 'TCan, TGnd = ', TCan, TGnd
    print*, 'LWRadUbound = ', LWRadUbound
    print*, 'LWRadCanopy = ', LWRadCanopy
    print*, 'LWRadGround = ', LWRadGround

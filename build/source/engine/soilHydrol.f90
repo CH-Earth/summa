@@ -556,6 +556,7 @@ contains
  integer(i4b)                     :: iLayer                   ! layer index
  logical(lgt)                     :: calcJacobian             ! flag to compute the Jacobian matrix
  real(dp),parameter               :: maxDepthPond=1._dp       ! max depth of ponding allowed on the soil surface
+ real(dp)                         :: vTheta                   ! volumetric fraction of total water (liquid and ice)
  real(dp)                         :: availPorosity            ! pore space available to fill
  real(dp)                         :: availLiqWater            ! liquid water available to drain (negative) 
  real(dp)                         :: aquiferStorageTest       ! trial value for aquifer storage (m)
@@ -1015,7 +1016,7 @@ contains
 
  ! *****
  ! implement the line search
- !if(iter > 10)then
+ if(iter > 100)then
   ! compute the gradient of the function vector (m-1)
   do iLayer=1,nState
    if(iLayer==1)then;          g(iLayer) =                                 diag(iLayer)*rvec(iLayer) + d_p1(iLayer)*rvec(iLayer+1)
@@ -1024,9 +1025,9 @@ contains
    endif
   end do
   ! compute the function value (-)
-  !fold = 0.5_dp*dot_product(rVec,rVec)
-  fmax = maxval(abs(rVec))
-  fold = fmax(1) 
+  fold = 0.5_dp*dot_product(rVec,rVec)
+  !fmax = maxval(abs(rVec))
+  !fold = fmax(1) 
   ! compute maximum step size (K)
   stpmax=STPMX*real(nSoil,dp)
   ! assemble state vector
@@ -1038,7 +1039,7 @@ contains
    err=20; message=trim(message)//'unknown number of state variables'; return
   endif
   ! compute line search
-  if(abs(maxval(sInc)) > tiny(fold))then 
+  if(maxval(abs(sInc)) > tiny(fold))then 
    call lnsrch(stateVector,             & ! intent(in): state vector at the current iteration (m)
                stpmax,                  & ! intent(in): maximum step size (m)
                fold,                    & ! intent(in): function value for trial state vector (mixed units)
@@ -1066,7 +1067,7 @@ contains
   endif
   ! re-compute the iteration increment
   sInc = stateVectorNew - stateVector
- !endif
+ endif
 
  ! *****
  ! extract the iteration increments for the soil layers
@@ -1078,6 +1079,9 @@ contains
 
  ! save the residual vector for the soil layers
  mLayerResidual(1:nLevels) = rVec(1:nLevels)
+
+ !print*, 'mLayerResidual(1:nLevels) = ', mLayerResidual(1:nLevels)
+ !print*, 'sInc(1:nLevels) = ', sInc(1:nLevels)
 
  ! *****
  ! extract iteration increment for the aquifer
@@ -1155,9 +1159,14 @@ contains
 
     ! (update the state variables)
     if(iLayer > 0)then
+     ! update matric head
      mLayerMatricHeadNew(iLayer) = mLayerMatricHeadIter(iLayer) + mLayerMatricHeadDiff(iLayer)
-     mLayerVolFracLiqNew(iLayer) = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     if(mLayerVolFracLiqNew(iLayer) < epsilon(mLayerVolFracLiqNew))then; err=20; message=trim(message)//'very dry soil'; return; endif
+     ! compute total volumetric fraction of water -- assume psi applies to the total volume
+     vTheta = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     ! update volumetric fraction of liquid water
+     mLayerVolFracLiqNew(iLayer) = vTheta - mLayerVolFracIceIter(iLayer)
+     ! check 
+     if(mLayerVolFracLiqNew(iLayer) < epsilon(vTheta))then; err=20; message=trim(message)//'very dry soil'; return; endif
     endif
 
    ! ***** unknown form of Richards' equation
@@ -1932,10 +1941,10 @@ contains
 !  ! err=20; return
 !  !endif
 !
-!  ! initialize the flow reversal fluxes
-!  iLayerFluxReversal(0:nLevels) = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
-!  dqRev_dStateAbove(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
-!  dqRev_dStateBelow(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
+  ! initialize the flow reversal fluxes
+  iLayerFluxReversal(0:nLevels) = 0._dp  ! liquid water flux due to impedance at the layer interface (m s-1)
+  dqRev_dStateAbove(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer above (m s-1 or s-1)
+  dqRev_dStateBelow(0:nLevels)  = 0._dp  ! derivatives in the reversal flux w.r.t. state variable in the layer below (m s-1 or s-1)
 !
 !  ! loop through soil layers
 !  do iSoil=0,nLevels-1  ! don't consider flow from the bottom of the soil profile
@@ -2057,6 +2066,7 @@ contains
 !  if(iLayerFluxReversal(0) < 0._dp) scalarSurfaceRunoff = scalarSurfaceRunoff - iLayerFluxReversal(0)
 !  !write(*,'(a,1x,2(f20.10,1x))') 'scalarSurfaceRunoff, iLayerFluxReversal(0) = ', scalarSurfaceRunoff*3600._dp*1000._dp, iLayerFluxReversal(0)*3600._dp*1000._dp
 !
+   
  
   end subroutine computeFlux
 
@@ -2266,10 +2276,12 @@ contains
                     ! output: error control
                     err,cmessage)                    ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   !print*, 'mLayerMatricHeadTemp = ', mLayerMatricHeadTemp
+   !print*, 'xTempResVec = ', xTempResVec
    ! compute the function evaluation
-   !f=0.5_dp*dot_product(xTempResVec,xTempResVec)
-   fmax = maxval(abs(xTempResVec))
-   f    = fmax(1)
+   f=0.5_dp*dot_product(xTempResVec,xTempResVec)
+   !fmax = maxval(abs(xTempResVec))
+   !f    = fmax(1)
    !if(dt < 0.001_dp)then
    ! print*, 'in lnsrch: alam, f = ', alam, f
   !  write(*,'(a,1x,10(e20.10,1x))') 'in lnsrch: mLayerMatricHeadTemp = ', mLayerMatricHeadTemp
@@ -2399,6 +2411,9 @@ contains
                    ! output: error control
                    err,cmessage)               ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  !print*, 'in cmpResidual: mLayerTranspire = ', mLayerTranspire
+  !pause
 
   ! *****
   ! compute the residual vector for the soil column (-)

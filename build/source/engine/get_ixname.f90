@@ -210,7 +210,8 @@ contains
   case('albedoRefresh'            ); get_ixparam = iLookPARAM%albedoRefresh          ! critical mass necessary for albedo refreshment (kg m-2)
   ! radiation transfer
   case('radExt_snow'              ); get_ixparam = iLookPARAM%radExt_snow            ! extinction coefficient for radiation penetration within the snowpack (m-1)
-  case('Frad_direct'              ); get_ixparam = iLookPARAM%Frad_direct            ! fraction of direct radiation (-)
+  case('directScale'              ); get_ixparam = iLookPARAM%directScale            ! scaling factor for fractional driect radiaion parameterization (-) 
+  case('Frad_direct'              ); get_ixparam = iLookPARAM%Frad_direct            ! maximum fraction of direct radiation (-)
   case('Frad_vis'                 ); get_ixparam = iLookPARAM%Frad_vis               ! fraction of radiation in the visible part of the spectrum (-)
   ! new snow density
   case('newSnowDenMin'            ); get_ixparam = iLookPARAM%newSnowDenMin          ! minimum new snow density (kg m-3)
@@ -356,6 +357,7 @@ contains
   case('averageColumnOutflow'           ); get_ixmvar = iLookMVAR%averageColumnOutflow             ! outflow from each layer in the soil profile (m3 s-1) 
   ! scalar variables -- forcing
   case('scalarCosZenith'                ); get_ixmvar = iLookMVAR%scalarCosZenith                  ! cosine of the solar zenith angle (0-1)
+  case('scalarFractionDirect'           ); get_ixmvar = iLookMVAR%scalarFractionDirect             ! fraction of direct radiation (0-1)
   case('spectralIncomingDirect'         ); get_ixmvar = iLookMVAR%spectralIncomingDirect           ! incoming direct solar radiation in each wave band (W m-2)
   case('spectralIncomingDiffuse'        ); get_ixmvar = iLookMVAR%spectralIncomingDiffuse          ! incoming diffuse solar radiation in each wave band (W m-2)
   case('scalarVPair'                    ); get_ixmvar = iLookMVAR%scalarVPair                      ! vapor pressure of the air above the vegetation canopy (Pa)

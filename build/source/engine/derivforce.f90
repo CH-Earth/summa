@@ -38,7 +38,8 @@ contains
  real(dp),pointer              :: cosZenith                  ! average cosine of the zenith angle over time step DT
  ! local pointers to model parameters
  real(dp),pointer              :: Frad_vis                   ! fraction radiation absorbed in visible part of spectrum (-)
- real(dp),pointer              :: Frad_direct                ! fraction direct radiation (-)
+ real(dp),pointer              :: directScale                ! scaling factor for fractional driect radiaion parameterization (-)
+ real(dp),pointer              :: Frad_direct                ! maximum fraction direct radiation (-)
  real(dp),pointer              :: minwind                    ! minimum windspeed (m s-1)
  real(dp),pointer              :: fc_param                   ! freezing curve parameter for snow (K-1)
  real(dp),pointer              :: tempCritRain               ! critical temperature where precipitation is rain (K)
@@ -58,6 +59,7 @@ contains
  real(dp),pointer              :: scalarO2air                ! atmospheric o2 concentration (Pa)
  real(dp),pointer              :: scalarCO2air               ! atmospheric co2 concentration (Pa)
  ! local pointers to model variables
+ real(dp),pointer              :: scalarFractionDirect       ! fraction of direct radiation (0-1)
  real(dp),pointer              :: spectralIncomingDirect(:)  ! downwelling direct shortwave radiation in each wave band (W m-2)
  real(dp),pointer              :: spectralIncomingDiffuse(:) ! downwelling diffuse shortwave radiation in each wave band (W m-2)
  real(dp),pointer              :: VPair                      ! vapor pressure of the air above the vegetation canopy (Pa)
@@ -80,7 +82,8 @@ contains
  err=0; message="f-derivforce/"
  ! assign pointers to model parameters
  Frad_vis           => mpar_data%var(iLookPARAM%Frad_vis)           ! fraction radiation absorbed in visible part of spectrum (-)
- Frad_direct        => mpar_data%var(iLookPARAM%Frad_direct)        ! fraction direct radiation (-)
+ directScale        => mpar_data%var(iLookPARAM%directScale)        ! scaling factor for fractional driect radiaion parameterization (-)
+ Frad_direct        => mpar_data%var(iLookPARAM%Frad_direct)        ! maximum fraction direct radiation (-)
  minwind            => mpar_data%var(iLookPARAM%minwind)            ! minimum windspeed (m s-1)
  fc_param           => mpar_data%var(iLookPARAM%snowfrz_scale)      ! freezing curve parameter for snow (K-1)
  tempCritRain       => mpar_data%var(iLookPARAM%tempCritRain)       ! critical temperature where precipitation is rain (K)
@@ -107,6 +110,7 @@ contains
  scalarO2air  => mvar_data%var(iLookMVAR%scalarO2air)%dat(1)        ! atmospheric o2 concentration (Pa)
  scalarCO2air => mvar_data%var(iLookMVAR%scalarCO2air)%dat(1)       ! atmospheric co2 concentration (Pa)
  ! assign pointers to radiation variables
+ scalarFractionDirect    => mvar_data%var(iLookMVAR%scalarFractionDirect)%dat(1)    ! fraction of direct radiation (0-1)
  spectralIncomingDirect  => mvar_data%var(iLookMVAR%spectralIncomingDirect)%dat     ! downwelling direct shortwave radiation for each waveband (W m-2)
  spectralIncomingDiffuse => mvar_data%var(iLookMVAR%spectralIncomingDiffuse)%dat    ! downwelling diffuse shortwave radiation for each waveband (W m-2)
  if(size(spectralIncomingDirect) /= 2 .or. size(spectralIncomingDiffuse) /= 2)then
@@ -138,12 +142,18 @@ contains
  endif
  ! ensure solar radiation is zero between sunset and sunrise
  if(cosZenith <= 0._dp) SWRadAtm = 0._dp
+ ! compute the fraction of direct radiation using the parameterization of Nijssen and Lettenmaier (1999)
+ if(cosZenith > 0._dp)then
+  scalarFractionDirect = Frad_direct*cosZenith/(cosZenith + directScale)
+ else
+  scalarFractionDirect = 0._dp
+ endif
  ! compute direct shortwave radiation, in the visible and near-infra-red part of the spectrum
- spectralIncomingDirect(1) = SWRadAtm*Frad_direct*Frad_vis                         ! (direct vis)
- spectralIncomingDirect(2) = SWRadAtm*Frad_direct*(1._dp - Frad_vis)               ! (direct nir)
+ spectralIncomingDirect(1) = SWRadAtm*scalarFractionDirect*Frad_vis                         ! (direct vis)
+ spectralIncomingDirect(2) = SWRadAtm*scalarFractionDirect*(1._dp - Frad_vis)               ! (direct nir)
  ! compute diffuse shortwave radiation, in the visible and near-infra-red part of the spectrum
- spectralIncomingDiffuse(1) = SWRadAtm*(1._dp - Frad_direct)*Frad_vis              ! (diffuse vis)
- spectralIncomingDiffuse(2) = SWRadAtm*(1._dp - Frad_direct)*(1._dp - Frad_vis)    ! (diffuse nir)
+ spectralIncomingDiffuse(1) = SWRadAtm*(1._dp - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
+ spectralIncomingDiffuse(2) = SWRadAtm*(1._dp - scalarFractionDirect)*(1._dp - Frad_vis)    ! (diffuse nir)
 
  ! ensure wind speed is above a prescribed minimum value
  if(windspd < minwind) windspd=minwind
