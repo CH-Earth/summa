@@ -1467,7 +1467,7 @@ contains
   energy_max = maxval(abs((/canopyNrgIncr,mLayerNrgIncr/)))
   aquifr_max = abs(scalarAqiIncr)
   !print*, 'mLayerMatIncr(1:5) = ', mLayerMatIncr(1:5)
-  !print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
+  print*, 'liquid_max, matric_max, energy_max = ', liquid_max, matric_max, energy_max
 
   ! get position of maximum iteration increment
   liquid_pos = maxloc(abs(mLayerLiqIncr))
@@ -1809,7 +1809,6 @@ contains
   if(abs(scalarSoilWatBalError) > 1.d-3)then
    write(message,'(a,e20.10,a)')trim(message)//"abs(scalarSoilWatBalError) > 1.d-3 [error = ",&
                                 scalarSoilWatBalError," ]"
-   pause 'water balance error'
    err=-10; return
   endif
  endif

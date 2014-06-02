@@ -542,12 +542,16 @@ contains
  real(dp),dimension(0:nLayers)   :: iLayerNrgFluxInit          ! flux at layer interfaces of the snow-soil system at the start of the substep (W m-2)
  ! define the Jacobian matrices
  integer(i4b)                    :: nState                     ! number of state variables
- integer(i4b),parameter          :: ixCas=1                    ! index of layer for the canopy air space
- integer(i4b),parameter          :: ixVeg=2                    ! index of layer for the vegetation canopy
- integer(i4b),parameter          :: ixSfc=3                    ! index of layer for the top snow or soil layer
+ integer(i4b)                    :: ixCas                      ! index for the canopy air space
+ integer(i4b)                    :: ixVeg                      ! index for the vegetation canopy
+ integer(i4b)                    :: ixSfc                      ! index for the surface (top snow-soil layer)
  real(dp),allocatable            :: aJac(:,:)                  ! Jacobian matrix
+ real(dp),allocatable            :: grad(:)                    ! gradient of the function vector (m-1)
  real(dp),allocatable            :: rVec(:)                    ! residual vector
+ real(dp),allocatable            :: rNew(:)                    ! residual vector (new)
+ real(dp),allocatable            :: xVec(:)                    ! state vector
  real(dp),allocatable            :: xInc(:)                    ! iteration increment
+ real(dp),allocatable            :: xNew(:)                    ! state vector after linesearch
  !real(dp),dimension(nLayers+2,nLayers+2) :: aJac              ! Jacobian matrix
  !real(dp),dimension(nLayers+2)           :: rVec              ! residual vector
  !real(dp),dimension(nLayers+2)           :: xInc              ! iteration increment
@@ -567,7 +571,6 @@ contains
  real(dp),dimension(nLayers-1)   :: d_m1                       ! sub-diagonal (J m-3 K-1)
  real(dp),dimension(nLayers-1)   :: d_p1                       ! super-diagonal (J m-3 K-1)
  ! define local variables for the line search
- real(dp),dimension(nLayers)     :: g                          ! gradient of the function vector (m-1)
  real(dp),dimension(1)           :: fmax                       ! maximum absolute value of the residual vector
  real(dp)                        :: fold,fnew                  ! function values (-)
  real(dp),parameter              :: STPMX=5._dp                ! maximum step size in line search (m)
@@ -630,6 +633,18 @@ contains
   nState = nLayers
  endif
 
+ ! define indices for the canopy air space and the vegetation
+ if(computeVegFlux)then
+  ixCas=1                ! index for the canopy air space
+  ixVeg=2                ! index for the vegetation canopy
+ else
+  ixCas=0                ! index for the canopy air space (case will not be used)
+  ixVeg=0                ! will mean first snow-soil layer is index 1
+ endif
+
+ ! define index of the surface
+ ixSfc = ixVeg+1 
+
  ! get an initial value for the canopy air space variables, to be used in the Jacobian calculations
  ! NOTE: canopy air space values are intent(inout), which muck up derivative calculations if used directly
  saveTemp_CanopyAir = scalarCanairTempIter       ! trial temperature of the canopy air space (K)
@@ -647,9 +662,13 @@ contains
 
  ! allocate space for the Jacobian matric
  if(computeVegFlux)then
-  allocate(aJac(nLayers+2,nLayers+2),rVec(nLayers+2),xInc(nLayers+2),stat=err)
+  allocate(aJac(nState,nState),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the Jacobian matrix'; return; endif
  endif
+
+ ! allocate space for the x-vector, residual, and iteration increments
+ allocate(xVec(nState),rVec(nState),xInc(nState),xNew(nState),grad(nState),rNew(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the x-vector and residual vector'; return; endif
 
  ! --------------------------------------------------------------------------------------------------------------------------------
 
@@ -848,6 +867,13 @@ contains
  end do
  !write(*,'(a,1x,10(e20.10,1x))') 'mLayerResidual(1:5) = ', mLayerResidual(1:5)
 
+ ! save residual vector
+ if(computeVegFlux)then
+  rVec = (/canairResidual,canopyResidual,mLayerResidual/)
+ else 
+  rVec = mLayerResidual
+ endif
+
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! * COMPUTE TRIDIAGONAL MATRIX...
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -986,7 +1012,6 @@ contains
 
  ! ***** solve the full matrix
  if(computeVegFlux)then
-  rVec = (/canairResidual,canopyResidual,mLayerResidual/)
   call matrixSolv(aJac,-rVec,xInc,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! save iteration increments
@@ -1087,50 +1112,64 @@ contains
 
  ! ** conduct a line search
  !if(count(crosFlag) == nLayers)then  ! don't perform line search if there is a crossing
-  if(.not.computeVegFlux)then         ! NOTE: assume tridiagonal system
-   if(maxval(abs(mLayerResidual)) > threshLine)then  ! J m-3  (don't perform line search near the root)
-    ! compute the function value (-)
-    fold = 0.5_dp*dot_product(mLayerResidual,mLayerResidual)
-    !fmax = maxval(abs(mLayerResidual))
-    !fold = fmax(1)
-    ! compute the gradient of the function vector (K-1)
-    do iLayer=1,nLayers
-     if(iLayer==1)then;          g(iLayer) =                                           diag(iLayer)*mLayerResidual(iLayer) + d_p1(iLayer)*mLayerResidual(iLayer+1)
-     elseif(iLayer==nState)then; g(iLayer) = d_m1(iLayer-1)*mLayerResidual(iLayer-1) + diag(iLayer)*mLayerResidual(iLayer)
-     else;                       g(iLayer) = d_m1(iLayer-1)*mLayerResidual(iLayer-1) + diag(iLayer)*mLayerResidual(iLayer) + d_p1(iLayer)*mLayerResidual(iLayer+1)
-     endif
-    end do
-    !write(*,'(a,1x,10(e20.10,1x))') 'gradient computed from tridiag system, g(1:5) = ', g(1:5)
-    ! compute maximum step size (K)
-    stpmax=STPMX*real(nLayers,dp)
-    call lnsrch(mLayerTempIter,          & ! intent(in): state vector at the current iteration (K)
-                stpmax,                  & ! intent(in): maximum step size (K)
-                fold,                    & ! intent(in): function value for trial state vector (J m-3)
-                g,                       & ! intent(in): gradient of the function vector (K-1)
-                mLayerTempDiff,          & ! intent(in): iteration increment (K)
-                mLayerTempNew,           & ! intent(out): new state vector (K)
-                fVector,                 & ! intent(out): new residual vector (J m-3)
-                fnew,                    & ! intent(out): new function value (J m-3)
-                err,cmessage)              ! intent(out): error control
-    if(err>0)then; message=trim(message)//trim(cmessage); return; endif 
-    ! check back-track all the way to original solution
-    if(err<0)then
-     ! (back-tracked all the way to original solution, but not converged)
-     print*, 'back-track: fnew = ', fnew
-     if(fnew > 1.e-8_dp)then
-      mLayerTempNew = mLayerTempIter ! just accept the initial solution (disregard the line search)
-     ! (converged)
-     else
-      err=0
-     endif
+ if(maxval(abs(mLayerResidual)) > threshLine)then  ! J m-3  (don't perform line search near the root)
+  ! define iteration increment (NOTE: need to do this here because of adjustments above)
+  if(computeVegFlux)then
+   xVec = (/scalarCanairTempIter,scalarCanopyTempIter,mLayerTempIter/)
+   xInc = (/scalarCanairTempDiff,scalarCanopyTempDiff,mLayerTempDiff/)
+  else
+   xVec = mLayerTempIter
+   xInc = mLayerTempDiff
+  endif
+  !write(*,'(a,1x,10(e20.10,1x))') 'rVec(1:5) = ', rVec(1:5)
+  !write(*,'(a,1x,10(f20.10,1x))') 'xVec(1:5) = ', xVec(1:5)
+  !write(*,'(a,1x,10(f20.10,1x))') 'xInc(1:5) = ', xInc(1:5)
+  ! compute the function value (-)
+  fold = 0.5_dp*dot_product(rVec,rVec)
+  !fmax = maxval(abs(mLayerResidual))
+  !fold = fmax(1)
+  ! compute the gradient of the function vector (K-1)
+  if(computeVegFlux)then
+   grad(:) = matmul(rVec(:),aJac(:,:))
+  ! gradient computed from the tri-diagonal system
+  else
+   do iLayer=1,nLayers
+    if(iLayer==1)then;          grad(iLayer) =                                           diag(iLayer)*mLayerResidual(iLayer) + d_p1(iLayer)*mLayerResidual(iLayer+1)
+    elseif(iLayer==nState)then; grad(iLayer) = d_m1(iLayer-1)*mLayerResidual(iLayer-1) + diag(iLayer)*mLayerResidual(iLayer)
+    else;                       grad(iLayer) = d_m1(iLayer-1)*mLayerResidual(iLayer-1) + diag(iLayer)*mLayerResidual(iLayer) + d_p1(iLayer)*mLayerResidual(iLayer+1)
     endif
-    ! check all other errors
-    if(err>0)then; message=trim(message)//trim(cmessage); return; endif
-    ! re-compute the iteration increment
-    mLayerTempDiff = mLayerTempNew - mLayerTempIter
-   endif
-  endif  ! (if no veg; tri-diagonal solution)
- !endif  ! did not cross critical temperature
+   end do
+   !write(*,'(a,1x,10(e20.10,1x))') 'gradient computed from tridiag system, grad(1:5) = ', grad(1:5)
+  endif   !  if(computeVegFlux)
+  ! compute maximum step size (K)
+  stpmax=STPMX*real(nLayers,dp)
+  call lnsrch(xVec,                    & ! intent(in): state vector at the current iteration (K)
+              stpmax,                  & ! intent(in): maximum step size (K)
+              fold,                    & ! intent(in): function value for trial state vector (J m-3)
+              grad,                    & ! intent(in): gradient of the function vector (K-1)
+              xInc,                    & ! intent(in): iteration increment (K)
+              xNew,                    & ! intent(out): new state vector (K)
+              rNew,                    & ! intent(out): new residual vector (J m-3)
+              fnew,                    & ! intent(out): new function value (J m-3)
+              err,cmessage)              ! intent(out): error control
+  if(err>0)then; message=trim(message)//trim(cmessage); return; endif 
+  ! check back-track all the way to original solution
+  if(err<0)then
+   print*, 'back-track: fnew = ', fnew
+   if(fnew > 1.e-8_dp) xNew = xVec ! if function large, just accept the initial solution (disregard the line search)
+   err=0
+  endif
+  ! re-compute the iteration increment
+  xInc = xNew - xVec
+  ! decompose x-increments
+  if(computeVegFlux)then
+   scalarCanairTempDiff = xInc(ixCas)
+   scalarCanopyTempDiff = xInc(ixVeg)
+  endif
+  mLayerTempDiff(1:nLayers) = xInc(1+ixVeg:nLayers+ixVeg)
+
+ endif  ! (if not close to the root)
+
 
  ! update temperatures
  if(computeVegFlux)then
@@ -1264,9 +1303,13 @@ contains
 
  ! deallocate space for the Jacobian matric
  if(computeVegFlux)then
-  deallocate(aJac,rVec,xInc,stat=err)
+  deallocate(aJac,stat=err)
   if(err/=0)then; err=20; message=trim(message)//'problem deallocating space for the Jacobian matrix'; return; endif
  endif
+
+ ! deallocate space for the state vectors
+ deallocate(xVec,rVec,xInc,xNew,grad,rNew,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem deallocating space for the state vectors'; return; endif
 
  ! ====================================================================================================================
 
@@ -1302,8 +1345,6 @@ contains
   real(dp)                      :: fCanopy                ! function test (canopy)
   real(dp),dimension(nLayers)   :: fVector                ! function test (residual snow-soil vector)
   real(dp),dimension(nLayers)   :: gradient               ! gradient of the function vector
-  integer(i4b)                  :: ixCas                  ! index for the canopy air space
-  integer(i4b)                  :: ixVeg                  ! index for the vegetation canopy
   ! ----------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='cmpJacobian/'
@@ -1311,15 +1352,6 @@ contains
   ! allocate space for the Jacobian matrix
   allocate(jMat(nState,nState), stat=err)
   if(err/=0)then; err=20; message=trim(message)//'problem allocating space for the Jacobian matrix'; return; endif
-
-  ! define indices for the canopy air space and the vegetation
-  if(computeVegFlux)then
-   ixCas=1                ! index for the canopy air space
-   ixVeg=2                ! index for the vegetation canopy
-  else
-   ixCas=0                ! index for the canopy air space (case will not be used)
-   ixVeg=0                ! will mean first snow-soil layer is index 1
-  endif
 
   ! get copies of the state vector to perturb
   if(computeVegFlux)then
@@ -1681,6 +1713,8 @@ contains
   character(*),intent(out)  :: message     ! error message
   ! local variables
   character(LEN=256)            :: cmessage                 ! error message of downwind routine
+  real(dp)                      :: scalarCanopyIceTemp
+  real(dp)                      :: scalarCanopyLiqTemp
   real(dp),dimension(nLayers)   :: mLayerVolFracIceTemp
   real(dp),dimension(nLayers)   :: mLayerVolFracLiqTemp
   real(dp),dimension(nLayers)   :: mLayerMatricHeadTemp
@@ -1696,6 +1730,10 @@ contains
   if ( all((/size(g),size(p),size(x)/) == size(xold)) ) then
    ndum=size(xold)
   else
+   print*, 'size(x)    = ', size(x)
+   print*, 'size(g)    = ', size(g)
+   print*, 'size(p)    = ', size(p)
+   print*, 'size(xold) = ', size(xold)
    err=20; message=trim(message)//"sizeMismatch"; return
   endif
   ! start procedure
@@ -1713,38 +1751,53 @@ contains
    x(:)=xold(:)+alam*p(:)
    !write(*,'(a,1x,10(f15.10,1x))') 'x(1:5) = ', x(1:5)
 
-   ! compute phase change for the vegetation domain
-   if(computeVegFlux)then; err=20; message=trim(message)//'vegetation not supported for lnsrch yet'; return; endif
+   ! compute phase change of water in the vegetation canopy
+   if(computeVegFlux)then
+    fLiq = fracliquid(x(ixVeg),snowfrz_scale)  ! fraction of liquid water (-)
+    tWat = scalarCanopyLiqIter + scalarCanopyIceIter      ! total water (kg m-2)
+    scalarCanopyLiqTemp = fLiq*tWat                       ! mass of liquid water on the canopy (kg m-2)
+    scalarCanopyIceTemp = (1._dp - fLiq)*tWat             ! mass of ice on the canopy (kg m-2)
+   else
+    scalarCanopyLiqTemp = scalarCanopyLiqIter
+    scalarCanopyIceTemp = scalarCanopyIceIter
+   endif
 
    ! compute phase change for the snow-soil sub-domain
-   call phsechange(isSaturated,          & ! intent(in): flags to denote saturation
-                   x,                    & ! intent(in): new temperature vector (K)
-                   mLayerMatricHeadIter, & ! intent(in): matric head at the current iteration (m)
-                   mLayerVolFracLiqIter, & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
-                   mLayerVolFracIceIter, & ! intent(in): volumetric fraction of ice at the current iteration (-)
-                   mLayerMatricHeadTemp, & ! intent(out): new matric head (m)
-                   mLayerVolFracLiqTemp, & ! intent(out): new volumetric fraction of liquid water (-)
-                   mLayerVolFracIceTemp, & ! intent(out): new volumetric fraction of ice (-)
-                   err,cmessage)           ! intent(out): error control
+   call phsechange(isSaturated,                      & ! intent(in): flags to denote saturation
+                   x(1+ixVeg:nLayers+ixVeg),         & ! intent(in): new temperature vector (K)
+                   mLayerMatricHeadIter,             & ! intent(in): matric head at the current iteration (m)
+                   mLayerVolFracLiqIter,             & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
+                   mLayerVolFracIceIter,             & ! intent(in): volumetric fraction of ice at the current iteration (-)
+                   mLayerMatricHeadTemp,             & ! intent(out): new matric head (m)
+                   mLayerVolFracLiqTemp,             & ! intent(out): new volumetric fraction of liquid water (-)
+                   mLayerVolFracIceTemp,             & ! intent(out): new volumetric fraction of ice (-)
+                   err,cmessage)                       ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! compute the residual vector (J m-3)
    call cmpResidual(&
                     ! input
                     dt,                              & ! intent(in): time step (seconds)
-                    scalarCanairTempIter,            & ! intent(in): trial value of canopy air space temperature (K)
-                    scalarCanopyTempIter,            & ! intent(in): trial value of canopy temperature (K)
-                    scalarCanopyLiqIter,             & ! intent(in): trial value of canopy liquid water content (kg m-2)
-                    scalarCanopyIceIter,             & ! intent(in): trial value of canopy ice content (kg m-2)
-                    x,                               & ! intent(in): trial temperature at the current iteration (K)
+                    x(ixCas),                        & ! intent(in): trial value of canopy air space temperature (K)
+                    x(ixVeg),                        & ! intent(in): trial value of canopy temperature (K)
+                    scalarCanopyLiqTemp,             & ! intent(in): trial value of canopy liquid water content (kg m-2)
+                    scalarCanopyIceTemp,             & ! intent(in): trial value of canopy ice content (kg m-2)
+                    x(1+ixVeg:nLayers+ixVeg),        & ! intent(in): trial temperature at the current iteration (K)
                     mLayerVolFracLiqTemp,            & ! intent(in): trial volumetric fraction of liquid water (-)
                     mLayerVolFracIceTemp,            & ! intent(in): trial volumetric fraction of ice (-)
                     ! output
                     fCanair,                         & ! intent(out): residual for the canopy air space (J m-3) 
                     fCanopy,                         & ! intent(out): residual for the vegetation canopy (J m-3)
-                    xTempResVec,                     & ! intent(out): residual for the snow-soil domain (J m-3)
+                    fVector,                         & ! intent(out): residual for the snow-soil domain (J m-3)
                     err,cmessage)                      ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! save the function vector
+   if(computeVegFlux)then
+    xTempResVec = (/fCanair,fCanopy,fVector/)
+   else
+    xTempResVec = fVector
+   endif
    !write(*,'(a,10(e20.10,1x))') 'xTempResVec(1:5) = ', xTempResVec(1:5)
 
    ! compute the function evaluation
