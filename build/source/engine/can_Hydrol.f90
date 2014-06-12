@@ -162,9 +162,10 @@ contains
  real(dp)                      :: scalarCanopyLiqTrial       ! trial value of canopy liquid water (kg m-2)
  real(dp)                      :: canopyLiqDrainageDeriv     ! derivative in the drainage function for canopy liquid water (s-1)
  real(dp)                      :: flux                       ! net flux (kg m-2 s-1)
+ real(dp)                      :: phse                       ! phase change term (kg m-2)
+ real(dp)                      :: xRes                       ! residual (kg m-2)
  real(dp)                      :: delS                       ! change in storage (kg m-2)
- real(dp)                      :: res                        ! residual (kg m-2)
- real(dp),parameter            :: convToler=0.0001_dp        ! convergence tolerance (kg m-2)
+ real(dp),parameter            :: convToler=1.e-8_dp         ! convergence tolerance (kg m-2)
  ! ----------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="can_Hydrol_muster/"
@@ -174,6 +175,12 @@ contains
   scalarThroughfallRain     = scalarRainfall
   scalarCanopyLiqDrainage   = 0._dp
   return
+ endif
+
+ ! check if canopy evaporation exceeds canopy storage
+ if(-scalarCanopyEvaporation*dt > scalarCanopyLiq)then
+  message=trim(message)//'canopy evaporation exceeds canopy storage'
+  err=-20; return  ! reduce length of time step and try again
  endif
 
  ! initialize canopy liquid water
@@ -193,6 +200,9 @@ contains
  ! ***** estimate the updated value for liquid water
  do jiter=1,maxiter
 
+  !print*, '**********************************************************************************'
+  !print*, 'new iteration'
+
   ! compute drainage of liquid water from the canopy (kg m-2 s-1)
   if(scalarCanopyLiqTrial > scalarCanopyLiqMax)then
    scalarCanopyLiqDrainage = canopyDrainageCoeff*(scalarCanopyLiqTrial - scalarCanopyLiqMax)
@@ -202,9 +212,28 @@ contains
    canopyLiqDrainageDeriv  = 0._dp
   endif
 
+  
+
+
+
   ! ** compute iteration increment  
   flux = scalarRainfall - scalarThroughfallRain + scalarCanopyEvaporation - scalarCanopyLiqDrainage  ! net flux (kg m-2 s-1)
-  delS = (flux*dt - (scalarCanopyLiqTrial - scalarCanopyLiq) - (scalarCanopyIceIter - scalarCanopyIce) ) / (1._dp + canopyLiqDrainageDeriv*dt)
+  phse = scalarCanopyIceIter - scalarCanopyIce  ! change in mass of ice (kg m-2)
+  xRes = flux*dt - (scalarCanopyLiqTrial - scalarCanopyLiq) - (scalarCanopyIceIter - scalarCanopyIce)
+  delS = xRes / (1._dp + canopyLiqDrainageDeriv*dt)
+
+
+  
+  !print*, 'scalarCanopyLiqTrial - scalarCanopyLiq = ', scalarCanopyLiqTrial - scalarCanopyLiq
+  !print*, 'canopyLiqDrainageDeriv = ', canopyLiqDrainageDeriv
+
+  !print*, 'dt = ', dt
+  !print*, 'flux*dt = ', flux*dt
+  !print*, 'phse = ', phse
+  !print*, 'xRes = ', xRes
+  !print*, 'delS = ', delS
+
+
   !print*, 'scalarRainfall, scalarThroughfallRain, scalarCanopyEvaporation, scalarCanopyLiqDrainage = ', &
   !         scalarRainfall, scalarThroughfallRain, scalarCanopyEvaporation, scalarCanopyLiqDrainage
   !print*, 'jiter, scalarCanopyLiqTrial, scalarCanopyLiq, scalarCanopyIceIter, scalarCanopyIce = ', &
@@ -215,17 +244,25 @@ contains
   !         -(scalarCanopyLiqTrial - scalarCanopyLiq) - (scalarCanopyIceIter - scalarCanopyIce)
 
   ! ** check for convergence
-  res = scalarCanopyLiqTrial - (scalarCanopyLiq + flux*dt) + (scalarCanopyIceIter - scalarCanopyIce)
-  !print*, 'res, delS = ', res, delS
-  if(abs(res) < convToler)exit
+  if(abs(xRes) < convToler)exit
 
   ! ** check for non-convengence
-  if(jiter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
+  !if(jiter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
+
+  ! ** impose solution constraints
+  if(scalarCanopyLiqTrial+delS < 0._dp) delS = -0.9_dp*scalarCanopyLiqTrial 
+  !print*, 'delS (after constraints)= ', delS
 
   ! ** update value  
   scalarCanopyLiqTrial = scalarCanopyLiqTrial + delS
+  !print*, 'scalarCanopyLiqTrial = ', scalarCanopyLiqTrial
 
  end do  ! iterating
+
+ if(scalarCanopyLiqTrial < 0._dp)then
+  message=trim(message)//'canopy liquid water is less than zero'
+  err=20; return
+ endif
 
  !write(*,'(a,1x,10(e20.10,1x))') 'scalarCanopyLiqTrial, scalarCanopyLiqDrainage = ', scalarCanopyLiqTrial, scalarCanopyLiqDrainage
 

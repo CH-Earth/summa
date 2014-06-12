@@ -1,13 +1,17 @@
 module vegSWavRad_module
 ! Numerical recipes data types
 USE nrtype
+! named variables for snow and soil
+USE data_struc,only:ix_soil,ix_snow
 ! look-up values for the choice of canopy shortwave radiation method
-USE mDecisions_module,only:  &
- noah_mp,                    & ! full Noah-MP implementation (including albedo)
- CLM_2stream,                & ! CLM 2-stream model (see CLM documentation)
- UEB_2stream,                & ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
- NL_scatter,                 & ! Simplified method Nijssen and Lettenmaier (JGR 1999)
- BeersLaw                      ! Beer's Law (as implemented in VIC)
+USE mDecisions_module,only:         &
+                      noah_mp,      & ! full Noah-MP implementation (including albedo)
+                      CLM_2stream,  & ! CLM 2-stream model (see CLM documentation)
+                      UEB_2stream,  & ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+                      NL_scatter,   & ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+                      BeersLaw        ! Beer's Law (as implemented in VIC)
+! physical constants
+USE multiconst,only:Tfreeze    ! temperature at freezing              (K)
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -16,55 +20,374 @@ public::vegSWavRad
 integer(i4b),parameter        :: nBands=2      ! number of spectral bands for shortwave radiation
 ! named variables
 integer(i4b),parameter        :: ist     = 1   ! Surface type:  IST=1 => soil;  IST=2 => lake
+integer(i4b),parameter        :: isc     = 4   ! Soil color type
+integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  ICE=1 => sea-ice
 ! spatial indices
 integer(i4b),parameter        :: iLoc    = 1   ! i-location
 integer(i4b),parameter        :: jLoc    = 1   ! j-location
+! number of snow and soil layers
+integer(i4b)                  :: nSnow         ! number of snow layers
+integer(i4b)                  :: nSoil         ! number of soil layers
+integer(i4b)                  :: nLayers       ! total number of snow and soil layers
 ! algorithmic parameters
-real(dp),parameter     :: missingValue=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
-real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
+real(dp),parameter            :: missingValue=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
+real(dp),parameter            :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter            :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
+real(dp),parameter            :: dx=1.e-6_dp          ! finite difference increment
 ! control
-logical(lgt)           :: printflag            ! flag to turn on printing
+logical(lgt)                  :: printflag            ! flag to turn on printing
 contains
 
  ! ************************************************************************************************
- ! new subroutine: muster program to compute energy fluxes at vegetation and ground surfaces
+ ! new subroutine: muster program to compute sw radiation in vegetation
  ! ************************************************************************************************
  subroutine vegSWavRad(&
-                       ! input: model control
-                       vegTypeIndex,                                       & ! intent(in): index of vegetation type
-                       soilTypeIndex,                                      & ! intent(in): index of soil type
-                       computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                       ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
-                       ! input: model variables
-                       scalarCosZenith,                                    & ! intent(in): cosine of direct zenith angle (0-1)
-                       spectralIncomingDirect,                             & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
-                       spectralIncomingDiffuse,                            & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
-                       spectralSnowAlbedoDirect,                           & ! intent(in): direct albedo of snow in each spectral band (-)
-                       spectralSnowAlbedoDiffuse,                          & ! intent(in): diffuse albedo of snow in each spectral band (-)
-                       scalarExposedLAI,                                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                       scalarExposedSAI,                                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                       scalarVegFraction,                                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
-                       scalarCanopyWetFraction,                            & ! intent(in): fraction of lai, sai that is wetted (-)
-                       scalarGroundSnowFraction,                           & ! intent(in): fraction of ground that is snow covered (-)
-                       scalarVolFracLiqUpper,                              & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
-                       scalarCanopyTempTrial,                              & ! intent(in): canopy temperature (K)
-                       ! output
-                       spectralBelowCanopyDirect,                          & ! intent(out): downward direct flux below veg layer (W m-2)
-                       spectralBelowCanopyDiffuse,                         & ! intent(out): downward diffuse flux below veg layer (W m-2)
-                       scalarBelowCanopySolar,                             & ! intent(out): radiation transmitted below the canopy (W m-2)
-                       spectralAlbGndDirect,                               & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
-                       spectralAlbGndDiffuse,                              & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
-                       scalarGroundAlbedo,                                 & ! intent(out): albedo of the ground surface (-)
-                       scalarCanopyAbsorbedSolar,                          & ! intent(out): radiation absorbed by the vegetation canopy (W m-2)
-                       scalarGroundAbsorbedSolar,                          & ! intent(out): radiation absorbed by the ground (W m-2)
-                       scalarCanopySunlitFraction,                         & ! intent(out): sunlit fraction of canopy (-)
-                       scalarCanopySunlitLAI,                              & ! intent(out): sunlit leaf area (-)
-                       scalarCanopyShadedLAI,                              & ! intent(out): shaded leaf area (-)
-                       scalarCanopySunlitPAR,                              & ! intent(out): average absorbed par for sunlit leaves (w m-2)
-                       scalarCanopyShadedPAR,                              & ! intent(out): average absorbed par for shaded leaves (w m-2)
-                       err,message)                                          ! intent(out): error control
+                       dt,                           & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
+                       computeVegFlux,               & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                       err,message)                    ! intent(out): error control
+ ! model decisions
+ USE data_struc,only:model_decisions                              ! model decision structure
+ USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+ ! model variables, parameters, etc.
+ USE data_struc,only:time_data,type_data,attr_data,forc_data,mpar_data,mvar_data,bvar_data,indx_data     ! data structures
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ implicit none
+ ! dummy variables
+ real(dp),intent(in)            :: dt                             ! time step (s) -- only used in Noah-MP radiation, to compute albedo
+ logical(lgt),intent(in)        :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+ integer(i4b),intent(out)       :: err                            ! error code
+ character(*),intent(out)       :: message                        ! error message
+ ! local variables
+ character(LEN=256)             :: cmessage                       ! error message of downwind routine
+ real(dp)                       :: snowmassPlusNewsnow            ! sum of snow mass and new snowfall (kg m-2 [mm])
+ real(dp)                       :: scalarGroundSnowFraction       ! snow cover fraction on the ground surface (-)
+ ! initialize error control
+ err=0; message='vegSWavRad/'
+
+ ! identify the number of snow and soil layers
+ nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+ nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+
+ ! compute the total number of snow and soil layers
+ nLayers = nSnow + nSoil
+
+ call vegSWavRad_muster(&
+                        ! input: model control
+                        dt,                                                                & ! intent(in): model time step
+                        computeVegFlux,                                                    & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                        type_data%var(iLookTYPE%vegTypeIndex),                             & ! intent(in): vegetation type index
+                        type_data%var(iLookTYPE%soilTypeIndex),                            & ! intent(in): soil type index
+                        model_decisions(iLookDECISIONS%canopySrad)%iDecision,              & ! intent(in): index defining method for canopy shortwave radiation
+                        model_decisions(iLookDECISIONS%snowIncept)%iDecision,              & ! intent(in): index defining method to determine maximum snow interception capacity
+                        ! input: forcing at the upper boundary
+                        mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1),                   & ! intent(in): cosine of the solar zenith angle (0-1)
+                        mvar_data%var(iLookMVAR%spectralIncomingDirect)%dat(1:nBands),     & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
+                        mvar_data%var(iLookMVAR%spectralIncomingDiffuse)%dat(1:nBands),    & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+                        ! input: surface characteristix
+                        mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                         & ! intent(in): snow water equivalent on the ground (kg m-2)
+                        mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),                   & ! intent(in): snow depth on the ground surface (m)
+                        mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers),    & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+                        mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat(1:nBands),   & ! intent(in): direct albedo of snow in each spectral band (-)
+                        mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1:nBands),  & ! intent(in): diffuse albedo of snow in each spectral band (-)
+                        mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1),                  & ! intent(inout): snow albedo (-)
+                        mvar_data%var(iLookMVAR%scalarSnowAge)%dat(1),                     & ! intent(inout): non-dimensional snow age (-)
+                        ! input: vegetation characteristix
+                        mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),                  & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                        mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),                  & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),           & ! intent(in): canopy wetted fraction (-)
+                        ! input: ground and canopy temperature
+                        mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),                        & ! intent(in): ground temperature (K)
+                        mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),                  & ! intent(in): vegetation temperature (K)
+                        ! output: canopy sw radiation fluxes
+                        mvar_data%var(iLookMVAR%scalarCanopySunlitFraction)%dat(1),        & ! intent(out): sunlit fraction of canopy (-)
+                        mvar_data%var(iLookMVAR%scalarCanopySunlitLAI)%dat(1),             & ! intent(out): sunlit leaf area (-)
+                        mvar_data%var(iLookMVAR%scalarCanopyShadedLAI)%dat(1),             & ! intent(out): shaded leaf area (-)
+                        mvar_data%var(iLookMVAR%scalarCanopySunlitPAR)%dat(1),             & ! intent(out): average absorbed par for sunlit leaves (w m-2)
+                        mvar_data%var(iLookMVAR%scalarCanopyShadedPAR)%dat(1),             & ! intent(out): average absorbed par for shaded leaves (w m-2)
+                        mvar_data%var(iLookMVAR%spectralBelowCanopyDirect)%dat,            & ! intent(out): downward direct flux below veg layer for each spectral band  W m-2)
+                        mvar_data%var(iLookMVAR%spectralBelowCanopyDiffuse)%dat,           & ! intent(out): downward diffuse flux below veg layer for each spectral band (W m-2)
+                        mvar_data%var(iLookMVAR%scalarBelowCanopySolar)%dat(1),            & ! intent(out): solar radiation transmitted below the canopy (W m-2)
+                        mvar_data%var(iLookMVAR%spectralAlbGndDirect)%dat,                 & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
+                        mvar_data%var(iLookMVAR%spectralAlbGndDiffuse)%dat,                & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
+                        mvar_data%var(iLookMVAR%scalarGroundAlbedo)%dat(1),                & ! intent(out): albedo of the ground surface (-)
+                        mvar_data%var(iLookMVAR%scalarCanopyAbsorbedSolar)%dat(1),         & ! intent(out): solar radiation absorbed by canopy (W m-2)
+                        mvar_data%var(iLookMVAR%scalarGroundAbsorbedSolar)%dat(1),         & ! intent(out): solar radiation absorbed by ground (W m-2)
+                        ! output: error control
+                        err,cmessage)                                                        ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+
+ end subroutine vegSWavRad
+
+
+
+ ! ************************************************************************************************
+ ! ************************************************************************************************
+ ! ************************************************************************************************
+ ! ***** PRIVATE SUBROUTINES **********************************************************************
+ ! ************************************************************************************************
+ ! ************************************************************************************************
+ ! ************************************************************************************************
+
+ ! ************************************************************************************************
+ ! private subroutine: wrapper for the sw radiation routines
+ ! ************************************************************************************************
+ subroutine vegSWavRad_muster(&
+                              ! input: control
+                              dt,                                & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo                         
+                              computeVegFlux,                    & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                              vegTypeIndex,                      & ! intent(in): vegetation type index
+                              soilTypeIndex,                     & ! intent(in): soil type index
+                              ix_canopySrad,                     & ! intent(in): index defining method for canopy shortwave radiation
+                              ix_snowInterception,               & ! intent(in): index defining method to determine maximum snow interception capacity
+                              ! input: forcing at the upper boundary
+                              scalarSnowfall,                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
+                              scalarCosZenith,                   & ! intent(in): cosine of the solar zenith angle (0-1)
+                              spectralIncomingDirect,            & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
+                              spectralIncomingDiffuse,           & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+                              ! input: surface characteristix
+                              scalarSWE,                         & ! intent(in): snow water equivalent on the ground (kg m-2)
+                              scalarSnowDepth,                   & ! intent(in): snow depth on the ground surface (m)
+                              mLayerVolFracLiq,                  & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+                              spectralSnowAlbedoDirect,          & ! intent(in): direct albedo of snow in each spectral band (-)
+                              spectralSnowAlbedoDiffuse,         & ! intent(in): diffuse albedo of snow in each spectral band (-)
+                              scalarSnowAlbedo,                  & ! intent(inout): snow albedo (-)
+                              scalarSnowAge,                     & ! intent(inout): non-dimensional snow age (-)
+                              ! input: vegetation characteristix
+                              scalarExposedLAI,                  & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                              scalarExposedSAI,                  & ! intent(in): exposed stem area index after burial by snow (m2 m-2)          
+                              scalarCanopyWetFraction,           & ! intent(in): canopy wetted fraction (-)
+                              ! input: ground and canopy temperature
+                              scalarGroundTemp,                  & ! intent(in): ground temperature (K)
+                              scalarCanopyTemp,                  & ! intent(in): canopy temperature (K)
+                              ! output: canopy sw radiation fluxes
+                              scalarCanopySunlitFraction,        & ! intent(out): sunlit fraction of canopy (-)
+                              scalarCanopySunlitLAI,             & ! intent(out): sunlit leaf area (-)
+                              scalarCanopyShadedLAI,             & ! intent(out): shaded leaf area (-)
+                              scalarCanopySunlitPAR,             & ! intent(out): average absorbed par for sunlit leaves (w m-2)
+                              scalarCanopyShadedPAR,             & ! intent(out): average absorbed par for shaded leaves (w m-2)
+                              spectralBelowCanopyDirect,         & ! intent(out): downward direct flux below veg layer for each spectral band  W m-2)
+                              spectralBelowCanopyDiffuse,        & ! intent(out): downward diffuse flux below veg layer for each spectral band (W m-2)
+                              scalarBelowCanopySolar,            & ! intent(out): radiation transmitted below the canopy (W m-2)
+                              spectralAlbGndDirect,              & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
+                              spectralAlbGndDiffuse,             & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
+                              scalarGroundAlbedo,                & ! intent(out): albedo of the ground surface (-)
+                              scalarCanopyAbsorbedSolar,         & ! intent(out): solar radiation absorbed by canopy (W m-2)
+                              scalarGroundAbsorbedSolar,         & ! intent(out): solar radiation absorbed by ground (W m-2)
+                              ! output: error control
+                              err,message)                         ! intent(out): error control
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ USE NOAHMP_ROUTINES,only:radiation                                ! subroutine to calculate albedo and shortwave radiaiton in the canopy
+ implicit none
+ ! input: control
+ real(dp),intent(in)             :: dt                             ! time step (seconds)
+ logical(lgt),intent(in)         :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+ integer(i4b),intent(in)         :: vegTypeIndex                   ! vegetation type index
+ integer(i4b),intent(in)         :: soilTypeIndex                  ! soil type index
+ integer(i4b),intent(in)         :: ix_canopySrad                  ! index defining method for canopy shortwave radiation
+ integer(i4b),intent(in)         :: ix_snowInterception            ! index defining method to determine maximum snow interception capacity
+ ! input: forcing at the upper boundary
+ real(dp),intent(in)             :: scalarSnowfall                 ! computed snowfall rate (kg m-2 s-1)
+ real(dp),intent(in)             :: scalarCosZenith                ! cosine of the solar zenith angle (0-1)
+ real(dp),intent(in)             :: spectralIncomingDirect(:)      ! incoming direct solar radiation in each wave band (w m-2)
+ real(dp),intent(in)             :: spectralIncomingDiffuse(:)     ! incoming diffuse solar radiation in each wave band (w m-2)
+ ! input: surface characteristix
+ real(dp),intent(in)             :: scalarSWE                      ! snow water equivalent on the ground (kg m-2)
+ real(dp),intent(in)             :: scalarSnowDepth                ! snow depth on the ground surface (m)
+ real(dp),intent(in)             :: mLayerVolFracLiq(:)            ! volumetric fraction of liquid water in each soil layer (-)
+ real(dp),intent(in)             :: spectralSnowAlbedoDirect(:)    ! direct albedo of snow in each spectral band (-)
+ real(dp),intent(in)             :: spectralSnowAlbedoDiffuse(:)   ! diffuse albedo of snow in each spectral band (-)
+ real(dp),intent(inout)          :: scalarSnowAlbedo               ! snow albedo (-)
+ real(dp),intent(inout)          :: scalarSnowAge                  ! non-dimensional snow age (-)
+ ! input: vegetation characteristix
+ real(dp),intent(in)             :: scalarExposedLAI               ! exposed leaf area index after burial by snow (m2 m-2)
+ real(dp),intent(in)             :: scalarExposedSAI               ! exposed stem area index after burial by snow (m2 m-2)
+ real(dp),intent(in)             :: scalarCanopyWetFraction        ! canopy wetted fraction (-)
+ ! input: ground and canopy temperature
+ real(dp),intent(in)             :: scalarGroundTemp               ! ground temperature (K)
+ real(dp),intent(in)             :: scalarCanopyTemp               ! canopy temperature (K)
+ ! output: canopy sw radiation fluxes
+ real(dp),intent(out)            :: scalarCanopySunlitFraction     ! sunlit fraction of canopy (-)
+ real(dp),intent(out)            :: scalarCanopySunlitLAI          ! sunlit leaf area (-)
+ real(dp),intent(out)            :: scalarCanopyShadedLAI          ! shaded leaf area (-)
+ real(dp),intent(out)            :: scalarCanopySunlitPAR          ! average absorbed par for sunlit leaves (w m-2)
+ real(dp),intent(out)            :: scalarCanopyShadedPAR          ! average absorbed par for shaded leaves (w m-2)
+ real(dp),intent(out)            :: spectralBelowCanopyDirect(:)   ! downward direct flux below veg layer for each spectral band  W m-2)
+ real(dp),intent(out)            :: spectralBelowCanopyDiffuse(:)  ! downward diffuse flux below veg layer for each spectral band (W m-2)
+ real(dp),intent(out)            :: scalarBelowCanopySolar         ! solar radiation transmitted below the canopy (W m-2)
+ real(dp),intent(out)            :: spectralAlbGndDirect(:)        ! direct  albedo of underlying surface (1:nBands) (-)
+ real(dp),intent(out)            :: spectralAlbGndDiffuse(:)       ! diffuse albedo of underlying surface (1:nBands) (-)
+ real(dp),intent(out)            :: scalarGroundAlbedo             ! albedo of the ground surface (-)
+ real(dp),intent(out)            :: scalarCanopyAbsorbedSolar      ! solar radiation absorbed by canopy (W m-2)
+ real(dp),intent(out)            :: scalarGroundAbsorbedSolar      ! solar radiation absorbed by ground (W m-2)
+ ! output: error control
+ integer(i4b),intent(out)        :: err                            ! error code
+ character(*),intent(out)        :: message                        ! error message
+ ! ---------------------------------------------------------------------------------------------------------------------------------- 
+ ! local variables
+ character(LEN=256)             :: cmessage                        ! error message of downwind routine
+ real(dp)                       :: snowmassPlusNewsnow             ! sum of snow mass and new snowfall (kg m-2 [mm])
+ real(dp)                       :: scalarGroundSnowFraction        ! snow cover fraction on the ground surface (-)
+ real(dp)                       :: relativeCanopyWater             ! fraction of storage capacity (-)
+ real(dp),parameter             :: scalarVegFraction=1._dp         ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+ real(dp)                       :: scalarTotalReflectedSolar       ! total reflected solar radiation (W m-2)
+ real(dp)                       :: scalarTotalAbsorbedSolar        ! total absorbed solar radiation (W m-2)
+ real(dp)                       :: scalarCanopyReflectedSolar      ! solar radiation reflected from the canopy (W m-2)
+ real(dp)                       :: scalarGroundReflectedSolar      ! solar radiation reflected from the ground (W m-2) 
+ real(dp)                       :: scalarBetweenCanopyGapFraction  ! between canopy gap fraction for beam (-)
+ real(dp)                       :: scalarWithinCanopyGapFraction   ! within canopy gap fraction for beam (-)
+ ! ---------------------------------------------------------------------------------------------------------------------------------- 
+ ! initialize error control
+ err=0; message='vegSWavRad_muster/'
+
+
+ ! * preliminaries...
+ ! ------------------
+
+ ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
+ snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
+
+
+ ! compute the ground snow fraction
+ if(nSnow > 0)then
+  scalarGroundSnowFraction  = 1._dp
+ else
+  scalarGroundSnowFraction  = 0._dp
+ endif  ! (if there is snow on the ground)
+
+ ! * compute radiation fluxes...
+ ! -----------------------------
+
+ select case(ix_canopySrad)
+
+  ! ***** unchanged Noah-MP routine
+  case(noah_mp)
+
+   call radiation(&
+                  ! input
+                  vegTypeIndex,                       & ! intent(in): vegetation type index
+                  ist, isc, ice,                      & ! intent(in): indices to define surface type, soil color, and ice type (constant)
+                  nSoil,                              & ! intent(in): number of soil layers               
+                  scalarSWE,                          & ! intent(in): snow water equivalent (kg m-2) 
+                  snowmassPlusNewsnow,                & ! intent(in): sum of snow mass and new snowfall (kg m-2 [mm])
+                  dt,                                 & ! intent(in): time step (s)
+                  scalarCosZenith,                    & ! intent(in): cosine of the solar zenith angle (0-1)
+                  scalarSnowDepth*1000._dp,           & ! intent(in): snow depth on the ground surface (mm)
+                  scalarGroundTemp,                   & ! intent(in): ground temperature (K)
+                  scalarCanopyTemp,                   & ! intent(in): canopy temperature (K)
+                  scalarGroundSnowFraction,           & ! intent(in): snow cover fraction (0-1)
+                  scalarSnowfall,                     & ! intent(in): snowfall (kg m-2 s-1 [mm/s])
+                  scalarCanopyWetFraction,            & ! intent(in): fraction of canopy that is wet
+                  scalarExposedLAI,                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                  scalarExposedSAI,                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)          
+                  mLayerVolFracLiq(1:nSoil),          & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+                  spectralIncomingDirect(1:nBands),   & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
+                  spectralIncomingDiffuse(1:nBands),  & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+                  scalarVegFraction,                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                  iLoc, jLoc,                         & ! intent(in): spatial location indices      
+                  ! output
+                  scalarSnowAlbedo,                   & ! intent(inout): snow albedo (-)
+                  scalarSnowAge,                      & ! intent(inout): non-dimensional snow age (-)
+                  scalarCanopySunlitFraction,         & ! intent(out): sunlit fraction of canopy (-)
+                  scalarCanopySunlitLAI,              & ! intent(out): sunlit leaf area (-)
+                  scalarCanopyShadedLAI,              & ! intent(out): shaded leaf area (-)
+                  scalarCanopySunlitPAR,              & ! intent(out): average absorbed par for sunlit leaves (w m-2)
+                  scalarCanopyShadedPAR,              & ! intent(out): average absorbed par for shaded leaves (w m-2)
+                  scalarCanopyAbsorbedSolar,          & ! intent(out): solar radiation absorbed by canopy (W m-2)
+                  scalarGroundAbsorbedSolar,          & ! intent(out): solar radiation absorbed by ground (W m-2)
+                  scalarTotalReflectedSolar,          & ! intent(out): total reflected solar radiation (W m-2)
+                  scalarTotalAbsorbedSolar,           & ! intent(out): total absorbed solar radiation (W m-2)
+                  scalarCanopyReflectedSolar,         & ! intent(out): solar radiation reflected from the canopy (W m-2)
+                  scalarGroundReflectedSolar,         & ! intent(out): solar radiation reflected from the ground (W m-2) 
+                  scalarBetweenCanopyGapFraction,     & ! intent(out): between canopy gap fraction for beam (-)
+                  scalarWithinCanopyGapFraction       ) ! intent(out): within canopy gap fraction for beam (-)
+
+  ! **** all other options 
+  case(CLM_2stream,UEB_2stream,NL_scatter,BeersLaw)
+
+   call canopy_SW(&
+                  ! input: model control
+                  vegTypeIndex,                                       & ! intent(in): index of vegetation type
+                  soilTypeIndex,                                      & ! intent(in): index of soil type
+                  computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                  ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
+                  ! input: model variables
+                  scalarCosZenith,                                    & ! intent(in): cosine of direct zenith angle (0-1)
+                  spectralIncomingDirect(1:nBands),                   & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
+                  spectralIncomingDiffuse(1:nBands),                  & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+                  spectralSnowAlbedoDirect(1:nBands),                 & ! intent(in): direct albedo of snow in each spectral band (-)
+                  spectralSnowAlbedoDiffuse(1:nBands),                & ! intent(in): diffuse albedo of snow in each spectral band (-)
+                  scalarExposedLAI,                                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                  scalarExposedSAI,                                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                  scalarVegFraction,                                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                  scalarCanopyWetFraction,                            & ! intent(in): fraction of lai, sai that is wetted (-)
+                  scalarGroundSnowFraction,                           & ! intent(in): fraction of ground that is snow covered (-)
+                  mLayerVolFracLiq(1),                                & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
+                  scalarCanopyTemp,                                   & ! intent(in): canopy temperature (k)
+                  ! output
+                  spectralBelowCanopyDirect,                          & ! intent(out): downward direct flux below veg layer for each spectral band  W m-2)
+                  spectralBelowCanopyDiffuse,                         & ! intent(out): downward diffuse flux below veg layer for each spectral band (W m-2)
+                  scalarBelowCanopySolar,                             & ! intent(out): solar radiation transmitted below the canopy (W m-2)
+                  spectralAlbGndDirect,                               & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
+                  spectralAlbGndDiffuse,                              & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
+                  scalarGroundAlbedo,                                 & ! intent(out): albedo of the ground surface (-)
+                  scalarCanopyAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the vegetation canopy (W m-2)
+                  scalarGroundAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the ground (W m-2)
+                  scalarCanopySunlitFraction,                         & ! intent(out): sunlit fraction of canopy (-)
+                  scalarCanopySunlitLAI,                              & ! intent(out): sunlit leaf area (-)
+                  scalarCanopyShadedLAI,                              & ! intent(out): shaded leaf area (-)
+                  scalarCanopySunlitPAR,                              & ! intent(out): average absorbed par for sunlit leaves (w m-2)
+                  scalarCanopyShadedPAR,                              & ! intent(out): average absorbed par for shaded leaves (w m-2)
+                  err,cmessage)                                         ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  case default; err=20; message=trim(message)//'unable to identify option for canopy sw radiation'; return
+
+ end select ! (option for canopy sw radiation)
+
+
+ end subroutine vegSWavRad_muster
+
+
+
+ ! ************************************************************************************************
+ ! private subroutine: various options to compute canopy sw radiation fluxes
+ ! ************************************************************************************************
+ subroutine canopy_SW(&
+                      ! input: model control
+                      vegTypeIndex,                                       & ! intent(in): index of vegetation type
+                      soilTypeIndex,                                      & ! intent(in): index of soil type
+                      computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                      ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
+                      ! input: model variables
+                      scalarCosZenith,                                    & ! intent(in): cosine of direct zenith angle (0-1)
+                      spectralIncomingDirect,                             & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
+                      spectralIncomingDiffuse,                            & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+                      spectralSnowAlbedoDirect,                           & ! intent(in): direct albedo of snow in each spectral band (-)
+                      spectralSnowAlbedoDiffuse,                          & ! intent(in): diffuse albedo of snow in each spectral band (-)
+                      scalarExposedLAI,                                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                      scalarExposedSAI,                                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                      scalarVegFraction,                                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                      scalarCanopyWetFraction,                            & ! intent(in): fraction of lai, sai that is wetted (-)
+                      scalarGroundSnowFraction,                           & ! intent(in): fraction of ground that is snow covered (-)
+                      scalarVolFracLiqUpper,                              & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
+                      scalarCanopyTempTrial,                              & ! intent(in): canopy temperature (K)
+                      ! output
+                      spectralBelowCanopyDirect,                          & ! intent(out): downward direct flux below veg layer (W m-2)
+                      spectralBelowCanopyDiffuse,                         & ! intent(out): downward diffuse flux below veg layer (W m-2)
+                      scalarBelowCanopySolar,                             & ! intent(out): radiation transmitted below the canopy (W m-2)
+                      spectralAlbGndDirect,                               & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
+                      spectralAlbGndDiffuse,                              & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
+                      scalarGroundAlbedo,                                 & ! intent(out): albedo of the ground surface (-)
+                      scalarCanopyAbsorbedSolar,                          & ! intent(out): radiation absorbed by the vegetation canopy (W m-2)
+                      scalarGroundAbsorbedSolar,                          & ! intent(out): radiation absorbed by the ground (W m-2)
+                      scalarCanopySunlitFraction,                         & ! intent(out): sunlit fraction of canopy (-)
+                      scalarCanopySunlitLAI,                              & ! intent(out): sunlit leaf area (-)
+                      scalarCanopyShadedLAI,                              & ! intent(out): shaded leaf area (-)
+                      scalarCanopySunlitPAR,                              & ! intent(out): average absorbed par for sunlit leaves (w m-2)
+                      scalarCanopyShadedPAR,                              & ! intent(out): average absorbed par for shaded leaves (w m-2)
+                      err,message)                                          ! intent(out): error control
  ! utilities
  USE expIntegral_module,only:expIntegral                                     ! subroutine to calculate the exponential integral
  ! Noah-MP modules
@@ -186,7 +509,7 @@ contains
 
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='vegSWavRad/'
+ err=0; message='canopy_SW/'
 
  ! compute the albedo of the ground surface
  call gndAlbedo(&
@@ -667,7 +990,7 @@ contains
 
 
  
- end subroutine vegSWavRad
+ end subroutine canopy_SW
 
 
  ! *************************************************************************************************************************************

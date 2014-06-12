@@ -18,7 +18,7 @@ contains
                        ! input: model control
                        dt,                                    & ! intent(in): model time step (s)
                        snowPresence,                          & ! intent(in): logical flag to denote if snow is present
-                       ixAlbedoMethod,                        & ! intent(in): method used for snow albedo
+                       ixAlbedoMethod,                        & ! intent(in): index of the method used for snow albedo
                        ! input: model variables
                        snowfallRate,                          & ! intent(in): snowfall rate (kg m-2 s-1)
                        surfaceTemp,                           & ! intent(in): surface temperature (K)

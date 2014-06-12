@@ -180,7 +180,7 @@ contains
    ! compute the fraction of liquid water associated with the layer temperature
    fracLiq      = fracliquid(mLayerTemp(1),fc_param)
    ! compute volumeteric fraction of liquid water and ice
-   volFracWater = (scalarSWE/scalarSnowDepth)/iden_ice  ! volumetric fraction of total water (liquid and ice)
+   volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)
    mLayerVolFracIce(1) = (1._dp - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
    mLayerVolFracLiq(1) =          fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
    ! initialize albedo
@@ -203,6 +203,7 @@ contains
     mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat(:) = mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(:)
    endif  ! (if NOT using the Noah-MP radiation routine)
    ! check
+   print*, trim(message)
    do kLayer=1,nLayers
     write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
    end do

@@ -114,8 +114,8 @@ contains
   CR_ovrvdnPress = (weightSnow/base_visc)*chi4*chi5
   ! update the snow weight with the halfWeight not yet used
   weightSnow = weightSnow + halfweight          ! add half of the weight from the current layer
-  ! *** compute the compaction rate associated with snow melt and sublimation (s-1)
-  ! NOTE: loss of ice due to snowmelt and sublimation are implicit, so can be updated directly
+  ! *** compute the compaction rate associated with snow melt (s-1)
+  ! NOTE: loss of ice due to snowmelt is implicit, so can be updated directly
   if(iden_ice*mLayerVolFracIceNew(iSnow) < snwDensityMax)then ! only collapse layers if below a critical density
    scalarDepthNew = min(mLayerVolFracIceNew(iSnow)/mLayerVolFracIce(iSnow), 1._dp)*mLayerDepth(iSnow)
   else

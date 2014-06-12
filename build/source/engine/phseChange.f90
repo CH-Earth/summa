@@ -16,11 +16,13 @@ contains
  ! ************************************************************************************************
  ! new subroutine: compute phase change impacts on matric head and volumetric liquid water and ice
  ! ************************************************************************************************
- subroutine phseChange(isSaturated,         & ! intent(in): flags to denote saturation
+ subroutine phseChange(&
+                       ! input
                        mLayerTempNew,       & ! intent(in): new temperature vector (K)
                        mLayerMatricHeadIter,& ! intent(in): matric head at the current iteration (m)
                        mLayerVolFracLiqIter,& ! intent(in): volumetric fraction of liquid water at the current iteration (-)
                        mLayerVolFracIceIter,& ! intent(in): volumetric fraction of ice at the current iteration (-)
+                       ! output
                        mLayerMatricHeadNew, & ! intent(out): new matric head (m)
                        mLayerVolFracLiqNew, & ! intent(out): new volumetric fraction of liquid water (-)
                        mLayerVolFracIceNew, & ! intent(out): new volumetric fraction of ice (-)
@@ -34,7 +36,6 @@ contains
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
  implicit none
  ! input variables
- logical(lgt),intent(in)       :: isSaturated(:)           ! flags to denote saturation
  real(dp),intent(in)           :: mLayerTempNew(:)         ! new estimate of temperature (K)
  real(dp),intent(in)           :: mLayerMatricHeadIter(:)  ! before phase change: matric head (m)
  real(dp),intent(in)           :: mLayerVolFracLiqIter(:)  ! before phase change: volumetric fraction of liquid water (-)
@@ -54,12 +55,9 @@ contains
  real(dp),pointer              :: vGn_m                    ! van Genutchen "m" parameter (-)
  real(dp),pointer              :: kappa                    ! constant in the freezing curve function (m K-1)
  ! local pointers to model variables
- real(dp),pointer              :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the start of the iteration (-)
- real(dp),pointer              :: mLayerTcrit(:)           ! critical soil temperature above which all water is unfrozen (K)
  integer(i4b),pointer          :: layerType(:)             ! type of the layer (ix_soil or ix_snow)
  ! define local variables
  real(dp)                      :: fLiq                     ! fraction of liquid water (-)
- real(dp)                      :: dLiq                     ! change in volumetric liiquid water over the iteration (-)
  real(dp)                      :: theta                    ! liquid water equivalent of total water (-)
  real(dp)                      :: vTheta                   ! fractional volume of total water (-)
  real(dp)                      :: xPsi00                   ! matric head when all water is unfrozen (m)
@@ -83,8 +81,6 @@ contains
  kappa            => mvar_data%var(iLookMVAR%scalarKappa)%dat(1)    ! constant in the freezing curve function (m K-1)
 
  ! assign pointers to index variables
- mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat  ! volumetric fraction of ice at the start of the iteration (-)
- mLayerTcrit      => mvar_data%var(iLookMVAR%mLayerTcrit)%dat       ! critical soil temperature above which all water is unfrozen (K) 
  layerType        => indx_data%var(iLookINDEX%layerType)%dat        ! layer type (ix_soil or ix_snow)
 
  ! identify the number of snow layers
@@ -101,18 +97,10 @@ contains
     theta = mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqIter(iLayer)
     ! compute the volumetric fraction of liquid water and ice (-)
     fLiq = fracliquid(mLayerTempNew(iLayer),snowfrz_scale)
-    mLayerVolFracLiqNew(iLayer) = fLiq*theta
-    mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
-    !write(*,'(a,1x,i4,1x,4(f20.10,1x))') 'in phase change: iLayer, fLiq, theta, mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer) = ', &
-    !                                                       iLayer, fLiq, theta, mLayerVolFracLiqNew(iLayer), mLayerVolFracIceNew(iLayer)
-
-    ! avoid excessive change in a single iteration
-    dLiq = mLayerVolFracLiqNew(iLayer) - mLayerVolFracLiqIter(iLayer)
-    if(abs(dLiq) > 0.05_dp)then
-     !print*, 'modifying dLiq; dLiq = ', dLiq
-     mLayerVolFracLiqNew(iLayer) = mLayerVolFracLiqIter(iLayer) + dLiq*0.5_dp
-     mLayerVolFracIceNew(iLayer) = (theta - mLayerVolFracLiqNew(iLayer))*(iden_water/iden_ice)
-    endif
+    mLayerVolFracLiqNew(iLayer) = fLiq
+    mLayerVolFracIceNew(iLayer) = (1._dp - fLiq)*theta*(iden_water/iden_ice)
+    write(*,'(a,1x,i4,1x,4(f20.10,1x))') 'in phase change: iLayer, fLiq, theta, mLayerVolFracIceNew(iLayer) = ', &
+                                                           iLayer, fLiq, theta, mLayerVolFracIceNew(iLayer)
 
    ! ** soil
    case(ix_soil)
@@ -123,24 +111,25 @@ contains
     xPsi00 = matricHead(vTheta,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     ! compute the critical soil temperature where all water is unfrozen (K)
     TcSoil = Tfreeze + xPsi00*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
-    ! check if soil temperature is less than the critical temperature
-    if(mLayerTempNew(iLayer) < TcSoil)then
-     ! (update state variables)
-     mLayerMatricHeadNew(iLayer-nSnow) = xPsi00
-     mLayerVolFracLiqNew(iLayer)       = volFracLiq(xPsi00 + (LH_fus/(gravity*TcSoil))*(mLayerTempNew(iLayer) - TcSoil), &
-                                                    vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    ! update state variables
+    if(mLayerTempNew(iLayer) < TcSoil)then ! (check if soil temperature is less than the critical temperature)
+     ! compute matric head and volumetric fraction of liquid water
+     ! NOTE: these variables are not strictly needed for the phase change calculations
+     !         -- However, they provide a useful first guess in the hydrology calculations later
+     mLayerMatricHeadNew(iLayer-nSnow) = xPsi00 + (LH_fus/(gravity*TcSoil))*(mLayerTempNew(iLayer) - TcSoil)
+     mLayerVolFracLiqNew(iLayer)       = volFracLiq(mLayerMatricHeadNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     ! compute phase change
      mLayerVolFracIceNew(iLayer)       = vTheta - mLayerVolFracLiqNew(iLayer)
-    ! soil temperature is greater than the critical temperature
+     if(iLayer==1)&
+     write(*,'(a,1x,10(e20.10,1x))') 'in phseChange: mLayerMatricHeadNew(iLayer-nSnow), vTheta, xPsi00 = ', &
+                                                     mLayerMatricHeadNew(iLayer-nSnow), vTheta, xPsi00
+    ! case where all water is unfrozen
     else
-     ! (update state variables based on the liquid water equivalent of total water at the last iteration)
-     mLayerVolFracIceNew(iLayer)       = 0._dp  ! (temperature greater than critical temperature, so no ice)
-     mLayerVolFracLiqNew(iLayer)       = mLayerVolFracLiqIter(iLayer) + mLayerVolFracIceIter(iLayer)!*(iden_ice/iden_water)
-     ! check if there is ice at the start of the iterations
-     if(mLayerVolFracIce(iLayer) < tiny(theta))then ! no ice at the start of the iterations
-      mLayerMatricHeadNew(iLayer-nSnow) = mLayerMatricHeadIter(iLayer-nSnow)  ! (copy across state variables)
-     else
-      mLayerMatricHeadNew(iLayer-nSnow) = matricHead(mLayerVolFracLiqNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     endif  ! (ice at the start of the iterations)
+     ! update volumetric liquid water and ice content
+     mLayerVolFracLiqNew(iLayer) = vTheta
+     mLayerVolFracIceNew(iLayer) = 0._dp
+     ! take matric head from the previous iteration (could be saturated)
+     mLayerMatricHeadNew(iLayer-nSnow) = mLayerMatricHeadIter(iLayer)
     endif  ! (soil temperature less than critical temperature)
 
    ! ** check errors
@@ -150,8 +139,8 @@ contains
 
   ! print results
   !if(iLayer > nSnow .and. iLayer < nSnow+3) &
-  ! write(*,'(a,i4,1x,10(f20.10,1x))') 'in phase change: temp, liquid (iter, new), ice (iter, new, diff)', &
-  !  iLayer, mLayerTempNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracLiqNew(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracIceNew(iLayer), &
+  ! write(*,'(a,i4,1x,10(f20.10,1x))') 'in phase change: temp, liquid (iter), ice (iter, new, diff)', &
+  !  iLayer, mLayerTempNew(iLayer), mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracIceNew(iLayer), &
   !  mLayerVolFracIceNew(iLayer) - mLayerVolFracIceIter(iLayer)
 
 

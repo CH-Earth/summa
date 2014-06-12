@@ -902,8 +902,8 @@ contains
                   ! output: error control
                   err,cmessage)                 ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- !print*, 'iLayerLiqFluxSoil(0:1) = ', iLayerLiqFluxSoil(0:1) 
- !print*, 'mLayerVolFracLiqResidual = ', mLayerVolFracLiqResidual
+ print*, 'iLayerLiqFluxSoil(0:1) = ', iLayerLiqFluxSoil(0:1) 
+ print*, 'mLayerVolFracLiqResidual = ', mLayerVolFracLiqResidual
 
  ! *****
  ! compute the residual for the groundwater store
@@ -1129,9 +1129,9 @@ contains
      mLayerVolFracLiqNew(iLayer) = mLayerVolFracLiqIter(iLayer) + mLayerVolFracLiqDiff(iLayer)
      mLayerMatricHeadNew(iLayer) = matricHead(mLayerVolFracLiqNew(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      ! (check)
-     if(mLayerVolFracLiqNew(iLayer) + mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water) > theta_sat)then
-      print*, 'availPorosity, theta_sat, mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water), mLayerVolFracLiqDiff(iLayer), mLayerVolFracLiqNew(iLayer) = '
-      print*,  availPorosity, theta_sat, mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer)*(iden_ice/iden_water), mLayerVolFracLiqDiff(iLayer), mLayerVolFracLiqNew(iLayer)
+     if(mLayerVolFracLiqNew(iLayer) + mLayerVolFracIceIter(iLayer) > theta_sat)then   ! NOTE: no volume expansion for ice
+      print*, 'theta_sat, mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracLiqDiff(iLayer), mLayerVolFracLiqNew(iLayer) = '
+      print*,  theta_sat, mLayerVolFracLiqIter(iLayer), mLayerVolFracIceIter(iLayer), mLayerVolFracLiqDiff(iLayer), mLayerVolFracLiqNew(iLayer)
       message=trim(message)//'volumetric (liquid + ice) content exceeds soil porosity'
       err=20; return
      endif
@@ -1514,7 +1514,10 @@ contains
    !print*, 'scalarRainPlusMelt, scalarSurfaceRunoff, iLayerLiqFluxSoil(0), iLayerHydCond(0) = ', scalarRainPlusMelt, scalarSurfaceRunoff, iLayerLiqFluxSoil(0), iLayerHydCond(0)
 
    ! include base soil evaporation as the upper boundary flux
+   ! NOTE: infiltration is added later (to the top unfrozen soil layer)
    iLayerLiqFluxSoil(0) = scalarGroundEvaporation/iden_water
+   print*, ' iLayerLiqFluxSoil(0), scalarSurfaceRunoff, scalarSurfaceInfiltration = ', &
+             iLayerLiqFluxSoil(0), scalarSurfaceRunoff, scalarSurfaceInfiltration
 
    ! get copies of surface flux to compute numerical derivatives
    if(deriv_desired .and. ixDerivMethod==numerical)then
@@ -1531,7 +1534,7 @@ contains
   if(deriv_desired .and. ixDerivMethod==numerical)then
    dq_dStateBelow(0) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
   endif
-  !print*, 'ixDerivMethod, dq_dStateBelow(0) = ', ixDerivMethod, dq_dStateBelow(0)
+  print*, 'after surfaceFlux, ixDerivMethod, dq_dStateBelow(0) = ', ixDerivMethod, dq_dStateBelow(0)
   !pause
 
   ! *************************************************************************************************************************************************
@@ -2806,7 +2809,7 @@ contains
  real(dp),intent(inout)        :: scalarSurfaceRunoff       ! surface runoff (m s-1)
  real(dp),intent(inout)        :: scalarSurfaceInfiltration ! surface infiltration (m s-1)
  ! output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
- real(dp),intent(inout)        :: dq_dState                 ! derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
+ real(dp),intent(out)          :: dq_dState                 ! derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
  ! output: error control
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
@@ -2948,11 +2951,12 @@ contains
     surfaceHydCond = valueMissing
     surfaceDiffuse = valueMissing
 
-    ! set numerical derivative to zero
-    ! NOTE: depends on multiple soil layers and does not jive with the current tridiagonal matrix
-    dq_dState = 0._dp
-
    endif ! (if desire to compute infiltration)
+
+   ! set numerical derivative to zero
+   ! NOTE 1: Depends on multiple soil layers and does not jive with the current tridiagonal matrix
+   ! NOTE 2: Need to define the derivative at every call, because intent(out)
+   dq_dState = 0._dp
 
   ! ***** error check
   case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return
@@ -3824,6 +3828,10 @@ contains
   flux0 = -(iLayerInitLiqFluxSoil(iLayer)  - iLayerInitLiqFluxSoil(iLayer-1))*dt_dz
   flux1 = -(iLayerTrialLiqFluxSoil(iLayer) - iLayerTrialLiqFluxSoil(iLayer-1))*dt_dz
   mFlux = wimplicit*flux0 + (1._dp - wimplicit)*flux1
+  if(iLayer==1)then
+   print*, 'iLayerTrialLiqFluxSoil(iLayer) = ', iLayerTrialLiqFluxSoil(iLayer)
+   print*, 'iLayerTrialLiqFluxSoil(iLayer-1) = ', iLayerTrialLiqFluxSoil(iLayer-1)
+  endif
   ! flow reversal fluxes (-)
   flux0 = -(iLayerInitFluxReversal(iLayer) - iLayerInitFluxReversal(iLayer-1))*dt_dz
   flux1 = -(iLayerTrialFluxReversal(iLayer) - iLayerTrialFluxReversal(iLayer-1))*dt_dz
@@ -3835,14 +3843,15 @@ contains
   ! baseflow (-)
   mBase = wimplicit*mLayerInitBaseflow(iLayer)*dt_dz + (1._dp - wimplicit)*mLayerTrialBaseflow(iLayer)*dt_dz
   ! phase change (-)
-  mPhse = (iden_ice/iden_water)*(mLayerTrialVolFracIce(iLayer)-mLayerInitVolFracIce(iLayer))
+  !mPhse = (iden_ice/iden_water)*(mLayerTrialVolFracIce(iLayer)-mLayerInitVolFracIce(iLayer))
+  mPhse = mLayerTrialVolFracIce(iLayer)-mLayerInitVolFracIce(iLayer)  ! NOTE: no volume expansion
   ! residual (-)
   residualVec(iLayer) = mLayerTrialVolFracLiq(iLayer) - (mLayerInitVolFracLiq(iLayer) + mFlux + mEvap + mExpl - mBase - mPhse - compressibility)
 
   ! print progress
   !if(dt < 10._dp)then
-  ! if(iLayer==1)   write(*,'(a)')                     'iter, iLayer, residualVec(iLayer), mFlux, mExpl, mEvap, mBase, mPhse, compressibility'
-  ! if(iLayer < 10) write(*,'(2(i4,1x),10(e20.10,1x))') iter, iLayer, residualVec(iLayer), mFlux, mExpl, mEvap, mBase, mPhse, compressibility
+   if(iLayer==1) write(*,'(a)')                     'iter, iLayer, residualVec(iLayer), mFlux, mExpl, mEvap, mBase, mPhse, compressibility'
+   if(iLayer< 3) write(*,'(2(i4,1x),10(e20.10,1x))') iter, iLayer, residualVec(iLayer), mFlux, mExpl, mEvap, mBase, mPhse, compressibility
   !endif
 
  end do  ! (looping through soil layers)

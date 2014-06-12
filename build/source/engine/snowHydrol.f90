@@ -68,10 +68,11 @@ contains
  real(dp)                      :: increment                  ! iteration increment (-)
  real(dp),parameter            :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
  real(dp),parameter            :: dx=1.e-8_dp                ! finite difference increment (-)
- real(dp),parameter            :: atol=1.d-6                 ! absolute iteration tolerance (-)
+ real(dp),parameter            :: atol=1.d-8                 ! absolute iteration tolerance (-)
  integer(i4b),parameter        :: maxiter=10                 ! maximum number of iterations
  integer(i4b)                  :: jiter                      ! internal iteration index
  logical(lgt)                  :: printflag                  ! flag to print crap to the screen
+ real(dp)                      :: testSWE                    ! SWE (kg m-2)
  ! initialize error control
  err=0; message="snowHydrol/"
 
@@ -119,6 +120,12 @@ contains
  ! check the meltwater exponent is >=1
  if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; endif
 
+ ! check SWE
+ !if(nSnow > 0)then
+ ! testSWE = sum( (iden_ice*mLayerVolFracIceIter(1:nSnow) + iden_water*mLayerVolFracLiqIter(1:nSnow))*mLayerDepth(1:nSnow) )
+ ! print*, 'start of snowHydrol: SWE = ', testSWE
+ !endif
+
  ! compute properties fixed over the time step, and initial fluxes
  if(iter==1)then
   ! loop through snow layers
@@ -144,7 +151,7 @@ contains
  do iLayer=1,nSnow
   ! compute dt/dz
   dt_dz     = dt/mLayerDepth(iLayer)
-  ! compute the liquid water equivalent associated with phase change
+  ! compute the volumetric liquid water equivalent associated with phase change
   phseChnge = (iden_ice/iden_water)*(mLayerVolFracIceIter(iLayer) - mLayerVolFracIce(iLayer))
 
   ! ** allow liquid water to pass through under very high density
@@ -175,34 +182,45 @@ contains
     ! compute the iteration increment (-) and new value
     increment = lin_error/(1._dp + dt_dz*(1._dp - wimplicit)*dflw_dliq)
     volFracLiqNew = volFracLiqTrial + increment
-    ! update bounds
-    if(increment> 0._dp) xmin = volFracLiqTrial
-    if(increment<=0._dp) xmax = volFracLiqTrial
-    ! use bi-section if outside bounds
-    if(volFracLiqNew<xmin .or. volFracLiqNew>xmax) then
-     volFracLiqNew = 0.5_dp*(xmin+xmax)
-     increment = volFracLiqNew - volFracLiqTrial
-    endif
     ! test
     if(printflag)then
      if(jiter==1)&
-     write(*,'(a)')      'in snowHydrol, iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerLiqFluxSnow(iLayer-1), vDrainage, phseChnge = '
-     write(*,'(3(i4,1x),10(f20.10,1x))') iter, jiter, iLayer, increment, volFracLiqTrial, volFracLiqNew, iLayerLiqFluxSnow(iLayer-1), vDrainage, phseChnge
+     write(*,'(a)')      'in snowHydrol, iter, jiter, iLayer, lin_error, increment, volFracLiqTrial, volFracLiqNew, iLayerLiqFluxSnow(iLayer-1), vDrainage, phseChnge = '
+     write(*,'(3(i4,1x),10(f20.10,1x))') iter, jiter, iLayer, lin_error, increment, volFracLiqTrial, volFracLiqNew, iLayerLiqFluxSnow(iLayer-1), vDrainage, phseChnge
     endif
+    ! impose constraints
+    ! NOTE: still keep increment the same for now
+    if(volFracLiqNew<xmin) volFracLiqNew = 0.5_dp*(volFracLiqTrial - xmin)
+    if(volFracLiqNew>xmax) volFracLiqNew = 0.5_dp*(volFracLiqTrial + xmax)
     ! check for convergence
     if(abs(increment) < atol) exit
+    ! update bounds
+    !if(increment> 0._dp) xmin = volFracLiqTrial
+    !if(increment<=0._dp) xmax = volFracLiqTrial
+    ! use bi-section if outside bounds
+    !if(volFracLiqNew<xmin .or. volFracLiqNew>xmax) then
+    ! print*, 'bi-section'
+    ! volFracLiqNew = 0.5_dp*(xmin+xmax)
+    ! increment = volFracLiqNew - volFracLiqTrial
+    !endif
     ! get ready for next iteration
     volFracLiqTrial = volFracLiqNew
    end do  ! (end iterations)
    ! save state
    mLayerVolFracLiqNew(iLayer) = volFracLiqNew
    ! get ready to process the next snow layer
-   iLayerLiqFluxSnow(iLayer) = vDrainage + dflw_dliq*increment ! second term will be zero if converge completely
+   iLayerLiqFluxSnow(iLayer) = vDrainage + dflw_dliq*(volFracLiqNew - volFracLiqTrial) ! second term will be zero if converge completely
   endif  ! (if ice content is so high we need the direct pass through)
   !write(*,'(a)') 'in snowHydrol:  iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer) = '
   !write(*,'(i4,1x,9(f20.10,1x))') iLayer, iLayerLiqFluxSnow(iLayer-1), iLayerLiqFluxSnow(iLayer), mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer)
   ! *** now process the next layer
  end do  ! (looping through snow layers)
+
+ !write(*,'(a,1x,f20.10,1x)') 'in snowHydrol: iden_water*iLayerLiqFluxSnow(0)*dt     = ', iden_water*iLayerLiqFluxSnow(0)*dt
+ !write(*,'(a,1x,f20.10,1x)') 'in snowHydrol: iden_water*iLayerLiqFluxSnow(nSnow)*dt = ', iden_water*iLayerLiqFluxSnow(nSnow)*dt
+
+ ! print drainage
+ !print*, 'iLayerLiqFluxSnow(nSnow) = ', iLayerLiqFluxSnow(nSnow)
 
  contains
 

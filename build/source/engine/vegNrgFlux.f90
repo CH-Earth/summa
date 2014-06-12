@@ -1,4 +1,5 @@
 module vegNrgFlux_module
+! numerical recipes data types
 USE nrtype
 ! constants
 USE multiconst,only:gravity    ! acceleration of gravity              (m s-2)
@@ -17,6 +18,11 @@ USE multiconst,only:sb         ! Stefan Boltzman constant             (W m-2 K-4
 USE multiconst,only:iden_air   ! intrinsic density of air             (kg m-3)
 USE multiconst,only:iden_ice   ! intrinsic density of ice             (kg m-3)
 USE multiconst,only:iden_water ! intrinsic density of liquid water    (kg m-3)
+! access the number of snow and soil layers
+USE data_struc,only:&
+                    nSnow,        & ! number of snow layers  
+                    nSoil,        & ! number of soil layers  
+                    nLayers         ! total number of layers
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:  &
  numerical,                  & ! numerical solution
@@ -26,13 +32,6 @@ USE mDecisions_module,only:  &
  Raupach_BLM1994,            & ! Raupach (BLM 1994) "Simplified expressions..."
  CM_QJRMS1998,               & ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
  vegTypeTable                  ! constant parameters dependent on the vegetation type
-! look-up values for the choice of canopy shortwave radiation method
-USE mDecisions_module,only:  &
- noah_mp,                    & ! full Noah-MP implementation (including albedo)
- CLM_2stream,                & ! CLM 2-stream model (see CLM documentation)
- UEB_2stream,                & ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
- NL_scatter,                 & ! Simplified method Nijssen and Lettenmaier (JGR 1999)
- BeersLaw                      ! Beer's Law (as implemented in VIC)
 ! look-up values for the choice of parameterization for canopy emissivity
 USE mDecisions_module,only:  &
  simplExp,                   & ! simple exponential function
@@ -61,6 +60,7 @@ USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and so
 implicit none
 private
 public::vegNrgFlux
+public::wettedFrac
 ! dimensions
 integer(i4b)                  :: nSoil         ! number of soil layers
 integer(i4b)                  :: nSnow         ! number of snow layers
@@ -87,29 +87,15 @@ contains
  ! ************************************************************************************************
  subroutine vegNrgFlux(&
                        ! input
-                       dt,                                      & ! intent(in): time step (seconds)
                        iter,                                    & ! intent(in): iteration index
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
                        computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
-                       computeShortwave,                        & ! intent(in): flag to indicate if we need to compute shortwave radiation
                        canairTempTrial,                         & ! intent(in): trial value of the canopy air space temperature (K)
                        canopyTempTrial,                         & ! intent(in): trial value of canopy temperature (K)
                        groundTempTrial,                         & ! intent(in): trial value of ground temperature (K)
                        canopyIceTrial,                          & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                        canopyLiqTrial,                          & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
-                       vegTypeIndex,                            & ! intent(in): vegetation type index
-                       soilTypeIndex,                           & ! intent(in): soil type index
-                       scalarLAI,                               & ! intent(in): one-sided leaf area index (m2 m-2)
-                       scalarSAI,                               & ! intent(in): one-sided stem area index (m2 m-2)
-                       scalarExposedLAI,                        & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                       scalarExposedSAI,                        & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                       scalarGrowingSeasonIndex,                & ! intent(in): growing season index (0=off, 1=on)
-                       scalarFoliageNitrogenFactor,             & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
-
-                       ! input/output: canopy air space variables
-                       scalarVP_CanopyAir,                      & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                       scalarCanopyStabilityCorrection,         & ! intent(inout): stability correction for the canopy (-)
-                       scalarGroundStabilityCorrection,         & ! intent(inout): stability correction for the ground surface (-)
+                       upperBoundTemp,                          & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
 
                        ! output: liquid water fluxes associated with evaporation/transpiration
                        scalarCanopyTranspiration,               & ! intent(out): canopy transpiration (kg m-2 s-1)
@@ -143,28 +129,15 @@ contains
  ! compute energy and mass fluxes for vegetation
  implicit none
  ! input
- real(dp),intent(in)           :: dt                              ! time step (seconds)
- integer(i4b),intent(in)       :: iter                            ! iteration index
- logical(lgt),intent(in)       :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(in)       :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
- logical(lgt),intent(in)       :: computeShortwave                ! flag to indicate if need to compute shortwave radiation
- real(dp),intent(in)           :: canairTempTrial                 ! trial value of canopy air space temperature (K)
- real(dp),intent(in)           :: canopyTempTrial                 ! trial value of canopy temperature (K)
- real(dp),intent(in)           :: groundTempTrial                 ! trial value of ground temperature (K)
- real(dp),intent(in)           :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(in)           :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
- integer(i4b),intent(in)       :: vegTypeIndex                    ! vegetation type index
- integer(i4b),intent(in)       :: soilTypeIndex                   ! soil type index
- real(dp),intent(in)           :: scalarLAI                       ! one-sided leaf area index (m2 m-2)
- real(dp),intent(in)           :: scalarSAI                       ! one-sided stem area index (m2 m-2)
- real(dp),intent(in)           :: scalarExposedLAI                ! exposed leaf area index after burial by snow (m2 m-2)
- real(dp),intent(in)           :: scalarExposedSAI                ! exposed stem area index after burial by snow (m2 m-2)
- real(dp),intent(in)           :: scalarGrowingSeasonIndex        ! growing season index (0=off, 1=on)
- real(dp),intent(in)           :: scalarFoliageNitrogenFactor     ! foliage nitrogen concentration (1.0 = saturated)
- ! input/output: canopy air space variables
- real(dp),intent(inout)        :: scalarVP_CanopyAir              ! trial vapor pressure of the canopy air space (Pa)
- real(dp),intent(inout)        :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
- real(dp),intent(inout)        :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
+ integer(i4b),intent(in)        :: iter                           ! iteration index
+ logical(lgt),intent(in)        :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)        :: computeVegFlux                 ! flag to indicate if computing fluxes over vegetation
+ real(dp),intent(in)            :: canairTempTrial                ! trial value of canopy air space temperature (K)
+ real(dp),intent(in)            :: canopyTempTrial                ! trial value of canopy temperature (K)
+ real(dp),intent(in)            :: groundTempTrial                ! trial value of ground temperature (K)
+ real(dp),intent(in)            :: canopyIceTrial                 ! trial value of mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)            :: canopyLiqTrial                 ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp),intent(in)            :: upperBoundTemp                 ! temperature of the upper boundary (K) --> NOTE: use air temperature
  ! output: liquid water fluxes associated with evaporation/transpiration
  real(dp),intent(out)           :: scalarCanopyTranspiration      ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(out)           :: scalarCanopyEvaporation        ! canopy evaporation/condensation (kg m-2 s-1)
@@ -184,235 +157,264 @@ contains
  real(dp),intent(out)           :: dGroundNetFlux_dCanopyTemp     ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)           :: dGroundNetFlux_dGroundTemp     ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
  ! output: error control
- integer(i4b),intent(out)      :: err                             ! error code
- character(*),intent(out)      :: message                         ! error message
+ integer(i4b),intent(out)       :: err                            ! error code
+ character(*),intent(out)       :: message                        ! error message
  ! local
- character(LEN=256)            :: cmessage                        ! error message of downwind routine
- real(dp)                      :: scalarAquiferStorage            ! aquifer storage (m) -- can be basin-average, or single column
+ character(LEN=256)             :: cmessage                       ! error message of downwind routine
+ real(dp)                       :: scalarAquiferStorage           ! aquifer storage (m) -- can be basin-average, or single column
  ! initialize error control
  err=0; message="vegNrgFlux_muster/"
 
- ! define number of layers
- nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)  ! number of soil layers
- nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_snow)  ! number of snow layers
- nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)                   ! total number of layers
+ ! identify the type of boundary condition for thermodynamics
+ select case(bcUpprTdyn)
 
- ! identify the appropriate groundwater variable
- select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
-  case(singleBasin); scalarAquiferStorage = bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1)
-  case(localColumn); scalarAquiferStorage = mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
-  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
- end select ! (modify the groundwater representation for this single-column implementation) 
+  ! *****
+  ! (1) DIRICHLET BOUNDARY CONDITION...
+  ! ***********************************
 
- ! subroutine to compute energy fluxes at vegetation and ground surfaces
- ! NOTE: separate call to use data structure elements, and ensure variables are used as they are intended (input, input/output, output)
- call vegNrgFlux_muster(&
+  ! NOTE: Vegetation fluxes are not computed in this case
 
-                        ! input
-                        dt,                                                                & ! intent(in): time step (seconds)
-                        iter,                                                              & ! intent(in): iteration index
-                        firstSubStep,                                                      & ! intent(in): flag to indicate if we are processing the first sub-step
-                        computeVegFlux,                                                    & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
-                        computeShortwave,                                                  & ! intent(in): flag to indicate if we need to compute shortwave radiation
-                        canairTempTrial,                                                   & ! intent(in): trial value of the canopy air space temperature (K)
-                        canopyTempTrial,                                                   & ! intent(in): trial value of canopy temperature (K)
-                        groundTempTrial,                                                   & ! intent(in): trial value of ground temperature (K)
-                        canopyIceTrial,                                                    & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
-                        canopyLiqTrial,                                                    & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
-                        vegTypeIndex,                                                      & ! intent(in): vegetation type index
-                        soilTypeIndex,                                                     & ! intent(in): soil type index
-                        scalarLAI,                                                         & ! intent(in): one-sided leaf area index (m2 m-2)
-                        scalarSAI,                                                         & ! intent(in): one-sided stem area index (m2 m-2)
-                        scalarExposedLAI,                                                  & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                        scalarExposedSAI,                                                  & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                        scalarGrowingSeasonIndex,                                          & ! intent(in): growing season index (0=off, 1=on)
-                        scalarFoliageNitrogenFactor,                                       & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
+  ! ** prescribed temperature at the upper boundary of the snow-soil system
+  case(prescribedTemp)
 
-                        ! model control -- intent(in)
-                        model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,              & ! intent(in): choice of method to compute derivatives
-                        model_decisions(iLookDECISIONS%veg_traits)%iDecision,              & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
-                        model_decisions(iLookDECISIONS%canopySrad)%iDecision,              & ! intent(in): choice of canopy shortwave radiation method
-                        model_decisions(iLookDECISIONS%canopyEmis)%iDecision,              & ! intent(in): choice of parameterization for canopy emissivity
-                        model_decisions(iLookDECISIONS%windPrfile)%iDecision,              & ! intent(in): choice of canopy wind profile
-                        model_decisions(iLookDECISIONS%astability)%iDecision,              & ! intent(in): choice of stability function
-                        model_decisions(iLookDECISIONS%soilStress)%iDecision,              & ! intent(in): choice of function for the soil moisture control on stomatal resistance
-                        model_decisions(iLookDECISIONS%groundwatr)%iDecision,              & ! intent(in): choice of groundwater parameterization
-                        model_decisions(iLookDECISIONS%stomResist)%iDecision,              & ! intent(in): choice of function for stomatal resistance
+   ! liquid water fluxes associated with evaporation/transpiration
+   scalarCanopyTranspiration = 0._dp    ! canopy transpiration (kg m-2 s-1)
+   scalarCanopyEvaporation   = 0._dp    ! canopy evaporation/condensation (kg m-2 s-1)
+   scalarGroundEvaporation   = 0._dp    ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+   ! set canopy fluxes to zero (no canopy)
+   canairNetFlux = 0._dp                ! net energy flux for the canopy air space (W m-2)
+   canopyNetFlux = 0._dp                ! net energy flux for the vegetation canopy (W m-2)
+   ! compute ground net flux (W m-2)
+   groundNetFlux = -mvar_data%var(iLookMVAR%iLayerThermalC)%dat(0)*(groundTempTrial - upperBoundTemp)/(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1)*0.5_dp)
+   ! compute derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+   dGroundNetFlux_dGroundTemp = -mvar_data%var(iLookMVAR%iLayerThermalC)%dat(0)/(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1)*0.5_dp)
+   ! set all other derivatives to zero
+   dCanairNetFlux_dCanairTemp = 0._dp   ! derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
+   dCanairNetFlux_dCanopyTemp = 0._dp   ! derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
+   dCanairNetFlux_dGroundTemp = 0._dp   ! derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
+   dCanopyNetFlux_dCanairTemp = 0._dp   ! derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
+   dCanopyNetFlux_dCanopyTemp = 0._dp   ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+   dCanopyNetFlux_dGroundTemp = 0._dp   ! derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+   dGroundNetFlux_dCanairTemp = 0._dp   ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
+   dGroundNetFlux_dCanopyTemp = 0._dp   ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
 
-                        ! model parameters (phenology) -- intent(in)
-                        mpar_data%var(iLookPARAM%heightCanopyTop),                         & ! intent(in): height at the top of the vegetation canopy (m)
-                        mpar_data%var(iLookPARAM%heightCanopyBottom),                      & ! intent(in): height at the bottom of the vegetation canopy (m)
-                        mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),                & ! intent(in): maximum interception storage capacity for ice (kg m-2)
-                        mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),                & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
+  ! *****
+  ! (2) NEUMANN COUNDARY CONDITION...
+  ! *********************************
 
-                        ! model parameters (aerodynamic resistance) -- intent(in)
-                        mpar_data%var(iLookPARAM%z0Snow),                                  & ! intent(in): roughness length of snow (m)
-                        mpar_data%var(iLookPARAM%z0Soil),                                  & ! intent(in): roughness length of soil (m)
-                        mpar_data%var(iLookPARAM%z0Canopy),                                & ! intent(in): roughness length of the canopy (m)
-                        mpar_data%var(iLookPARAM%zpdFraction),                             & ! intent(in): zero plane displacement / canopy height (-)
-                        mpar_data%var(iLookPARAM%critRichNumber),                          & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
-                        mpar_data%var(iLookPARAM%Louis79_bparam),                          & ! intent(in): parameter in Louis (1979) stability function
-                        mpar_data%var(iLookPARAM%Louis79_cStar),                           & ! intent(in): parameter in Louis (1979) stability function
-                        mpar_data%var(iLookPARAM%Mahrt87_eScale),                          & ! intent(in): exponential scaling factor in the Mahrt (1987) stability function
-                        mpar_data%var(iLookPARAM%windReductionParam),                      & ! intent(in): canopy wind reduction parameter (-)                   
-                        mpar_data%var(iLookPARAM%leafExchangeCoeff),                       & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
-                        mpar_data%var(iLookPARAM%leafDimension),                           & ! intent(in): characteristic leaf dimension (m)
+  ! NOTE 1: This is the main routine for calculating vegetation fluxes
+  ! NOTE 2: This routine also calculates surface fluxes for the case where vegetation is buried with snow (or bare soil)
 
-                        ! model parameters (soil stress) -- intent(in)
-                        mpar_data%var(iLookPARAM%theta_sat),                               & ! intent(in): soil porosity (-)
-                        mpar_data%var(iLookPARAM%theta_res),                               & ! intent(in): residual volumetric liquid water content (-)
-                        mpar_data%var(iLookPARAM%plantWiltPsi),                            & ! intent(in): matric head at wilting point (m)
-                        mpar_data%var(iLookPARAM%soilStressParam),                         & ! intent(in): parameter in the exponential soil stress function (-)
-                        mpar_data%var(iLookPARAM%critSoilWilting),                         & ! intent(in): critical vol. liq. water content when plants are wilting (-)
-                        mpar_data%var(iLookPARAM%critSoilTranspire),                       & ! intent(in): critical vol. liq. water content when transpiration is limited (-)
-                        mpar_data%var(iLookPARAM%critAquiferTranspire),                    & ! intent(in): critical aquifer storage value when transpiration is limited (m)
-                        mpar_data%var(iLookPARAM%minStomatalResistance),                   & ! intent(in): mimimum stomatal resistance (s m-1) 
-       
-                        ! forcing at the upper boundary -- intent(in)
-                        attr_data%var(iLookATTR%mHeight),                                  & ! intent(in): measurement height (m)
-                        forc_data%var(iLookFORCE%airtemp),                                 & ! intent(in): air temperature at some height above the surface (K)
-                        forc_data%var(iLookFORCE%windspd),                                 & ! intent(in): wind speed at some height above the surface (m s-1)
-                        forc_data%var(iLookFORCE%airpres),                                 & ! intent(in): air pressure at some height above the surface (Pa)
-                        forc_data%var(iLookFORCE%LWRadAtm),                                & ! intent(in): downwelling longwave radiation at the upper boundary (W m-2)
-                        mvar_data%var(iLookMVAR%scalarVPair)%dat(1),                       & ! intent(in): vapor pressure at some height above the surface (Pa)
-                        mvar_data%var(iLookMVAR%scalarO2air)%dat(1),                       & ! intent(in): atmospheric o2 concentration (Pa)
-                        mvar_data%var(iLookMVAR%scalarCO2air)%dat(1),                      & ! intent(in): atmospheric co2 concentration (Pa)
-                        mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1),                    & ! intent(in): wetbulb temperature (K)
-                        mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),                    & ! intent(in): computed rainfall rate (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1),             & ! intent(in): rainfall through the vegetation canopy (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),             & ! intent(in): snowfall through the vegetation canopy (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1),                   & ! intent(in): cosine of the solar zenith angle (0-1)
-                        mvar_data%var(iLookMVAR%spectralIncomingDirect)%dat(1:nBands),     & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
-                        mvar_data%var(iLookMVAR%spectralIncomingDiffuse)%dat(1:nBands),    & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
+  ! * flux boundary condition
+  case(energyFlux)
 
-                        ! surface characteristix -- intent(in)
-                        mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat(1:nBands),   & ! intent(in): direct albedo of snow in each spectral band (-)
-                        mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1:nBands),  & ! intent(in): diffuse albedo of snow in each spectral band (-)
-                        mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1),                  & ! intent(inout): snow albedo (-)
-                        mvar_data%var(iLookMVAR%scalarSnowAge)%dat(1),                     & ! intent(inout): non-dimensional snow age (-)
+   ! identify the appropriate groundwater variable
+   select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+    case(singleBasin); scalarAquiferStorage = bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1)
+    case(localColumn); scalarAquiferStorage = mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
+    case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
+   end select ! (modify the groundwater representation for this single-column implementation) 
 
-                        ! water storage -- intent(in)
-                        ! NOTE: soil stress only computed at the start of the substep (iter==1)
-                        mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                         & ! intent(in): snow water equivalent on the ground (kg m-2)
-                        mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),                   & ! intent(in): snow depth on the ground surface (m)
-                        mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers),    & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
-                        mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                     & ! intent(in): matric head in each layer (m)
-                        scalarAquiferStorage,                                              & ! intent(in): aquifer storage (m) -- can be local-column or single-basin
+   ! subroutine to compute energy fluxes at vegetation and ground surfaces
+   ! NOTE: separate call to use data structure elements, and ensure variables are used as they are intended (input, input/output, output)
+   call vegNrgFlux_muster(&
+  
+                          ! input: control and state variables
+                          iter,                                                              & ! intent(in): iteration index
+                          firstSubStep,                                                      & ! intent(in): flag to indicate if we are processing the first sub-step
+                          computeVegFlux,                                                    & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                          canairTempTrial,                                                   & ! intent(in): trial value of the canopy air space temperature (K)
+                          canopyTempTrial,                                                   & ! intent(in): trial value of canopy temperature (K)
+                          groundTempTrial,                                                   & ! intent(in): trial value of ground temperature (K)
+                          canopyIceTrial,                                                    & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
+                          canopyLiqTrial,                                                    & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+  
+                          ! input: model decisions
+                          model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,              & ! intent(in): choice of method to compute derivatives
+                          model_decisions(iLookDECISIONS%veg_traits)%iDecision,              & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
+                          model_decisions(iLookDECISIONS%canopyEmis)%iDecision,              & ! intent(in): choice of parameterization for canopy emissivity
+                          model_decisions(iLookDECISIONS%windPrfile)%iDecision,              & ! intent(in): choice of canopy wind profile
+                          model_decisions(iLookDECISIONS%astability)%iDecision,              & ! intent(in): choice of stability function
+                          model_decisions(iLookDECISIONS%soilStress)%iDecision,              & ! intent(in): choice of function for the soil moisture control on stomatal resistance
+                          model_decisions(iLookDECISIONS%groundwatr)%iDecision,              & ! intent(in): choice of groundwater parameterization
+                          model_decisions(iLookDECISIONS%stomResist)%iDecision,              & ! intent(in): choice of function for stomatal resistance
+  
+                          ! input: physical attributes
+                          type_data%var(iLookTYPE%vegTypeIndex),                             & ! intent(in): vegetation type index
+                          type_data%var(iLookTYPE%soilTypeIndex),                            & ! intent(in): soil type index
+  
+                          ! input: vegetation parameters
+                          mpar_data%var(iLookPARAM%heightCanopyTop),                         & ! intent(in): height at the top of the vegetation canopy (m)
+                          mpar_data%var(iLookPARAM%heightCanopyBottom),                      & ! intent(in): height at the bottom of the vegetation canopy (m)
+                          mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),                & ! intent(in): maximum interception storage capacity for ice (kg m-2)
+                          mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),                & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
+  
+                          ! input: vegetation phenology
+                          mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                         & ! intent(in): one-sided leaf area index (m2 m-2)
+                          mvar_data%var(iLookMVAR%scalarSAI)%dat(1),                         & ! intent(in): one-sided stem area index (m2 m-2)
+                          mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),                  & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
+                          mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),                  & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
+                          mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1),          & ! intent(in): growing season index (0=off, 1=on)
+                          mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1),       & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
+  
+                          ! input: aerodynamic resistance parameters
+                          mpar_data%var(iLookPARAM%z0Snow),                                  & ! intent(in): roughness length of snow (m)
+                          mpar_data%var(iLookPARAM%z0Soil),                                  & ! intent(in): roughness length of soil (m)
+                          mpar_data%var(iLookPARAM%z0Canopy),                                & ! intent(in): roughness length of the canopy (m)
+                          mpar_data%var(iLookPARAM%zpdFraction),                             & ! intent(in): zero plane displacement / canopy height (-)
+                          mpar_data%var(iLookPARAM%critRichNumber),                          & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
+                          mpar_data%var(iLookPARAM%Louis79_bparam),                          & ! intent(in): parameter in Louis (1979) stability function
+                          mpar_data%var(iLookPARAM%Louis79_cStar),                           & ! intent(in): parameter in Louis (1979) stability function
+                          mpar_data%var(iLookPARAM%Mahrt87_eScale),                          & ! intent(in): exponential scaling factor in the Mahrt (1987) stability function
+                          mpar_data%var(iLookPARAM%windReductionParam),                      & ! intent(in): canopy wind reduction parameter (-)                   
+                          mpar_data%var(iLookPARAM%leafExchangeCoeff),                       & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
+                          mpar_data%var(iLookPARAM%leafDimension),                           & ! intent(in): characteristic leaf dimension (m)
+  
+                          ! input: soil stress parameters
+                          mpar_data%var(iLookPARAM%theta_sat),                               & ! intent(in): soil porosity (-)
+                          mpar_data%var(iLookPARAM%theta_res),                               & ! intent(in): residual volumetric liquid water content (-)
+                          mpar_data%var(iLookPARAM%plantWiltPsi),                            & ! intent(in): matric head at wilting point (m)
+                          mpar_data%var(iLookPARAM%soilStressParam),                         & ! intent(in): parameter in the exponential soil stress function (-)
+                          mpar_data%var(iLookPARAM%critSoilWilting),                         & ! intent(in): critical vol. liq. water content when plants are wilting (-)
+                          mpar_data%var(iLookPARAM%critSoilTranspire),                       & ! intent(in): critical vol. liq. water content when transpiration is limited (-)
+                          mpar_data%var(iLookPARAM%critAquiferTranspire),                    & ! intent(in): critical aquifer storage value when transpiration is limited (m)
+                          mpar_data%var(iLookPARAM%minStomatalResistance),                   & ! intent(in): mimimum stomatal resistance (s m-1) 
+         
+                          ! input: forcing at the upper boundary
+                          attr_data%var(iLookATTR%mHeight),                                  & ! intent(in): measurement height (m)
+                          forc_data%var(iLookFORCE%airtemp),                                 & ! intent(in): air temperature at some height above the surface (K)
+                          forc_data%var(iLookFORCE%windspd),                                 & ! intent(in): wind speed at some height above the surface (m s-1)
+                          forc_data%var(iLookFORCE%airpres),                                 & ! intent(in): air pressure at some height above the surface (Pa)
+                          forc_data%var(iLookFORCE%LWRadAtm),                                & ! intent(in): downwelling longwave radiation at the upper boundary (W m-2)
+                          mvar_data%var(iLookMVAR%scalarVPair)%dat(1),                       & ! intent(in): vapor pressure at some height above the surface (Pa)
+                          mvar_data%var(iLookMVAR%scalarO2air)%dat(1),                       & ! intent(in): atmospheric o2 concentration (Pa)
+                          mvar_data%var(iLookMVAR%scalarCO2air)%dat(1),                      & ! intent(in): atmospheric co2 concentration (Pa)
+                          mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1),                    & ! intent(in): wetbulb temperature (K)
+                          mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),                    & ! intent(in): computed rainfall rate (kg m-2 s-1)
+                          mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
+                          mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1),             & ! intent(in): rainfall through the vegetation canopy (kg m-2 s-1)
+                          mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),             & ! intent(in): snowfall through the vegetation canopy (kg m-2 s-1)
+  
+                          ! input: water storage
+                          ! NOTE: soil stress only computed at the start of the substep (iter==1)
+                          mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                         & ! intent(in): snow water equivalent on the ground (kg m-2)
+                          mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),                   & ! intent(in): snow depth on the ground surface (m)
+                          mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers),    & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+                          mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                     & ! intent(in): matric head in each layer (m)
+                          scalarAquiferStorage,                                              & ! intent(in): aquifer storage (m) -- can be local-column or single-basin
+  
+                          ! input: shortwave radiation fluxes
+                          mvar_data%var(iLookMVAR%scalarCanopySunlitLAI)%dat(1),             & ! intent(in): sunlit leaf area (-)
+                          mvar_data%var(iLookMVAR%scalarCanopyShadedLAI)%dat(1),             & ! intent(in): shaded leaf area (-)
+                          mvar_data%var(iLookMVAR%scalarCanopySunlitPAR)%dat(1),             & ! intent(in): average absorbed par for sunlit leaves (w m-2)
+                          mvar_data%var(iLookMVAR%scalarCanopyShadedPAR)%dat(1),             & ! intent(in): average absorbed par for shaded leaves (w m-2)
+                          mvar_data%var(iLookMVAR%scalarCanopyAbsorbedSolar)%dat(1),         & ! intent(in): solar radiation absorbed by canopy (W m-2)
+                          mvar_data%var(iLookMVAR%scalarGroundAbsorbedSolar)%dat(1),         & ! intent(in): solar radiation absorbed by ground (W m-2)
+  
+                          ! output: fraction of wetted canopy area and fraction of snow on the ground
+                          mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),           & ! intent(out): fraction of canopy that is wet
+                          mvar_data%var(iLookMVAR%scalarGroundSnowFraction)%dat(1),          & ! intent(out): fraction of ground covered with snow (-)
+  
+                          ! output: longwave radiation fluxes
+                          mvar_data%var(iLookMVAR%scalarCanopyEmissivity)%dat(1),            & ! intent(out): effective emissivity of the canopy (-)
+                          mvar_data%var(iLookMVAR%scalarLWRadCanopy)%dat(1),                 & ! intent(out): longwave radiation emitted from the canopy (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadGround)%dat(1),                 & ! intent(out): longwave radiation emitted at the ground surface (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadUbound2Canopy)%dat(1),          & ! intent(out): downward atmospheric longwave radiation absorbed by the canopy (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadUbound2Ground)%dat(1),          & ! intent(out): downward atmospheric longwave radiation absorbed by the ground (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadUbound2Ubound)%dat(1),          & ! intent(out): atmospheric radiation reflected by the ground and lost thru upper boundary (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadCanopy2Ubound)%dat(1),          & ! intent(out): longwave radiation emitted from canopy lost thru upper boundary (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadCanopy2Ground)%dat(1),          & ! intent(out): longwave radiation emitted from canopy absorbed by the ground (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadCanopy2Canopy)%dat(1),          & ! intent(out): canopy longwave reflected from ground and absorbed by the canopy (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadGround2Ubound)%dat(1),          & ! intent(out): longwave radiation emitted from ground lost thru upper boundary (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWRadGround2Canopy)%dat(1),          & ! intent(out): longwave radiation emitted from ground and absorbed by the canopy (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWNetCanopy)%dat(1),                 & ! intent(out): net longwave radiation at the canopy (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWNetGround)%dat(1),                 & ! intent(out): net longwave radiation at the ground surface (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLWNetUbound)%dat(1),                 & ! intent(out): net longwave radiation at the upper boundary (W m-2)
+  
+                          ! output: aerodynamic resistance
+                          mvar_data%var(iLookMVAR%scalarZ0Canopy)%dat(1),                    & ! intent(out): roughness length of the canopy (m)
+                          mvar_data%var(iLookMVAR%scalarWindReductionFactor)%dat(1),         & ! intent(out): canopy wind reduction factor (-)
+                          mvar_data%var(iLookMVAR%scalarZeroPlaneDisplacement)%dat(1),       & ! intent(out): zero plane displacement (m) 
+                          mvar_data%var(iLookMVAR%scalarRiBulkCanopy)%dat(1),                & ! intent(out): bulk Richardson number for the canopy (-)
+                          mvar_data%var(iLookMVAR%scalarRiBulkGround)%dat(1),                & ! intent(out): bulk Richardson number for the ground surface (-)
+                          mvar_data%var(iLookMVAR%scalarEddyDiffusCanopyTop)%dat(1),         & ! intent(out): eddy diffusivity for heat at the top of the canopy (m2 s-1)
+                          mvar_data%var(iLookMVAR%scalarFrictionVelocity)%dat(1),            & ! intent(out): friction velocity (m s-1)
+                          mvar_data%var(iLookMVAR%scalarWindspdCanopyTop)%dat(1),            & ! intent(out): windspeed at the top of the canopy (m s-1)
+                          mvar_data%var(iLookMVAR%scalarWindspdCanopyBottom)%dat(1),         & ! intent(out): windspeed at the height of the bottom of the canopy (m s-1)
+                          mvar_data%var(iLookMVAR%scalarLeafResistance)%dat(1),              & ! intent(out): mean leaf boundary layer resistance per unit leaf area (s m-1)
+                          mvar_data%var(iLookMVAR%scalarGroundResistance)%dat(1),            & ! intent(out): below canopy aerodynamic resistance (s m-1) 
+                          mvar_data%var(iLookMVAR%scalarCanopyResistance)%dat(1),            & ! intent(out): above canopy aerodynamic resistance (s m-1)
+  
+                          ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first iteration
+                          mvar_data%var(iLookMVAR%mLayerRootDensity)%dat,                    & ! intent(in): root density in each layer (-)
+                          mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1),             & ! intent(in): fraction of roots below the lowest soil layer (-)
+                          mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),                & ! intent(inout): weighted average of the transpiration limiting factor (-)
+                          mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat,                   & ! intent(inout): transpiration limiting factor in each layer (-)
+                          mvar_data%var(iLookMVAR%scalarTranspireLimAqfr)%dat(1),            & ! intent(inout): transpiration limiting factor for the aquifer (-)
+                          mvar_data%var(iLookMVAR%scalarSoilRelHumidity)%dat(1),             & ! intent(inout): relative humidity in the soil pores [0-1]
+                          mvar_data%var(iLookMVAR%scalarSoilResistance)%dat(1),              & ! intent(inout): resistance from the soil (s m-1)
+  
+                          ! input/output: stomatal resistance -- intent(inout) because only called at the first iteration
+                          mvar_data%var(iLookMVAR%scalarStomResistSunlit)%dat(1),            & ! intent(inout): stomatal resistance for sunlit leaves (s m-1)
+                          mvar_data%var(iLookMVAR%scalarStomResistShaded)%dat(1),            & ! intent(inout): stomatal resistance for shaded leaves (s m-1)
+                          mvar_data%var(iLookMVAR%scalarPhotosynthesisSunlit)%dat(1),        & ! intent(inout): sunlit photosynthesis (umolco2 m-2 s-1)
+                          mvar_data%var(iLookMVAR%scalarPhotosynthesisShaded)%dat(1),        & ! intent(inout): shaded photosynthesis (umolco2 m-2 s-1)
+  
+                          ! output: turbulent heat fluxes
+                          mvar_data%var(iLookMVAR%scalarLatHeatSubVapCanopy)%dat(1),         & ! intent(inout): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+                          mvar_data%var(iLookMVAR%scalarLatHeatSubVapGround)%dat(1),         & ! intent(inout): latent heat of sublimation/vaporization for the ground surface (J kg-1)
+                          mvar_data%var(iLookMVAR%scalarSatVP_CanopyTemp)%dat(1),            & ! intent(out): saturation vapor pressure at the temperature of the vegetation canopy (Pa)
+                          mvar_data%var(iLookMVAR%scalarSatVP_GroundTemp)%dat(1),            & ! intent(out): saturation vapor pressure at the temperature of the ground surface (Pa)
+                          mvar_data%var(iLookMVAR%scalarSenHeatTotal)%dat(1),                & ! intent(out): sensible heat from the canopy air space to the atmosphere (W m-2)
+                          mvar_data%var(iLookMVAR%scalarSenHeatCanopy)%dat(1),               & ! intent(out): sensible heat flux from the canopy to the canopy air space (W m-2)
+                          mvar_data%var(iLookMVAR%scalarSenHeatGround)%dat(1),               & ! intent(out): sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLatHeatTotal)%dat(1),                & ! intent(out): latent heat from the canopy air space to the atmosphere (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLatHeatCanopyEvap)%dat(1),           & ! intent(out): latent heat flux associated with evaporation from the canopy to the canopy air space (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLatHeatCanopyTrans)%dat(1),          & ! intent(out): latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
+                          mvar_data%var(iLookMVAR%scalarLatHeatGround)%dat(1),               & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
+  
+                          ! output: advective heat fluxes
+                          mvar_data%var(iLookMVAR%scalarCanopyAdvectiveHeatFlux)%dat(1),     & ! intent(out): heat advected to the canopy surface with rain + snow (W m-2)
+                          mvar_data%var(iLookMVAR%scalarGroundAdvectiveHeatFlux)%dat(1),     & ! intent(out): heat advected to the ground surface with throughfall (W m-2)
+  
+                          ! output: mass fluxes 
+                          mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1),           & ! intent(out): canopy sublimation/frost (kg m-2 s-1)
+                          mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1),             & ! intent(out): snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
+  
+                          ! input/output: canopy air space variables
+                          mvar_data%var(iLookMVAR%scalarVP_CanopyAir)%dat(1),                & ! intent(inout): vapor pressure of the canopy air space (Pa)
+                          mvar_data%var(iLookMVAR%scalarCanopyStabilityCorrection)%dat(1),   & ! intent(inout): stability correction for the canopy (-)
+                          mvar_data%var(iLookMVAR%scalarGroundStabilityCorrection)%dat(1),   & ! intent(inout): stability correction for the ground surface (-)
+  
+                          ! output: liquid water fluxes
+                          scalarCanopyTranspiration,                                         & ! intent(out): canopy transpiration (kg m-2 s-1)
+                          scalarCanopyEvaporation,                                           & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
+                          scalarGroundEvaporation,                                           & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+  
+                          ! output: fluxes
+                          canairNetFlux,                                                     & ! intent(out): net energy flux for the canopy air space (W m-2)
+                          canopyNetFlux,                                                     & ! intent(out): net energy flux for the vegetation canopy (W m-2)
+                          groundNetFlux,                                                     & ! intent(out): net energy flux for the ground surface (W m-2)
 
-                        ! shortwave radiation fluxes -- intent(inout) because only called at the start of the sub-step
-                        mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),           & ! intent(inout): fraction of canopy that is wet
-                        mvar_data%var(iLookMVAR%scalarGroundSnowFraction)%dat(1),          & ! intent(inout): fraction of ground covered with snow (-)
-                        mvar_data%var(iLookMVAR%scalarCanopySunlitFraction)%dat(1),        & ! intent(inout): sunlit fraction of canopy (-)
-                        mvar_data%var(iLookMVAR%scalarCanopySunlitLAI)%dat(1),             & ! intent(inout): sunlit leaf area (-)
-                        mvar_data%var(iLookMVAR%scalarCanopyShadedLAI)%dat(1),             & ! intent(inout): shaded leaf area (-)
-                        mvar_data%var(iLookMVAR%scalarCanopySunlitPAR)%dat(1),             & ! intent(inout): average absorbed par for sunlit leaves (w m-2)
-                        mvar_data%var(iLookMVAR%scalarCanopyShadedPAR)%dat(1),             & ! intent(inout): average absorbed par for shaded leaves (w m-2)
-                        mvar_data%var(iLookMVAR%spectralBelowCanopyDirect)%dat,            & ! intent(inout): downward direct flux below veg layer for each spectral band  W m-2)
-                        mvar_data%var(iLookMVAR%spectralBelowCanopyDiffuse)%dat,           & ! intent(inout): downward diffuse flux below veg layer for each spectral band (W m-2)
-                        mvar_data%var(iLookMVAR%scalarBelowCanopySolar)%dat(1),            & ! intent(inout): solar radiation transmitted below the canopy (W m-2)
-                        mvar_data%var(iLookMVAR%spectralAlbGndDirect)%dat,                 & ! intent(inout): direct  albedo of underlying surface (1:nBands) (-)
-                        mvar_data%var(iLookMVAR%spectralAlbGndDiffuse)%dat,                & ! intent(inout): diffuse albedo of underlying surface (1:nBands) (-)
-                        mvar_data%var(iLookMVAR%scalarGroundAlbedo)%dat(1),                & ! intent(inout): albedo of the ground surface (-)
-                        mvar_data%var(iLookMVAR%scalarCanopyAbsorbedSolar)%dat(1),         & ! intent(inout): solar radiation absorbed by canopy (W m-2)
-                        mvar_data%var(iLookMVAR%scalarGroundAbsorbedSolar)%dat(1),         & ! intent(inout): solar radiation absorbed by ground (W m-2)
+                          ! output: flux derivatives
+                          dCanairNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
+                          dCanairNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
+                          dCanairNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
+                          dCanopyNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
+                          dCanopyNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+                          dCanopyNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+                          dGroundNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
+                          dGroundNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+                          dGroundNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
 
-                        ! longwave radiation fluxes -- intent(out) because called in every step
-                        mvar_data%var(iLookMVAR%scalarCanopyEmissivity)%dat(1),            & ! intent(out): effective emissivity of the canopy (-)
-                        mvar_data%var(iLookMVAR%scalarLWRadCanopy)%dat(1),                 & ! intent(out): longwave radiation emitted from the canopy (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadGround)%dat(1),                 & ! intent(out): longwave radiation emitted at the ground surface (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadUbound2Canopy)%dat(1),          & ! intent(out): downward atmospheric longwave radiation absorbed by the canopy (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadUbound2Ground)%dat(1),          & ! intent(out): downward atmospheric longwave radiation absorbed by the ground (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadUbound2Ubound)%dat(1),          & ! intent(out): atmospheric radiation reflected by the ground and lost thru upper boundary (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadCanopy2Ubound)%dat(1),          & ! intent(out): longwave radiation emitted from canopy lost thru upper boundary (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadCanopy2Ground)%dat(1),          & ! intent(out): longwave radiation emitted from canopy absorbed by the ground (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadCanopy2Canopy)%dat(1),          & ! intent(out): canopy longwave reflected from ground and absorbed by the canopy (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadGround2Ubound)%dat(1),          & ! intent(out): longwave radiation emitted from ground lost thru upper boundary (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWRadGround2Canopy)%dat(1),          & ! intent(out): longwave radiation emitted from ground and absorbed by the canopy (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWNetCanopy)%dat(1),                 & ! intent(out): net longwave radiation at the canopy (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWNetGround)%dat(1),                 & ! intent(out): net longwave radiation at the ground surface (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLWNetUbound)%dat(1),                 & ! intent(out): net longwave radiation at the upper boundary (W m-2)
+                          ! output: error control
+                          err,cmessage)                                                        ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-                        ! aerodynamic resistance -- intent(out) because called in every step
-                        mvar_data%var(iLookMVAR%scalarZ0Canopy)%dat(1),                    & ! intent(out): roughness length of the canopy (m)
-                        mvar_data%var(iLookMVAR%scalarWindReductionFactor)%dat(1),         & ! intent(out): canopy wind reduction factor (-)
-                        mvar_data%var(iLookMVAR%scalarZeroPlaneDisplacement)%dat(1),       & ! intent(out): zero plane displacement (m) 
-                        mvar_data%var(iLookMVAR%scalarRiBulkCanopy)%dat(1),                & ! intent(out): bulk Richardson number for the canopy (-)
-                        mvar_data%var(iLookMVAR%scalarRiBulkGround)%dat(1),                & ! intent(out): bulk Richardson number for the ground surface (-)
-                        mvar_data%var(iLookMVAR%scalarEddyDiffusCanopyTop)%dat(1),         & ! intent(out): eddy diffusivity for heat at the top of the canopy (m2 s-1)
-                        mvar_data%var(iLookMVAR%scalarFrictionVelocity)%dat(1),            & ! intent(out): friction velocity (m s-1)
-                        mvar_data%var(iLookMVAR%scalarWindspdCanopyTop)%dat(1),            & ! intent(out): windspeed at the top of the canopy (m s-1)
-                        mvar_data%var(iLookMVAR%scalarWindspdCanopyBottom)%dat(1),         & ! intent(out): windspeed at the height of the bottom of the canopy (m s-1)
-                        mvar_data%var(iLookMVAR%scalarLeafResistance)%dat(1),              & ! intent(out): mean leaf boundary layer resistance per unit leaf area (s m-1)
-                        mvar_data%var(iLookMVAR%scalarGroundResistance)%dat(1),            & ! intent(out): below canopy aerodynamic resistance (s m-1) 
-                        mvar_data%var(iLookMVAR%scalarCanopyResistance)%dat(1),            & ! intent(out): above canopy aerodynamic resistance (s m-1)
+  ! * check
+  case default; err=10; message=trim(message)//'unable to identify upper boundary condition for thermodynamics'; return
 
-                        ! soil resistance -- intent(in) and intent(inout) because only called at the first iteration
-                        mvar_data%var(iLookMVAR%mLayerRootDensity)%dat,                    & ! intent(in): root density in each layer (-)
-                        mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1),             & ! intent(in): fraction of roots below the lowest soil layer (-)
-                        mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),                & ! intent(inout): weighted average of the transpiration limiting factor (-)
-                        mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat,                   & ! intent(inout): transpiration limiting factor in each layer (-)
-                        mvar_data%var(iLookMVAR%scalarTranspireLimAqfr)%dat(1),            & ! intent(inout): transpiration limiting factor for the aquifer (-)
-                        mvar_data%var(iLookMVAR%scalarSoilRelHumidity)%dat(1),             & ! intent(inout): relative humidity in the soil pores [0-1]
-                        mvar_data%var(iLookMVAR%scalarSoilResistance)%dat(1),              & ! intent(inout): resistance from the soil (s m-1)
-
-                        ! stomatal resistance -- intent(inout) because only called at the first iteration
-                        mvar_data%var(iLookMVAR%scalarStomResistSunlit)%dat(1),            & ! intent(inout): stomatal resistance for sunlit leaves (s m-1)
-                        mvar_data%var(iLookMVAR%scalarStomResistShaded)%dat(1),            & ! intent(inout): stomatal resistance for shaded leaves (s m-1)
-                        mvar_data%var(iLookMVAR%scalarPhotosynthesisSunlit)%dat(1),        & ! intent(inout): sunlit photosynthesis (umolco2 m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarPhotosynthesisShaded)%dat(1),        & ! intent(inout): shaded photosynthesis (umolco2 m-2 s-1)
-
-                        ! turbulent heat fluxes
-                        mvar_data%var(iLookMVAR%scalarLatHeatSubVapCanopy)%dat(1),         & ! intent(inout): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
-                        mvar_data%var(iLookMVAR%scalarLatHeatSubVapGround)%dat(1),         & ! intent(inout): latent heat of sublimation/vaporization for the ground surface (J kg-1)
-                        mvar_data%var(iLookMVAR%scalarSatVP_CanopyTemp)%dat(1),            & ! intent(out): saturation vapor pressure at the temperature of the vegetation canopy (Pa)
-                        mvar_data%var(iLookMVAR%scalarSatVP_GroundTemp)%dat(1),            & ! intent(out): saturation vapor pressure at the temperature of the ground surface (Pa)
-                        mvar_data%var(iLookMVAR%scalarSenHeatTotal)%dat(1),                & ! intent(out): sensible heat from the canopy air space to the atmosphere (W m-2)
-                        mvar_data%var(iLookMVAR%scalarSenHeatCanopy)%dat(1),               & ! intent(out): sensible heat flux from the canopy to the canopy air space (W m-2)
-                        mvar_data%var(iLookMVAR%scalarSenHeatGround)%dat(1),               & ! intent(out): sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLatHeatTotal)%dat(1),                & ! intent(out): latent heat from the canopy air space to the atmosphere (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLatHeatCanopyEvap)%dat(1),           & ! intent(out): latent heat flux associated with evaporation from the canopy to the canopy air space (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLatHeatCanopyTrans)%dat(1),          & ! intent(out): latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
-                        mvar_data%var(iLookMVAR%scalarLatHeatGround)%dat(1),               & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
-
-                        ! advective heat fluxes
-                        mvar_data%var(iLookMVAR%scalarCanopyAdvectiveHeatFlux)%dat(1),     & ! intent(out): heat advected to the canopy surface with rain + snow (W m-2)
-                        mvar_data%var(iLookMVAR%scalarGroundAdvectiveHeatFlux)%dat(1),     & ! intent(out): heat advected to the ground surface with throughfall (W m-2)
-
-                        ! mass fluxes 
-                        mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1),           & ! intent(out): canopy sublimation/frost (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1),             & ! intent(out): snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
-
-                        ! input/output: canopy air space variables
-                        scalarVP_CanopyAir,                                                & ! intent(inout): trial vapor pressure of the canopy air space (Pa)
-                        scalarCanopyStabilityCorrection,                                   & ! intent(inout): stability correction for the canopy (-)
-                        scalarGroundStabilityCorrection,                                   & ! intent(inout): stability correction for the ground surface (-)
-
-                        ! output: liquid water fluxes
-                        scalarCanopyTranspiration,                                         & ! intent(out): canopy transpiration (kg m-2 s-1)
-                        scalarCanopyEvaporation,                                           & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
-                        scalarGroundEvaporation,                                           & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-
-                        ! output: fluxes
-                        canairNetFlux,                                                     & ! intent(out): net energy flux for the canopy air space (W m-2)
-                        canopyNetFlux,                                                     & ! intent(out): net energy flux for the vegetation canopy (W m-2)
-                        groundNetFlux,                                                     & ! intent(out): net energy flux for the ground surface (W m-2)
-
-                        ! output: flux derivatives
-                        dCanairNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
-                        dCanairNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
-                        dCanairNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
-                        dCanopyNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
-                        dCanopyNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
-                        dCanopyNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
-                        dGroundNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
-                        dGroundNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
-                        dGroundNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-
-                        ! output: error control
-                        err,cmessage)                                                        ! intent(out): error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+ end select  ! upper boundary condition for thermodynamics
 
  end subroutine vegNrgFlux
 
@@ -430,19 +432,37 @@ contains
 
  subroutine vegNrgFlux_muster(&
 
-                              ! input
-                              dt,                                & ! intent(in): time step (seconds)
+                              ! input: control and state variables
                               iter,                              & ! intent(in): iteration index
                               firstSubStep,                      & ! intent(in): flag to indicate if we are processing the first sub-step
                               computeVegFlux,                    & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
-                              computeShortwave,                  & ! intent(in): flag to indicate if we need to compute shortwave radiation
                               canairTempTrial,                   & ! intent(in): trial value of the canopy air space temperature(K)
                               canopyTempTrial,                   & ! intent(in): trial value of canopy temperature (K)
                               groundTempTrial,                   & ! intent(in): trial value of ground temperature (K)
                               canopyIceTrial,                    & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                               canopyLiqTrial,                    & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+
+                              ! input: model decisions
+                              ix_fDerivMeth,                     & ! intent(in): choice of method to compute derivatives
+                              ix_veg_traits,                     & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
+                              ix_canopyEmis,                     & ! intent(in): choice of parameterization for canopy emissivity
+                              ix_windPrfile,                     & ! intent(in): choice of canopy wind profile
+                              ix_astability,                     & ! intent(in): choice of stability function
+                              ix_soilStress,                     & ! intent(in): choice of function for the soil moisture control on stomatal resistance
+                              ix_groundwatr,                     & ! intent(in): choice of groundwater parameterization
+                              ix_stomResist,                     & ! intent(in): choice of function for stomatal resistance
+
+                              ! input: physical attributes 
                               vegTypeIndex,                      & ! intent(in): vegetation type index
                               soilTypeIndex,                     & ! intent(in): soil type index
+
+                              ! input: vegetation parameters
+                              heightCanopyTop,                   & ! intent(in): height at the top of the vegetation canopy (m)
+                              heightCanopyBottom,                & ! intent(in): height at the bottom of the vegetation canopy (m)
+                              scalarCanopyIceMax,                & ! intent(in): maximum interception storage capacity for ice (kg m-2)
+                              scalarCanopyLiqMax,                & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
+
+                              ! input: vegetation phenology
                               scalarLAI,                         & ! intent(in): one-sided leaf area index (m2 m-2)
                               scalarSAI,                         & ! intent(in): one-sided stem area index (m2 m-2)
                               scalarExposedLAI,                  & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
@@ -450,24 +470,7 @@ contains
                               scalarGrowingSeasonIndex,          & ! intent(in): growing season index (0=off, 1=on)
                               scalarFoliageNitrogenFactor,       & ! intent(in): foliage nitrogen concentration (1.0 = saturated)
 
-                              ! model control -- intent(in)
-                              ix_fDerivMeth,                     & ! intent(in): choice of method to compute derivatives
-                              ix_veg_traits,                     & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
-                              ix_canopySrad,                     & ! intent(in): choice of canopy shortwave radiation method
-                              ix_canopyEmis,                     & ! intent(in): choice of parameterization for canopy emissivity
-                              ix_windPrfile,                     & ! intent(in): choice of canopy wind profile
-                              ix_astability,                     & ! intent(in): choice of stability function
-                              ix_soilStress,                     & ! intent(in): choice of function for the soil moisture control on stomatal resistance
-                              ix_groundwatr,                     & ! intent(in): groundwater parameterization
-                              ix_stomResist,                     & ! intent(in): choice of function for stomatal resistance
-
-                              ! model parameters (phenology) -- intent(in)
-                              heightCanopyTop,                   & ! intent(in): height at the top of the vegetation canopy (m)
-                              heightCanopyBottom,                & ! intent(in): height at the bottom of the vegetation canopy (m)
-                              scalarCanopyIceMax,                & ! intent(in): maximum interception storage capacity for ice (kg m-2)
-                              scalarCanopyLiqMax,                & ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
-
-                              ! model parameters (aerodynamic resistance) -- intent(in)
+                              ! input: aerodynamic resistance parameters
                               z0Snow,                            & ! intent(in): roughness length of snow (m)
                               z0Soil,                            & ! intent(in): roughness length of soil (m)
                               z0CanopyParam,                     & ! intent(in): roughness length of the canopy (m)
@@ -480,7 +483,7 @@ contains
                               leafExchangeCoeff,                 & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
                               leafDimension,                     & ! intent(in): characteristic leaf dimension (m)
 
-                              ! model parameters (soil stress) -- intent(in)
+                              ! input: soil stress parameters
                               theta_sat,                         & ! intent(in): soil porosity (-)
                               theta_res,                         & ! intent(in): residual volumetric liquid water content (-)
                               plantWiltPsi,                      & ! intent(in): matric head at wilting point (m)
@@ -490,7 +493,7 @@ contains
                               critAquiferTranspire,              & ! intent(in): critical aquifer storage value when transpiration is limited (m)
                               minStomatalResistance,             & ! intent(in): mimimum stomatal resistance (s m-1) 
 
-                              ! forcing at the upper boundary -- intent(in)
+                              ! input: forcing at the upper boundary
                               mHeight,                           & ! intent(in): measurement height (m)
                               airtemp,                           & ! intent(in): air temperature at some height above the surface (K)
                               windspd,                           & ! intent(in): wind speed at some height above the surface (m s-1)
@@ -504,17 +507,8 @@ contains
                               scalarSnowfall,                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
                               scalarThroughfallRain,             & ! intent(in): rainfall through the vegetation canopy (kg m-2 s-1)
                               scalarThroughfallSnow,             & ! intent(in): snowfall through the vegetation canopy (kg m-2 s-1)
-                              scalarCosZenith,                   & ! intent(in): cosine of the solar zenith angle (0-1)
-                              spectralIncomingDirect,            & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
-                              spectralIncomingDiffuse,           & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
 
-                              ! surface characteristix -- intent(in)
-                              spectralSnowAlbedoDirect,          & ! intent(in): direct albedo of snow in each spectral band (-)
-                              spectralSnowAlbedoDiffuse,         & ! intent(in): diffuse albedo of snow in each spectral band (-)
-                              scalarSnowAlbedo,                  & ! intent(inout): snow albedo (-)
-                              scalarSnowAge,                     & ! intent(inout): non-dimensional snow age (-)
-
-                              ! water storage -- intent(in)
+                              ! input: water storage
                               ! NOTE: soil stress for transpiration only computed at the start of the substep (iter==1)
                               scalarSWE,                         & ! intent(in): snow water equivalent on the ground (kg m-2)
                               scalarSnowDepth,                   & ! intent(in): snow depth on the ground surface (m)
@@ -522,24 +516,19 @@ contains
                               mLayerMatricHead,                  & ! intent(in): matric head in each layer (m)
                               scalarAquiferStorage,              & ! intent(in): aquifer storage (m)
 
-                              ! shortwave radiation fluxes -- intent(inout) because only called at the start of the sub-step
-                              scalarCanopyWetFraction,           & ! intent(inout): fraction of canopy that is wet
-                              scalarGroundSnowFraction,          & ! intent(inout): fraction of ground covered with snow (-)
-                              scalarCanopySunlitFraction,        & ! intent(inout): sunlit fraction of canopy (-)
-                              scalarCanopySunlitLAI,             & ! intent(inout): sunlit leaf area (-)
-                              scalarCanopyShadedLAI,             & ! intent(inout): shaded leaf area (-)
-                              scalarCanopySunlitPAR,             & ! intent(inout): average absorbed par for sunlit leaves (w m-2)
-                              scalarCanopyShadedPAR,             & ! intent(inout): average absorbed par for shaded leaves (w m-2)
-                              spectralBelowCanopyDirect,         & ! intent(inout): downward direct flux below veg layer for each spectral band  W m-2)
-                              spectralBelowCanopyDiffuse,        & ! intent(inout): downward diffuse flux below veg layer for each spectral band (W m-2)
-                              scalarBelowCanopySolar,            & ! intent(inout): radiation transmitted below the canopy (W m-2)
-                              spectralAlbGndDirect,              & ! intent(inout): direct  albedo of underlying surface (1:nBands) (-)
-                              spectralAlbGndDiffuse,             & ! intent(inout): diffuse albedo of underlying surface (1:nBands) (-)
-                              scalarGroundAlbedo,                & ! intent(inout): albedo of the ground surface (-)
-                              scalarCanopyAbsorbedSolar,         & ! intent(inout): solar radiation absorbed by canopy (W m-2)
-                              scalarGroundAbsorbedSolar,         & ! intent(inout): solar radiation absorbed by ground (W m-2)
+                              ! input: shortwave radiation fluxes
+                              scalarCanopySunlitLAI,             & ! intent(in): sunlit leaf area (-)
+                              scalarCanopyShadedLAI,             & ! intent(in): shaded leaf area (-)
+                              scalarCanopySunlitPAR,             & ! intent(in): average absorbed par for sunlit leaves (w m-2)
+                              scalarCanopyShadedPAR,             & ! intent(in): average absorbed par for shaded leaves (w m-2)
+                              scalarCanopyAbsorbedSolar,         & ! intent(in): solar radiation absorbed by canopy (W m-2)
+                              scalarGroundAbsorbedSolar,         & ! intent(in): solar radiation absorbed by ground (W m-2)
 
-                              ! longwave radiation fluxes -- intent(out) because called in every step
+                              ! output: fraction of wetted canopy area and fraction of snow on the ground
+                              scalarCanopyWetFraction,           & ! intent(out): fraction of canopy that is wet
+                              scalarGroundSnowFraction,          & ! intent(out): fraction of ground covered with snow (-)
+
+                              ! output: longwave radiation fluxes
                               scalarCanopyEmissivity,            & ! intent(out): effective emissivity of the canopy (-)
                               scalarLWRadCanopy,                 & ! intent(out): longwave radiation emitted from the canopy (W m-2)
                               scalarLWRadGround,                 & ! intent(out): longwave radiation emitted at the ground surface (W m-2)
@@ -555,7 +544,7 @@ contains
                               scalarLWNetGround,                 & ! intent(out): net longwave radiation at the ground surface (W m-2)
                               scalarLWNetUbound,                 & ! intent(out): net longwave radiation at the upper boundary (W m-2)
 
-                              ! aerodynamic resistance -- intent(out) because called in every step
+                              ! output: aerodynamic resistance
                               scalarZ0Canopy,                    & ! intent(out): roughness length of the canopy (m)
                               scalarWindReductionFactor,         & ! intent(out): canopy wind reduction factor (-)
                               scalarZeroPlaneDisplacement,       & ! intent(out): zero plane displacement (m) 
@@ -569,7 +558,7 @@ contains
                               scalarGroundResistance,            & ! intent(out): below canopy aerodynamic resistance (s m-1) 
                               scalarCanopyResistance,            & ! intent(out): above canopy aerodynamic resistance (s m-1)
 
-                              ! soil resistance -- intent(in) and intent(inout) because only called at the first iteration
+                              ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first iteration
                               mLayerRootDensity,                 & ! intent(in): root density in each layer (-)
                               scalarAquiferRootFrac,             & ! intent(in): fraction of roots below the lowest soil layer (-)
                               scalarTranspireLim,                & ! intent(inout): weighted average of the transpiration limiting factor (-)
@@ -578,13 +567,13 @@ contains
                               scalarSoilRelHumidity,             & ! intent(inout): relative humidity in the soil pores [0-1]
                               scalarSoilResistance,              & ! intent(inout): resistance from the soil (s m-1)
 
-                              ! stomatal resistance -- intent(inout) because only called at the first iteration
+                              ! input/output: stomatal resistance -- intent(inout) because only called at the first iteration
                               scalarStomResistSunlit,            & ! intent(inout): stomatal resistance for sunlit leaves (s m-1)
                               scalarStomResistShaded,            & ! intent(inout): stomatal resistance for shaded leaves (s m-1)
                               scalarPhotosynthesisSunlit,        & ! intent(inout): sunlit photosynthesis (umolco2 m-2 s-1)
                               scalarPhotosynthesisShaded,        & ! intent(inout): shaded photosynthesis (umolco2 m-2 s-1)
 
-                              ! turbulent heat fluxes
+                              ! output: turbulent heat fluxes
                               scalarLatHeatSubVapCanopy,         & ! intent(inout): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
                               scalarLatHeatSubVapGround,         & ! intent(inout): latent heat of sublimation/vaporization for the ground surface (J kg-1)
                               scalarSatVP_canopyTemp,            & ! intent(out): saturation vapor pressure at the temperature of the vegetation canopy (Pa)
@@ -597,11 +586,11 @@ contains
                               scalarLatHeatCanopyTrans,          & ! intent(out): latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
                               scalarLatHeatGround,               & ! intent(out): latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
 
-                              ! advective heat flux
+                              ! output: advective heat flux
                               scalarCanopyAdvectiveHeatFlux,     & ! intent(out): heat advected to the surface with rain + snow (W m-2)
                               scalarGroundAdvectiveHeatFlux,     & ! intent(out): heat advected to the surface with throughfall (W m-2)
 
-                              ! mass fluxes
+                              ! output: mass fluxes
                               scalarCanopySublimation,           & ! intent(out): canopy sublimation/frost (kg m-2 s-1)
                               scalarSnowSublimation,             & ! intent(out): snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
 
@@ -634,9 +623,6 @@ contains
                               ! output: error control
                               err,message                        ) ! intent(out): error control
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ! external subroutines
- USE NOAHMP_ROUTINES,only:radiation                                ! subroutine to calculate albedo and shortwave radiaiton in the canopy
- USE vegSWavRad_module,only:vegSWavRad                             ! subroutine to calculate shortwave radiaiton in the canopy
  ! utilities
  USE expIntegral_module,only:expIntegral                           ! subroutine to calculate the exponential integral
  ! conversion functions
@@ -645,44 +631,40 @@ contains
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input/output
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- ! input
- real(dp),intent(in)            :: dt                              ! time step (seconds)
+ ! input: control and state variables
  integer(i4b),intent(in)        :: iter                            ! iteration index
  logical(lgt),intent(in)        :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)        :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
- logical(lgt),intent(in)        :: computeShortwave                ! flag to indicate if need to compute shortwave radiation
  real(dp),intent(in)            :: canairTempTrial                 ! trial value of canopy air space temperature (K)
  real(dp),intent(in)            :: canopyTempTrial                 ! trial value of canopy temperature (K)
  real(dp),intent(in)            :: groundTempTrial                 ! trial value of ground temperature (K)
  real(dp),intent(in)            :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)            :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ ! input: model decisions
+ integer(i4b),intent(in)        :: ix_fDerivMeth                   ! choice of method to compute derivatives
+ integer(i4b),intent(in)        :: ix_veg_traits                   ! choice of parameterization for vegetation roughness length and displacement height
+ integer(i4b),intent(in)        :: ix_canopyEmis                   ! choice of parameterization for canopy emissivity
+ integer(i4b),intent(in)        :: ix_windPrfile                   ! choice of canopy wind profile
+ integer(i4b),intent(in)        :: ix_astability                   ! choice of stability function
+ integer(i4b),intent(in)        :: ix_soilStress                   ! choice of function for the soil moisture control on stomatal resistance
+ integer(i4b),intent(in)        :: ix_groundwatr                   ! choice of groundwater parameterization
+ integer(i4b),intent(in)        :: ix_stomResist                   ! choice of function for stomatal resistance
+ ! input: physical attributes
  integer(i4b),intent(in)        :: vegTypeIndex                    ! vegetation type index
  integer(i4b),intent(in)        :: soilTypeIndex                   ! soil type index
+ ! input: vegetation parameters
+ real(dp),intent(in)            :: heightCanopyTop                 ! height at the top of the vegetation canopy (m)
+ real(dp),intent(in)            :: heightCanopyBottom              ! height at the bottom of the vegetation canopy (m)
+ real(dp),intent(in)            :: scalarCanopyIceMax              ! maximum interception storage capacity for ice (kg m-2)
+ real(dp),intent(in)            :: scalarCanopyLiqMax              ! maximum interception storage capacity for liquid water (kg m-2)
+ ! input: vegetation phenology 
  real(dp),intent(in)            :: scalarLAI                       ! one-sided leaf area index (m2 m-2)
  real(dp),intent(in)            :: scalarSAI                       ! one-sided stem area index (m2 m-2)
  real(dp),intent(in)            :: scalarExposedLAI                ! exposed leaf area index after burial by snow (m2 m-2)
  real(dp),intent(in)            :: scalarExposedSAI                ! exposed stem area index after burial by snow (m2 m-2)
  real(dp),intent(in)            :: scalarGrowingSeasonIndex        ! growing season index (0=off, 1=on)
  real(dp),intent(in)            :: scalarFoliageNitrogenFactor     ! foliage nitrogen concentration (1.0 = saturated)
-
- ! model control -- intent(in)
- integer(i4b),intent(in)        :: ix_fDerivMeth                   ! choice of method to compute derivatives
- integer(i4b),intent(in)        :: ix_veg_traits                   ! choice of parameterization for vegetation roughness length and displacement height
- integer(i4b),intent(in)        :: ix_canopySrad                   ! choice of canopy shortwave radiation method
- integer(i4b),intent(in)        :: ix_canopyEmis                   ! choice of parameterization for canopy emissivity
- integer(i4b),intent(in)        :: ix_windPrfile                   ! choice of canopy wind profile
- integer(i4b),intent(in)        :: ix_astability                   ! choice of stability function
- integer(i4b),intent(in)        :: ix_soilStress                   ! choice of function for the soil moisture control on stomatal resistance
- integer(i4b),intent(in)        :: ix_groundwatr                   ! groundwater parameterization
- integer(i4b),intent(in)        :: ix_stomResist                   ! choice of function for stomatal resistance
-
- ! model parameters (phenology) -- intent(in)
- real(dp),intent(in)            :: heightCanopyTop                 ! height at the top of the vegetation canopy (m)
- real(dp),intent(in)            :: heightCanopyBottom              ! height at the bottom of the vegetation canopy (m)
- real(dp),intent(in)            :: scalarCanopyIceMax              ! maximum interception storage capacity for ice (kg m-2)
- real(dp),intent(in)            :: scalarCanopyLiqMax              ! maximum interception storage capacity for liquid water (kg m-2)
-
- ! model parameters (aerodynamic resistance) -- intent(in)
+ ! input: aerodynamic resistance parameters
  real(dp),intent(in)            :: z0Snow                          ! roughness length of snow (m)
  real(dp),intent(in)            :: z0Soil                          ! roughness length of soil (m)
  real(dp),intent(in)            :: z0CanopyParam                   ! roughness length of the canopy (m)
@@ -694,8 +676,7 @@ contains
  real(dp),intent(in)            :: windReductionParam              ! canopy wind reduction parameter (-)                   
  real(dp),intent(in)            :: leafExchangeCoeff               ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
  real(dp),intent(in)            :: leafDimension                   ! characteristic leaf dimension (m)
-
- ! model parameters (soil stress) -- intent(in)
+ ! input: soil stress parameters 
  real(dp),intent(in)            :: theta_sat                       ! soil porosity (-)
  real(dp),intent(in)            :: theta_res                       ! residual volumetric liquid water content (-)
  real(dp),intent(in)            :: plantWiltPsi                    ! matric head at wilting point (m)
@@ -704,8 +685,7 @@ contains
  real(dp),intent(in)            :: critSoilTranspire               ! critical vol. liq. water content when transpiration is limited (-)
  real(dp),intent(in)            :: critAquiferTranspire            ! critical aquifer storage value when transpiration is limited (m)
  real(dp),intent(in)            :: minStomatalResistance           ! mimimum stomatal resistance (s m-1) 
-
- ! forcing at the upper boundary -- intent(in)
+ ! input: forcing at the upper boundary
  real(dp),intent(in)            :: mHeight                         ! measurement height (m)
  real(dp),intent(in)            :: airtemp                         ! air temperature at some height above the surface (K)
  real(dp),intent(in)            :: windspd                         ! wind speed at some height above the surface (m s-1)
@@ -719,42 +699,24 @@ contains
  real(dp),intent(in)            :: scalarSnowfall                  ! computed snowfall rate (kg m-2 s-1)
  real(dp),intent(in)            :: scalarThroughfallRain           ! rainfall through the vegetation canopy (kg m-2 s-1)
  real(dp),intent(in)            :: scalarThroughfallSnow           ! snowfall through the vegetation canopy (kg m-2 s-1)
- real(dp),intent(in)            :: scalarCosZenith                 ! cosine of the solar zenith angle (0-1)
- real(dp),intent(in)            :: spectralIncomingDirect(:)       ! incoming direct solar radiation in each wave band (w m-2)
- real(dp),intent(in)            :: spectralIncomingDiffuse(:)      ! incoming diffuse solar radiation in each wave band (w m-2)
-
- ! surface characteristix -- intent(in)
- real(dp),intent(in)            :: spectralSnowAlbedoDirect(:)     ! direct albedo of snow in each spectral band (-)
- real(dp),intent(in)            :: spectralSnowAlbedoDiffuse(:)    ! diffuse albedo of snow in each spectral band (-)
- real(dp),intent(inout)         :: scalarSnowAlbedo                ! snow albedo (-)
- real(dp),intent(inout)         :: scalarSnowAge                   ! non-dimensional snow age (-)
-
- ! water storage -- intent(in)
+ ! input: water storage
  ! NOTE: soil stress only computed at the start of the substep (iter==1)
  real(dp),intent(in)            :: scalarSWE                       ! snow water equivalent on the ground (kg m-2)
  real(dp),intent(in)            :: scalarSnowDepth                 ! snow depth on the ground surface (m)
  real(dp),intent(in)            :: mLayerVolFracLiq(:)             ! volumetric fraction of liquid water in each soil layer (-)
  real(dp),intent(in)            :: mLayerMatricHead(:)             ! matric head in each layer (m)
  real(dp),intent(in)            :: scalarAquiferStorage            ! aquifer storage (m)
-
- ! shortwave radiation fluxes -- intent(inout) because only called at the start of the sub-step
- real(dp),intent(inout)         :: scalarCanopyWetFraction         ! fraction of canopy that is wet
- real(dp),intent(inout)         :: scalarGroundSnowFraction        ! fraction of ground covered with snow (-)
- real(dp),intent(inout)         :: scalarCanopySunlitFraction      ! sunlit fraction of canopy (-)
- real(dp),intent(inout)         :: scalarCanopySunlitLAI           ! sunlit leaf area (-)
- real(dp),intent(inout)         :: scalarCanopyShadedLAI           ! shaded leaf area (-)
- real(dp),intent(inout)         :: scalarCanopySunlitPAR           ! average absorbed par for sunlit leaves (w m-2)
- real(dp),intent(inout)         :: scalarCanopyShadedPAR           ! average absorbed par for shaded leaves (w m-2)
- real(dp),intent(inout)         :: spectralBelowCanopyDirect(:)    ! downward direct flux below veg layer for each spectral band  W m-2)
- real(dp),intent(inout)         :: spectralBelowCanopyDiffuse(:)   ! downward diffuse flux below veg layer for each spectral band (W m-2)
- real(dp),intent(inout)         :: scalarBelowCanopySolar          ! solar radiation transmitted below the canopy (W m-2)
- real(dp),intent(inout)         :: spectralAlbGndDirect(:)         ! direct  albedo of underlying surface (1:nBands) (-)
- real(dp),intent(inout)         :: spectralAlbGndDiffuse(:)        ! diffuse albedo of underlying surface (1:nBands) (-)
- real(dp),intent(inout)         :: scalarGroundAlbedo              ! albedo of the ground surface (-)
- real(dp),intent(inout)         :: scalarCanopyAbsorbedSolar       ! solar radiation absorbed by canopy (W m-2)
- real(dp),intent(inout)         :: scalarGroundAbsorbedSolar       ! solar radiation absorbed by ground (W m-2)
-
- ! longwave radiation fluxes -- intent(out) because called in every step
+ ! input: shortwave radiation fluxes
+ real(dp),intent(in)            :: scalarCanopySunlitLAI           ! sunlit leaf area (-)
+ real(dp),intent(in)            :: scalarCanopyShadedLAI           ! shaded leaf area (-)
+ real(dp),intent(in)            :: scalarCanopySunlitPAR           ! average absorbed par for sunlit leaves (w m-2)
+ real(dp),intent(in)            :: scalarCanopyShadedPAR           ! average absorbed par for shaded leaves (w m-2)
+ real(dp),intent(in)            :: scalarCanopyAbsorbedSolar       ! solar radiation absorbed by canopy (W m-2)
+ real(dp),intent(in)            :: scalarGroundAbsorbedSolar       ! solar radiation absorbed by ground (W m-2)
+ ! output: fraction of wetted canopy area and fraction of snow on the ground
+ real(dp),intent(out)           :: scalarCanopyWetFraction         ! fraction of canopy that is wet
+ real(dp),intent(out)           :: scalarGroundSnowFraction        ! fraction of ground covered with snow (-)
+ ! output: longwave radiation fluxes
  real(dp),intent(out)           :: scalarCanopyEmissivity          ! effective emissivity of the canopy (-)
  real(dp),intent(out)           :: scalarLWRadCanopy               ! longwave radiation emitted from the canopy (W m-2)
  real(dp),intent(out)           :: scalarLWRadGround               ! longwave radiation emitted at the ground surface (W m-2)
@@ -769,8 +731,7 @@ contains
  real(dp),intent(out)           :: scalarLWNetCanopy               ! net longwave radiation at the canopy (W m-2)
  real(dp),intent(out)           :: scalarLWNetGround               ! net longwave radiation at the ground surface (W m-2)
  real(dp),intent(out)           :: scalarLWNetUbound               ! net longwave radiation at the upper boundary (W m-2)
-
- ! aerodynamic resistance -- intent(out) because called in every step
+ ! output: aerodynamic resistance
  real(dp),intent(out)           :: scalarZ0Canopy                  ! roughness length of the canopy (m) 
  real(dp),intent(out)           :: scalarWindReductionFactor       ! canopy wind reduction factor (-)
  real(dp),intent(out)           :: scalarZeroPlaneDisplacement     ! zero plane displacement (m) 
@@ -783,8 +744,7 @@ contains
  real(dp),intent(out)           :: scalarLeafResistance            ! mean leaf boundary layer resistance per unit leaf area (s m-1)
  real(dp),intent(out)           :: scalarGroundResistance          ! below canopy aerodynamic resistance (s m-1) 
  real(dp),intent(out)           :: scalarCanopyResistance          ! above canopy aerodynamic resistance (s m-1)
-
- ! soil resistance -- intent(in) and intent(inout) because only called at the first iteration
+ ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first iteration
  real(dp),intent(in)            :: mLayerRootDensity(:)            ! root density in each layer (-)
  real(dp),intent(in)            :: scalarAquiferRootFrac           ! fraction of roots below the lowest soil layer (-)
  real(dp),intent(inout)         :: scalarTranspireLim              ! weighted average of the transpiration limiting factor (-)
@@ -792,14 +752,12 @@ contains
  real(dp),intent(inout)         :: scalarTranspireLimAqfr          ! transpiration limiting factor for the aquifer (-)
  real(dp),intent(inout)         :: scalarSoilRelHumidity           ! relative humidity in the soil pores [0-1]
  real(dp),intent(inout)         :: scalarSoilResistance            ! resistance from the soil (s m-1)
-
- ! stomatal resistance -- intent(inout) because only called at the first iteration
+ ! input/output: stomatal resistance -- intent(inout) because only called at the first iteration
  real(dp),intent(inout)         :: scalarStomResistSunlit          ! stomatal resistance for sunlit leaves (s m-1)
  real(dp),intent(inout)         :: scalarStomResistShaded          ! stomatal resistance for shaded leaves (s m-1)
  real(dp),intent(inout)         :: scalarPhotosynthesisSunlit      ! sunlit photosynthesis (umolco2 m-2 s-1)
  real(dp),intent(inout)         :: scalarPhotosynthesisShaded      ! shaded photosynthesis (umolco2 m-2 s-1)
-
- ! turbulent heat fluxes
+ ! output: turbulent heat fluxes
  real(dp),intent(inout)         :: scalarLatHeatSubVapCanopy       ! latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
  real(dp),intent(inout)         :: scalarLatHeatSubVapGround       ! latent heat of sublimation/vaporization for the ground surface (J kg-1)
  real(dp),intent(out)           :: scalarSatVP_canopyTemp          ! saturation vapor pressure at the temperature of the vegetation canopy (Pa)
@@ -811,30 +769,24 @@ contains
  real(dp),intent(out)           :: scalarLatHeatCanopyEvap         ! latent heat flux associated with evaporation from the canopy to the canopy air space (W m-2)
  real(dp),intent(out)           :: scalarLatHeatCanopyTrans        ! latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
  real(dp),intent(out)           :: scalarLatHeatGround             ! latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
-
- ! advective heat flux
+ ! output: advective heat flux
  real(dp),intent(out)           :: scalarCanopyAdvectiveHeatFlux   ! heat advected to the canopy surface with rain + snow (W m-2)
  real(dp),intent(out)           :: scalarGroundAdvectiveHeatFlux   ! heat advected to the ground surface with throughfall (W m-2)
-
- ! mass fluxes
+ ! output: mass fluxes
  real(dp),intent(out)           :: scalarCanopySublimation         ! canopy sublimation/frost (kg m-2 s-1)
  real(dp),intent(out)           :: scalarSnowSublimation           ! snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
-
  ! input/output: canopy air space variables
  real(dp),intent(inout)         :: scalarVP_CanopyAir              ! vapor pressure of the canopy air space (Pa)
  real(dp),intent(inout)         :: scalarCanopyStabilityCorrection ! stability correction for the canopy (-)
  real(dp),intent(inout)         :: scalarGroundStabilityCorrection ! stability correction for the ground surface (-)
-
  ! output: mass fluxes associated with evaporation/transpiration
  real(dp),intent(out)           :: scalarCanopyTranspiration      ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(out)           :: scalarCanopyEvaporation        ! canopy evaporation/condensation (kg m-2 s-1)
  real(dp),intent(out)           :: scalarGroundEvaporation        ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-
  ! output: fluxes
  real(dp),intent(out)           :: canairNetFlux                   ! net energy flux for the canopy air space (W m-2)
  real(dp),intent(out)           :: canopyNetFlux                   ! net energy flux for the vegetation canopy (W m-2)
  real(dp),intent(out)           :: groundNetFlux                   ! net energy flux for the ground surface (W m-2)
-
  ! output: flux derivatives
  real(dp),intent(out)           :: dCanairNetFlux_dCanairTemp      ! derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)           :: dCanairNetFlux_dCanopyTemp      ! derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
@@ -845,11 +797,9 @@ contains
  real(dp),intent(out)           :: dGroundNetFlux_dCanairTemp      ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)           :: dGroundNetFlux_dCanopyTemp      ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)           :: dGroundNetFlux_dGroundTemp      ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-
  ! output: error control
  integer(i4b),intent(out)       :: err                             ! error code
  character(*),intent(out)       :: message                         ! error message
-
  ! ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! local (general)
  character(LEN=256)            :: cmessage                         ! error message of downwind routine
@@ -857,11 +807,6 @@ contains
  real(dp)                      :: VAI                              ! vegetation area index (m2 m-2)
  real(dp)                      :: exposedVAI                       ! exposed vegetation area index (m2 m-2)
  real(dp),parameter            :: scalarVegFraction=1._dp          ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
- real(dp)                      :: relativeCanopyWater              ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
- real(dp)                      :: xArg                             ! argument used in the smoothing function (-)
- real(dp)                      :: smoothFunc                       ! smoothing function used to improve numerical stability at times with limited water storage (-)
- real(dp),parameter            :: smoothThresh=0.01_dp             ! mid-point of the smoothing function (kg m-2 s-1)
- real(dp),parameter            :: smoothScale=0.001_dp             ! scaling factor for the smoothing function (kg m-2 s-1)
  ! local (compute numerical derivatives)
  integer(i4b),parameter        :: unperturbed=1                    ! named variable to identify the case of unperturbed state variables
  integer(i4b),parameter        :: perturbStateGround=2             ! named variable to identify the case where we perturb the ground temperature
@@ -878,14 +823,6 @@ contains
  real(dp)                      :: TG_celcius                       ! ground temperature (C)
  real(dp)                      :: dSVPCanopy_dCanopyTemp           ! derivative in canopy saturated vapor pressure w.r.t. vegetation temperature (Pa/K)
  real(dp)                      :: dSVPGround_dGroundTemp           ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
- ! local (shortwave radiation)
- real(dp),parameter            :: vegFraction=1._dp                ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
- real(dp)                      :: scalarTotalReflectedSolar        ! total reflected solar radiation (W m-2)
- real(dp)                      :: scalarTotalAbsorbedSolar         ! total absorbed solar radiation (W m-2)
- real(dp)                      :: scalarCanopyReflectedSolar       ! solar radiation reflected from the canopy (W m-2)
- real(dp)                      :: scalarGroundReflectedSolar       ! solar radiation reflected from the ground (W m-2) 
- real(dp)                      :: scalarBetweenCanopyGapFraction   ! between canopy gap fraction for beam (-)
- real(dp)                      :: scalarWithinCanopyGapFraction    ! within canopy gap fraction for beam (-)
  ! local (longwave radiation)
  real(dp)                      :: expi                             ! exponential integral
  real(dp)                      :: scaleLAI                         ! scaled LAI (computing diffuse transmissivity)
@@ -1003,6 +940,7 @@ contains
    scalarGroundSnowFraction  = 0._dp
   endif  ! (if there is snow on the ground)
  endif  ! (if the first iteration)
+ !write(*,'(a,1x,10(f30.10,1x))') 'groundTempTrial, scalarLatHeatSubVapGround = ', groundTempTrial, scalarLatHeatSubVapGround
  
  ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
  z0Ground = z0soil*(1._dp - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
@@ -1041,136 +979,26 @@ contains
  
  ! compute the fraction of canopy that is wet
  ! NOTE: we either sublimate or evaporate over the entire substep
- if(exposedVAI>0._dp .and. computeVegFlux)then
-  if(scalarLatHeatSubVapCanopy > LH_vap+verySmall)then ! sublimation
-   xarg = (canopyIceTrial - smoothThresh)/smoothScale
-   relativeCanopyWater = canopyIceTrial / scalarCanopyIceMax
-  else  ! evaporation
-   xArg = (canopyLiqTrial - smoothThresh)/smoothScale
-   relativeCanopyWater = canopyLiqTrial / max(scalarCanopyLiqMax,10._dp)
-  endif
-  !print*, 'relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax = ', relativeCanopyWater, canopyLiqTrial, scalarCanopyLiqMax
-  scalarCanopyWetFraction = min(max(0._dp, relativeCanopyWater), 1._dp)**0.666667_dp
-  ! smooth the function near zero, to improve numerical stability
-  if(xArg < 50._dp)then
-   if(xArg > -50._dp)then
-    smoothFunc = 1._dp / (1._dp + exp(-xarg))
-   else
-    smoothFunc = 0._dp
-   endif
-   scalarCanopyWetFraction = scalarCanopyWetFraction*smoothFunc
-   !if(smoothFunc < 0.7_dp) pause  ' smoothing canopy wet fraction'
-  endif
+ if(computeVegFlux)then
+  call wettedFrac(&
+                  ! input
+                  (scalarLatHeatSubVapCanopy > LH_vap+verySmall), & ! flag to denote if the canopy is frozen
+                  canopyLiqTrial,                                 & ! canopy liquid water (kg m-2)
+                  canopyIceTrial,                                 & ! canopy ice (kg m-2)
+                  scalarCanopyLiqMax,                             & ! maximum canopy liquid water (kg m-2)
+                  scalarCanopyIceMax,                             & ! maximum canopy ice content (kg m-2)
+                  ! output
+                  scalarCanopyWetFraction,                        & ! canopy wetted fraction (-)
+                  err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
   scalarCanopyWetFraction = 0._dp
  endif
-
-
- ! *******************************************************************************************************************************************************************
- ! *******************************************************************************************************************************************************************
- ! ***** SHORTWAVE RADIATION *****************************************************************************************************************************************
- ! *******************************************************************************************************************************************************************
- ! *******************************************************************************************************************************************************************
-
- ! shortwave radiation is constant over the SUBSTEP
- ! NOTE: canopy radiation does depend on canopy temperature (to distinguish between snow covered canopy, for albedo calculations) and this dependency
- !       is not included on the assumption that albedo changes over the sub-step are small compared to other fluxes
- if(computeShortwave)then
-
-  ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
-  snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
-
-  select case(ix_canopySrad)
-
-   ! ***** unchanged Noah-MP routine
-   case(noah_mp)
-
-    call radiation(&
-                   ! input
-                   vegTypeIndex,                       & ! intent(in): vegetation type index
-                   ist, isc, ice,                      & ! intent(in): indices to define surface type, soil color, and ice type (constant)
-                   nSoil,                              & ! intent(in): number of soil layers               
-                   scalarSWE,                          & ! intent(in): snow water equivalent (kg m-2 [mm])
-                   snowmassPlusNewsnow,                & ! intent(in): sum of snow mass and new snowfall (kg m-2 [mm])
-                   dt,                                 & ! intent(in): time step (s)
-                   scalarCosZenith,                    & ! intent(in): cosine of the solar zenith angle (0-1)
-                   scalarSnowDepth*1000._dp,           & ! intent(in): snow depth (mm)
-                   groundTempTrial,                    & ! intent(in): ground temperature (K)
-                   canopyTempTrial,                    & ! intent(in): vegetation temperature (K)
-                   scalarGroundSnowFraction,           & ! intent(in): snow cover fraction (0-1)
-                   scalarSnowfall,                     & ! intent(in): snowfall (kg m-2 s-1 [mm/s])
-                   scalarCanopyWetFraction,            & ! intent(in): fraction of canopy that is wet
-                   scalarExposedLAI,                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                   scalarExposedSAI,                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)          
-                   mLayerVolFracLiq(1:nSoil),          & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
-                   spectralIncomingDirect(1:nBands),   & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
-                   spectralIncomingDiffuse(1:nBands),  & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
-                   vegFraction,                        & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
-                   iLoc, jLoc,                         & ! intent(in): spatial location indices      
-                   ! output
-                   scalarSnowAlbedo,                   & ! intent(inout): snow albedo (-)
-                   scalarSnowAge,                      & ! intent(inout): non-dimensional snow age (-)
-                   scalarCanopySunlitFraction,         & ! intent(out): sunlit fraction of canopy (-)
-                   scalarCanopySunlitLAI,              & ! intent(out): sunlit leaf area (-)
-                   scalarCanopyShadedLAI,              & ! intent(out): shaded leaf area (-)
-                   scalarCanopySunlitPAR,              & ! intent(out): average absorbed par for sunlit leaves (w m-2)
-                   scalarCanopyShadedPAR,              & ! intent(out): average absorbed par for shaded leaves (w m-2)
-                   scalarCanopyAbsorbedSolar,          & ! intent(out): solar radiation absorbed by canopy (W m-2)
-                   scalarGroundAbsorbedSolar,          & ! intent(out): solar radiation absorbed by ground (W m-2)
-                   scalarTotalReflectedSolar,          & ! intent(out): total reflected solar radiation (W m-2)
-                   scalarTotalAbsorbedSolar,           & ! intent(out): total absorbed solar radiation (W m-2)
-                   scalarCanopyReflectedSolar,         & ! intent(out): solar radiation reflected from the canopy (W m-2)
-                   scalarGroundReflectedSolar,         & ! intent(out): solar radiation reflected from the ground (W m-2) 
-                   scalarBetweenCanopyGapFraction,     & ! intent(out): between canopy gap fraction for beam (-)
-                   scalarWithinCanopyGapFraction       ) ! intent(out): within canopy gap fraction for beam (-)
-
-
-   ! **** all other options 
-   case(CLM_2stream,UEB_2stream,NL_scatter,BeersLaw)
-
-    call vegSWavRad(&
-                    ! input: model control
-                    vegTypeIndex,                                       & ! intent(in): index of vegetation type
-                    soilTypeIndex,                                      & ! intent(in): index of soil type
-                    computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                    ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
-                    ! input: model variables
-                    scalarCosZenith,                                    & ! intent(in): cosine of direct zenith angle (0-1)
-                    spectralIncomingDirect(1:nBands),                   & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
-                    spectralIncomingDiffuse(1:nBands),                  & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
-                    spectralSnowAlbedoDirect(1:nBands),                 & ! intent(in): direct albedo of snow in each spectral band (-)
-                    spectralSnowAlbedoDiffuse(1:nBands),                & ! intent(in): diffuse albedo of snow in each spectral band (-)
-                    scalarExposedLAI,                                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                    scalarExposedSAI,                                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
-                    scalarVegFraction,                                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
-                    scalarCanopyWetFraction,                            & ! intent(in): fraction of lai, sai that is wetted (-)
-                    scalarGroundSnowFraction,                           & ! intent(in): fraction of ground that is snow covered (-)
-                    mLayerVolFracLiq(1),                                & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
-                    canopyTempTrial,                                    & ! intent(in): canopy temperature (k)
-                    ! output
-                    spectralBelowCanopyDirect,                          & ! intent(out): downward direct flux below veg layer for each spectral band  W m-2)
-                    spectralBelowCanopyDiffuse,                         & ! intent(out): downward diffuse flux below veg layer for each spectral band (W m-2)
-                    scalarBelowCanopySolar,                             & ! intent(out): solar radiation transmitted below the canopy (W m-2)
-                    spectralAlbGndDirect,                               & ! intent(out): direct  albedo of underlying surface (1:nBands) (-)
-                    spectralAlbGndDiffuse,                              & ! intent(out): diffuse albedo of underlying surface (1:nBands) (-)
-                    scalarGroundAlbedo,                                 & ! intent(out): albedo of the ground surface (-)
-                    scalarCanopyAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the vegetation canopy (W m-2)
-                    scalarGroundAbsorbedSolar,                          & ! intent(out): solar radiation absorbed by the ground (W m-2)
-                    scalarCanopySunlitFraction,                         & ! intent(out): sunlit fraction of canopy (-)
-                    scalarCanopySunlitLAI,                              & ! intent(out): sunlit leaf area (-)
-                    scalarCanopyShadedLAI,                              & ! intent(out): shaded leaf area (-)
-                    scalarCanopySunlitPAR,                              & ! intent(out): average absorbed par for sunlit leaves (w m-2)
-                    scalarCanopyShadedPAR,                              & ! intent(out): average absorbed par for shaded leaves (w m-2)
-                    err,cmessage)                                         ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   case default; err=20; message=trim(message)//'unable to identify option for canopy sw radiation'; return
-
-  end select ! (option for canopy sw radiation)
-
-
- endif  ! (shortwave radiation is constant over the SUBSTEP)
-
+ !print*, 'canopyLiqTrial = ', canopyLiqTrial
+ !print*, 'canopyIceTrial = ', canopyIceTrial
+ !print*, 'scalarCanopyLiqMax = ', scalarCanopyLiqMax
+ !print*, 'scalarCanopyIceMax = ', scalarCanopyIceMax
+ !print*, 'scalarCanopyWetFraction = ', scalarCanopyWetFraction
 
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
@@ -1391,6 +1219,7 @@ contains
                   ! output: error control
                   err,cmessage                       ) ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ !print*, 'dLWNetCanopy_dTGround = ', dLWNetCanopy_dTGround
 
 
  ! *******************************************************************************************************************************************************************
@@ -1557,7 +1386,6 @@ contains
   ! compute turbulent heat fluxes
   call turbFluxes(&
                   ! input: model control
-                  dt,                                   & ! intent(in): model time step (seconds)
                   computeVegFlux,                       & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                   ix_fDerivMeth,                        & ! intent(in): method used to calculate flux derivatives
                   ! input: above-canopy forcing data
@@ -1714,6 +1542,9 @@ contains
  !print*, '*****'
  !pause
 
+ !print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb = ', &
+ !         scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb
+
  ! compute the heat advected with precipitation (W m-2)
  ! NOTE: fluxes are in kg m-2 s-1, so no need to use density of water/ice here
  scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(canopyTempTrial - scalarTwetbulb) + &
@@ -1775,7 +1606,8 @@ contains
  canairNetFlux = turbFluxCanair
  canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy + scalarCanopyAdvectiveHeatFlux
  groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround + scalarGroundAdvectiveHeatFlux
- !print*, 'canairNetFlux, canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy = ', canairNetFlux, canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy
+ !print*, 'canairNetFlux, canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy, scalarCanopyAdvectiveHeatFlux = ', &
+ !         canairNetFlux, canopyNetFlux, scalarCanopyAbsorbedSolar,  scalarLWNetCanopy, turbFluxCanopy, scalarCanopyAdvectiveHeatFlux
  !print*, 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround = ', groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround
 
 
@@ -1795,8 +1627,72 @@ contains
  !print*, 'dGroundNetFlux_dCanopyTemp = ', dGroundNetFlux_dCanopyTemp
  !print*, 'dCanopyNetFlux_dGroundTemp = ', dCanopyNetFlux_dGroundTemp
  !print*, 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
+ !print*, 'dLWNetCanopy_dTGround = ', dLWNetCanopy_dTGround
+ !print*, 'dTurbFluxCanopy_dTGround = ', dTurbFluxCanopy_dTGround
 
  end subroutine vegNrgFlux_muster
+
+
+ ! ***************************************************************************************
+ ! new public subroutine: compute wetted fraction of the canopy
+ ! ***************************************************************************************
+ subroutine wettedFrac(&
+                       ! input
+                       frozen,              & ! flag to denote if the canopy is frozen
+                       canopyLiq,           & ! canopy liquid water (kg m-2)
+                       canopyIce,           & ! canopy ice (kg m-2)
+                       canopyLiqMax,        & ! maximum canopy liquid water (kg m-2)
+                       canopyIceMax,        & ! maximum canopy ice content (kg m-2)
+                       ! output
+                       canopyWetFraction,   & ! canopy wetted fraction (-)
+                       err,message)           ! error control
+ implicit none
+ ! input
+ logical(lgt),intent(in)       ::  frozen               ! flag to denote if the canopy is frozen
+ real(dp),intent(in)           ::  canopyLiq            ! canopy liquid water (kg m-2)
+ real(dp),intent(in)           ::  canopyIce            ! canopy ice (kg m-2)
+ real(dp),intent(in)           ::  canopyLiqMax         ! maximum canopy liquid water (kg m-2)
+ real(dp),intent(in)           ::  canopyIceMax         ! maximum canopy ice content (kg m-2)
+ ! output
+ real(dp),intent(out)          ::  canopyWetFraction    ! canopy wetted fraction (-)
+ ! output: error control
+ integer(i4b),intent(out)      :: err                   ! error code
+ character(*),intent(out)      :: message               ! error message
+ ! local variables
+ real(dp)                      :: xArg                             ! argument used in the smoothing function (-)
+ real(dp)                      :: smoothFunc                       ! smoothing function used to improve numerical stability at times with limited water storage (-)
+ real(dp),parameter            :: smoothThresh=0.01_dp             ! mid-point of the smoothing function (kg m-2 s-1)
+ real(dp),parameter            :: smoothScale=0.001_dp             ! scaling factor for the smoothing function (kg m-2 s-1)
+ real(dp)                      :: relativeCanopyWater              ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
+ ! -----------------------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message='wettedFrac/'
+
+ ! define relative canopy storage when frozen
+ if(frozen)then
+  xarg = (canopyIce - smoothThresh)/smoothScale          ! used to smooth the function later
+  relativeCanopyWater = canopyIce / canopyIceMax         ! relative canopy storage
+
+ ! define relative canopy storage for thawed canopy
+ else
+  xArg = (canopyLiq - smoothThresh)/smoothScale
+  relativeCanopyWater = canopyLiq / max(canopyLiqMax,10._dp)
+ endif
+
+ ! compute an initial value of the canopy wet fraction
+ canopyWetFraction = min(relativeCanopyWater, 1._dp)**0.666667_dp
+
+ ! smooth the function near zero, to improve numerical stability
+ if(xArg < 50._dp)then    ! avoid huge exponents (smoothing function = 1 where xArg > 50)
+  if(xArg > -50._dp)then   ! avoid huge exponents (smoothing function = 0 where xArg < -50)
+   smoothFunc = 1._dp / (1._dp + exp(-xarg))  ! (logistic smoother)
+  else
+   smoothFunc = 0._dp
+  endif
+  canopyWetFraction = canopyWetFraction*smoothFunc  ! logistic smoother
+ endif  ! (if xArg > 50 then smoothFunc=1, so no need to do anything)
+
+ end subroutine wettedFrac
 
 
  ! *********************************************************************************************************************************************************************
@@ -1911,6 +1807,8 @@ contains
 
  ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
  do itry=nFlux,1,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
+
+  !print*, 'perturbation: ', (itry==unperturbed), (itry==perturbStateCanopy), (itry==perturbStateGround)
 
   ! -------------------------------------------------------------------------------------
   ! state perturbations for numerical deriavtives with one-sided finite differences
@@ -2580,6 +2478,7 @@ contains
  character(*),intent(out)      :: message                  ! error message
  ! local variables
  real(dp)                      :: gx                       ! stress function for the soil layers
+ real(dp),parameter            :: verySmall=epsilon(gx)    ! a very small number
  integer(i4b)                  :: iLayer                   ! index of soil layer
  ! initialize error control
  err=0; message='soilResist/'
@@ -2592,7 +2491,11 @@ contains
    case(NoahType)  ! thresholded linear function of volumetric liquid water content
     gx = (mLayerVolFracLiq(iLayer) - critSoilWilting) / (critSoilTranspire - critSoilWilting)
    case(CLM_Type)  ! thresholded linear function of matric head
-    gx = 1._dp - mLayerMatricHead(iLayer)/plantWiltPsi
+    if(mLayerMatricHead(iLayer) > plantWiltPsi)then
+     gx = 1._dp - mLayerMatricHead(iLayer)/plantWiltPsi
+    else
+     gx = 0._dp
+    endif
    case(SiB_Type)  ! exponential of the log of matric head
     if(mLayerMatricHead(iLayer) < 0._dp)then  ! (unsaturated)
      gx = 1._dp - exp( -soilStressParam * ( log(plantWiltPsi/mLayerMatricHead(iLayer)) ) )
@@ -2603,7 +2506,7 @@ contains
     err=20; message=trim(message)//'cannot identify option for soil resistance'; return
   end select
   ! save the factor the the given layer (ensure between zero and one)
-  mLayerTranspireLimitFac(iLayer) = min(1._dp, max(tiny(gx),gx) )
+  mLayerTranspireLimitFac(iLayer) = min( max(verySmall,gx), 1._dp)
   ! compute the weighted average (weighted by root density)
   wAvgTranspireLimitFac = wAvgTranspireLimitFac + mLayerTranspireLimitFac(iLayer)*mLayerRootDensity(iLayer)
  end do ! (looping through soil layers)
@@ -2780,7 +2683,6 @@ contains
  ! ********************************************************************************
  subroutine turbFluxes(&
                        ! input: model control
-                       dt,                            & ! intent(in): model time step (seconds)
                        computeVegFlux,                & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        ixDerivMethod,                 & ! intent(in): choice of method used to compute derivative (analytical or numerical)
                        ! input: above-canopy forcing data
@@ -2859,7 +2761,6 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: model control
- real(dp),intent(in)           :: dt                    ! model time step (seconds)
  logical(lgt),intent(in)       :: computeVegFlux        ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  integer(i4b),intent(in)       :: ixDerivMethod         ! choice of method used to compute derivative (analytical or numerical)
  ! input: above-canopy forcing data
@@ -3080,13 +2981,13 @@ contains
   
   ! check that energy for canopy evaporation does not exhaust the available water
   ! NOTE: do this here, rather than enforcing solution constraints, because energy and mass solutions may be uncoupled
-  if(latHeatSubVapCanopy > LH_vap+verySmall)then ! (sublimation)
-   maxFlux = -canopyIce*LH_sub/dt       ! W m-2
-  else ! (evaporation)
-   maxFlux = -canopyLiquid*LH_vap/dt    ! W m-2
-  endif
+  !if(latHeatSubVapCanopy > LH_vap+verySmall)then ! (sublimation)
+  ! maxFlux = -canopyIce*LH_sub/dt       ! W m-2
+  !else ! (evaporation)
+  ! maxFlux = -canopyLiquid*LH_vap/dt    ! W m-2
+  !endif
   ! NOTE: fluxes are positive downwards
-  if(latHeatCanopyEvap < maxFlux) latHeatCanopyEvap = maxFlux
+  !if(latHeatCanopyEvap < maxFlux) latHeatCanopyEvap = maxFlux
   !write(*,'(a,10(f20.10,1x))') 'maxFlux, latHeatCanopyEvap = ', maxFlux, latHeatCanopyEvap
 
  ! * no vegetation, so fluxes are zero
