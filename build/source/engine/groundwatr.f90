@@ -1,6 +1,8 @@
 module groundwatr_module
 ! numerical recipes data types
 USE nrtype
+! model constants
+USE multiconst,only:iden_water ! density of water (kg m-3)
 ! access the number of snow and soil layers
 USE data_struc,only:&
                     nSnow,   & ! number of snow layers  
@@ -28,6 +30,7 @@ private
 public::satStorage
 public::soilBsFlow
 public::disaggFlow
+public::aquifrFlux
 public::groundwatr
 contains
 
@@ -68,6 +71,7 @@ contains
                         mLayerVolFracIceTrial,                     & ! intent(in): volumetric ice content in each layer (-)
                         mvar_data%var(iLookMVAR%mLayerDepth)%dat,  & ! intent(in): depth of each layer (m)
                         mpar_data%var(iLookPARAM%fieldCapacity),   & ! intent(in): field capacity (-)
+                        mpar_data%var(iLookPARAM%theta_sat),       & ! intent(in): soil porosity (-)
                         ! output
                         ixSaturation,                              & ! intent(out): index of the lowest saturated layer
                         subSurfaceStorage,                         & ! intent(out): sub surface storage (m)
@@ -124,6 +128,8 @@ contains
                         ! input: storage
                         subSurfaceStorage,                                 & ! intent(in): sub surface storage (m)
                         maximumSoilWater,                                  & ! intent(in): maximum possible sub surface storage (m)
+                        ! input: inflow
+                        mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat,   & ! intent(in): inflow into each soil layer (m3/s)
                         ! input/output: diagnostic variables and fluxes constant over iterations
                         maximumFlowRate,                                   & ! intent(inout): flow rate under saturated conditions (m/s)
                         totalColumnInflow,                                 & ! intent(inout): total column inflow (m/s)
@@ -152,9 +158,11 @@ contains
  subroutine disaggFlow(&
                        ! input
                        dt,                         & ! intent(in): time step (s) -- used to calculate maximum possible inflow rate
-                       ixSaturation,               & ! intent(in): index of the lowest saturated layer
+                       ixSaturation,               & ! intent(inout): index of the lowest saturated layer
                        totalColumnInflow,          & ! intent(in): total column inflow (m s-1)
                        totalColumnOutflow,         & ! intent(in): total outflow from the soil column (m s-1)
+                       mLayerVolFracLiq,           & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+                       mLayerVolFracIce,           & ! intent(in): volumetric fraction of ice in each soil layer (-)
                        mLayerHydCond,              & ! intent(in): hydraulic conductivity in each soil layer (m s-1)
                        ! output
                        mLayerBaseflow,             & ! intent(out): baseflow from each soil layer (m s-1)
@@ -166,9 +174,11 @@ contains
  implicit none
  ! input
  real(dp),intent(in)          :: dt                         ! time step (s) -- used to calculate maximum possible inflow rate
- integer(i4b),intent(in)      :: ixSaturation               ! index of the lowest saturated layer
+ integer(i4b),intent(inout)   :: ixSaturation               ! index of the lowest saturated layer
  real(dp),intent(in)          :: totalColumnInflow          ! total column inflow (m s-1)
  real(dp),intent(in)          :: totalColumnOutflow         ! total outflow from the soil column (m s-1)
+ real(dp),intent(in)          :: mLayerVolFracLiq(:)        ! volumetric fraction of liquid water in each soil layer (-)
+ real(dp),intent(in)          :: mLayerVolFracIce(:)        ! volumetric fraction of ice in each soil layer (-)
  real(dp),intent(in)          :: mLayerHydCond(:)           ! hydraulic conductivity in each soil layer (m s-1)
  ! output
  real(dp),intent(out)         :: mLayerBaseflow(:)          ! baseflow in each layer (m s-1)
@@ -182,11 +192,13 @@ contains
  call disaggFlow_muster(&
                         ! input: model control
                         dt,                                                          & ! intent(in): time step (s) -- used to calculate maximum possible inflow rate
-                        ixSaturation,                                                & ! intent(in): index of the lowest saturated layer
+                        ixSaturation,                                                & ! intent(inout): index of the lowest saturated layer
                         ! input: total column inflow and outflow
                         totalColumnInflow,                                           & ! intent(in): total column inflow (m s-1)
                         totalColumnOutflow,                                          & ! intent(in): total outflow from the soil column (m s-1)
                         ! input: hydraulic conductivity in each soil layer
+                        mLayerVolFracLiq,                                            & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+                        mLayerVolFracIce,                                            & ! intent(in): volumetric fraction of ice in each soil layer (-)
                         mLayerHydCond,                                               & ! intent(in): hydraulic conductivity in each soil layer (m s-1)
                         ! input: attributes and parameters
                         attr_data%var(iLookATTR%HRUarea),                            & ! intent(in): HRU area (m2)
@@ -212,6 +224,7 @@ contains
  ! ************************************************************************************************
  subroutine aquifrFlux(&
                        ! input
+                       ixGroundwater,                             & ! intent(in): index defining the choice of groundwater parameterization
                        scalarAquiferStorageTrial,                 & ! intent(in): aquifer storage (m)
                        scalarCanopyTranspiration,                 & ! intent(in): canopy transpiration (kg m-2 s-1)
                        scalarSoilDrainage,                        & ! intent(in): drainage from the bottom of the soil profile
@@ -230,6 +243,7 @@ contains
  ! ----------------------------------------------------------------------------------------------------------
  implicit none
  ! input
+ integer(i4b),intent(in)          :: ixGroundwater                  ! index defining the choice of groundwater parameterization
  real(dp),intent(in)              :: scalarAquiferStorageTrial      ! aquifer storage (m)
  real(dp),intent(in)              :: scalarCanopyTranspiration      ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(in)              :: scalarSoilDrainage             ! drainage from the bottom of the soil profile (m s-1)
@@ -246,13 +260,12 @@ contains
  ! initialize error control
  err=0; message='aquifrFlux/'
  call aquifrFlux_muster(&
+                        ! input: model decisions
+                        ixGroundwater,                                          & ! intent(in): index defining the choice of groundwater parameterization
                         ! input: model state variable
                         scalarAquiferStorageTrial,                              & ! intent(in): aquifer storage (m)
                         scalarCanopyTranspiration,                              & ! intent(in): canopy transpiration (kg m-2 s-1)
                         scalarSoilDrainage,                                     & ! intent(in): drainage from the bottom of the soil profile
-                        ! input: model decisions
-                        model_decisions(iLookDECISIONS%groundwatr)%iDecision,   & ! intent(in): groundwater parameterization
-                        model_decisions(iLookDECISIONS%spatial_gw)%iDecision,   & ! intent(in): spatial representation of groundwater (local-column or single-basin)
                         ! input: factors limiting transpiration (from vegFlux routine)
                         mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
                         mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1),  & ! intent(in): fraction of roots below the lowest soil layer (-)
@@ -391,13 +404,12 @@ contains
  ! private subroutine: compute fluxes for the aquifer
  ! ************************************************************************************************
  subroutine aquifrFlux_muster(&
+                              ! input: model decisions
+                              ixGroundwater,                      & ! intent(in): index defining the choice of groundwater parameterization
                               ! input: model state variable
                               scalarAquiferStorageTrial,          & ! intent(in): aquifer storage (m)
                               scalarCanopyTranspiration,          & ! intent(in): canopy transpiration (kg m-2 s-1)
                               scalarSoilDrainage,                 & ! intent(in): drainage from the bottom of the soil profile
-                              ! input: model decisions
-                              ixGroundwater,                      & ! intent(in): choice of groundwater parameterization
-                              ixSpatialGroundwater,               & ! intent(in): spatial representation of groundwater (local-column or single-basin)
                               ! input: factors limiting transpiration (from vegFlux routine)
                               scalarTranspireLim,                 & ! intent(in): weighted average of the transpiration limiting factor (-)
                               scalarAquiferRootFrac,              & ! intent(in): fraction of roots below the lowest soil layer (-)
@@ -415,13 +427,12 @@ contains
                               ! output: error control
                               err,message)                          ! intent(out): error control
  implicit none
+ ! input: model decisions
+ integer(i4b),intent(in)          :: ixGroundwater                  ! index defining the choice of groundwater parameterization
  ! input: model state variable
  real(dp),intent(in)              :: scalarAquiferStorageTrial      ! aquifer storage (m)
  real(dp),intent(in)              :: scalarCanopyTranspiration      ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(in)              :: scalarSoilDrainage             ! drainage from the bottom of the soil profile
- ! input: model decisions
- integer(i4b),intent(in)          :: ixGroundwater                  ! choice of groundwater parameterization
- integer(i4b),intent(in)          :: ixSpatialGroundwater           ! spatial representation of groundwater (local-column or single-basin)
  ! input: factors limiting transpiration (from vegFlux routine)
  real(dp),intent(in)              :: scalarTranspireLim             ! weighted average of the transpiration limiting factor (-)
  real(dp),intent(in)              :: scalarAquiferRootFrac          ! fraction of roots below the lowest soil layer (-)
@@ -442,18 +453,11 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! local
  character(LEN=256)               :: cmessage                       ! error message of downwind routine
- integer(i4b)                     :: local_ixGroundwater            ! local index for groundwater representation
  real(dp)                         :: aquiferHydCond                 ! hydraulic conductivity of the aquifer (m s-1)
+ real(dp)                         :: aquiferTranspireFrac           ! fraction of transpiration from the aquifer (-)
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='aquifrFlux/'
-
- ! modify the groundwater representation for this single-column implementation
- select case(ixSpatialGroundwater)
-  case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
-  case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
-  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
- end select ! (modify the groundwater representation for this single-column implementation) 
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! * compute the aquifer transpiration
@@ -472,11 +476,11 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! * compute the recharge to the aquifer
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
- select case(local_ixGroundwater)
+ select case(ixGroundwater)
 
   ! using the big bucket...
   case(bigBucket)
-   scalarAquiferRecharge = sicalarSoilDrainage  ! recharge = drainage flux from the bottom of the soil profile (m s-1)
+   scalarAquiferRecharge = scalarSoilDrainage  ! recharge = drainage flux from the bottom of the soil profile (m s-1)
 
   ! no explicit aquifer...
   case(qbaseTopmodel,noExplicit)
@@ -490,7 +494,7 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! * compute the baseflow flux and its derivative
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
- select case(local_ixGroundwater)
+ select case(ixGroundwater)
 
   ! the big bucket
   case(bigBucket)
@@ -648,6 +652,7 @@ contains
                               mLayerVolFracIce,           & ! intent(in): volumetric ice content in each layer (-)
                               mLayerDepth,                & ! intent(in): depth of each layer (m)
                               fieldCapacity,              & ! intent(in): field capacity (-)
+                              theta_sat,                  & ! intent(in): soil porosity (-)
                               ! output
                               ixSaturation,               & ! intent(out): index of the lowest saturated layer
                               subSurfaceStorage,          & ! intent(out): sub surface storage (m)
@@ -660,12 +665,15 @@ contains
  real(dp),intent(in)          :: mLayerVolFracIce(:)        ! volumetric ice content (-)
  real(dp),intent(in)          :: mLayerDepth(:)             ! depth of each layer (m)
  real(dp),intent(in)          :: fieldCapacity              ! field capacity (-)
+ real(dp),intent(in)          :: theta_sat                  ! soil porosity (-) 
  ! output
  integer(i4b),intent(out)     :: ixSaturation               ! index of the lowest saturated layer
  real(dp),intent(out)         :: subSurfaceStorage          ! sub surface storage (m)
  real(dp),intent(out)         :: maximumSoilWater           ! maximum storage (m)
  integer(i4b),intent(out)     :: err                        ! error code
  character(*),intent(out)     :: message                    ! error message
+ ! local
+ integer(i4b)                 :: iLayer                     ! index of model layer
  ! ----------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='satStorage_muster/'
@@ -704,6 +712,8 @@ contains
                               ! input: storage
                               subSurfaceStorage,        & ! intent(in): sub surface storage (m)
                               maximumSoilWater,         & ! intent(in): maximum possible sub surface storage (m)
+                              ! input: inflow
+                              mLayerColumnInflow,       & ! intent(in): inflow into each soil layer (m3/s)
                               ! input/output: diagnostic variables and fluxes constant over iterations
                               maximumFlowRate,          & ! intent(inout): flow rate under saturated conditions (m/s)
                               totalColumnInflow,        & ! intent(inout): total column inflow (m/s)
@@ -729,6 +739,8 @@ contains
  ! input: storage
  real(dp),intent(in)          :: subSurfaceStorage        ! sub surface storage (m)
  real(dp),intent(in)          :: maximumSoilWater         ! maximum possible sub surface storage (m)
+ ! input: inflow
+ real(dp),intent(in)          :: mLayerColumnInflow(:)    ! inflow into each soil layer (m3/s)
  ! input/output: diagnostic variables and fluxes constant over iterations
  real(dp),intent(inout)       :: maximumFlowRate          ! flow rate under saturated conditions (m/s)
  real(dp),intent(inout)       :: totalColumnInflow        ! total column inflow (m/s)
@@ -767,7 +779,7 @@ contains
  ! compute the total column outflow (m/s) and its derivative w.r.t. storage (s-1)
  if(subSurfaceStorage > tiny(theta_sat))then
   totalColumnOutflow = (1._dp/HRUarea)*maximumFlowRate*(subSurfaceStorage/maximumSoilWater)**TOPMODELexp  ! m s-1
-  totalOutflowDeriv  = (1._dp/HRUarea)*(maximumFlowRate/maximumSoilWater)*TOPMODELexp*(subSurfaceStorageTrial/maximumSoilWater)**(TOPMODELexp - 1._dp)  ! s-1
+  totalOutflowDeriv  = (1._dp/HRUarea)*(maximumFlowRate/maximumSoilWater)*TOPMODELexp*(subSurfaceStorage/maximumSoilWater)**(TOPMODELexp - 1._dp)  ! s-1
  else
   totalColumnOutflow = 0._dp
   totalOutflowDeriv  = 0._dp
@@ -785,11 +797,13 @@ contains
  subroutine disaggFlow_muster(&
                               ! input: model control
                               dt,                         & ! intent(in): time step (s) -- used to calculate maximum possible inflow rate
-                              ixSaturation,               & ! intent(in): index of the lowest saturated layer
+                              ixSaturation,               & ! intent(inout): index of the lowest saturated layer
                               ! input: total column inflow and outflow
                               totalColumnInflow,          & ! intent(in): total column inflow (m s-1)
                               totalColumnOutflow,         & ! intent(in): total outflow from the soil column (m s-1)
                               ! input: hydraulic conductivity in each soil layer
+                              mLayerVolFracLiq,           & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
+                              mLayerVolFracIce,           & ! intent(in): volumetric fraction of ice in each soil layer (-)
                               mLayerHydCond,              & ! intent(in): hydraulic conductivity in each soil layer (m s-1)
                               ! input: attributes and parameters
                               HRUarea,                    & ! intent(in): HRU area (m2)
@@ -809,11 +823,13 @@ contains
  implicit none
  ! input: model control
  real(dp),intent(in)          :: dt                         ! time step (s) -- used to calculate maximum possible inflow rate
- integer(i4b),intent(in)      :: ixSaturation               ! index of the lowest saturated layer
+ integer(i4b),intent(inout)   :: ixSaturation               ! index of the lowest saturated layer
  ! input: total column inflow and outflow
  real(dp),intent(in)          :: totalColumnInflow          ! total column inflow (m s-1)
  real(dp),intent(in)          :: totalColumnOutflow         ! total outflow from the soil column (m s-1)
- ! input: hydraulic conductivity in each soil layer
+ ! input: storage and transmission properties  in each soil layer
+ real(dp),intent(in)          :: mLayerVolFracLiq(:)        ! volumetric fraction of liquid water in each soil layer (-)
+ real(dp),intent(in)          :: mLayerVolFracIce(:)        ! volumetric fraction of ice in each soil layer (-)
  real(dp),intent(in)          :: mLayerHydCond(:)           ! hydraulic conductivity in each layer (m s-1)
  ! input: attributes and parameters
  real(dp),intent(in)          :: HRUarea                    ! HRU area (m2)
@@ -839,6 +855,7 @@ contains
  real(dp)                     :: volTotalWater              ! volumetric fraction of total water (liquid + ice)
  real(dp)                     :: qMax                       ! max inflow rate (m s-1)
  real(dp)                     :: sink                       ! net source/sink (m s-1)
+ integer(i4b)                 :: iLayer                     ! index of model layer
  ! ----------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='disaggFlow_muster/'
@@ -859,7 +876,6 @@ contains
  ! compute the depth-weighted hydraulic conductivity (m2 s-1)
  sumDepthAvgCond = sum(mLayerHydCond(ixSaturation:nSoil)*mLayerDepth(ixSaturation:nSoil))
  if(sumDepthAvgCond < tiny(theta_sat))then
-  write(*,'(a,1x,10(e20.10,1x))') 'subSurfaceStorageTrial, sumDepthAvgCond = ', subSurfaceStorageTrial, sumDepthAvgCond
   write(*,'(a,1x,10(e20.10,1x))') 'mLayerHydCond(ixSaturation:nSoil)       = ', mLayerHydCond(ixSaturation:nSoil)
   write(*,'(a,1x,10(e20.10,1x))') 'mLayerDepth(ixSaturation:nSoil)         = ', mLayerDepth(ixSaturation:nSoil)
   message=trim(message)//'zero depth-weighted conductivity when baseflow occurs'

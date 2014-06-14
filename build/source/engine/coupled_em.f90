@@ -36,9 +36,9 @@ contains
  ! subroutines
  USE getDiagVar_module,only:getDiagVar      ! compute diagnostic variables that are treated as constant over a substep
  USE vegNrgFlux_module,only:wettedFrac      ! compute wetted fraction of the canopy (used in sw radiation fluxes)
- USE vegSWavRad_module,only:vegSWavRad      ! compute canopy sw radiation fluxes
- USE picardSolv_module,only:picardSolv      ! provide access to the Picard solver
  USE canopySnow_module,only:canopySnow      ! compute interception and unloading of snow from the vegetation canopy
+ USE vegSWavRad_module,only:vegSWavRad      ! compute canopy sw radiation fluxes
+ USE systemSolv_module,only:systemSolv      ! solve the system of thermodynamic and hydrology equations for a given substep
  USE volicePack_module,only:volicePack      ! compute change in volumetric ice content in the snowpack
  ! look-up values for the numerical method
  USE mDecisions_module,only:         &
