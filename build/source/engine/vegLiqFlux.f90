@@ -12,6 +12,7 @@ contains
                        ! input
                        computeVegFlux,               & ! intent(in): flag to denote if computing energy flux over vegetation
                        scalarCanopyLiqTrial,         & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                       scalarRainfall,               & ! intent(in): rainfall rate (kg m-2 s-1)
                        ! output
                        scalarThroughfallRain,        & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
                        scalarCanopyLiqDrainage,      & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -24,6 +25,7 @@ contains
  ! input
  logical(lgt),intent(in)       :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(dp),intent(in)           :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+ real(dp),intent(in)           :: scalarRainfall               ! rainfall (kg m-2 s-1)
  ! output
  real(dp),intent(out)          :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
  real(dp),intent(out)          :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -42,8 +44,8 @@ contains
                         ! input
                         computeVegFlux,                                     & ! intent(in): flag to denote if computing energy flux over vegetation
                         scalarCanopyLiqTrial,                               & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                        scalarRainfall,                                     & ! intent(in): rainfall rate (kg m-2 s-1)
                         ! input: forcing and parameters from data structures
-                        mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),     & ! intent(in): rainfall rate (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1), & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
                         mpar_data%var(iLookPARAM%canopyDrainageCoeff),      & ! intent(in): canopy drainage coefficient (s-1)
                         ! output

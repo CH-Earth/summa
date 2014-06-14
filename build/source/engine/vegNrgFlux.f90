@@ -88,16 +88,18 @@ contains
  ! new subroutine: muster program to compute energy fluxes at vegetation and ground surfaces
  ! ************************************************************************************************
  subroutine vegNrgFlux(&
-                       ! input
+                       ! input: model control
                        iter,                                    & ! intent(in): iteration index
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
                        computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+
+                       ! input: model state variables
+                       upperBoundTemp,                          & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
                        canairTempTrial,                         & ! intent(in): trial value of the canopy air space temperature (K)
                        canopyTempTrial,                         & ! intent(in): trial value of canopy temperature (K)
                        groundTempTrial,                         & ! intent(in): trial value of ground temperature (K)
                        canopyIceTrial,                          & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                        canopyLiqTrial,                          & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
-                       upperBoundTemp,                          & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
 
                        ! output: liquid water fluxes associated with evaporation/transpiration
                        scalarCanopyTranspiration,               & ! intent(out): canopy transpiration (kg m-2 s-1)
@@ -130,16 +132,17 @@ contains
  USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
  ! compute energy and mass fluxes for vegetation
  implicit none
- ! input
+ ! input: model control
  integer(i4b),intent(in)        :: iter                           ! iteration index
  logical(lgt),intent(in)        :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)        :: computeVegFlux                 ! flag to indicate if computing fluxes over vegetation
+ ! input: model state variables
+ real(dp),intent(in)            :: upperBoundTemp                 ! temperature of the upper boundary (K) --> NOTE: use air temperature
  real(dp),intent(in)            :: canairTempTrial                ! trial value of canopy air space temperature (K)
  real(dp),intent(in)            :: canopyTempTrial                ! trial value of canopy temperature (K)
  real(dp),intent(in)            :: groundTempTrial                ! trial value of ground temperature (K)
  real(dp),intent(in)            :: canopyIceTrial                 ! trial value of mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)            :: canopyLiqTrial                 ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
- real(dp),intent(in)            :: upperBoundTemp                 ! temperature of the upper boundary (K) --> NOTE: use air temperature
  ! output: liquid water fluxes associated with evaporation/transpiration
  real(dp),intent(out)           :: scalarCanopyTranspiration      ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(out)           :: scalarCanopyEvaporation        ! canopy evaporation/condensation (kg m-2 s-1)
@@ -1131,7 +1134,7 @@ contains
 
    case(simpleResistance)
     ! check that we don't divide by zero -- should be set to minimum of tiny in runroutine soilResist
-    if(scalarTranspireLim < tiny(dt))then; err=20; message=trim(message)//'soil moisture stress factor is < tiny -- this will cause problems'; return; endif
+    if(scalarTranspireLim < tiny(plantWiltPsi))then; err=20; message=trim(message)//'soil moisture stress factor is < tiny -- this will cause problems'; return; endif
     ! compute stomatal resistance (assume equal for sunlit and shaded leaves)
     scalarStomResistSunlit = minStomatalResistance/scalarTranspireLim
     scalarStomResistShaded = scalarStomResistSunlit
