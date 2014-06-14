@@ -20,13 +20,18 @@ USE multiconst,only:iden_ice   ! intrinsic density of ice             (kg m-3)
 USE multiconst,only:iden_water ! intrinsic density of liquid water    (kg m-3)
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,        & ! number of snow layers  
-                    nSoil,        & ! number of soil layers  
-                    nLayers         ! total number of layers
+                    nSnow,   & ! number of snow layers  
+                    nSoil,   & ! number of soil layers  
+                    nLayers    ! total number of layers
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:  &
  numerical,                  & ! numerical solution
  analytical                    ! analytical solution
+! look-up values for choice of boundary conditions for thermodynamics
+USE mDecisions_module,only:  &
+ prescribedTemp,             & ! prescribed temperature
+ energyFlux,                 & ! energy flux
+ zeroFlux                      ! zero flux
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 USE mDecisions_module,only:  &
  Raupach_BLM1994,            & ! Raupach (BLM 1994) "Simplified expressions..."
@@ -62,9 +67,6 @@ private
 public::vegNrgFlux
 public::wettedFrac
 ! dimensions
-integer(i4b)                  :: nSoil         ! number of soil layers
-integer(i4b)                  :: nSnow         ! number of snow layers
-integer(i4b)                  :: nLayers       ! total number of layers
 integer(i4b),parameter        :: nBands=2      ! number of spectral bands for shortwave radiation
 ! named variables
 integer(i4b),parameter        :: ist     = 1   ! Surface type:  IST=1 => soil;  IST=2 => lake
@@ -166,7 +168,7 @@ contains
  err=0; message="vegNrgFlux_muster/"
 
  ! identify the type of boundary condition for thermodynamics
- select case(bcUpprTdyn)
+ select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
 
   ! *****
   ! (1) DIRICHLET BOUNDARY CONDITION...

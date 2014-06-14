@@ -118,6 +118,9 @@ MODULE data_struc
  ! ***********************************************************************************************************
  ! Define common variables
  ! ***********************************************************************************************************
+ integer(i4b),save,public                :: nSnow                    ! number of snow layers
+ integer(i4b),save,public                :: nSoil                    ! number of soil layers
+ integer(i4b),save,public                :: nLayers                  ! total number of layers in the snow-soil system
  integer(i4b),save,public                :: numtim                   ! number of time steps
  real(dp),save,public                    :: data_step                ! time step of the data
  real(dp),save,public                    :: refJulday                ! reference time in fractional julian days

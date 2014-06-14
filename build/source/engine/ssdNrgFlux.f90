@@ -71,6 +71,7 @@ contains
  ! model variables, parameters, forcing data, etc.
  USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ implicit none
  ! input: fluxes and derivatives at the upper boundary
  real(dp),intent(in)           :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
  real(dp),intent(in)           :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
@@ -86,6 +87,9 @@ contains
  ! output: error control
  integer(i4b),intent(out)      :: err                        ! error code
  character(*),intent(out)      :: message                    ! error message
+ ! ------------------------------------------------------------------------------------------------------------------------------------------------------
+ ! local variables
+ character(LEN=256)            :: cmessage                   ! error message of downwind routine
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
 
  ! ***** compute energy fluxes at layer interfaces and their derivatives (J m-2 s-1)

@@ -12,14 +12,72 @@ contains
                        ! input
                        computeVegFlux,               & ! intent(in): flag to denote if computing energy flux over vegetation
                        scalarCanopyLiqTrial,         & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                       scalarRainfall,               & ! intent(in): rainfall (kg m-2 s-1)
-                       scalarCanopyLiqMax,           & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
-                       scalarCanopyDrainageCoeff,    & ! intent(in): canopy drainage coefficient (s-1)
                        ! output
                        scalarThroughfallRain,        & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
                        scalarCanopyLiqDrainage,      & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
                        scalarCanopyLiqDrainageDeriv, & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
                        err,message)                    ! intent(out): error control
+ ! model variables, parameters, forcing data, etc.
+ USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ implicit none
+ ! input
+ logical(lgt),intent(in)       :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ real(dp),intent(in)           :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+ real(dp),intent(in)           :: scalarCanopyEvaporation      ! canopy evaporation/condensation (kg m-2 s-1)
+ ! output
+ real(dp),intent(out)          :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ real(dp),intent(out)          :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+ real(dp),intent(out)          :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+ integer(i4b),intent(out)      :: err                          ! error code
+ character(*),intent(out)      :: message                      ! error message
+ ! ------------------------------------------------------------------------------------------------------------------------------------------------------
+ ! local variables
+ character(LEN=256)            :: cmessage                     ! error message of downwind routine
+ ! ----------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message="vegLiqFlux/"
+
+ ! wrapper routine (makes use of data structures and protects variables with the intent attribute)
+ call vegLiqFlux_muster(&
+                        ! input
+                        computeVegFlux,                                     & ! intent(in): flag to denote if computing energy flux over vegetation
+                        scalarCanopyLiqTrial,                               & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                        ! input: forcing and parameters from data structures
+                        mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),     & ! intent(in): rainfall rate (kg m-2 s-1)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1), & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
+                        mpar_data%var(iLookPARAM%canopyDrainageCoeff),      & ! intent(in): canopy drainage coefficient (s-1)
+                        ! output
+                        scalarThroughfallRain,                              & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+                        scalarCanopyLiqDrainage,                            & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+                        scalarCanopyLiqDrainageDeriv,                       & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+                        err,cmessage)                                         ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+
+ end subroutine vegLiqFlux
+
+ ! ************************************************************************************************
+ ! ************************************************************************************************
+ ! *** PRIVATE SUBROUTINES ************************************************************************
+ ! ************************************************************************************************
+ ! ************************************************************************************************
+
+ ! ************************************************************************************************
+ ! new subroutine: compute water balance for the vegetation canopy
+ ! ************************************************************************************************
+ subroutine vegLiqFlux_muster(&
+                              ! input
+                              computeVegFlux,               & ! intent(in): flag to denote if computing energy flux over vegetation
+                              scalarCanopyLiqTrial,         & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+                              scalarRainfall,               & ! intent(in): rainfall (kg m-2 s-1)
+                              scalarCanopyLiqMax,           & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
+                              scalarCanopyDrainageCoeff,    & ! intent(in): canopy drainage coefficient (s-1)
+                              ! output
+                              scalarThroughfallRain,        & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+                              scalarCanopyLiqDrainage,      & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+                              scalarCanopyLiqDrainageDeriv, & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+                              err,message)                    ! intent(out): error control
  implicit none
  ! input
  logical(lgt),intent(in)       :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -35,7 +93,7 @@ contains
  character(*),intent(out)      :: message                      ! error message
  ! ----------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="vegLiqFlux/"
+ err=0; message="vegLiqFlux_muster/"
 
  ! set throughfall to inputs if vegetation is completely buried with snow
  if(.not.computeVegFlux)then
@@ -54,6 +112,6 @@ contains
   scalarCanopyLiqDrainageDeriv  = 0._dp
  endif
 
- end subroutine vegLiqFlux
+ end subroutine vegLiqFlux_muster
 
 end module vegLiqFlux_module

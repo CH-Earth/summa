@@ -61,30 +61,43 @@ FUSE_DATAMS= \
 		multiconst.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(FUSE_DATAMS))
 
+# utility modules
+FUSE_UTILMS= \
+		time_utils.f90
+UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_UTILMS))
+
 # Model guts
 FUSE_MODGUT= \
 MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODGUT))
 
 # Solver
 FUSE_SOLVER= \
+		diagn_evar.f90 \
+		getDiagVar.f90 \
+		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
-		groundwatr.f90 \
+		ssdNrgFlux.f90 \
+		vegLiqFlux.f90 \
+		snowLiqFlx.f90 \
+		soilLiqFlx.f90 \
+		systemSolv.f90 \
+		coupled_em.f90
+SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_SOLVER))
+
+# Old routines that are not currently used as part of the new refactor
+FUSE_UNUSED= \
 		tridagSolv.f90 \
-		diagn_evar.f90 \
 		phseChange.f90 \
 		heatTransf.f90 \
 		can_Hydrol.f90 \
 		snowHydrol.f90 \
 		soilHydrol.f90 \
-		picardSolv.f90 \
-		coupled_em.f90
-SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_SOLVER))
+		picardSolv.f90
 
 # Define routines for FUSE preliminaries
 FUSE_PRELIM= \
 		conv_funcs.f90 \
-		time_utils.f90 \
 		ascii_util.f90 \
 		sunGeomtry.f90 \
 		get_ixname.f90 \
@@ -117,12 +130,12 @@ FUSE_MODRUN = \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
-		canopySnow.f90 \
 		snowAlbedo.f90 \
-		newsnwfall.f90 \
+		canopySnow.f90 \
+		snwCompact.f90 \
 		layerMerge.f90 \
 		layerDivide.f90 \
-		snwDensify.f90 \
+		volicePack.f90 \
 		qTimeDelay.f90
 MODRUN = $(patsubst %, $(ENGINE_DIR)/%, $(FUSE_MODRUN))
 
@@ -135,17 +148,18 @@ FUSE_NETCDF = \
 		modelwrite.f90
 NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(FUSE_NETCDF))
 
-# ... and stitch it all together...
-FUSE_ALL = $(UTILMS) $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) \
-		$(PRELIM) $(MODRUN) $(SOLVER) \
-        $(NETCDF)
+# ... stitch together common programs
+COMM_ALL = $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) $(UTILMS)
+
+# ... stitch together FUSE programs
+FUSE_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
 
 #========================================================================
 # PART 2: Define the libraries, driver programs, and executables
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = ifort
+FC  = pgf90
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -188,16 +202,20 @@ DRIVER__EX = fuse_snow.exe
 # Define flags
 ifeq "$(FC)" "gfortran"
  FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace
+ FLAGS_COMM = -static -g -ffree-line-length-none -fmax-errors=0 -fbacktrace
  FLAGS_FUSE = -static -g -ffree-line-length-none -fmax-errors=0 -fbacktrace
 endif
 ifeq "$(FC)" "ifort"
  FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
- FLAGS_FUSE = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_COMM = -static -debug -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_FUSE = -static -debug -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ #FLAGS_FUSE = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
 endif
 ifeq "$(FC)" "pgf90"
  FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
  FLAGS_NOAH = -g -Mr8 -Mfree
- FLAGS_FUSE = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+ FLAGS_COMM = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=fp -traceback
+ FLAGS_FUSE = -Bstatic -Mbackslash -g -Mbounds -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv,ovf -traceback
 endif
 
 #FLAGS = -O3 -W -v
@@ -205,7 +223,7 @@ endif
 #.SUFFIXES: .f .o .f90
 
 # Compile
-all: compile_noah compile_fuse link clean install
+all: compile_noah compile_comm compile_fuse link clean install
 
 check:
 	echo test
@@ -215,6 +233,10 @@ check:
 compile_noah:
 	$(FC) $(FLAGS_NOAH) -c $(NOAHMP)
 
+# compile common routines
+compile_comm:
+	$(FC) $(FLAGS_COMM) -c $(COMM_ALL)
+
 # compile FUSE routines
 compile_fuse:
 	$(FC) $(FLAGS_FUSE) -c $(FUSE_ALL) $(DRIVER) \
@@ -222,7 +244,7 @@ compile_fuse:
 
 # link routines
 link:
-	$(FC) -static *.o $(LIBNETCDF) -o $(DRIVER__EX)
+	$(FC) -Bstatic *.o $(LIBNETCDF) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

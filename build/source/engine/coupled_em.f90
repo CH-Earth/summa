@@ -1,7 +1,7 @@
 module coupled_em_module
 ! numerical recipes data types
 USE nrtype
-! save the number of snow and soil layers
+! access the number of snow and soil layers
 USE data_struc,only:&
                     nSnow,        & ! number of snow layers  
                     nSoil,        & ! number of soil layers  

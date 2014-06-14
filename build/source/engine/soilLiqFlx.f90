@@ -57,66 +57,53 @@ contains
                        mLayerMatricHeadTrial,        & ! intent(in): matric head (m)
                        mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water (-)
                        mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice (-)
-                       scalarAquiferStorageTrial,    & ! intent(in): aquifer storage at the start of the step (m)
+                       ! input: fluxes
+                       scalarCanopyTranspiration,    & ! intent(in): canopy transpiration (kg m-2 s-1)
+                       scalarRainPlusMelt,           & ! intent(in): rain plus melt (m s-1)
                        ! output: fluxes at layer interfaces
                        iLayerLiqFluxSoil,            & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                        mLayerTranspire,              & ! intent(out): transpiration loss from each soil layer (m s-1)
-                       mLayerBaseflow,               & ! intent(inout): baseflow from each soil layer -- only compute at the start of the step (m s-1)
                        ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                        dq_dStateAbove,               & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
                        dq_dStateBelow,               & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
-                       ! output: fluxes and derivatives for the aquifer storage
-                       scalarAquiferTranspire,       & ! intent(out): transpiration loss from the aquifer at the start-of-step (m s-1)
-                       scalarAquiferRecharge,        & ! intent(out): recharge to the aquifer (m s-1)
-                       scalarAquiferBaseflow,        & ! intent(out): total baseflow from the aquifer (m s-1)
-                       scalarAquiferRechargeDeriv,   & ! intent(out): derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
-                       scalarAquiferBaseflowDeriv,   & ! intent(out): derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
                        ! output: error control
                        err,message)                    ! intent(out): error control
+ ! model decisions
+ USE data_struc,only:model_decisions                         ! model decision structure
+ USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
+ ! model variables, parameters, forcing data, etc.
+ USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: model control
  integer(i4b),intent(in)          :: iter                          ! iteration index
  logical(lgt),intent(in)          :: deriv_desired                 ! flag indicating if derivatives are desired
- ! trial model state variables
+ ! input: trial model state variables
  real(dp),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
  real(dp),intent(in)              :: mLayerVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)              :: mLayerVolFracIceTrial(:)      ! volumetric fraction of ice at the current iteration (-)
- real(dp),intent(in)              :: scalarAquiferStorageTrial     ! aquifer storage at the current iteration (m)
+ ! input: model fluxes
+ real(dp),intent(in)              :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
+ real(dp),intent(in)              :: scalarRainPlusMelt            ! rain plus melt (m s-1) 
  ! output: liquid fluxes at layer interfaces
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
- real(dp),intent(inout)           :: mLayerBaseflow(:)             ! baseflow from each soil layer -- only compute at the start of the step (m s-1)
  ! output: derivatives in fluxes w.r.t. state variables in the layer above and layer below (m s-1)
  real(dp),intent(out)             :: dq_dStateAbove(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
  real(dp),intent(out)             :: dq_dStateBelow(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
- ! output: fluxes and derivatives for the aquifer storage
- real(dp),intent(out)             :: scalarAquiferTranspire        ! transpiration loss from the aquifer at the start-of-step (m s-1)
- real(dp),intent(out)             :: scalarAquiferRecharge         ! recharge to the aquifer (m s-1)
- real(dp),intent(out)             :: scalarAquiferBaseflow         ! total baseflow from the aquifer (m s-1)
- real(dp),intent(out)             :: scalarAquiferRechargeDeriv    ! derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
- real(dp),intent(out)             :: scalarAquiferBaseflowDeriv    ! derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
  ! output: error control
  integer(i4b),intent(out)         :: err                           ! error code
  character(*),intent(out)         :: message                       ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
- ! local variab;es
+ ! local variables
  integer(i4b)                     :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-soil vector
- integer(i4b)                     :: local_ixGroundwater           ! local representation of groundwater (gw decision applies to regional scale, if regional gw used)
  character(LEN=256)               :: cmessage                      ! error message of downwind routine
  ! initialize error control
  err=0; message='soilLiqFlx/'
 
  ! get indices for the data structures
  ibeg = nSnow + 1
- iend = nSnow + nLevels
-
- ! modify the groundwater representation for this single-column implementation
- select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
-  case(singleBasin); local_ixGroundwater = noExplicit ! force no explicit representation of groundwater at the local scale
-  case(localColumn); local_ixGroundwater = model_decisions(iLookDECISIONS%groundwatr)%iDecision ! go with the specified decision
-  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
- end select ! (modify the groundwater representation for this single-column implementation) 
-
+ iend = nSnow + nSoil
 
  ! wrapper routine for liquid fluxes
  call soilLiqFlx_muster(&
@@ -129,38 +116,30 @@ contains
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,          & ! intent(in): index of the method used to calculate flux derivatives 
                         model_decisions(iLookDECISIONS%f_Richards)%iDecision,          & ! intent(in): index of the form of Richards' equation
                         model_decisions(iLookDECISIONS%hc_Profile)%iDecision,          & ! intent(in): index of the option for the hydraulic conductivity profile
-                        local_ixGroundwater,                                           & ! intent(in): index of the groundwater parameterization
+                        model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,          & ! intent(in): index of the upper boundary conditions for soil hydrology
                         model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,          & ! intent(in): index of the lower boundary conditions for soil hydrology
-                        model_decisions(iLookDECISIONS%spatial_gw)%iDecision,          & ! intent(in): index of the spatial representation of groundwater (local-column or single-basin)
 
                         ! input: trial state variables
                         mLayerMatricHeadTrial,                                         & ! intent(in): matric head (m)
                         mLayerVolFracLiqTrial,                                         & ! intent(in): volumetric fraction of liquid water (-)
                         mLayerVolFracIceTrial,                                         & ! intent(in): volumetric fraction of ice (-)
-                        scalarAquiferStorageTrial,                                     & ! intent(in): aquifer storage at the start of the step (m)
+
+                        ! input: fluxes
+                        scalarCanopyTranspiration,                                     & ! intent(in): canopy transpiration (kg m-2 s-1)
+                        scalarRainPlusMelt,                                            & ! intent(in): rain plus melt (m s-1)
 
                         ! input: model coordinate variables -- NOTE: use of ibeg and iend 
                         mvar_data%var(iLookMVAR%mLayerDepth)%dat(ibeg:iend),           & ! intent(in): depth of the layer (m)
                         mvar_data%var(iLookMVAR%mLayerHeight)%dat(ibeg:iend),          & ! intent(in): height of the layer mid-point (m)
                         mvar_data%var(iLookMVAR%iLayerHeight)%dat(ibeg-1:iend),        & ! intent(in): height of the layer interfaces (m)
 
+                        ! input: upper boundary conditions
+                        mpar_data%var(iLookPARAM%upperBoundHead),                      & ! intent(in): upper boundary condition for matric head (m)
+                        mpar_data%var(iLookPARAM%upperBoundTheta),                     & ! intent(in): upper boundary condition for volumetric liquid water content (-)
+
                         ! input: lower boundary conditions
                         mpar_data%var(iLookPARAM%lowerBoundHead),                      & ! intent(in): lower boundary condition for matric head (m)
                         mpar_data%var(iLookPARAM%lowerBoundTheta),                     & ! intent(in): lower boundary condition for volumetric liquid water content (-)
-
-                        ! input: model forcing
-                        mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1),         & ! intent(in): computed throughfall rate (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1),       & ! intent(in): computed drainage of liquid water (kg m-2 s-1)
-                        mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat(nSnow),         & ! intent(in): liquid flux from the base of the snowpack (m s-1)
-
-                        ! input: column inflow
-                        mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat(1:nLevels),    & ! intent(in): total inflow to each layer in the soil column (m3 s-1)
-                        mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1),             & ! intent(in): (scalar) ponded water caused by melt of the "snow without a layer" (kg m-2)
-
-                        ! input: local attributes
-                        attr_data%var(iLookATTR%HRUarea),                              & ! intent(in): HRU area (m2)
-                        attr_data%var(iLookATTR%tan_slope),                            & ! intent(in): tan water table slope, taken as tan local ground surface slope (-)
-                        attr_data%var(iLookATTR%contourLength),                        & ! intent(in): length of contour at downslope edge of HRU (m)
 
                         ! input: soil parameters
                         mpar_data%var(iLookPARAM%vGn_alpha),                           & ! intent(in): van Genutchen "alpha" parameter (m-1)
@@ -178,8 +157,6 @@ contains
                         mpar_data%var(iLookPARAM%qSurfScale),                          & ! intent(in): scaling factor in the surface runoff parameterization (-)
                         mpar_data%var(iLookPARAM%specificYield),                       & ! intent(in): specific yield (-)
                         mpar_data%var(iLookPARAM%specificStorage),                     & ! intent(in): specific storage coefficient (m-1)
-                        mpar_data%var(iLookPARAM%aquiferScaleFactor),                  & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
-                        mpar_data%var(iLookPARAM%aquiferBaseflowExp),                  & ! intent(in): baseflow exponent for the big bucket (-)
                         mpar_data%var(iLookPARAM%f_impede),                            & ! intent(in): ice impedence factor (-)
                         mpar_data%var(iLookPARAM%soilIceScale),                        & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
                         mpar_data%var(iLookPARAM%soilIceCV),                           & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
@@ -191,38 +168,25 @@ contains
 
                         ! input: factors limiting transpiration (from vegFlux routine)
                         mvar_data%var(iLookMVAR%mLayerRootDensity)%dat,                & ! intent(in): root density in each layer (-)
-                        mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1),         & ! intent(in): fraction of roots below the lowest soil layer (-)
                         mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),            & ! intent(in): weighted average of the transpiration limiting factor (-)
                         mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat,               & ! intent(in): transpiration limiting factor in each layer (-)
-                        mvar_data%var(iLookMVAR%scalarTranspireLimAqfr)%dat(1),        & ! intent(in): transpiration limiting factor for the aquifer (-)
 
                         ! output: diagnostic scalar variables
-                        mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1),            & ! intent(out):   (scalar) rain plus melt (m s-1)
                         mvar_data%var(iLookMVAR%scalarInfilArea)%dat(1),               & ! intent(inout): (scalar) fraction of unfrozen area where water can infiltrate (-)
                         mvar_data%var(iLookMVAR%scalarFrozenArea)%dat(1),              & ! intent(inout): (scalar) fraction of area that is considered impermeable due to soil ice (-)
                         mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1),           & ! intent(inout): (scalar) surface runoff (m s-1)
-                        mvar_data%var(iLookMVAR%scalarExfiltration)%dat(1),            & ! intent(inout): (scalar) exfiltration at the end-of-step (m s-1)
 
                         ! output: diagnostic variables for model layers
-                        mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(1:nLevels),     & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
-                        mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(1:nLevels),     & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
-                        mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat(1:nLevels),   & ! intent(out): total outflow from each layer of the soil column (m3 s-1)
+                        mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(1:nSoil),       & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
+                        mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(1:nSoil),       & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
 
                         ! output: fluxes at layer interfaces
                         iLayerLiqFluxSoil,                                             & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                         mLayerTranspire,                                               & ! intent(out): transpiration loss from each soil layer (m s-1)
-                        mLayerBaseflow,                                                & ! intent(inout): baseflow from each soil layer -- only compute at the start of the step (m s-1)
 
                         ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                         dq_dStateAbove,                                                & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
                         dq_dStateBelow,                                                & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
-
-                        ! output: fluxes and derivatives for the aquifer storage
-                        scalarAquiferTranspire,                                        & ! intent(out): transpiration loss from the aquifer (m s-1)
-                        scalarAquiferRecharge,                                         & ! intent(out): recharge to the aquifer (m s-1)
-                        scalarAquiferBaseflow,                                         & ! intent(out): total baseflow from the aquifer (m s-1)
-                        scalarAquiferRechargeDeriv,                                    & ! intent(out): derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
-                        scalarAquiferBaseflowDeriv,                                    & ! intent(out): derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
 
                         ! output: error control
                         err,cmessage)                                                    ! intent(out): error control
@@ -251,38 +215,26 @@ contains
                               ixDerivMethod,               & ! intent(in): choice of method used to compute derivative
                               ixRichards,                  & ! intent(in): choice of the form of Richards' equation
                               hc_Profile,                  & ! intent(in): index defining the option for the hydraulic conductivity profile
-                              ixGroundwater,               & ! intent(in): choice of groundwater parameterization
-                              ixBcLowerSoilHydrology,      & ! intent(in): choice of upper boundary condition for soil hydrology
-                              ixSpatialGroundwater,        & ! intent(in): spatial representation of groundwater (local-column or single-basin)
+                              ixBcUpperSoilHydrology,      & ! intent(in): choice of upper boundary condition for soil hydrology
+                              ixBcLowerSoilHydrology,      & ! intent(in): choice of lower boundary condition for soil hydrology
 
                               ! input: trial state variables
                               mLayerMatricHeadTrial,       & ! intent(in): matric head (m)
                               mLayerVolFracLiqTrial,       & ! intent(in): volumetric fraction of liquid water (-)
                               mLayerVolFracIceTrial,       & ! intent(in): volumetric fraction of ice (-)
-                              scalarAquiferStorageTrial,   & ! intent(in): aquifer storage at the start of the step (m)
 
                               ! input: model coordinate variables -- NOTE: use of ibeg and iend to restrict attention to soil
                               mLayerDepth,                 & ! intent(in): depth of the layer (m)
                               mLayerHeight,                & ! intent(in): height of the layer mid-point (m)
                               iLayerHeight,                & ! intent(in): height of the layer interfaces (m)
 
+                              ! input: upper boundary conditions
+                              upperBoundHead,              & ! intent(in): upper boundary condition for matric head (m)
+                              upperBoundTheta,             & ! intent(in): upper boundary condition for volumetric liquid water content (-)
+
                               ! input: lower boundary conditions
                               lowerBoundHead,              & ! intent(in): lower boundary condition for matric head (m)
                               lowerBoundTheta,             & ! intent(in): lower boundary condition for volumetric liquid water content (-)
-
-                              ! input: model forcing
-                              scalarThroughfallRain,       & ! intent(in): computed throughfall rate (kg m-2 s-1)
-                              scalarCanopyLiqDrainage,     & ! intent(in): computed drainage of liquid water (kg m-2 s-1)
-                              scalarLiqFluxSnow,           & ! intent(in): liquid flux from the base of the snowpack (m s-1)
-
-                              ! input: column inflow
-                              mLayerColumnInflow,          & ! intent(in): total inflow to the soil column (m3 s-1)
-                              scalarSfcMeltPond,           & ! intent(in): (scalar)    ! ponded water caused by melt of the "snow without a layer" (kg m-2)
-
-                              ! input: local attributes
-                              HRUarea,                     & ! intent(in): HRU area (m2)
-                              tan_slope,                   & ! intent(in): tan water table slope, taken as tan local ground surface slope (-)
-                              contourLength,               & ! intent(in): length of contour at downslope edge of HRU (m)
 
                               ! input: soil parameters
                               vGn_alpha,                   & ! intent(in): van Genutchen "alpha" parameter (m-1)
@@ -300,8 +252,6 @@ contains
                               qSurfScale,                  & ! intent(in): scaling factor in the surface runoff parameterization (-)
                               specificYield,               & ! intent(in): specific yield (-)
                               specificStorage,             & ! intent(in): specific storage coefficient (m-1)
-                              aquiferScaleFactor,          & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
-                              aquiferBaseflowExp,          & ! intent(in): baseflow exponent for the big bucket (-)
                               f_impede,                    & ! intent(in): ice impedence factor (-)
                               soilIceScale,                & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
                               soilIceCV,                   & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
@@ -313,38 +263,25 @@ contains
 
                               ! input: factors limiting transpiration (from vegFlux routine)
                               mLayerRootDensity,           & ! intent(in): root density in each layer (-)
-                              scalarAquiferRootFrac,       & ! intent(in): fraction of roots below the lowest soil layer (-)
                               scalarTranspireLim,          & ! intent(in): weighted average of the transpiration limiting factor (-)
                               mLayerTranspireLim,          & ! intent(in): transpiration limiting factor in each layer (-)
-                              scalarTranspireLimAqfr,      & ! intent(in): transpiration limiting factor for the aquifer (-)
 
                               ! output: diagnostic scalar variables
-                              scalarRainPlusMelt,          & ! intent(out):   rain plus melt (m s-1)
                               scalarInfilArea,             & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
                               scalarFrozenArea,            & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
                               scalarSurfaceRunoff,         & ! intent(inout): surface runoff (m s-1)
-                              scalarExfiltration,          & ! intent(inout): exfiltration (m s-1)
 
                               ! output: diagnostic variables for model layers
                               mLayerdTheta_dPsi,           & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                               mLayerdPsi_dTheta,           & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
-                              mLayerColumnOutflow,         & ! intent(out): outflow from each layer of the soil column (m3 s-1)
 
                               ! output: fluxes at layer interfaces
                               iLayerLiqFluxSoil,           & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                               mLayerTranspire,             & ! intent(out): transpiration loss from each soil layer (m s-1)
-                              mLayerBaseflow,              & ! intent(inout): baseflow from each soil layer -- only compute at the start of the step (m s-1)
 
                               ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                               dq_dStateAbove,              & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
                               dq_dStateBelow,              & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
-
-                              ! output: fluxes and derivatives for the aquifer storage
-                              scalarAquiferTranspire,      & ! intent(out): transpiration loss from the aquifer (m s-1)
-                              scalarAquiferRecharge,       & ! intent(out): recharge to the aquifer (m s-1)
-                              scalarAquiferBaseflow,       & ! intent(out): total baseflow from the aquifer (m s-1)
-                              scalarAquiferRechargeDeriv,  & ! intent(out): derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
-                              scalarAquiferBaseflowDeriv,  & ! intent(out): derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
 
                               ! output: error control
                               err,message)                   ! intent(out): error control
@@ -365,32 +302,25 @@ contains
  integer(i4b),intent(in)          :: ixDerivMethod                ! choice of method used to compute derivative
  integer(i4b),intent(in)          :: ixRichards                   ! choice of the form of Richards' equation
  integer(i4b),intent(in)          :: hc_profile                   ! choice of type of hydraulic conductivity profile
- integer(i4b),intent(in)          :: ixGroundwater                ! choice of groundwater parameterization
- integer(i4b),intent(in)          :: ixBcLowerSoilHydrology       ! choice of upper boundary condition for soil hydrology
- integer(i4b),intent(in)          :: ixSpatialGroundwater         ! choice of the spatial representation of groundwater (local-column or single-basin)
+ integer(i4b),intent(in)          :: ixBcUpperSoilHydrology       ! choice of upper boundary condition for soil hydrology
+ integer(i4b),intent(in)          :: ixBcLowerSoilHydrology       ! choice of lower boundary condition for soil hydrology
  ! input: trial model state variables
  real(dp),intent(in)              :: mLayerMatricHeadTrial(:)     ! matric head in each layer at the current iteration (m)
  real(dp),intent(in)              :: mLayerVolFracLiqTrial(:)     ! volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)              :: mLayerVolFracIceTrial(:)     ! volumetric fraction of ice at the current iteration (-)
- real(dp),intent(in)              :: scalarAquiferStorageTrial    ! aquifer storage at the current iteration (m)
+ ! input: model fluxes
+ real(dp),intent(in)              :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
+ real(dp),intent(in)              :: scalarRainPlusMelt           ! rain plus melt (m s-1) 
  ! input: model coordinate variables
  real(dp),intent(in)              :: mLayerDepth(:)               ! depth of the layer (m)
  real(dp),intent(in)              :: mLayerHeight(:)              ! height of the layer mid-point (m)
  real(dp),intent(in)              :: iLayerHeight(0:)             ! height of the layer interfaces (m)
+ ! input: diriclet upper boundary conditions
+ real(dp),intent(in)              :: upperBoundHead               ! upper boundary condition for matric head (m)
+ real(dp),intent(in)              :: upperBoundTheta              ! upper boundary condition for volumetric liquid water content (-)
  ! input: diriclet lower boundary conditions
  real(dp),intent(in)              :: lowerBoundHead               ! lower boundary condition for matric head (m)
  real(dp),intent(in)              :: lowerBoundTheta              ! lower boundary condition for volumetric liquid water content (-)
- ! input: model forcing
- real(dp),intent(in)              :: scalarThroughfallRain        ! computed throughfall rate (kg m-2 s-1)
- real(dp),intent(in)              :: scalarCanopyLiqDrainage      ! computed drainage of liquid water (kg m-2 s-1)
- real(dp),intent(in)              :: scalarLiqFluxSnow            ! liquid flux from the base of the snowpack (m s-1)
- ! input: column inflow
- real(dp),intent(in)              :: mLayerColumnInflow(:)        ! total inflow to each layer in the soil column (m3 s-1)
- real(dp),intent(in)              :: scalarSfcMeltPond            ! ponded water caused by melt of the "snow without a layer" (kg m-2)
- ! input: local attributes
- real(dp),intent(in)              :: HRUarea                      ! HRU area (m2)
- real(dp),intent(in)              :: tan_slope                    ! tan water table slope, taken as tan local ground surface slope (-)
- real(dp),intent(in)              :: contourLength                ! length of contour at downslope edge of HRU (m)
  ! input: soil parameters
  real(dp),intent(in)              :: vGn_alpha                    ! van Genutchen "alpha" parameter (m-1)
  real(dp),intent(in)              :: vGn_n                        ! van Genutchen "n" parameter (-)
@@ -407,8 +337,6 @@ contains
  real(dp),intent(in)              :: qSurfScale                   ! scaling factor in the surface runoff parameterization (-)
  real(dp),intent(in)              :: specificYield                ! specific yield (-)
  real(dp),intent(in)              :: specificStorage              ! specific storage coefficient (m-1)
- real(dp),intent(in)              :: aquiferScaleFactor           ! scaling factor for aquifer storage in the big bucket (m)
- real(dp),intent(in)              :: aquiferBaseflowExp           ! baseflow exponent for the big bucket (-)
  real(dp),intent(in)              :: f_impede                     ! ice impedence factor (-)
  real(dp),intent(in)              :: soilIceScale                 ! scaling factor for depth of soil ice, used to get frozen fraction (m)
  real(dp),intent(in)              :: soilIceCV                    ! CV of depth of soil ice, used to get frozen fraction (-)
@@ -418,36 +346,24 @@ contains
  real(dp),intent(in)              :: iLayerSatHydCond(0:)         ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  ! input: factors limiting transpiration (from vegFlux routine)
  real(dp),intent(in)              :: mLayerRootDensity(:)         ! root density in each layer (-)
- real(dp),intent(in)              :: scalarAquiferRootFrac        ! fraction of roots below the lowest soil layer (-)
  real(dp),intent(in)              :: scalarTranspireLim           ! weighted average of the transpiration limiting factor (-)
  real(dp),intent(in)              :: mLayerTranspireLim(:)        ! transpiration limiting factor in each layer (-)
- real(dp),intent(in)              :: scalarTranspireLimAqfr       ! transpiration limiting factor for the aquifer (-)
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! ***** output variables
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! output: diagnostic scalar variables
- real(dp),intent(out)             :: scalarRainPlusMelt           ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
  real(dp),intent(inout)           :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
  real(dp),intent(inout)           :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
  real(dp),intent(inout)           :: scalarSurfaceRunoff          ! surface runoff (m s-1)
- real(dp),intent(inout)           :: scalarExfiltration           ! exfiltration at the end-of-step (m s-1)
  ! output: diagnostic variables for each layer
  real(dp),intent(out)             :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. psi (m-1)
  real(dp),intent(out)             :: mLayerdPsi_dTheta(:)         ! derivative in the soil water characteristic w.r.t. theta (m)
- real(dp),intent(out)             :: mLayerColumnOutflow(:)       ! outflow from each layer of the soil column (m3 s-1)
  ! output: liquid fluxes at layer interfaces
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
- real(dp),intent(inout)           :: mLayerBaseflow(:)             ! baseflow from each soil layer -- only compute at the start of the step (m s-1)
  ! output: derivatives in fluxes w.r.t. state variables in the layer above and layer below (m s-1)
  real(dp),intent(out)             :: dq_dStateAbove(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
  real(dp),intent(out)             :: dq_dStateBelow(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
- ! output: fluxes and derivatives for the aquifer storage
- real(dp),intent(out)             :: scalarAquiferTranspire        ! transpiration loss from the aquifer at the start-of-step (m s-1)
- real(dp),intent(out)             :: scalarAquiferRecharge         ! recharge to the aquifer (m s-1)
- real(dp),intent(out)             :: scalarAquiferBaseflow         ! total baseflow from the aquifer (m s-1)
- real(dp),intent(out)             :: scalarAquiferRechargeDeriv    ! derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
- real(dp),intent(out)             :: scalarAquiferBaseflowDeriv    ! derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
  ! output: error control
  integer(i4b),intent(out)         :: err                          ! error code
  character(*),intent(out)         :: message                      ! error message
@@ -481,20 +397,20 @@ contains
  real(dp)                         :: scalarFluxUpper_dx           ! flux at the top of the layer after perturbation
  real(dp)                         :: scalarFluxLower_dx           ! flux at the bottom of the layer after perturbation
  ! transpiration sink term
- real(dp),dimension(nLevels)      :: mLayerTranspireFrac          ! fraction of transpiration allocated to each soil layer (-)
- real(dp)                         :: aquiferTranspireFrac         ! fraction of transpiration allocated to the aquifer (-)
+ real(dp),dimension(nSoil)        :: mLayerTranspireFrac          ! fraction of transpiration allocated to each soil layer (-)
  ! diagnostic variables 
- real(dp),dimension(nLevels)      :: iceImpedeFac                 ! ice impedence factor at layer mid-points (-)
- real(dp),dimension(nLevels)      :: mLayerHydCond                ! hydraulic conductivity at layer mid-point (m s-1)
- real(dp),dimension(nLevels)      :: mLayerDiffuse                ! diffusivity at layer mid-point (m2 s-1)
- real(dp),dimension(nLevels)      :: dHydCond_dVolLiq             ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
- real(dp),dimension(nLevels)      :: dDiffuse_dVolLiq             ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
- real(dp),dimension(nLevels)      :: dHydCond_dMatric             ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
- real(dp),dimension(0:nLevels)    :: iLayerHydCond                ! hydraulic conductivity at layer interface (m s-1)
- real(dp),dimension(0:nLevels)    :: iLayerDiffuse                ! diffusivity at layer interface (m2 s-1)
+ real(dp),dimension(nSoil)        :: iceImpedeFac                 ! ice impedence factor at layer mid-points (-)
+ real(dp),dimension(nSoil)        :: mLayerHydCond                ! hydraulic conductivity at layer mid-point (m s-1)
+ real(dp),dimension(nSoil)        :: mLayerDiffuse                ! diffusivity at layer mid-point (m2 s-1)
+ real(dp),dimension(nSoil)        :: dHydCond_dVolLiq             ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+ real(dp),dimension(nSoil)        :: dDiffuse_dVolLiq             ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+ real(dp),dimension(nSoil)        :: dHydCond_dMatric             ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+ real(dp),dimension(0:nSoil)      :: iLayerHydCond                ! hydraulic conductivity at layer interface (m s-1)
+ real(dp),dimension(0:nSoil)      :: iLayerDiffuse                ! diffusivity at layer interface (m2 s-1)
  ! compute surface flux
  integer(i4b)                     :: nRoots                       ! number of soil layers with roots
  integer(i4b)                     :: ixIce                        ! index of the lowest soil layer that contains ice
+ real(dp)                         :: scalarSurfaceInfiltration    ! surface infiltration rate (m s-1)
  ! compute fluxes and derivatives at layer interfaces 
  real(dp),dimension(2)            :: vectorVolFracLiqTrial        ! trial value of volumetric liquid water content (-)
  real(dp),dimension(2)            :: vectorMatricHeadTrial        ! trial value of matric head (m)
@@ -522,25 +438,16 @@ contains
   nFlux=0  ! compute analytical derivatives
  endif
 
- ! define upper boundary fluxes (m s-1)
- if(ixBcUpperSoilHydrology==liquidFlux)then
-  if(nSnow==0) scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water + (scalarSfcMeltPond/dt)/iden_water  ! rainfall plus melt of the snow without a layer (convert to m s-1)
-  if(nSnow>0)  scalarRainPlusMelt = scalarLiqFluxSnow                                              ! liquid water flux from the base of the snowpack (m s-1)
- endif
- if(ixBcUpperSoilHydrology==prescribedHead)then
-  scalarRainPlusMelt = 0._dp
- endif
-
  ! identify the number of layers that contain roots
- nRoots = count(iLayerHeight(0:nLevels-1) < rootingDepth)
+ nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth)
 
  ! identify lowest soil layer with ice
  ! NOTE: cannot use count because there may be an unfrozen wedge
  ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
- do iLayer=1,nLevels ! (loop through soil layers)
+ do iLayer=1,nSoil ! (loop through soil layers)
   if(mLayerVolFracIce(iLayer) > verySmall) ixIce = iLayer
  end do
- if(ixIce==nLevels)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
+ if(ixIce==nSoil)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************
@@ -549,29 +456,17 @@ contains
  ! compute the transpiration sink term
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
- ! compute the fraction of transpiration loss from each snow-soil layer, and the aquifer
+ ! compute the fraction of transpiration loss from each soil layer
  if(scalarTranspireLim > epsilon(scalarTranspireLim))then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
   mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
-  aquiferTranspireFrac   = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim
  else ! (possible for there to be non-zero conductance and therefore transpiration in this case)
   mLayerTranspireFrac(:) = mLayerRootDensity(:)
-  aquiferTranspireFrac   = scalarAquiferRootFrac
- endif
- ! check that the sums are OK
- if(abs(1._dp - (sum(mLayerTranspireFrac)+aquiferTranspireFrac)) > 1.e-8_dp)then
-  print*, 'sum(mLayerTranspireFrac) = ', sum(mLayerTranspireFrac)
-  print*, 'aquiferTranspireFrac = ', aquiferTranspireFrac
-  message=trim(message)//'problem allocating transpiration flux to soil layers and the aquifer'
-  err=20; return
  endif
 
- ! compute transpiration loss from each soil layer, and the aquifer (kg m-2 s-1 --> m s-1)
+ ! compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
- scalarAquiferTranspire = aquiferTranspireFrac*scalarCanopyTranspiration/iden_water
- ! (special case of prescribed head -- no transpiration)if(ixBcUpperSoilHydrology==prescribedHead)then
-  mLayerTranspire        = 0._dp
-  scalarAquiferTranspire = 0._dp
- endif
+ ! (special case of prescribed head -- no transpiration)
+ if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._dp
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************
@@ -579,7 +474,7 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! compute diagnostic variables at the nodes throughout the soil profile
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
- do iSoil=1,nLevels ! (loop through soil layers)
+ do iSoil=1,nSoil ! (loop through soil layers)
   call diagv_node(&
                   ! input: model control
                   desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
@@ -745,7 +640,7 @@ contains
  ! * compute fluxes and derivatives at layer interfaces...
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! loop through soil layers
- do iLayer=1,nLevels-1
+ do iLayer=1,nSoil-1
 
   ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
   do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
@@ -879,18 +774,18 @@ contains
 
    ! un-perturbed case
    case(unperturbed)
-    scalarVolFracLiqTrial      = mLayerVolFracLiqTrial(nLevels)
-    scalarMatricHeadTrial      = mLayerMatricHeadTrial(nLevels)
+    scalarVolFracLiqTrial   = mLayerVolFracLiqTrial(nSoil)
+    scalarMatricHeadTrial   = mLayerMatricHeadTrial(nSoil)
 
    ! perturb soil state (one-sided finite differences)
    case(perturbStateAbove)
     select case(ixRichards)  ! (perturbation depends on the form of Richards' equation)
      case(moisture)
-      scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nLevels) + dx
-      scalarMatricHeadTrial = mLayerMatricHeadTrial(nLevels)
+      scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nSoil) + dx
+      scalarMatricHeadTrial = mLayerMatricHeadTrial(nSoil)
      case(mixdform)
-      scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nLevels)
-      scalarMatricHeadTrial = mLayerMatricHeadTrial(nLevels) + dx
+      scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nSoil)
+      scalarMatricHeadTrial = mLayerMatricHeadTrial(nSoil) + dx
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select ! (form of Richards' equation)
 
@@ -904,13 +799,13 @@ contains
    ! compute perturbed value of hydraulic conductivity
    case(perturbStateAbove)
     select case(ixRichards)
-     case(moisture); scalarHydCondTrial = hydCond_liq(scalarVolFracLiqTrial,mLayerSatHydCond(nLevels),theta_res,theta_sat,vGn_m) * iceImpedeFac(nLevels)
-     case(mixdform); scalarHydCondTrial = hydCond_psi(scalarMatricHeadTrial,mLayerSatHydCond(nLevels),vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nLevels)
+     case(moisture); scalarHydCondTrial = hydCond_liq(scalarVolFracLiqTrial,mLayerSatHydCond(nSoil),theta_res,theta_sat,vGn_m) * iceImpedeFac(nSoil)
+     case(mixdform); scalarHydCondTrial = hydCond_psi(scalarMatricHeadTrial,mLayerSatHydCond(nSoil),vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nSoil)
     end select
 
    ! (use un-perturbed value)
    case default
-    scalarHydCondTrial = mLayerHydCond(nLevels)        ! hydraulic conductivity at the mid-point of the lowest unsaturated soil layer (m s-1)
+    scalarHydCondTrial = mLayerHydCond(nSoil)        ! hydraulic conductivity at the mid-point of the lowest unsaturated soil layer (m s-1)
 
   end select ! (re-computing hydraulic conductivity)
 
@@ -927,21 +822,21 @@ contains
                   scalarMatricHeadTrial,           & ! intent(in): matric head in the lowest unsaturated node (m)
                   scalarVolFracLiqTrial,           & ! intent(in): volumetric liquid water content the lowest unsaturated node (-)
                   ! input: model coordinate variables
-                  mLayerDepth(nLevels),            & ! intent(in): depth of the lowest unsaturated soil layer (m)
-                  mLayerHeight(nLevels),           & ! intent(in): height of the lowest unsaturated soil node (m)
+                  mLayerDepth(nSoil),              & ! intent(in): depth of the lowest unsaturated soil layer (m)
+                  mLayerHeight(nSoil),             & ! intent(in): height of the lowest unsaturated soil node (m)
                   ! input: boundary conditions
                   lowerBoundHead,                  & ! intent(in): lower boundary condition (m)
                   lowerBoundTheta,                 & ! intent(in): lower boundary condition (-)
                   ! input: derivative in the soil water characteristic
-                  mLayerdPsi_dTheta(nLevels),      & ! intent(in): derivative in the soil water characteristic
-                  mLayerdTheta_dPsi(nLevels),      & ! intent(in): derivative in the soil water characteristic
+                  mLayerdPsi_dTheta(nSoil),        & ! intent(in): derivative in the soil water characteristic
+                  mLayerdTheta_dPsi(nSoil),        & ! intent(in): derivative in the soil water characteristic
                   ! input: transmittance
                   iLayerSatHydCond(0),             & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                  iLayerSatHydCond(nLevels),       & ! intent(in): saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+                  iLayerSatHydCond(nSoil),         & ! intent(in): saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
                   scalarHydCondTrial,              & ! intent(in): hydraulic conductivity at the node itself (m s-1)
-                  dHydCond_dVolLiq(nLevels),       & ! intent(in): derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
-                  dHydCond_dMatric(nLevels),       & ! intent(in): derivative in hydraulic conductivity w.r.t. matric head (s-1)
-                  iceImpedeFac(nLevels),           & ! intent(in): ice impedence factor in the lower-most soil layer (-)
+                  dHydCond_dVolLiq(nSoil),         & ! intent(in): derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
+                  dHydCond_dMatric(nSoil),         & ! intent(in): derivative in hydraulic conductivity w.r.t. matric head (s-1)
+                  iceImpedeFac(nSoil),             & ! intent(in): ice impedence factor in the lower-most soil layer (-)
                   ! input: soil parameters
                   vGn_alpha,                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
                   vGn_n,                           & ! intent(in): van Genutchen "n" parameter (-)
@@ -952,13 +847,12 @@ contains
                   zScale_TOPMODEL,                 & ! intent(in): TOPMODEL scaling factor (m)
                   specificYield,                   & ! intent(in): specific yield (-)
                   ! output: hydraulic conductivity and diffusivity at the surface
-                  iLayerHydCond(nLevels),          & ! intent(out): hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
-                  iLayerDiffuse(nLevels),          & ! intent(out): hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+                  iLayerHydCond(nSoil),            & ! intent(out): hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
+                  iLayerDiffuse(nSoil),            & ! intent(out): hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
                   ! output: drainage flux
-                  iLayerLiqFluxSoil(nLevels),      & ! intent(out): drainage flux (m s-1)
+                  iLayerLiqFluxSoil(nSoil),        & ! intent(out): drainage flux (m s-1)
                   ! output: derivatives in drainage flux
-                  dq_dStateAbove(nLevels),         & ! intent(out): change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
-                  dq_dStateBelow(nLevels),         & ! intent(out): change in drainage flux w.r.t. change in the aquifer storage (s-1)
+                  dq_dStateAbove(nSoil),           & ! intent(out): change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
                   ! output: error control
                   err,cmessage)                ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -966,8 +860,8 @@ contains
   ! get copies of drainage flux to compute derivatives
   if(deriv_desired .and. ixDerivMethod==numerical)then
    select case(itry)
-    case(unperturbed);       scalarFlux             = iLayerLiqFluxSoil(nLevels)
-    case(perturbStateAbove); scalarFlux_dStateAbove = iLayerLiqFluxSoil(nLevels)
+    case(unperturbed);       scalarFlux             = iLayerLiqFluxSoil(nSoil)
+    case(perturbStateAbove); scalarFlux_dStateAbove = iLayerLiqFluxSoil(nSoil)
     case(perturbStateBelow); err=20; message=trim(message)//'lower state should never be perturbed when computing drainage do not expect to get here'; return
     case default; err=10; message=trim(message)//"unknown perturbation"; return
    end select
@@ -979,138 +873,20 @@ contains
  ! NOTE: drainage derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
  !       (note also negative sign to account for inverse relationship between water table depth and aquifer storage)
  if(deriv_desired .and. ixDerivMethod==numerical)then
-  dq_dStateAbove(nLevels) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
-  dq_dStateBelow(nLevels) = 0._dp  ! keep this here in case we want to couple some day....
+  dq_dStateAbove(nSoil) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
  endif
+
+ ! no dependence on the aquifer for drainage
+ dq_dStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
  
- ! *************************************************************************************************************************************************
- ! *************************************************************************************************************************************************
- ! -------------------------------------------------------------------------------------------------------------------------------------------------
- ! * compute the recharge to the aquifer and its derivative
- ! -------------------------------------------------------------------------------------------------------------------------------------------------
- select case(ixGroundwater)
-
-  ! =====
-  ! using the big bucket...
-  ! =======================
-  case(bigBucket)
-   scalarAquiferRecharge      = iLayerLiqFluxSoil(nLevels)  ! recharge = drainage flux from the bottom of the soil profile (m s-1)
-   scalarAquiferRechargeDeriv = 0._dp                       ! recharge does not depend on aquifer storage
-
-  ! =====
-  ! no explicit aquifer...
-  ! ======================
-  case(qbaseTopmodel,noExplicit)
-   scalarAquiferRecharge      = 0._dp 
-   scalarAquiferRechargeDeriv = 0._dp
-
-  ! =====
-  ! error checking...
-  ! =================
-  case default; err=20; message=trim(message)//'unknown groundwater parameterization'; return
-
- end select  ; ! (choice of groundwater parameterization)
+ ! end of drainage section
 
 
- ! *************************************************************************************************************************************************
- ! *************************************************************************************************************************************************
- ! -------------------------------------------------------------------------------------------------------------------------------------------------
- ! * compute the baseflow flux and its derivative
- ! -------------------------------------------------------------------------------------------------------------------------------------------------
- select case(ixGroundwater)
+ ! *****************************************************************************************************************************************************************
+ ! *****************************************************************************************************************************************************************
 
-  ! ------------------------------------------------------------------------------------------------------------------------------------------------
-  ! the big bucket
-  case(bigBucket)
-
-   ! compute effective hydraulic conductivity
-   aquiferHydCond = kAnisotropic*iLayerSatHydCond(0)
-
-   ! compute baseflow
-   call q_baseflow(&
-                   ! input: model decisions
-                   deriv_desired,        & ! intent(in): flag indicating if derivatives are desired
-                   ixDerivMethod,        & ! intent(in): choice of method used to compute derivative
-                   ! input: effective parameters
-                   aquiferHydCond,       & ! intent(in): effective hydraulic conductivity (m s-1)
-                   aquiferScaleFactor,   & ! intent(in): scaling factor for aquifer storage (m)
-                   aquiferBaseflowExp,   & ! intent(in): exponent in bucket baseflow parameterization (-)
-                   ! input: state variables
-                   scalarAquiferStorageTrial,   & ! intent(in): aquifer storage (m)
-                   ! output
-                   scalarAquiferBaseflow,       & ! intent(out): total baseflow (m s-1)
-                   scalarAquiferBaseflowDeriv,  & ! intent(out): derivative in baseflow flux w.r.t. water table depth (m s-1)
-                   err,cmessage)                  ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! baseflow from a separate aquifer, so no baseflow loss in each soil layer
-   mLayerBaseflow(:) = 0._dp 
-
-  ! ------------------------------------------------------------------------------------------------------------------------------------------------
-  ! baseflow using the TOPMODEL-ish parameterization
-  case(qbaseTopmodel)
-
-   ! only compute baseflow at the start of the time step
-   ! NOTE: this is done so we can maintain tri-diagonal matrix
-   if(iter==1)then
-
-    ! compute *NET* baseflow in each layer
-    call q_topmodel(&
-                    ! input: model control
-                    dt,                         & ! intent(in): model time step
-                    ! input: initial state vectors (start of time step)
-                    mLayerVolFracLiqTrial,      & ! intent(in): volumetric liquid water content in each layer (-)
-                    mLayerVolFracIceTrial,      & ! intent(in): volumetric ice content in each layer (-)
-                    ! input: coordinate variables
-                    mLayerDepth,                & ! intent(in): depth of each soil layer (m)
-                    ! input: diagnostic variables
-                    mLayerSatHydCondMP(1),      & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                    mLayerHydCond,              & ! intent(in): hydraulic conductivity in each layer (m s-1)
-                    mLayerColumnInflow,         & ! intent(in): inflow into each layer (m3 s-1)
-                    iLayerLiqFluxSoil(0),       & ! intent(in): surface infiltration (m s-1)
-                    ! input: local attributes
-                    HRUarea,                    & ! intent(in): HRU area (m2)
-                    tan_slope,                  & ! intent(in): tan water table slope, taken as tan local ground surface slope (-)
-                    contourLength,              & ! intent(in): length of contour at downslope edge of HRU (m)
-                    ! input: model parameters
-                    theta_sat,                  & ! intent(in): soil porosity (-)
-                    fieldCapacity,              & ! intent(in): field capacity (-)
-                    kAnisotropic,               & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
-                    zScale_TOPMODEL,            & ! intent(in): TOPMODEL scaling factor (m)
-                    ! output: column outflow and baseflow
-                    mLayerColumnOutflow,        & ! intent(out): column outflow from each soil layer (m3 s-1)
-                    mLayerBaseflow,             & ! intent(out): baseflow from each soil layer (m s-1)
-                    exfiltration,               & ! intent(out): exfiltration (m s-1)
-                    ! output: error control
-                    err,cmessage)                  ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   endif  ! (if computing baseflow fluxes)
  
-   ! no explicit aquifer (only use soil layers)
-   scalarAquiferBaseflow      = 0._dp
-   scalarAquiferBaseflowDeriv = 0._dp
-
-  ! ------------------------------------------------------------------------------------------------------------------------------------------------
-  ! no explicit baseflow
-  case(noExplicit)
-
-   ! no explicit aquifer (only use soil layers)
-   scalarAquiferBaseflow      = 0._dp
-   scalarAquiferBaseflowDeriv = 0._dp
-
-   ! no baseflow at all
-   mLayerBaseflow(:) = 0._dp
-
-  ! ------------------------------------------------------------------------------------------------------------------------------------------------
-  ! error check
-  case default
-   message=trim(message)//'unable to identify baseflow parameterization'
-   err=20; return
- 
- end select
-
- end subroutine soilLiqFlux_muster
+ end subroutine soilLiqFlx_muster
 
  ! ************************************************************************************************
  ! ************************************************************************************************
@@ -1780,7 +1556,6 @@ contains
                        scalarDrainage,            & ! intent(out): drainage flux from the bottom of the soil profile (m s-1)
                        ! output: derivatives in drainage flux
                        dq_dStateUnsat,            & ! intent(out): change in drainage flux w.r.t. change in state variable in lowest unsaturated node (m s-1 or s-1)
-                       dq_dAquifer,               & ! intent(out): change in drainage flux w.r.t. change in the aquifer storage (s-1)
                        ! output: error control
                        err,message)                 ! intent(out): error control
  USE soil_utils_module,only:volFracLiq      ! compute volumetric fraction of liquid water as a function of matric head (-)
@@ -1832,7 +1607,6 @@ contains
  real(dp),intent(out)          :: scalarDrainage            ! drainage flux from the bottom of the soil profile (m s-1)
  ! output: derivatives in drainage flux
  real(dp),intent(out)          :: dq_dStateUnsat            ! change in drainage flux w.r.t. change in state variable in lowest unsaturated node (m s-1 or s-1)
- real(dp),intent(out)          :: dq_dAquifer               ! change in drainage flux w.r.t. change in the aquifer storage (s-1)
  ! output: error control
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
@@ -1882,9 +1656,6 @@ contains
     dq_dStateUnsat = valueMissing
    endif
 
-   ! no aquifer, so set aquifer derivative to missing
-   dq_dAquifer = valueMissing
-
   ! ---------------------------------------------------------------------------------------------
   ! * function of matric head in the bottom layer
   ! ---------------------------------------------------------------------------------------------
@@ -1909,9 +1680,6 @@ contains
     dq_dStateUnsat = valueMissing
    endif
 
-   ! no aquifer, so set aquifer derivative to missing
-   dq_dAquifer = valueMissing
-
   ! ---------------------------------------------------------------------------------------------
   ! * free drainage
   ! ---------------------------------------------------------------------------------------------
@@ -1927,11 +1695,8 @@ contains
      case(mixdform); dq_dStateUnsat = dHydCond_dMatric*kAnisotropic
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
-    ! no dependency on aquifer storage
-    dq_dAquifer = 0._dp
    else     ! (do not desire derivatives)
     dq_dStateUnsat = valueMissing
-    dq_dAquifer    = valueMissing
    endif
 
 
@@ -1942,10 +1707,8 @@ contains
    scalarDrainage = 0._dp
    if(deriv_desired)then
     dq_dStateUnsat = 0._dp
-    dq_dAquifer    = 0._dp
    else
     dq_dStateUnsat = valueMissing
-    dq_dAquifer    = valueMissing
    endif
 
   ! ---------------------------------------------------------------------------------------------
@@ -1956,265 +1719,6 @@ contains
  endselect ! (type of boundary condition)
 
  end subroutine qDrainFlux
-
-
-
-
-
-
- ! ************************************************************************************************
- ! private subroutine: compute baseflow fluxes
- ! ************************************************************************************************
- subroutine q_topmodel(&
-                       ! input: model control
-                       dt,                         & ! intent(in): model time step (s)
-                       ! input: initial state vectors (start of time step)
-                       mLayerVolFracLiq,           & ! intent(in): volumetric liquid water content in each layer (-)
-                       mLayerVolFracIce,           & ! intent(in): volumetric ice content in each layer (-)
-                       ! input: coordinate variables
-                       mLayerDepth,                & ! intent(in): depth of each soil layer (m)
-                       ! input: diagnostic variables
-                       srfSatHydCond,              & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
-                       mLayerHydCond,              & ! intent(in): hydraulic conductivity in each layer (m s-1)
-                       mLayerColumnInflow,         & ! intent(in): inflow into each layer (m3 s-1)
-                       surfaceInfiltration,        & ! intent(in): surface infiltration (m s-1)
-                       ! input: local attributes
-                       HRUarea,                    & ! intent(in): HRU area (m2)
-                       tan_slope,                  & ! intent(in): tan water table slope, taken as tan local ground surface slope (-)
-                       contourLength,              & ! intent(in): length of contour at downslope edge of HRU (m)
-                       ! input: model parameters
-                       theta_sat,                  & ! intent(in): soil porosity (-)
-                       fieldCapacity,              & ! intent(in): field capacity (-)
-                       kAnisotropic,               & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
-                       zScale_TOPMODEL,            & ! intent(in): TOPMODEL scaling factor (m)
-                       ! output: column outflow and baseflow
-                       mLayerColumnOutflow,        & ! intent(out): column outflow from each soil layer (m3 s-1)
-                       mLayerBaseflow,             & ! intent(out): baseflow from each soil layer (m s-1)
-                       exfiltration,               & ! intent(out): exfiltration (m s-1)
-                       ! output: error control
-                       err,message)                  ! intent(out): error control
- ! ----------------------------------------------------------------------------------------------------------
- implicit none
- ! input: control variables
- real(dp),intent(in)          :: dt                         ! length of the time step (s)
- ! input: initial state vectors (start of the time step)
- real(dp),intent(in)          :: mLayerVolFracLiq(:)        ! volumetric liquid water content (-)
- real(dp),intent(in)          :: mLayerVolFracIce(:)        ! volumetric ice content (-)
- ! input: coordinate variables
- real(dp),intent(in)          :: mLayerDepth(:)             ! depth of each layer (m)
- ! input: diagnostic variables
- real(dp),intent(in)          :: srfSatHydCond              ! saturated hydraulic conductivity at the surface (m s-1) 
- real(dp),intent(in)          :: mLayerHydCond(:)           ! hydraulic conductivity in each layer (m s-1)
- real(dp),intent(in)          :: mLayerColumnInflow(:)      ! inflow into each layer (m3 s-1)
- real(dp),intent(in)          :: surfaceInfiltration        ! surface infiltration (m s-1) 
- ! input: local attributes
- real(dp),intent(in)          :: HRUarea                    ! HRU area (m2)
- real(dp),intent(in)          :: tan_slope                  ! tan water table slope, taken as tan local ground surface slope (-)
- real(dp),intent(in)          :: contourLength              ! length of contour at downslope edge of HRU (m)
- ! input: model parameters
- real(dp),intent(in)          :: theta_sat                  ! soil porosity (-)
- real(dp),intent(in)          :: fieldCapacity              ! field capacity (-)
- real(dp),intent(in)          :: kAnisotropic               ! anisotropy factor for lateral hydraulic conductivity (-)
- real(dp),intent(in)          :: zScale_TOPMODEL            ! TOPMODEL scaling factor (m)
- ! output: column outflow and baseflow
- real(dp),intent(out)         :: mLayerColumnOutflow(:)     ! column outflow in each layer (m3 s-1)
- real(dp),intent(out)         :: mLayerBaseflow(:)          ! baseflow in each layer (m s-1)
- real(dp),intent(out)         :: exfiltration               ! exfiltration (m s-1)
- ! output: error control
- integer(i4b),intent(out)     :: err                        ! error code
- character(*),intent(out)     :: message                    ! error message
- ! ----------------------------------------------------------------------------------------------------------
- ! local variables
- integer(i4b)                 :: iter                       ! iteration index
- integer(i4b),parameter       :: maxiter=20                 ! maximum number of iterations
- integer(i4b)                 :: iLayer                     ! index of soil layer
- integer(i4b)                 :: ixIce                      ! index of the lowest soil layer with ice
- integer(i4b)                 :: ixSaturation               ! index of highest soil layer that is close to saturation
- real(dp),parameter           :: xTolStorage=0.00_dp        ! tolerance for fraction of capacity of ice layers
- real(dp)                     :: maximumSoilWater           ! maximum water stored in the soil column (m)
- real(dp)                     :: maximumFlowRate            ! maximum flow rate for baseflow from the soil column (m3 s-1)
- real(dp)                     :: subSurfaceStorage          ! total sub-surface storage at start of time step (m)
- real(dp)                     :: subSurfaceStorageTrial     ! trial value of total sub-surface storage (m)
- real(dp)                     :: totalInflow                ! total inflow to the soil column (m3 s-1) 
- real(dp)                     :: totalOutflow               ! total outflow from the entire soil column (m3 s-1)
- real(dp)                     :: dQ_dStorage                ! derivative in total outflow w.r.t storage (m2 s-1)
- real(dp)                     :: xResidual                  ! residual (m)
- real(dp)                     :: xIncrement                 ! iteration increment (m)
- real(dp),parameter           :: resTol=1.e-10_dp           ! residual tolerance (m)
- real(dp),parameter           :: incTol=1.e-10_dp           ! interation increment tolerance (m)
- real(dp)                     :: sumDepthAvgCond            ! sum of depth-weighted hydraulic conductivity (m2 s-1)
- real(dp),dimension(nLevels)  :: fracTotalOutflow           ! fraction of outflow apportioned to each layer (-)
- real(dp),dimension(nLevels)  :: mLayerColumnInflowAdjusted ! adjusted column inflow to ensure no inflow into ice layers (m3 s-1)
- real(dp)                     :: volTotalWater              ! volumetric fraction of total water (liquid + ice)
- real(dp)                     :: totalInflowUnallocated     ! unallocated inflow (m3 s-1)
- real(dp)                     :: qMax                       ! max inflow rate (m s-1)
- real(dp)                     :: sink                       ! net source/sink (m s-1)
- ! ----------------------------------------------------------------------------------------------------------
- ! initialize error conteol
- err=0; message='q_topmodel/'
-
- ! initialize sub-surface storage (m)
- subSurfaceStorage = 0._dp
- ixSaturation      = nLevels+1
-
- ! initialize adjusted inflow to each layer (m3/s)
- mLayerColumnInflowAdjusted(1:nLevels) = 0._dp
-
- ! identify lowest soil layer with ice
- !ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
- !do iLayer=1,nLevels-1 ! (loop through soil layers)
- ! if(mLayerVolFracIce(iLayer) > epsilon(theta_sat))then
- !  if(mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer) > xTolStorage*theta_sat) ixIce = iLayer
- ! endif
- !end do
- !if(ixIce == nLevels)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
-
- ! ensure that the HRU inflow is not flowing into an ice layer
- !mLayerColumnInflowAdjusted(:) = mLayerColumnInflow(:)
- !if(ixIce > 0)then ! ice exists
- ! mLayerColumnInflowAdjusted(ixIce+1) = mLayerColumnInflow(ixIce+1) + sum(mLayerColumnInflow(1:ixIce))
- ! mLayerColumnInflowAdjusted(1:ixIce) = 0._dp
- ! print*, 'ixIce = ', ixIce
- ! write(*,'(a,1x,10(e20.10,1x))') 'q_topmodel: mLayerColumnInflow         = ', mLayerColumnInflow
- ! write(*,'(a,1x,10(e20.10,1x))') 'q_topmodel: mLayerColumnInflowAdjusted = ', mLayerColumnInflowAdjusted
- !endif
-
- ! compute maximum possible sub-surface free storage
- maximumSoilWater = sum(mLayerDepth(1:nLevels))*(theta_sat - fieldCapacity) &   ! maximum aquifer storage (m)
-                         - sum(mLayerVolFracIce(1:nLevels)*mLayerDepth(1:nLevels))
- if(maximumSoilWater < 0._dp)then
-  message=trim(message)//'ice content is greater than the sub-surface free storage -- need additional code to handle this situation'
-  err=20; return
- endif
-
- ! compute maximum aquifer storage BELOW the bottom ice layer (m)
- !maximumSoilWater = sum(mLayerDepth(ixIce+1:nLevels))*(theta_sat - fieldCapacity) ! maximum aquifer storage BELOW the bottom ice layer (m)
-
- ! compute maximum flow rate -- i.e., the flow rate under saturated conditions
- maximumFlowRate  = tan_slope*srfSatHydCond*kAnisotropic*maximumSoilWater*contourLength &
-                      / ((theta_sat - fieldCapacity)*zScale_TOPMODEL)   ! effective hydraulic conductivity (m3/s)
-
- ! compute the sub-surface storage
- !do iLayer=nLevels,(ixIce+1),-1  ! start at the lowest soil layer and work upwards to the lowest unfrozen layer
- do iLayer=nLevels,1,-1  ! start at the lowest soil layer and work upwards to the top layer
-  !write(*,'(a,1x,3(f20.10,1x))') 'test saturation: mLayerVolFracLiq(iLayer), mLayerVolFracIce(iLayer) = ', &
-  !                                                 mLayerVolFracLiq(iLayer), mLayerVolFracIce(iLayer)
-  if(mLayerVolFracLiq(iLayer) > fieldCapacity)then
-   ixSaturation      = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
-   subSurfaceStorage = subSurfaceStorage + (mLayerVolFracLiq(iLayer) - fieldCapacity)*mLayerDepth(iLayer)
-   !write(*,'(a,1x,i4,1x,3(f20.10,1x))') 'ixSaturation, mLayerVolFracLiq(iLayer), fieldCapacity, subSurfaceStorage = ', ixSaturation, mLayerVolFracLiq(iLayer), fieldCapacity, subSurfaceStorage
-  else
-   exit                        ! (only consider saturated layer at the bottom of the soil profile) 
-  endif
- end do  ! (looping through soil layers)
-
- ! compute the total inflow (m3/s)
- totalInflow = sum(mLayerColumnInflow(:))
-
- ! initialize the sub-surface storage
- subSurfaceStorageTrial = subSurfaceStorage
-
- ! iterate
- do iter=1,maxIter
-
-  ! compute total outflow from the entire soil column (m3 s-1) and its derivative w.r.t. storage (m2 s-1)
-  if(subSurfaceStorageTrial > tiny(theta_sat))then
-   totalOutflow = maximumFlowRate*(subSurfaceStorageTrial/maximumSoilWater)**zScale_TOPMODEL  ! m3 s-1
-   dQ_dStorage  = (maximumFlowRate/maximumSoilWater)*zScale_TOPMODEL*(subSurfaceStorageTrial/maximumSoilWater)**(zScale_TOPMODEL - 1._dp)  ! m2 s-1
-  else
-   totalOutflow = 0._dp
-   dQ_dStorage  = 0._dp
-  endif
-
-  ! compute the residual (m)
-  xResidual  = dt*(surfaceInfiltration + (totalInflow - totalOutflow)/HRUarea) - (subSurfaceStorageTrial - subSurfaceStorage)
-
-  ! compute the iteration increment (m)
-  xIncrement = xResidual / (1._dp + dt*dQ_dStorage/HRUarea)
-
-  ! print progress
-  !if(iter==1) write(*,'(a)') 'subSurfaceStorageTrial, maximumSoilWater, surfaceInfiltration, totalInflow, totalOutflow, (totalInflow - totalOutflow), dQ_dStorage, xResidual, xIncrement = '
-  ! write(*,'(10(e15.5,1x))')  subSurfaceStorageTrial, maximumSoilWater, surfaceInfiltration, totalInflow, totalOutflow, (totalInflow - totalOutflow), dQ_dStorage, xResidual, xIncrement
-
-  ! update state estimate (m)
-  subSurfaceStorageTrial = subSurfaceStorageTrial + xIncrement
-
-  ! check for convergence
-  if(abs(xResidual) < resTol .and. abs(xIncrement) < incTol)then
-   totalOutflow = totalOutflow + dQ_dStorage*xIncrement
-   exit
-  endif
-
-  ! check for non-convergance
-  if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
-
- end do  ! iteration loop
-
- ! check for an early return
- if(totalOutflow < tiny(theta_sat))then
-  mLayerColumnOutflow(1:nLevels) = totalOutflow/real(nLevels, kind(dp))
-  !mLayerBaseflow(1:nLevels)      = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflowAdjusted(1:nLevels))/HRUarea
-  mLayerBaseflow(1:nLevels)      = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflow(1:nLevels))/HRUarea
-  return
- endif
-
- ! possible to start iterations with zero storage, and gain storage through inflow -- reset ixSaturation
- if(ixSaturation > nLevels) ixSaturation=nLevels
-
- ! compute the depth-weighted hydraulic conductivity (m2 s-1)
- sumDepthAvgCond = sum(mLayerHydCond(ixSaturation:nLevels)*mLayerDepth(ixSaturation:nLevels))
- if(sumDepthAvgCond < tiny(theta_sat))then
-  write(*,'(a,1x,10(e20.10,1x))') 'subSurfaceStorageTrial, sumDepthAvgCond = ', subSurfaceStorageTrial, sumDepthAvgCond
-  write(*,'(a,1x,10(e20.10,1x))') 'mLayerHydCond(ixSaturation:nLevels)     = ', mLayerHydCond(ixSaturation:nLevels)
-  write(*,'(a,1x,10(e20.10,1x))') 'mLayerDepth(ixSaturation:nLevels)       = ', mLayerDepth(ixSaturation:nLevels)
-  message=trim(message)//'zero depth-weighted conductivity when baseflow occurs'
-  err=20; return
- endif
-
- ! compute the fraction of outflow apportioned to each layer (-)
- fracTotalOutflow(ixSaturation:nLevels) = (mLayerHydCond(ixSaturation:nLevels)*mLayerDepth(ixSaturation:nLevels)) / sumDepthAvgCond
- if(ixSaturation > 1) fracTotalOutflow(1:ixSaturation-1) = 0._dp
- if(abs(1._dp - sum(fracTotalOutflow)) > verySmall)then
-  message=trim(message)//'fraction of baseflow does not sum to 1'
-  err=20; return
- endif
-
- ! compute the outflow from each soil layer (m3 s-1)
- mLayerColumnOutflow(1:nLevels) = fracTotalOutflow(1:nLevels)*totalOutflow
-
- ! initialize total unallocated inflow (m3 s-1)
- totalInflowUnallocated = totalInflow
-
- ! adjust the inflow into each layer -- start at the bottom and work upwards
- do iLayer=nLevels,1,-1
-  ! (define volumetric fraction of total water)
-  volTotalWater = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)!*(iden_ice/iden_water)
-  !if(volTotalWater > theta_sat)then; err=20; message=trim(message)//'fraction total water exceeds porosity'; return; endif
-  ! (define maximum flow into the layer)
-  qMax = mLayerDepth(iLayer)*(theta_sat - max(volTotalWater,fieldCapacity))/dt   ! max inflow rate (m s-1)
-  sink = (totalInflowUnallocated - mLayerColumnOutflow(iLayer))/HRUarea          ! maximum source/sink (m s-1)
-  ! (add as much water as possible to the current layer)
-  mLayerColumnInflowAdjusted(iLayer) = min(qMax,sink)*HRUarea                    ! inflow into the current layer (m3 s-1)
-  ! (save remaining water for the next layer)
-  totalInflowUnallocated = totalInflowUnallocated - mLayerColumnInflowAdjusted(iLayer)  ! m3 s-1
-  if(totalInflowUnallocated < tiny(dt)) exit ! exit do loop as initialized at zero earlier
- end do  ! (looping through soil layers)
-
- ! compute the exfiltration (m s-1)
- exfiltration = totalInflowUnallocated/HRUarea
-
- ! compute the net baseflow from each soil layer (m s-1)
- mLayerBaseflow(1:nLevels) = (mLayerColumnOutflow(1:nLevels) - mLayerColumnInflowAdjusted(1:nLevels))/HRUarea
- !write(*,'(a,1x,10(e20.10,1x))') 'mLayerColumnInflowAdjusted (m s-1)  = ', mLayerColumnInflowAdjusted(1:nLevels)/HRUarea
- !write(*,'(a,1x,10(e20.10,1x))') 'mLayerColumnOutflow (m s-1)         = ', mLayerColumnOutflow(1:nLevels)/HRUarea
- !write(*,'(a,1x,10(e20.10,1x))') 'mLayerBaseflow (m s-1)              = ', mLayerBaseflow(1:nLevels)
-
- ! add exfiltration to the baseflow flux at the top unfrozen layer
- mLayerBaseflow(1)      = mLayerBaseflow(1) + exfiltration
- mLayerColumnOutflow(1) = mLayerColumnOutflow(1) + exfiltration*HRUarea
-
- end subroutine q_topmodel
-
 
 
  ! *******************************************************************************************************************************************************************************

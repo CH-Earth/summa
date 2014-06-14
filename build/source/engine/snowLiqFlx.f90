@@ -31,6 +31,8 @@ contains
  USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
+ ! input: model control
+ integer(i4b),intent(in)       :: iter                       ! iteration index
  ! input: forcing for the snow domain
  real(dp),intent(in)           :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
  real(dp),intent(in)           :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
@@ -42,6 +44,9 @@ contains
  ! output: error control
  integer(i4b),intent(out)      :: err                        ! error code
  character(*),intent(out)      :: message                    ! error message
+ ! ------------------------------------------------------------------------------------------------------------------------------------------
+ ! local variables
+ character(LEN=256)            :: cmessage                   ! error message of downwind routine
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='snowLiqFlx/'
@@ -76,28 +81,30 @@ contains
  ! *********************************************************************************************************************************************************
  ! * private subroutine: calculate fluxes and derivatives for liquid water flow through snow
  ! *********************************************************************************************************************************************************
- call snowLiqFlx_muster(&
-                        ! input: model control
-                        iter,                                                       & ! intent(in): iteration index
-                        ! input: forcing for the snow domain
-                        scalarThroughfallRain,                                      & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
-                        scalarCanopyLiqDrainage,                                    & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
-                        ! input: model state vector
-                        mLayerVolFracLiqTrial,                                      & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
-                        ! input: snow properties and parameters
-                        mLayerVolFracIce,                                           & ! intent(in): volumetric ice content at the start of the time step (-)
-                        Fcapil,                                                     & ! intent(in): capillary retention as a fraction of the total pore volume (-)
-                        k_snow,                                                     & ! intent(in): hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-                        mw_exp,                                                     & ! intent(in): exponent for meltwater flow (-)
-                        ! input/output: diagnostic variables -- only computed for the first iteration
-                        mLayerPoreSpace,                                            & ! intent(inout): pore space in each snow layer (-)
-                        mLayerThetaResid,                                           & ! intent(inout): residual volumetric liquid water content in each snow layer (-)
-                        ! output: fluxes and derivatives
-                        iLayerLiqFluxSnow,                                          & ! intent(out): vertical liquid water flux at layer interfaces (m s-1)
-                        iLayerLiqFluxSnowDeriv,                                     & ! intent(out): derivative in vertical liquid water flux at layer interfaces (m s-1)
-                        ! output: error control
-                        err,message)                                                  ! intent(out): error control
+ subroutine snowLiqFlx_muster(&
+                              ! input: model control
+                              iter,                                                       & ! intent(in): iteration index
+                              ! input: forcing for the snow domain
+                              scalarThroughfallRain,                                      & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
+                              scalarCanopyLiqDrainage,                                    & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
+                              ! input: model state vector
+                              mLayerVolFracLiqTrial,                                      & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
+                              ! input: snow properties and parameters
+                              mLayerVolFracIce,                                           & ! intent(in): volumetric ice content at the start of the time step (-)
+                              Fcapil,                                                     & ! intent(in): capillary retention as a fraction of the total pore volume (-)
+                              k_snow,                                                     & ! intent(in): hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
+                              mw_exp,                                                     & ! intent(in): exponent for meltwater flow (-)
+                              ! input/output: diagnostic variables -- only computed for the first iteration
+                              mLayerPoreSpace,                                            & ! intent(inout): pore space in each snow layer (-)
+                              mLayerThetaResid,                                           & ! intent(inout): residual volumetric liquid water content in each snow layer (-)
+                              ! output: fluxes and derivatives
+                              iLayerLiqFluxSnow,                                          & ! intent(out): vertical liquid water flux at layer interfaces (m s-1)
+                              iLayerLiqFluxSnowDeriv,                                     & ! intent(out): derivative in vertical liquid water flux at layer interfaces (m s-1)
+                              ! output: error control
+                              err,message)                                                  ! intent(out): error control
  implicit none
+ ! input: model control
+ integer(i4b),intent(in)       :: iter                       ! iteration index
  ! input: forcing for the snow domain
  real(dp),intent(in)           :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
  real(dp),intent(in)           :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
@@ -165,10 +172,10 @@ contains
   ! ** typical flux computations
   else
    ! check that flow occurs
-   if(volFracLiqTrial(iLayer) > mLayerThetaResid(iLayer))then
+   if(mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer))then
     ! compute the relative saturation (-)
     availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
-    relSaturn = (volFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+    relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
     ! compute the flux and derivative (m s-1)
     iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
     iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)

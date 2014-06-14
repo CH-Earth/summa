@@ -263,6 +263,9 @@ do iHRU=1,nHRU
   SAIM(type_data%var(iLookTYPE%vegTypeIndex),:) = mpar_data%var(iLookPARAM%winterSAI)
   LAIM(type_data%var(iLookTYPE%vegTypeIndex),:) = mpar_data%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
  endif
+ ! initialize canopy drip
+ ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
+ mvar_hru(iHRU)%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
  ! define the filename for model spinup
  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
  ! define the file if the first parameter set

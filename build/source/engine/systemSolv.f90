@@ -92,10 +92,12 @@ contains
  ! call wrapper routine for the system solver
  call systemSolv_muster(&
                         ! input: model control
-                        dt,                                                   & ! time step (s)
-                        maxiter,                                              & ! maximum number of iterations
-                        firstSubstep,                                         & ! flag to denote first sub-step
-                        computeVegFlux,                                       & ! flag to denote if computing energy flux over vegetation
+                        dt,                                                   & ! intent(in): time step (s)
+                        maxiter,                                              & ! intent(in): maximum number of iterations
+                        firstSubstep,                                         & ! intent(in): flag to denote first sub-step
+                        computeVegFlux,                                       & ! intent(in): flag to denote if computing energy flux over vegetation
+                        ! input: domain boundary conditions
+                        forc_data%var(iLookFORCE%airtemp),                    & ! intent(in): temperature of the upper boundary of the snow and soil domains
                         ! input/output: model state variables (vegetation canopy)
                         mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(1),     & ! intent(inout): temperature of the canopy air space (K)
                         mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),     & ! intent(inout): temperature of the vegetation canopy (K)
@@ -129,6 +131,8 @@ contains
                               maxiter,              & ! intent(in): maximum number of iterations
                               firstSubstep,         & ! intent(in): flag to denote first sub-step
                               computeVegFlux,       & ! intent(in): flag to denote if computing energy flux over vegetation
+                              ! input: domain boundary conditions
+                              upperBoundTemp,       & ! intent(in): temperature of the upper boundary of the snow and soil domains
                               ! input/output: model state variables (vegetation canopy)
                               scalarCanairTemp,     & ! intent(inout): temperature of the canopy air space (K)
                               scalarCanopyTemp,     & ! intent(inout): temperature of the vegetation canopy (K)
@@ -149,6 +153,8 @@ contains
  integer(i4b),intent(in)        :: maxiter                      ! maximum number of iterations
  logical(lgt),intent(in)        :: firstSubStep                 ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)        :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ ! input: domain boundary conditions
+ real(dp),intent(in)            :: upperBoundTemp               ! temperature of the upper boundary of the snow and soil domains
  ! input/output: model state variables (vegetation canopy)
  real(dp),intent(inout)         :: scalarCanairTemp             ! temperature of the canopy air space (K)
  real(dp),intent(inout)         :: scalarCanopyTemp             ! temperature of the vegetation canopy (K)
@@ -214,6 +220,7 @@ contains
  ! liquid water fluxes and derivatives for the snow domain 
  real(dp),dimension(0:nSnow)    :: iLayerLiqFluxSnow            ! vertical liquid water flux at layer interfaces (m s-1)
  real(dp),dimension(0:nSnow)    :: iLayerLiqFluxSnowDeriv       ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+ real(dp)                       :: scalarRainPlusMelt            ! surface water input to the soil zone (m s-1)
  ! liquid water fluxes and derivatives for the soil domain
  real(dp),dimension(0:nSoil)    :: iLayerLiqFluxSoil            ! liquid flux at soil layer interfaces (m s-1)
  real(dp),dimension(nSoil)      :: mLayerTranspire              ! transpiration loss from each soil layer (m s-1)
@@ -224,7 +231,6 @@ contains
  real(dp)                       :: scalarAquiferTranspire       ! transpiration loss from the aquifer at the start-of-step (m s-1)
  real(dp)                       :: scalarAquiferRecharge        ! recharge to the aquifer (m s-1)
  real(dp)                       :: scalarAquiferBaseflow        ! total baseflow from the aquifer (m s-1)
- real(dp)                       :: scalarAquiferRechargeDeriv   ! derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
  real(dp)                       :: scalarAquiferBaseflowDeriv   ! derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
  ! ------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -279,6 +285,8 @@ contains
                   iter,                                   & ! intent(in): iteration index
                   firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                   computeVegFlux,                         & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                  ! input: domain boundary conditions
+                  upperBoundTemp,                         & ! intent(in): temperature of the upper boundary of the snow and soil domains       
                   ! input: model state variables for the vegetation canopy
                   scalarCanairTempTrial,                  & ! intent(in): trial value of the canopy air space temperature (K)
                   scalarCanopyTempTrial,                  & ! intent(in): trial value of canopy temperature (K)
@@ -318,6 +326,7 @@ contains
                   ! output: liquid water fluxes and derivatives for the snow domain
                   iLayerLiqFluxSnow,                      & ! intent(out): vertical liquid water flux at layer interfaces (m s-1)
                   iLayerLiqFluxSnowDeriv,                 & ! intent(out): derivative in vertical liquid water flux at layer interfaces (m s-1)
+                  scalarRainPlusMelt,                     & ! intent(out): surface water input to the soil zone (m s-1)
                   ! output: liquid water fluxes and derivatives for the soil domain
                   iLayerLiqFluxSoil,                      & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                   mLayerTranspire,                        & ! intent(out): transpiration loss from each soil layer (m s-1)
@@ -328,7 +337,6 @@ contains
                   scalarAquiferTranspire,                 & ! intent(out): transpiration loss from the aquifer at the start-of-step (m s-1)
                   scalarAquiferRecharge,                  & ! intent(out): recharge to the aquifer (m s-1)
                   scalarAquiferBaseflow,                  & ! intent(out): total baseflow from the aquifer (m s-1)
-                  scalarAquiferRechargeDeriv,             & ! intent(out): derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
                   scalarAquiferBaseflowDeriv,             & ! intent(out): derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
                   ! output: error control
                   err,cmessage)                             ! intent(out): error control
@@ -355,6 +363,8 @@ contains
                        iter,                                   & ! intent(in): iteration index
                        firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                        computeVegFlux,                         & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                       ! input: domain boundary conditions
+                       upperBoundTemp,                         & ! intent(in): temperature of the upper boundary of the snow and soil domains       
                        ! input: model state variables for the vegetation canopy
                        scalarCanairTempTrial,                  & ! intent(in): trial value of the canopy air space temperature (K)
                        scalarCanopyTempTrial,                  & ! intent(in): trial value of canopy temperature (K)
@@ -394,6 +404,7 @@ contains
                        ! output: liquid water fluxes and derivatives for the snow domain
                        iLayerLiqFluxSnow,                      & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
                        iLayerLiqFluxSnowDeriv,                 & ! intent(out): derivative in vertical liquid water flux at layer interfaces (m s-1)
+                       scalarRainPlusMelt,                     & ! intent(out): surface water input to the soil zone (m s-1)
                        ! output: liquid water fluxes and derivatives for the soil domain
                        iLayerLiqFluxSoil,                      & ! intent(inout): liquid fluxes at layer interfaces (m s-1)
                        mLayerTranspire,                        & ! intent(out): transpiration loss from each soil layer (m s-1)
@@ -404,7 +415,6 @@ contains
                        scalarAquiferTranspire,                 & ! intent(out): transpiration loss from the aquifer at the start-of-step (m s-1)
                        scalarAquiferRecharge,                  & ! intent(out): recharge to the aquifer (m s-1)
                        scalarAquiferBaseflow,                  & ! intent(out): total baseflow from the aquifer (m s-1)
-                       scalarAquiferRechargeDeriv,             & ! intent(out): derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
                        scalarAquiferBaseflowDeriv,             & ! intent(out): derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
                        ! output: error control
                        err,message)                              ! intent(out): error control
@@ -413,6 +423,8 @@ contains
  integer(i4b),intent(in)        :: iter                          ! iteration index
  logical(lgt),intent(in)        :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)        :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ ! input: domain boundary conditions
+ real(dp),intent(in)            :: upperBoundTemp                ! temperature of the upper boundary of the snow and soil domains
  ! input: model state variables for the vegetation canopy 
  real(dp),intent(in)            :: scalarCanairTempTrial         ! trial value of canopy air space temperature (K)
  real(dp),intent(in)            :: scalarCanopyTempTrial         ! trial value of canopy temperature (K)
@@ -452,8 +464,9 @@ contains
  ! output: liquid water fluxes and derivatives for the snow domain
  real(dp),intent(inout)         :: iLayerLiqFluxSnow(0:)         ! vertical liquid water flux at layer interfaces (m s-1)
  real(dp),intent(out)           :: iLayerLiqFluxSnowDeriv(0:)    ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+ real(dp),intent(out)           :: scalarRainPlusMelt            ! surface water input to the soil zone (m s-1)
  ! output: liquid water fluxes and derivatives for the soil domain
- real(dp),intent(inout)         :: iLayerLiqFluxSoil(0:)       ! liquid flux at soil layer interfaces (m s-1)
+ real(dp),intent(inout)         :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)           :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
  real(dp),intent(inout)         :: mLayerBaseflow(:)             ! baseflow from each soil layer -- only compute at the start of the step (m s-1)
  real(dp),intent(out)           :: dq_dStateAbove(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
@@ -462,11 +475,21 @@ contains
  real(dp),intent(out)           :: scalarAquiferTranspire        ! transpiration loss from the aquifer at the start-of-step (m s-1)
  real(dp),intent(out)           :: scalarAquiferRecharge         ! recharge to the aquifer (m s-1)
  real(dp),intent(out)           :: scalarAquiferBaseflow         ! total baseflow from the aquifer (m s-1)
- real(dp),intent(out)           :: scalarAquiferRechargeDeriv    ! derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
  real(dp),intent(out)           :: scalarAquiferBaseflowDeriv    ! derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
  ! output: error control
  integer(i4b),intent(out)       :: err                           ! error code
  character(*),intent(out)       :: message                       ! error message
+ ! ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ ! local variables for the lateral flux among soil columns
+ real(dp)                       :: dt                            ! time step (s) -- used to calculate maximum possible inflow rate
+ integer(i4b)                   :: ixSaturation                  ! index of the lowest saturated layer
+ real(dp)                       :: subSurfaceStorage             ! sub surface storage (m)
+ real(dp)                       :: maximumSoilWater              ! maximum storage (m)
+ real(dp)                       :: maximumFlowRate               ! flow rate under saturated conditions (m/s)
+ real(dp)                       :: totalColumnInflow             ! total column inflow (m/s)
+ real(dp)                       :: totalColumnOutflow            ! total outflow from the soil column (m s-1)
+ real(dp)                       :: totalOutflowDeriv             ! derivative in total outflow w.r.t. storage (s-1)
+ real(dp)                       :: mLayerHydCond(:)              ! hydraulic conductivity in each soil layer (m s-1)
  ! ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='computFlux/'
@@ -547,9 +570,6 @@ contains
                  ! input
                  computeVegFlux,                         & ! intent(in): flag to denote if computing energy flux over vegetation
                  scalarCanopyLiqTrial,                   & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                 scalarRainfall,                         & ! intent(in): rainfall (kg m-2 s-1)
-                 scalarCanopyLiqMax,                     & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
-                 scalarCanopyDrainageCoeff,              & ! intent(in): canopy drainage coefficient (s-1)
                  ! output
                  scalarThroughfallRain,                  & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
                  scalarCanopyLiqDrainage,                & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -561,6 +581,7 @@ contains
  ! (4) CALCULATE THE LIQUID FLUX THROUGH SNOW...
  ! *********************************************
  if(nSnow > 0)then
+  ! compute liquid fluxes
   call snowLiqFlx(&
                   ! input: model control
                   iter,                                  & ! intent(in): iteration index
@@ -575,6 +596,12 @@ contains
                   ! output: error control
                   err,cmessage)                            ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  ! define forcing for the soil domain
+  scalarRainPlusMelt = iLayerLiqFluxSnow(nSnow)    ! drainage from the base of the snowpack
+ else
+  ! define forcing for the soil domain
+  scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water + &  ! liquid flux from the canopy (m s-1)
+                        + (scalarSfcMeltPond/dt)/iden_water  ! melt of the snow without a layer (m s-1)
  endif
 
  ! *****
@@ -583,28 +610,102 @@ contains
  call soilLiqFlx(&
                  ! input: model control
                  iter,                                   & ! intent(in): iteration index
-                 deriv_desired,                          & ! intent(in): flag indicating if derivatives are desired
+                 .true.,                                 & ! intent(in): flag indicating if derivatives are desired
                  ! input: trial state variables
                  mLayerMatricHeadTrial,                  & ! intent(in): matric head (m)
                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): volumetric fraction of liquid water (-)
                  mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): volumetric fraction of ice (-)
-                 scalarAquiferStorageTrial,              & ! intent(in): aquifer storage at the start of the step (m)
-                 ! output: fluxes at layer interfaces
+                 ! input: fluxes
+                 scalarCanopyTranspiration,              & ! intent(in): canopy transpiration (kg m-2 s-1)
+                 scalarRainPlusMelt,                     & ! intent(in): rain plus melt (m s-1)
+                 ! output: fluxes
                  iLayerLiqFluxSoil,                      & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                  mLayerTranspire,                        & ! intent(out): transpiration loss from each soil layer (m s-1)
-                 mLayerBaseflow,                         & ! intent(inout): baseflow from each soil layer -- only compute at the start of the step (m s-1)
+                 mLayerHydCond,                          & ! intent(out): hydraulic conductivity in each layer (m s-1)
                  ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                  dq_dStateAbove,                         & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
                  dq_dStateBelow,                         & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
-                 ! output: fluxes and derivatives for the aquifer storage
-                 scalarAquiferTranspire,                 & ! intent(out): transpiration loss from the aquifer at the start-of-step (m s-1)
-                 scalarAquiferRecharge,                  & ! intent(out): recharge to the aquifer (m s-1)
-                 scalarAquiferBaseflow,                  & ! intent(out): total baseflow from the aquifer (m s-1)
-                 scalarAquiferRechargeDeriv,             & ! intent(out): derivative in recharge to the aquifer w.r.t. aquifer storage (s-1)
-                 scalarAquiferBaseflowDeriv,             & ! intent(out): derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
                  ! output: error control
                  err,cmessage)                             ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! *****
+ ! (5) CALCULATE THE LATERAL FLUX IN/OUT OF THE SOIL PROFILE...
+ ! ************************************************************
+
+ ! check if the option for lateral flux is invoked
+ if(ixGroundwater==qbaseTopmodel)then
+
+  ! * compute saturated storage at the bottom of the soil profile (m)
+  call satStorage(&
+                  ! input
+                  mLayerVolFracLiqTrial,      & ! intent(in): volumetric liquid water content in each layer (-)
+                  mLayerVolFracIceTrial,      & ! intent(in): volumetric ice content in each layer (-)
+                  ! output
+                  ixSaturation,               & ! intent(out): index of the lowest saturated layer
+                  subSurfaceStorage,          & ! intent(out): sub surface storage (m)
+                  maximumSoilWater,           & ! intent(out): maximum storage (m)
+                  err,cmessage)                 ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! * compute the baseflow flux and the derivative
+  call soilBsFlow(&
+                  ! input: model control
+                  iter,                      & ! intent(in): iteration index
+                  ! input: storage
+                  subSurfaceStorage,         & ! intent(in): sub surface storage (m)
+                  maximumSoilWater,          & ! intent(in): maximum possible sub surface storage (m)
+                  ! input/output: diagnostic variables and fluxes constant over iterations
+                  maximumFlowRate,           & ! intent(inout): flow rate under saturated conditions (m/s)
+                  totalColumnInflow,         & ! intent(inout): total column inflow (m/s)
+                  ! output: outflow and its derivative w.r.t. storage
+                  totalColumnOutflow,        & ! intent(out): total outflow from the soil column (m s-1)
+                  totalOutflowDeriv,         & ! intent(out): derivative in total outflow w.r.t. storage (s-1)
+                  ! output: error control
+                  err,cmessage)                ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! * disaggregate total inflow and total outflow to the baseflow sink term
+  call disaggFlow(&
+                  ! input
+                  dt,                         & ! intent(in): time step (s) -- used to calculate maximum possible inflow rate
+                  ixSaturation,               & ! intent(in): index of the lowest saturated layer
+                  totalColumnInflow,          & ! intent(in): total column inflow (m s-1)
+                  totalColumnOutflow,         & ! intent(in): total outflow from the soil column (m s-1)
+                  mLayerHydCond,              & ! intent(in): hydraulic conductivity in each soil layer (m s-1)
+                  ! output
+                  mLayerBaseflow,             & ! intent(out): baseflow from each soil layer (m s-1)
+                  err,cmessage)                 ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! not computing lateral flux
+ else
+
+  ! source/sink term is zero
+  mLayerBaseflow(:) = 0._dp
+
+ endif
+
+ ! *****
+ ! (6) CALCULATE THE FLUXES FOR THE AQUIFER...
+ ! *******************************************
+ call aquifrFlux(&
+                 ! input
+                 scalarAquiferStorageTrial,   & ! intent(in): aquifer storage (m)
+                 scalarCanopyTranspiration,   & ! intent(in): canopy transpiration (kg m-2 s-1)
+                 iLayerLiqFluxSoil(nSoil),    & ! intent(in): drainage from the bottom of the soil profile
+                 ! output
+                 scalarAquiferTranspire,      & ! intent(out): transpiration loss from the aquifer (m s-1)
+                 scalarAquiferRecharge,       & ! intent(out): recharge to the aquifer (m s-1)
+                 scalarAquiferBaseflow,       & ! intent(out): total baseflow from the aquifer (m s-1)
+                 scalarAquiferBaseflowDeriv,  & ! intent(out): derivative in baseflow from the aquifer w.r.t. aquifer storage (s-1)
+                 err,cmessage)                  ! intent(out): error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+
+
+ ! ******************************************************************************************************************************************
+ ! ******************************************************************************************************************************************
 
  end subroutine computFlux
 
