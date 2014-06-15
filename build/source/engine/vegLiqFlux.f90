@@ -104,6 +104,9 @@ contains
   return
  endif
 
+ ! set throughfall to zero (throughfall only used where there is no canopy)
+ scalarThroughfallRain = 0._dp
+
  ! compute canopy drainage
  if(scalarCanopyLiqTrial > scalarCanopyLiqMax)then
   scalarCanopyLiqDrainage       = scalarCanopyDrainageCoeff*(scalarCanopyLiqTrial - scalarCanopyLiqMax)

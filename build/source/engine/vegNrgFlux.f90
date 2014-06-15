@@ -111,7 +111,7 @@ contains
                        canopyNetFlux,                           & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                        groundNetFlux,                           & ! intent(out): net energy flux for the ground surface (W m-2)
 
-                       ! output: flux derivatives
+                       ! output: energy flux derivatives
                        dCanairNetFlux_dCanairTemp,              & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
                        dCanairNetFlux_dCanopyTemp,              & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
                        dCanairNetFlux_dGroundTemp,              & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
@@ -121,6 +121,12 @@ contains
                        dGroundNetFlux_dCanairTemp,              & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
                        dGroundNetFlux_dCanopyTemp,              & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                        dGroundNetFlux_dGroundTemp,              & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+
+                       ! output liquid water flux derivarives
+                       dCanopyEvaporation_dCanLiq,              & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+                       dCanopyEvaporation_dTCanair,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                       dCanopyEvaporation_dTCanopy,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                       dCanopyEvaporation_dTGround,             & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
 
                        ! output: error control
                        err,message)                               ! intent(out): error control
@@ -151,7 +157,7 @@ contains
  real(dp),intent(out)           :: canairNetFlux                  ! net energy flux for the canopy air space (W m-2)
  real(dp),intent(out)           :: canopyNetFlux                  ! net energy flux for the vegetation canopy (W m-2)
  real(dp),intent(out)           :: groundNetFlux                  ! net energy flux for the ground surface (W m-2)
- ! output: flux derivatives
+ ! output: energy flux derivatives
  real(dp),intent(out)           :: dCanairNetFlux_dCanairTemp     ! derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)           :: dCanairNetFlux_dCanopyTemp     ! derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)           :: dCanairNetFlux_dGroundTemp     ! derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
@@ -161,6 +167,11 @@ contains
  real(dp),intent(out)           :: dGroundNetFlux_dCanairTemp     ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)           :: dGroundNetFlux_dCanopyTemp     ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)           :: dGroundNetFlux_dGroundTemp     ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+ ! output: liquid flux derivatives
+ real(dp),intent(out)           :: dCanopyEvaporation_dCanLiq     ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTCanair    ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTCanopy    ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTGround    ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)       :: err                            ! error code
  character(*),intent(out)       :: message                        ! error message
@@ -401,7 +412,7 @@ contains
                           canopyNetFlux,                                                     & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                           groundNetFlux,                                                     & ! intent(out): net energy flux for the ground surface (W m-2)
 
-                          ! output: flux derivatives
+                          ! output: energy flux derivatives
                           dCanairNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
                           dCanairNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
                           dCanairNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
@@ -411,6 +422,12 @@ contains
                           dGroundNetFlux_dCanairTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
                           dGroundNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                           dGroundNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+
+                          ! output liquid water flux derivarives
+                          dCanopyEvaporation_dCanLiq,                                        & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+                          dCanopyEvaporation_dTCanair,                                       & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                          dCanopyEvaporation_dTCanopy,                                       & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                          dCanopyEvaporation_dTGround,                                       & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
 
                           ! output: error control
                           err,cmessage)                                                        ! intent(out): error control
@@ -614,7 +631,7 @@ contains
                               canopyNetFlux,                     & ! intent(out): net energy flux for the vegetation canopy (W m-2)
                               groundNetFlux,                     & ! intent(out): net energy flux for the ground surface (W m-2)
 
-                              ! output: flux derivatives
+                              ! output: energy flux derivatives
                               dCanairNetFlux_dCanairTemp,        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
                               dCanairNetFlux_dCanopyTemp,        & ! intent(out): derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
                               dCanairNetFlux_dGroundTemp,        & ! intent(out): derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
@@ -624,6 +641,12 @@ contains
                               dGroundNetFlux_dCanairTemp,        & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
                               dGroundNetFlux_dCanopyTemp,        & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                               dGroundNetFlux_dGroundTemp,        & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+
+                              ! output liquid water flux derivarives
+                              dCanopyEvaporation_dCanLiq,        & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+                              dCanopyEvaporation_dTCanair,       & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                              dCanopyEvaporation_dTCanopy,       & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                              dCanopyEvaporation_dTGround,       & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
 
                               ! output: error control
                               err,message                        ) ! intent(out): error control
@@ -792,7 +815,7 @@ contains
  real(dp),intent(out)           :: canairNetFlux                   ! net energy flux for the canopy air space (W m-2)
  real(dp),intent(out)           :: canopyNetFlux                   ! net energy flux for the vegetation canopy (W m-2)
  real(dp),intent(out)           :: groundNetFlux                   ! net energy flux for the ground surface (W m-2)
- ! output: flux derivatives
+ ! output: energy flux derivatives
  real(dp),intent(out)           :: dCanairNetFlux_dCanairTemp      ! derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)           :: dCanairNetFlux_dCanopyTemp      ! derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)           :: dCanairNetFlux_dGroundTemp      ! derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
@@ -802,6 +825,11 @@ contains
  real(dp),intent(out)           :: dGroundNetFlux_dCanairTemp      ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)           :: dGroundNetFlux_dCanopyTemp      ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)           :: dGroundNetFlux_dGroundTemp      ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+ ! output: liquid flux derivatives
+ real(dp),intent(out)           :: dCanopyEvaporation_dCanLiq      ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTCanair     ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTCanopy     ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTGround     ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)       :: err                             ! error code
  character(*),intent(out)       :: message                         ! error message
@@ -817,6 +845,7 @@ contains
  integer(i4b),parameter        :: perturbStateGround=2             ! named variable to identify the case where we perturb the ground temperature
  integer(i4b),parameter        :: perturbStateCanopy=3             ! named variable to identify the case where we perturb the canopy temperature
  integer(i4b),parameter        :: perturbStateCanair=4             ! named variable to identify the case where we perturb the canopy air temperature
+ integer(i4b),parameter        :: perturbStateCanLiq=5             ! named variable to identify the case where we perturb the canopy liquid water content
  integer(i4b)                  :: itry                             ! index of flux evaluation
  integer(i4b)                  :: nFlux                            ! number of flux evaluations
  real(dp)                      :: groundTemp                       ! value of ground temperature used in flux calculations (may be perturbed)
@@ -828,6 +857,9 @@ contains
  real(dp)                      :: TG_celcius                       ! ground temperature (C)
  real(dp)                      :: dSVPCanopy_dCanopyTemp           ! derivative in canopy saturated vapor pressure w.r.t. vegetation temperature (Pa/K)
  real(dp)                      :: dSVPGround_dGroundTemp           ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
+ ! local (wetted canopy area)
+ real(dp)                      :: canopyWetFraction                ! trial value of the canopy wetted fraction (-)
+ real(dp)                      :: canopyWetFractionDeriv           ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  ! local (longwave radiation)
  real(dp)                      :: expi                             ! exponential integral
  real(dp)                      :: scaleLAI                         ! scaled LAI (computing diffuse transmissivity)
@@ -885,26 +917,46 @@ contains
  real(dp)                      :: notUsed_dGroundResistance_dTCanair  ! derivative in ground resistance w.r.t. canopy air temperature (s m-1 K-1)
  real(dp)                      :: notUsed_dCanopyResistance_dTCanopy  ! derivative in canopy resistance w.r.t. canopy temperature (s m-1 K-1)
  real(dp)                      :: notUsed_dCanopyResistance_dTCanair  ! derivative in canopy resistance w.r.t. canopy air temperature (s m-1 K-1)
- ! (fluxes after perturbations in model states)
+ ! (fluxes after perturbations in model states -- canopy air space)
  real(dp)                      :: turbFluxCanair_dStateCanair      ! turbulent exchange from the canopy air space to the atmosphere, after canopy air temperature is perturbed (W m-2)
  real(dp)                      :: turbFluxCanair_dStateCanopy      ! turbulent exchange from the canopy air space to the atmosphere, after canopy temperature is perturbed (W m-2)
  real(dp)                      :: turbFluxCanair_dStateGround      ! turbulent exchange from the canopy air space to the atmosphere, after ground temperature is perturbed (W m-2)
+ real(dp)                      :: turbFluxCanair_dStateCanliq      ! turbulent exchange from the canopy air space to the atmosphere, after canopy liquid water content is perturbed (W m-2) 
+ ! (fluxes after perturbations in model states -- vegetation canopy)
  real(dp)                      :: turbFluxCanopy_dStateCanair      ! total turbulent heat fluxes from the canopy to the canopy air space, after canopy air temperature is perturbed (W m-2)
  real(dp)                      :: turbFluxCanopy_dStateCanopy      ! total turbulent heat fluxes from the canopy to the canopy air space, after canopy temperature is perturbed (W m-2)
  real(dp)                      :: turbFluxCanopy_dStateGround      ! total turbulent heat fluxes from the canopy to the canopy air space, after ground temperature is perturbed (W m-2)
+ real(dp)                      :: turbFluxCanopy_dStateCanLiq      ! total turbulent heat fluxes from the canopy to the canopy air space, after canopy liquid water content is perturbed (W m-2)
+ ! (fluxes after perturbations in model states -- ground surface)
  real(dp)                      :: turbFluxGround_dStateCanair      ! total turbulent heat fluxes from the ground to the canopy air space, after canopy air temperature is perturbed (W m-2)
  real(dp)                      :: turbFluxGround_dStateCanopy      ! total turbulent heat fluxes from the ground to the canopy air space, after canopy temperature is perturbed (W m-2)
  real(dp)                      :: turbFluxGround_dStateGround      ! total turbulent heat fluxes from the ground to the canopy air space, after ground temperature is perturbed (W m-2)
- ! (flux derivatives)
+ real(dp)                      :: turbFluxGround_dStateCanLiq      ! total turbulent heat fluxes from the ground to the canopy air space, after canopy liquid water content is perturbed (W m-2)
+ ! (fluxes after perturbations in model states -- canopy evaporation)
+ real(dp)                      :: latHeatCanEvap_dStateCanair      ! canopy evaporation after canopy air temperature is perturbed (W m-2)
+ real(dp)                      :: latHeatCanEvap_dStateCanopy      ! canopy evaporation after canopy temperature is perturbed (W m-2)
+ real(dp)                      :: latHeatCanEvap_dStateGround      ! canopy evaporation after ground temperature is perturbed (W m-2)
+ real(dp)                      :: latHeatCanEvap_dStateCanLiq      ! canopy evaporation after canopy liquid water content is perturbed (W m-2)
+ ! (flux derivatives -- canopy air space)
  real(dp)                      :: dTurbFluxCanair_dTCanair         ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
  real(dp)                      :: dTurbFluxCanair_dTCanopy         ! derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
  real(dp)                      :: dTurbFluxCanair_dTGround         ! derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
+ real(dp)                      :: dTurbFluxCanair_dCanLiq          ! derivative in net canopy air space fluxes w.r.t. canopy liquid water content (J kg-1 s-1) 
+ ! (flux derivatives -- vegetation canopy)
  real(dp)                      :: dTurbFluxCanopy_dTCanair         ! derivative in net canopy turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1) 
  real(dp)                      :: dTurbFluxCanopy_dTCanopy         ! derivative in net canopy turbulent fluxes w.r.t. canopy temperature (W m-2 K-1) 
  real(dp)                      :: dTurbFluxCanopy_dTGround         ! derivative in net canopy turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+ real(dp)                      :: dTurbFluxCanopy_dCanLiq          ! derivative in net canopy turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+ ! (flux derivatives -- ground surface)
  real(dp)                      :: dTurbFluxGround_dTCanair         ! derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
  real(dp)                      :: dTurbFluxGround_dTCanopy         ! derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
  real(dp)                      :: dTurbFluxGround_dTGround         ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+ real(dp)                      :: dTurbFluxGround_dCanLiq          ! derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+ ! (liquid water flux derivatives)
+ real(dp)                      :: dLatHeatCanopyEvap_dCanLiq       ! derivative in latent heat of canopy evaporation w.r.t. canopy liquid water content (W kg-1)
+ real(dp)                      :: dLatHeatCanopyEvap_dTCanair      ! derivative in latent heat of canopy evaporation w.r.t. canopy air temperature (W m-2 K-1)
+ real(dp)                      :: dLatHeatCanopyEvap_dTCanopy      ! derivative in latent heat of canopy evaporation w.r.t. canopy temperature (W m-2 K-1)
+ real(dp)                      :: dLatHeatCanopyEvap_dTGround      ! derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
  ! initialize error control
  err=0; message="vegNrgFlux_muster/"
 
@@ -987,6 +1039,8 @@ contains
  if(computeVegFlux)then
   call wettedFrac(&
                   ! input
+                  .true.,                                         & ! flag to denote if derivative is desired
+                  (ix_fDerivMeth == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
                   (scalarLatHeatSubVapCanopy > LH_vap+verySmall), & ! flag to denote if the canopy is frozen
                   canopyLiqTrial,                                 & ! canopy liquid water (kg m-2)
                   canopyIceTrial,                                 & ! canopy ice (kg m-2)
@@ -994,10 +1048,12 @@ contains
                   scalarCanopyIceMax,                             & ! maximum canopy ice content (kg m-2)
                   ! output
                   scalarCanopyWetFraction,                        & ! canopy wetted fraction (-)
+                  canopyWetFractionDeriv,                         & ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
                   err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  else
-  scalarCanopyWetFraction = 0._dp
+  scalarCanopyWetFraction = 0._dp  ! canopy wetted fraction (-)
+  canopyWetFractionDeriv  = 0._dp  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  endif
  !print*, 'canopyLiqTrial = ', canopyLiqTrial
  !print*, 'canopyIceTrial = ', canopyIceTrial
@@ -1235,7 +1291,7 @@ contains
 
  ! check the need to compute numerical derivatives
  if(ix_fDerivMeth == numerical)then
-  nFlux=4  ! compute the derivatives using one-sided finite differences
+  nFlux=5  ! compute the derivatives using one-sided finite differences
  else
   nFlux=1  ! compute analytical derivatives
  endif
@@ -1253,27 +1309,59 @@ contains
 
    ! un-perturbed case
    case(unperturbed)
-    groundTemp = groundTempTrial
-    canopyTemp = canopyTempTrial 
-    canairTemp = canairTempTrial
-
+    groundTemp        = groundTempTrial
+    canopyTemp        = canopyTempTrial 
+    canairTemp        = canairTempTrial
+    canopyWetFraction = scalarCanopyWetFraction
+ 
    ! perturb ground temperature
    case(perturbStateGround)
-    groundTemp = groundTempTrial + dx
-    canopyTemp = canopyTempTrial
-    canairTemp = canairTempTrial
+    groundTemp        = groundTempTrial + dx
+    canopyTemp        = canopyTempTrial
+    canairTemp        = canairTempTrial
+    canopyWetFraction = scalarCanopyWetFraction
 
    ! perturb canopy temperature
    case(perturbStateCanopy)
-    groundTemp = groundTempTrial
-    canopyTemp = canopyTempTrial + dx
-    canairTemp = canairTempTrial
-
+    groundTemp        = groundTempTrial
+    canopyTemp        = canopyTempTrial + dx
+    canairTemp        = canairTempTrial
+    canopyWetFraction = scalarCanopyWetFraction
+ 
    ! perturb canopy air temperature
    case(perturbStateCanair)
-    groundTemp = groundTempTrial
-    canopyTemp = canopyTempTrial
-    canairTemp = canairTempTrial + dx
+    groundTemp        = groundTempTrial
+    canopyTemp        = canopyTempTrial
+    canairTemp        = canairTempTrial + dx
+    canopyWetFraction = scalarCanopyWetFraction
+ 
+   ! perturb canopy liquid water content
+   case(perturbStateCanLiq)
+    groundTemp        = groundTempTrial
+    canopyTemp        = canopyTempTrial
+    canairTemp        = canairTempTrial
+
+    ! perturbations in canopy liquid water content affect canopy wetted fraction
+    if(computeVegFlux)then
+     call wettedFrac(&
+                     ! input
+                     .false.,                                        & ! flag to denote if derivative is desired
+                     (ix_fDerivMeth == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
+                     (scalarLatHeatSubVapCanopy > LH_vap+verySmall), & ! flag to denote if the canopy is frozen
+                     canopyLiqTrial+dx,                              & ! canopy liquid water (kg m-2)
+                     canopyIceTrial,                                 & ! canopy ice (kg m-2)
+                     scalarCanopyLiqMax,                             & ! maximum canopy liquid water (kg m-2)
+                     scalarCanopyIceMax,                             & ! maximum canopy ice content (kg m-2)
+                     ! output
+                     canopyWetFraction,                              & ! canopy wetted fraction (-)
+                     canopyWetFractionDeriv,                         & ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
+                     err,cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else
+     canopyWetFraction = 0._dp
+    endif
+    !print*, 'wetted fraction derivative = ', (canopyWetFraction - scalarCanopyWetFraction)/dx
+    !pause
 
    ! check for an unknown perturbation 
    case default; err=10; message=trim(message)//"unknown perturbation"; return
@@ -1400,9 +1488,6 @@ contains
                   ! input: latent heat of sublimation/vaporization
                   scalarLatHeatSubVapCanopy,            & ! intent(in): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
                   scalarLatHeatSubVapGround,            & ! intent(in): latent heat of sublimation/vaporization for the ground surface (J kg-1)
-                  ! input: canopy liquid and canopy ice (used as a solution constraint)
-                  canopyLiqTrial,                       & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
-                  canopyIceTrial,                       & ! intent(in): mass of ice water on the vegetation canopy (kg m-2)
                   ! input: canopy/ground temperature and saturated vapor pressure
                   canairTemp,                           & ! intent(in): temperature of the canopy air space (K)
                   canopyTemp,                           & ! intent(in): canopy temperature (K)
@@ -1413,7 +1498,8 @@ contains
                   dSVPGround_dGroundTemp,               & ! intent(in): derivative in ground saturation vapor pressure w.r.t. ground temperature (Pa K-1)
                   ! input: diagnostic variables
                   exposedVAI,                           & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
-                  scalarCanopyWetFraction,              & ! intent(in): fraction of canopy that is wet [0-1]
+                  canopyWetFraction,                    & ! intent(in): trial value for the fraction of canopy that is wet [0-1]
+                  canopyWetFractionDeriv,               & ! intent(in): derivative in the canopy wetted fraction w.r.t. liquid water content (kg-1 m-2)
                   scalarCanopySunlitLAI,                & ! intent(in): sunlit leaf area (-)
                   scalarCanopyShadedLAI,                & ! intent(in): shaded leaf area (-)
                   scalarSoilRelHumidity,                & ! intent(in): relative humidity in the soil pores [0-1]
@@ -1454,7 +1540,7 @@ contains
                   turbFluxCanair,                       & ! intent(out): net turbulent heat fluxes at the canopy air space (W m-2)
                   turbFluxCanopy,                       & ! intent(out): net turbulent heat fluxes at the canopy (W m-2)
                   turbFluxGround,                       & ! intent(out): net turbulent heat fluxes at the ground surface (W m-2)
-                  ! output: flux derivatives
+                  ! output: energy flux derivatives
                   dTurbFluxCanair_dTCanair,             & ! intent(out): derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
                   dTurbFluxCanair_dTCanopy,             & ! intent(out): derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
                   dTurbFluxCanair_dTGround,             & ! intent(out): derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
@@ -1464,6 +1550,15 @@ contains
                   dTurbFluxGround_dTCanair,             & ! intent(out): derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
                   dTurbFluxGround_dTCanopy,             & ! intent(out): derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
                   dTurbFluxGround_dTGround,             & ! intent(out): derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+                  ! output: liquid flux derivatives
+                  dLatHeatCanopyEvap_dCanLiq,           & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. canopy liquid water content (W kg-1)
+                  dLatHeatCanopyEvap_dTCanair,          & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. canopy air temperature (W m-2 K-1)
+                  dLatHeatCanopyEvap_dTCanopy,          & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. canopy temperature (W m-2 K-1)
+                  dLatHeatCanopyEvap_dTGround,          & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
+                  ! output: cross derivatives
+                  dTurbFluxCanair_dCanLiq,              & ! intent(out): derivative in net canopy air space fluxes w.r.t. canopy liquid water content (J kg-1 s-1) 
+                  dTurbFluxCanopy_dCanLiq,              & ! intent(out): derivative in net canopy turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+                  dTurbFluxGround_dCanLiq,              & ! intent(out): derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
                   ! output: error control
                   err,cmessage                          ) ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -1490,21 +1585,29 @@ contains
   if(ix_fDerivMeth == numerical)then
    select case(itry) ! (select type of perturbation)
     case(unperturbed)
-     !try0 = scalarSenHeatCanopy
+     try0 = scalarLatHeatCanopyTrans
      exit
     case(perturbStateCanair)
-     !try1 = scalarSenHeatCanopy
-     turbFluxCanair_dStateCanair = turbFluxCanair         ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
-     turbFluxCanopy_dStateCanair = turbFluxCanopy         ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
-     turbFluxGround_dStateCanair = turbFluxGround         ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+     turbFluxCanair_dStateCanair = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
+     turbFluxCanopy_dStateCanair = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
+     turbFluxGround_dStateCanair = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)   
+     latHeatCanEvap_dStateCanair = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
     case(perturbStateCanopy)
-     turbFluxCanair_dStateCanopy = turbFluxCanair         ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
-     turbFluxCanopy_dStateCanopy = turbFluxCanopy         ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
-     turbFluxGround_dStateCanopy = turbFluxGround         ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+     turbFluxCanair_dStateCanopy = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
+     turbFluxCanopy_dStateCanopy = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
+     turbFluxGround_dStateCanopy = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+     latHeatCanEvap_dStateCanopy = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
     case(perturbStateGround)
-     turbFluxCanair_dStateGround = turbFluxCanair         ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
-     turbFluxCanopy_dStateGround = turbFluxCanopy         ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
-     turbFluxGround_dStateGround = turbFluxGround         ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+     turbFluxCanair_dStateGround = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
+     turbFluxCanopy_dStateGround = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
+     turbFluxGround_dStateGround = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+     latHeatCanEvap_dStateGround = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
+    case(perturbStateCanLiq)
+     try1 = scalarLatHeatCanopyTrans
+     turbFluxCanair_dStateCanliq = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
+     turbFluxCanopy_dStateCanLiq = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
+     turbFluxGround_dStateCanLiq = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+     latHeatCanEvap_dStateCanliq = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
     case default; err=10; message=trim(message)//"unknown perturbation"; return
    end select ! (type of perturbation)
   endif ! (if numerical)
@@ -1513,28 +1616,36 @@ contains
 
  ! test derivative
  !if(ix_fDerivMeth == numerical)  print*, 'derivative = ', (ix_fDerivMeth == numerical), (try1 - try0)/dx
- !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dTurbFluxCanair_dTCanopy 
+ !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dLatHeatCanopyEvap_dTCanair
  !pause
 
  ! compute numerical derivatives
  if(ix_fDerivMeth == numerical)then
   ! derivatives w.r.t. canopy air temperature
-  dTurbFluxCanair_dTCanair = (turbFluxCanair_dStateCanair - turbFluxCanair) / dx  ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
-  dTurbFluxCanopy_dTCanair = (turbFluxCanopy_dStateCanair - turbFluxCanopy) / dx  ! derivative in net canopy turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1) 
-  dTurbFluxGround_dTCanair = (turbFluxGround_dStateCanair - turbFluxGround) / dx  ! derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
+  dTurbFluxCanair_dTCanair    = (turbFluxCanair_dStateCanair - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
+  dTurbFluxCanopy_dTCanair    = (turbFluxCanopy_dStateCanair - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1) 
+  dTurbFluxGround_dTCanair    = (turbFluxGround_dStateCanair - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
+  dLatHeatCanopyEvap_dTCanair = (latHeatCanEvap_dStateCanair - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. canopy air temperature (W m-2 K-1)
   ! derivatives w.r.t. canopy temperature
-  dTurbFluxCanair_dTCanopy = (turbFluxCanair_dStateCanopy - turbFluxCanair) / dx  ! derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
-  dTurbFluxCanopy_dTCanopy = (turbFluxCanopy_dStateCanopy - turbFluxCanopy) / dx  ! derivative in net canopy turbulent fluxes w.r.t. canopy temperature (W m-2 K-1) 
-  dTurbFluxGround_dTCanopy = (turbFluxGround_dStateCanopy - turbFluxGround) / dx  ! derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
+  dTurbFluxCanair_dTCanopy    = (turbFluxCanair_dStateCanopy - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
+  dTurbFluxCanopy_dTCanopy    = (turbFluxCanopy_dStateCanopy - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. canopy temperature (W m-2 K-1) 
+  dTurbFluxGround_dTCanopy    = (turbFluxGround_dStateCanopy - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
+  dLatHeatCanopyEvap_dTCanopy = (latHeatCanEvap_dStateCanopy - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. canopy temperature (W m-2 K-1)
   ! derivatives w.r.t. ground temperature
-  dTurbFluxCanair_dTGround = (turbFluxCanair_dStateGround - turbFluxCanair) / dx  ! derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
-  dTurbFluxCanopy_dTGround = (turbFluxCanopy_dStateGround - turbFluxCanopy) / dx  ! derivative in net canopy turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
-  dTurbFluxGround_dTGround = (turbFluxGround_dStateGround - turbFluxGround) / dx  ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+  dTurbFluxCanair_dTGround    = (turbFluxCanair_dStateGround - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
+  dTurbFluxCanopy_dTGround    = (turbFluxCanopy_dStateGround - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+  dTurbFluxGround_dTGround    = (turbFluxGround_dStateGround - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+  dLatHeatCanopyEvap_dTGround = (latHeatCanEvap_dStateGround - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
+  ! derivatives w.r.t. canopy liquid water content
+  dTurbFluxCanair_dCanLiq    = (turbFluxCanair_dStateCanliq  - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  dTurbFluxCanopy_dCanLiq    = (turbFluxCanopy_dStateCanLiq  - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  dTurbFluxGround_dCanLiq    = (turbFluxGround_dStateCanLiq  - turbFluxGround) / dx          ! derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  dLatHeatCanopyEvap_dCanLiq = (latHeatCanEvap_dStateCanliq  - scalarLatHeatCanopyEvap) / dx ! derivative in latent heat of canopy evaporation w.r.t. canopy liquid water content (J kg-1 s-1) 
  endif
  !if(heightCanopyBottom < scalarSnowDepth+z0Ground) pause 'bottom of the canopy is covered'
 
  ! test
- !print*, (ix_fDerivMeth == numerical)
+ print*, (ix_fDerivMeth == numerical)
  !print*, 'dTurbFluxCanair_dTCanair = ', dTurbFluxCanair_dTCanair
  !print*, 'dTurbFluxCanair_dTCanopy = ', dTurbFluxCanair_dTCanopy
  !print*, 'dTurbFluxCanair_dTGround = ', dTurbFluxCanair_dTGround
@@ -1544,8 +1655,15 @@ contains
  !print*, 'dTurbFluxGround_dTCanair = ', dTurbFluxGround_dTCanair
  !print*, 'dTurbFluxGround_dTCanopy = ', dTurbFluxGround_dTCanopy
  !print*, 'dTurbFluxGround_dTGround = ', dTurbFluxGround_dTGround
- !print*, '*****'
- !pause
+ !print*, 'dLatHeatCanopyEvap_dCanLiq = ', dLatHeatCanopyEvap_dCanLiq
+ !print*, 'dLatHeatCanopyEvap_dTCanair = ', dLatHeatCanopyEvap_dTCanair
+ !print*, 'dLatHeatCanopyEvap_dTCanopy = ', dLatHeatCanopyEvap_dTCanopy
+ !print*, 'dLatHeatCanopyEvap_dTGround = ', dLatHeatCanopyEvap_dTGround
+ print*, 'dTurbFluxCanair_dCanLiq = ', dTurbFluxCanair_dCanLiq
+ print*, 'dTurbFluxCanopy_dCanLiq = ', dTurbFluxCanopy_dCanLiq
+ print*, 'dTurbFluxGround_dCanLiq = ', dTurbFluxGround_dCanLiq
+ print*, '*****'
+ pause
 
  !print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb = ', &
  !         scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb
@@ -1616,7 +1734,7 @@ contains
  !print*, 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround = ', groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround
 
 
- ! compute the derivatives
+ ! compute the energy derivatives
  dCanairNetFlux_dCanairTemp = dTurbFluxCanair_dTCanair
  dCanairNetFlux_dCanopyTemp = dTurbFluxCanair_dTCanopy
  dCanairNetFlux_dGroundTemp = dTurbFluxCanair_dTGround
@@ -1626,6 +1744,12 @@ contains
  dGroundNetFlux_dCanairTemp = dTurbFluxGround_dTCanair
  dGroundNetFlux_dCanopyTemp = dLWNetGround_dTCanopy + dTurbFluxGround_dTCanopy 
  dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround - Cp_water*scalarThroughfallRain - Cp_ice*scalarThroughfallSnow
+
+ ! compute the liquid water derivarives
+ dCanopyEvaporation_dCanLiq  = dLatHeatCanopyEvap_dCanLiq/LH_vap    ! (s-1)
+ dCanopyEvaporation_dTCanair = dLatHeatCanopyEvap_dTCanair/LH_vap   ! (kg m-2 s-1 K-1)
+ dCanopyEvaporation_dTCanopy = dLatHeatCanopyEvap_dTCanopy/LH_vap   ! (kg m-2 s-1 K-1)
+ dCanopyEvaporation_dTGround = dLatHeatCanopyEvap_dTGround/LH_vap   ! (kg m-2 s-1 K-1)
 
  !print*, (ix_fDerivMeth == numerical)
  !print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
@@ -1643,61 +1767,163 @@ contains
  ! ***************************************************************************************
  subroutine wettedFrac(&
                        ! input
-                       frozen,              & ! flag to denote if the canopy is frozen
-                       canopyLiq,           & ! canopy liquid water (kg m-2)
-                       canopyIce,           & ! canopy ice (kg m-2)
-                       canopyLiqMax,        & ! maximum canopy liquid water (kg m-2)
-                       canopyIceMax,        & ! maximum canopy ice content (kg m-2)
+                       deriv,                  & ! flag to denote if derivative is desired
+                       derNum,                 & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
+                       frozen,                 & ! flag to denote if the canopy is frozen
+                       canopyLiq,              & ! canopy liquid water (kg m-2)
+                       canopyIce,              & ! canopy ice (kg m-2)
+                       canopyLiqMax,           & ! maximum canopy liquid water (kg m-2)
+                       canopyIceMax,           & ! maximum canopy ice content (kg m-2)
                        ! output
-                       canopyWetFraction,   & ! canopy wetted fraction (-)
-                       err,message)           ! error control
+                       canopyWetFraction,      & ! canopy wetted fraction (-)
+                       canopyWetFractionDeriv, & ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
+                       err,message)              ! error control
  implicit none
  ! input
- logical(lgt),intent(in)       ::  frozen               ! flag to denote if the canopy is frozen
- real(dp),intent(in)           ::  canopyLiq            ! canopy liquid water (kg m-2)
- real(dp),intent(in)           ::  canopyIce            ! canopy ice (kg m-2)
- real(dp),intent(in)           ::  canopyLiqMax         ! maximum canopy liquid water (kg m-2)
- real(dp),intent(in)           ::  canopyIceMax         ! maximum canopy ice content (kg m-2)
+ logical(lgt),intent(in)       :: deriv                  ! flag to denote if derivative is desired
+ logical(lgt),intent(in)       :: derNum                 ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
+ logical(lgt),intent(in)       :: frozen                 ! flag to denote if the canopy is frozen
+ real(dp),intent(in)           :: canopyLiq              ! canopy liquid water (kg m-2)
+ real(dp),intent(in)           :: canopyIce              ! canopy ice (kg m-2)
+ real(dp),intent(in)           :: canopyLiqMax           ! maximum canopy liquid water (kg m-2)
+ real(dp),intent(in)           :: canopyIceMax           ! maximum canopy ice content (kg m-2)
  ! output
- real(dp),intent(out)          ::  canopyWetFraction    ! canopy wetted fraction (-)
+ real(dp),intent(out)          :: canopyWetFraction      ! canopy wetted fraction (-)
+ real(dp),intent(out)          :: canopyWetFractionDeriv ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  ! output: error control
- integer(i4b),intent(out)      :: err                   ! error code
- character(*),intent(out)      :: message               ! error message
+ integer(i4b),intent(out)      :: err                    ! error code
+ character(*),intent(out)      :: message                ! error message
  ! local variables
- real(dp)                      :: xArg                             ! argument used in the smoothing function (-)
- real(dp)                      :: smoothFunc                       ! smoothing function used to improve numerical stability at times with limited water storage (-)
- real(dp),parameter            :: smoothThresh=0.01_dp             ! mid-point of the smoothing function (kg m-2 s-1)
- real(dp),parameter            :: smoothScale=0.001_dp             ! scaling factor for the smoothing function (kg m-2 s-1)
- real(dp)                      :: relativeCanopyWater              ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
+ logical(lgt),parameter        :: noDerivs=.false.       ! flag to denote that derivatives are not required
+ logical(lgt),parameter        :: smoothing=.true.       ! flag to denote that smoothing is required
+ logical(lgt),parameter        :: noSmoothing=.false.    ! flag to denote that no smoothing is required
+ real(dp)                      :: canopyWetFractionPert  ! canopy wetted fraction after state perturbations (-)
+ real(dp),parameter            :: maxScaleFactor=10._dp  ! temporary fix: since canopyLiqMax is not really max (it is the point when drainage begins), add scale factor for the wetted fraction (-)
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='wettedFrac/'
 
- ! define relative canopy storage when frozen
+ ! compute case where the canopy is frozen (no smoothing, no derivative)
  if(frozen)then
-  xarg = (canopyIce - smoothThresh)/smoothScale          ! used to smooth the function later
-  relativeCanopyWater = canopyIce / canopyIceMax         ! relative canopy storage
-
- ! define relative canopy storage for thawed canopy
- else
-  xArg = (canopyLiq - smoothThresh)/smoothScale
-  relativeCanopyWater = canopyLiq / max(canopyLiqMax,10._dp)
+  call wetFraction(noDerivs,noSmoothing,canopyIce,canopyIceMax,canopyWetFraction,canopyWetFractionDeriv)
+  return
  endif
 
- ! compute an initial value of the canopy wet fraction
- canopyWetFraction = min(relativeCanopyWater, 1._dp)**0.666667_dp
+ ! compute fraction of liquid water on the canopy
+ ! NOTE: if(.not.deriv) canopyWetFractionDeriv = 0._dp
+ call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq,canopyLiqMax*maxScaleFactor,canopyWetFraction,canopyWetFractionDeriv)
 
- ! smooth the function near zero, to improve numerical stability
- if(xArg < 50._dp)then    ! avoid huge exponents (smoothing function = 1 where xArg > 50)
-  if(xArg > -50._dp)then   ! avoid huge exponents (smoothing function = 0 where xArg < -50)
-   smoothFunc = 1._dp / (1._dp + exp(-xarg))  ! (logistic smoother)
-  else
-   smoothFunc = 0._dp
-  endif
-  canopyWetFraction = canopyWetFraction*smoothFunc  ! logistic smoother
- endif  ! (if xArg > 50 then smoothFunc=1, so no need to do anything)
+ ! compute numerical derivative
+ if(deriv.and.derNum)then
+  call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq+dx,canopyLiqMax*maxScaleFactor,canopyWetFractionPert,canopyWetFractionDeriv)
+  canopyWetFractionDeriv = (canopyWetFractionPert - canopyWetFraction)/dx
+ endif
+
+ ! test
+ !write(*,'(a,1x,2(L1,1x),10(f20.10,1x))') 'deriv, derNum, canopyWetFraction, canopyWetFractionDeriv = ', deriv, derNum, canopyWetFraction, canopyWetFractionDeriv
+ !if(deriv) pause 'testing canopy wet fraction'
 
  end subroutine wettedFrac
+ ! -----------------------------------------------------------------------------------------------------------------------------------------------
+ ! -----------------------------------------------------------------------------------------------------------------------------------------------
+
+ ! --------------------------------------------------------------------------------------------------------------
+ ! private subroutine: compute fraction of canopy covered with liquid water
+ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWetFraction,canopyWetFractionDeriv)
+ implicit none
+ ! dummy variables
+ logical(lgt),intent(in) :: derDesire              ! flag to denote if analytical derivatives are desired 
+ logical(lgt),intent(in) :: smoothing              ! flag to denote if smoothing is required
+ real(dp),intent(in)     :: canopyLiq              ! liquid water content (kg m-2)
+ real(dp),intent(in)     :: canopyMax              ! liquid water content (kg m-2)
+ real(dp),intent(out)    :: canopyWetFraction      ! canopy wetted fraction (-)
+ real(dp),intent(out)    :: canopyWetFractionDeriv ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
+ ! local variables
+ real(dp)                :: relativeCanopyWater    ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
+ real(dp),parameter      :: wetExp=0.666666667_dp  ! exponent in wetted area function
+ real(dp)                :: rawCanopyWetFraction   ! initial value of the canopy wet fraction (before smoothing)
+ real(dp)                :: rawWetFractionDeriv    ! derivative in canopy wet fraction w.r.t. storage (kg-1 m2)
+ real(dp)                :: smoothFunc             ! smoothing function used to improve numerical stability at times with limited water storage (-)
+ real(dp)                :: smoothFuncDeriv        ! derivative in the smoothing function w.r.t.canopy storage (kg-1 m2)
+ ! --------------------------------------------------------------------------------------------------------------
+
+ ! compute relative canopy water
+ relativeCanopyWater = canopyLiq/canopyMax
+
+ ! compute an initial value of the canopy wet fraction
+ ! - canopy below value where canopy is 100% wet
+ if(relativeCanopyWater < 1._dp)then
+  rawCanopyWetFraction = relativeCanopyWater**wetExp
+  if(derDesire)then
+   rawWetFractionDeriv = (wetExp/canopyMax)*relativeCanopyWater**(wetExp - 1._dp)
+  else
+   rawWetFractionDeriv = 0._dp
+  endif
+
+ ! - canopy is 100% wet
+ else
+  rawCanopyWetFraction = 1._dp
+  rawWetFractionDeriv  = 0._dp
+ endif
+
+ ! smooth canopy wetted fraction
+ if(smoothing)then
+  call logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
+  canopyWetFraction = rawCanopyWetFraction*smoothFunc  ! logistic smoother
+ else
+  canopyWetFraction      = rawCanopyWetFraction
+  canopyWetFractionDeriv = rawWetFractionDeriv
+ endif
+
+ ! compute derivative (product rule)
+ if(derDesire .and. smoothing)then  ! NOTE: raw derivative is used if not smoothing
+  canopyWetFractionDeriv = rawWetFractionDeriv*smoothFunc + rawCanopyWetFraction*smoothFuncDeriv
+ else
+  canopyWetFractionDeriv = 0._dp
+ endif
+
+ end subroutine wetFraction
+ ! --------------------------------------------------------------------------------------------------------------
+
+ ! --------------------------------------------------------------------------------------------------------------
+ ! * private subroutine to compute the smoothing function
+ subroutine logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
+ implicit none
+ ! dummy variables
+ logical(lgt),intent(in) :: derDesire              ! flag to denote if analytical derivatives are desired 
+ real(dp),intent(in)     :: canopyLiq              ! liquid water content (kg m-2)
+ real(dp),intent(out)    :: smoothFunc             ! smoothing function (-)
+ real(dp),intent(out)    :: smoothFuncDeriv        ! derivative in smoothing function (kg-1 m-2)
+ ! local variables
+ real(dp)                :: xArg                   ! argument used in the smoothing function (-)
+ real(dp)                :: expX                   ! exp(-xArg) -- used multiple times
+ real(dp),parameter      :: smoothThresh=0.01_dp   ! mid-point of the smoothing function (kg m-2)
+ real(dp),parameter      :: smoothScale=0.001_dp   ! scaling factor for the smoothing function (kg m-2)
+ real(dp),parameter      :: xLimit=50._dp          ! don't compute exponents for > xLimit
+ ! --------------------------------------------------------------------------------------------------------------
+ ! compute argument in the smoothing function 
+ xArg = (canopyLiq - smoothThresh)/smoothScale
+
+ ! only compute smoothing function for small exponents
+ if(xArg > -xLimit .and. xArg < xLimit)then  ! avoid huge exponents
+  expX            = exp(-xarg)                                   ! (also used in the derivative)
+  smoothFunc      = 1._dp / (1._dp + expX)                       ! (logistic smoother)
+  if(derDesire)then
+   smoothFuncDeriv = expX / (smoothScale * (1._dp + expX)**2._dp) ! (derivative in the smoothing function)
+  else
+   smoothFuncDeriv = 0._dp
+  endif
+
+ ! outside limits: special case of smooth exponents
+ else
+  if(xArg < 0._dp)then; smoothFunc = 0._dp   ! xArg < -xLimit
+  else;                 smoothFunc = 1._dp   ! xArg >  xLimit
+  endif
+  smoothFuncDeriv = 0._dp
+ endif  ! check for huge exponents
+
+ end subroutine logisticSmoother
+ ! --------------------------------------------------------------------------------------------------------------
 
 
  ! *********************************************************************************************************************************************************************
@@ -2697,9 +2923,6 @@ contains
                        ! input: latent heat of sublimation/vaporization
                        latHeatSubVapCanopy,           & ! intent(in): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
                        latHeatSubVapGround,           & ! intent(in): latent heat of sublimation/vaporization for the ground surface (J kg-1)
-                       ! input: canoopy liquid and canopy ice (used as a solution constraint)
-                       canopyLiquid,                  & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
-                       canopyIce,                     & ! intent(in): mass of ice water on the vegetation canopy (kg m-2)
                        ! input: canopy and ground temperature
                        canairTemp,                    & ! intent(in): temperature of the canopy air space (K)
                        canopyTemp,                    & ! intent(in): canopy temperature (K)
@@ -2711,6 +2934,7 @@ contains
                        ! input: diagnostic variables
                        exposedVAI,                    & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
                        canopyWetFraction,             & ! intent(in): fraction of canopy that is wet [0-1]
+                       canopyWetFractionDeriv,        & ! intent(in): derivative in the canopy wetted fraction w.r.t. liquid water content (kg-1 m-2)
                        canopySunlitLAI,               & ! intent(in): sunlit leaf area (-)
                        canopyShadedLAI,               & ! intent(in): shaded leaf area (-)
                        soilRelHumidity,               & ! intent(in): relative humidity in the soil pores [0-1]
@@ -2761,6 +2985,15 @@ contains
                        dTurbFluxGround_dTCanair,      & ! intent(out): derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
                        dTurbFluxGround_dTCanopy,      & ! intent(out): derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
                        dTurbFluxGround_dTGround,      & ! intent(out): derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+                       ! output: liquid flux derivatives
+                       dLatHeatCanopyEvap_dCanLiq,    & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. canopy liquid water content (J kg-1 s-1)
+                       dLatHeatCanopyEvap_dTCanair,   & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. canopy air temperature (W m-2 K-1)
+                       dLatHeatCanopyEvap_dTCanopy,   & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. canopy temperature (W m-2 K-1)
+                       dLatHeatCanopyEvap_dTGround,   & ! intent(out): derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
+                       ! output: cross derivatives
+                       dTurbFluxCanair_dCanLiq,       & ! intent(out): derivative in net canopy air space fluxes w.r.t. canopy liquid water content (J kg-1 s-1) 
+                       dTurbFluxCanopy_dCanLiq,       & ! intent(out): derivative in net canopy turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+                       dTurbFluxGround_dCanLiq,       & ! intent(out): derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
                        ! output: error control
                        err,message                    ) ! intent(out): error control
  ! -----------------------------------------------------------------------------------------------------------------------------------------
@@ -2775,9 +3008,6 @@ contains
  ! input: latent heat of sublimation/vaporization
  real(dp),intent(in)           :: latHeatSubVapCanopy   ! latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
  real(dp),intent(in)           :: latHeatSubVapGround   ! latent heat of sublimation/vaporization for the ground surface (J kg-1)
- ! input: canopy liquid and canopy ice (used as a solution constraint)
- real(dp),intent(in)           :: canopyLiquid          ! mass of liquid water on the vegetation canopy (kg m-2)
- real(dp),intent(in)           :: canopyIce             ! mass of ice water on the vegetation canopy (kg m-2)
  ! input: canopy and ground temperature
  real(dp),intent(in)           :: canairTemp            ! temperature of the canopy air space (K)
  real(dp),intent(in)           :: canopyTemp            ! canopy temperature (K)
@@ -2789,6 +3019,7 @@ contains
  ! input: diagnostic variables
  real(dp),intent(in)           :: exposedVAI            ! exposed vegetation area index -- leaf plus stem (m2 m-2)
  real(dp),intent(in)           :: canopyWetFraction     ! fraction of canopy that is wet [0-1]
+ real(dp),intent(in)           :: canopyWetFractionDeriv ! derivative in the canopy wetted fraction w.r.t. liquid water content (kg-1 m-2)
  real(dp),intent(in)           :: canopySunlitLAI       ! sunlit leaf area (-)
  real(dp),intent(in)           :: canopyShadedLAI       ! shaded leaf area (-)
  real(dp),intent(in)           :: soilRelHumidity       ! relative humidity in the soil pores [0-1]
@@ -2830,7 +3061,7 @@ contains
  real(dp),intent(out)          :: turbFluxCanair               ! net turbulent heat fluxes at the canopy air space (W m-2)
  real(dp),intent(out)          :: turbFluxCanopy               ! net turbulent heat fluxes at the canopy (W m-2)
  real(dp),intent(out)          :: turbFluxGround               ! net turbulent heat fluxes at the ground surface (W m-2)
- ! output: flux derivatives
+ ! output: energy flux derivatives
  real(dp),intent(out)          :: dTurbFluxCanair_dTCanair     ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)          :: dTurbFluxCanair_dTCanopy     ! derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)          :: dTurbFluxCanair_dTGround     ! derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
@@ -2840,9 +3071,18 @@ contains
  real(dp),intent(out)          :: dTurbFluxGround_dTCanair     ! derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
  real(dp),intent(out)          :: dTurbFluxGround_dTCanopy     ! derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
  real(dp),intent(out)          :: dTurbFluxGround_dTGround     ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+ ! output: liquid flux derivatives
+ real(dp),intent(out)          :: dLatHeatCanopyEvap_dCanLiq   ! derivative in latent heat of canopy evaporation w.r.t. canopy liquid water content (W kg-1)
+ real(dp),intent(out)          :: dLatHeatCanopyEvap_dTCanair  ! derivative in latent heat of canopy evaporation w.r.t. canopy air temperature (W m-2 K-1)
+ real(dp),intent(out)          :: dLatHeatCanopyEvap_dTCanopy  ! derivative in latent heat of canopy evaporation w.r.t. canopy temperature (W m-2 K-1)
+ real(dp),intent(out)          :: dLatHeatCanopyEvap_dTGround  ! derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
+ ! output: cross derivatives
+ real(dp),intent(out)          :: dTurbFluxCanair_dCanLiq      ! derivative in net canopy air space fluxes w.r.t. canopy liquid water content (J kg-1 s-1) 
+ real(dp),intent(out)          :: dTurbFluxCanopy_dCanLiq      ! derivative in net canopy turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+ real(dp),intent(out)          :: dTurbFluxGround_dCanLiq      ! derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
  ! output: error control
- integer(i4b),intent(out)      :: err                   ! error code
- character(*),intent(out)      :: message               ! error message
+ integer(i4b),intent(out)      :: err                          ! error code
+ character(*),intent(out)      :: message                      ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! local variables -- general
  real(dp)                      :: fpart1,fpart2                ! different parts of a function
@@ -2867,9 +3107,12 @@ contains
  real(dp)                      :: dGroundCondLH_dGroundTemp    ! derivative in ground conductance w.r.t. ground temperature
  ! local variables -- derivatives for the canopy air space variables
  real(dp)                      :: fPart_VP                     ! part of the function for vapor pressure of the canopy air space
+ real(dp)                      :: leafConductanceTr            ! leaf conductance for transpiration (m s-1)
  real(dp)                      :: dVPCanopyAir_dTCanair        ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy air space
  real(dp)                      :: dVPCanopyAir_dTCanopy        ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
  real(dp)                      :: dVPCanopyAir_dTGround        ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
+ real(dp)                      :: dVPCanopyAir_dWetFrac        ! derivative of vapor pressure in the canopy air space w.r.t. wetted fraction of the canopy
+ real(dp)                      :: dVPCanopyAir_dCanLiq         ! derivative of vapor pressure in the canopy air space w.r.t. canopy liquid water content
  ! local variables -- sensible heat flux derivatives 
  real(dp)                      :: dSenHeatTotal_dTCanair       ! derivative in the total sensible heat flux w.r.t. canopy air temperature 
  real(dp)                      :: dSenHeatTotal_dTCanopy       ! derivative in the total sensible heat flux w.r.t. canopy air temperature
@@ -2881,15 +3124,16 @@ contains
  real(dp)                      :: dSenHeatGround_dTCanopy      ! derivative in the ground sensible heat flux w.r.t. canopy temperature
  real(dp)                      :: dSenHeatGround_dTGround      ! derivative in the ground sensible heat flux w.r.t. ground temperature
  ! local variables -- latent heat flux derivatives
- real(dp)                      :: dLatHeatCanopyEvap_dTCanair  ! derivative in the canopy evaporation flux w.r.t. canopy air temperature
- real(dp)                      :: dLatHeatCanopyEvap_dTCanopy  ! derivative in the canopy evaporation flux w.r.t. canopy temperature
- real(dp)                      :: dLatHeatCanopyEvap_dTGround  ! derivative in the canopy evaporation flux w.r.t. ground temperature
  real(dp)                      :: dLatHeatCanopyTrans_dTCanair ! derivative in the canopy transpiration flux w.r.t. canopy air temperature
  real(dp)                      :: dLatHeatCanopyTrans_dTCanopy ! derivative in the canopy transpiration flux w.r.t. canopy temperature
  real(dp)                      :: dLatHeatCanopyTrans_dTGround ! derivative in the canopy transpiration flux w.r.t. ground temperature
  real(dp)                      :: dLatHeatGround_dTCanair      ! derivative in the ground latent heat flux w.r.t. canopy air temperature
  real(dp)                      :: dLatHeatGround_dTCanopy      ! derivative in the ground latent heat flux w.r.t. canopy temperature
  real(dp)                      :: dLatHeatGround_dTGround      ! derivative in the ground latent heat flux w.r.t. ground temperature
+ ! local variables -- wetted fraction derivatives
+ real(dp)                      :: dLatHeatCanopyEvap_dWetFrac  ! derivative in the latent heat of canopy evaporation w.r.t. canopy wet fraction (W m-2)
+ real(dp)                      :: dLatHeatCanopyTrans_dWetFrac ! derivative in the latent heat of canopy transpiration w.r.t. canopy wet fraction (W m-2)
+ real(dp)                      :: dLatHeatCanopyTrans_dCanLiq  ! derivative in the latent heat of canopy transpiration w.r.t. canopy liquid water (J kg-1 s-1)
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='turbFluxes/'
@@ -2905,6 +3149,7 @@ contains
  ! compute conductances for sensible heat (m s-1)
  if(computeVegFlux)then
   leafConductance    = exposedVAI/leafResistance
+  leafConductanceTr  = canopySunlitLAI/(leafResistance+stomResistSunlit) + canopyShadedLAI/(leafResistance+stomResistShaded)
   canopyConductance  = 1._dp/canopyResistance
  else
   leafConductance    = 0._dp
@@ -2918,7 +3163,7 @@ contains
  ! compute conductances for latent heat (m s-1)
  if(computeVegFlux)then
   evapConductance    = canopyWetFraction*leafConductance
-  transConductance   = (1._dp - canopyWetFraction) * ( canopySunlitLAI/(leafResistance+stomResistSunlit) + canopyShadedLAI/(leafResistance+stomResistShaded) )
+  transConductance   = (1._dp - canopyWetFraction) * leafConductanceTr
   !write(*,'(a,10(f20.10,1x))') 'canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction = ', &
   !                              canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction
  else
@@ -3035,8 +3280,13 @@ contains
    dPart1 = dGroundCondLH_dGroundTemp*satVP_GroundTemp*soilRelHumidity + groundConductanceLH*dSVPGround_dGroundTemp*soilRelHumidity
    dPart2 = -dGroundCondLH_dGroundTemp/(totalConductanceLH**2._dp)
    dVPCanopyAir_dTGround = dPart1/totalConductanceLH + fPart_VP*dPart2
-   !write(*,'(a,3(f20.8,1x))') 'dVPCanopyAir_dTCanair, dVPCanopyAir_dTCanopy, dVPCanopyAir_dTGround                      = ', &
-   !                            dVPCanopyAir_dTCanair, dVPCanopyAir_dTCanopy, dVPCanopyAir_dTGround
+   ! (derivative of vapor pressure in the canopy air space w.r.t. wetted fraction of the canopy)
+   dPart1 = (leafConductance - leafConductanceTr)*satVP_CanopyTemp
+   dPart2 = -(leafConductance - leafConductanceTr)/(totalConductanceLH**2._dp)
+   dVPCanopyAir_dWetFrac = dPart1/totalConductanceLH + fPart_VP*dPart2
+   dVPCanopyAir_dCanLiq  = dVPCanopyAir_dWetFrac*canopyWetFractionDeriv
+   !write(*,'(a,5(f20.8,1x))') 'dVPCanopyAir_dTCanair, dVPCanopyAir_dTCanopy, dVPCanopyAir_dTGround, dVPCanopyAir_dWetFrac, dVPCanopyAir_dCanLiq = ', &
+   !                            dVPCanopyAir_dTCanair, dVPCanopyAir_dTCanopy, dVPCanopyAir_dTGround, dVPCanopyAir_dWetFrac, dVPCanopyAir_dCanLiq 
 
    ! sensible heat from the canopy to the atmosphere
    dSenHeatTotal_dTCanair       = -volHeatCapacityAir*canopyConductance - volHeatCapacityAir*dCanopyCond_dCanairTemp*(canairTemp - airtemp)
@@ -3082,6 +3332,21 @@ contains
    !write(*,'(a,3(f20.8,1x))') 'dLatHeatGround_dTCanair, dLatHeatGround_dTCanopy, dLatHeatGround_dTGround                = ', &
    !                            dLatHeatGround_dTCanair, dLatHeatGround_dTCanopy, dLatHeatGround_dTGround
 
+   ! latent heat associated with canopy evaporation w.r.t. wetted fraction of the canopy
+   dPart1 = -latHeatSubVapCanopy*latentHeatConstant*leafConductance
+   fPart1 = dPart1*canopyWetFraction
+   dLatHeatCanopyEvap_dWetFrac  = dPart1*(satVP_CanopyTemp - VP_CanopyAir) + fPart1*(-dVPCanopyAir_dWetFrac)
+
+   ! latent heat associated with canopy transpiration w.r.t. wetted fraction of the canopy
+   dPart1 = LH_vap*latentHeatConstant*leafConductanceTr  ! NOTE: positive, since (1 - wetFrac)
+   fPart1 = -dPart1*(1._dp - canopyWetFraction)
+   dLatHeatCanopyTrans_dWetFrac = dPart1*(satVP_CanopyTemp - VP_CanopyAir) + fPart1*(-dVPCanopyAir_dWetFrac)
+   !print*, 'dLatHeatCanopyTrans_dWetFrac = ', dLatHeatCanopyTrans_dWetFrac
+
+   ! latent heat associated with canopy transpiration w.r.t. canopy liquid water
+   dLatHeatCanopyTrans_dCanLiq = dLatHeatCanopyTrans_dWetFrac*canopyWetFractionDeriv ! (J s-1 kg-1)
+   !print*, 'dLatHeatCanopyTrans_dCanLiq = ', dLatHeatCanopyTrans_dCanLiq
+
   else  ! canopy is undefined
 
    ! set derivatives for canopy fluxes to zero (no canopy, so fluxes are undefined)
@@ -3126,6 +3391,7 @@ contains
 
   ! * compute derivatives
  if(ixDerivMethod == analytical)then
+  ! (energy derivatives)
   dTurbFluxCanair_dTCanair = dSenHeatTotal_dTCanair - dSenHeatCanopy_dTCanair - dSenHeatGround_dTCanair            ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
   dTurbFluxCanair_dTCanopy = dSenHeatTotal_dTCanopy - dSenHeatCanopy_dTCanopy - dSenHeatGround_dTCanopy            ! derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
   dTurbFluxCanair_dTGround = dSenHeatTotal_dTGround - dSenHeatCanopy_dTGround - dSenHeatGround_dTGround            ! derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
@@ -3135,7 +3401,14 @@ contains
   dTurbFluxGround_dTCanair = dSenHeatGround_dTCanair + dLatHeatGround_dTCanair                                     ! derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
   dTurbFluxGround_dTCanopy = dSenHeatGround_dTCanopy + dLatHeatGround_dTCanopy                                     ! derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
   dTurbFluxGround_dTGround = dSenHeatGround_dTGround + dLatHeatGround_dTGround                                     ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+  ! (liquid water derivatives)
+  dLatHeatCanopyEvap_dCanLiq = dLatHeatCanopyEvap_dWetFrac*canopyWetFractionDeriv                                  ! derivative in latent heat of canopy evaporation w.r.t. canopy liquid water (W kg-1)
+  ! (cross deriavtives)
+  dTurbFluxCanair_dCanLiq  = 0._dp                                                                                 ! derivative in net canopy air space fluxes w.r.t. canopy liquid water content (J kg-1 s-1) 
+  dTurbFluxCanopy_dCanLiq  = dLatHeatCanopyEvap_dCanLiq + dLatHeatCanopyTrans_dCanLiq                              ! derivative in net canopy turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  dTurbFluxGround_dCanLiq  = latHeatSubVapGround*latentHeatConstant*groundConductanceLH*dVPCanopyAir_dCanLiq       ! derivative in net ground turbulent fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
  else ! (just make sure we return something)
+  ! (energy derivatives)
   dTurbFluxCanair_dTCanair = 0._dp 
   dTurbFluxCanair_dTCanopy = 0._dp 
   dTurbFluxCanair_dTGround = 0._dp 
@@ -3145,6 +3418,12 @@ contains
   dTurbFluxGround_dTCanair = 0._dp 
   dTurbFluxGround_dTCanopy = 0._dp 
   dTurbFluxGround_dTGround = 0._dp
+  ! (liquid water derivatives)
+  dLatHeatCanopyEvap_dCanLiq   = 0._dp 
+  ! (cross deriavtives)
+  dTurbFluxCanair_dCanLiq  = 0._dp
+  dTurbFluxCanopy_dCanLiq  = 0._dp
+  dTurbFluxGround_dCanLiq  = 0._dp
  endif
  
  end subroutine turbFluxes

@@ -84,6 +84,7 @@ contains
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
  real(dp)                             :: dt_wght                ! weight applied to each sub-step, to compute time step average
+ real(dp)                             :: scalarCanopyWetFractionDeriv ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  integer(i4b)                         :: iLayer                 ! index of model layers
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -209,6 +210,8 @@ contains
   if(computeVegFlux)then
    call wettedFrac(&
                    ! input
+                   .false.,                                                      & ! flag to denote if derivatives are required
+                   .false.,                                                      & ! flag to denote if derivatives are calculated numerically
                    (mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) < Tfreeze), & ! flag to denote if the canopy is frozen
                    mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),              & ! canopy liquid water (kg m-2)
                    mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
@@ -216,10 +219,12 @@ contains
                    mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
                    ! output
                    mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
+                   scalarCanopyWetFractionDeriv,                                 & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
                    err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
    mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1) = 0._dp
+   scalarCanopyWetFractionDeriv                            = 0._dp
   endif
 
 

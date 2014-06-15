@@ -13,6 +13,8 @@ USE multiconst,only:&
                     gravity,      & ! acceleration of gravity              (m s-2)
                     Tfreeze,      & ! temperature at freezing              (K)
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
+                    LH_vap,       & ! latent heat of vaporization          (J kg-1)
+                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
                     Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
                     iden_air,     & ! intrinsic density of air             (kg m-3)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
@@ -260,10 +262,11 @@ contains
  real(dp)                       :: dGroundNetFlux_dCanairTemp   ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
  real(dp)                       :: dGroundNetFlux_dCanopyTemp   ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
  real(dp)                       :: dGroundNetFlux_dGroundTemp   ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
- ! liquid water fluxes associated with transpiration
+ ! liquid water fluxes and derivatives associated with transpiration
  real(dp)                       :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
  real(dp)                       :: scalarCanopyEvaporation      ! canopy evaporation/condensation (kg m-2 s-1)
  real(dp)                       :: scalarGroundEvaporation      ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ real(dp)                       :: dCanopyEvaporation_dCanLiq   ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
  ! energy fluxes and derivatives for the snow and soil domains
  real(dp),dimension(nLayers)    :: ssdNetNrgFlux                ! net energy flux for each layer (J m-3 s-1)
  real(dp),dimension(0:nLayers)  :: iLayerNrgFlux                ! energy flux at the layer interfaces (W m-2)
@@ -274,6 +277,9 @@ contains
  real(dp)                       :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
  real(dp)                       :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
  real(dp)                       :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+ real(dp)                       :: dCanopyEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+ real(dp)                       :: dCanopyEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+ real(dp)                       :: dCanopyEvaporation_dTGround  ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
  ! liquid water fluxes and derivatives for the snow domain 
  real(dp),dimension(0:nSnow)    :: iLayerLiqFluxSnow            ! vertical liquid water flux at layer interfaces (m s-1)
  real(dp),dimension(0:nSnow)    :: iLayerLiqFluxSnowDeriv       ! derivative in vertical liquid water flux at layer interfaces (m s-1)
@@ -508,9 +514,16 @@ contains
                   dGroundNetFlux_dCanairTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
                   dGroundNetFlux_dCanopyTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                   dGroundNetFlux_dGroundTemp,             & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                  ! output: liquid water flux derivarives
+                  dCanopyEvaporation_dCanLiq,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+                  dCanopyEvaporation_dTCanair,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                  dCanopyEvaporation_dTCanopy,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                  dCanopyEvaporation_dTGround,            & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
                   ! output: error control
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  !print*, 'in systemSolv: scalarCanopyEvaporation = ', scalarCanopyEvaporation
+  !print*, 'in systemSolv: dCanopyEvaporation_dCanLiq = ', dCanopyEvaporation_dCanLiq
 
 
   ! *****
@@ -553,9 +566,6 @@ contains
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! calculate the net liquid water flux for the vegetation canopy
-
-  scalarCanopyEvaporation = 0._dp
-
   canopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
   !print*, 'scalarRainfall = ', scalarRainfall
   !print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
@@ -597,8 +607,20 @@ contains
   err=0; message='analJacob/'
 
   ! liquid water fluxes for vegetation canopy (-)
-  ! NOTE: drainage results in a loss of water from the canopy, so sign is positive
-  aJac(ixVegLiq,ixVegLiq) = scalarCanopyLiqDrainageDeriv*dt + 1._dp
+  aJac(ixVegLiq,ixVegLiq) = -(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDrainageDeriv)*dt + 1._dp
+
+  ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
+  aJac(ixVegLiq,ixCasNrg) = -dCanopyEvaporation_dTCanair*dt
+  aJac(ixVegLiq,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt
+  aJac(ixVegLiq,ixSfcNrg) = -dCanopyEvaporation_dTGround*dt
+
+  ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1) -- weird units
+  ! NOTE: dCanopyEvaporation_dCanLiq (s-1)
+  aJac(ixVegNrg,ixVegLiq) = (dt/canopyDepth)*(-dCanopyEvaporation_dCanLiq*LH_vap)
+
+
+  !aJac(ixVegNrg,ixVegLiq) = (dt/canopyDepth)*(-dCanopyEvaporation_dCanLiq)
+  !aJac(ixSfcNrg,ixVegLiq) = (dt/mLayerDepth(1))*(-dCanopyEvaporation_dCanLiq)
 
   ! energy fluxes with the canopy air space (J m-3 K-1)
   aJac(ixCasNrg,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + Cp_air*iden_air
@@ -736,6 +758,10 @@ contains
                        scalarCanopyTranspiration,              & ! intent(out): canopy transpiration (kg m-2 s-1)
                        scalarCanopyEvaporation,                & ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
                        scalarGroundEvaporation,                & ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+                       dCanopyEvaporation_dCanLiq,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+                       dCanopyEvaporation_dTCanair,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                       dCanopyEvaporation_dTCanopy,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                       dCanopyEvaporation_dTGround,            & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
                        ! output: energy fluxes and derivatives for the snow and soil domains
                        iLayerNrgFlux,                          & ! intent(out): energy flux at the layer interfaces (W m-2)
                        dNrgFlux_dTempAbove,                    & ! intent(out): derivatives in the energy flux w.r.t. temperature in the layer above (W m-2 K-1)
@@ -810,6 +836,10 @@ contains
  real(dp),intent(out)           :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(out)           :: scalarCanopyEvaporation       ! canopy evaporation/condensation (kg m-2 s-1)
  real(dp),intent(out)           :: scalarGroundEvaporation       ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dCanLiq    ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTCanair   ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTCanopy   ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+ real(dp),intent(out)           :: dCanopyEvaporation_dTGround   ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
  ! output: energy fluxes and derivatives for the snow and soil domains
  real(dp),intent(out)           :: iLayerNrgFlux(0:)             ! energy flux at the layer interfaces (W m-2)
  real(dp),intent(out)           :: dNrgFlux_dTempAbove(0:)       ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
@@ -897,6 +927,11 @@ contains
                  dGroundNetFlux_dCanairTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
                  dGroundNetFlux_dCanopyTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                  dGroundNetFlux_dGroundTemp,             & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                 ! output: liquid water flux derivarives
+                 dCanopyEvaporation_dCanLiq,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+                 dCanopyEvaporation_dTCanair,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                 dCanopyEvaporation_dTCanopy,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                 dCanopyEvaporation_dTGround,            & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
                  ! output: error control
                  err,cmessage)                             ! intent(out): error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
