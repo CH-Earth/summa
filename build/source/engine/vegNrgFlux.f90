@@ -128,6 +128,10 @@ contains
                        dCanopyEvaporation_dTCanopy,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                        dCanopyEvaporation_dTGround,             & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
 
+                       ! output: cross derivative terms
+                       dCanopyNetFlux_dCanLiq,                  & ! intent(out): derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+                       dGroundNetFlux_dCanLiq,                  & ! intent(out): derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+
                        ! output: error control
                        err,message)                               ! intent(out): error control
  ! model decisions
@@ -172,6 +176,9 @@ contains
  real(dp),intent(out)           :: dCanopyEvaporation_dTCanair    ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
  real(dp),intent(out)           :: dCanopyEvaporation_dTCanopy    ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
  real(dp),intent(out)           :: dCanopyEvaporation_dTGround    ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+ ! output: cross derivative terms
+ real(dp),intent(out)           :: dCanopyNetFlux_dCanLiq         ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+ real(dp),intent(out)           :: dGroundNetFlux_dCanLiq         ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
  ! output: error control
  integer(i4b),intent(out)       :: err                            ! error code
  character(*),intent(out)       :: message                        ! error message
@@ -423,11 +430,15 @@ contains
                           dGroundNetFlux_dCanopyTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                           dGroundNetFlux_dGroundTemp,                                        & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
 
-                          ! output liquid water flux derivarives
+                          ! output: liquid water flux derivarives
                           dCanopyEvaporation_dCanLiq,                                        & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
                           dCanopyEvaporation_dTCanair,                                       & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                           dCanopyEvaporation_dTCanopy,                                       & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                           dCanopyEvaporation_dTGround,                                       & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+
+                          ! output: cross derivative terms
+                          dCanopyNetFlux_dCanLiq,                                            & ! intent(out): derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+                          dGroundNetFlux_dCanLiq,                                            & ! intent(out): derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
 
                           ! output: error control
                           err,cmessage)                                                        ! intent(out): error control
@@ -642,11 +653,15 @@ contains
                               dGroundNetFlux_dCanopyTemp,        & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                               dGroundNetFlux_dGroundTemp,        & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
 
-                              ! output liquid water flux derivarives
+                              ! output: liquid water flux derivarives
                               dCanopyEvaporation_dCanLiq,        & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
                               dCanopyEvaporation_dTCanair,       & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                               dCanopyEvaporation_dTCanopy,       & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                               dCanopyEvaporation_dTGround,       & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+
+                              ! output: cross derivative terms
+                              dCanopyNetFlux_dCanLiq,            & ! intent(out): derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+                              dGroundNetFlux_dCanLiq,            & ! intent(out): derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
 
                               ! output: error control
                               err,message                        ) ! intent(out): error control
@@ -830,6 +845,9 @@ contains
  real(dp),intent(out)           :: dCanopyEvaporation_dTCanair     ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
  real(dp),intent(out)           :: dCanopyEvaporation_dTCanopy     ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
  real(dp),intent(out)           :: dCanopyEvaporation_dTGround     ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+ ! output: cross derivative terms
+ real(dp),intent(out)           :: dCanopyNetFlux_dCanLiq         ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+ real(dp),intent(out)           :: dGroundNetFlux_dCanLiq         ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
  ! output: error control
  integer(i4b),intent(out)       :: err                             ! error code
  character(*),intent(out)       :: message                         ! error message
@@ -1645,7 +1663,7 @@ contains
  !if(heightCanopyBottom < scalarSnowDepth+z0Ground) pause 'bottom of the canopy is covered'
 
  ! test
- print*, (ix_fDerivMeth == numerical)
+ !print*, (ix_fDerivMeth == numerical)
  !print*, 'dTurbFluxCanair_dTCanair = ', dTurbFluxCanair_dTCanair
  !print*, 'dTurbFluxCanair_dTCanopy = ', dTurbFluxCanair_dTCanopy
  !print*, 'dTurbFluxCanair_dTGround = ', dTurbFluxCanair_dTGround
@@ -1659,11 +1677,11 @@ contains
  !print*, 'dLatHeatCanopyEvap_dTCanair = ', dLatHeatCanopyEvap_dTCanair
  !print*, 'dLatHeatCanopyEvap_dTCanopy = ', dLatHeatCanopyEvap_dTCanopy
  !print*, 'dLatHeatCanopyEvap_dTGround = ', dLatHeatCanopyEvap_dTGround
- print*, 'dTurbFluxCanair_dCanLiq = ', dTurbFluxCanair_dCanLiq
- print*, 'dTurbFluxCanopy_dCanLiq = ', dTurbFluxCanopy_dCanLiq
- print*, 'dTurbFluxGround_dCanLiq = ', dTurbFluxGround_dCanLiq
- print*, '*****'
- pause
+ !print*, 'dTurbFluxCanair_dCanLiq = ', dTurbFluxCanair_dCanLiq
+ !print*, 'dTurbFluxCanopy_dCanLiq = ', dTurbFluxCanopy_dCanLiq
+ !print*, 'dTurbFluxGround_dCanLiq = ', dTurbFluxGround_dCanLiq
+ !print*, '*****'
+ !pause
 
  !print*, 'scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb = ', &
  !         scalarRainfall, scalarThroughfallRain, scalarSnowfall, scalarThroughfallSnow, canopyTempTrial, scalarTwetbulb
@@ -1750,6 +1768,10 @@ contains
  dCanopyEvaporation_dTCanair = dLatHeatCanopyEvap_dTCanair/LH_vap   ! (kg m-2 s-1 K-1)
  dCanopyEvaporation_dTCanopy = dLatHeatCanopyEvap_dTCanopy/LH_vap   ! (kg m-2 s-1 K-1)
  dCanopyEvaporation_dTGround = dLatHeatCanopyEvap_dTGround/LH_vap   ! (kg m-2 s-1 K-1)
+
+ ! compute the cross derivative terms (only related to turbulent fluxes; specifically canopy evaporation and transpiration)
+ dCanopyNetFlux_dCanLiq = dTurbFluxCanopy_dCanLiq  ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+ dGroundNetFlux_dCanLiq = dTurbFluxGround_dCanLiq  ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
 
  !print*, (ix_fDerivMeth == numerical)
  !print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
