@@ -200,10 +200,13 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------
  do iLayer=1,nLayers
   ! compute fluxes at the lower boundary -- positive downwards
-  if(iLayer==nLayers)then; iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_dp)
+  if(iLayer==nLayers)then
+   iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_dp)
+
   ! compute fluxes within the domain -- positive downwards
-  else;                    iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
-                                                                                   (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+  else
+    iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
+                                    (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
   endif ! (the type of layer)
  end do
 

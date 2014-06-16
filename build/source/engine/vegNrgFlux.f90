@@ -1077,7 +1077,7 @@ contains
  !print*, 'canopyIceTrial = ', canopyIceTrial
  !print*, 'scalarCanopyLiqMax = ', scalarCanopyLiqMax
  !print*, 'scalarCanopyIceMax = ', scalarCanopyIceMax
- !print*, 'scalarCanopyWetFraction = ', scalarCanopyWetFraction
+ print*, 'scalarCanopyWetFraction = ', scalarCanopyWetFraction
 
  ! *******************************************************************************************************************************************************************
  ! *******************************************************************************************************************************************************************
@@ -1581,10 +1581,10 @@ contains
                   err,cmessage                          ) ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  !print*, 'scalarSenHeatTotal = ', scalarSenHeatTotal
-  !print*, 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
-  !print*, 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
-  !print*, 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
+  print*, 'scalarSenHeatTotal = ', scalarSenHeatTotal
+  print*, 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
+  print*, 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
+  print*, 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
 
   !print*, 'scalarSenHeatGround = ', scalarSenHeatGround
   !print*, 'scalarLatHeatGround = ', scalarLatHeatGround
@@ -1820,7 +1820,7 @@ contains
  logical(lgt),parameter        :: smoothing=.true.       ! flag to denote that smoothing is required
  logical(lgt),parameter        :: noSmoothing=.false.    ! flag to denote that no smoothing is required
  real(dp)                      :: canopyWetFractionPert  ! canopy wetted fraction after state perturbations (-)
- real(dp),parameter            :: maxScaleFactor=10._dp  ! temporary fix: since canopyLiqMax is not really max (it is the point when drainage begins), add scale factor for the wetted fraction (-)
+ real(dp),parameter            :: maxScaleFactor=1._dp   ! temporary fix: since canopyLiqMax is not really max (it is the point when drainage begins), add scale factor for the wetted fraction (-)
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='wettedFrac/'

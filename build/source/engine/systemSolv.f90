@@ -190,6 +190,8 @@ contains
  USE groundwatr_module,only:soilbsflow                ! compute total baseflow from the soil profile
  USE groundwatr_module,only:disaggflow                ! diaggregate total baseflow to individual soil layers
  USE groundwatr_module,only:aquifrflux                ! compute liquid water fluxes in the aquifer
+ ! provide access to the solver modules
+ USE matrixSolv_module,only:matrixSolv                ! solve full matrix
  implicit none
  ! input: model control
  real(dp),intent(in)            :: dt                           ! time step (seconds)
@@ -300,7 +302,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter         :: numericalJacobian=.true.     ! flag to compute the Jacobian matrix
+ logical(lgt),parameter         :: numericalJacobian=.false.    ! flag to compute the Jacobian matrix
  integer(i4b),parameter         :: nVegNrg=2                    ! number of energy state variables for vegetation
  integer(i4b),parameter         :: nVegLiq=1                    ! number of hydrology state variables for vegetation
  integer(i4b)                   :: nVegState                    ! number of vegetation state variables (defines position of snow-soil states in the state vector)
@@ -317,6 +319,7 @@ contains
  real(dp),allocatable           :: nJac(:,:)                    ! numerical Jacobian matrix
  real(dp),allocatable           :: dMat(:)                      ! constant variables on the left hand side of the state equations
  real(dp),allocatable           :: rVec(:)                      ! residual vector
+ real(dp),allocatable           :: xInc(:)                      ! iteration increment
  ! ------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='systemSolv_muster/'
@@ -353,11 +356,11 @@ contains
  ! define the number of model state variables
  nState = nVegState + nSnow + nSoil
 
- ! define the index of the sturface layer
+ ! define the index of the surface layer
  ixSfcNrg = nVegState + 1
 
  ! allocate space for the flux vector and Jacobian matrix
- allocate(stateVecInit(nState),stateVecTrial(nState),dMat(nState),fluxVec0(nState),aJac(nState,nState),rVec(nState),stat=err)
+ allocate(stateVecInit(nState),stateVecTrial(nState),dMat(nState),fluxVec0(nState),aJac(nState,nState),rVec(nState),xInc(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and analytical Jacobian matrix'; return; endif
 
  ! define variables to calculate the numerical Jacobian matrix
@@ -365,16 +368,17 @@ contains
   ! (allocate space for the flux vector and Jacobian matrix
   allocate(fluxVec1(nState),nJac(nState,nState),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
-  ! (define the constant diagonal variables in the Jacobian matrix)
-  dMat(:) = 0._dp
-  dMat(ixCasNrg) = Cp_air*iden_air          ! volumetric heat capacity of air (J m-3 K-1)
-  dMat(ixVegNrg) = scalarBulkVolHeatCapVeg  ! volumetric heat capacity of the vegetation (J m-3 K-1)
-  dMat(ixVegLiq) = 1._dp                    ! nothing else on the left hand side
-  do iLayer=1,nLayers
-   jLayer = nVegState+iLayer
-   dMat(jLayer) = mLayerVolHtCapBulk(iLayer)  ! volumetric heat capacity of each snow and soil layer (J m-3 K-1)
-  end do
  endif  ! if calculating the numerical approximation of the Jacobian matrix
+
+ ! define the constant variables on the left-hand-side of the state equations
+ dMat(:) = 1._dp
+ dMat(ixCasNrg) = Cp_air*iden_air          ! volumetric heat capacity of air (J m-3 K-1)
+ dMat(ixVegNrg) = scalarBulkVolHeatCapVeg  ! volumetric heat capacity of the vegetation (J m-3 K-1)
+ dMat(ixVegLiq) = 1._dp                    ! nothing else on the left hand side
+ do iLayer=1,nLayers
+  jLayer = nVegState+iLayer
+  dMat(jLayer) = mLayerVolHtCapBulk(iLayer)  ! volumetric heat capacity of each snow and soil layer (J m-3 K-1)
+ end do
 
  ! initialize the analytical Jacobian matrix
  aJac(:,:) = 0._dp
@@ -391,6 +395,11 @@ contains
 
  ! initialize the trial state vector
  stateVecTrial = stateVecInit
+
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
 
  ! (1) MAIN ITERATION LOOP...
  ! **************************
@@ -413,6 +422,20 @@ contains
   ! NOTE: ignore phase change for now
   rVec = dMat(:)*stateVecTrial(:) - (dMat(:)*stateVecInit(:) + fluxVec0(:)*dt)
 
+  ! compute the iteration increment
+  call matrixSolv(aJac,-rVec,xInc,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  write(*,'(a,1x,i4,1x,100(e16.8,1x))') 'iter, dMat(:)*stateVecTrial(:) = ', iter, dMat(:)*stateVecTrial(:)
+  write(*,'(a,1x,i4,1x,100(e16.8,1x))') 'iter, dMat(:)*stateVecInit(:)  = ', iter, dMat(:)*stateVecInit(:)
+  write(*,'(a,1x,i4,1x,100(f16.8,1x))') 'iter, stateVec                 = ', iter, stateVecTrial
+  write(*,'(a,1x,i4,1x,100(f16.8,1x))') 'iter, fluxVec0                 = ', iter, fluxVec0
+  write(*,'(a,1x,i4,1x,100(e16.8,1x))') 'iter, xInc                     = ', iter, xInc
+  write(*,'(a,1x,i4,1x,100(e16.8,1x))') 'iter, rVec                     = ', iter, rVec
+  print*, '**'
+  pause
+
+  ! update the state vector
+  stateVecTrial = stateVecTrial + xInc
 
   ! ----------------------------------------------------------------------------------------------------------------------------------------------------------------
   ! * testing: compute the numerical approximation of the Jacobian matrix
@@ -423,8 +446,13 @@ contains
 
  end do  ! iterating
 
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
+
  ! deallocate space for the flux vector and Jacobian matrix
- deallocate(stateVecInit,stateVecTrial,dMat,fluxVec0,aJac,rVec,stat=err)
+ deallocate(stateVecInit,stateVecTrial,dMat,fluxVec0,aJac,rVec,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the flux vector and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the variables used to create the numerical Jacobian matrix
@@ -433,8 +461,6 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
  endif
 
- ! ==========================================================================================================================================
- ! ==========================================================================================================================================
 
  contains
 
@@ -527,6 +553,10 @@ contains
                   ! output: error control
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  print*, 'canairNetNrgFlux = ', canairNetNrgFlux
+  print*, 'canopyNetNrgFlux = ', canopyNetNrgFlux
+  print*, 'groundNetNrgFlux = ', groundNetNrgFlux
+ 
   !print*, 'in systemSolv: scalarCanopyEvaporation = ', scalarCanopyEvaporation
   !print*, 'in systemSolv: dCanopyEvaporation_dCanLiq = ', dCanopyEvaporation_dCanLiq
 
@@ -619,13 +649,9 @@ contains
   aJac(ixVegLiq,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt
   aJac(ixVegLiq,ixSfcNrg) = -dCanopyEvaporation_dTGround*dt
 
-  ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1) -- weird units
-  ! NOTE: dCanopyEvaporation_dCanLiq (s-1)
-  aJac(ixVegNrg,ixVegLiq) = (dt/canopyDepth)*(-dCanopyEvaporation_dCanLiq*LH_vap)
-
-
-  !aJac(ixVegNrg,ixVegLiq) = (dt/canopyDepth)*(-dCanopyEvaporation_dCanLiq)
-  !aJac(ixSfcNrg,ixVegLiq) = (dt/mLayerDepth(1))*(-dCanopyEvaporation_dCanLiq)
+  ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
+  aJac(ixVegNrg,ixVegLiq) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq)
+  aJac(ixSfcNrg,ixVegLiq) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
 
   ! energy fluxes with the canopy air space (J m-3 K-1)
   aJac(ixCasNrg,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + Cp_air*iden_air
@@ -650,7 +676,7 @@ contains
   end do  ! (looping through layers in the snow-soil system)
 
   ! print the Jacobian
-  print*, '** analytical Jacobian:'; do iLayer=1,nState; write(*,'(i4,1x,100(e15.5,1x))') iLayer, aJac(:,iLayer); end do
+  !print*, '** analytical Jacobian:'; do iLayer=1,nState; write(*,'(i4,1x,100(e15.5,1x))') iLayer, aJac(:,iLayer); end do
 
   end subroutine analJacob
 
@@ -687,7 +713,7 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
    ! (compute the row of the Jacobian matrix)
    nJac(:,iJac) = -dt*(fluxVecJac(:) - fluxVec(:))/dx
-   ! (add in the diagonal matrix
+   ! (add in the diagonal matrix)
    nJac(iJac,iJac) = nJac(iJac,iJac) + dMat(iJac)
    ! (set the state back to the input value)
    stateVecPerturbed(iJac) = stateVec(iJac)

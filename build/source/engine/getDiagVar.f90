@@ -47,10 +47,10 @@ contains
                         model_decisions(iLookDECISIONS%canopySrad)%iDecision,      & ! intent(in): index of method used for canopy sw radiation
                         model_decisions(iLookDECISIONS%alb_method)%iDecision,      & ! intent(in): index of method used for snow albedo
                         ! input: state variables
-                        mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
                         mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): canopy ice content (kg m-2)
-                        mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                        mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
                         mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,             & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                        mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                         ! input: coordinate variables
                         indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (ix_soil or ix_snow)
                         mvar_data%var(iLookMVAR%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
@@ -136,14 +136,14 @@ contains
                               ixCanSWMethod,               & ! intent(in): index of the method used for canopy shortwave radiation
                               ixAlbedoMethod,              & ! intent(in): index of the method used for snow albedo
                               ! input: state variables
-                              scalarCanopyLiq,             & ! intent(in): canopy liquid water content (kg m-2)
                               scalarCanopyIce,             & ! intent(in): canopy ice content (kg m-2)
-                              mLayerVolFracIce,          & ! intent(in): volumetric fraction of ice in each layer (-)
-                              mLayerVolFracLiq,          & ! intent(in): volumetric fraction of liquid water in each layer (-)
+                              scalarCanopyLiq,             & ! intent(in): canopy liquid water content (kg m-2)
+                              mLayerVolFracIce,            & ! intent(in): volumetric fraction of ice in each layer (-)
+                              mLayerVolFracLiq,            & ! intent(in): volumetric fraction of liquid water in each layer (-)
                               ! input: coordinate variables
-                              layerType,                 & ! intent(in): layer type (ix_soil or ix_snow)
-                              mLayerHeight,              & ! intent(in): height at the mid-point of each layer (m)
-                              iLayerHeight,              & ! intent(in): height at the interface of each layer (m)
+                              layerType,                   & ! intent(in): layer type (ix_soil or ix_snow)
+                              mLayerHeight,                & ! intent(in): height at the mid-point of each layer (m)
+                              iLayerHeight,                & ! intent(in): height at the interface of each layer (m)
                               ! input: vegetation phenology
                               vegTypeIndex,                & ! intent(in): vegetation type index
                               urbanVegCategory,            & ! intent(in): vegetation category for urban areas               
