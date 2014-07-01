@@ -170,14 +170,25 @@ ifeq "$(FC)" "gfortran"
  INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
 endif
 ifeq "$(FC)" "ifort"
- HDF_PATH  = /usr/local/hdf5-1.8.7
- NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
+ HDF_PATH = /usr/local/hdf5
+ SZIP_PATH = /usr/local/szip
+ ZLIB_PATH = /usr/local/zlib
  LOCL_PATH = /usr/local
+ NCDF_PATH = /usr/local/netcdf-4.3.0/ifort+gcc
+ LIBNETCDF = \
+            -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf \
+            -Wl,-rpath,$(NCDF_PATH)/lib:$(HDF_PATH)/lib:$(ZLIB_PATH)/lib:$(SZIP_PATH)/lib \
+            -L$(HDF_PATH)/lib -lhdf5_hl -lhdf5 \
+            -L$(LOCL_PATH)/lib -L$(SZIP_PATH)/lib -lsz -L$(ZLIB_PATH)/lib -lz
+ INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
+ #HDF_PATH  = /usr/local/hdf5-1.8.7
+ #NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
+ #LOCL_PATH = /usr/local
  #HDF_PATH  = /opt/hdf5-1.8.7
  #NCDF_PATH = /opt/netcdf-4.1.3/ifort-12.0.5
  #LOCL_PATH = /opt
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(HDF_PATH)/lib -lhdf5_hl -lhdf5 -L$(LOCL_PATH)/lib -lsz -lz
- INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
+ #LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(HDF_PATH)/lib -lhdf5_hl -lhdf5 -L$(LOCL_PATH)/lib -lsz -lz
+ #INCNETCDF = -I$(NCDF_PATH)/include -I$(HDF_PATH)/include
 endif
 ifeq "$(FC)" "pgf90"
  HDF_PATH  = /usr/local/hdf5-1.8.7
@@ -207,8 +218,8 @@ ifeq "$(FC)" "gfortran"
 endif
 ifeq "$(FC)" "ifort"
  FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
- FLAGS_COMM = -static -debug -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
- FLAGS_FUSE = -static -debug -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_COMM = -debug -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_FUSE = -debug -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
  #FLAGS_FUSE = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
 endif
 ifeq "$(FC)" "pgf90"
@@ -244,7 +255,8 @@ compile_fuse:
 
 # link routines
 link:
-	$(FC) -Bstatic *.o $(LIBNETCDF) -o $(DRIVER__EX)
+	$(FC) *.o $(LIBNETCDF) -o $(DRIVER__EX)
+#	$(FC) -Bstatic *.o $(LIBNETCDF) -o $(DRIVER__EX)
 
 # Remove object files
 clean:
