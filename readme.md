@@ -45,9 +45,9 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
     Note that you will not be able to contribute to the main SUMMA repo directly. If you are seriously interested in contributing, spend a little time learning git. It will be useful anyway. For more information about working with the SUMMA code, please see the following documents:
 
-    * [SUMMA and Git](https://github.com/UW-Hydro/summa/docs/summa_and_git_howto.md)
-    * [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/summa_git_workflow.md)
-    * [Git commands](https://github.com/UW-Hydro/summa/docs/git_howto.md)
+    * [SUMMA and Git](https://github.com/UW-Hydro/summa/docs/howto/summa_and_git_howto.md)
+    * [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/howto/summa_git_workflow.md)
+    * [Git commands](https://github.com/UW-Hydro/summa/docs/howto/git_howto.md)
 
 Once you have all the above, you can compile SUMMA using the following steps:
 

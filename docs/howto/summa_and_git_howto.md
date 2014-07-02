@@ -98,7 +98,7 @@ If you have already made changes to the code, this command by itself will not ov
 
 ##### 4.b. Merge changes
 
-Determine which branches you will need to work with. At the very least, this will include the master branch. If you are working on a hotfix or a feature branch that already exists, you will need this branch as well; the SUMMA administrator has likely given you the name of the appropriate branch to use. Alternatively, you may want to create a new branch (e.g., if you are the first person to work on a new feature or bug fix). For more information about the branches in the SUMMA archive, see the [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/summa_git_workflow.md).
+Determine which branches you will need to work with. At the very least, this will include the master branch. If you are working on a hotfix or a feature branch that already exists, you will need this branch as well; the SUMMA administrator has likely given you the name of the appropriate branch to use. Alternatively, you may want to create a new branch (e.g., if you are the first person to work on a new feature or bug fix). For more information about the branches in the SUMMA archive, see the [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/howto/summa_git_workflow.md).
 
 For each branch, merge any changes from the truth repo into your local version:
 
