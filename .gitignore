@@ -10,7 +10,8 @@ summa.exe
 # any 'junk' files or directories
 *junk*/
 *junk*
-# sublime text workspace files
+# sublime text workspace and project files
+*.sublime-project
 *.sublime-workspace
 # cscope and ctags files
 *cscope*
