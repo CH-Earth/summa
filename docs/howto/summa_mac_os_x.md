@@ -2,7 +2,7 @@
 
 > The following has been tested on a MacBook Pro and iMac, both using OS X v. 10.9.3 (Mavericks) and with [MacPorts](http://www.macports.org) as the OS X package manager. It should also work on older versions of OS X or with other package managers such as [fink](http://www.finkproject.org) or [homebrew](http://brew.sh), but you will undoubtedly need to make some modifications.
 
-This document is mainly for people who want to use SUMMA in their modeling project, rather than contribute or change the SUMMA source code. If you want to contribute to SUMMA, take a look at the git related documents in the [docs/howto](docs/howto) directory.
+This document is mainly for people who want to use SUMMA in their modeling project, rather than contribute or change the SUMMA source code. If you want to contribute to SUMMA, take a look at the git related documents in the `docs/howto` directory.
 
 In the following I will assume that you don't have a Fortran compiler or NetCDF installed. If you do, just scroll down.
 
