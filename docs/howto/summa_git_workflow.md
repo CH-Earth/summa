@@ -31,14 +31,14 @@ Although anyone could create these branches, they are designed for the preparati
  2. **hotfix** -- The hotfix branch facilitates mid-release bug fixes of the master branch. The key point of the hotfix branch is that it does not incorporate any new features from the develop branch, rather it is a branch off the master that addresses a specific issue or set of issues. When the hotfix is applied, the development branch is updated to reflect the hotfix changes.
 
 ## Naming Conventions
-* Master branch – master
-* Develop branch – develop
-* Feature branch – feature/{feature_name}
-* Hotfix branch – hotfix/{hotfix_name}
-* Release branch – release/{release_name}
-* Support branch – support/VIC.{base_release_number}.{feature_branch_name}
-* Release name – VIC.{major.minor.patch}
-* Support release name - VIC.{base_release_number}.{feature_branch_name}.{##}
+ * Master branch – master
+ * Develop branch – develop
+ * Feature branch – feature/{feature_name}
+ * Hotfix branch – hotfix/{hotfix_name}
+ * Release branch – release/{release_name}
+ * Support branch – support/VIC.{base_release_number}.{feature_branch_name}
+ * Release name – VIC.{major.minor.patch}
+ * Support release name - VIC.{base_release_number}.{feature_branch_name}.{##}
 
 ## User Permissions
 Using Github to host the central or truth repository of our models allows us to easily control contributor permissions. Currently we split permission levels into 3 levels, Owners, Model Admins, and Developers.
@@ -48,4 +48,56 @@ Using Github to host the central or truth repository of our models allows us to 
  2. Model Admins have full access to specific repositories. They may push, pull, or make administrative changes to those repositories associated with their model. However, they should generally not push to the truth repo directly. Instead, they should fork, clone, edit locally, update their fork and then issue a pull request. This pull request should preferably be reviewed by someone else before it is merged.
 
  3. Developers have read-only access (pull, clone, fork) to any of the publically listed repositories under the UW-hydro name. If a developer would like a feature branch merged into the main repository, a pull request must be submitted and a Model Admin may merge it in.
+
+## Workflow examples
+
+### New feature
+
+You have developed a novel way to parameterize the stomatal resistance and would like to add this as a process alternative to SUMMA. We'll assume that you already have an account on GitHub and that you have the requisite software (Fortran compiler) and libraries (NetCDF) already installed.
+
+The process would be as follows:
+
+ * Navigate to the main [SUMMA repo](https://github.com/UW-Hydro/summa)
+
+ * Fork the repo by clicking on the 'Fork' button in the upper right corner
+
+ * Navigate to your fork
+
+ * Clone the fork to your local machine
+
+ * Add the main SUMMA repo as the upstream remote, so you can easily merge changes that are made in the main SUMMA repo into your own local repo
+
+        git add remote upstream git@github.com:UW-Hydro/summa.git
+
+ * Checkout the `develop` branch
+
+        git checkout develop
+
+ * Create and checkout the `feature/resistance` branch (or whatever the appropriate name would be). If you create this branch while you are on the `develop` branch, the new branch will be based on `develop` (you can also specify this explicitly to git).
+
+        git checkout -b feature/resistance
+
+ * Push this new branch to your remote on GitHub
+
+        git push
+
+ * Now make as many changes as you need to, commit them to your local repo and push them to your remote on GitHub. This is just like any other work you would do using Git. Once everything is working and eevrything is sufficiently tested, you will be ready to share your code with others.
+
+
+ * Before you do that, merge any changes that have been made in the develop branch in the main SUMMA repo into the `feature/resistance` branch of your local repo. Assuming you are already on the `feature/resistance` branch:
+
+        git fetch upstream
+        git merge upstream/develop
+
+ * Resolve any merge conflicts
+
+ * Push your latest version to your remote on GitHub
+
+ * Issue a pull request. You do that on GitHub. Make sure that you make the pull request with respect to the correct branches. On your end this should be the `feature/resistance` branch and on the other end the `develop` branch.
+
+ * You changes will be reviewed and merged or more likely there will be some back-and-forth with suggested changes and clarifications.
+
+
+
+
 
