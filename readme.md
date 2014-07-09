@@ -48,6 +48,7 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
     * [SUMMA and Git](https://github.com/UW-Hydro/summa/docs/howto/summa_and_git_howto.md)
     * [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/howto/summa_git_workflow.md)
     * [Git commands](https://github.com/UW-Hydro/summa/docs/howto/git_howto.md)
+    * [SUMMA coding conventions](https://github.com/UW-Hydro/summa/docs/howto/summa_coding_conventions.md)
 
 Once you have all the above, you can compile SUMMA using the following steps:
 
