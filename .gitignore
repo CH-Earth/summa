@@ -1,6 +1,8 @@
 # object, archive or module files
 *.[oa]
 *.mod
+# rtf files
+*.rtf
 # summa executable and bin directory
 bin
 summa.exe
