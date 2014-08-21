@@ -332,7 +332,7 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
 endselect
 
 ! initialize time step length for each HRU
-dt_init(:) = 360._dp ! seconds
+dt_init(:) = 100._dp ! seconds
 
 ! initialize time step index
 jstep=1

@@ -356,6 +356,7 @@ contains
   case('averageAquiferTranspire'        ); get_ixmvar = iLookMVAR%averageAquiferTranspire          ! transpiration from the aquifer (m s-1)
   case('averageColumnOutflow'           ); get_ixmvar = iLookMVAR%averageColumnOutflow             ! outflow from each layer in the soil profile (m3 s-1) 
   ! scalar variables -- forcing
+  case('scalarBartDummy'                ); get_ixmvar = iLookMVAR%scalarBartDummy                  ! dummy variable for bart (-)
   case('scalarCosZenith'                ); get_ixmvar = iLookMVAR%scalarCosZenith                  ! cosine of the solar zenith angle (0-1)
   case('scalarFractionDirect'           ); get_ixmvar = iLookMVAR%scalarFractionDirect             ! fraction of direct radiation (0-1)
   case('spectralIncomingDirect'         ); get_ixmvar = iLookMVAR%spectralIncomingDirect           ! incoming direct solar radiation in each wave band (W m-2)

@@ -58,6 +58,9 @@ contains
                        scalarCanopyTranspiration,    & ! intent(in): canopy transpiration (kg m-2 s-1)
                        scalarGroundEvaporation,      & ! intent(in): ground evaporation (kg m-2 s-1)
                        scalarRainPlusMelt,           & ! intent(in): rain plus melt (m s-1)
+                       ! output: diagnostic variables for model layers
+                       mLayerdTheta_dPsi,            & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
+                       mLayerdPsi_dTheta,            & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
                        ! output: fluxes
                        iLayerLiqFluxSoil,            & ! intent(out): liquid fluxes at layer interfaces (m s-1)
                        mLayerTranspire,              & ! intent(out): transpiration loss from each soil layer (m s-1)
@@ -85,6 +88,9 @@ contains
  real(dp),intent(in)              :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
  real(dp),intent(in)              :: scalarRainPlusMelt            ! rain plus melt (m s-1) 
+ ! output: diagnostic variables for each layer
+ real(dp),intent(out)             :: mLayerdTheta_dPsi(:)          ! derivative in the soil water characteristic w.r.t. psi (m-1)
+ real(dp),intent(out)             :: mLayerdPsi_dTheta(:)          ! derivative in the soil water characteristic w.r.t. theta (m)
  ! output: liquid fluxes
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
@@ -179,8 +185,8 @@ contains
                         mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1),           & ! intent(inout): (scalar) surface runoff (m s-1)
 
                         ! output: diagnostic variables for model layers
-                        mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(1:nSoil),       & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
-                        mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(1:nSoil),       & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
+                        mLayerdTheta_dPsi,                                             & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
+                        mLayerdPsi_dTheta,                                             & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
 
                         ! output: fluxes
                         iLayerLiqFluxSoil,                                             & ! intent(out): liquid fluxes at layer interfaces (m s-1)
@@ -196,6 +202,10 @@ contains
 
  ! check for errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! save information in the data structures
+ mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(1:nSoil) = mLayerdTheta_dPsi        ! derivative in the soil water characteristic w.r.t. psi (m-1)
+ mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(1:nSoil) = mLayerdPsi_dTheta        ! derivative in the soil water characteristic w.r.t. theta (m)
 
  end subroutine soilLiqFlx
 
@@ -437,6 +447,9 @@ contains
  ! preliminaries
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
+ ! define the pethod to compute derivatives
+ !print*, 'numerical derivatives = ', (ixDerivMethod==numerical)
+
  ! check the need to compute analytical derivatives
  if(deriv_desired .and. ixDerivMethod==analytical)then
   desireAnal = .true.
@@ -480,6 +493,7 @@ contains
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
  ! (special case of prescribed head -- no transpiration)
  if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._dp
+
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************
@@ -627,8 +641,7 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! include base soil evaporation as the upper boundary flux
-  ! NOTE: infiltration is added later (to the top unfrozen soil layer)
-  iLayerLiqFluxSoil(0) = scalarGroundEvaporation/iden_water
+  iLayerLiqFluxSoil(0) = scalarGroundEvaporation/iden_water + scalarSurfaceInfiltration
 
   ! get copies of surface flux to compute numerical derivatives
   if(deriv_desired .and. ixDerivMethod==numerical)then
@@ -645,6 +658,9 @@ contains
  if(deriv_desired .and. ixDerivMethod==numerical)then
   dq_dStateBelow(0) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
  endif
+ !print*, 'scalarSurfaceInfiltration, iLayerLiqFluxSoil(0) = ', scalarSurfaceInfiltration, iLayerLiqFluxSoil(0)
+ !print*, '(ixDerivMethod==numerical), dq_dStateBelow(0) = ', (ixDerivMethod==numerical), dq_dStateBelow(0)
+ !pause
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************
@@ -758,12 +774,17 @@ contains
    dq_dStateAbove(iLayer) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
    dq_dStateBelow(iLayer) = (scalarFlux_dStateBelow - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
   endif
+  
+  ! check
+  !if(iLayer==1) write(*,'(a,i4,1x,L1,1x,2(e15.5,1x))') 'iLayer, (ixDerivMethod==numerical), dq_dStateBelow(iLayer-1), dq_dStateAbove(iLayer) = ', &
+  !                                                      iLayer, (ixDerivMethod==numerical), dq_dStateBelow(iLayer-1), dq_dStateAbove(iLayer)
+  !pause
 
  end do  ! (looping through soil layers)
 
  ! add infiltration to the upper-most unfrozen layer
  ! NOTE: this is done here rather than in surface runoff
- iLayerLiqFluxSoil(ixIce) = iLayerLiqFluxSoil(ixIce) + scalarSurfaceInfiltration
+ !iLayerLiqFluxSoil(ixIce) = iLayerLiqFluxSoil(ixIce) + scalarSurfaceInfiltration
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************
@@ -1289,7 +1310,8 @@ contains
     surfaceInfiltration1 = cflux + surfaceHydCond
     dNum  = (surfaceInfiltration1 - scalarSurfaceInfiltration)/dx
    else
-    dNum  = 0._dp
+    dq_dState = 0._dp
+    dNum      = 0._dp
    endif
    !write(*,'(a,1x,10(e30.20,1x))') 'scalarMatricHead, scalarSurfaceInfiltration, dq_dState, dNum = ', &
    !                                 scalarMatricHead, scalarSurfaceInfiltration, dq_dState, dNum

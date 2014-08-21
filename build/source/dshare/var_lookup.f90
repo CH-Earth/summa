@@ -21,7 +21,7 @@ MODULE var_lookup
   integer(i4b)    :: num_method       = 7  ! choice of numerical method
   integer(i4b)    :: fDerivMeth       = 8  ! method used to calculate flux derivatives
   integer(i4b)    :: LAI_method       = 9  ! method used to determine LAI and SAI
-  integer(i4b)    :: f_Richards       = 10  ! form of richards' equation
+  integer(i4b)    :: f_Richards       = 10 ! form of richards' equation
   integer(i4b)    :: groundwatr       = 11 ! choice of groundwater parameterization
   integer(i4b)    :: hc_profile       = 12 ! choice of hydraulic conductivity profile
   integer(i4b)    :: bcUpprTdyn       = 13 ! type of upper boundary condition for thermodynamics 
@@ -247,6 +247,7 @@ MODULE var_lookup
   integer(i4b)    :: averageAquiferTranspire         = 15  ! transpiration from the aquifer (m s-1)
   integer(i4b)    :: averageColumnOutflow            = 16  ! outflow from each layer in the soil profile (m3 s-1)
   ! define scalar variables -- forcing
+  integer(i4b)    :: scalarBartDummy                 = 17  ! dummy variable for bart (-)
   integer(i4b)    :: scalarCosZenith                 = 17  ! cosine of the solar zenith angle (0-1)
   integer(i4b)    :: scalarFractionDirect            = 18  ! fraction of direct radiation (0-1)
   integer(i4b)    :: spectralIncomingDirect          = 19  ! incoming direct solar radiation in each wave band (W m-2)
@@ -539,7 +540,8 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193,194,195,196,197,198,199,200)
+                                                                        191,192,193,194,195,196,197,198,199,200,&
+                                                                        201)
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10)
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -551,7 +553,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarAttr     = 7
  integer(i4b),parameter,public :: maxvarType     = 5
  integer(i4b),parameter,public :: maxvarMpar     = 122
- integer(i4b),parameter,public :: maxvarMvar     = 200
+ integer(i4b),parameter,public :: maxvarMvar     = 201
  integer(i4b),parameter,public :: maxvarIndx     = 10
  integer(i4b),parameter,public :: maxvarBpar     = 5
  integer(i4b),parameter,public :: maxvarBvar     = 11

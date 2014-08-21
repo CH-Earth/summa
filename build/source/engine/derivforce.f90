@@ -114,7 +114,7 @@ contains
  spectralIncomingDirect  => mvar_data%var(iLookMVAR%spectralIncomingDirect)%dat     ! downwelling direct shortwave radiation for each waveband (W m-2)
  spectralIncomingDiffuse => mvar_data%var(iLookMVAR%spectralIncomingDiffuse)%dat    ! downwelling diffuse shortwave radiation for each waveband (W m-2)
  if(size(spectralIncomingDirect) /= 2 .or. size(spectralIncomingDiffuse) /= 2)then
-  err=20; message=trim(message)//'expect only two spectral classes for radiation'; return
+  err=20; message=trim(message)//'expect two spectral classes for radiation'; return
  endif
  ! assign pointers to snow accumulation variables
  VPair          => mvar_data%var(iLookMVAR%scalarVPair)%dat(1)          ! vapor pressure of the air above the vegetation canopy (Pa)

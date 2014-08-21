@@ -339,7 +339,7 @@ contains
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)
    if(abs(1._dp - sumFrac) > tolerFrac)then
-    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in XXX'
+    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in alloc_bvar'
     err=20; return
    endif
    ! ensure the fraction sums to one

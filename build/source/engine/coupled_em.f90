@@ -29,7 +29,8 @@ contains
  ! data structures and named variables
  USE data_struc,only:data_step                                                      ! time step of forcing data (s)
  USE data_struc,only:model_decisions                                                ! model decision structure
- USE data_struc,only:type_data,attr_data,forc_data,mpar_data,mvar_data,indx_data    ! data structures
+ USE data_struc,only:type_data,attr_data,forc_data,mpar_data                        ! data structures
+ USE data_struc,only:bvar_data,mvar_data,indx_data                                  ! data structures
  USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
  USE data_struc,only:ix_soil,ix_snow                                                ! named variables for snow and soil
  USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookINDEX ! named variables for structure elements
@@ -271,14 +272,24 @@ contains
 
   ! (4) solve model equations...
   ! ----------------------------
-
-  call systemSolv(dt_sub,maxiter,(nsub==1),computeVegFlux,&  ! input
-                  niter,err,cmessage)                        ! output
-
-
-
-
-
+  call systemSolv(&
+                  ! input: model control
+                  dt_sub,                                 & ! intent(in): length of the model sub-step
+                  maxiter,                                & ! intent(in): maximum number of iterations
+                  (nsub==1),                              & ! intent(in): logical flag to denote the first substep
+                  computeVegFlux,                         & ! intent(in): logical flag to compute fluxes within the vegetation canopy
+                  ! input/output: data structures
+                  type_data,                              & ! intent(in):    type of vegetation and soil
+                  attr_data,                              & ! intent(in):    spatial attributes
+                  forc_data,                              & ! intent(in):    model forcing data
+                  mpar_data,                              & ! intent(in):    model parameters
+                  mvar_data,                              & ! intent(inout): model variables for a local HRU
+                  bvar_data,                              & ! intent(in):    model variables for the local basin
+                  model_decisions,                        & ! intent(in):    model decisions
+                  ! output: model control
+                  niter,                                  & ! intent(out): number of iterations
+                  err,cmessage)                             ! intent(out): error code and error message
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif 
 
   ! (4) use Picard iteration to solve model equations...
   ! ----------------------------------------------------
@@ -364,7 +375,7 @@ contains
 
   ! increment the time step increment
   dt_done = dt_done + dt_sub
-  !print*, '***** ', dt_done, dt_sub, niter
+  print*, '***** ', dt_done, dt_sub, niter
 
   ! modify the length of the time step
   if(niter<n_inc) dt_sub = min(dt_sub*F_inc,maxstep)

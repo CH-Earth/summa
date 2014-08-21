@@ -11,7 +11,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =
+F_MASTER = /home/mclark/summa
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/build/source
@@ -161,7 +161,7 @@ SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
 #========================================================================
 
 # Define the Fortran Compiler
-FC  =
+FC  = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -178,6 +178,10 @@ ifeq "$(FC)" "pgf90"
 endif
 LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
 INCNETCDF = -I$(NCDF_PATH)/include
+
+# define the lapack libraries
+LAPK_PATH = /usr
+LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 
 # Define the driver routine
 SUMMA_DRIVER= \
@@ -264,7 +268,7 @@ compile_summa:
 
 # link routines
 link:
-	$(FC) *.o $(LIBNETCDF) -o $(DRIVER__EX)
+	$(FC) *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
 
 # Remove object files
 clean:
