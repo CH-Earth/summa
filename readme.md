@@ -18,9 +18,9 @@ SUMMA can be used to configure a wide range of hydrological model alternatives. 
 ##Credits
 SUMMA's initial implementation is described in two papers that have been submitted to [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
 
- * Clark, M. P., B. Nijssen, J. Lundquist, D. Kavetski, D. Rupp, R. Woods, E. Gutmann, A. Wood, L. Brekke, J. Arnold, D. Gochis, R. Rasmussen, 2014: A unified approach to hydrologic modeling: Part 1. Model structure. *Water Resources Research*, in review.
+ * Clark, Martyn P., Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andy W. Wood, Levi D. Brekke, Jeff A. Arnold, David J. Gochis, and Roy M. Rasmussen, 2014: A unified approach for process-based hydrologic modeling. Part 1: Modeling concept. *Water Resources Research*, in review.
 
- * Clark, M. P., B. Nijssen, J. Lundquist, D. Kavetski, D. Rupp, R. Woods, E. Gutmann, A. Wood, D. Gochis, R. Rasmussen, D. Tarboton, V. Mahat, G. Flerchinger, D. Marks 2014: A unified approach to hydrologic modeling: Part 2. Comparison of alternative process representations. *Water Resources Research*, in review.
+ * Clark, Martyn P., Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andy W. Wood, David J. Gochis, Roy M. Rasmussen, David G. Tarboton, Vinod Mahat, Gerald N. Flerchinger, and Danny G. Marks, 2014: A unified approach for process-based hydrologic modeling: Part 2. Model implementation and example applications. *Water Resources Research*, in review.
 
 ##Installation
 
