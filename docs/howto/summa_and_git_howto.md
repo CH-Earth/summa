@@ -12,7 +12,7 @@ Git is a version control tool that we use to...
  * to distribute official and bleeding edge releases of the model source code.
 
 ## SUMMA for model users (non developers)
-In general, if you plan to apply the model rather than work directly on the source code, you may just download the model from the [SUMMA GitHub page](https://github.com/UW-Hydro/summa). Additional archived tags and releases (including all previous SUMMA versions) are available [here](https://github.com/UW-Hydro/summa/tags). You can simply compile the code and start working. If you want to work with the code and contribute to SUMMA development, read on.
+In general, if you plan to apply the model rather than work directly on the source code, you may just download the model from the [SUMMA GitHub page](https://github.com/UCAR/summa). Additional archived tags and releases (including all previous SUMMA versions) are available [here](https://github.com/UCAR/summa/tags). You can simply compile the code and start working. If you want to work with the code and contribute to SUMMA development, read on.
 
 ## SUMMA for developers
 If you plan on contributing to model development or would like a systematic way to incorporate updates to the SUMMA source code, we encourage you to use Git. The following sections are designed to get you started using Git and working with the SUMMA source code repository.
@@ -31,7 +31,7 @@ The basics steps to get the SUMMA source code repository are as follows. This is
 
 Using Git involves a few different copies of the archive (there is more than one way to use Git -- this is how we propose you use it):
 
-1. **Truth repo:** this is the master copy of the archive, maintained on the GitHub server at https://github.com/UW-Hydro/summa. You will not be able to edit this or push code to it directly. We don't either, we work on our own copy of this repo and only integrate the changes into the truth repo when they have been tested and reviewed.
+1. **Truth repo:** this is the master copy of the archive, maintained on the GitHub server at https://github.com/UCAR/summa. You will not be able to edit this or push code to it directly. We don't either, we work on our own copy of this repo and only integrate the changes into the truth repo when they have been tested and reviewed.
 
 2. **Your fork of the truth repo:** this is your version of the archive, maintained on the GitHub server by you. This is generally **not** where you edit code; it is more of a transfer point between your clone (see below) and the truth repo. Git keeps track of the differences between your fork and the truth repo. To move code changes from your fork to the truth repo, you must make a "pull request" to the SUMMA truth repo. If it's decided that your code has been sufficiently tested and reviewed and that it is a useful addition to SUMMA, then the administrators of the truth repo will do the actual pull (don't worry if some of the terminology does not yet make sense at this point).
 
@@ -43,7 +43,7 @@ One more note: In most of the following we are assuming that you will do much of
 
 #### Step 1: Fork the repo
 
-If you do not have a github account, create one. It's free for public repos (like the SUMMA one). Once you have an account, go to the [UW-Hydro/summa](https://github.com/UW-Hydro/summa) page and click "Fork" in the upper right hand corner.
+If you do not have a github account, create one. It's free for public repos (like the SUMMA one). Once you have an account, go to the [UCAR/summa](https://github.com/UCAR/summa) page and click "Fork" in the upper right hand corner.
 
 #### Step 2: Clone your fork
 
@@ -84,7 +84,7 @@ then you are not in a Git repository (note that the top level directory in a Git
 
 Assign the truth repo to a remote tracking branch called `upstream`, which will allow you easily pull in changes that are made in the truth repo and keep your clone in-sync with that version. Once you get more familiar with Git, you will be able to control which updates to include:
 
-    git remote add --tracking upstream https://github.com/UW-Hydro/summa.git
+    git remote add --tracking upstream https://github.com/UCAR/summa.git
 
 #### Step 4. Sync your clone with the truth repo
 
@@ -98,7 +98,7 @@ If you have already made changes to the code, this command by itself will not ov
 
 ##### 4.b. Merge changes
 
-Determine which branches you will need to work with. At the very least, this will include the master branch. If you are working on a hotfix or a feature branch that already exists, you will need this branch as well; the SUMMA administrator has likely given you the name of the appropriate branch to use. Alternatively, you may want to create a new branch (e.g., if you are the first person to work on a new feature or bug fix). For more information about the branches in the SUMMA archive, see the [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/howto/summa_git_workflow.md).
+Determine which branches you will need to work with. At the very least, this will include the master branch. If you are working on a hotfix or a feature branch that already exists, you will need this branch as well; the SUMMA administrator has likely given you the name of the appropriate branch to use. Alternatively, you may want to create a new branch (e.g., if you are the first person to work on a new feature or bug fix). For more information about the branches in the SUMMA archive, see the [Git workflow for SUMMA](https://github.com/UCAR/summa/blob/master/docs/howto/summa_git_workflow.md).
 
 For each branch, merge any changes from the truth repo into your local version:
 
@@ -189,7 +189,7 @@ The SUMMA administrator and other developers will review your pull request and d
 
 ### Git workflow
 
-For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found [here](https://github.com/UW-Hydro/summa/docs/summa_git_workflow.md).
+For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found [here](https://github.com/UCAR/summa/docs/summa_git_workflow.md).
 
 
 

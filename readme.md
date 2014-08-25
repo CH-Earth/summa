@@ -37,7 +37,7 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
     * You have the NetCDF Fortran library installed (`libnetcdff.*`) and not just the C-version.
 
 
- * a copy of the SUMMA source code from [this repo](https://github.com/UW-Hydro/summa). You have a number of options:
+ * a copy of the SUMMA source code from [this repo](https://github.com/UCAR/summa). You have a number of options:
 
     * If you just want to use the latest stable release of SUMMA, then simply look for the most recent tag;
     * If you want the latest and greatest (and potentially erroneous), download a copy of the master branch (or clone it);
@@ -45,10 +45,10 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
     Note that you will not be able to contribute to the main SUMMA repo directly. If you are seriously interested in contributing, spend a little time learning git. It will be useful anyway. For more information about working with the SUMMA code, please see the following documents:
 
-    * [SUMMA and Git](https://github.com/UW-Hydro/summa/docs/howto/summa_and_git_howto.md)
-    * [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/howto/summa_git_workflow.md)
-    * [Git commands](https://github.com/UW-Hydro/summa/docs/howto/git_howto.md)
-    * [SUMMA coding conventions](https://github.com/UW-Hydro/summa/docs/howto/summa_coding_conventions.md)
+    * [SUMMA and Git](https://github.com/UCAR/summa/blob/master/docs/howto/summa_and_git_howto.md)
+    * [Git workflow for SUMMA](https://github.com/UCAR/summa/blob/master/docs/howto/summa_git_workflow.md)
+    * [Git commands](https://github.com/UCAR/summa/blob/master/docs/howto/git_howto.md)
+    * [SUMMA coding conventions](https://github.com/UCAR/summa/blob/master/docs/howto/summa_coding_conventions.md)
 
 Once you have all the above, you can compile SUMMA using the following steps:
 

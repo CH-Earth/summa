@@ -2,7 +2,7 @@
 
 > Note: This document has been conveniently adapted from the [Cookbook for working with Git and VIC](https://github.com/UW-Hydro/VIC/wiki/Git-Workflow)
 
-The basic workflow described here follows a workflow originally outlined by Vincent Driessen. The workflow is built around the Git version control system. A basic description of the branching strategy and release management used for SUMMA is presented here. We use a central truth repository (https://github.com/UW-Hydro/summa) that contains our main branches and the official release version of SUMMA. All active development takes place on forks and clones of this repo.
+The basic workflow described here follows a workflow originally outlined by Vincent Driessen. The workflow is built around the Git version control system. A basic description of the branching strategy and release management used for SUMMA is presented here. We use a central truth repository (https://github.com/UCAR/summa) that contains our main branches and the official release version of SUMMA. All active development takes place on forks and clones of this repo.
 
 ## Main Branches
 
@@ -57,7 +57,7 @@ You have developed a novel way to parameterize the stomatal resistance and would
 
 The process would be as follows:
 
- * Navigate to the main [SUMMA repo](https://github.com/UW-Hydro/summa)
+ * Navigate to the main [SUMMA repo](https://github.com/UCAR/summa)
 
  * Fork the repo by clicking on the 'Fork' button in the upper right corner
 
@@ -67,7 +67,7 @@ The process would be as follows:
 
  * Add the main SUMMA repo as the upstream remote, so you can easily merge changes that are made in the main SUMMA repo into your own local repo
 
-        git add remote upstream git@github.com:UW-Hydro/summa.git
+        git add remote upstream git@github.com:UCAR/summa.git
 
  * Checkout the `develop` branch
 
