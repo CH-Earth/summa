@@ -51,7 +51,7 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
 
         sudo port install ncview
 
- 1. Now obtain the SUMMA source code from the [SUMMA source code repository](https://github.com/UW-Hydro/summa). You may just want to download the latest tagged release. Since you are not planning to contribute to the source code, there is no need to clone or fork the repository.
+ 1. Now obtain the SUMMA source code from the [SUMMA source code repository](https://github.com/UCAR/summa). You may just want to download the latest tagged release. Since you are not planning to contribute to the source code, there is no need to clone or fork the repository.
 
  1. Untar or unzip the archive, then go to the `summa/build` directory.
 

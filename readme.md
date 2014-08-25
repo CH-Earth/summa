@@ -18,9 +18,9 @@ SUMMA can be used to configure a wide range of hydrological model alternatives. 
 ##Credits
 SUMMA's initial implementation is described in two papers that have been submitted to [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
 
- * Clark, M. P., B. Nijssen, J. Lundquist, D. Kavetski, D. Rupp, R. Woods, E. Gutmann, A. Wood, L. Brekke, J. Arnold, D. Gochis, R. Rasmussen, 2014: A unified approach to hydrologic modeling: Part 1. Model structure. *Water Resources Research*, in review.
+ * Clark, Martyn P., Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andy W. Wood, Levi D. Brekke, Jeff A. Arnold, David J. Gochis, and Roy M. Rasmussen, 2014: A unified approach for process-based hydrologic modeling. Part 1: Modeling concept. *Water Resources Research*, in review.
 
- * Clark, M. P., B. Nijssen, J. Lundquist, D. Kavetski, D. Rupp, R. Woods, E. Gutmann, A. Wood, D. Gochis, R. Rasmussen, D. Tarboton, V. Mahat, G. Flerchinger, D. Marks 2014: A unified approach to hydrologic modeling: Part 2. Comparison of alternative process representations. *Water Resources Research*, in review.
+ * Clark, Martyn P., Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andy W. Wood, David J. Gochis, Roy M. Rasmussen, David G. Tarboton, Vinod Mahat, Gerald N. Flerchinger, and Danny G. Marks, 2014: A unified approach for process-based hydrologic modeling: Part 2. Model implementation and example applications. *Water Resources Research*, in review.
 
 ##Installation
 
@@ -37,7 +37,7 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
     * You have the NetCDF Fortran library installed (`libnetcdff.*`) and not just the C-version.
 
 
- * a copy of the SUMMA source code from [this repo](https://github.com/UW-Hydro/summa). You have a number of options:
+ * a copy of the SUMMA source code from [this repo](https://github.com/UCAR/summa). You have a number of options:
 
     * If you just want to use the latest stable release of SUMMA, then simply look for the most recent tag;
     * If you want the latest and greatest (and potentially erroneous), download a copy of the master branch (or clone it);
@@ -45,10 +45,10 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
     Note that you will not be able to contribute to the main SUMMA repo directly. If you are seriously interested in contributing, spend a little time learning git. It will be useful anyway. For more information about working with the SUMMA code, please see the following documents:
 
-    * [SUMMA and Git](https://github.com/UW-Hydro/summa/docs/howto/summa_and_git_howto.md)
-    * [Git workflow for SUMMA](https://github.com/UW-Hydro/summa/docs/howto/summa_git_workflow.md)
-    * [Git commands](https://github.com/UW-Hydro/summa/docs/howto/git_howto.md)
-    * [SUMMA coding conventions](https://github.com/UW-Hydro/summa/docs/howto/summa_coding_conventions.md)
+    * [SUMMA and Git](https://github.com/UCAR/summa/blob/master/docs/howto/summa_and_git_howto.md)
+    * [Git workflow for SUMMA](https://github.com/UCAR/summa/blob/master/docs/howto/summa_git_workflow.md)
+    * [Git commands](https://github.com/UCAR/summa/blob/master/docs/howto/git_howto.md)
+    * [SUMMA coding conventions](https://github.com/UCAR/summa/blob/master/docs/howto/summa_coding_conventions.md)
 
 Once you have all the above, you can compile SUMMA using the following steps:
 
