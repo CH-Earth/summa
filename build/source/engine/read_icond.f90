@@ -25,6 +25,7 @@ contains
  USE soil_utils_module,only:volFracLiq             ! compute volumetric fraction of liquid water based on matric head
  USE soil_utils_module,only:matricHead             ! compute matric head based on volumetric fraction of liquid water
  USE soil_utils_module,only:crit_soilT             ! compute temperature above which all water is unfrozen
+ USE updatState_module,only:updateSoil             ! update soil states
  USE snow_fileManager,only:SETNGS_PATH             ! path for metadata files
  USE snow_fileManager,only:MODEL_INITCOND          ! model initial conditions file
  USE ascii_util_module,only:file_open              ! open file
@@ -101,7 +102,8 @@ contains
  real(dp),pointer               :: scalarCanopyLiq     ! mass of liquid water on the vegetation canopy (kg m-2)
  real(dp)                       :: fLiq                ! fraction of liquid water on the vegetation canopy (-)
  real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2) 
-
+ real(dp)                       :: scalardMatric_dTk   ! derivative in matric head w.r.t. temperature (m K-1) -- not used
+ real(dp)                       :: scalardTk_dMatric   ! derivative in temperature w.r.t. matric head (K m-1) -- not used
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -472,27 +474,24 @@ contains
     endif  ! (if liquid water content > tension storage)
    ! ** soil
    case(ix_soil)
-    ! assign pointer to the matric head
-    scalarMatricHead => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer-nSnow)
-    ! compute the critical temperature above which all water is unfrozen (K)
-    Tcrit = crit_soilT(scalarTheta,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
-    ! compute the matric head (m) and volumetric fractio of liquid water and ice (-) for cases of frozen soil
-    if(scalarTemp < Tcrit) then
-     scalarMatricHead = kappa*(scalarTemp - Tfreeze)
-     scalarVolFracLiq = volFracLiq(scalarMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)
-    ! compute volumetric fraction of liquid water and ice (-) for cases of unfrozen soil
-    else
-     select case(model_decisions(iLookDECISIONS%f_Richards)%iDecision)
-      case(moisture)
-       scalarVolFracLiq = min(scalarVolFracLiq,maxVolFracLiq)
-       scalarMatricHead = matricHead(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      case(mixdform)
-       scalarVolFracLiq = volFracLiq(scalarMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      case default; err=20; message=trim(message)//"unknown form of Richards' equation"; return
-     end select
-     scalarVolFracIce = 0._dp
-    endif
+    ! assign pointers to model state variables
+    scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)             ! temperature (K) 
+    scalarMatricHead => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer-nSnow) ! matric head (m)
+    scalarVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer)       ! volumetric fraction of liquid water in each soil layer (-)
+    scalarVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer)       ! volumetric fraction of ice in each soil layer (-)
+    ! ensure consistency among state variables
+    call updateSoil(&
+                    ! input
+                    scalarTemp,                                & ! intent(in): layer temperature (K)
+                    scalarMatricHead,                          & ! intent(in): matric head (m)
+                    vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
+                    ! output
+                    scalarVolFracLiq,                          & ! intent(out): volumetric fraction of liquid water (-)
+                    scalarVolFracIce,                          & ! intent(out): volumetric fraction of ice (-)
+                    scalardMatric_dTk,                         & ! intent(out): derivative in matric head w.r.t. temperature (m K-1) -- not used
+                    scalardTk_dMatric,                         & ! intent(out): derivative in temperature w.r.t. matric head (K m-1)
+                    err,cmessage)                                ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
   endselect
  end do  ! (looping through layers)

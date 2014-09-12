@@ -141,6 +141,7 @@ character(len=1024)       :: message=''                     ! error message
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
+print*, 'start'
 ! get the initial time
 call date_and_time(cdate1,ctime1)
 print*,ctime1
@@ -332,7 +333,7 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
 endselect
 
 ! initialize time step length for each HRU
-dt_init(:) = 100._dp ! seconds
+dt_init(:) = 10._dp ! seconds
 
 ! initialize time step index
 jstep=1

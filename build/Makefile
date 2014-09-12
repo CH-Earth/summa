@@ -90,7 +90,6 @@ SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 # Old routines that are not currently used as part of the new refactor
 SUMMA_UNUSED= \
 		tridagSolv.f90 \
-		phseChange.f90 \
 		heatTransf.f90 \
 		can_Hydrol.f90 \
 		snowHydrol.f90 \
@@ -106,6 +105,7 @@ SUMMA_PRELIM= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
+		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
 		read_metad.f90 \

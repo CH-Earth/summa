@@ -4,6 +4,7 @@ implicit none
 private
 ! routines to make public
 public::iceImpede
+public::dIceImpede_dTemp
 public::hydCond_psi
 public::hydCond_liq
 public::hydCondMP_liq
@@ -73,6 +74,21 @@ contains
  !endif
  end subroutine iceImpede
 
+ ! ***********************************************************************************************************
+ ! new function: compute the derivative in the ice impedence factor w.r.t. temperature
+ ! ***********************************************************************************************************
+ subroutine dIceImpede_dTemp(volFracIce,dTheta_dT,f_impede,dIceImpede_dT)
+ ! computes the derivative in the ice impedance factor w.r.t. temperature
+ implicit none
+ ! input variables
+ real(dp),intent(in)     :: volFracIce        ! volumetric fraction of ice (-)
+ real(dp),intent(in)     :: dTheta_dT         ! derivative in volumetric liquid water content w.r.t temperature (K-1)
+ real(dp),intent(in)     :: f_impede          ! ice impedence parameter (-)
+ ! output variables
+ real(dp)                :: dIceImpede_dT     ! derivative in the ice impedance factor w.r.t. temperature (K-1)
+ ! --
+ dIceImpede_dT = log(10._dp)*f_impede*(10._dp**(-f_impede*volFracIce))*dTheta_dT
+ end subroutine dIceImpede_dTemp
 
  ! ***********************************************************************************************************
  ! new function: compute the hydraulic conductivity of macropores as a function of liquid water content (m s-1)
@@ -508,11 +524,16 @@ contains
  ! local variables
  real(dp)            :: kappa         ! constant (m K-1)
  real(dp)            :: xtemp         ! alpha*kappa*(Tk-Tfreeze) -- dimensionless variable (used more than once)
+
+
+
  ! compute kappa (m K-1)
- kappa = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
+ kappa = (LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
  ! define a tempory variable that is used more than once (-)
  xtemp = alpha*kappa*(Tk-Tfreeze)
  ! differentiate the freezing curve w.r.t. temperature -- making use of the chain rule
+
+
  dTheta_dTk = (alpha*kappa) * n*xtemp**(n - 1._dp) * (-m)*(1._dp + xtemp**n)**(-m - 1._dp) * (theta_sat - theta_res)
  end function dTheta_dTk
 

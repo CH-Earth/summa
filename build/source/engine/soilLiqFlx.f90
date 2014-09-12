@@ -54,6 +54,8 @@ contains
                        mLayerMatricHeadTrial,        & ! intent(in): matric head (m)
                        mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water (-)
                        mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice (-)
+                       ! input: pre-computed derivatives
+                       mLayerdTheta_dTk,             & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                        ! input: fluxes
                        scalarCanopyTranspiration,    & ! intent(in): canopy transpiration (kg m-2 s-1)
                        scalarGroundEvaporation,      & ! intent(in): ground evaporation (kg m-2 s-1)
@@ -62,12 +64,16 @@ contains
                        mLayerdTheta_dPsi,            & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                        mLayerdPsi_dTheta,            & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
                        ! output: fluxes
-                       iLayerLiqFluxSoil,            & ! intent(out): liquid fluxes at layer interfaces (m s-1)
-                       mLayerTranspire,              & ! intent(out): transpiration loss from each soil layer (m s-1)
-                       mLayerHydCond,                & ! intent(out): hydraulic conductivity in each soil layer (m s-1)
-                       ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-                       dq_dStateAbove,               & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
-                       dq_dStateBelow,               & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
+                       scalarSurfaceInfiltration,    & ! intent(inout): surface infiltration rate (m s-1) -- only computed for iter==1
+                       iLayerLiqFluxSoil,            & ! intent(out):   liquid fluxes at layer interfaces (m s-1)
+                       mLayerTranspire,              & ! intent(out):   transpiration loss from each soil layer (m s-1)
+                       mLayerHydCond,                & ! intent(out):   hydraulic conductivity in each soil layer (m s-1)
+                       ! output: derivatives in fluxes w.r.t. hydrology state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
+                       dq_dHydStateAbove,            & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
+                       dq_dHydStateBelow,            & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
+                       ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+                       dq_dNrgStateAbove,            & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+                       dq_dNrgStateBelow,            & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
                        ! output: error control
                        err,message)                    ! intent(out): error control
  ! model decisions
@@ -84,6 +90,8 @@ contains
  real(dp),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
  real(dp),intent(in)              :: mLayerVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)              :: mLayerVolFracIceTrial(:)      ! volumetric fraction of ice at the current iteration (-)
+ ! input: pre-computed derivatves
+ real(dp),intent(in)              :: mLayerdTheta_dTk(:)           ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
  ! input: model fluxes
  real(dp),intent(in)              :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
@@ -92,12 +100,16 @@ contains
  real(dp),intent(out)             :: mLayerdTheta_dPsi(:)          ! derivative in the soil water characteristic w.r.t. psi (m-1)
  real(dp),intent(out)             :: mLayerdPsi_dTheta(:)          ! derivative in the soil water characteristic w.r.t. theta (m)
  ! output: liquid fluxes
+ real(dp),intent(inout)           :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1) -- only computed for iter==1
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
  real(dp),intent(out)             :: mLayerHydCond(:)              ! hydraulic conductivity in each soil layer (m s-1)
  ! output: derivatives in fluxes w.r.t. state variables in the layer above and layer below (m s-1)
- real(dp),intent(out)             :: dq_dStateAbove(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
- real(dp),intent(out)             :: dq_dStateBelow(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
+ real(dp),intent(out)             :: dq_dHydStateAbove(0:)         ! derivative in the flux in layer interfaces w.r.t. state variables in the layer above
+ real(dp),intent(out)             :: dq_dHydStateBelow(0:)         ! derivative in the flux in layer interfaces w.r.t. state variables in the layer below
+ ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+ real(dp),intent(out)             :: dq_dNrgStateAbove(0:)         ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+ real(dp),intent(out)             :: dq_dNrgStateBelow(0:)         ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)         :: err                           ! error code
  character(*),intent(out)         :: message                       ! error message
@@ -130,6 +142,9 @@ contains
                         mLayerMatricHeadTrial,                                         & ! intent(in): matric head (m)
                         mLayerVolFracLiqTrial,                                         & ! intent(in): volumetric fraction of liquid water (-)
                         mLayerVolFracIceTrial,                                         & ! intent(in): volumetric fraction of ice (-)
+
+                        ! input: pre-computed derivatives
+                        mLayerdTheta_dTk,                                              & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
 
                         ! input: fluxes
                         scalarCanopyTranspiration,                                     & ! intent(in): canopy transpiration (kg m-2 s-1)
@@ -189,13 +204,18 @@ contains
                         mLayerdPsi_dTheta,                                             & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
 
                         ! output: fluxes
-                        iLayerLiqFluxSoil,                                             & ! intent(out): liquid fluxes at layer interfaces (m s-1)
-                        mLayerTranspire,                                               & ! intent(out): transpiration loss from each soil layer (m s-1)
-                        mLayerHydCond,                                                 & ! intent(out): hydraulic conductivity in each soil layer (m s-1)
+                        scalarSurfaceInfiltration,                                     & ! intent(inout): surface infiltration rate (m s-1) -- only computed for iter==1
+                        iLayerLiqFluxSoil,                                             & ! intent(out):   liquid fluxes at layer interfaces (m s-1)
+                        mLayerTranspire,                                               & ! intent(out):   transpiration loss from each soil layer (m s-1)
+                        mLayerHydCond,                                                 & ! intent(out):   hydraulic conductivity in each soil layer (m s-1)
 
-                        ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-                        dq_dStateAbove,                                                & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
-                        dq_dStateBelow,                                                & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
+                        ! output: derivatives in fluxes w.r.t. hydrology state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
+                        dq_dHydStateAbove,                                             & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
+                        dq_dHydStateBelow,                                             & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
+
+                        ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+                        dq_dNrgStateAbove,                                             & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+                        dq_dNrgStateBelow,                                             & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
 
                         ! output: error control
                         err,cmessage)                                                    ! intent(out): error control
@@ -235,6 +255,9 @@ contains
                               mLayerMatricHeadTrial,       & ! intent(in): matric head (m)
                               mLayerVolFracLiqTrial,       & ! intent(in): volumetric fraction of liquid water (-)
                               mLayerVolFracIceTrial,       & ! intent(in): volumetric fraction of ice (-)
+
+                              ! input: pre-computed derivatives
+                              mLayerdTheta_dTk,            & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
 
                               ! input: fluxes
                               scalarCanopyTranspiration,   & ! intent(in): canopy transpiration (kg m-2 s-1)
@@ -294,13 +317,18 @@ contains
                               mLayerdPsi_dTheta,           & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
 
                               ! output: fluxes
-                              iLayerLiqFluxSoil,           & ! intent(out): liquid fluxes at layer interfaces (m s-1)
-                              mLayerTranspire,             & ! intent(out): transpiration loss from each soil layer (m s-1)
-                              mLayerHydCond,               & ! intent(out): hydraulic conductivity in each soil layer (m s-1)
+                              scalarSurfaceInfiltration,   & ! intent(inout): surface infiltration rate (m s-1) -- only computed for iter==1
+                              iLayerLiqFluxSoil,           & ! intent(out):   liquid fluxes at layer interfaces (m s-1)
+                              mLayerTranspire,             & ! intent(out):   transpiration loss from each soil layer (m s-1)
+                              mLayerHydCond,               & ! intent(out):   hydraulic conductivity in each soil layer (m s-1)
 
-                              ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-                              dq_dStateAbove,              & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
-                              dq_dStateBelow,              & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
+                              ! output: derivatives in fluxes w.r.t. hydrology state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
+                              dq_dHydStateAbove,           & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
+                              dq_dHydStateBelow,           & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
+
+                              ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+                              dq_dNrgStateAbove,           & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+                              dq_dNrgStateBelow,           & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
 
                               ! output: error control
                               err,message)                   ! intent(out): error control
@@ -329,6 +357,8 @@ contains
  real(dp),intent(in)              :: mLayerMatricHeadTrial(:)     ! matric head in each layer at the current iteration (m)
  real(dp),intent(in)              :: mLayerVolFracLiqTrial(:)     ! volumetric fraction of liquid water at the current iteration (-)
  real(dp),intent(in)              :: mLayerVolFracIceTrial(:)     ! volumetric fraction of ice at the current iteration (-)
+ ! input: pre-computed derivatves
+ real(dp),intent(in)              :: mLayerdTheta_dTk(:)          ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
  ! input: model fluxes
  real(dp),intent(in)              :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(in)              :: scalarGroundEvaporation      ! ground evaporation (kg m-2 s-1)
@@ -381,12 +411,16 @@ contains
  real(dp),intent(out)             :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. psi (m-1)
  real(dp),intent(out)             :: mLayerdPsi_dTheta(:)         ! derivative in the soil water characteristic w.r.t. theta (m)
  ! output: liquid fluxes
+ real(dp),intent(inout)           :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1) -- only computed for iter==1
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
  real(dp),intent(out)             :: mLayerHydCond(:)              ! hydraulic conductivity in each soil layer (m s-1)
  ! output: derivatives in fluxes w.r.t. state variables in the layer above and layer below (m s-1)
- real(dp),intent(out)             :: dq_dStateAbove(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
- real(dp),intent(out)             :: dq_dStateBelow(0:)            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
+ real(dp),intent(out)             :: dq_dHydStateAbove(0:)         ! derivative in the flux in layer interfaces w.r.t. state variables in the layer above
+ real(dp),intent(out)             :: dq_dHydStateBelow(0:)         ! derivative in the flux in layer interfaces w.r.t. state variables in the layer below
+ ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+ real(dp),intent(out)             :: dq_dNrgStateAbove(0:)         ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+ real(dp),intent(out)             :: dq_dNrgStateBelow(0:)         ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)         :: err                          ! error code
  character(*),intent(out)         :: message                      ! error message
@@ -427,12 +461,12 @@ contains
  real(dp),dimension(nSoil)        :: dHydCond_dVolLiq             ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
  real(dp),dimension(nSoil)        :: dDiffuse_dVolLiq             ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
  real(dp),dimension(nSoil)        :: dHydCond_dMatric             ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+ real(dp),dimension(nSoil)        :: dHydCond_dTemp               ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
  real(dp),dimension(0:nSoil)      :: iLayerHydCond                ! hydraulic conductivity at layer interface (m s-1)
  real(dp),dimension(0:nSoil)      :: iLayerDiffuse                ! diffusivity at layer interface (m2 s-1)
  ! compute surface flux
  integer(i4b)                     :: nRoots                       ! number of soil layers with roots
  integer(i4b)                     :: ixIce                        ! index of the lowest soil layer that contains ice
- real(dp)                         :: scalarSurfaceInfiltration    ! surface infiltration rate (m s-1)
  ! compute fluxes and derivatives at layer interfaces 
  real(dp),dimension(2)            :: vectorVolFracLiqTrial        ! trial value of volumetric liquid water content (-)
  real(dp),dimension(2)            :: vectorMatricHeadTrial        ! trial value of matric head (m)
@@ -507,9 +541,11 @@ contains
                   desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
                   ixRichards,                      & ! intent(in): index defining the option for Richards' equation (moisture or mixdform)
                   ! input: state variables
-                  mLayerMatricHeadTrial(iSoil),    & ! intent(in):  matric head in each layer
-                  mLayerVolFracLiqTrial(iSoil),    & ! intent(in):  volumetric liquid water content in each soil layer (-)
-                  mLayerVolFracIceTrial(iSoil),    & ! intent(in):  volumetric ice content in each soil layer (-)
+                  mLayerMatricHeadTrial(iSoil),    & ! intent(in): matric head in each layer
+                  mLayerVolFracLiqTrial(iSoil),    & ! intent(in): volumetric liquid water content in each soil layer (-)
+                  mLayerVolFracIceTrial(iSoil),    & ! intent(in): volumetric ice content in each soil layer (-)
+                  ! input: pre-computed deriavatives
+                  mLayerdTheta_dTk(iSoil),         & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                   ! input: soil parameters
                   vGn_alpha,                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
                   vGn_n,                           & ! intent(in): van Genutchen "n" parameter (-)
@@ -533,6 +569,7 @@ contains
                   dHydCond_dVolLiq(iSoil),         & ! intent(out): derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
                   dDiffuse_dVolLiq(iSoil),         & ! intent(out): derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
                   dHydCond_dMatric(iSoil),         & ! intent(out): derivative in hydraulic conductivity w.r.t matric head (m s-1)
+                  dHydCond_dTemp(iSoil),           & ! intent(out): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                   ! output: error control
                   err,cmessage)                      ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -547,7 +584,8 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
  ! set derivative w.r.t. state above to zero (does not exist)
- dq_dStateAbove(0) = 0._dp
+ dq_dHydStateAbove(0) = 0._dp
+ dq_dNrgStateAbove(0) = 0._dp
 
  ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
  do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
@@ -635,7 +673,8 @@ contains
                   scalarSurfaceRunoff,                & ! intent(inout): surface runoff (m s-1)
                   scalarSurfaceInfiltration,          & ! intent(inout): surface infiltration (m s-1)
                   ! input-output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
-                  dq_dStateBelow(0),                  & ! intent(inout): derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
+                  dq_dHydStateBelow(0),               & ! intent(inout): derivative in surface infiltration w.r.t. hydrology state variable in the upper-most soil layer (m s-1 or s-1)
+                  dq_dNrgStateBelow(0),               & ! intent(out):   derivative in surface infiltration w.r.t. energy state variable in the upper-most soil layer (m s-1 K-1)
                   ! output: error control
                   err,cmessage)                         ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -656,10 +695,10 @@ contains
 
  ! compute numerical derivatives
  if(deriv_desired .and. ixDerivMethod==numerical)then
-  dq_dStateBelow(0) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
+  dq_dHydStateBelow(0) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
  endif
  !print*, 'scalarSurfaceInfiltration, iLayerLiqFluxSoil(0) = ', scalarSurfaceInfiltration, iLayerLiqFluxSoil(0)
- !print*, '(ixDerivMethod==numerical), dq_dStateBelow(0) = ', (ixDerivMethod==numerical), dq_dStateBelow(0)
+ !print*, '(ixDerivMethod==numerical), dq_dHydStateBelow(0) = ', (ixDerivMethod==numerical), dq_dHydStateBelow(0)
  !pause
 
  ! *************************************************************************************************************************************************
@@ -745,14 +784,18 @@ contains
                    dHydCond_dVolLiq(iLayer:iLayer+1),  & ! intent(in): change in hydraulic conductivity w.r.t. change in volumetric liquid water content (m s-1)
                    dDiffuse_dVolLiq(iLayer:iLayer+1),  & ! intent(in): change in hydraulic diffusivity w.r.t. change in volumetric liquid water content (m2 s-1)
                    dHydCond_dMatric(iLayer:iLayer+1),  & ! intent(in): change in hydraulic conductivity w.r.t. change in matric head (s-1)
+                   dHydCond_dTemp(iLayer:iLayer+1),    & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)     
                    ! output: tranmsmittance at the layer interface (scalars)
                    iLayerHydCond(iLayer),              & ! intent(out): hydraulic conductivity at the interface between layers (m s-1)
                    iLayerDiffuse(iLayer),              & ! intent(out): hydraulic diffusivity at the interface between layers (m2 s-1)
                    ! output: vertical flux at the layer interface (scalars)
                    iLayerLiqFluxSoil(iLayer),          & ! intent(out): vertical flux of liquid water at the layer interface (m s-1)
                    ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-                   dq_dStateAbove(iLayer),             & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-                   dq_dStateBelow(iLayer),             & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1) 
+                   dq_dHydStateAbove(iLayer),          & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+                   dq_dHydStateBelow(iLayer),          & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1) 
+                   ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+                   dq_dNrgStateAbove(iLayer),          & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+                   dq_dNrgStateBelow(iLayer),          & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
                    ! output: error control
                    err,cmessage)                         ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -771,13 +814,15 @@ contains
 
   ! compute numerical derivatives
   if(deriv_desired .and. ixDerivMethod==numerical)then
-   dq_dStateAbove(iLayer) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
-   dq_dStateBelow(iLayer) = (scalarFlux_dStateBelow - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
+   dq_dHydStateAbove(iLayer) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
+   dq_dHydStateBelow(iLayer) = (scalarFlux_dStateBelow - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
   endif
   
   ! check
-  !if(iLayer==1) write(*,'(a,i4,1x,L1,1x,2(e15.5,1x))') 'iLayer, (ixDerivMethod==numerical), dq_dStateBelow(iLayer-1), dq_dStateAbove(iLayer) = ', &
-  !                                                      iLayer, (ixDerivMethod==numerical), dq_dStateBelow(iLayer-1), dq_dStateAbove(iLayer)
+  !if(iLayer==6) write(*,'(a,i4,1x,10(e25.15,1x))') 'iLayer, vectorMatricHeadTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer) = ',&
+  !                                                  iLayer, vectorMatricHeadTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer)
+  !if(iLayer==1) write(*,'(a,i4,1x,L1,1x,2(e15.5,1x))') 'iLayer, (ixDerivMethod==numerical), dq_dHydStateBelow(iLayer-1), dq_dHydStateAbove(iLayer) = ', &
+  !                                                      iLayer, (ixDerivMethod==numerical), dq_dHydStateBelow(iLayer-1), dq_dHydStateAbove(iLayer)
   !pause
 
  end do  ! (looping through soil layers)
@@ -886,7 +931,8 @@ contains
                   ! output: drainage flux
                   iLayerLiqFluxSoil(nSoil),        & ! intent(out): drainage flux (m s-1)
                   ! output: derivatives in drainage flux
-                  dq_dStateAbove(nSoil),           & ! intent(out): change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
+                  dq_dHydStateAbove(nSoil),        & ! intent(out): change in drainage flux w.r.t. change in hydrology state in lowest unsaturated node (m s-1 or s-1)
+                  dq_dNrgStateAbove(nSoil),        & ! intent(out): change in drainage flux w.r.t. change in energy state in lowest unsaturated node (m s-1 or s-1)
                   ! output: error control
                   err,cmessage)                ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -907,11 +953,15 @@ contains
  ! NOTE: drainage derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
  !       (note also negative sign to account for inverse relationship between water table depth and aquifer storage)
  if(deriv_desired .and. ixDerivMethod==numerical)then
-  dq_dStateAbove(nSoil) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
+  dq_dHydStateAbove(nSoil) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
  endif
 
  ! no dependence on the aquifer for drainage
- dq_dStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
+ dq_dHydStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
+ dq_dNrgStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
+
+ ! print drainage
+ !print*, 'iLayerLiqFluxSoil(nSoil) = ', iLayerLiqFluxSoil(nSoil)
  
  ! end of drainage section
 
@@ -940,9 +990,11 @@ contains
                        deriv_desired,         & ! intent(in): flag indicating if derivatives are desired
                        ixRichards,            & ! intent(in): index defining the option for Richards' equation (moisture or mixdform)
                        ! input: state variables
-                       scalarMatricHeadTrial, & ! intent(in):  matric head in a given
-                       scalarVolFracLiqTrial, & ! intent(in):  volumetric liquid water content in a given soil layer (-)
-                       scalarVolFracIceTrial, & ! intent(in):  volumetric ice content in a given soil layer (-)
+                       scalarMatricHeadTrial, & ! intent(in): matric head in a given
+                       scalarVolFracLiqTrial, & ! intent(in): volumetric liquid water content in a given soil layer (-)
+                       scalarVolFracIceTrial, & ! intent(in): volumetric ice content in a given soil layer (-)
+                       ! input: pre-computed deriavatives
+                       dTheta_dTk,            & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                        ! input: soil parameters
                        vGn_alpha,             & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                 & ! intent(in): van Genutchen "n" parameter (-)
@@ -966,18 +1018,20 @@ contains
                        dHydCond_dVolLiq,      & ! intent(out): derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
                        dDiffuse_dVolLiq,      & ! intent(out): derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
                        dHydCond_dMatric,      & ! intent(out): derivative in hydraulic conductivity w.r.t matric head (m s-1)
+                       dHydCond_dTemp,        & ! intent(out): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                        ! output: error control
                        err,message)             ! intent(out): error control
- USE soil_utils_module,only:iceImpede       ! compute the ice impedence factor
- USE soil_utils_module,only:volFracLiq      ! compute volumetric fraction of liquid water as a function of matric head
- USE soil_utils_module,only:hydCond_psi     ! compute hydraulic conductivity as a function of matric head
- USE soil_utils_module,only:hydCond_liq     ! compute hydraulic conductivity as a function of volumetric liquid water content
- USE soil_utils_module,only:hydCondMP_liq   ! compute hydraulic conductivity of macropores as a function of volumetric liquid water content
- USE soil_utils_module,only:dTheta_dPsi     ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
- USE soil_utils_module,only:dPsi_dTheta     ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
- USE soil_utils_module,only:dPsi_dTheta2    ! compute derivative in dPsi_dTheta (m)
- USE soil_utils_module,only:dHydCond_dLiq   ! compute derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
- USE soil_utils_module,only:dHydCond_dPsi   ! compute derivative in hydraulic conductivity w.r.t. matric head
+ USE soil_utils_module,only:iceImpede           ! compute the ice impedence factor
+ USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water as a function of matric head
+ USE soil_utils_module,only:hydCond_psi         ! compute hydraulic conductivity as a function of matric head
+ USE soil_utils_module,only:hydCond_liq         ! compute hydraulic conductivity as a function of volumetric liquid water content
+ USE soil_utils_module,only:hydCondMP_liq       ! compute hydraulic conductivity of macropores as a function of volumetric liquid water content
+ USE soil_utils_module,only:dTheta_dPsi         ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
+ USE soil_utils_module,only:dPsi_dTheta         ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
+ USE soil_utils_module,only:dPsi_dTheta2        ! compute derivative in dPsi_dTheta (m)
+ USE soil_utils_module,only:dHydCond_dLiq       ! compute derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
+ USE soil_utils_module,only:dHydCond_dPsi       ! compute derivative in hydraulic conductivity w.r.t. matric head (s-1)
+ USE soil_utils_module,only:dIceImpede_dTemp    ! compute the derivative in the ice impedance factor w.r.t. temperature (K-1)
  ! compute hydraulic transmittance and derivatives for all layers
  implicit none
  ! input: model control
@@ -987,6 +1041,8 @@ contains
  real(dp),intent(in)           :: scalarMatricHeadTrial     ! matric head in each layer (m)
  real(dp),intent(in)           :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
  real(dp),intent(in)           :: scalarVolFracIceTrial     ! volumetric fraction of ice in a given layer (-)
+ ! input: pre-computed deriavatives
+ real(dp),intent(in)           :: dTheta_dTk                ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
  ! input: soil parameters
  real(dp),intent(in)           :: vGn_alpha                 ! van Genutchen "alpha" parameter (m-1)
  real(dp),intent(in)           :: vGn_n                     ! van Genutchen "n" parameter (-)
@@ -1010,12 +1066,14 @@ contains
  real(dp),intent(out)          :: dHydCond_dVolLiq          ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
  real(dp),intent(out)          :: dDiffuse_dVolLiq          ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
  real(dp),intent(out)          :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+ real(dp),intent(out)          :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
  ! local variables
  real(dp)                      :: localVolFracLiq           ! local volumetric fraction of liquid water
  real(dp)                      :: scalarHydCondMP           ! hydraulic conductivity of macropores at layer mid-points (m s-1)
+ real(dp)                      :: dIceImpede_dT             ! derivative in ice impedance factor w.r.t. temperature (K-1)
  real(dp)                      :: dHydCondMacro_dVolLiq     ! derivative in hydraulic conductivity of macropores w.r.t volumetric liquid water content (m s-1) 
  real(dp)                      :: dHydCondMacro_dMatric     ! derivative in hydraulic conductivity of macropores w.r.t matric head (s-1)
  real(dp)                      :: dHydCondMicro_dMatric     ! derivative in hydraulic conductivity of micropores w.r.t matric head (s-1)
@@ -1104,6 +1162,13 @@ contains
     endif
     ! (combine derivatives)
     dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
+    ! (compute analytical derivative for change in ice impedance factor w.r.t. temperature)
+    call dIceImpede_dTemp(scalarVolFracIceTrial, & ! intent(in): trial value of volumetric ice content (-)
+                          dTheta_dTk,            & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          f_impede,              & ! intent(in): ice impedance parameter (-)
+                          dIceImpede_dT          ) ! intent(out): derivative in ice impedance factor w.r.t. temperature (K-1)
+    ! (compute derivative in hydraulic conductivity w.r.t. temperature
+    dHydCond_dTemp = hydCond_noIce*dIceImpede_dT
     ! (set values that are not used to missing)
     dHydCond_dVolLiq = valueMissing ! not used, so cause problems
     dDiffuse_dVolLiq = valueMissing ! not used, so cause problems
@@ -1177,7 +1242,8 @@ contains
                        scalarSurfaceRunoff,       & ! intent(inout): surface runoff (m s-1)
                        scalarSurfaceInfiltration, & ! intent(inout): surface infiltration (m s-1)
                        ! input-output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
-                       dq_dState,                 & ! intent(inout): derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
+                       dq_dHydState,              & ! intent(inout): derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
+                       dq_dNrgState,              & ! intent(out):   derivative in surface infiltration w.r.t. energy state variable in the upper-most soil layer (m s-1 K-1)
                        ! output: error control
                        err,message)                 ! intent(out): error control
  USE soil_utils_module,only:volFracLiq      ! compute volumetric fraction of liquid water as a function of matric head (-)
@@ -1237,7 +1303,8 @@ contains
  real(dp),intent(inout)        :: scalarSurfaceRunoff       ! surface runoff (m s-1)
  real(dp),intent(inout)        :: scalarSurfaceInfiltration ! surface infiltration (m s-1)
  ! output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
- real(dp),intent(out)          :: dq_dState                 ! derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
+ real(dp),intent(out)          :: dq_dHydState              ! derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
+ real(dp),intent(out)          :: dq_dNrgState              ! derivative in surface infiltration w.r.t. energy state variable in the upper-most soil layer (m s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
@@ -1268,6 +1335,10 @@ contains
  real(dp)                      :: xLimg                     ! upper limit of the integral
  ! initialize error control
  err=0; message="surfaceFlx/"
+
+ ! compute derivative in the energy state
+ ! NOTE: revisit the need to do this
+ dq_dNrgState = 0._dp
 
  ! *****
  ! compute the surface flux and its derivative
@@ -1301,8 +1372,8 @@ contains
    ! compute the derivative
    if(deriv_desired)then
     select case(ixRichards)  ! (form of Richards' equation)
-     case(moisture); dq_dState = -surfaceDiffuse/(mLayerDepth(1)/2._dp)
-     case(mixdform); dq_dState = -surfaceHydCond/(mLayerDepth(1)/2._dp)
+     case(moisture); dq_dHydState = -surfaceDiffuse/(mLayerDepth(1)/2._dp)
+     case(mixdform); dq_dHydState = -surfaceHydCond/(mLayerDepth(1)/2._dp)
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
     ! compute the numerical derivative
@@ -1310,11 +1381,11 @@ contains
     surfaceInfiltration1 = cflux + surfaceHydCond
     dNum  = (surfaceInfiltration1 - scalarSurfaceInfiltration)/dx
    else
-    dq_dState = 0._dp
-    dNum      = 0._dp
+    dq_dHydState = 0._dp
+    dNum         = 0._dp
    endif
-   !write(*,'(a,1x,10(e30.20,1x))') 'scalarMatricHead, scalarSurfaceInfiltration, dq_dState, dNum = ', &
-   !                                 scalarMatricHead, scalarSurfaceInfiltration, dq_dState, dNum
+   !write(*,'(a,1x,10(e30.20,1x))') 'scalarMatricHead, scalarSurfaceInfiltration, dq_dHydState, dNum = ', &
+   !                                 scalarMatricHead, scalarSurfaceInfiltration, dq_dHydState, dNum
 
   ! *****
   ! flux condition
@@ -1385,7 +1456,7 @@ contains
    ! set numerical derivative to zero
    ! NOTE 1: Depends on multiple soil layers and does not jive with the current tridiagonal matrix
    ! NOTE 2: Need to define the derivative at every call, because intent(out)
-   dq_dState = 0._dp
+   dq_dHydState = 0._dp
 
   ! ***** error check
   case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return
@@ -1414,17 +1485,21 @@ contains
                        nodeHydCondTrial,          & ! intent(in): hydraulic conductivity at the soil nodes (m s-1)
                        nodeDiffuseTrial,          & ! intent(in): hydraulic diffusivity at the soil nodes (m2 s-1)
                        ! input: transmittance derivatives (adjacent layers)
-                       dHydCond_dVolLiq,          & ! intent(in): change in hydraulic conductivity w.r.t. change in volumetric liquid water content (m s-1)
-                       dDiffuse_dVolLiq,          & ! intent(in): change in hydraulic diffusivity w.r.t. change in volumetric liquid water content (m2 s-1)
-                       dHydCond_dMatric,          & ! intent(in): change in hydraulic conductivity w.r.t. change in matric head (s-1)
+                       dHydCond_dVolLiq,          & ! intent(in): derivative in hydraulic conductivity w.r.t. change in volumetric liquid water content (m s-1)
+                       dDiffuse_dVolLiq,          & ! intent(in): derivative in hydraulic diffusivity w.r.t. change in volumetric liquid water content (m2 s-1)
+                       dHydCond_dMatric,          & ! intent(in): derivative in hydraulic conductivity w.r.t. change in matric head (s-1)
+                       dHydCond_dTemp,            & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                        ! output: tranmsmittance at the layer interface (scalars)
                        iLayerHydCond,             & ! intent(out): hydraulic conductivity at the interface between layers (m s-1)
                        iLayerDiffuse,             & ! intent(out): hydraulic diffusivity at the interface between layers (m2 s-1)
                        ! output: vertical flux at the layer interface (scalars)
                        iLayerLiqFluxSoil,         & ! intent(out): vertical flux of liquid water at the layer interface (m s-1)
                        ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-                       dq_dStateAbove,            & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-                       dq_dStateBelow,            & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1) 
+                       dq_dHydStateAbove,         & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+                       dq_dHydStateBelow,         & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1) 
+                       ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+                       dq_dNrgStateAbove,         & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+                       dq_dNrgStateBelow,         & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
                        ! output: error control
                        err,message)                 ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1443,14 +1518,18 @@ contains
  real(dp),intent(in)           :: dHydCond_dVolLiq(:)         ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
  real(dp),intent(in)           :: dDiffuse_dVolLiq(:)         ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
  real(dp),intent(in)           :: dHydCond_dMatric(:)         ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+ real(dp),intent(in)           :: dHydCond_dTemp(:)           ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
  ! output: tranmsmittance at the layer interface (scalars)
  real(dp),intent(out)          :: iLayerHydCond               ! hydraulic conductivity at the interface between layers (m s-1)
  real(dp),intent(out)          :: iLayerDiffuse               ! hydraulic diffusivity at the interface between layers (m2 s-1)
  ! output: vertical flux at the layer interface (scalars)
  real(dp),intent(out)          :: iLayerLiqFluxSoil           ! vertical flux of liquid water at the layer interface (m s-1) 
  ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
- real(dp),intent(out)          :: dq_dStateAbove              ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
- real(dp),intent(out)          :: dq_dStateBelow              ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1) 
+ real(dp),intent(out)          :: dq_dHydStateAbove           ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+ real(dp),intent(out)          :: dq_dHydStateBelow           ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1) 
+ ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+ real(dp),intent(out)          :: dq_dNrgStateAbove           ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+ real(dp),intent(out)          :: dq_dNrgStateBelow           ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)      :: err                         ! error code
  character(*),intent(out)      :: message                     ! error message
@@ -1501,7 +1580,7 @@ contains
  ! compute the total flux (add gravity flux, positive downwards)
  iLayerLiqFluxSoil = cflux + iLayerHydCond
  !write(*,'(a,1x,10(e20.10,1x))') 'iLayerLiqFluxSoil, dPsi, dz, cflux, iLayerHydCond = ', &
- !                                  iLayerLiqFluxSoil, dPsi, dz, cflux, iLayerHydCond
+ !                                 iLayerLiqFluxSoil, dPsi, dz, cflux, iLayerHydCond
 
  ! ** compute the derivatives
  if(deriv_desired)then
@@ -1519,8 +1598,8 @@ contains
     dDiffuseIface_dVolLiqAbove = dDiffuse_dVolLiq(ixUpper)*nodeDiffuseTrial(ixLower) * 0.5_dp/max(iLayerDiffuse,verySmall)
     dDiffuseIface_dVolLiqBelow = dDiffuse_dVolLiq(ixLower)*nodeDiffuseTrial(ixUpper) * 0.5_dp/max(iLayerDiffuse,verySmall)
     ! derivatives in the flux w.r.t. volumetric liquid water content
-    dq_dStateAbove = -dDiffuseIface_dVolLiqAbove*dLiq/dz + iLayerDiffuse/dz + dHydCondIface_dVolLiqAbove
-    dq_dStateBelow = -dDiffuseIface_dVolLiqBelow*dLiq/dz - iLayerDiffuse/dz + dHydCondIface_dVolLiqBelow
+    dq_dHydStateAbove = -dDiffuseIface_dVolLiqAbove*dLiq/dz + iLayerDiffuse/dz + dHydCondIface_dVolLiqAbove
+    dq_dHydStateBelow = -dDiffuseIface_dVolLiqBelow*dLiq/dz - iLayerDiffuse/dz + dHydCondIface_dVolLiqBelow
    case(mixdform)
     ! derivatives in hydraulic conductivity
     if(useGeometric)then
@@ -1531,13 +1610,16 @@ contains
      dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)/2._dp
     endif
     ! derivatives in the flux w.r.t. matric head
-    dq_dStateAbove = -dHydCondIface_dMatricAbove*dPsi/dz + iLayerHydCond/dz + dHydCondIface_dMatricAbove
-    dq_dStateBelow = -dHydCondIface_dMatricBelow*dPsi/dz - iLayerHydCond/dz + dHydCondIface_dMatricBelow
+    dq_dHydStateAbove = -dHydCondIface_dMatricAbove*dPsi/dz + iLayerHydCond/dz + dHydCondIface_dMatricAbove
+    dq_dHydStateBelow = -dHydCondIface_dMatricBelow*dPsi/dz - iLayerHydCond/dz + dHydCondIface_dMatricBelow
+    ! derivative in the flux w.r.t. temperature
+    dq_dNrgStateAbove = -cflux*dHydCond_dTemp(ixUpper)/2._dp + dHydCond_dTemp(ixUpper)/2._dp
+    dq_dNrgStateBelow = -cflux*dHydCond_dTemp(ixLower)/2._dp + dHydCond_dTemp(ixLower)/2._dp
    case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
   end select
  else
-  dq_dStateAbove = valueMissing
-  dq_dStateBelow = valueMissing
+  dq_dHydStateAbove = valueMissing
+  dq_dHydStateBelow = valueMissing
  endif
 
  end subroutine iLayerFlux
@@ -1590,7 +1672,8 @@ contains
                        ! output: drainage flux from the bottom of the soil profile
                        scalarDrainage,            & ! intent(out): drainage flux from the bottom of the soil profile (m s-1)
                        ! output: derivatives in drainage flux
-                       dq_dStateUnsat,            & ! intent(out): change in drainage flux w.r.t. change in state variable in lowest unsaturated node (m s-1 or s-1)
+                       dq_dHydStateUnsat,         & ! intent(out): change in drainage flux w.r.t. change in hydrology state variable in lowest unsaturated node (m s-1 or s-1)
+                       dq_dNrgStateUnsat,         & ! intent(out): change in drainage flux w.r.t. change in energy state variable in lowest unsaturated node (m s-1 K-1)
                        ! output: error control
                        err,message)                 ! intent(out): error control
  USE soil_utils_module,only:volFracLiq      ! compute volumetric fraction of liquid water as a function of matric head (-)
@@ -1641,7 +1724,8 @@ contains
  ! output: drainage flux from the bottom of the soil profile
  real(dp),intent(out)          :: scalarDrainage            ! drainage flux from the bottom of the soil profile (m s-1)
  ! output: derivatives in drainage flux
- real(dp),intent(out)          :: dq_dStateUnsat            ! change in drainage flux w.r.t. change in state variable in lowest unsaturated node (m s-1 or s-1)
+ real(dp),intent(out)          :: dq_dHydStateUnsat         ! change in drainage flux w.r.t. change in state variable in lowest unsaturated node (m s-1 or s-1)
+ real(dp),intent(out)          :: dq_dNrgStateUnsat         ! change in drainage flux w.r.t. change in energy state variable in lowest unsaturated node (m s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
@@ -1653,6 +1737,10 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="qDrainFlux/"
+
+ ! compute change in drainage flux w.r.t. change in energy state variable in lowest unsaturated node (m s-1 K-1)
+ ! NOTE: revisit the need to do this
+ dq_dNrgStateUnsat = 0._dp
 
  ! determine lower boundary condition
  select case(bc_lower)
@@ -1683,12 +1771,12 @@ contains
    ! compute derivatives
    if(deriv_desired)then
     select case(ixRichards)  ! (form of Richards' equation)
-     case(moisture); dq_dStateUnsat = bottomDiffuse/(nodeDepth/2._dp)
-     case(mixdform); dq_dStateUnsat = bottomHydCond/(nodeDepth/2._dp)
+     case(moisture); dq_dHydStateUnsat = bottomDiffuse/(nodeDepth/2._dp)
+     case(mixdform); dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._dp)
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
    else     ! (do not desire derivatives)
-    dq_dStateUnsat = valueMissing
+    dq_dHydStateUnsat = valueMissing
    endif
 
   ! ---------------------------------------------------------------------------------------------
@@ -1707,12 +1795,12 @@ contains
    ! compute derivatives
    if(deriv_desired)then
     select case(ixRichards)  ! (form of Richards' equation)
-     case(moisture); dq_dStateUnsat = kAnisotropic*surfaceSatHydCond * node__dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
-     case(mixdform); dq_dStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
+     case(moisture); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * node__dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
+     case(mixdform); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
    else     ! (do not desire derivatives)
-    dq_dStateUnsat = valueMissing
+    dq_dHydStateUnsat = valueMissing
    endif
 
   ! ---------------------------------------------------------------------------------------------
@@ -1726,12 +1814,12 @@ contains
    ! compute derivatives
    if(deriv_desired)then
     select case(ixRichards)  ! (form of Richards' equation)
-     case(moisture); dq_dStateUnsat = dHydCond_dVolLiq*kAnisotropic
-     case(mixdform); dq_dStateUnsat = dHydCond_dMatric*kAnisotropic
+     case(moisture); dq_dHydStateUnsat = dHydCond_dVolLiq*kAnisotropic
+     case(mixdform); dq_dHydStateUnsat = dHydCond_dMatric*kAnisotropic
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
    else     ! (do not desire derivatives)
-    dq_dStateUnsat = valueMissing
+    dq_dHydStateUnsat = valueMissing
    endif
 
 
@@ -1741,9 +1829,9 @@ contains
   case(zeroFlux)
    scalarDrainage = 0._dp
    if(deriv_desired)then
-    dq_dStateUnsat = 0._dp
+    dq_dHydStateUnsat = 0._dp
    else
-    dq_dStateUnsat = valueMissing
+    dq_dHydStateUnsat = valueMissing
    endif
 
   ! ---------------------------------------------------------------------------------------------

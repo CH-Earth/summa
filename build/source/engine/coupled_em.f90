@@ -272,24 +272,38 @@ contains
 
   ! (4) solve model equations...
   ! ----------------------------
-  call systemSolv(&
-                  ! input: model control
-                  dt_sub,                                 & ! intent(in): length of the model sub-step
-                  maxiter,                                & ! intent(in): maximum number of iterations
-                  (nsub==1),                              & ! intent(in): logical flag to denote the first substep
-                  computeVegFlux,                         & ! intent(in): logical flag to compute fluxes within the vegetation canopy
-                  ! input/output: data structures
-                  type_data,                              & ! intent(in):    type of vegetation and soil
-                  attr_data,                              & ! intent(in):    spatial attributes
-                  forc_data,                              & ! intent(in):    model forcing data
-                  mpar_data,                              & ! intent(in):    model parameters
-                  mvar_data,                              & ! intent(inout): model variables for a local HRU
-                  bvar_data,                              & ! intent(in):    model variables for the local basin
-                  model_decisions,                        & ! intent(in):    model decisions
-                  ! output: model control
-                  niter,                                  & ! intent(out): number of iterations
-                  err,cmessage)                             ! intent(out): error code and error message
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif 
+  do  ! (multiple attempts for non-convergence)
+   ! get the new solution
+   call systemSolv(&
+                   ! input: model control
+                   dt_sub,                                 & ! intent(in): length of the model sub-step
+                   maxiter,                                & ! intent(in): maximum number of iterations
+                   (nsub==1),                              & ! intent(in): logical flag to denote the first substep
+                   computeVegFlux,                         & ! intent(in): logical flag to compute fluxes within the vegetation canopy
+                   ! input/output: data structures
+                   type_data,                              & ! intent(in):    type of vegetation and soil
+                   attr_data,                              & ! intent(in):    spatial attributes
+                   forc_data,                              & ! intent(in):    model forcing data
+                   mpar_data,                              & ! intent(in):    model parameters
+                   indx_data,                              & ! intent(in):    index data
+                   mvar_data,                              & ! intent(inout): model variables for a local HRU
+                   bvar_data,                              & ! intent(in):    model variables for the local basin
+                   model_decisions,                        & ! intent(in):    model decisions
+                   ! output: model control
+                   niter,                                  & ! intent(out): number of iterations
+                   err,cmessage)                             ! intent(out): error code and error message
+   ! check for fatal errors
+   if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif 
+   if(err==0) exit  ! exit do loop if all is a-ok
+   ! if warnings (non-covergence, and so forth) then reduce the time step and try again
+   dt_sub = dt_sub*0.1_dp
+   if(dt_sub < minstep)then
+    message=trim(message)//'dt_sub is below the minimum time step'
+    err=20; return
+   endif
+  end do  ! (multiple attempts for non-convergence)
+
+
 
   ! (4) use Picard iteration to solve model equations...
   ! ----------------------------------------------------
