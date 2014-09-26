@@ -25,6 +25,7 @@ contains
  USE soil_utils_module,only:volFracLiq             ! compute volumetric fraction of liquid water based on matric head
  USE soil_utils_module,only:matricHead             ! compute matric head based on volumetric fraction of liquid water
  USE soil_utils_module,only:crit_soilT             ! compute temperature above which all water is unfrozen
+ USE updatState_module,only:updateSnow             ! update snow states
  USE updatState_module,only:updateSoil             ! update soil states
  USE snow_fileManager,only:SETNGS_PATH             ! path for metadata files
  USE snow_fileManager,only:MODEL_INITCOND          ! model initial conditions file
@@ -454,6 +455,7 @@ contains
 
   ! process snow and soil separately
   select case(scalarLayerType)
+
    ! ** snow
    case(ix_snow)
     ! check that snow temperature is less than freezing
@@ -472,6 +474,19 @@ contains
      scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice) ! compute corresponding ice volume to maintain mass
      scalarTemp       = templiquid(scalarVolFracLiq/scalarTheta,snowfrz_scale) ! identify the temperature associated with tension storage
     endif  ! (if liquid water content > tension storage)
+    ! ensure consistency among state variables
+    call updateSnow(&
+                    ! input
+                       scalarTemp       ,& ! intent(in): temperature vector (K)
+                       snowfrz_scale    ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                       ! input/output
+                       scalarVolFracLiq ,& ! intent(inout): volumetric fraction of liquid water (-)
+                       scalarVolFracIce ,& ! intent(inout): volumetric fraction of ice (-)
+                       ! output
+                       fLiq             ,& ! intent(out): fraction of liquid water (-)
+                       err,cmessage)       ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
    ! ** soil
    case(ix_soil)
     ! assign pointers to model state variables

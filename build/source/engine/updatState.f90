@@ -27,6 +27,7 @@ contains
                        mLayerVolFracLiq ,& ! intent(inout): volumetric fraction of liquid water (-)
                        mLayerVolFracIce ,& ! intent(inout): volumetric fraction of ice (-)
                        ! output
+                       fLiq             ,& ! intent(out): fraction of liquid water (-)
                        err,message)        ! intent(out): error control
  ! utility routines
  USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
@@ -38,10 +39,11 @@ contains
  real(dp),intent(inout)        :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
  real(dp),intent(inout)        :: mLayerVolFracIce     ! volumetric fraction of ice (-)
  ! output variables
+ real(dp),intent(out)          :: fLiq                 ! fraction of liquid water (-)
+ ! error control
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
- real(dp)                      :: fLiq                 ! fraction of liquid water (-)
  real(dp)                      :: theta                ! liquid water equivalent of total water (-)
  ! initialize error control
  err=0; message="updateSnow/"
@@ -51,11 +53,13 @@ contains
 
  ! compute the volumetric fraction of liquid water and ice (-)
  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
- mLayerVolFracLiq = fLiq
+ mLayerVolFracLiq = fLiq*theta
  mLayerVolFracIce = (1._dp - fLiq)*theta*(iden_water/iden_ice)
+ !print*, 'theta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq) = ', theta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq)
 
- !write(*,'(a,1x,i4,1x,4(f20.10,1x))') 'in phase change: fLiq, theta, mLayerVolFracIce = ', &
- !                                                       fLiq, theta, mLayerVolFracIce
+ !write(*,'(a,1x,4(f20.10,1x))') 'in updateSnow: fLiq, theta, mLayerVolFracIce = ', &
+ !                                               fLiq, theta, mLayerVolFracIce
+ !pause
 
  endsubroutine updateSnow
 

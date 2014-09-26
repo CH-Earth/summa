@@ -64,7 +64,7 @@ contains
  integer(i4b)                         :: nsub                   ! number of sub-steps
  integer(i4b)                         :: niter                  ! number of iterations
  integer(i4b),parameter               :: n_inc=5                ! minimum number of iterations to increase time step
- integer(i4b),parameter               :: n_dec=20               ! maximum number of iterations to decrease time step
+ integer(i4b),parameter               :: n_dec=15               ! maximum number of iterations to decrease time step
  real(dp),parameter                   :: F_inc = 1.25_dp        ! factor used to increase time step
  real(dp),parameter                   :: F_dec = 0.90_dp        ! factor used to decrease time step
  integer(i4b)                         :: maxiter                ! maxiumum number of iterations
@@ -292,11 +292,15 @@ contains
                    ! output: model control
                    niter,                                  & ! intent(out): number of iterations
                    err,cmessage)                             ! intent(out): error code and error message
+   !print*, '*************************************************'
+   !print*, '*************************************************'
+   !print*, '*************************************************'
+   !pause
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif 
    if(err==0) exit  ! exit do loop if all is a-ok
    ! if warnings (non-covergence, and so forth) then reduce the time step and try again
-   dt_sub = dt_sub*0.1_dp
+   dt_sub = dt_sub*0.5_dp
    if(dt_sub < minstep)then
     message=trim(message)//'dt_sub is below the minimum time step'
     err=20; return

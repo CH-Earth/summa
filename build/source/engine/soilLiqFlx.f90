@@ -507,7 +507,7 @@ contains
  do iLayer=1,nSoil ! (loop through soil layers)
   if(mLayerVolFracIceTrial(iLayer) > verySmall) ixIce = iLayer
  end do
- if(ixIce==nSoil)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
+ !if(ixIce==nSoil)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************
@@ -651,6 +651,7 @@ contains
                   mLayerdTheta_dPsi(1),               & ! intent(in): derivative of the soil moisture characteristic w.r.t. psi (m-1)
                   ! input: transmittance
                   iLayerSatHydCond(0),                & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
+                  dHydCond_dTemp(1),                  & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)     
                   iceImpedeFac(1),                    & ! intent(in): ice impedence factor in the upper-most soil layer (-)
                   ! input: soil parameters
                   vGn_alpha,                          & ! intent(in): van Genutchen "alpha" parameter (m-1)
@@ -913,9 +914,11 @@ contains
                   iLayerSatHydCond(0),             & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                   iLayerSatHydCond(nSoil),         & ! intent(in): saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
                   scalarHydCondTrial,              & ! intent(in): hydraulic conductivity at the node itself (m s-1)
+                  iceImpedeFac(nSoil),             & ! intent(in): ice impedence factor in the lower-most soil layer (-)
+                  ! input: transmittance derivatives
                   dHydCond_dVolLiq(nSoil),         & ! intent(in): derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
                   dHydCond_dMatric(nSoil),         & ! intent(in): derivative in hydraulic conductivity w.r.t. matric head (s-1)
-                  iceImpedeFac(nSoil),             & ! intent(in): ice impedence factor in the lower-most soil layer (-)
+                  dHydCond_dTemp(nSoil),           & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                   ! input: soil parameters
                   vGn_alpha,                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
                   vGn_n,                           & ! intent(in): van Genutchen "n" parameter (-)
@@ -1220,6 +1223,7 @@ contains
                        scalardTheta_dPsi,         & ! intent(in): derivative of the soil moisture characteristic w.r.t. psi (m-1)
                        ! input: transmittance
                        surfaceSatHydCond,         & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
+                       dHydCond_dTemp,            & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                        iceImpedeFac,              & ! intent(in): ice impedence factor in the upper-most soil layer (-)
                        ! input: soil parameters
                        vGn_alpha,                 & ! intent(in): van Genutchen "alpha" parameter (m-1)
@@ -1279,6 +1283,7 @@ contains
  real(dp),intent(in)           :: scalardTheta_dPsi         ! derivative of the soil moisture characteristic w.r.t. psi (m-1)
  ! input: transmittance
  real(dp),intent(in)           :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
+ real(dp),intent(in)           :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
  real(dp),intent(in)           :: iceImpedeFac              ! ice impedence factor in the upper-most soil layer (-)
  ! input: soil parameters
  real(dp),intent(in)           :: vGn_alpha                 ! van Genutchen "alpha" parameter (m-1)
@@ -1371,15 +1376,18 @@ contains
    scalarSurfaceInfiltration = cflux + surfaceHydCond
    ! compute the derivative
    if(deriv_desired)then
+    ! compute the hydrology derivative
     select case(ixRichards)  ! (form of Richards' equation)
      case(moisture); dq_dHydState = -surfaceDiffuse/(mLayerDepth(1)/2._dp)
      case(mixdform); dq_dHydState = -surfaceHydCond/(mLayerDepth(1)/2._dp)
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
+    ! compute the energy derivative
+    dq_dNrgState = -(dHydCond_dTemp/2._dp)*(scalarMatricHead - upperBoundHead)/(mLayerDepth(1)*0.5_dp) + dHydCond_dTemp/2._dp
     ! compute the numerical derivative
-    cflux = -surfaceHydCond*((scalarMatricHead+dx) - upperBoundHead) / (mLayerDepth(1)*0.5_dp)
-    surfaceInfiltration1 = cflux + surfaceHydCond
-    dNum  = (surfaceInfiltration1 - scalarSurfaceInfiltration)/dx
+    !cflux = -surfaceHydCond*((scalarMatricHead+dx) - upperBoundHead) / (mLayerDepth(1)*0.5_dp)
+    !surfaceInfiltration1 = cflux + surfaceHydCond
+    !dNum  = (surfaceInfiltration1 - scalarSurfaceInfiltration)/dx
    else
     dq_dHydState = 0._dp
     dNum         = 0._dp
@@ -1457,6 +1465,7 @@ contains
    ! NOTE 1: Depends on multiple soil layers and does not jive with the current tridiagonal matrix
    ! NOTE 2: Need to define the derivative at every call, because intent(out)
    dq_dHydState = 0._dp
+   dq_dNrgState = 0._dp
 
   ! ***** error check
   case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return
@@ -1613,8 +1622,8 @@ contains
     dq_dHydStateAbove = -dHydCondIface_dMatricAbove*dPsi/dz + iLayerHydCond/dz + dHydCondIface_dMatricAbove
     dq_dHydStateBelow = -dHydCondIface_dMatricBelow*dPsi/dz - iLayerHydCond/dz + dHydCondIface_dMatricBelow
     ! derivative in the flux w.r.t. temperature
-    dq_dNrgStateAbove = -cflux*dHydCond_dTemp(ixUpper)/2._dp + dHydCond_dTemp(ixUpper)/2._dp
-    dq_dNrgStateBelow = -cflux*dHydCond_dTemp(ixLower)/2._dp + dHydCond_dTemp(ixLower)/2._dp
+    dq_dNrgStateAbove = -(dHydCond_dTemp(ixUpper)/2._dp)*dPsi/dz + dHydCond_dTemp(ixUpper)/2._dp
+    dq_dNrgStateBelow = -(dHydCond_dTemp(ixLower)/2._dp)*dPsi/dz + dHydCond_dTemp(ixLower)/2._dp
    case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
   end select
  else
@@ -1654,9 +1663,11 @@ contains
                        surfaceSatHydCond,         & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                        bottomSatHydCond,          & ! intent(in): saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
                        nodeHydCond,               & ! intent(in): hydraulic conductivity at the node itself (m s-1)
+                       iceImpedeFac,              & ! intent(in): ice impedence factor in the lower-most soil layer (-)
+                       ! input: transmittance derivatives
                        dHydCond_dVolLiq,          & ! intent(in): derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
                        dHydCond_dMatric,          & ! intent(in): derivative in hydraulic conductivity w.r.t. matric head (s-1)
-                       iceImpedeFac,              & ! intent(in): ice impedence factor in the lower-most soil layer (-)
+                       dHydCond_dTemp,            & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                        ! input: soil parameters
                        vGn_alpha,                 & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                     & ! intent(in): van Genutchen "n" parameter (-)
@@ -1705,9 +1716,11 @@ contains
  real(dp),intent(in)           :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
  real(dp),intent(in)           :: bottomSatHydCond          ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
  real(dp),intent(in)           :: nodeHydCond               ! hydraulic conductivity at the node itself (m s-1)
+ real(dp),intent(in)           :: iceImpedeFac              ! ice impedence factor in the upper-most soil layer (-)
+ ! input: transmittance derivatives
  real(dp),intent(in)           :: dHydCond_dVolLiq          ! derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
  real(dp),intent(in)           :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
- real(dp),intent(in)           :: iceImpedeFac              ! ice impedence factor in the upper-most soil layer (-)
+ real(dp),intent(in)           :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
  ! input: soil parameters
  real(dp),intent(in)           :: vGn_alpha                 ! van Genutchen "alpha" parameter (m-1)
  real(dp),intent(in)           :: vGn_n                     ! van Genutchen "n" parameter (-)
@@ -1738,10 +1751,6 @@ contains
  ! initialize error control
  err=0; message="qDrainFlux/"
 
- ! compute change in drainage flux w.r.t. change in energy state variable in lowest unsaturated node (m s-1 K-1)
- ! NOTE: revisit the need to do this
- dq_dNrgStateUnsat = 0._dp
-
  ! determine lower boundary condition
  select case(bc_lower)
 
@@ -1770,13 +1779,17 @@ contains
 
    ! compute derivatives
    if(deriv_desired)then
+    ! hydrology derivatives
     select case(ixRichards)  ! (form of Richards' equation)
      case(moisture); dq_dHydStateUnsat = bottomDiffuse/(nodeDepth/2._dp)
      case(mixdform); dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._dp)
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
+    ! energy derivatives
+    err=20; message=trim(message)//"not yet implemented energy derivatives"; return
    else     ! (do not desire derivatives)
     dq_dHydStateUnsat = valueMissing
+    dq_dNrgStateUnsat = valueMissing
    endif
 
   ! ---------------------------------------------------------------------------------------------
@@ -1794,13 +1807,17 @@ contains
 
    ! compute derivatives
    if(deriv_desired)then
+    ! hydrology derivatives
     select case(ixRichards)  ! (form of Richards' equation)
      case(moisture); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * node__dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
      case(mixdform); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
+    ! energy derivatives
+    err=20; message=trim(message)//"not yet implemented energy derivatives"; return
    else     ! (do not desire derivatives)
     dq_dHydStateUnsat = valueMissing
+    dq_dNrgStateUnsat = valueMissing
    endif
 
   ! ---------------------------------------------------------------------------------------------
@@ -1813,13 +1830,17 @@ contains
 
    ! compute derivatives
    if(deriv_desired)then
+    ! hydrology derivatives
     select case(ixRichards)  ! (form of Richards' equation)
      case(moisture); dq_dHydStateUnsat = dHydCond_dVolLiq*kAnisotropic
      case(mixdform); dq_dHydStateUnsat = dHydCond_dMatric*kAnisotropic
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
+    ! energy derivatives
+    dq_dNrgStateUnsat = dHydCond_dTemp*kAnisotropic
    else     ! (do not desire derivatives)
     dq_dHydStateUnsat = valueMissing
+    dq_dNrgStateUnsat = valueMissing
    endif
 
 
@@ -1830,8 +1851,10 @@ contains
    scalarDrainage = 0._dp
    if(deriv_desired)then
     dq_dHydStateUnsat = 0._dp
+    dq_dNrgStateUnsat = 0._dp
    else
     dq_dHydStateUnsat = valueMissing
+    dq_dNrgStateUnsat = valueMissing
    endif
 
   ! ---------------------------------------------------------------------------------------------

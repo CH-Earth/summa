@@ -132,7 +132,9 @@ contains
  real(dp),parameter            :: residScal=10._dp           ! scaling factor for residual liquid water content reduction factor (kg m-3)
  real(dp),parameter            :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
  real(dp)                      :: availCap                   ! available storage capacity [0,1] (-)
- real(dp)                      :: relSaturn                  ! relative saturation [0,1] (-)
+ real(dp)                      :: relSaturn,relSaturn1       ! relative saturation [0,1] (-)
+ real(dp),parameter            :: dx = 1.e-8_dp              ! finite difference increment
+ real(dp)                      :: testFlux                   ! test value of the flux (to compute numerical derivatives)
  ! ---------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='snowLiqFlx_muster/'
@@ -176,9 +178,17 @@ contains
     ! compute the relative saturation (-)
     availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
     relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+    !print*, 'mLayerVolFracLiqTrial(iLayer) = ', mLayerVolFracLiqTrial(iLayer)
+    !print*, 'mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer) = ', mLayerThetaResid(iLayer)
+    !print*, 'iLayer, availCap, relSaturn, k_snow = ', iLayer, availCap, relSaturn, k_snow
     ! compute the flux and derivative (m s-1)
     iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
     iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)
+    ! check the derivative
+    !relSaturn1 = (mLayerVolFracLiqTrial(iLayer)+dx - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+    !testFlux   =  k_snow*relSaturn1**mw_exp
+    !write(*,'(a,1x,10(e25.10,1x))') 'iLayerLiqFluxSnow(iLayer), testFlux, iLayerLiqFluxSnowDeriv(iLayer), (testFlux - iLayerLiqFluxSnow(iLayer))/dx = ', &
+    !                                 iLayerLiqFluxSnow(iLayer), testFlux, iLayerLiqFluxSnowDeriv(iLayer), (testFlux - iLayerLiqFluxSnow(iLayer))/dx
    else  ! flow does not ocur
     iLayerLiqFluxSnow(iLayer)      = 0._dp
     iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
