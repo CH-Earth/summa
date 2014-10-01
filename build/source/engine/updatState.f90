@@ -78,8 +78,6 @@ contains
                        ! output
                        mLayerVolFracLiq ,& ! intent(out): volumetric fraction of liquid water (-)
                        mLayerVolFracIce ,& ! intent(out): volumetric fraction of ice (-)
-                       dMatric_dTk      ,& ! intent(out): derivative in matric head w.r.t. temperature (m K-1)
-                       dTk_dMatric      ,& ! intent(out): derivative in temperature w.r.t. matric head (K m-1)
                        err,message)        ! intent(out): error control
  ! utility routines
  USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
@@ -96,8 +94,6 @@ contains
  ! output variables
  real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
  real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
- real(dp),intent(out)          :: dMatric_dTk          ! derivative in matric head w.r.t. temperature (m K-1)
- real(dp),intent(out)          :: dTk_dMatric          ! derivative in temperature w.r.t. matric head (K m-1)
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
@@ -120,27 +116,19 @@ contains
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
 
   ! - volumetric liquid water content (-)
-  xConst           = LH_fus/(gravity*TcSoil)                             ! m K-1 (NOTE: J = kg m2 s-2)
-  psiLiq           = mLayerMatricHead + xConst*(mLayerTemp - TcSoil)     ! eq 19 in Dall'Amico 2011
+  xConst           = LH_fus/(gravity*Tfreeze)                            ! m K-1 (NOTE: J = kg m2 s-2)
+  psiLiq           = xConst*(mLayerTemp - Tfreeze)
   mLayerVolFracLiq = volFracLiq(psiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
   ! - volumetric ice content (-)
   mLayerVolFracIce = vTheta - mLayerVolFracLiq
-  
-  ! - compute the derivative in matric head w.r.t. temperature (m K-1)
-  dMatric_dTk = xConst  
-  dTk_dMatric = 1._dp/xConst  
-
+ 
  ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
  else
 
   ! all water is unfrozen
   mLayerVolFracLiq = vTheta
   mLayerVolFracIce = 0._dp
-
-  ! compute the derivative in matric head w.r.t. temperature (m K-1)
-  dMatric_dTk = 0._dp
-  dTk_dMatric = 0._dp
 
  endif  ! (check if soil is partially frozen)
 

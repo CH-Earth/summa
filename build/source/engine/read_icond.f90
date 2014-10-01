@@ -103,8 +103,6 @@ contains
  real(dp),pointer               :: scalarCanopyLiq     ! mass of liquid water on the vegetation canopy (kg m-2)
  real(dp)                       :: fLiq                ! fraction of liquid water on the vegetation canopy (-)
  real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2) 
- real(dp)                       :: scalardMatric_dTk   ! derivative in matric head w.r.t. temperature (m K-1) -- not used
- real(dp)                       :: scalardTk_dMatric   ! derivative in temperature w.r.t. matric head (K m-1) -- not used
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -503,8 +501,6 @@ contains
                     ! output
                     scalarVolFracLiq,                          & ! intent(out): volumetric fraction of liquid water (-)
                     scalarVolFracIce,                          & ! intent(out): volumetric fraction of ice (-)
-                    scalardMatric_dTk,                         & ! intent(out): derivative in matric head w.r.t. temperature (m K-1) -- not used
-                    scalardTk_dMatric,                         & ! intent(out): derivative in temperature w.r.t. matric head (K m-1)
                     err,cmessage)                                ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
