@@ -21,44 +21,39 @@ contains
  ! ************************************************************************************************
  subroutine updateSnow(&
                        ! input
-                       mLayerTemp       ,& ! intent(in): temperature vector (K)
+                       mLayerTemp       ,& ! intent(in): temperature (K)
+                       mLayerTheta      ,& ! intent(in): volume fraction of total water (-)
                        snowfrz_scale    ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                       ! input/output
-                       mLayerVolFracLiq ,& ! intent(inout): volumetric fraction of liquid water (-)
-                       mLayerVolFracIce ,& ! intent(inout): volumetric fraction of ice (-)
                        ! output
+                       mLayerVolFracLiq ,& ! intent(out): volumetric fraction of liquid water (-)
+                       mLayerVolFracIce ,& ! intent(out): volumetric fraction of ice (-)
                        fLiq             ,& ! intent(out): fraction of liquid water (-)
                        err,message)        ! intent(out): error control
  ! utility routines
  USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
  implicit none
  ! input variables
- real(dp),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
+ real(dp),intent(in)           :: mLayerTemp           ! temperature (K)
+ real(dp),intent(in)           :: mLayerTheta          ! volume fraction of total water (-)
  real(dp),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
- ! input/output variables
- real(dp),intent(inout)        :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
- real(dp),intent(inout)        :: mLayerVolFracIce     ! volumetric fraction of ice (-)
  ! output variables
+ real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
+ real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
  real(dp),intent(out)          :: fLiq                 ! fraction of liquid water (-)
  ! error control
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
- ! define local variables
- real(dp)                      :: theta                ! liquid water equivalent of total water (-)
  ! initialize error control
  err=0; message="updateSnow/"
 
- ! compute liquid water equivalent of total water (liquid plus ice)
- theta = mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq
-
  ! compute the volumetric fraction of liquid water and ice (-)
  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
- mLayerVolFracLiq = fLiq*theta
- mLayerVolFracIce = (1._dp - fLiq)*theta*(iden_water/iden_ice)
- !print*, 'theta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq) = ', theta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq)
+ mLayerVolFracLiq = fLiq*mLayerTheta
+ mLayerVolFracIce = (1._dp - fLiq)*mLayerTheta*(iden_water/iden_ice)
+ !print*, 'mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq) = ', mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq)
 
- !write(*,'(a,1x,4(f20.10,1x))') 'in updateSnow: fLiq, theta, mLayerVolFracIce = ', &
- !                                               fLiq, theta, mLayerVolFracIce
+ !write(*,'(a,1x,4(f20.10,1x))') 'in updateSnow: fLiq, mLayerTheta, mLayerVolFracIce = ', &
+ !                                               fLiq, mLayerTheta, mLayerVolFracIce
  !pause
 
  endsubroutine updateSnow

@@ -119,8 +119,8 @@ contains
  real(dp),parameter            :: f1=13.05_dp            ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(dp),parameter            :: f2=1.06_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(dp),parameter            :: convHeatCoeff=28.0_dp  ! convective heat transfer coefficient (W m-2 K-1)
- logical(lgt),parameter        :: hansson_th=.true.      ! flag to temporarily use the Hansson et al. VZJ 2005 thermal conductivity parameters
- logical(lgt),parameter        :: hansson_hc=.true.      ! flag to temporarily use the Hansson et al. VZJ 2005 heat transfer coefficient
+ logical(lgt),parameter        :: hansson_th=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 thermal conductivity parameters
+ logical(lgt),parameter        :: hansson_hc=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 heat transfer coefficient
  real(dp)                      :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -185,17 +185,16 @@ contains
      fArg  = 1._dp + f1*mLayerVolFracIce(iLayer)**f2
      xArg  = mLayerVolFracLiq(iLayer) + fArg*mLayerVolFracIce(iLayer)
      mLayerThermalC(iLayer) = c1 + c2*xArg + (c1 - c4)*exp(-(c3*xArg)**c5)
-     write(*,'(a,1x,i4,1x,10(f20.12,1x))') 'iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer) = ', &
-                                            iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer)
+     !write(*,'(a,1x,i4,1x,10(f20.12,1x))') 'iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer) = ', &
+     !                                       iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer)
 
     else  ! (not hansson)
      mLayerThermalC(iLayer) = thCond_soil * (1._dp - theta_sat)      + & ! soil component
                               lambda_ice  * mLayerVolFracIce(iLayer) + & ! ice component
                               lambda_water* mLayerVolFracLiq(iLayer) + & ! liquid water component
                               lambda_air  * mLayerVolFracAir(iLayer)     ! air component
-     write(*,'(a,1x,i4,1x,10(f20.12,1x))') 'iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer) = ', &
-                                            iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer)
-
+     !write(*,'(a,1x,i4,1x,10(f20.12,1x))') 'iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer) = ', &
+     !                                       iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer)
 
     endif
     ! compute the thermal conductivity of the wet material (W m-1)

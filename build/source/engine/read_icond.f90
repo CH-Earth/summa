@@ -475,14 +475,14 @@ contains
     ! ensure consistency among state variables
     call updateSnow(&
                     ! input
-                       scalarTemp       ,& ! intent(in): temperature vector (K)
-                       snowfrz_scale    ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                       ! input/output
-                       scalarVolFracLiq ,& ! intent(inout): volumetric fraction of liquid water (-)
-                       scalarVolFracIce ,& ! intent(inout): volumetric fraction of ice (-)
+                       scalarTemp                                              ,& ! intent(in): temperature (K)
+                       scalarVolFracLiq+scalarVolFracIce*(iden_ice/iden_water) ,& ! intent(in): mass fraction of total water (-)
+                       snowfrz_scale                                           ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
                        ! output
-                       fLiq             ,& ! intent(out): fraction of liquid water (-)
-                       err,cmessage)       ! intent(out): error control
+                       scalarVolFracLiq                                        ,& ! intent(out): volumetric fraction of liquid water (-)
+                       scalarVolFracIce                                        ,& ! intent(out): volumetric fraction of ice (-)
+                       fLiq                                                    ,& ! intent(out): fraction of liquid water (-)
+                       err,cmessage)                                              ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! ** soil

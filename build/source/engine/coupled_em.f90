@@ -85,7 +85,10 @@ contains
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
  real(dp)                             :: dt_wght                ! weight applied to each sub-step, to compute time step average
- real(dp)                             :: scalarCanopyWetFractionDeriv ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
+ real(dp)                             :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
+ real(dp)                             :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
+ real(dp),parameter                   :: varNotUsed1=-9999._dp  ! variables used to calculate derivatives (not needed here)
+ real(dp),parameter                   :: varNotUsed2=-9999._dp  ! variables used to calculate derivatives (not needed here)
  integer(i4b)                         :: iLayer                 ! index of model layers
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -196,6 +199,7 @@ contains
 
   ! compute maximum canopy liquid water (kg m-2)
   mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
+  print*, 'mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = ', mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1)
 
   ! compute maximum canopy ice content (kg m-2)
   ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
@@ -209,23 +213,29 @@ contains
   ! compute wetted fraction of the canopy
   ! NOTE: assume that the wetted fraction is constant over the substep for the radiation calculations
   if(computeVegFlux)then
+
+   ! compute wetted fraction of the canopy
    call wettedFrac(&
                    ! input
                    .false.,                                                      & ! flag to denote if derivatives are required
                    .false.,                                                      & ! flag to denote if derivatives are calculated numerically
                    (mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) < Tfreeze), & ! flag to denote if the canopy is frozen
+                   varNotUsed1,                                                  & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
+                   varNotUsed2,                                                  & ! fraction of liquid water on the canopy
                    mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),              & ! canopy liquid water (kg m-2)
                    mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
                    mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
                    mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
                    ! output
                    mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
-                   scalarCanopyWetFractionDeriv,                                 & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
+                   dCanopyWetFraction_dWat,                                      & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
+                   dCanopyWetFraction_dT,                                        & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
                    err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   else
    mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1) = 0._dp
-   scalarCanopyWetFractionDeriv                            = 0._dp
+   dCanopyWetFraction_dWat                                 = 0._dp
+   dCanopyWetFraction_dT                                   = 0._dp
   endif
 
 
