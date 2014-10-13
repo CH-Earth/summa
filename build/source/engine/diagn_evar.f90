@@ -1,5 +1,7 @@
 module diagn_evar_module
+! data types
 USE nrtype
+
 ! physical constants
 USE multiconst,only:&
                     iden_air,    & ! intrinsic density of air      (kg m-3)
@@ -14,6 +16,13 @@ USE multiconst,only:&
                     lambda_air,  & ! thermal conductivity of air   (J s-1 m-1)
                     lambda_ice,  & ! thermal conductivity of ice   (J s-1 m-1)
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
+
+! access the number of snow and soil layers
+USE data_struc,only:&
+                    nSnow,        & ! number of snow layers  
+                    nSoil,        & ! number of soil layers  
+                    nLayers         ! total number of layers
+
 ! named variables that define the layer type
 USE data_struc,only:ix_soil        ! soil
 USE data_struc,only:ix_snow        ! snow
@@ -33,101 +42,118 @@ contains
  subroutine diagn_evar(&
                        ! input: control variables
                        computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                       ! input: state variables
-                       scalarCanopyIce,         & ! intent(in): mass of ice on the vegetation canopy (kg m-2)
-                       scalarCanopyLiquid,      & ! intent(in): mass of liquid water on the vegetation canopy (kg m-2)
-                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in each layer (-)
-                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water in each layer (-)
-                       ! input: coordinate variables
-                       layerType,               & ! intent(in): type of the layer (snow or soil)
-                       mLayerHeight,            & ! intent(in): height of the layer mid-point (top of soil = 0)
-                       iLayerHeight,            & ! intent(in): height of the layer interface (top of soil = 0)
-                       ! input: model parameters
-                       canopyDepth,             & ! intent(in): depth of the vegetation canopy (m)
-                       specificHeatVeg,         & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-                       maxMassVegetation,       & ! intent(in): maximum mass of vegetation (full foliage) (kg m-2)
-                       iden_soil,               & ! intent(in): intrinsic density of soil (kg m-3)
-                       thCond_soil,             & ! intent(in): thermal conductivity of soil (W m-1 K-1)
-                       theta_sat,               & ! intent(in): soil porosity (-)
-                       frac_sand,               & ! intent(in): fraction of sand (-)
-                       frac_silt,               & ! intent(in): fraction of silt (-)
-                       frac_clay,               & ! intent(in): fraction of clay (-)
-                       ! output: diagnostic variables
-                       scalarBulkVolHeatCapVeg, & ! intent(out): bulk volumetric heat capacity of vegetation (J m-3 K-1)
-                       mLayerVolHtCapBulk,      & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
-                       mLayerThermalC,          & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
-                       iLayerThermalC,          & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
-                       mLayerVolFracAir,        & ! intent(out): volumetric fraction of air in each layer (-)
+                       canopyDepth,             & ! intent(in): canopy depth (m)
+                       ! input/output: data structures
+                       mpar_data,               & ! intent(in):    model parameters
+                       indx_data,               & ! intent(in):    model layer indices
+                       mvar_data,               & ! intent(inout): model variables for a local HRU
                        ! output: error control
                        err,message)               ! intent(out): error control
- ! --------------------------------------------------------------------------------------------------------------------------------
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! provide access to the derived types to define the data structures
+ USE data_struc,only:&
+                     var_d,            & ! data vector (dp)
+                     var_ilength,      & ! data vector with variable length dimension (i4b)
+                     var_dlength         ! data vector with variable length dimension (dp)
+ ! provide access to named variables defining elements in the data structures
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
+ ! provide access to external subroutines
  USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
- implicit none
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! input: control variables
- logical(lgt),intent(in)       :: computeVegFlux          ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- ! input: state variables
- real(dp),intent(in)           :: scalarCanopyIce         ! mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(in)           :: scalarCanopyLiquid      ! mass of liquid water on the vegetation canopy (kg m-2)
- real(dp),intent(in)           :: mLayerVolFracIce(:)     ! volumetric fraction of ice in each layer (-)
- real(dp),intent(in)           :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water in each layer (-)
- ! input: coordinate variables
- integer(i4b),intent(in)       :: layerType(:)            ! type of the layer (snow or soil)
- real(dp),intent(in)           :: mLayerHeight(:)         ! height of the layer mid-point (top of soil = 0)
- real(dp),intent(in)           :: iLayerHeight(0:)        ! height of the layer interface (top of soil = 0)
- ! input: model parameters
- real(dp),intent(in)           :: canopyDepth             ! depth of the vegetation canopy (m)
- real(dp),intent(in)           :: specificHeatVeg         ! specific heat of vegetation (J kg-1 K-1)
- real(dp),intent(in)           :: maxMassVegetation       ! maximum mass of vegetation (full foliage) (kg m-2)
- real(dp),intent(in)           :: iden_soil               ! intrinsic density of soil (kg m-3)
- real(dp),intent(in)           :: thCond_soil             ! thermal conductivity of soil (W m-1 K-1)
- real(dp),intent(in)           :: theta_sat               ! soil porosity (-)
- real(dp),intent(in)           :: frac_sand               ! fraction of sand (-)
- real(dp),intent(in)           :: frac_silt               ! fraction of silt (-)
- real(dp),intent(in)           :: frac_clay               ! fraction of clay (-)
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! output: diagnostic variables
- real(dp),intent(out)          :: scalarBulkVolHeatCapVeg ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
- real(dp),intent(out)          :: mLayerVolHtCapBulk(:)   ! volumetric heat capacity in each layer (J m-3 K-1)
- real(dp),intent(out),target   :: mLayerThermalC(:)       ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
- real(dp),intent(out)          :: iLayerThermalC(0:)      ! thermal conductivity at the interface of each layer (W m-1 K-1)
- real(dp),intent(out)          :: mLayerVolFracAir(:)     ! volumetric fraction of air in each layer (-)
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! input: model control
+ logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
+ real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ ! input/output: data structures
+ type(var_d),intent(in)          :: mpar_data              ! model parameters
+ type(var_ilength),intent(inout) :: indx_data              ! model layer indices
+ type(var_dlength),intent(inout) :: mvar_data              ! model variables for a local HRU
  ! output: error control
- integer(i4b),intent(out)      :: err                     ! error code
- character(*),intent(out)      :: message                 ! error message
+ integer(i4b),intent(out)        :: err                    ! error code
+ character(*),intent(out)        :: message                ! error message
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! variables in the data structures
+ ! input: state variables
+ real(dp)                          :: scalarCanopyIce      ! mass of ice on the vegetation canopy (kg m-2)
+ real(dp)                          :: scalarCanopyLiquid   ! mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp),dimension(nLayers)       :: mLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
+ real(dp),dimension(nLayers)       :: mLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
+ ! input: coordinate variables
+ integer(i4b),dimension(nLayers)   :: layerType            ! type of the layer (snow or soil)
+ real(dp),dimension(nLayers)       :: mLayerHeight         ! height of the layer mid-point (top of soil = 0)
+ real(dp),dimension(0:nLayers)     :: iLayerHeight         ! height of the layer interface (top of soil = 0)
+ ! input: model parameters
+ real(dp)                          :: specificHeatVeg      ! specific heat of vegetation (J kg-1 K-1)
+ real(dp)                          :: maxMassVegetation    ! maximum mass of vegetation (full foliage) (kg m-2)
+ real(dp)                          :: iden_soil            ! intrinsic density of soil (kg m-3)
+ real(dp)                          :: thCond_soil          ! thermal conductivity of soil (W m-1 K-1)
+ real(dp)                          :: theta_sat            ! soil porosity (-)
+ real(dp)                          :: frac_sand            ! fraction of sand (-)
+ real(dp)                          :: frac_silt            ! fraction of silt (-)
+ real(dp)                          :: frac_clay            ! fraction of clay (-)
+ ! output: diagnostic variables
+ real(dp)                          :: scalarBulkVolHeatCapVeg ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ real(dp),dimension(nLayers)       :: mLayerVolHtCapBulk   ! volumetric heat capacity in each layer (J m-3 K-1)
+ real(dp),dimension(nLayers)       :: mLayerThermalC       ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
+ real(dp),dimension(0:nLayers)     :: iLayerThermalC       ! thermal conductivity at the interface of each layer (W m-1 K-1)
+ real(dp),dimension(nLayers)       :: mLayerVolFracAir     ! volumetric fraction of air in each layer (-)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)            :: cmessage               ! error message of downwind routine
- integer(i4b)                  :: nLayers                ! number of model layers
- integer(i4b)                  :: iLayer                 ! index of model layer
- real(dp),pointer              :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
- real(dp),pointer              :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
- real(dp)                      :: zdn                    ! height difference between interface and lower value (m)
- real(dp)                      :: zdp                    ! height difference between interface and upper value (m)
- real(dp)                      :: lambda_wet             ! thermal conductivity of the wet material
- !real(dp)                      :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
- real(dp)                      :: bulkden_soil           ! bulk density of soil (kg m-3)
- real(dp)                      :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
- real(dp)                      :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+ character(LEN=256)                :: cmessage               ! error message of downwind routine
+ integer(i4b)                      :: iLayer                 ! index of model layer
+ real(dp)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
+ real(dp)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
+ real(dp)                          :: zdn                    ! height difference between interface and lower value (m)
+ real(dp)                          :: zdp                    ! height difference between interface and upper value (m)
+ real(dp)                          :: lambda_wet             ! thermal conductivity of the wet material
+ !real(dp)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
+ real(dp)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
+ real(dp)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
+ real(dp)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
  ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
- real(dp),parameter            :: c1=0.55_dp             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter            :: c2=0.8_dp              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter            :: c3=3.07_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter            :: c4=0.13_dp             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter            :: c5=4._dp               ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter            :: f1=13.05_dp            ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter            :: f2=1.06_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter            :: convHeatCoeff=28.0_dp  ! convective heat transfer coefficient (W m-2 K-1)
- logical(lgt),parameter        :: hansson_th=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 thermal conductivity parameters
- logical(lgt),parameter        :: hansson_hc=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 heat transfer coefficient
- real(dp)                      :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
+ real(dp),parameter                :: c1=0.55_dp             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(dp),parameter                :: c2=0.8_dp              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(dp),parameter                :: c3=3.07_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(dp),parameter                :: c4=0.13_dp             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(dp),parameter                :: c5=4._dp               ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(dp),parameter                :: f1=13.05_dp            ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(dp),parameter                :: f2=1.06_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(dp),parameter                :: convHeatCoeff=28.0_dp  ! convective heat transfer coefficient (W m-2 K-1)
+ logical(lgt),parameter            :: hansson_th=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 thermal conductivity parameters
+ logical(lgt),parameter            :: hansson_hc=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 heat transfer coefficient
+ real(dp)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="diagn_evar/"
-
- ! compute the number of layers
- nLayers = size(mLayerHeight)
+ ! associate variables in data structure
+ associate(&
+ ! input: state variables
+ scalarCanopyIce         => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): canopy ice content (kg m-2)
+ scalarCanopyLiquid      => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
+ mLayerVolFracIce        => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,             & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+ mLayerVolFracLiq        => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+ ! input: coordinate variables
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (ix_soil or ix_snow)
+ mLayerHeight            => mvar_data%var(iLookMVAR%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
+ iLayerHeight            => mvar_data%var(iLookMVAR%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
+ ! input: heat capacity and thermal conductivity
+ specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg),                 & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+ maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation),               & ! intent(in): maximum mass of vegetation (kg m-2)
+ iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr),                  & ! intent(in): intrinsic density of soil (kg m-3)
+ thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil),                     & ! intent(in): thermal conductivity of soil (W m-1 K-1)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat),                       & ! intent(in): soil porosity (-)
+ frac_sand               => mpar_data%var(iLookPARAM%frac_sand),                       & ! intent(in): fraction of sand (-)
+ frac_silt               => mpar_data%var(iLookPARAM%frac_silt),                       & ! intent(in): fraction of silt (-)
+ frac_clay               => mpar_data%var(iLookPARAM%frac_clay),                       & ! intent(in): fraction of clay (-)
+ ! output: diagnostic variables
+ scalarBulkVolHeatCapVeg => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
+ mLayerVolHtCapBulk      => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
+ mLayerThermalC          => mvar_data%var(iLookMVAR%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
+ iLayerThermalC          => mvar_data%var(iLookMVAR%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
+ mLayerVolFracAir        => mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat              & ! intent(out): volumetric fraction of air in each layer (-)
+ )  ! end associate statement
+ ! --------------------------------------------------------------------------------------------------------------------------------
 
  ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
  if(computeVegFlux)then
@@ -210,22 +236,23 @@ contains
    ! * error check
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
   end select
+  !print*, 'iLayer, mLayerThermalC(iLayer) = ', iLayer, mLayerThermalC(iLayer)
 
  end do  ! looping through layers
+ !pause
 
  ! *****
  ! * compute the thermal conductivity of snow at the interface of each layer...
  ! ****************************************************************************
  do iLayer=1,nLayers-1  ! (loop through layers)
-  TCn => mLayerThermalC(iLayer)    ! thermal conductivity below the layer interface (W m-1 K-1)
-  TCp => mLayerThermalC(iLayer+1)  ! thermal conductivity above the layer interface (W m-1 K-1)
-  zdn =  iLayerHeight(iLayer)   - mLayerHeight(iLayer) ! height difference between interface and lower value (m)
-  zdp =  mLayerHeight(iLayer+1) - iLayerHeight(iLayer) ! height difference between interface and upper value (m)
+  TCn = mLayerThermalC(iLayer)    ! thermal conductivity below the layer interface (W m-1 K-1)
+  TCp = mLayerThermalC(iLayer+1)  ! thermal conductivity above the layer interface (W m-1 K-1)
+  zdn = iLayerHeight(iLayer)   - mLayerHeight(iLayer) ! height difference between interface and lower value (m)
+  zdp = mLayerHeight(iLayer+1) - iLayerHeight(iLayer) ! height difference between interface and upper value (m)
   iLayerThermalC(iLayer) = (TCn*TCp*(zdn + zdp)) / (TCn*zdp + TCp*zdn)
   !write(*,'(a,1x,i4,1x,10(f9.3,1x))') 'iLayer, TCn, TCp, zdn, zdp, iLayerThermalC(iLayer) = ', iLayer, TCn, TCp, zdn, zdp, iLayerThermalC(iLayer)
  end do
 
- 
  ! special case of hansson
  if(hansson_hc)then
   iLayerThermalC(0) = convHeatCoeff*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
@@ -235,6 +262,9 @@ contains
 
  ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
  iLayerThermalC(nLayers) = mLayerThermalC(nLayers)
+
+ ! end association to variables in the data structure
+ end associate
 
  end subroutine diagn_evar
 
