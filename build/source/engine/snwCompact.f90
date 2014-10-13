@@ -17,7 +17,7 @@ contains
                        ! intent(in): variables
                        dt,                             & ! intent(in) time step (s)
                        mLayerTemp,                     & ! intent(in): temperature of each layer (K)
-                       mLayerVolFracIce,               & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerMeltFreeze,               & ! intent(in): volumnetric melt in each layer (kg m-3)
 
                        ! intent(in): parameters
                        densScalGrowth,                 & ! intent(in): density scaling factor for grain growth (kg-1 m3)
@@ -40,7 +40,7 @@ contains
  ! intent(in): variables
  real(dp),intent(in)                 :: dt                       ! time step (seconds)
  real(dp),intent(in)                 :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
- real(dp),intent(in)                 :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the start of the sub-step (-)
+ real(dp),intent(in)                 :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
  ! intent(in): parameters
  real(dp),intent(in)                 :: densScalGrowth           ! density scaling factor for grain growth (kg-1 m3)
  real(dp),intent(in)                 :: tempScalGrowth           ! temperature scaling factor for grain growth (K-1)
@@ -117,7 +117,8 @@ contains
   ! *** compute the compaction rate associated with snow melt (s-1)
   ! NOTE: loss of ice due to snowmelt is implicit, so can be updated directly
   if(iden_ice*mLayerVolFracIceNew(iSnow) < snwDensityMax)then ! only collapse layers if below a critical density
-   scalarDepthNew = min(mLayerVolFracIceNew(iSnow)/mLayerVolFracIce(iSnow), 1._dp)*mLayerDepth(iSnow)
+   scalarDepthNew = mLayerDepth(iSnow) - mLayerDepth(iSnow)*min(0._dp,mLayerMeltFreeze(iSnow)/iden_ice)
+   !scalarDepthNew = min(mLayerVolFracIceNew(iSnow)/mLayerVolFracIce(iSnow), 1._dp)*mLayerDepth(iSnow)
   else
    scalarDepthNew = mLayerDepth(iSnow)
   endif
@@ -128,8 +129,8 @@ contains
   ! check that depth is reasonable
   if(mLayerDepth(iSnow) < 0._dp)then
    write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, dt, density, massIceOld, massLiqOld = ', iSnow, dt, mLayerVolFracIceNew(iSnow)*iden_ice, massIceOld, massLiqOld
-   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
-                                         iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
+   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
+                                         iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
   endif
   ! update volumetric ice and liquid water content
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)

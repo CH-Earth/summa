@@ -42,7 +42,7 @@ contains
  integer(i4b)                    :: ipar,jpar         ! index of model parameter
  integer(i4b)                    :: nPars             ! number of model parameters
  ! Start procedure here
- err=0; message="f-fuse/read_param/"
+ err=0; message="read_param/"
  ! **********************************************************************************************
  ! (1) open files, etc.
  ! **********************************************************************************************
@@ -123,6 +123,7 @@ contains
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
   ! ***** populate parameter set with default model parameters *****
   mpar_data%var(:) = localParFallback(:)%default_val
+
   ! loop through the model parameters
   do ipar=2,nPars  ! start at #2 because the first "word" is the HRU index
    ! get the variable index

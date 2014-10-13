@@ -56,7 +56,7 @@ contains
  ! ************************************************************************************************
  subroutine soilLiqFlx(&
                        ! input: model control
-                       iter,                         & ! intent(in): iteration index
+                       doInfiltrate,                 & ! intent(in): flag to compute infiltration
                        deriv_desired,                & ! intent(in): flag indicating if derivatives are desired
                        ! input: trial state variables
                        mLayerTempTrial,              & ! intent(in): temperature (K)
@@ -70,14 +70,19 @@ contains
                        scalarCanopyTranspiration,    & ! intent(in): canopy transpiration (kg m-2 s-1)
                        scalarGroundEvaporation,      & ! intent(in): ground evaporation (kg m-2 s-1)
                        scalarRainPlusMelt,           & ! intent(in): rain plus melt (m s-1)
+                       ! output: diagnostic variables for surface runoff
+                       xMaxInfilRate,                & ! intent(inout): maximum infiltration rate (m s-1)
+                       scalarInfilArea,              & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+                       scalarFrozenArea,             & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
+                       scalarSurfaceRunoff,          & ! intent(out): surface runoff (m s-1)
                        ! output: diagnostic variables for model layers
                        mLayerdTheta_dPsi,            & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                        mLayerdPsi_dTheta,            & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
                        ! output: fluxes
-                       scalarSurfaceInfiltration,    & ! intent(inout): surface infiltration rate (m s-1) -- only computed for iter==1
-                       iLayerLiqFluxSoil,            & ! intent(out):   liquid fluxes at layer interfaces (m s-1)
-                       mLayerTranspire,              & ! intent(out):   transpiration loss from each soil layer (m s-1)
-                       mLayerHydCond,                & ! intent(out):   hydraulic conductivity in each soil layer (m s-1)
+                       scalarSurfaceInfiltration,    & ! intent(out): surface infiltration rate (m s-1)
+                       iLayerLiqFluxSoil,            & ! intent(out): liquid fluxes at layer interfaces (m s-1)
+                       mLayerTranspire,              & ! intent(out): transpiration loss from each soil layer (m s-1)
+                       mLayerHydCond,                & ! intent(out): hydraulic conductivity in each soil layer (m s-1)
                        ! output: derivatives in fluxes w.r.t. hydrology state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                        dq_dHydStateAbove,            & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
                        dq_dHydStateBelow,            & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer below (m s-1)
@@ -94,7 +99,7 @@ contains
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: model control
- integer(i4b),intent(in)          :: iter                          ! iteration index
+ logical(lgt),intent(in)          :: doInfiltrate                  ! flag to compute infiltration
  logical(lgt),intent(in)          :: deriv_desired                 ! flag indicating if derivatives are desired
  ! input: trial model state variables
  real(dp),intent(in)              :: mLayerTempTrial(:)            ! temperature in each layer at the current iteration (m)
@@ -108,11 +113,16 @@ contains
  real(dp),intent(in)              :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
  real(dp),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
  real(dp),intent(in)              :: scalarRainPlusMelt            ! rain plus melt (m s-1) 
+ ! output: diagnostic variables for surface runoff
+ real(dp),intent(inout)           :: xMaxInfilRate                ! maximum infiltration rate (m s-1)
+ real(dp),intent(inout)           :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
+ real(dp),intent(inout)           :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
+ real(dp),intent(out)             :: scalarSurfaceRunoff          ! surface runoff (m s-1)
  ! output: diagnostic variables for each layer
  real(dp),intent(out)             :: mLayerdTheta_dPsi(:)          ! derivative in the soil water characteristic w.r.t. psi (m-1)
  real(dp),intent(out)             :: mLayerdPsi_dTheta(:)          ! derivative in the soil water characteristic w.r.t. theta (m)
  ! output: liquid fluxes
- real(dp),intent(inout)           :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1) -- only computed for iter==1
+ real(dp),intent(out)             :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1)
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
  real(dp),intent(out)             :: mLayerHydCond(:)              ! hydraulic conductivity in each soil layer (m s-1)
@@ -140,7 +150,7 @@ contains
  call soilLiqFlx_muster(&
 
                         ! input: model control
-                        iter,                                                          & ! intent(in): iteration index
+                        doInfiltrate,                                                  & ! intent(in): flag to compute infiltration
                         deriv_desired,                                                 & ! intent(in): flag indicating if derivatives are desired
 
                         ! input: model decisions
@@ -209,19 +219,20 @@ contains
                         mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat,               & ! intent(in): transpiration limiting factor in each layer (-)
 
                         ! output: diagnostic scalar variables
-                        mvar_data%var(iLookMVAR%scalarInfilArea)%dat(1),               & ! intent(inout): (scalar) fraction of unfrozen area where water can infiltrate (-)
-                        mvar_data%var(iLookMVAR%scalarFrozenArea)%dat(1),              & ! intent(inout): (scalar) fraction of area that is considered impermeable due to soil ice (-)
-                        mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1),           & ! intent(inout): (scalar) surface runoff (m s-1)
+                        xMaxInfilRate,                                                 & ! intent(inout): maximum infiltration rate (m s-1)
+                        scalarInfilArea,                                               & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
+                        scalarFrozenArea,                                              & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
+                        scalarSurfaceRunoff,                                           & ! intent(out):   surface runoff (m s-1)
 
                         ! output: diagnostic variables for model layers
                         mLayerdTheta_dPsi,                                             & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                         mLayerdPsi_dTheta,                                             & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
 
                         ! output: fluxes
-                        scalarSurfaceInfiltration,                                     & ! intent(inout): surface infiltration rate (m s-1) -- only computed for iter==1
-                        iLayerLiqFluxSoil,                                             & ! intent(out):   liquid fluxes at layer interfaces (m s-1)
-                        mLayerTranspire,                                               & ! intent(out):   transpiration loss from each soil layer (m s-1)
-                        mLayerHydCond,                                                 & ! intent(out):   hydraulic conductivity in each soil layer (m s-1)
+                        scalarSurfaceInfiltration,                                     & ! intent(out): surface infiltration rate (m s-1)
+                        iLayerLiqFluxSoil,                                             & ! intent(out): liquid fluxes at layer interfaces (m s-1)
+                        mLayerTranspire,                                               & ! intent(out): transpiration loss from each soil layer (m s-1)
+                        mLayerHydCond,                                                 & ! intent(out): hydraulic conductivity in each soil layer (m s-1)
 
                         ! output: derivatives in fluxes w.r.t. hydrology state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                         dq_dHydStateAbove,                                             & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
@@ -255,7 +266,7 @@ contains
  subroutine soilLiqFlx_muster(&
  
                               ! input: model control
-                              iter,                        & ! intent(in): iteration index
+                              doInfiltrate,                & ! intent(in): flag to compute infiltration
                               deriv_desired,               & ! intent(in): flag indicating if derivatives are desired
 
                               ! model decisions
@@ -323,20 +334,21 @@ contains
                               scalarTranspireLim,          & ! intent(in): weighted average of the transpiration limiting factor (-)
                               mLayerTranspireLim,          & ! intent(in): transpiration limiting factor in each layer (-)
 
-                              ! output: diagnostic scalar variables
+                              ! output: diagnostic variables for surface runoff
+                              xMaxInfilRate,               & ! intent(inout): maximum infiltration rate (m s-1)
                               scalarInfilArea,             & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
                               scalarFrozenArea,            & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
-                              scalarSurfaceRunoff,         & ! intent(inout): surface runoff (m s-1)
+                              scalarSurfaceRunoff,         & ! intent(out):   surface runoff (m s-1)
 
                               ! output: diagnostic variables for model layers
                               mLayerdTheta_dPsi,           & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                               mLayerdPsi_dTheta,           & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
 
                               ! output: fluxes
-                              scalarSurfaceInfiltration,   & ! intent(inout): surface infiltration rate (m s-1) -- only computed for iter==1
-                              iLayerLiqFluxSoil,           & ! intent(out):   liquid fluxes at layer interfaces (m s-1)
-                              mLayerTranspire,             & ! intent(out):   transpiration loss from each soil layer (m s-1)
-                              mLayerHydCond,               & ! intent(out):   hydraulic conductivity in each soil layer (m s-1)
+                              scalarSurfaceInfiltration,   & ! intent(out): surface infiltration rate (m s-1)
+                              iLayerLiqFluxSoil,           & ! intent(out): liquid fluxes at layer interfaces (m s-1)
+                              mLayerTranspire,             & ! intent(out): transpiration loss from each soil layer (m s-1)
+                              mLayerHydCond,               & ! intent(out): hydraulic conductivity in each soil layer (m s-1)
 
                               ! output: derivatives in fluxes w.r.t. hydrology state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
                               dq_dHydStateAbove,           & ! intent(out): derivatives in the flux w.r.t. volumetric liquid water content in the layer above (m s-1)
@@ -361,7 +373,7 @@ contains
  ! ***** input variables
  ! ------------------------------------------------------------------------------------------------------------------------------------------------- 
  ! input: model control
- integer(i4b),intent(in)          :: iter                         ! iteration index
+ logical(lgt),intent(in)          :: doInfiltrate                  ! flag to compute infiltration
  logical(lgt),intent(in)          :: deriv_desired                ! flag indicating if derivatives are desired
  ! input: model decisions
  integer(i4b),intent(in)          :: ixDerivMethod                ! choice of method used to compute derivative
@@ -421,15 +433,16 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! ***** output variables
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
- ! output: diagnostic scalar variables
+ ! output: diagnostic variables for surface runoff
+ real(dp),intent(inout)           :: xMaxInfilRate                ! maximum infiltration rate (m s-1)
  real(dp),intent(inout)           :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
  real(dp),intent(inout)           :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
- real(dp),intent(inout)           :: scalarSurfaceRunoff          ! surface runoff (m s-1)
+ real(dp),intent(out)             :: scalarSurfaceRunoff          ! surface runoff (m s-1)
  ! output: diagnostic variables for each layer
  real(dp),intent(out)             :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. psi (m-1)
  real(dp),intent(out)             :: mLayerdPsi_dTheta(:)         ! derivative in the soil water characteristic w.r.t. theta (m)
  ! output: liquid fluxes
- real(dp),intent(inout)           :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1) -- only computed for iter==1
+ real(dp),intent(out)             :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1)
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
  real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
  real(dp),intent(out)             :: mLayerHydCond(:)              ! hydraulic conductivity in each soil layer (m s-1)
@@ -646,7 +659,7 @@ contains
   ! ==========================================
   call surfaceFlx(&
                   ! input: model control
-                  (iter==1),                          & ! intent(in): flag indicating if desire to compute infiltration
+                  doInfiltrate,                       & ! intent(in): flag indicating if desire to compute infiltration
                   desireAnal,                         & ! intent(in): flag indicating if derivatives are desired
                   ixRichards,                         & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                   ixBcUpperSoilHydrology,             & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
@@ -688,10 +701,11 @@ contains
                   iLayerHydCond(0),                   & ! intent(inout): hydraulic conductivity at the surface (m s-1)
                   iLayerDiffuse(0),                   & ! intent(inout): hydraulic diffusivity at the surface (m2 s-1)
                   ! input-output: fluxes at layer interfaces and surface runoff
+                  xMaxInfilRate,                      & ! intent(inout): maximum infiltration rate (m s-1)
                   scalarInfilArea,                    & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
                   scalarFrozenArea,                   & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
-                  scalarSurfaceRunoff,                & ! intent(inout): surface runoff (m s-1)
-                  scalarSurfaceInfiltration,          & ! intent(inout): surface infiltration (m s-1)
+                  scalarSurfaceRunoff,                & ! intent(out): surface runoff (m s-1)
+                  scalarSurfaceInfiltration,          & ! intent(out): surface infiltration (m s-1)
                   ! input-output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
                   dq_dHydStateBelow(0),               & ! intent(inout): derivative in surface infiltration w.r.t. hydrology state variable in the upper-most soil layer (m s-1 or s-1)
                   dq_dNrgStateBelow(0),               & ! intent(out):   derivative in surface infiltration w.r.t. energy state variable in the upper-most soil layer (m s-1 K-1)
@@ -711,7 +725,7 @@ contains
    end select
   endif
 
-  write(*,'(a,1x,10(f30.15))') 'scalarRainPlusMelt, scalarSurfaceInfiltration = ', scalarRainPlusMelt, scalarSurfaceInfiltration
+  !write(*,'(a,1x,10(f30.15))') 'scalarRainPlusMelt, scalarSurfaceInfiltration = ', scalarRainPlusMelt, scalarSurfaceInfiltration
 
  end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
 
@@ -1288,10 +1302,11 @@ contains
                        surfaceHydCond,            & ! intent(inout): hydraulic conductivity at the surface (m s-1)
                        surfaceDiffuse,            & ! intent(inout): hydraulic diffusivity at the surface (m2 s-1)
                        ! input-output: fluxes at layer interfaces and surface runoff
+                       xMaxInfilRate,             & ! intent(inout): maximum infiltration rate (m s-1)
                        scalarInfilArea,           & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
                        scalarFrozenArea,          & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
-                       scalarSurfaceRunoff,       & ! intent(inout): surface runoff (m s-1)
-                       scalarSurfaceInfiltration, & ! intent(inout): surface infiltration (m s-1)
+                       scalarSurfaceRunoff,       & ! intent(out): surface runoff (m s-1)
+                       scalarSurfaceInfiltration, & ! intent(out): surface infiltration (m s-1)
                        ! input-output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
                        dq_dHydState,              & ! intent(inout): derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
                        dq_dNrgState,              & ! intent(out):   derivative in surface infiltration w.r.t. energy state variable in the upper-most soil layer (m s-1 K-1)
@@ -1350,10 +1365,11 @@ contains
  real(dp),intent(inout)        :: surfaceHydCond            ! hydraulic conductivity (m s-1)
  real(dp),intent(inout)        :: surfaceDiffuse            ! hydraulic diffusivity at the surface (m
  ! output: surface runoff and infiltration flux (m s-1)
+ real(dp),intent(inout)        :: xMaxInfilRate             ! maximum infiltration rate (m s-1)
  real(dp),intent(inout)        :: scalarInfilArea           ! fraction of unfrozen area where water can infiltrate (-)
  real(dp),intent(inout)        :: scalarFrozenArea          ! fraction of area that is considered impermeable due to soil ice (-)
- real(dp),intent(inout)        :: scalarSurfaceRunoff       ! surface runoff (m s-1)
- real(dp),intent(inout)        :: scalarSurfaceInfiltration ! surface infiltration (m s-1)
+ real(dp),intent(out)          :: scalarSurfaceRunoff       ! surface runoff (m s-1)
+ real(dp),intent(out)          :: scalarSurfaceInfiltration ! surface infiltration (m s-1)
  ! output: deriavtives in surface infiltration w.r.t. volumetric liquid water (m s-1) and matric head (s-1) in the upper-most soil layer
  real(dp),intent(out)          :: dq_dHydState              ! derivative in surface infiltration w.r.t. state variable in the upper-most soil layer (m s-1 or s-1)
  real(dp),intent(out)          :: dq_dNrgState              ! derivative in surface infiltration w.r.t. energy state variable in the upper-most soil layer (m s-1 K-1)
@@ -1375,8 +1391,6 @@ contains
  real(dp)                      :: availCapacity             ! available storage capacity in the root zone (m)
  real(dp)                      :: depthWettingFront         ! depth to the wetting front (m)
  real(dp)                      :: hydCondWettingFront       ! hydraulic conductivity at the wetting front (m s-1) 
- real(dp)                      :: xMaxInfr                  ! maximum infiltration rate (m s-1)
- real(dp)                      :: fInfRate                  ! infiltration rate at the surface (m s-1)
  ! (saturated area associated with variable storage capacity)
  real(dp)                      :: fracCap                   ! fraction of pore space filled with liquid water and ice (-)
  real(dp)                      :: fInfRaw                   ! infiltrating area before imposing solution constraints (-)
@@ -1473,16 +1487,15 @@ contains
 
     ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
     hydCondWettingFront =  surfaceSatHydCond * ( (1._dp - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 1._dp) )
-    !write(*,'(a,1x,f9.3,1x,e20.10,1x))') 'depthWettingFront, hydCondWettingFront = ', depthWettingFront, hydCondWettingFront
+    !write(*,'(a,1x,f9.3,1x,10(e20.10,1x))') 'depthWettingFront, surfaceSatHydCond, hydCondWettingFront = ', depthWettingFront, surfaceSatHydCond, hydCondWettingFront
  
-    ! define the infiltration rate (m s-1)
-    xMaxInfr = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
-    fInfRate = min(scalarRainPlusMelt,xMaxInfr)
+    ! define the maximum infiltration rate (m s-1)
+    xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
 
     ! define the infiltrating area for the non-frozen part of the cell/basin
-    fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                  ! fraction of available root zone filled with water
-    fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))              ! infiltrating area -- allowed to violate solution constraints
-    scalarInfilArea = 0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor))   ! infiltrating area -- constrained
+    fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                              ! fraction of available root zone filled with water
+    fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))                          ! infiltrating area -- allowed to violate solution constraints
+    scalarInfilArea = min(0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor)), 1._dp)   ! infiltrating area -- constrained
 
     ! check to ensure we are not infiltrating into a fully saturated column
     if(sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.99_dp*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) scalarInfilArea=0._dp
@@ -1496,17 +1509,17 @@ contains
      scalarFrozenArea = 0._dp
     endif
 
-    ! compute infiltration (m s-1)
-    scalarSurfaceInfiltration = (1._dp - scalarFrozenArea)*scalarInfilArea*fInfRate
-
-    ! compute surface runoff (m s-1)
-    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
-
-    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
-    surfaceHydCond = valueMissing
-    surfaceDiffuse = valueMissing
-
    endif ! (if desire to compute infiltration)
+
+   ! compute infiltration (m s-1)
+   scalarSurfaceInfiltration = (1._dp - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+
+   ! compute surface runoff (m s-1)
+   scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
+
+   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+   surfaceHydCond = valueMissing
+   surfaceDiffuse = valueMissing
 
    ! set numerical derivative to zero
    ! NOTE 1: Depends on multiple soil layers and does not jive with the current tridiagonal matrix

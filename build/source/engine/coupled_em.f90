@@ -34,13 +34,18 @@ contains
  USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
  USE data_struc,only:ix_soil,ix_snow                                                ! named variables for snow and soil
  USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookINDEX ! named variables for structure elements
- ! subroutines
- USE getDiagVar_module,only:getDiagVar      ! compute diagnostic variables that are treated as constant over a substep
- USE vegNrgFlux_module,only:wettedFrac      ! compute wetted fraction of the canopy (used in sw radiation fluxes)
- USE canopySnow_module,only:canopySnow      ! compute interception and unloading of snow from the vegetation canopy
- USE vegSWavRad_module,only:vegSWavRad      ! compute canopy sw radiation fluxes
+ ! preliminary subroutines
+ USE vegPhenlgy_module,only:vegPhenlgy      ! (1) compute vegetation phenology
+ USE vegNrgFlux_module,only:wettedFrac      ! (2) compute wetted fraction of the canopy (used in sw radiation fluxes)
+ USE snowAlbedo_module,only:snowAlbedo      ! (3) compute snow albedo
+ USE vegSWavRad_module,only:vegSWavRad      ! (4) compute canopy sw radiation fluxes
+ USE canopySnow_module,only:canopySnow      ! (5) compute interception and unloading of snow from the vegetation canopy
+ USE volicePack_module,only:volicePack      ! (6) compute change in volumetric ice content in the snowpack
+ USE diagn_evar_module,only:diagn_evar      ! (7) compute diagnostic energy variables -- thermal conductivity and heat capacity
+ ! the model solver
  USE systemSolv_module,only:systemSolv      ! solve the system of thermodynamic and hydrology equations for a given substep
- USE volicePack_module,only:volicePack      ! compute change in volumetric ice content in the snowpack
+ ! additional subroutines
+ USE snwDensify_module,only:snwDensify      ! snow densification
  ! look-up values for the numerical method
  USE mDecisions_module,only:         &
   iterative,                         &      ! iterative
@@ -83,6 +88,8 @@ contains
  character(len=256)                   :: cmessage               ! error message
  logical(lgt)                         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
+ real(dp)                             :: scalarCanopyWater      ! total canopy water (kg m-2)
+ real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
  real(dp)                             :: dt_wght                ! weight applied to each sub-step, to compute time step average
  real(dp)                             :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -90,6 +97,8 @@ contains
  real(dp),parameter                   :: varNotUsed1=-9999._dp  ! variables used to calculate derivatives (not needed here)
  real(dp),parameter                   :: varNotUsed2=-9999._dp  ! variables used to calculate derivatives (not needed here)
  integer(i4b)                         :: iLayer                 ! index of model layers
+ real(dp)                             :: volSub                 ! volumetric sublimation (kg m-3)
+ real(dp),parameter                   :: verySmall=tiny(1._dp)  ! a very small number 
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! ** local pointers to increment fluxes
@@ -170,36 +179,38 @@ contains
   ! increment the number of sub-steps
   nsub = nsub+1
 
-  ! recompute snow depth and SWE
-  if(nSnow > 0)then
-   mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-   mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                           mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                           * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
-  endif
-
-  ! save SWE (mass balance check)
+  ! save SWE
   oldSWE = mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-  !print*, 'oldSWE = ', oldSWE
+
+  ! (1) compute phenology...
+  ! ------------------------
 
   ! compute the temperature of the root zone: used in vegetation phenology
   mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
 
-  ! (1) compute variables that are treated as constant over a model substep...
-  ! --------------------------------------------------------------------------
-  ! (phenology, thermal properties, snow albedo)
-  call getDiagVar(&
-                  dt_sub,                       & ! intent(in): time step (s)
-                  computeVegFlux,               & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                  err,cmessage)                   ! intent(out): error control
+  ! compute the exposed LAI and SAI and whether veg is buried by snow
+  call vegPhenlgy(&
+                  ! input/output: data structures
+                  model_decisions,             & ! intent(in):    model decisions
+                  type_data,                   & ! intent(in):    type of vegetation and soil
+                  attr_data,                   & ! intent(in):    spatial attributes
+                  mpar_data,                   & ! intent(in):    model parameters
+                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  ! output
+                  computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                  canopyDepth,                 & ! intent(out): canopy depth (m)
+                  exposedVAI,                  & ! intent(out): exposed vegetation area index (m2 m-2)
+                  err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-  ! compute exposed vegetation area index (depends on phenology)
-  exposedVAI = mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1) + mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1)
+  print*, 'exposedVAI = ', exposedVAI
+
+
+  ! (2) compute wetted canopy area...
+  ! ---------------------------------
 
   ! compute maximum canopy liquid water (kg m-2)
   mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
-  print*, 'mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = ', mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1)
 
   ! compute maximum canopy ice content (kg m-2)
   ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
@@ -209,6 +220,9 @@ contains
    case(stickySnow); mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp ! use maximum per unit leaf area storage capacity for snow (kg m-2)
    case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
   end select ! identifying option for maximum branch interception capacity
+
+  print*, 'mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = ', mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1)
+  print*, 'mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1) = ', mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1)
 
   ! compute wetted fraction of the canopy
   ! NOTE: assume that the wetted fraction is constant over the substep for the radiation calculations
@@ -232,6 +246,8 @@ contains
                    dCanopyWetFraction_dT,                                        & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
                    err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! vegetation is completely buried by snow (or no veg exisits at all)
   else
    mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1) = 0._dp
    dCanopyWetFraction_dWat                                 = 0._dp
@@ -239,14 +255,48 @@ contains
   endif
 
 
-  ! (2) compute canopy throughfall and unloading...
+  ! (3) compute snow albedo...
+  ! --------------------------
+  ! NOTE: this should be done before the radiation calculations
+  ! NOTE: uses snowfall; should really use canopy throughfall + canopy unloading
+  call snowAlbedo(&
+                  ! input: model control
+                  dt_sub,                      & ! intent(in): model time step (s)
+                  (nSnow > 0),                 & ! intent(in): logical flag to denote if snow is present
+                  ! input/output: data structures
+                  model_decisions,             & ! intent(in):    model decisions
+                  mpar_data,                   & ! intent(in):    model parameters
+                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+
+  ! (4) compute canopy sw radiation fluxes...
+  ! -----------------------------------------
+  call vegSWavRad(&
+                  dt_sub,                       & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
+                  computeVegFlux,               & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                  err,cmessage)                   ! intent(out): error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+
+  ! (5) compute canopy throughfall and unloading...
   ! -----------------------------------------------
   ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation (and throughfall/unloading)
   ! NOTE 2: the unloading flux is computed using canopy drip (scalarCanopyLiqDrainage) from the previous time step
   call canopySnow(&
-                  dt_sub,                       & ! intent(in): time step (seconds)
-                  computeVegFlux,               & ! intent(in): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                  err,cmessage                  ) ! intent(out): error control
+                  ! input: model control
+                  dt_sub,                      & ! intent(in): time step (seconds)
+                  exposedVAI,                  & ! intent(in): exposed vegetation area index (m2 m-2)
+                  computeVegFlux,              & ! intent(in): flag to denote if computing energy flux over vegetation
+                  ! input/output: data structures
+                  model_decisions,             & ! intent(in):    model decisions
+                  forc_data,                   & ! intent(in):    model forcing data
+                  mpar_data,                   & ! intent(in):    model parameters
+                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+                  err,cmessage)                   ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
   ! initialize drainage and throughfall
@@ -261,28 +311,70 @@ contains
   endif
 
 
-  ! (3) compute canopy sw radiation fluxes...
-  ! -----------------------------------------
-  call vegSWavRad(&
-                  dt_sub,                       & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
-                  computeVegFlux,               & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                  err,cmessage)                   ! intent(out): error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  ! (6) add snowfall and merge/sub-divide snow layers...
+  ! ----------------------------------------------------
+  ! NOTE: This needs to be done AFTER the call to canopySnow, since below-canopy fluxes are computed in canopySnow
+  call volicePack(&
+                  ! input: model control
+                  dt_sub,                      & ! intent(in): time step (seconds)
+                  ! input/output: model data structures
+                  mpar_data,                   & ! intent(in):    model parameters
+                  indx_data,                   & ! intent(inout): type of each layer
+                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  model_decisions,             & ! intent(in):    model decisions 
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
+  if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
 
 
-  ! recompute snow depth and SWE
+  ! (7) compute diagnostic variables for each layer...
+  ! --------------------------------------------------
+  ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
+  call diagn_evar(&
+                  ! input: control variables
+                  computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
+                  canopyDepth,             & ! intent(in): canopy depth (m)
+                  ! input/output: data structures
+                  mpar_data,               & ! intent(in):    model parameters
+                  indx_data,               & ! intent(in):    model layer indices
+                  mvar_data,               & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+                  err,cmessage)              ! intent(out): error control
+  if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
+
+
+  ! (8) compute melt of the "snow without a layer"...
+  ! -------------------------------------------------
+  ! (check for the special case of "snow without a layer")
+  if(nSnow==0 .and. mvar_data%var(iLookMVAR%scalarSWE)%dat(1) > 0._dp)then
+   call implctMelt(&
+                   ! input/output: integrated snowpack properties
+                   mvar_data%var(iLookMVAR%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
+                   mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
+                   mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
+                   ! input/output: properties of the upper-most soil layer
+                   mvar_data%var(iLookMVAR%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
+                   mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
+                   mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                   ! output: error control
+                   err,cmessage                                             ) ! intent(out): error control
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! test: recompute snow depth and SWE
   if(nSnow > 0)then
    mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
    mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
                                                            mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                            * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
   endif
+  print*, 'mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow) = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)
+  print*, 'mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow) = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)
+  print*, 'test SWE = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
 
-  !print*, 'before picardSolv: SWE = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-
-  ! (4) solve model equations...
+  ! (9) solve model equations...
   ! ----------------------------
-  do  ! (multiple attempts for non-convergence)
+  !do  ! (multiple attempts for non-convergence)
    ! get the new solution
    call systemSolv(&
                    ! input: model control
@@ -305,42 +397,127 @@ contains
    !print*, '*************************************************'
    !print*, '*************************************************'
    !print*, '*************************************************'
-   !pause
+   !pause 'after call to systemSolv'
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif 
-   if(err==0) exit  ! exit do loop if all is a-ok
+   if(err<0)then; err=20; message=trim(message)//'still need to implement time step adjustment'; return; endif
+   !if(err==0) exit  ! exit do loop if all is a-ok
    ! if warnings (non-covergence, and so forth) then reduce the time step and try again
-   dt_sub = dt_sub*0.5_dp
+   !dt_sub = dt_sub*0.5_dp
    if(dt_sub < minstep)then
     message=trim(message)//'dt_sub is below the minimum time step'
     err=20; return
    endif
-  end do  ! (multiple attempts for non-convergence)
+  !end do  ! (multiple attempts for non-convergence)
+
+  ! test: recompute snow depth and SWE
+  if(nSnow > 0)then
+   mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
+   mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                           mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                           * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+  endif
+  print*, 'mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow) = ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)
+  print*, 'mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow) = ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)
+  print*, 'test SWE = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
 
 
+  ! (10) compute change in canopy ice content due to sublimation...
+  ! --------------------------------------------------------------
+  if(computeVegFlux)then
+   ! check that sublimation does not exceed the available water
+   ! NOTE: the sublimation flux is positive downward
+   scalarCanopyWater = mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) + mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)
+   print*, 'scalarCanopyWater, mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1) = ', &
+            scalarCanopyWater, mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)
+   if(-mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt_sub > scalarCanopyWater)then
+    message=trim(message)//'canopy sublimation exceeds total water storage on the canopy'
+    err=20; return 
+   endif
+   ! remove mass of ice on the canopy
+   mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) = mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) + &
+                                                     mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt_sub
+   ! if removed all ice, take the remaining sublimation from water
+   if(mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) < 0._dp)then
+    mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1) = mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1) + mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
+    mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) = 0._dp
+   endif
+  endif  ! (if computing the vegetation flux)
 
-  ! (4) use Picard iteration to solve model equations...
-  ! ----------------------------------------------------
-  !do
-  ! ! get the new solution
-  ! call picardSolv(dt_sub,maxiter,(nsub==1),computeVegFlux,&  ! input
-  !                 niter,err,cmessage)                        ! output
-  ! ! check errors
-  ! if(err > 0)then; message=trim(message)//trim(cmessage); return; endif  ! fatal error
-  ! if(err==0) exit  ! exit do loop if all is a-ok
-  ! ! err < 0 means non-fatal error, spreduce time step and try again
-  ! dt_sub = dt_sub*0.1_dp
-  ! ! check that the step size is still appropriate -- if not, use non-iterative solution
-  ! if(dt_sub < minstep)then
-  !  if(err/=0)then; message=trim(message)//'dt_sub is below the minimum time step'; return; endif
-  !  dt_sub  = minstep
-  !  ! just iterate once
-  !  call picardSolv(dt_sub,1,(nsub==1),computeVegFlux,     &  ! input
-  !                  niter,err,cmessage)                       ! output
-  !  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  !  exit ! exit do loop if all is a-ok
-  ! endif
-  !end do
+
+  ! recompute snow depth and SWE
+  if(nSnow > 0)then
+   mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
+   mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                           mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                           * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+  endif
+
+
+  ! (11) compute change in ice content of the top snow layer due to sublimation...
+  ! -----------------------------------------------------------------------------
+  ! NOTE: this is done BEFORE densification
+  if(nSnow > 0)then ! snow layers exist
+
+   ! volumetric sublimation (kg m-3)
+   volSub = dt_sub*mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1)/mvar_data%var(iLookMVAR%mLayerDepth)%dat(1)
+   !print*, 'volSub, depth = ', volSub, mvar_data%var(iLookMVAR%mLayerDepth)%dat(1)
+   ! update volumetric fraction of ice (-)
+   ! NOTE: fluxes are positive downward
+   mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1) = mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1) + volSub/iden_ice
+   ! check that we did not melt/sublimate all of the ice
+   if(mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1) < 0._dp)then
+    message=trim(message)//'sublimated all of the ice from the top snow layer'
+    err=20; return 
+   endif
+
+  ! no snow
+  else
+
+   ! no snow: check that sublimation is zero
+   if(abs(mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1)) > verySmall)then
+    message=trim(message)//'sublimation of snow has been computed when no snow exists'
+    err=20; return
+   endif
+
+  endif  ! (if snow layers exist)
+
+
+  ! (12) account for compaction and cavitation in the snowpack...
+  ! ------------------------------------------------------------
+  if(nSnow>0)then
+   call snwDensify(&
+                   ! intent(in): variables
+                   dt_sub,                                                 & ! intent(in): time step (s)
+                   mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
+                   mvar_data%var(iLookMVAR%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
+                   ! intent(in): parameters
+                   mpar_data%var(iLookPARAM%densScalGrowth),               & ! intent(in): density scaling factor for grain growth (kg-1 m3)
+                   mpar_data%var(iLookPARAM%tempScalGrowth),               & ! intent(in): temperature scaling factor for grain growth (K-1)
+                   mpar_data%var(iLookPARAM%grainGrowthRate),              & ! intent(in): rate of grain growth (s-1)
+                   mpar_data%var(iLookPARAM%densScalOvrbdn),               & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
+                   mpar_data%var(iLookPARAM%tempScalOvrbdn),               & ! intent(in): temperature scaling factor for overburden pressure (K-1)
+                   mpar_data%var(iLookPARAM%base_visc),                    & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                   ! intent(inout): state variables      
+                   mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow),      & ! intent(inout): depth of each layer (m)
+                   mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
+                   mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
+                   ! output: error control
+                   err,cmessage)                     ! intent(out): error control
+   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
+  endif  ! if snow layers exist
+
+
+  ! (13) check SWE...
+  ! ----------------
+
+  ! recompute snow depth and SWE
+  if(nSnow > 0)then
+   mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
+   mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                           mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                           * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+  endif
 
   ! compute effective rainfall input to the snowpack
   if(nSnow > 0)then
@@ -355,21 +532,6 @@ contains
   else
    snwDrainage = 0._dp   ! (no snow drainage when no snow layers)
   endif
-
-  !print*, 'after picardSolv: SWE = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-
-  ! (5) account for changes in volumetric ice content in the snowpack...
-  ! --------------------------------------------------------------------
-  ! (add snowfall; combine and sub-divide layers if necessary)
-  call volicePack(&
-                  dt_sub,                       & ! intent(in): time step (seconds)
-                  err,cmessage)                  ! intent(out): error control
-  if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
-
-  ! re-compute the number of snow and soil layers
-  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
-  nLayers = nSnow + nSoil
 
   ! check SWE
   sfcMeltPond = mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1)
@@ -394,16 +556,18 @@ contains
    err=20; return
   endif
 
-  ! compute the total number of snow and soil layers
-  nLayers = nSnow + nSoil
+
+  ! (13) adjust length of the substep...
+  ! ------------------------------------
 
   ! increment model fluxes
   dt_wght = dt_sub/dt ! define weight applied to each sub-step
   call increment_fluxes(dt_wght,nsub==1)
 
-  ! increment the time step increment
+  ! increment the time step
   dt_done = dt_done + dt_sub
   print*, '***** ', dt_done, dt_sub, niter
+  pause ' after increment the time step'
 
   ! modify the length of the time step
   if(niter<n_inc) dt_sub = min(dt_sub*F_inc,maxstep)
@@ -537,5 +701,71 @@ contains
 
  
  end subroutine coupled_em
+
+
+ ! *********************************************************************************************************
+ ! private subroutine: compute melt of the "snow without a layer"
+ ! *********************************************************************************************************
+ subroutine implctMelt(&
+                       ! input/output: integrated snowpack properties
+                       scalarSWE,         & ! intent(inout): snow water equivalent (kg m-2)
+                       scalarSnowDepth,   & ! intent(inout): snow depth (m)
+                       scalarSfcMeltPond, & ! intent(inout): surface melt pond (kg m-2)
+                       ! input/output: properties of the upper-most soil layer
+                       soilTemp,          & ! intent(inout): surface layer temperature (K)
+                       soilDepth,         & ! intent(inout): surface layer depth (m)
+                       soilHeatcap,       & ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                       ! output: error control
+                       err,message        ) ! intent(out): error control
+ implicit none
+ ! input/output: integrated snowpack properties
+ real(dp),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
+ real(dp),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
+ real(dp),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
+ ! input/output: properties of the upper-most soil layer
+ real(dp),intent(inout)    :: soilTemp           ! surface layer temperature (K)
+ real(dp),intent(inout)    :: soilDepth          ! surface layer depth (m)
+ real(dp),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
+ ! output: error control
+ integer(i4b),intent(out)  :: err                ! error code
+ character(*),intent(out)  :: message            ! error message
+ ! local variables
+ real(dp)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
+ real(dp)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
+ real(dp)                  :: snwDensity         ! snow density (kg m-3)
+ ! initialize error control
+ err=0; message='implctMelt/'
+
+ ! check for the special case of "snow without a layer"
+ if (nSnow==0 .and. scalarSWE > 0._dp)then
+  ! only melt if temperature of the top soil layer is greater than Tfreeze
+  if(soilTemp > Tfreeze)then
+   ! compute the energy required to melt all the snow (J m-2)
+   nrgRequired     = scalarSWE*LH_fus
+   ! compute the energy available to melt the snow (J m-2)
+   nrgAvailable    = soilHeatcap*(soilTemp - Tfreeze)*soilDepth
+   ! compute the snow density (not saved)
+   snwDensity      = scalarSWE/scalarSnowDepth
+   ! compute the amount of melt, and update SWE (kg m-2)
+   if(nrgAvailable > nrgRequired)then
+    scalarSfcMeltPond  = scalarSWE
+    scalarSWE          = 0._dp
+   else
+    scalarSfcMeltPond  = nrgAvailable/LH_fus
+    scalarSWE          = scalarSWE - scalarSfcMeltPond
+   endif
+   ! update depth
+   scalarSnowDepth = scalarSWE/snwDensity
+   ! update temperature of the top soil layer (K)
+   soilTemp =  soilTemp - (LH_fus*scalarSfcMeltPond/soilDepth)/soilHeatcap
+  else  ! melt is zero if the temperature of the top soil layer is less than Tfreeze
+   scalarSfcMeltPond = 0._dp  ! kg m-2
+  endif ! (if the temperature of the top soil layer is greater than Tfreeze)
+ else  ! melt is zero if the "snow without a layer" does not exist
+  scalarSfcMeltPond = 0._dp  ! kg m-2
+ endif ! (if the "snow without a layer" exists)
+
+ end subroutine implctMelt
+
 
 end module coupled_em_module

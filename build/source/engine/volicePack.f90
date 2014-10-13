@@ -12,11 +12,12 @@ USE multiconst,only:&
                     iden_air, & ! intrinsic density of air    (kg m-3)
                     iden_ice, & ! intrinsic density of ice    (kg m-3)
                     iden_water  ! intrinsic density of water  (kg m-3)
+! access the number of snow and soil layers
+USE data_struc,only:&
+                    nSnow,   & ! number of snow layers  
+                    nSoil,   & ! number of soil layers  
+                    nLayers    ! total number of layers
 implicit none
-! number of snow and soil layers
-integer(i4b)                  :: nSnow         ! number of snow layers
-integer(i4b)                  :: nSoil         ! number of soil layers
-integer(i4b)                  :: nLayers       ! total number of snow and soil layers
 private
 public::volicePack
 
@@ -27,78 +28,127 @@ contains
  ! (add snowfall; combine and sub-divide layers if necessary)
  ! ************************************************************************************************
  subroutine volicePack(&
+                       ! input: model control
                        dt,                          & ! intent(in): time step (seconds)
+                       ! input/output: model data structures
+                       mpar_data,                   & ! intent(in):    model parameters
+                       indx_data,                   & ! intent(inout): type of each layer
+                       mvar_data,                   & ! intent(inout): model variables for a local HRU
+                       model_decisions,             & ! intent(in):    model decisions 
+                       ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
- ! model variables, parameters, forcing data, etc.
- USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
- USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
- ! model decision structures
- USE data_struc,only:model_decisions     ! model decision structure
- USE var_lookup,only:iLookDECISIONS      ! named variables for elements of the decision structure
+ ! provide access to the derived types to define the data structures
+ USE data_struc,only:&
+                     var_d,            & ! data vector (dp)
+                     var_ilength,      & ! data vector with variable length dimension (i4b)
+                     var_dlength,      & ! data vector with variable length dimension (dp)
+                     model_options       ! defines the model decisions
+ ! provide access to named variables defining elements in the data structures
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! external subroutine
  USE var_derive_module,only:calcHeight   ! module to calculate height at layer interfaces and layer mid-point
  USE layerMerge_module,only:layerMerge   ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide ! sub-divide layers if they are too thick
  implicit none
- ! dummy variables
- real(dp),intent(in)           :: dt                  ! time step (seconds)
- integer(i4b),intent(out)      :: err                 ! error code
- character(*),intent(out)      :: message             ! error message
+ ! ------------------------------------------------------------------------------------------------
+ ! input: model control
+ real(dp),intent(in)             :: dt                  ! time step (seconds)
+ ! input/output: model data structures
+ type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_ilength),intent(inout) :: indx_data           ! type of each layer
+ type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
+ type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
+ ! output: error control
+ integer(i4b),intent(out)        :: err                 ! error code
+ character(*),intent(out)        :: message             ! error message
+ ! ------------------------------------------------------------------------------------------------
+ ! variables in the data structures
+ ! input: model parameters
+ real(dp)                        :: snowfrz_scale              ! freeezing curve parameter for snow (K-1)
+ ! input: diagnostic scalar variables
+ real(dp)                        :: scalarSnowfallTemp         ! computed temperature of fresh snow (K)
+ real(dp)                        :: scalarNewSnowDensity       ! computed density of new snow (kg m-3)
+ real(dp)                        :: scalarThroughfallSnow      ! throughfall of snow through the canopy (kg m-2 s-1)
+ real(dp)                        :: scalarCanopySnowUnloading  ! unloading of snow from the canopy (kg m-2 s-1)
+ ! input/output: scalar state variables
+ real(dp)                        :: scalarSWE                  ! SWE (kg m-2)
+ real(dp)                        :: scalarSnowDepth            ! total snow depth (m)
+ ! input/output: state variables
+ real(dp),pointer                :: mLayerTemp(:)              ! temperature of each snow layer (K)
+ real(dp),pointer                :: mLayerDepth(:)             ! depth of each snow layer (m) 
+ real(dp),pointer                :: mLayerVolFracIce(:)        ! volumetric fraction of ice in each snow layer (-)
+ real(dp),pointer                :: mLayerVolFracLiq(:)        ! volumetric fraction of liquid water in each snow layer (-)
+ ! ------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)            :: cmessage            ! error message of downwind routine
+ character(LEN=256)              :: cmessage            ! error message of downwind routine
+ real(dp)                        :: volSub              ! volumetric sublimation (kg m-3)
+ real(dp),parameter              :: verySmall=tiny(1._dp) ! a very small number
  ! initialize error control
  err=0; message='volicePack/'
 
- ! identify the number of snow and soil layers
- nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+ ! associate variables in the data structures
+ associate(&
 
- ! compute the total number of snow and soil layers
- nLayers = nSnow + nSoil
+ ! input: model parameters
+ snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
 
- ! NOTE: sublimation and densification handled in picardSolv
+ ! input: diagnostic scalar variables
+ scalarSnowfallTemp        => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K) 
+ scalarNewSnowDensity      => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
+ scalarThroughfallSnow     => mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
+ scalarCanopySnowUnloading => mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
 
- !write(*,'(a,1x,f20.10)') 'before newsnwfall; mvar_data%var(iLookMVAR%scalarSWE)%dat(1) = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+ ! input/output: state variables
+ scalarSWE                 => mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
+ scalarSnowDepth           => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)            & ! total snow depth (m)
+ 
+ ) ! end association to variables in the data structures
+
+ ! point to variables in the data structures
+ ! NOTE: use pointers because the dimension length changes
+ mLayerTemp                => mvar_data%var(iLookMVAR%mLayerTemp)%dat                      ! temperature of each snow layer (K)
+ mLayerDepth               => mvar_data%var(iLookMVAR%mLayerDepth)%dat                     ! depth of each snow layer (m)
+ mLayerVolFracIce          => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat                ! volumetric fraction of ice in each snow layer (-)
+ mLayerVolFracLiq          => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat                ! volumetric fraction of liquid water in each snow layer (-)
 
  ! *****
  ! * add new snowfall...
  ! *********************
  call newsnwfall(&
                  ! input: model control
-                 dt,                                                        & ! time step (seconds)
-                 mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
+                 dt,                        & ! time step (seconds)
+                 snowfrz_scale,             & ! freeezing curve parameter for snow (K-1)
                  ! input: diagnostic scalar variables
-                 mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K) 
-                 mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
-                 mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
-                 mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
+                 scalarSnowfallTemp,        & ! computed temperature of fresh snow (K) 
+                 scalarNewSnowDensity,      & ! computed density of new snow (kg m-3)
+                 scalarThroughfallSnow,     & ! throughfall of snow through the canopy (kg m-2 s-1)
+                 scalarCanopySnowUnloading, & ! unloading of snow from the canopy (kg m-2 s-1)
                  ! input/output: state variables
-                 mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
-                 mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
-                 mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),                & ! temperature of each layer (K)
-                 mvar_data%var(iLookMVAR%mLayerDepth)%dat(1),               & ! depth of each layer (m)
-                 mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1),          & ! volumetric fraction of ice in each layer (-)
-                 mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1),          & ! volumetric fraction of liquid water in each layer (-)
+                 scalarSWE,                 & ! SWE (kg m-2)
+                 scalarSnowDepth,           & ! total snow depth (m)
+                 mLayerTemp(1),             & ! temperature of the top snow or soil layer (K)
+                 mLayerDepth(1),            & ! depth of the top snow or soil layer (m)
+                 mLayerVolFracIce(1),       & ! volumetric fraction of ice in the top snow or soil layer (-)
+                 mLayerVolFracLiq(1),       & ! volumetric fraction of liquid water in the top snow or soil layer (-)
                  ! output: error control
-                 err,cmessage)                                                ! error control
+                 err,cmessage)                ! error control
  if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
 
  ! re-compute snow depth and SWE
  if(nSnow > 0)then
-  mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-  mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                          mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                          * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+  scalarSnowDepth = sum(mLayerDepth(1:nSnow))
+  scalarSWE       = sum( (mLayerVolFracLiq(1:nSnow)*iden_water + mLayerVolFracIce(1:nSnow)*iden_ice)*mLayerDepth(1:nSnow) )
  endif
 
- !write(*,'(a,1x,f20.10)') ' after newsnwfall; mvar_data%var(iLookMVAR%scalarSWE)%dat(1) = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-
- ! check for errors
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
  ! update coordinate variables
- call calcHeight(err,cmessage)
+ call calcHeight(&
+                 ! input/output: data structures
+                 indx_data,   & ! intent(in): layer type
+                 mvar_data,   & ! intent(inout): model variables for a local HRU
+                 ! output: error control
+                 err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! *****
@@ -106,11 +156,25 @@ contains
  ! ************************************************
 
  ! divide snow layers if too thick
- call layerDivide(err,cmessage)        ! error control
- if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
+ call layerDivide(&
+                  ! input/output: model data structures
+                  model_decisions,             & ! intent(in):    model decisions
+                  mpar_data,                   & ! intent(in):    model parameters
+                  indx_data,                   & ! intent(inout): type of each layer
+                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
+ if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
  ! merge snow layers if they are too thin
- call layerMerge(err,cmessage)        ! error control
+ call layerMerge(&
+                 ! input/output: model data structures
+                 model_decisions,             & ! intent(in):    model decisions
+                 mpar_data,                   & ! intent(in):    model parameters
+                 indx_data,                   & ! intent(inout): type of each layer
+                 mvar_data,                   & ! intent(inout): model variables for a local HRU
+                 ! output: error control
+                 err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
  ! recompute the number of snow and soil layers
@@ -126,6 +190,9 @@ contains
  endif
 
  !write(*,'(a,1x,i4,f20.10)') ' after combine; mvar_data%var(iLookMVAR%scalarSWE)%dat(1) = ', nSnow, mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+
+ ! end association to variables in the data structures
+ end associate
 
 
  end subroutine volicePack

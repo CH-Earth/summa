@@ -216,6 +216,8 @@ contains
   else
     iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                     (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+
+    !print*, 'iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
   endif ! (the type of layer)
  end do
 

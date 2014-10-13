@@ -1473,11 +1473,11 @@ contains
    ! (canopy transpiration/sublimation)
    if(scalarLatHeatSubVapCanopy > LH_vap+verySmall)then ! sublimation
     scalarCanopyEvaporation = 0._dp
+    scalarCanopySublimation = scalarLatHeatCanopyEvap/LH_sub
     if(scalarLatHeatCanopyTrans > 0._dp)then ! flux directed towards the veg
      scalarCanopySublimation   = scalarCanopySublimation + scalarLatHeatCanopyTrans/LH_sub ! frost
      scalarCanopyTranspiration = 0._dp
     else
-     scalarCanopySublimation   = scalarLatHeatCanopyEvap/LH_sub
      scalarCanopyTranspiration = scalarLatHeatCanopyTrans/LH_vap  ! transpiration is always vapor
     endif
    ! (canopy transpiration/evaporation)
@@ -1516,8 +1516,8 @@ contains
    canairNetFlux = turbFluxCanair
    canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy + scalarCanopyAdvectiveHeatFlux
    groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround + scalarGroundAdvectiveHeatFlux
-   write(*,'(a,1x,10(e20.14,1x))') 'canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround = ', &
-                                    canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround
+   !write(*,'(a,1x,10(e20.14,1x))') 'canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround = ', &
+   !                                 canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround
    !print*, 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround = ', groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround
   
   

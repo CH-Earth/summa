@@ -202,7 +202,7 @@ call ffile_info(nHRU,err,message); call handle_err(err,message)
 call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (5a) read Noah vegetation tables
+! (5a) read Noah vegetation and soil tables
 ! *****************************************************************************
 ! define monthly fraction of green vegetation
 !                           J        F        M        A        M        J        J        A        S        O        N        D
@@ -250,10 +250,16 @@ do iHRU=1,nHRU
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
  print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
+ ! re-calculate height of each layer
+ call calcHeight(&
+                 ! input/output: data structures
+                 indx_data,   & ! intent(in): layer type
+                 mvar_data,   & ! intent(inout): model variables for a local HRU
+                 ! output: error control
+                 err,message); call handle_err(err,message)
  ! compute derived model variables that are pretty much constant over each HRU
  call E2T_lookup(err,message); call handle_err(err,message) ! calculate a look-up table for the temperature-enthalpy conversion
  call rootDensty(err,message); call handle_err(err,message) ! calculate vertical distribution of root density
- call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
  call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
  call v_shortcut(err,message); call handle_err(err,message) ! calculate "short-cut" variables such as volumetric heat capacity
  ! overwrite the vegetation height
@@ -415,7 +421,8 @@ do istep=1,numtim
  ! ****************************************************************************
  ! (8) loop through HRUs
  ! ****************************************************************************
- do iHRU=1,nHRU
+ !do iHRU=1,nHRU
+ do iHRU=1,1
 
   ! assign pointers to HRUs
   time_data => time_hru(iHRU)
