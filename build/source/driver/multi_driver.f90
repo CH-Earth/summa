@@ -421,8 +421,7 @@ do istep=1,numtim
  ! ****************************************************************************
  ! (8) loop through HRUs
  ! ****************************************************************************
- !do iHRU=1,nHRU
- do iHRU=1,1
+ do iHRU=1,nHRU
 
   ! assign pointers to HRUs
   time_data => time_hru(iHRU)

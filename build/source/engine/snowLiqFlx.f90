@@ -159,7 +159,7 @@ contains
    ! compute the reduction in liquid water holding capacity at high snow density (-)
    multResid = 1._dp / ( 1._dp + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
    ! compute the pore space (-)
-   mLayerPoreSpace(iLayer)  = (iden_ice/iden_water) - mLayerVolFracIce(iLayer)
+   mLayerPoreSpace(iLayer)  = 1._dp - mLayerVolFracIce(iLayer)
    ! compute the residual volumetric liquid water content (-)
    mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
   end do  ! (looping through snow layers)

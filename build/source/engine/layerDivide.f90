@@ -198,6 +198,10 @@ contains
    call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage) 
    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
+   ! re-assign pointers to the coordinate variables
+   mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
+   layerType        => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
+
    ! re-assign pointers to the model state variables
    ! NOTE: need to do this here, since state vectors have just been modified
    mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
@@ -236,6 +240,11 @@ contains
     ! set direct albedo to diffuse albedo
     mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat(:) = mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(:)
    endif  ! (if NOT using the Noah-MP radiation routine)
+
+   ! update the total number of layers
+   nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+   nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+   nLayers = nSnow + nSoil
 
    ! check
    print*, trim(message)
@@ -293,6 +302,9 @@ contains
    call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage)  ! adds model layer to the index BELOW the layer that is too thick
    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
+   ! re-assign local pointer to the model index structures
+   layerType => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
+
    ! identify the number of snow and soil layers, and check all is a-OK
    nSnow   = count(layerType==ix_snow)
    nSoil   = count(layerType==ix_soil)
@@ -307,7 +319,7 @@ contains
    !do kLayer=1,nLayers
    ! write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
    !end do
-   print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+   !print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
    !pause ' check layer sub-division'
 
    exit  ! NOTE: only sub-divide one layer per substep

@@ -1029,6 +1029,7 @@ contains
    call longwaveBal(&
                     ! input: model control
                     ix_fDerivMeth,                     & ! intent(in): method used to calculate flux derivatives 
+                    computeVegFlux,                    & ! intent(in): flag to compute fluxes over vegetation
                     ! input: canopy and ground temperature
                     canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
                     groundTempTrial,                   & ! intent(in): temperature of the ground surface (K)
@@ -1690,6 +1691,7 @@ contains
 
  ! compute relative canopy water
  relativeCanopyWater = canopyLiq/canopyMax
+ !write(*,'(a,1x,3(f20.10,1x))') 'relativeCanopyWater, canopyLiq, canopyMax = ', relativeCanopyWater, canopyLiq, canopyMax
 
  ! compute an initial value of the canopy wet fraction
  ! - canopy below value where canopy is 100% wet
@@ -1782,6 +1784,7 @@ contains
  subroutine longwaveBal(&
                         ! input: model control
                         ixDerivMethod,                  & ! intent(in): choice of method used to compute derivative (analytical or numerical)
+                        computeVegFlux,                 & ! intent(in): flag to compute fluxes over vegetation
                         ! input: canopy and ground temperature
                         canopyTemp,                     & ! intent(in): canopy temperature (K)
                         groundTemp,                     & ! intent(in): ground temperature (K)
@@ -1817,6 +1820,7 @@ contains
  implicit none
  ! input: model control
  integer(i4b),intent(in)       :: ixDerivMethod            ! choice of method used to compute derivative (analytical or numerical)
+ logical(lgt),intent(in)       :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
  ! input: canopy and ground temperature
  real(dp),intent(in)           :: canopyTemp               ! canopy temperature (K)
  real(dp),intent(in)           :: groundTemp               ! ground temperature (K)
@@ -1914,9 +1918,13 @@ contains
   ! calculation block (unperturbed fluxes returned [computed last])
   ! -------------------------------------------------------------------------------------
   ! NOTE: emc should be set to zero when not computing canopy fluxes
- 
+
   ! compute longwave fluxes from canopy and the ground
-  LWRadCanopy = emc*sb*TCan**4._dp                                           ! longwave radiation emitted from the canopy (W m-2)
+  if(computeVegFlux)then
+   LWRadCanopy = emc*sb*TCan**4._dp                                           ! longwave radiation emitted from the canopy (W m-2)
+  else
+   LWRadCanopy = 0._dp
+  endif
   LWRadGround = emg*sb*TGnd**4._dp                                           ! longwave radiation emitted at the ground surface (W m-2)
   
   ! compute fluxes originating from the atmosphere

@@ -144,7 +144,7 @@ contains
     case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iSnow) < zminLayer(iSnow))
     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
    end select ! (option to combine/sub-divide snow layers)
-   print*, 'in layerMerge: iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer = ', iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer
+   !print*, 'in layerMerge: iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer = ', iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer
 
    ! check if need to remove a layer
    if(removeLayer)then
@@ -159,6 +159,10 @@ contains
      ! NOTE: nSnow-1 = 0, so routine removes layer #1
      call rmLyAllVars(mvar_data,indx_data,nSnow-1,err,cmessage)
      if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+     ! update the total number of layers
+     nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+     nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+     nLayers = nSnow + nSoil
      ! update coordinate variables
      call calcHeight(&
                      ! input/output: data structures
