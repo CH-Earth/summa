@@ -206,7 +206,8 @@ contains
   ! ** compute iteration increment  
   flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
   delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._dp + (throughfallDeriv + unloadingDeriv)*dt)
-  !print*, 'scalarCanopyIceIter, flux, delS = ', scalarCanopyIceIter, flux, delS  
+  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyIceIter, flux, delS, scalarSnowfall, scalarThroughfallSnow, scalarCanopySnowUnloading = ',&
+  !                                 scalarCanopyIceIter, flux, delS, scalarSnowfall, scalarThroughfallSnow, scalarCanopySnowUnloading 
 
   ! ** check for convergence
   resMass = scalarCanopyIceIter - (scalarCanopyIce + flux*dt)

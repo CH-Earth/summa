@@ -18,6 +18,7 @@ contains
                        dt,                             & ! intent(in) time step (s)
                        mLayerTemp,                     & ! intent(in): temperature of each layer (K)
                        mLayerMeltFreeze,               & ! intent(in): volumnetric melt in each layer (kg m-3)
+                       scalarSnowSublimation,          & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
 
                        ! intent(in): parameters
                        densScalGrowth,                 & ! intent(in): density scaling factor for grain growth (kg-1 m3)
@@ -41,6 +42,7 @@ contains
  real(dp),intent(in)                 :: dt                       ! time step (seconds)
  real(dp),intent(in)                 :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
  real(dp),intent(in)                 :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
+ real(dp),intent(in)                 :: scalarSnowSublimation    ! sublimation from the snow surface (kg m-2 s-1)
  ! intent(in): parameters
  real(dp),intent(in)                 :: densScalGrowth           ! density scaling factor for grain growth (kg-1 m3)
  real(dp),intent(in)                 :: tempScalGrowth           ! temperature scaling factor for grain growth (K-1)
@@ -70,7 +72,7 @@ contains
  real(dp)                            :: massIceOld               ! mass of ice in the snow layer (kg m-2)
  real(dp)                            :: massLiqOld               ! mass of liquid water in the snow layer (kg m-2)
  real(dp)                            :: scalarDepthNew           ! updated layer depth (m)
- real(dp)                            :: volFracIceMelt           ! volumetric fraction of ice lost due to melt (-)
+ real(dp)                            :: volFracIceLoss           ! volumetric fraction of ice lost due to melt and sublimation (-)
  real(dp),parameter                  :: snwden_min=100._dp       ! minimum snow density for reducing metamorphism rate (kg m-3)
  real(dp),parameter                  :: snwDensityMax=550._dp    ! maximum snow density for collapse under melt (kg m-3)
  real(dp),parameter                  :: wetSnowThresh=0.01_dp    ! threshold to discriminate between "wet" and "dry" snow
@@ -120,8 +122,15 @@ contains
   ! *** compute the compaction rate associated with snow melt (s-1)
   ! NOTE: loss of ice due to snowmelt is implicit, so can be updated directly
   if(iden_ice*mLayerVolFracIceNew(iSnow) < snwDensityMax)then ! only collapse layers if below a critical density
-   volFracIceMelt = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
-   scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceMelt)
+   ! (compute volumetric losses of ice due to melt and sublimation)
+   if(iSnow==1)then  ! if top snow layer include sublimation and melt
+    volFracIceLoss = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice - dt*(scalarSnowSublimation/mLayerDepth(iSnow))/iden_ice )
+   else
+    volFracIceLoss = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
+   endif
+   ! (adjust snow depth to account for cavitation)
+   scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
+   !print*, 'volFracIceLoss = ', volFracIceLoss
    !scalarDepthNew = min(mLayerVolFracIceNew(iSnow)/mLayerVolFracIce(iSnow), 1._dp)*mLayerDepth(iSnow)
   else
    scalarDepthNew = mLayerDepth(iSnow)

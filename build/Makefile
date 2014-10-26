@@ -134,6 +134,7 @@ SUMMA_MODRUN = \
 		derivforce.f90 \
 		snowAlbedo.f90 \
 		canopySnow.f90 \
+		tempAdjust.f90 \
 		snwCompact.f90 \
 		layerMerge.f90 \
 		layerDivide.f90 \

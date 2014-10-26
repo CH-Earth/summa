@@ -356,7 +356,6 @@ contains
   case('averageAquiferTranspire'        ); get_ixmvar = iLookMVAR%averageAquiferTranspire          ! transpiration from the aquifer (m s-1)
   case('averageColumnOutflow'           ); get_ixmvar = iLookMVAR%averageColumnOutflow             ! outflow from each layer in the soil profile (m3 s-1) 
   ! scalar variables -- forcing
-  case('scalarBartDummy'                ); get_ixmvar = iLookMVAR%scalarBartDummy                  ! dummy variable for bart (-)
   case('scalarCosZenith'                ); get_ixmvar = iLookMVAR%scalarCosZenith                  ! cosine of the solar zenith angle (0-1)
   case('scalarFractionDirect'           ); get_ixmvar = iLookMVAR%scalarFractionDirect             ! fraction of direct radiation (0-1)
   case('spectralIncomingDirect'         ); get_ixmvar = iLookMVAR%spectralIncomingDirect           ! incoming direct solar radiation in each wave band (W m-2)
@@ -544,6 +543,8 @@ contains
   case('iLayerLiqFluxSnow'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('iLayerLiqFluxSoil'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSoil                ! liquid flux at soil layer interfaces at the end of the time step (m s-1)
   case('iLayerFluxReversal'             ); get_ixmvar = iLookMVAR%iLayerFluxReversal               ! end of step liquid flux at soil layer interfaces from impedance (m s-1)       
+  ! time stepping variables
+  case('dt_init'                        ); get_ixmvar = iLookMVAR%dt_init                          ! length of initial time step at start of next data interval (s)
   ! "short-cut" variables
   case('scalarVGn_m'                    ); get_ixmvar = iLookMVAR%scalarVGn_m                      ! van Genuchten "m" parameter (-) 
   case('scalarKappa'                    ); get_ixmvar = iLookMVAR%scalarKappa                      ! constant in the freezing curve function (m K-1)

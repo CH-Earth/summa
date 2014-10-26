@@ -644,6 +644,7 @@ contains
  stateVecTrial = stateVecInit 
 
  ! initialize the volumetric fraction of liquid water and ice in the vegetation canopy
+ !print*, 'scalarCanopyIce = ', scalarCanopyIce
  !scalarCanopyLiqTrial = scalarCanopyLiq
  !scalarCanopyIceTrial = scalarCanopyIce
 
@@ -786,9 +787,33 @@ contains
   ! if(pauseProgress) pause
   !endif
 
+  ! print iteration increment
+  !write(*,'(a,1x,10(f20.12,1x))') 'xInc(iJac1:iJac2)              = ', xInc(iJac1:iJac2)
+
   ! -----
   ! * impose solution constraints...
   ! --------------------------------
+
+  ! ** limit temperature increment to 1K
+  
+  ! vegetation
+  if(computeVegFlux)then
+   if(abs(xInc(ixVegNrg)) > 1._dp)then
+    !write(*,'(a,1x,10(f20.12,1x))') 'before scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
+    xIncScale = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
+    xInc      = xIncScale*xInc             ! scale iteration increments
+    !write(*,'(a,1x,10(f20.12,1x))') 'after scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
+   endif
+  endif
+
+  ! snow and soil
+  if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
+   !write(*,'(a,1x,10(f20.12,1x))') 'before scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
+   iMax      = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
+   xIncScale = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
+   xInc      = xIncScale*xInc
+   !write(*,'(a,1x,10(f20.12,1x))') 'after scale: xInc(iJac1:iJac2) = ', xInc(iJac1:iJac2)
+  endif
 
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
@@ -823,6 +848,8 @@ contains
     xInc        = xIncScale*xInc       ! scale iteration increments
    endif
 
+   !print*, 'crosTempVeg = ', crosTempVeg
+
    ! --------------------------------------------------------------------------------------------------------------------
    ! canopy liquid water
 
@@ -832,6 +859,7 @@ contains
     cInc      = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
     xIncScale = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
     xInc      = xIncScale*xInc                                                   ! new iteration increment
+    !print*, 'canopy liquid water constraint'
    endif
 
   endif  ! if computing fluxes through vegetation
@@ -862,25 +890,34 @@ contains
    mLayerVolFracLiqCheck = mLayerVolFracLiqTrial(1:nSnow)+xInc(ixSnowOnlyWat)
    drainFlag(:) = .false.
 
+   do iLayer=1,nSnow
+    if(mLayerVolFracLiqCheck(iLayer) < 0._dp)then
+     drainFlag(iLayer) = .true.
+     xInc(ixSnowOnlyWat(iLayer)) = -0.5_dp*mLayerVolFracLiqTrial(iLayer)
+    endif
+    !write(*,'(a,1x,i4,1x,l1,1x,10(f15.8,1x))') 'iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer) = ',&
+    !                                            iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer)
+   end do
+
    ! check if the iteration increment removes all the water
-   if(any(mLayerVolFracLiqCheck < 0._dp))then
-    ! print original iteration increment
-    !do iLayer=1,nSnow
-    ! write(*,'(a,1x,i4,1x,10(f15.8,1x))') 'iLayer, xInc(ixSnowOnlyWat(iLayer)) = ', iLayer, xInc(ixSnowOnlyWat(iLayer))
-    !end do
-    ! scale iteration increment
-    iMin      = minloc(mLayerVolFracLiqCheck)                 ! index of the most excessive drainage
-    cInc      = -0.5_dp*mLayerVolFracLiqTrial(iMin(1))        ! constrained drainage increment (-) -- simplified bi-secion
-    xIncScale = cInc/xInc(ixSnowOnlyWat(iMin(1)))        ! scaling factor for the iteration increment (-)
-    xInc      = xIncScale*xInc
-    drainFlag(iMin(1)) = .true.
-    ! print results
-    !do iLayer=1,nSnow
-    ! write(*,'(a,1x,i4,1x,l1,1x,10(f15.8,1x))') 'iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer) = ',&
-    !                                             iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer)
-    !end do
-    !pause
-   endif   ! if iteration increment removes all the water
+   !if(any(mLayerVolFracLiqCheck < 0._dp))then
+   ! ! print original iteration increment
+   ! do iLayer=1,nSnow
+   !  write(*,'(a,1x,i4,1x,10(f15.8,1x))') 'iLayer, xInc(ixSnowOnlyWat(iLayer)) = ', iLayer, xInc(ixSnowOnlyWat(iLayer))
+   ! end do
+   ! ! scale iteration increment
+   ! iMin      = minloc(mLayerVolFracLiqCheck)                 ! index of the most excessive drainage
+   ! cInc      = -0.5_dp*mLayerVolFracLiqTrial(iMin(1))        ! constrained drainage increment (-) -- simplified bi-secion
+   ! xIncScale = cInc/xInc(ixSnowOnlyWat(iMin(1)))        ! scaling factor for the iteration increment (-)
+   ! xInc      = xIncScale*xInc
+   ! drainFlag(iMin(1)) = .true.
+   ! ! print results
+   ! do iLayer=1,nSnow
+   !  write(*,'(a,1x,i4,1x,l1,1x,10(f15.8,1x))') 'iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer) = ',&
+   !                                              iLayer, drainFlag(iLayer), xInc(ixSnowOnlyWat(iLayer)), mLayerVolFracLiqTrial(iLayer), mLayerThetaResid(iLayer)
+   ! end do
+   ! !pause
+   !endif   ! if iteration increment removes all the water
 
   endif   ! if snow layers exist
 
@@ -961,10 +998,9 @@ contains
  ! compute the melt in each snow and soil layer
  if(nSnow>0) mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIceTrial(      1:nSnow  ) - mLayerVolFracIce(      1:nSnow  ))*iden_ice
              mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIceTrial(nSnow+1:nLayers) - mLayerVolFracIce(nSnow+1:nLayers))*iden_water
- !print*, 'mLayerVolFracIce(1),      mLayerVolFracLiq(1)      = ', mLayerVolFracIce(1)*iden_ice, mLayerVolFracLiq(1)*iden_water
- !print*, 'mLayerVolFracIceTrial(1), mLayerVolFracLiqTrial(1) = ', mLayerVolFracIceTrial(1)*iden_ice, mLayerVolFracLiqTrial(1)*iden_water
- !print*, 'mLayerMeltFreeze(      1:nSnow  ) = ', mLayerMeltFreeze(      1:nSnow  )
-
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracIce(1),      mLayerVolFracLiq(1)      = ', mLayerVolFracIce(1)*iden_ice, mLayerVolFracLiq(1)*iden_water
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracIceTrial(1), mLayerVolFracLiqTrial(1) = ', mLayerVolFracIceTrial(1)*iden_ice, mLayerVolFracLiqTrial(1)*iden_water
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMeltFreeze(      1:nSnow  ) = ', mLayerMeltFreeze(      1:nSnow  )
 
  ! -----
  ! * check that there is sufficient ice content to support the converged sublimation rate...
@@ -1334,17 +1370,21 @@ contains
   ! compute energy associated with melt freeze for the vegetation canopy
   if(computeVegFlux)then
    rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*(scalarCanopyIceLocal - scalarCanopyIce)/canopyDepth   ! energy associated with melt/freeze (J m-3)
+   if(printFlag)then
+    print*, 'rAdd(ixVegNrg), scalarCanopyIceLocal, scalarCanopyIce = ', rAdd(ixVegNrg), scalarCanopyIceLocal, scalarCanopyIce
+    pause
+   endif
   endif
 
   ! compute energy associated with melt/freeze for snow
   if(nSnow>0)&
   rAdd(ixSnowOnlyNrg) = rAdd(ixSnowOnlyNrg) + LH_fus*iden_ice*(mLayerVolFracIceLocal(1:nSnow) - mLayerVolFracIce(1:nSnow))       ! energy associated with melt/freeze (J m-3)
-  !if(printFlag)then
-  ! write(*,'(a,1x,10(e20.10,1x))') 'rAdd(ixSnowOnlyNrg) = ', rAdd(ixSnowOnlyNrg)
-  ! write(*,'(a,1x,10(e20.10,1x))') 'mLayerVolFracIce(1:5) = ', mLayerVolFracIce(1:5)
-  ! write(*,'(a,1x,10(e20.10,1x))') 'mLayerVolFracIceLocal(1:5) = ', mLayerVolFracIceLocal(1:5)
-  ! write(*,'(a,1x,10(e20.10,1x))') 'delIce = ', mLayerVolFracIceLocal(1:5) - mLayerVolFracIce(1:5)
-  !endif
+  if(printFlag)then
+   !write(*,'(a,1x,10(e20.10,1x))') 'rAdd(ixSnowOnlyNrg) = ', rAdd(ixSnowOnlyNrg)
+   !write(*,'(a,1x,10(e20.10,1x))') 'mLayerVolFracIce(1:5) = ', mLayerVolFracIce(1:5)
+   !write(*,'(a,1x,10(e20.10,1x))') 'mLayerVolFracIceLocal(1:5) = ', mLayerVolFracIceLocal(1:5)
+   !write(*,'(a,1x,10(e20.10,1x))') 'delIce = ', mLayerVolFracIceLocal(1:5) - mLayerVolFracIce(1:5)
+  endif
 
   ! compute energy associated with melt/freeze for soil
   rAdd(ixSoilOnlyNrg) = rAdd(ixSoilOnlyNrg) + LH_fus*iden_water*(mLayerVolFracIceLocal(nSnow+1:nLayers) - mLayerVolFracIce(nSnow+1:nLayers))     ! energy associated with melt/freeze (J m-3)
@@ -1381,10 +1421,10 @@ contains
   !rAdd(ixSnowSoilNrg) = 0._dp
   !fVec(ixSnowSoilNrg) = 0._dp
   rVec(ixSnowSoilNrg) = sMul(ixSnowSoilNrg)*mLayerTempTrial(1:nLayers) - ( (sMul(ixSnowSoilNrg)*mLayerTemp(1:nLayers)  + fVec(ixSnowSoilNrg)*dt) + rAdd(ixSnowSoilNrg) )
-  !if(printFlag)then
-  ! write(*,'(a,1x,10(e25.15,1x))') 'fVec(1:2)*dt = ', fVec(1:2)*dt
-  ! write(*,'(a,1x,10(e20.10,1x))') 'rAdd(1:8)    = ', rAdd(1:8)
-  !endif
+  if(printFlag)then
+   write(*,'(a,1x,10(e25.15,1x))') 'fVec(1:2)*dt = ', fVec(1:2)*dt
+   write(*,'(a,1x,10(e20.10,1x))') 'rAdd(1:8)    = ', rAdd(1:8)
+  endif
 
   !if(printFlag)then
   ! do iLayer=nSnow+1,nLayers
@@ -1398,7 +1438,7 @@ contains
   if(nSnow>0)&
   rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(1:nSnow) - ( (mLayerVolFracWat(1:nSnow)  + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
   !if(printFlag)then
-  ! do iLayer=1,5
+  ! do iLayer=1,min(nSnow,5)
   !  jLayer = ixSnowOnlyWat(iLayer)
   !  write(*,'(a,1x,2(i4,1x),10(e20.10,1x))') 'iLayer, jLayer, fVec(jLayer), sMul(jLayer), rAdd(jLayer), rVec(jLayer), mLayerVolFracIceLocal(iLayer) = ', &
   !                                            iLayer, jLayer, fVec(jLayer), sMul(jLayer), rAdd(jLayer), rVec(jLayer), mLayerVolFracIceLocal(iLayer)
@@ -1664,9 +1704,11 @@ contains
                   ! output: error control
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  !print*, 'canairNetNrgFlux = ', canairNetNrgFlux
-  !print*, 'canopyNetNrgFlux = ', canopyNetNrgFlux
-  !print*, 'groundNetNrgFlux = ', groundNetNrgFlux
+  if(printFlag)then
+   print*, 'canairNetNrgFlux = ', canairNetNrgFlux
+   print*, 'canopyNetNrgFlux = ', canopyNetNrgFlux
+   print*, 'groundNetNrgFlux = ', groundNetNrgFlux
+  endif
 
   if(printFlag)then 
    !print*, 'in systemSolv: scalarGroundEvaporation = ', scalarGroundEvaporation

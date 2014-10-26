@@ -247,7 +247,6 @@ MODULE var_lookup
   integer(i4b)    :: averageAquiferTranspire         = 15  ! transpiration from the aquifer (m s-1)
   integer(i4b)    :: averageColumnOutflow            = 16  ! outflow from each layer in the soil profile (m3 s-1)
   ! define scalar variables -- forcing
-  integer(i4b)    :: scalarBartDummy                 = 17  ! dummy variable for bart (-)
   integer(i4b)    :: scalarCosZenith                 = 17  ! cosine of the solar zenith angle (0-1)
   integer(i4b)    :: scalarFractionDirect            = 18  ! fraction of direct radiation (0-1)
   integer(i4b)    :: spectralIncomingDirect          = 19  ! incoming direct solar radiation in each wave band (W m-2)
@@ -435,17 +434,19 @@ MODULE var_lookup
   integer(i4b)    :: iLayerLiqFluxSnow               = 188 ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   integer(i4b)    :: iLayerLiqFluxSoil               = 189 ! liquid flux at soil layer interfaces at the end of the time step (m s-1) 
   integer(i4b)    :: iLayerFluxReversal              = 190 ! end of step liquid flux at soil layer interfaces from impedance (m s-1)
+  ! define variables for time stepping
+  integer(i4b)    :: dt_init                         = 191 ! length of initial time step at start of next data interval (s)
   ! define derived variables
-  integer(i4b)    :: scalarVGn_m                     = 191 ! van Genuchten "m" parameter (-)
-  integer(i4b)    :: scalarKappa                     = 192 ! constant in the freezing curve function (m K-1)
-  integer(i4b)    :: scalarVolHtCap_air              = 193 ! volumetric heat capacity air         (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_ice              = 194 ! volumetric heat capacity ice         (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_soil             = 195 ! volumetric heat capacity dry soil    (J m-3 K-1)
-  integer(i4b)    :: scalarVolHtCap_water            = 196 ! volumetric heat capacity liquid wat  (J m-3 K-1)
-  integer(i4b)    :: scalarLambda_drysoil            = 197 ! thermal conductivity of dry soil     (W m-1)
-  integer(i4b)    :: scalarLambda_wetsoil            = 198 ! thermal conductivity of wet soil     (W m-1)
-  integer(i4b)    :: scalarVolLatHt_fus              = 199 ! volumetric latent heat of fusion     (J m-3)
-  integer(i4b)    :: scalarAquiferRootFrac           = 200 ! fraction of roots below the soil profile (-)
+  integer(i4b)    :: scalarVGn_m                     = 192 ! van Genuchten "m" parameter (-)
+  integer(i4b)    :: scalarKappa                     = 193 ! constant in the freezing curve function (m K-1)
+  integer(i4b)    :: scalarVolHtCap_air              = 194 ! volumetric heat capacity air         (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_ice              = 195 ! volumetric heat capacity ice         (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_soil             = 196 ! volumetric heat capacity dry soil    (J m-3 K-1)
+  integer(i4b)    :: scalarVolHtCap_water            = 197 ! volumetric heat capacity liquid wat  (J m-3 K-1)
+  integer(i4b)    :: scalarLambda_drysoil            = 198 ! thermal conductivity of dry soil     (W m-1)
+  integer(i4b)    :: scalarLambda_wetsoil            = 199 ! thermal conductivity of wet soil     (W m-1)
+  integer(i4b)    :: scalarVolLatHt_fus              = 200 ! volumetric latent heat of fusion     (J m-3)
+  integer(i4b)    :: scalarAquiferRootFrac           = 201 ! fraction of roots below the soil profile (-)
  endtype iLook_mvar
 
  ! ***********************************************************************************************************

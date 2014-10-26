@@ -163,6 +163,7 @@ contains
  else
   scalarBulkVolHeatCapVeg = valueMissing
  endif 
+ !print*, 'diagn_evar: scalarBulkVolHeatCapVeg = ', scalarBulkVolHeatCapVeg
 
  ! compute the thermal conductivity of dry and wet soils (W m-1)
  ! NOTE: this is actually constant over the simulation, and included here for clarity

@@ -60,7 +60,7 @@ contains
  integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
- character(LEN=256)             :: namesScalarDesired(9) ! names of desired scalar variables
+ character(LEN=256)             :: namesScalarDesired(10) ! names of desired scalar variables
  logical(lgt),allocatable       :: checkGotVars(:) ! used to check if we have got desired variables
  character(LEN=256),allocatable :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable :: chardata(:)     ! vector of character data
@@ -113,18 +113,19 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
  ! define desired scalar variables
- if(size(namesScalarDesired)/=9)then
-  err=20; message=trim(message)//'expect 9 variables in namesScalarDesired'; return
+ if(size(namesScalarDesired)/=10)then
+  err=20; message=trim(message)//'expect 10 variables in namesScalarDesired'; return
  endif
- namesScalarDesired( 1) = 'scalarCanopyIce'
- namesScalarDesired( 2) = 'scalarCanopyLiq'
- namesScalarDesired( 3) = 'scalarCanairTemp'
- namesScalarDesired( 4) = 'scalarCanopyTemp'
- namesScalarDesired( 5) = 'scalarSnowAlbedo'
- namesScalarDesired( 6) = 'scalarSWE'
- namesScalarDesired( 7) = 'scalarSnowDepth'
- namesScalarDesired( 8) = 'scalarSfcMeltPond'
- namesScalarDesired( 9) = 'scalarAquiferStorage'
+ namesScalarDesired( 1) = 'dt_init'
+ namesScalarDesired( 2) = 'scalarCanopyIce'
+ namesScalarDesired( 3) = 'scalarCanopyLiq'
+ namesScalarDesired( 4) = 'scalarCanairTemp'
+ namesScalarDesired( 5) = 'scalarCanopyTemp'
+ namesScalarDesired( 6) = 'scalarSnowAlbedo'
+ namesScalarDesired( 7) = 'scalarSWE'
+ namesScalarDesired( 8) = 'scalarSnowDepth'
+ namesScalarDesired( 9) = 'scalarSfcMeltPond'
+ namesScalarDesired(10) = 'scalarAquiferStorage'
 
  ! **********************************************************************************************
  ! (1) open files, etc.

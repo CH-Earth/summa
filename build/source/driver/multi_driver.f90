@@ -94,6 +94,12 @@ integer(i4b)              :: nHRU                           ! number of hydrolog
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
 integer(i4b)              :: iMonth                         ! index of the current month
+! define the re-start file
+logical(lgt)              :: printRestart                   ! flag to print a re-start file
+integer(i4b),parameter    :: ixRestart_im=1001              ! named variable to print a re-start file once per month
+integer(i4b),parameter    :: ixRestart_id=1002              ! named variable to print a re-start file once per day
+integer(i4b),parameter    :: ixRestart_never=1003           ! named variable to print a re-start file never
+integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency to write restart files
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
@@ -339,7 +345,9 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
 endselect
 
 ! initialize time step length for each HRU
-dt_init(:) = 10._dp ! seconds
+do iHRU=1,nHRU
+ dt_init(iHRU) = mvar_hru(iHRU)%var(iLookMVAR%dt_init)%dat(1) ! seconds
+end do
 
 ! initialize time step index
 jstep=1
@@ -348,6 +356,9 @@ jstep=1
 ! (6) loop through time
 ! ****************************************************************************
 do istep=1,numtim
+
+ ! check
+ !if(istep > 217) pause 'check time step'
 
  ! read a line of forcing data (if not already opened, open file, and get to the correct place)
  ! NOTE: only read data once: if same data used for multiple HRUs, data is copied across
@@ -537,8 +548,20 @@ do istep=1,numtim
   ! ****************************************************************************
   ! (9) run the model
   ! ****************************************************************************
+  ! define the need to calculate the re-start file
+  select case(ixRestart)
+   case(ixRestart_im);    printRestart = (time_data%var(iLookTIME%id) == 1 .and. time_data%var(iLookTIME%ih) == 1  .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_id);    printRestart = (time_data%var(iLookTIME%ih) == 1 .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_never); printRestart = .false.
+   case default; call handle_err(20,'unable to identify option for the restart file')
+  end select 
+
   ! run the model for a single parameter set and time step
-  call coupled_em(dt_init(iHRU),err,message); call handle_err(err,message) 
+  call coupled_em(printRestart,                    & ! flag to print a re-start file
+                  output_fileSuffix,               & ! name of the experiment used in the restart file
+                  dt_init(iHRU),                   & ! initial time step
+                  err,message)                       ! error control
+  call handle_err(err,message) 
   !if(exfiltration > 0.0001_dp) call handle_err(20,'model driver: testing exfiltration')
   !if(istep>1000) stop 'FORTRAN STOP: after call to coupled_em'
   !if(associated(forc_data))then

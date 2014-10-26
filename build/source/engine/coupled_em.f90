@@ -25,12 +25,12 @@ contains
  ! ************************************************************************************************
  ! new subroutine: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
- subroutine coupled_em(dt_init,err,message)
+ subroutine coupled_em(printRestart,output_fileSuffix,dt_init,err,message)
  ! data structures and named variables
  USE data_struc,only:data_step                                                      ! time step of forcing data (s)
  USE data_struc,only:model_decisions                                                ! model decision structure
  USE data_struc,only:type_data,attr_data,forc_data,mpar_data                        ! data structures
- USE data_struc,only:bvar_data,mvar_data,indx_data                                  ! data structures
+ USE data_struc,only:bvar_data,mvar_data,indx_data,time_data                        ! data structures
  USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
  USE data_struc,only:ix_soil,ix_snow                                                ! named variables for snow and soil
  USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookINDEX ! named variables for structure elements
@@ -46,7 +46,8 @@ contains
  ! the model solver
  USE systemSolv_module,only:systemSolv      ! solve the system of thermodynamic and hydrology equations for a given substep
  ! additional subroutines
- USE snwDensify_module,only:snwDensify      ! snow densification
+ USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
+ USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
  ! look-up values for the numerical method
  USE mDecisions_module,only:         &
@@ -59,6 +60,8 @@ contains
                        lightSnow            ! maximum interception capacity an inverse function of new snow density
  implicit none
  ! define output
+ character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
+ logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
  integer(i4b),intent(out)             :: err                    ! error code
  character(*),intent(out)             :: message                ! error message
@@ -100,13 +103,12 @@ contains
  real(dp),parameter                   :: varNotUsed2=-9999._dp  ! variables used to calculate derivatives (not needed here)
  integer(i4b)                         :: iLayer                 ! index of model layers
  real(dp)                             :: volSub                 ! volumetric sublimation (kg m-3)
- real(dp),parameter                   :: verySmall=tiny(1._dp)  ! a very small number 
  real(dp),parameter                   :: tinyNumber=tiny(1._dp) ! a tiny number
  real(dp)                             :: dt_solv                ! progress towards dt_sub
  real(dp)                             :: dt_temp                ! temporary sub-step length
  integer(i4b)                         :: nTemp                  ! number of temporary sub-steps
  integer(i4b)                         :: nTrial                 ! number of trial sub-steps
- logical(lgt)                         :: rejectedStep           ! flag top denote if the sub-step is rejected (convergence problem, etc.)
+ logical(lgt)                         :: rejectedStep           ! flag to denote if the sub-step is rejected (convergence problem, etc.)
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! ** local pointers to increment fluxes
@@ -155,6 +157,13 @@ contains
 
  ! compute the total number of snow and soil layers
  nLayers = nSnow + nSoil
+
+ ! print re-start file
+ if(printRestart)then
+  call printRestartFile(output_fileSuffix,dt_init,time_data,mvar_data,err,cmessage)
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  !pause
+ endif
 
  ! assign pointers to algorithmic control parameters
  minstep => mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
@@ -306,7 +315,19 @@ contains
                   mpar_data,                   & ! intent(in):    model parameters
                   mvar_data,                   & ! intent(inout): model variables for a local HRU
                   ! output: error control
-                  err,cmessage)                   ! intent(out): error control
+                  err,cmessage)                  ! intent(out): error control
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  !print*, 'canopyIce = ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
+
+  ! adjust canopy temperature to account for new snow
+  call tempAdjust(&
+                  ! input: derived parameters
+                  canopyDepth,                 & ! intent(in): canopy depth (m)
+                  ! input/output: data structures
+                  mpar_data,                   & ! intent(in):    model parameters
+                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
   ! initialize drainage and throughfall
@@ -497,9 +518,17 @@ contains
 
    ! if err<0 (warnings) and hence non-convergence
    if(err<0)then
+    ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
-    print*, trim(cmessage)
-    rejectedStep=.true.
+    !print*, trim(cmessage), dt_temp
+    rejectedStep=.true. 
+    ! (check that time step greater than the minimum step)
+    if(dt_temp < minstep)then
+     message=trim(message)//'dt_temp is below the minimum time step'
+     err=20; return
+    endif
+    !pause 'check constraints'
+    ! (try again)
     cycle  ! try again
    else
     rejectedStep=.false.
@@ -563,6 +592,7 @@ contains
     endif
 
    endif  ! (if snow layers exist)
+   !print*, 'ice after sublimation: ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1)*iden_ice
 
 
    ! (11) account for compaction and cavitation in the snowpack...
@@ -573,6 +603,7 @@ contains
                     dt_temp,                                                & ! intent(in): time step (s)
                     mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
                     mvar_data%var(iLookMVAR%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
+                    mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1),  & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
                     ! intent(in): parameters
                     mpar_data%var(iLookPARAM%densScalGrowth),               & ! intent(in): density scaling factor for grain growth (kg-1 m3)
                     mpar_data%var(iLookPARAM%tempScalGrowth),               & ! intent(in): temperature scaling factor for grain growth (K-1)
@@ -588,6 +619,15 @@ contains
                     err,cmessage)                     ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
    endif  ! if snow layers exist
+
+   ! update coordinate variables
+   call calcHeight(&
+                   ! input/output: data structures
+                   indx_data,   & ! intent(in): layer type
+                   mvar_data,   & ! intent(inout): model variables for a local HRU
+                   ! output: error control
+                   err,cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
 
    ! (12) compute sub-step averages associated with the temporary steps...
@@ -614,16 +654,11 @@ contains
    dt_solv = dt_solv + dt_temp
 
    ! check that we have completed the sub-step
-   if(dt_solv >= dt_sub-tinyNumber) exit
+   if(dt_solv >= dt_sub-verySmall) exit
 
    ! adjust length of the sub-step (make sure that we don't exceed the step)
    dt_temp = min(dt_sub - dt_solv, dt_temp)
-
-   ! check that time step greater than the minimum step
-   if(dt_temp < minstep)then
-    message=trim(message)//'dt_temp is below the minimum time step'
-    err=20; return
-   endif
+   !print*, 'dt_temp = ', dt_temp
 
 
   end do  ! (multiple attempts for non-convergence)
@@ -695,7 +730,7 @@ contains
   dt_sub = min(dt-dt_done, dt_sub)
   
  end do  ! (sub-step loop)
- !pause 'completed time step'
+ !stop 'completed time step'
 
  !print*, 'mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1) = ', mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1)
 
@@ -872,6 +907,128 @@ contains
  endif ! (if the "snow without a layer" exists)
 
  end subroutine implctMelt
+
+ ! *********************************************************************************************************
+ ! private subroutine: print a re-start file
+ ! *********************************************************************************************************
+ subroutine printRestartFile(&
+                             output_fileSuffix,& ! intent(in): suffix defining the model experiment
+                             dt_init,          & ! intent(in): time step length (s)
+                             time_data,        & ! intent(in): model time structures
+                             mvar_data,        & ! intent(in): model variables for a local HRU
+                             err,message)        ! intent(out): error control
+ ! --------------------------------------------------------------------------------------------------------
+ ! --------------------------------------------------------------------------------------------------------
+ ! access the derived types to define the data structures
+ USE data_struc,only:var_i                  ! data vector (i4b)
+ USE data_struc,only:var_dlength            ! data vector with variable length dimension (dp)
+ ! access named variables defining elements in the data structures
+ USE var_lookup,only:iLookMVAR,iLookTIME    ! named variables for structure elements
+ ! access file paths
+ USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX      ! define output file
+ ! access desired modules
+ USE ascii_util_module,only:file_open       ! open file
+ implicit none
+ ! --------------------------------------------------------------------------------------------------------
+ ! input
+ character(*),intent(in)         :: output_fileSuffix   ! suffix defining the model experiment
+ real(dp),intent(in)             :: dt_init             ! time step length (s)
+ type(var_i),intent(in)          :: time_data           ! model time structures
+ type(var_dlength),intent(in)    :: mvar_data           ! model variables for a local HRU
+ ! output: error control
+ integer(i4b),intent(out)        :: err                 ! error code
+ character(*),intent(out)        :: message             ! error message
+ ! --------------------------------------------------------------------------------------------------------
+ ! local variables
+ integer(i4b),parameter          :: ixUnit=64           ! file unit
+ logical(lgt)                    :: fileOpen            ! flag to denote if the file unit is already used 
+ character(len=256),parameter    :: filepref='summaRestart'  ! prefix for the restart filename
+ character(len=256)              :: timeString          ! string to define the time
+ character(len=256)              :: filename            ! name of the restart file
+ character(len=256)              :: cmessage            ! error message of downstream routine
+ integer(i4b)                    :: iLayer              ! index of the model layer
+ real(dp),parameter              :: valueMissing=-999._dp  ! missing value
+ ! --------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message='printRestartFile/'
+
+ ! define the time string
+ write(timeString,'(a,i4,3(a,i2.2))') '_',time_data%var(iLookTIME%iyyy),'-',time_data%var(iLookTIME%im),'-',time_data%var(iLookTIME%id),'-',time_data%var(iLookTIME%ih)
+
+ ! define the file name
+ filename = trim(OUTPUT_PATH)//trim(filepref)//trim(timeString)//trim(output_fileSuffix)//'.txt'
+ !print*, trim(filename)
+ !pause
+
+ ! check if file unit is open already
+ inquire(unit=ixUnit,opened=fileOpen)
+ if(fileOpen)then; err=20; message=trim(message)//'file ixUnit is open'; return; endif
+
+ ! open file for writing
+ open(ixUnit,file=trim(filename),status="unknown",action="write",iostat=err)
+ if(err/=0)then
+  message=trim(message)//"OpenError['"//trim(filename)//"']"
+  err=20; return
+ endif
+
+ ! write a header
+ write(ixUnit,'(a)') '! This is a summa re-start file'
+ write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
+
+ ! write scalar state variables
+ write(ixUnit,'(a)') '<start_scalar_icond>'
+ write(ixUnit,'(a25,1x,f20.10)') 'dt_init                 ', dt_init                                              ! time step length (s)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarCanopyIce         ', mvar_data%var(iLookMVAR%scalarCanopyIce     )%dat(1) ! canopy ice content (kg m-2)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarCanopyLiq         ', mvar_data%var(iLookMVAR%scalarCanopyLiq     )%dat(1) ! canopy liquid water content (kg m-2)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarCanairTemp        ', mvar_data%var(iLookMVAR%scalarCanairTemp    )%dat(1) ! temperature of the canopy air space (K)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarCanopyTemp        ', mvar_data%var(iLookMVAR%scalarCanopyTemp    )%dat(1) ! temperature of the vegetation canopy (K)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarSnowAlbedo        ', mvar_data%var(iLookMVAR%scalarSnowAlbedo    )%dat(1) ! snow albedo (-)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarSWE               ', mvar_data%var(iLookMVAR%scalarSWE           )%dat(1) ! snow water equivalent (kg m-2)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarSnowDepth         ', mvar_data%var(iLookMVAR%scalarSnowDepth     )%dat(1) ! snow depth (m)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarSfcMeltPond       ', mvar_data%var(iLookMVAR%scalarSfcMeltPond   )%dat(1) ! surface melt pond (kg m-2)
+ write(ixUnit,'(a25,1x,f20.10)') 'scalarAquiferStorage    ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1) ! aquifer storage (m)
+ write(ixUnit,'(a)') '<end_scalar_icond>'
+
+ ! make the file easier to read
+ write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
+ write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
+
+ ! write layer state variables
+ write(ixUnit,'(a)') '<start_layer_icond>'
+ write(ixUnit,'(a)') ' layerType            iLayerHeight             mLayerDepth   mLayerTemp mLayerVolFracIce mLayerVolFracLiq mLayerMatricHead'
+
+ ! write state variables for each snow layer
+ if(nSnow>0)then
+  do iLayer=1,nSnow  ! loop through snow layers
+   write(ixUnit,'(a10,2x,2(e22.15,2x),f11.7,1x,2(f16.12,1x),f16.4)') '      snow',                                            &
+                                                                     mvar_data%var(iLookMVAR%iLayerHeight    )%dat(iLayer-1), &  ! height at the top of the layer (m)
+                                                                     mvar_data%var(iLookMVAR%mLayerDepth     )%dat(iLayer),   &  ! depth of each layer (m)
+                                                                     mvar_data%var(iLookMVAR%mLayerTemp      )%dat(iLayer),   &  ! temperature of each layer (K)
+                                                                     mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer),   &  ! volumetric ice content (-)
+                                                                     mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer),   &  ! volumetric liquid water content (-)
+                                                                     valueMissing                                                ! matric head (missing for snow)
+  end do  ! looping through snow layers
+ endif  ! if snow layers exist
+
+ ! write state variables for each soil layer
+ do iLayer=1,nSoil  ! loop through snow layers
+  write(ixUnit,'(a10,2x,2(e22.15,2x),f11.7,1x,2(f16.12,1x),f16.4)') '      soil',                                                  &
+                                                                    mvar_data%var(iLookMVAR%iLayerHeight    )%dat(nSnow+iLayer-1), &  ! height at the top of the layer (m)
+                                                                    mvar_data%var(iLookMVAR%mLayerDepth     )%dat(nSnow+iLayer),   &  ! depth of each layer (m)
+                                                                    mvar_data%var(iLookMVAR%mLayerTemp      )%dat(nSnow+iLayer),   &  ! temperature of each layer (K)
+                                                                    mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(nSnow+iLayer),   &  ! volumetric ice content (-)
+                                                                    mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+iLayer),   &  ! volumetric liquid water content (-)
+                                                                    mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer)             ! matric head (m)
+ end do  ! looping through soil layers
+
+ ! end definition of layer variables
+ write(ixUnit,'(a)') '<end_layer_icond>'
+
+ ! close file
+ close(ixUnit)
+
+ end subroutine printRestartFile
+
 
 
 end module coupled_em_module
