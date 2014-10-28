@@ -234,9 +234,9 @@ contains
  integer(i4b),parameter          :: ixFullMatrix=1001            ! named variable for the full Jacobian matrix
  integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
  integer(i4b)                    :: ixSolve=ixFullMatrix         ! option selected for the type of matrix used to solve the linear system A.X=B
- !integer(i4b)                    :: ixSolve=ixBandMatrix         ! option selected for the type of matrix used to solve the linear system A.X=B
+ !integer(i4b)                    :: ixSolve=ixBandMatrix        ! option selected for the type of matrix used to solve the linear system A.X=B
  integer(i4b),parameter          :: iJac1=1                      ! first layer of the Jacobian to print
- integer(i4b),parameter          :: iJac2=10                      ! last layer of the Jacobian to print
+ integer(i4b),parameter          :: iJac2=7                      ! last layer of the Jacobian to print
  ! ------------------------------------------------------------------------------------------------------
  ! * fluxes and derivatives
  ! ------------------------------------------------------------------------------------------------------
@@ -671,7 +671,7 @@ contains
 
   ! test
   !print*, '***'
-  !write(*,'(a,1x,f10.2,1x,i4,1x,l1)') '*** new iteration: dt, iter, computeVegFlux = ', dt, iter, computeVegFlux
+  !write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
   !write(*,'(a,1x,10(e15.5,1x))') 'stateVecInit(1:10)  = ', stateVecInit(1:10)
   !write(*,'(a,1x,10(e15.5,1x))') 'stateVecTrial(1:10) = ', stateVecTrial(1:10)
   !write(*,'(a,1x,10(e15.5,1x))') 'xInc(1:10)          = ', xInc(1:10)
@@ -743,7 +743,7 @@ contains
   ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
   if(ixRichards==moisture)then; err=20; message=trim(message)//'have not implemented the moisture-based form of RE yet'; return; endif
   dMat(ixSoilOnlyMat) = dVolTot_dPsi0(1:nSoil) + dCompress_dPsi(1:nSoil)
-  !print*, 'mLayerdTheta_dPsi(1:nSoil) = ', mLayerdTheta_dPsi(1:nSoil)
+  !print*, 'dVolTot_dPsi0(1:nSoil) = ', dVolTot_dPsi0(1:nSoil)
   !print*, 'dCompress_dPsi(1:nSoil)    = ', dCompress_dPsi(1:nSoil)
 
   ! compute the analytical Jacobian matrix
@@ -935,7 +935,7 @@ contains
 
    ! identify the critical point when soil begins to freeze (TcSoil)
    xPsi00 = stateVecTrial(ixLiq) + xInc(ixLiq)
-   TcSoil = Tfreeze + xPsi00*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+   TcSoil = Tfreeze + min(xPsi00,0._dp)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
 
    ! get the difference from the current state and the crossing point (K)
    critDiff = TcSoil - stateVecTrial(ixNrg)
@@ -962,6 +962,12 @@ contains
 
    endif  ! (switch between initially frozen and initially unfrozen)
    !write(*,'(i4,1x,l1,1x,2(f20.10,1x))') iLayer, crosFlag(iLayer), TcSoil, xInc(ixNrg)
+
+   ! place constraint for matric head
+   if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
+    xInc(ixLiq) = 1._dp
+    pauseProgress=.true.
+   endif  ! if constraining matric head
 
   end do  ! (loop through soil layers
 
@@ -1347,7 +1353,8 @@ contains
                   mLayerMatricHead(1:nSoil),              & ! intent(in): matric head at the start of the time step (m)
                   mLayerMatricHeadTrial(1:nSoil),         & ! intent(in): trial value of matric head (m)
                   mLayerVolFracLiqLocal(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
-                  mLayerdTheta_dPsi,                      & ! intent(in): derivative in the soil water characteristic (m-1)
+                  mLayerVolFracIceLocal(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
+                  dVolTot_dPsi0,                          & ! intent(in): derivative in the soil water characteristic (m-1)
                   specificStorage,                        & ! intent(in): specific storage coefficient (m-1)
                   theta_sat,                              & ! intent(in): soil porosity (-)
                   ! output:
@@ -1370,10 +1377,10 @@ contains
   ! compute energy associated with melt freeze for the vegetation canopy
   if(computeVegFlux)then
    rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*(scalarCanopyIceLocal - scalarCanopyIce)/canopyDepth   ! energy associated with melt/freeze (J m-3)
-   if(printFlag)then
-    print*, 'rAdd(ixVegNrg), scalarCanopyIceLocal, scalarCanopyIce = ', rAdd(ixVegNrg), scalarCanopyIceLocal, scalarCanopyIce
-    pause
-   endif
+   !if(printFlag)then
+   ! print*, 'rAdd(ixVegNrg), scalarCanopyIceLocal, scalarCanopyIce = ', rAdd(ixVegNrg), scalarCanopyIceLocal, scalarCanopyIce
+   ! pause
+   !endif
   endif
 
   ! compute energy associated with melt/freeze for snow
@@ -1421,10 +1428,10 @@ contains
   !rAdd(ixSnowSoilNrg) = 0._dp
   !fVec(ixSnowSoilNrg) = 0._dp
   rVec(ixSnowSoilNrg) = sMul(ixSnowSoilNrg)*mLayerTempTrial(1:nLayers) - ( (sMul(ixSnowSoilNrg)*mLayerTemp(1:nLayers)  + fVec(ixSnowSoilNrg)*dt) + rAdd(ixSnowSoilNrg) )
-  if(printFlag)then
-   write(*,'(a,1x,10(e25.15,1x))') 'fVec(1:2)*dt = ', fVec(1:2)*dt
-   write(*,'(a,1x,10(e20.10,1x))') 'rAdd(1:8)    = ', rAdd(1:8)
-  endif
+  !if(printFlag)then
+  ! write(*,'(a,1x,10(e25.15,1x))') 'fVec(1:2)*dt = ', fVec(1:2)*dt
+  ! write(*,'(a,1x,10(e20.10,1x))') 'rAdd(1:8)    = ', rAdd(1:8)
+  !endif
 
   !if(printFlag)then
   ! do iLayer=nSnow+1,nLayers
@@ -1449,7 +1456,13 @@ contains
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
   vThetaTrial(1:nSoil) = mLayerVolFracLiqLocal(nSnow+1:nLayers) + mLayerVolFracIceLocal(nSnow+1:nLayers) ! liquid equivalent of total water at the current iteration
   rVec(ixSoilOnlyMat)  = vThetaTrial(1:nSoil) - ( (vThetaInit(1:nSoil) + fVec(ixSoilOnlyMat)*dt) + rAdd(ixSoilOnlyMat) ) 
-  !write(*,'(a,1x,10(e15.5,1x))') 'rVec(ixSnowSoilWat) = ', rVec(ixSnowSoilWat)
+  !if(printFlag)then
+  ! write(*,'(a,1x,10(e20.10,1x))') 'vThetaInit(1:nSoil)  = ', vThetaInit(1:nSoil)
+  ! write(*,'(a,1x,10(e20.10,1x))') 'vThetaTrial(1:nSoil) = ', vThetaTrial(1:nSoil)
+  ! write(*,'(a,1x,10(e20.10,1x))') 'fVec(ixSnowSoilWat)  = ', fVec(ixSnowSoilWat)
+  ! write(*,'(a,1x,10(e20.10,1x))') 'rAdd(ixSnowSoilWat)  = ', rAdd(ixSnowSoilWat)
+  ! write(*,'(a,1x,10(e20.10,1x))') 'rVec(ixSnowSoilWat)  = ', rVec(ixSnowSoilWat)
+  !endif
 
   ! test
   !write(*,'(a,1x,10(e15.5,1x))') 'rVec(1:10) = ', rVec(1:10)
@@ -1606,10 +1619,11 @@ contains
 
    ! - compute derivative in total water content w.r.t. total water matric potential (m-1)
    dVolTot_dPsi0(iSoil) = dTheta_dPsi(mLayerMatricHeadTrial(iSoil),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)  ! valid for both frozen and unfrozen conditions
-   !if(printFlag) print*, 'iSoil, dVolTot_dPsi0 = ', iSoil, dVolTot_dPsi0(iSoil)
+   !if(printFlag.and.iSoil<5) print*, 'iSoil, dVolTot_dPsi0 = ', iSoil, dVolTot_dPsi0(iSoil)
+   !if(printFlag.and.iSoil<5) print*, 'mLayerVolFracIceTrial(nSnow+iSoil), mLayerVolFracLiqTrial(nSnow+iSoil) = ', mLayerVolFracIceTrial(nSnow+iSoil), mLayerVolFracLiqTrial(nSnow+iSoil)
 
    ! ** partially frozen soil
-   if(mLayerVolFracIceTrial(nSnow+iSoil) > verySmall)then  ! check that ice exists
+   if(mLayerVolFracIceTrial(nSnow+iSoil) > verySmall .and. mLayerMatricHeadTrial(iSoil) < 0._dp)then  ! check that ice exists and that the soil is unsaturated
     ! - compute effective saturation
     ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
     ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
@@ -1617,7 +1631,8 @@ contains
     xDen   = theta_sat - mLayerVolFracIceTrial(nSnow+iSoil) - theta_res
     effSat = xNum/xDen          ! effective saturation
     ! - matric head associated with liquid water
-    mLayerMatricHeadLiq(iSoil) = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! use effective saturation, so theta_res=0 and theta_sat=1
+    mLayerMatricHeadLiq(iSoil) = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
+    !if(printFlag) print*, 'mLayerMatricHeadLiq(iSoil) = ', mLayerMatricHeadLiq(iSoil)
     ! - compute derivative in the liquid water matric potential w.r.t. the total water matric potential
     dPsiLiq_dEffSat      = dPsi_dTheta(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m) ! derivative in liquid water matric potential w.r.t. effective saturation (m)
     dEffSat_dVolTot      = xNum/(xDen**2._dp) ! derivative in effective saturation w.r.t. total water content (-)
@@ -1705,9 +1720,9 @@ contains
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   if(printFlag)then
-   print*, 'canairNetNrgFlux = ', canairNetNrgFlux
-   print*, 'canopyNetNrgFlux = ', canopyNetNrgFlux
-   print*, 'groundNetNrgFlux = ', groundNetNrgFlux
+   write(*,'(a,1x,e30.20)') 'canairNetNrgFlux = ', canairNetNrgFlux
+   write(*,'(a,1x,e30.20)') 'canopyNetNrgFlux = ', canopyNetNrgFlux
+   write(*,'(a,1x,e30.20)') 'groundNetNrgFlux = ', groundNetNrgFlux
   endif
 
   if(printFlag)then 
@@ -1763,12 +1778,12 @@ contains
   ! calculate the net liquid water flux for the vegetation canopy
   canopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
   ! test
-  !if(printFlag)then
-  ! print*, 'scalarRainfall = ', scalarRainfall
-  ! print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
-  ! print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
-  ! print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
-  !endif
+  if(printFlag)then
+   print*, 'scalarRainfall = ', scalarRainfall
+   print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
+   print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
+   print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
+  endif
 
   ! *****
   ! (4) CALCULATE THE LIQUID FLUX THROUGH SNOW...
@@ -1853,9 +1868,9 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSoil
    soilNetLiqFlux(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
-   !if(iLayer==1)&
-   !write(*,'(a,1x,i4,1x,10(f25.15,1x))') 'iLayer, soilNetLiqFlux(iLayer), iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer) = ', &
-   !                                       iLayer, soilNetLiqFlux(iLayer), iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer)
+   !if(printFlag .and. iLayer==1)&
+   !write(*,'(a,1x,i4,1x,10(f25.15,1x))') 'iLayer, soilNetLiqFlux(iLayer), scalarSurfaceInfiltration, iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer) = ', &
+   !                                       iLayer, soilNetLiqFlux(iLayer), scalarSurfaceInfiltration, iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer)
   end do
   ! calculate the soil control on infiltration
   if(nSnow==0) then
@@ -2185,7 +2200,7 @@ contains
   real(dp),dimension(nState)     :: fluxVecJac              ! flux vector
   real(qp),dimension(nState)     :: resVecJac               ! residual vector (mixed units)
   integer(i4b)                   :: iJac                    ! index of row of the Jacobian matrix
-  integer(i4b),parameter         :: iTry=-99                  ! index of trial model state variable (used for testing)
+  integer(i4b),parameter         :: iTry=3                  ! index of trial model state variable (used for testing)
   integer(i4b)                   :: ixDesire                ! index of a desired layer (used for testing)
   ! trial state variables (vegetation canopy)
   real(dp)                       :: scalarCanairTempLocal   ! trial value for temperature of the canopy air space (K)
@@ -2581,6 +2596,9 @@ contains
   integer(i4b),parameter :: maxiter=5
   REAL(DP) :: a,alam,alam2,alamin,b,disc,f2,fold2,pabs,rhs1,rhs2,slope,&
       tmplam
+  ! NOTE: tese variables are only used for testing
+  !real(dp),dimension(size(xOld)) :: rVecOld
+  !integer(i4b) :: iCheck
   ! initialize error control
   err=0; message="lineSearch/"
 
@@ -2632,10 +2650,19 @@ contains
 
    ! compute the function evaluation
    f=0.5_dp*norm2(rVec/fScale)  ! NOTE: norm2 is the Euclidean norm
-   !write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f     = ', alam, fOld, f
-   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': x(iJac1:iJac2)    = ', x(iJac1:iJac2)
-   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)    = ', p(iJac1:iJac2)
-   !write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2) = ', rVec(iJac1:iJac2)
+   !print*, 0.5_dp*sqrt(sum((rVec/fScale)**2._dp))
+   !write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
+   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
+   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
+   !write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
+
+   ! check
+   !if(iter>1 .and. printFlag)then
+   ! do iCheck=1,size(xOld)
+   !  write(*,'(i4,1x,10(e20.10,1x))') iCheck, rVec(iCheck), rVecOld(iCheck), fScale(iCheck)
+   ! end do
+   !endif
+   !rVecOld = rVec
 
    ! return if not doing the line search
    if(.not.doLineSearch)then
@@ -2744,6 +2771,7 @@ contains
                        mLayerMatricHead,                   & ! intent(in): matric head at the start of the time step (m)
                        mLayerMatricHeadTrial,              & ! intent(in): trial value of matric head (m)
                        mLayerVolFracLiqTrial,              & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
+                       mLayerVolFracIceTrial,              & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
                        mLayerdTheta_dPsi,                  & ! intent(in): derivative in the soil water characteristic (m-1)
                        specificStorage,                    & ! intent(in): specific storage coefficient (m-1)
                        theta_sat,                          & ! intent(in): soil porosity (-)
@@ -2757,6 +2785,7 @@ contains
  real(dp),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
  real(dp),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
  real(dp),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
+ real(dp),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
  real(dp),intent(in)            :: mLayerdTheta_dPsi(:)      ! derivative in the soil water characteristic (m-1)
  real(dp),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
  real(dp),intent(in)            :: theta_sat                 ! soil porosity (-)
@@ -2767,6 +2796,7 @@ contains
  character(*),intent(out)       :: message                   ! error message
  ! local variables
  character(LEN=256)             :: cmessage                  ! error message of downwind routine
+ real(dp)                       :: volFracWat                ! total volumetric fraction of water (-)
  real(dp)                       :: fPart1,fPart2             ! different parts of the function
  real(dp)                       :: dPart1,dPart2             ! derivatives for different parts of the function
  integer(i4b)                   :: iLayer                    ! index of soil layer
@@ -2776,10 +2806,12 @@ contains
  ! (only compute for the mixed form of Richards' equation)
  if(ixRichards==mixdform)then
   do iLayer=1,nSoil
+   ! compute the total volumetric fraction of water (-)
+   volFracWat = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)
    ! compute the compressibility term (-)
-   compress(iLayer) = (specificStorage*mLayerVolFracLiqTrial(iLayer)/theta_sat) * (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))
+   compress(iLayer) = (specificStorage*volFracWat/theta_sat) * (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))
    ! compute the derivative for the compressibility term (m-1)
-   fPart1 = specificStorage*(mLayerVolFracLiqTrial(iLayer)/theta_sat)  ! function for the 1st part (m-1)
+   fPart1 = specificStorage*(volFracWat/theta_sat)  ! function for the 1st part (m-1)
    fPart2 = mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer)   ! function for the 2nd part (m)
    dPart1 = mLayerdTheta_dPsi(iLayer)*specificStorage/theta_sat        ! derivative for the 1st part (m-2)
    dPart2 = 1._dp                                                      ! derivative for the 2nd part (-)

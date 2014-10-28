@@ -1517,10 +1517,10 @@ contains
    canairNetFlux = turbFluxCanair
    canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy + scalarCanopyAdvectiveHeatFlux
    groundNetFlux = scalarGroundAbsorbedSolar + scalarLWNetGround + turbFluxGround + scalarGroundAdvectiveHeatFlux
-   !write(*,'(a,1x,10(e20.14,1x))') 'canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround = ', &
+   !write(*,'(a,1x,10(e22.16,1x))') 'canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround = ', &
    !                                 canopyNetFlux, groundNetFlux,  scalarLWNetCanopy, turbFluxCanopy, turbFluxGround, scalarLWNetGround
-   !print*, 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround = ', groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround
-  
+   !write(*,'(a,1x,10(e20.14,1x))') 'groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround, scalarGroundAdvectiveHeatFlux = ', &
+   !                                 groundNetFlux, scalarGroundAbsorbedSolar,  scalarLWNetGround, turbFluxGround, scalarGroundAdvectiveHeatFlux
   
    ! compute the energy derivatives
    dCanairNetFlux_dCanairTemp = dTurbFluxCanair_dTCanair

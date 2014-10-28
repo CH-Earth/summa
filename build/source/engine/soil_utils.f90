@@ -224,6 +224,7 @@ contains
  function matricHead(theta,alpha,theta_res,theta_sat,n,m)
  ! computes the volumetric liquid water content given psi and soil hydraulic parameters theta_res, theta_sat, alpha, n, and m
  implicit none
+ ! dummy variables
  real(dp),intent(in) :: theta       ! volumetric liquid water content (-)
  real(dp),intent(in) :: alpha       ! scaling parameter (m-1)
  real(dp),intent(in) :: theta_res   ! residual volumetric water content (-)
@@ -231,7 +232,16 @@ contains
  real(dp),intent(in) :: n           ! vGn "n" parameter (-)
  real(dp),intent(in) :: m           ! vGn "m" parameter (-)
  real(dp)            :: matricHead  ! matric head (m)
- matricHead = (1._dp/alpha)*( ( (theta - theta_res) / (theta_sat - theta_res) )**(-1._dp/m) - 1._dp)**(1._dp/n)
+ ! local variables
+ real(dp)            :: effSat      ! effective saturation (-)
+ ! compute effective saturation
+ effSat = (theta - theta_res) / (theta_sat - theta_res)
+ ! compute matric head
+ if(effSat < 1._dp)then
+  matricHead = (1._dp/alpha)*( effSat**(-1._dp/m) - 1._dp)**(1._dp/n)
+ else
+  matricHead = 0._dp
+ endif
  end function matricHead
 
 

@@ -527,12 +527,14 @@ contains
      message=trim(message)//'dt_temp is below the minimum time step'
      err=20; return
     endif
-    !pause 'check constraints'
+    !pause 'failed step'
     ! (try again)
     cycle  ! try again
    else
     rejectedStep=.false.
+    !pause 'accepted step'
    endif
+   
 
    ! check that err=0 at this point (it should be)
    if(err/=0)then; message=trim(message)//'expect err=0'; return; endif
@@ -707,7 +709,7 @@ contains
 
   ! increment the time step
   dt_done = dt_done + dt_sub
-  print*, '***** ', dt_done, dt_sub, niter
+  !print*, '***** ', dt_done, dt_sub, niter
   !pause ' after increment the time step'
 
   ! modify the length of the time step
@@ -739,7 +741,7 @@ contains
 
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
- print*, 'nsub = ', nsub
+ !print*, 'nsub = ', nsub
  if(nsub>2000)then
   message=trim(message)//'number of sub-steps > 2000'
   err=20; return

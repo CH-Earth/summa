@@ -105,7 +105,7 @@ contains
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
- TcSoil = Tfreeze + mLayerMatricHead*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+ TcSoil = Tfreeze + min(mLayerMatricHead,0._dp)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
 
  ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)

@@ -1159,6 +1159,7 @@ contains
  call iceImpede(scalarVolFracIceTrial,scalarVolFracLiqTrial,theta_sat,f_impede,deriv_desired, &  ! input
                 iceImpedeFac,dIceImpede_dLiq)                                                    ! output
 
+
  select case(ixRichards)
   ! ***** moisture-based form of Richards' equation
   case(moisture)
@@ -1487,18 +1488,22 @@ contains
 
     ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
     hydCondWettingFront =  surfaceSatHydCond * ( (1._dp - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 1._dp) )
-    !write(*,'(a,1x,f9.3,1x,10(e20.10,1x))') 'depthWettingFront, surfaceSatHydCond, hydCondWettingFront = ', depthWettingFront, surfaceSatHydCond, hydCondWettingFront
  
     ! define the maximum infiltration rate (m s-1)
     xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
+    !write(*,'(a,1x,f9.3,1x,10(e20.10,1x))') 'depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate = ', depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate
 
     ! define the infiltrating area for the non-frozen part of the cell/basin
     fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                              ! fraction of available root zone filled with water
     fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))                          ! infiltrating area -- allowed to violate solution constraints
     scalarInfilArea = min(0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor)), 1._dp)   ! infiltrating area -- constrained
+    !print*, 'scalarInfilArea = ', scalarInfilArea
 
     ! check to ensure we are not infiltrating into a fully saturated column
-    if(sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.99_dp*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) scalarInfilArea=0._dp
+    if(sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_dp*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) scalarInfilArea=0._dp
+    !print*, 'ixIce, nRoots, scalarInfilArea = ', ixIce, nRoots, scalarInfilArea
+    !print*, 'sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) = ', sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots))
+    !print*, 'theta_sat*sum(mLayerDepth(ixIce+1:nRoots)) = ', theta_sat*sum(mLayerDepth(ixIce+1:nRoots))
 
     ! define the impermeable area due to frozen ground
     if(rootZoneIce > tiny(rootZoneIce))then  ! (avoid divide by zero)
@@ -1508,11 +1513,14 @@ contains
     else
      scalarFrozenArea = 0._dp
     endif
+    !print*, 'scalarFrozenArea, rootZoneIce = ', scalarFrozenArea, rootZoneIce
 
    endif ! (if desire to compute infiltration)
 
    ! compute infiltration (m s-1)
    scalarSurfaceInfiltration = (1._dp - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+   !print*, 'scalarSurfaceInfiltration = ', scalarSurfaceInfiltration
+   !print*, '(1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea = ', (1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea
 
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
