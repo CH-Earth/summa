@@ -54,6 +54,7 @@ albedoRefresh             | critical mass necessary for albedo refreshment      
 ! radiation transfer
 ! **********************************************************************************************************************
 radExt_snow               | extinction coefficient for radiation penetration into snowpack    | m-1        | scalarv | T
+directScale               | scaling factor for fractional driect radiaion parameterization    | -          | scalarv | T
 Frad_direct               | fraction direct solar radiation                                   | -          | scalarv | T
 Frad_vis                  | fraction radiation in visible part of spectrum                    | -          | scalarv | T
 ! **********************************************************************************************************************

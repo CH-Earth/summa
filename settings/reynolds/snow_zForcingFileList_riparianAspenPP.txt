@@ -1,0 +1,13 @@
+! ****************************************************************************************************
+! List of forcing data files used in each HRU
+!
+! This file includes two "words" per line:
+!  (1) The HRU index (must match the indices in the local attributes file)
+!  (2) The name of the descriptor file assigned to each HRU index
+!        --> filename must be in single quotes
+! ****************************************************************************************************
+    1001   'reynolds/snow_zForcingInfo_riparianAspen01.txt'
+    1002   'reynolds/snow_zForcingInfo_riparianAspen02.txt'
+    1003   'reynolds/snow_zForcingInfo_riparianAspen03.txt'
+    1004   'reynolds/snow_zForcingInfo_riparianAspen04.txt'
+    1005   'reynolds/snow_zForcingInfo_riparianAspen05.txt'

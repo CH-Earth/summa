@@ -9,10 +9,10 @@
 ! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
 ! (2) the format definition defines the format of the file, which can be changed
 ! (3) the format definition must be the first non-comment line
-! (4) the delimiters "| " must be present (format a2), as these are used to check the integrety of the file
+! (4) the delimiters "| " must be present (format a1), as these are used to check the integrety of the file
 ! ***********************************************************************************************************************
 '(a15,a1,1x,a)'
-filenmData     | SenatorBeck_forcing.txt     ! name of the forcing data file (must be in single quotes)
+filenmData     | forcing_aboveAspen02.txt    ! name of the forcing data file (must be in single quotes)
 ncols          | 13                          ! number of columns in the forcing file
 iyyy           | 1                           ! year
 im             | 2                           ! month

@@ -12,7 +12,7 @@
 ! (4) the delimiters "| " must be present (format a1), as these are used to check the integrety of the file
 ! ***********************************************************************************************************************
 '(a15,a1,1x,a)'
-filenmData     | RME_forcing_hru1005.txt     ! name of the forcing data file (must be in single quotes)
+filenmData     | forcing_aboveAspen04.txt    ! name of the forcing data file (must be in single quotes)
 ncols          | 13                          ! number of columns in the forcing file
 iyyy           | 1                           ! year
 im             | 2                           ! month

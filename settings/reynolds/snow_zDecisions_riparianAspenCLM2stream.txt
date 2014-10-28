@@ -8,7 +8,7 @@
 ! (3) the simulation start/end times must be within single quotes
 ! ***********************************************************************************************************************
 simulStart              '2005-07-01 00:00'    ! (T-01) simulation start time -- must be in single quotes
-simulFinsh              '2011-09-30 00:00'    ! (T-02) simulation end time -- must be in single quotes
+simulFinsh              '2008-09-30 00:00'    ! (T-02) simulation end time -- must be in single quotes
 ! ***********************************************************************************************************************
 soilCatTbl                      ROSETTA       ! (N-01) soil-category dateset
 vegeParTbl                      USGS          ! (N-02) vegetation category dataset
@@ -17,7 +17,7 @@ stomResist                      BallBerry     ! (N-04) choice of function for st
 ! ***********************************************************************************************************************
 num_method                      itertive      ! (F-01) choice of numerical method
 fDerivMeth                      analytic      ! (F-02) method used to calculate flux derivatives
-LAI_method                      monTable      ! (F-03) method used to determine LAI and SAI
+LAI_method                      specified     ! (F-03) method used to determine LAI and SAI
 f_Richards                      mixdform      ! (F-04) form of Richard's equation
 groundwatr                      noXplict      ! (F-05) choice of groundwater parameterization
 hc_profile                      constant      ! (F-06) choice of hydraulic conductivity profile

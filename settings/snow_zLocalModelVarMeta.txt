@@ -47,12 +47,13 @@ averageColumnOutflow                | outflow from each layer in the soil profil
 ! scalar variables (forcing)
 ! *************************************************************************************************************************************
 scalarCosZenith                     | cosine of the solar zenith angle                                  | -               | scalarv | F
+scalarFractionDirect                | fraction of direct radiation (0-1)                                | -               | scalarv | F
 spectralIncomingDirect              | incoming direct solar radiation in each wave band                 | W m-2           | wLength | F
 spectralIncomingDiffuse             | incoming diffuse solar radiation in each wave band                | W m-2           | wLength | F
 scalarVPair                         | vapor pressure of the air above the vegetation canopy             | Pa              | scalarv | F
 scalarTwetbulb                      | wet bulb temperature                                              | K               | scalarv | F
-scalarRainfall                      | computed rainfall rate                                            | kg m-2 s-1      | scalarv | F
-scalarSnowfall                      | computed snowfall rate                                            | kg m-2 s-1      | scalarv | F
+scalarRainfall                      | computed rainfall rate                                            | kg m-2 s-1      | scalarv | T
+scalarSnowfall                      | computed snowfall rate                                            | kg m-2 s-1      | scalarv | T
 scalarSnowfallTemp                  | temperature of fresh snow                                         | K               | scalarv | F
 scalarNewSnowDensity                | density of fresh snow (should snow be falling in this time step)  | kg m-3          | scalarv | F
 scalarO2air                         | atmospheric o2 concentration                                      | Pa              | scalarv | F
@@ -97,7 +98,7 @@ scalarCanopySunlitPAR               | average absorbed par for sunlit leaves    
 scalarCanopyShadedPAR               | average absorbed par for shaded leaves                            | W m-2           | scalarv | F
 spectralBelowCanopyDirect           | downward direct flux below veg layer for each spectral band       | W m-2           | wLength | F
 spectralBelowCanopyDiffuse          | downward diffuse flux below veg layer for each spectral band      | W m-2           | wLength | F
-scalarBelowCanopySolar              | solar radiation transmitted below the canopy                      | W m-2           | scalarv | F
+scalarBelowCanopySolar              | solar radiation transmitted below the canopy                      | W m-2           | scalarv | T
 spectralAlbGndDirect                | direct  albedo of underlying surface for each spectral band       | -               | wLength | F
 spectralAlbGndDiffuse               | diffuse albedo of underlying surface for each spectral band       | -               | wLength | F
 scalarGroundAlbedo                  | albedo of the ground surface                                      | -               | scalarv | F
@@ -137,7 +138,7 @@ scalarGroundStabilityCorrection     | stability correction for the ground surfac
 scalarEddyDiffusCanopyTop           | eddy diffusivity for heat at the top of the canopy                | m2 s-1          | scalarv | F 
 scalarFrictionVelocity              | friction velocity (canopy momentum sink)                          | m s-1           | scalarv | F
 scalarWindspdCanopyTop              | windspeed at the top of the canopy                                | m s-1           | scalarv | F
-scalarWindspdCanopyBottom           | windspeed at the height of the bottom of the canopy               | m s-1           | scalarv | F
+scalarWindspdCanopyBottom           | windspeed at the height of the bottom of the canopy               | m s-1           | scalarv | T
 scalarGroundResistance              | below canopy aerodynamic resistance                               | s m-1           | scalarv | F
 scalarCanopyResistance              | above canopy aerodynamic resistance                               | s m-1           | scalarv | F
 scalarLeafResistance                | mean leaf boundary layer resistance per unit leaf area            | s m-1           | scalarv | F
@@ -224,11 +225,11 @@ mLayerTcrit                         | critical soil temperature above which all 
 mLayerdTheta_dTk                    | derivative in volumetric liquid water content wrt temperature     | K-1             | midToto | F
 mLayerThermalC                      | thermal conductivity at the mid-point of each layer               | W m-1 K-1       | midToto | F
 mLayerRadCondFlux                   | temporal derivative in energy of radiative and conductive flux    | J m-3 s-1       | midToto | F
-mLayerMeltFreeze                    | rate of ice content change from melt/freeze in each layer         | kg m-3 s-1      | midToto | F
-mLayerInfilFreeze                   | rate of ice content change by freezing infiltrating flux          | kg m-3 s-1      | midToto | F
+mLayerMeltFreeze                    | ice content change from melt/freeze in each layer                 | kg m-3          | midToto | F
+mLayerInfilFreeze                   | ice content change by freezing infiltrating flux                  | kg m-3          | midToto | F
 mLayerSatHydCond                    | saturated hydraulic conductivity in each layer                    | m s-1           | midSoil | F
 mLayerSatHydCondMP                  | saturated hydraulic conductivity of macropores in each layer      | m s-1           | midSoil | F
-mLayerMatricHead                    | matric head of water in the soil                                  | m               | midSoil | F
+mLayerMatricHead                    | matric head of water in the soil                                  | m               | midSoil | T
 mLayerdTheta_dPsi                   | derivative in the soil water characteristic w.r.t. psi            | m-1             | midSoil | F
 mLayerdPsi_dTheta                   | derivative in the soil water characteristic w.r.t. theta          | m               | midSoil | F
 mLayerThetaResid                    | residual volumetric water content in each snow layer              | -               | midSnow | F
@@ -258,6 +259,10 @@ iLayerInitFluxReversal              | start of step liquid flux at soil layer in
 iLayerLiqFluxSnow                   | liquid flux at snow layer interfaces at end of the time step      | m s-1           | ifcSnow | F
 iLayerLiqFluxSoil                   | liquid flux at soil layer interfaces at end of the time step      | m s-1           | ifcSoil | F
 iLayerFluxReversal                  | end of step liquid flux at soil layer interfaces from impedance   | m s-1           | ifcSoil | F
+! *************************************************************************************************************************************
+! time stepping
+! *************************************************************************************************************************************
+dt_init                             | length of initial time step at start of next data interval        | s               | scalarv | F
 ! *************************************************************************************************************************************
 ! "short-cut" variables
 ! *************************************************************************************************************************************
