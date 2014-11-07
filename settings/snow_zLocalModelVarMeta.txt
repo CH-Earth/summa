@@ -27,11 +27,15 @@
 ! *************************************************************************************************************************************
 ! timestep-average fluxes for a few key variables
 ! *************************************************************************************************************************************
+totalSoilCompress                   | change in total soil storage due to compression of soil matrix    | kg m-2          | scalarv | F
 averageThroughfallSnow              | snow that reaches the ground without ever touching the canopy     | kg m-2 s-1      | scalarv | F
 averageThroughfallRain              | rain that reaches the ground without ever touching the canopy     | kg m-2 s-1      | scalarv | F
 averageCanopySnowUnloading          | unloading of snow from the vegetion canopy                        | kg m-2 s-1      | scalarv | F
 averageCanopyLiqDrainage            | drainage of liquid water from the vegetation canopy               | kg m-2 s-1      | scalarv | F
 averageCanopyMeltFreeze             | melt/freeze of water stored in the canopy                         | kg m-2 s-1      | scalarv | F
+averageCanopyTranspiration          | canopy transpiration                                              | kg m-2 s-1      | scalarv | T
+averageCanopyEvaporation            | canopy evaporation/condensation                                   | kg m-2 s-1      | scalarv | T
+averageCanopySublimation            | canopy sublimation/frost                                          | kg m-2 s-1      | scalarv | T
 averageSnowSublimation              | snow sublimation/frost (below canopy or non-vegetated)            | kg m-2 s-1      | scalarv | T
 averageGroundEvaporation            | ground evaporation/condensation (below canopy or non-vegetated)   | kg m-2 s-1      | scalarv | F
 averageRainPlusMelt                 | rain plus melt input to soil before calculating surface runoff    | m s-1           | scalarv | F
@@ -197,6 +201,7 @@ scalarAquiferBaseflow               | baseflow from the aquifer at the end-of-st
 ! scalar variables (sub-step average fluxes for the soil zone)
 ! *************************************************************************************************************************************
 scalarSoilInflux                    | sub-step average: influx of water at the top of the soil profile  | m s-1           | scalarv | F
+scalarSoilCompress                  | change in total soil storage due to compression of soil matrix    | kg m-2          | scalarv | F
 scalarSoilBaseflow                  | sub-step average: total baseflow from the soil profile            | m s-1           | scalarv | F
 scalarSoilDrainage                  | sub-step average: drainage from the bottom of the soil profile    | m s-1           | scalarv | F
 scalarSoilTranspiration             | sub-step average: total transpiration from the soil               | m s-1           | scalarv | F
@@ -234,6 +239,7 @@ mLayerdTheta_dPsi                   | derivative in the soil water characteristi
 mLayerdPsi_dTheta                   | derivative in the soil water characteristic w.r.t. theta          | m               | midSoil | F
 mLayerThetaResid                    | residual volumetric water content in each snow layer              | -               | midSnow | F
 mLayerPoreSpace                     | total pore space in each snow layer                               | -               | midSnow | F
+mLayerCompress                      | change in volumetric water content due to compression of soil     | -               | midSoil | F
 mLayerTranspireLim                  | soil moist & veg limit on transpiration for each layer            | -               | midSoil | F
 mLayerInitTranspire                 | transpiration loss from each soil layer at the start-of-step      | m s-1           | midSoil | F
 mLayerTranspire                     | transpiration loss from each soil layer                           | m s-1           | midSoil | F

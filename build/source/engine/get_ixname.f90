@@ -339,11 +339,15 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! define timestep-average fluxes for a few key variables
+  case('totalSoilCompress'              ); get_ixmvar = iLookMVAR%totalSoilCompress                ! change in total soil storage due to compression of the soil matrix (kg m-2) 
   case('averageThroughfallSnow'         ); get_ixmvar = iLookMVAR%averageThroughfallSnow           ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('averageThroughfallRain'         ); get_ixmvar = iLookMVAR%averageThroughfallRain           ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('averageCanopySnowUnloading'     ); get_ixmvar = iLookMVAR%averageCanopySnowUnloading       ! unloading of snow from the vegetion canopy (kg m-2 s-1)
   case('averageCanopyLiqDrainage'       ); get_ixmvar = iLookMVAR%averageCanopyLiqDrainage         ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
   case('averageCanopyMeltFreeze'        ); get_ixmvar = iLookMVAR%averageCanopyMeltFreeze          ! melt/freeze of water stored in the canopy (kg m-2 s-1)
+  case('averageCanopyTranspiration'     ); get_ixmvar = iLookMVAR%averageCanopyTranspiration       ! canopy transpiration (kg m-2 s-1)
+  case('averageCanopyEvaporation'       ); get_ixmvar = iLookMVAR%averageCanopyEvaporation         ! canopy evaporation/condensation (kg m-2 s-1)
+  case('averageCanopySublimation'       ); get_ixmvar = iLookMVAR%averageCanopySublimation         ! canopy sublimation/frost (kg m-2 s-1)
   case('averageSnowSublimation'         ); get_ixmvar = iLookMVAR%averageSnowSublimation           ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   case('averageGroundEvaporation'       ); get_ixmvar = iLookMVAR%averageGroundEvaporation         ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
   case('averageRainPlusMelt'            ); get_ixmvar = iLookMVAR%averageRainPlusMelt              ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
@@ -489,6 +493,7 @@ contains
   case('scalarAquiferBaseflow'          ); get_ixmvar = iLookMVAR%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
   ! scalar variables -- sub-step average fluxes for the soil zone
   case('scalarSoilInflux'               ); get_ixmvar = iLookMVAR%scalarSoilInflux                 ! sub-step average: influx of water at the top of the soil profile (m s-1)
+  case('scalarSoilCompress'             ); get_ixmvar = iLookMVAR%scalarSoilCompress               ! change in total soil storage due to compression of the soil matrix (kg m-2)
   case('scalarSoilBaseflow'             ); get_ixmvar = iLookMVAR%scalarSoilBaseflow               ! sub-step average: total baseflow from throughout the soil profile (m s-1)
   case('scalarSoilDrainage'             ); get_ixmvar = iLookMVAR%scalarSoilDrainage               ! sub-step average: drainage from the bottom of the soil profile (m s-1)
   case('scalarSoilTranspiration'        ); get_ixmvar = iLookMVAR%scalarSoilTranspiration          ! sub-step average: total transpiration from the soil (m s-1)
@@ -520,6 +525,7 @@ contains
   case('mLayerdPsi_dTheta'              ); get_ixmvar = iLookMVAR%mLayerdPsi_dTheta                ! analytical derivative in the soil water characteristic w.r.t. theta (m)
   case('mLayerThetaResid'               ); get_ixmvar = iLookMVAR%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixmvar = iLookMVAR%mLayerPoreSpace                  ! total pore space in each snow layer (-)
+  case('mLayerCompress'                 ); get_ixmvar = iLookMVAR%mLayerCompress                   ! change in volumetric water content due to compression of soil (-)
   case('mLayerTranspireLim'             ); get_ixmvar = iLookMVAR%mLayerTranspireLim               ! moisture avail factor limiting transpiration in each layer (-)
   case('mLayerInitTranspire'            ); get_ixmvar = iLookMVAR%mLayerInitTranspire              ! transpiration loss from each soil layer at the start of the step (kg m-2 s-1)
   case('mLayerTranspire'                ); get_ixmvar = iLookMVAR%mLayerTranspire                  ! transpiration loss from each soil layer (kg m-2 s-1)

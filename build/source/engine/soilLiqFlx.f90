@@ -78,6 +78,7 @@ contains
                        ! output: diagnostic variables for model layers
                        mLayerdTheta_dPsi,            & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                        mLayerdPsi_dTheta,            & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
+                       dHydCond_dMatric,             & ! intent(out): derivative in hydraulic conductivity w.r.t matric head (s-1)
                        ! output: fluxes
                        scalarSurfaceInfiltration,    & ! intent(out): surface infiltration rate (m s-1)
                        iLayerLiqFluxSoil,            & ! intent(out): liquid fluxes at layer interfaces (m s-1)
@@ -114,13 +115,14 @@ contains
  real(dp),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
  real(dp),intent(in)              :: scalarRainPlusMelt            ! rain plus melt (m s-1) 
  ! output: diagnostic variables for surface runoff
- real(dp),intent(inout)           :: xMaxInfilRate                ! maximum infiltration rate (m s-1)
- real(dp),intent(inout)           :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
- real(dp),intent(inout)           :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
- real(dp),intent(out)             :: scalarSurfaceRunoff          ! surface runoff (m s-1)
+ real(dp),intent(inout)           :: xMaxInfilRate                 ! maximum infiltration rate (m s-1)
+ real(dp),intent(inout)           :: scalarInfilArea               ! fraction of unfrozen area where water can infiltrate (-)
+ real(dp),intent(inout)           :: scalarFrozenArea              ! fraction of area that is considered impermeable due to soil ice (-)
+ real(dp),intent(out)             :: scalarSurfaceRunoff           ! surface runoff (m s-1)
  ! output: diagnostic variables for each layer
  real(dp),intent(out)             :: mLayerdTheta_dPsi(:)          ! derivative in the soil water characteristic w.r.t. psi (m-1)
  real(dp),intent(out)             :: mLayerdPsi_dTheta(:)          ! derivative in the soil water characteristic w.r.t. theta (m)
+ real(dp),intent(out)             :: dHydCond_dMatric(:)           ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  ! output: liquid fluxes
  real(dp),intent(out)             :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1)
  real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
@@ -227,6 +229,7 @@ contains
                         ! output: diagnostic variables for model layers
                         mLayerdTheta_dPsi,                                             & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                         mLayerdPsi_dTheta,                                             & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
+                        dHydCond_dMatric,                                              & ! intent(out): derivative in hydraulic conductivity w.r.t matric head (s-1)
 
                         ! output: fluxes
                         scalarSurfaceInfiltration,                                     & ! intent(out): surface infiltration rate (m s-1)
@@ -343,6 +346,7 @@ contains
                               ! output: diagnostic variables for model layers
                               mLayerdTheta_dPsi,           & ! intent(out): derivative in the soil water characteristic w.r.t. psi (m-1)
                               mLayerdPsi_dTheta,           & ! intent(out): derivative in the soil water characteristic w.r.t. theta (m)
+                              dHydCond_dMatric,            & ! intent(out): derivative in hydraulic conductivity w.r.t matric head (s-1)
 
                               ! output: fluxes
                               scalarSurfaceInfiltration,   & ! intent(out): surface infiltration rate (m s-1)
@@ -441,17 +445,18 @@ contains
  ! output: diagnostic variables for each layer
  real(dp),intent(out)             :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. psi (m-1)
  real(dp),intent(out)             :: mLayerdPsi_dTheta(:)         ! derivative in the soil water characteristic w.r.t. theta (m)
+ real(dp),intent(out)             :: dHydCond_dMatric(:)          ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  ! output: liquid fluxes
- real(dp),intent(out)             :: scalarSurfaceInfiltration     ! surface infiltration rate (m s-1)
- real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)         ! liquid flux at soil layer interfaces (m s-1)
- real(dp),intent(out)             :: mLayerTranspire(:)            ! transpiration loss from each soil layer (m s-1)
- real(dp),intent(out)             :: mLayerHydCond(:)              ! hydraulic conductivity in each soil layer (m s-1)
+ real(dp),intent(out)             :: scalarSurfaceInfiltration    ! surface infiltration rate (m s-1)
+ real(dp),intent(out)             :: iLayerLiqFluxSoil(0:)        ! liquid flux at soil layer interfaces (m s-1)
+ real(dp),intent(out)             :: mLayerTranspire(:)           ! transpiration loss from each soil layer (m s-1)
+ real(dp),intent(out)             :: mLayerHydCond(:)             ! hydraulic conductivity in each soil layer (m s-1)
  ! output: derivatives in fluxes w.r.t. state variables in the layer above and layer below (m s-1)
- real(dp),intent(out)             :: dq_dHydStateAbove(0:)         ! derivative in the flux in layer interfaces w.r.t. state variables in the layer above
- real(dp),intent(out)             :: dq_dHydStateBelow(0:)         ! derivative in the flux in layer interfaces w.r.t. state variables in the layer below
+ real(dp),intent(out)             :: dq_dHydStateAbove(0:)        ! derivative in the flux in layer interfaces w.r.t. state variables in the layer above
+ real(dp),intent(out)             :: dq_dHydStateBelow(0:)        ! derivative in the flux in layer interfaces w.r.t. state variables in the layer below
  ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
- real(dp),intent(out)             :: dq_dNrgStateAbove(0:)         ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
- real(dp),intent(out)             :: dq_dNrgStateBelow(0:)         ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+ real(dp),intent(out)             :: dq_dNrgStateAbove(0:)        ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+ real(dp),intent(out)             :: dq_dNrgStateBelow(0:)        ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)         :: err                          ! error code
  character(*),intent(out)         :: message                      ! error message
@@ -491,7 +496,6 @@ contains
  real(dp),dimension(nSoil)        :: mLayerDiffuse                ! diffusivity at layer mid-point (m2 s-1)
  real(dp),dimension(nSoil)        :: dHydCond_dVolLiq             ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
  real(dp),dimension(nSoil)        :: dDiffuse_dVolLiq             ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
- real(dp),dimension(nSoil)        :: dHydCond_dMatric             ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
  real(dp),dimension(nSoil)        :: dHydCond_dTemp               ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
  real(dp),dimension(0:nSoil)      :: iLayerHydCond                ! hydraulic conductivity at layer interface (m s-1)
  real(dp),dimension(0:nSoil)      :: iLayerDiffuse                ! diffusivity at layer interface (m2 s-1)
@@ -558,6 +562,8 @@ contains
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
  ! (special case of prescribed head -- no transpiration)
  if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._dp
+ !print*, trim(message)//'mLayerTranspire = ', mLayerTranspire
+ !print*, trim(message)//'scalarCanopyTranspiration = ', scalarCanopyTranspiration
 
 
  ! *************************************************************************************************************************************************

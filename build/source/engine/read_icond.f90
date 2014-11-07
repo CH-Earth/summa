@@ -1,8 +1,14 @@
 module read_icond_module
 USE nrtype
+! define modeling decisions
 USE mDecisions_module,only:  &
  moisture,                   & ! moisture-based form of Richards' equation
  mixdform                      ! mixed form of Richards' equation
+! define the number of layers
+USE data_struc,only:&
+                    nSnow,        & ! number of snow layers  
+                    nSoil,        & ! number of soil layers  
+                    nLayers         ! total number of layers
 implicit none
 private
 public::read_icond
@@ -67,12 +73,9 @@ contains
  integer(i4b)                   :: ivar,jvar       ! index of model variable
  integer(i4b)                   :: layerType       ! ix_snow or ix_soil
  integer(i4b)                   :: nVars           ! number of model variables
- integer(i4b)                   :: nSnow           ! number of snow layers
- integer(i4b)                   :: nSoil           ! number of soil layers
  integer(i4b)                   :: iSnow           ! index of snow model layers
  integer(i4b)                   :: iSoil           ! index of soil model layers
  integer(i4b)                   :: iToto           ! index of model layers
- integer(i4b)                   :: nLayers         ! number of model layers
  character(len=256),parameter   :: scalar_tag='scalar_icond' ! tag for the scalar initial conditions
  character(len=256),parameter   :: layer_tag='layer_icond'   ! tag for the layer initial conditions
  logical(lgt)                   :: scalar_flag=.false. ! flag determines if in the scalar portion of the file

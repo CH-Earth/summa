@@ -269,6 +269,11 @@ contains
      ! (--> macropores)
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
                                                     / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     !print*, 'compactedDepth = ', compactedDepth
+     !print*, 'k_macropore    = ', k_macropore
+     !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
+     !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
+     !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
     endif  ! if the mid-point of a layer
    ! error check (errors checked earlier also, so should not get here)
    case default

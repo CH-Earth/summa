@@ -91,6 +91,7 @@ contains
                        ! input: model control
                        iter,                                    & ! intent(in): iteration index
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
+                       firstFluxCall,                           & ! intent(in): flag to indicate if we are processing the first flux call                
                        computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
 
                        ! input: model state variables
@@ -168,6 +169,7 @@ contains
  ! input: model control
  integer(i4b),intent(in)         :: iter                            ! iteration index
  logical(lgt),intent(in)         :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)         :: firstFluxCall                   ! flag to indicate if we are processing the first flux call                
  logical(lgt),intent(in)         :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
  ! input: model state variables
  real(dp),intent(in)             :: upperBoundTemp                  ! temperature of the upper boundary (K) --> NOTE: use air temperature
@@ -280,7 +282,7 @@ contains
  real(dp)                        :: scalarThroughfallRain           ! intent(in): rainfall through the vegetation canopy (kg m-2 s-1)
  real(dp)                        :: scalarThroughfallSnow           ! intent(in): snowfall through the vegetation canopy (kg m-2 s-1)
  ! input: water storage
- ! NOTE: soil stress only computed at the start of the substep (iter==1)
+ ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
  real(dp)                        :: scalarSWE                       ! intent(in): snow water equivalent on the ground (kg m-2)
  real(dp)                        :: scalarSnowDepth                 ! intent(in): snow depth on the ground surface (m)
  real(dp),dimension(nSoil)       :: mLayerVolFracLiq                ! intent(in): volumetric fraction of liquid water in each soil layer (-)
@@ -325,7 +327,7 @@ contains
  real(dp)                        :: scalarLeafResistance            ! intent(out): mean leaf boundary layer resistance per unit leaf area (s m-1)
  real(dp)                        :: scalarGroundResistance          ! intent(out): below canopy aerodynamic resistance (s m-1) 
  real(dp)                        :: scalarCanopyResistance          ! intent(out): above canopy aerodynamic resistance (s m-1)
- ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first iteration
+ ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first flux call
  real(dp),dimension(nSoil)       :: mLayerRootDensity               ! intent(in):    root density in each layer (-)
  real(dp)                        :: scalarAquiferRootFrac           ! intent(in):    fraction of roots below the lowest soil layer (-)
  real(dp)                        :: scalarTranspireLim              ! intent(inout): weighted average of the transpiration limiting factor (-)
@@ -333,7 +335,7 @@ contains
  real(dp)                        :: scalarTranspireLimAqfr          ! intent(inout): transpiration limiting factor for the aquifer (-)
  real(dp)                        :: scalarSoilRelHumidity           ! intent(inout): relative humidity in the soil pores [0-1]
  real(dp)                        :: scalarSoilResistance            ! intent(inout): resistance from the soil (s m-1)
- ! input/output: stomatal resistance -- intent(inout) because only called at the first iteration
+ ! input/output: stomatal resistance -- intent(inout) because only called at the first flux call
  real(dp)                        :: scalarStomResistSunlit          ! intent(inout): stomatal resistance for sunlit leaves (s m-1)
  real(dp)                        :: scalarStomResistShaded          ! intent(inout): stomatal resistance for shaded leaves (s m-1)
  real(dp)                        :: scalarPhotosynthesisSunlit      ! intent(inout): sunlit photosynthesis (umolco2 m-2 s-1)
@@ -372,6 +374,7 @@ contains
  real(dp)                       :: snowmassPlusNewsnow              ! sum of snow mass and new snowfall (kg m-2 [mm])
  real(dp)                       :: VAI                              ! vegetation area index (m2 m-2)
  real(dp)                       :: exposedVAI                       ! exposed vegetation area index (m2 m-2)
+ real(dp)                       :: totalCanopyWater                 ! total water on the vegetation canopy (kg m-2)
  real(dp),parameter             :: scalarVegFraction=1._dp          ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
  real(dp)                       :: scalarAquiferStorage             ! aquifer storage (m)
  ! local (compute numerical derivatives)
@@ -567,7 +570,7 @@ contains
  scalarThroughfallSnow           => mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),          & ! intent(in): [dp] snowfall through the vegetation canopy (kg m-2 s-1)
 
  ! input: water storage
- ! NOTE: soil stress only computed at the start of the substep (iter==1)
+ ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
  scalarSWE                       => mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                      & ! intent(in): [dp]    snow water equivalent on the ground (kg m-2)
  scalarSnowDepth                 => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),                & ! intent(in): [dp]    snow depth on the ground surface (m)
  mLayerVolFracLiq                => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers), & ! intent(in): [dp(:)] volumetric fraction of liquid water in each soil layer (-)
@@ -617,7 +620,7 @@ contains
  scalarGroundResistance          => mvar_data%var(iLookMVAR%scalarGroundResistance)%dat(1),         & ! intent(out): [dp] below canopy aerodynamic resistance (s m-1) 
  scalarCanopyResistance          => mvar_data%var(iLookMVAR%scalarCanopyResistance)%dat(1),         & ! intent(out): [dp] above canopy aerodynamic resistance (s m-1)
 
- ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first iteration
+ ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first flux call
  mLayerRootDensity               => mvar_data%var(iLookMVAR%mLayerRootDensity)%dat,                 & ! intent(in):    [dp] root density in each layer (-)
  scalarAquiferRootFrac           => mvar_data%var(iLookMVAR%scalarAquiferRootFrac)%dat(1),          & ! intent(in):    [dp] fraction of roots below the lowest soil layer (-)
  scalarTranspireLim              => mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),             & ! intent(inout): [dp] weighted average of the transpiration limiting factor (-)
@@ -626,7 +629,7 @@ contains
  scalarSoilRelHumidity           => mvar_data%var(iLookMVAR%scalarSoilRelHumidity)%dat(1),          & ! intent(inout): [dp] relative humidity in the soil pores [0-1]
  scalarSoilResistance            => mvar_data%var(iLookMVAR%scalarSoilResistance)%dat(1),           & ! intent(inout): [dp] resistance from the soil (s m-1)
 
- ! input/output: stomatal resistance -- intent(inout) because only called at the first iteration
+ ! input/output: stomatal resistance -- intent(inout) because only called at the first flux call
  scalarStomResistSunlit          => mvar_data%var(iLookMVAR%scalarStomResistSunlit)%dat(1),         & ! intent(inout): [dp] stomatal resistance for sunlit leaves (s m-1)
  scalarStomResistShaded          => mvar_data%var(iLookMVAR%scalarStomResistShaded)%dat(1),         & ! intent(inout): [dp] stomatal resistance for shaded leaves (s m-1)
  scalarPhotosynthesisSunlit      => mvar_data%var(iLookMVAR%scalarPhotosynthesisSunlit)%dat(1),     & ! intent(inout): [dp] sunlit photosynthesis (umolco2 m-2 s-1)
@@ -743,7 +746,7 @@ contains
    scalarGroundStabilityCorrection_old = scalarGroundStabilityCorrection       ! stability correction for the ground surface (-)
 
    ! initialize variables to compute stomatal resistance
-   if(iter==1 .and. firstSubStep)then
+   if(firstFluxCall .and. firstSubStep)then
     ! vapor pressure in the canopy air space initialized as vapor pressure of air above the vegetation canopy
     ! NOTE: this is needed for the stomatal resistance calculations
     if(scalarVP_CanopyAir < 0._dp)then
@@ -753,7 +756,7 @@ contains
 
    ! set latent heat of sublimation/vaporization for canopy and ground surface (Pa/K)
    ! NOTE: variables are constant over the substep, to simplify relating energy and mass fluxes
-   if(iter==1)then
+   if(firstFluxCall)then
     scalarLatHeatSubVapCanopy = getLatentHeatValue(canopyTempTrial)
     ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
     if(nSnow > 0)then
@@ -765,7 +768,7 @@ contains
      scalarLatHeatSubVapGround = LH_vap  ! evaporation of water in the soil pores: this occurs even if frozen because of super-cooled water
      scalarGroundSnowFraction  = 0._dp
     endif  ! (if there is snow on the ground)
-   endif  ! (if the first iteration)
+   endif  ! (if the first flux call)
    !write(*,'(a,1x,10(f30.10,1x))') 'groundTempTrial, scalarLatHeatSubVapGround = ', groundTempTrial, scalarLatHeatSubVapGround
  
    ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
@@ -803,12 +806,17 @@ contains
    ! compute emissivity of the ground surface (-)
    groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._dp - scalarGroundSnowFraction)*soilEmissivity  ! emissivity of the ground surface (-)
 
-   ! compute the fraction of liquid water in the canopy (-)
-   fracLiquidCanopy = canopyLiqTrial / (canopyLiqTrial + canopyIceTrial)
-
    ! compute the fraction of canopy that is wet
    ! NOTE: we either sublimate or evaporate over the entire substep
    if(computeVegFlux)then
+
+    ! compute the fraction of liquid water in the canopy (-)
+    totalCanopyWater = canopyLiqTrial + canopyIceTrial
+    if(totalCanopyWater > tiny(1.0_dp))then
+     fracLiquidCanopy = canopyLiqTrial / (canopyLiqTrial + canopyIceTrial)
+    else
+     fracLiquidCanopy = 0._dp
+    endif
 
     ! get wetted fraction and derivatives
     call wettedFrac(&
@@ -931,7 +939,7 @@ contains
    !         (1) computations are expensive;
    !         (2) derivative calculations are rather complex (iterations within the Ball-Berry routine); and
    !         (3) stomatal resistance does not change rapidly
-   if(iter == 1)then
+   if(firstFluxCall)then
 
     ! compute the saturation vapor pressure for vegetation temperature
     TV_celcius = canopyTempTrial - Tfreeze
@@ -1016,7 +1024,7 @@ contains
 
     endselect  ! (identifying option for stomatal resistance)
 
-   endif  ! (if the first iteration in a given sub-step)
+   endif  ! (if the first flux call in a given sub-step)
 
 
    ! *******************************************************************************************************************************************************************
@@ -1245,22 +1253,22 @@ contains
     !print*, 'trialCanopyResistance = ', trialCanopyResistance
 
     ! compute the relative humidity in the top soil layer and the resistance at the ground surface
-    ! NOTE: computations are based on start-of-step values, so only compute at the first iteration
-    if(iter == 1)then
+    ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
+    if(firstFluxCall)then
      ! (soil water evaporation factor [0-1])
      soilEvapFactor = mLayerVolFracLiq(1)/(theta_sat - theta_res)
      ! (resistance from the soil [s m-1])
      !scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
      scalarSoilResistance = scalarGroundSnowFraction*0._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
      ! (relative humidity in the soil pores [0-1])
-     if(mLayerMatricHead(1) > -1.e+5_dp)then  ! avoid problems with numerical precision when soil is very dry
+     if(mLayerMatricHead(1) > -1.e+3_dp)then  ! avoid problems with numerical precision when soil is very dry
       soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTemp*R_wv) )
      else
       soilRelHumidity_noSnow = 0._dp
      endif ! (if matric head is very low)
      scalarSoilRelHumidity  = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*soilRelHumidity_noSnow
      !print*, 'mLayerMatricHead(1), scalarSoilRelHumidity = ', mLayerMatricHead(1), scalarSoilRelHumidity
-    endif  ! (if the first iteration)
+    endif  ! (if the first flux call)
 
     ! compute turbulent heat fluxes
     call turbFluxes(&
@@ -1372,7 +1380,7 @@ contains
     if(ix_fDerivMeth == numerical)then
      select case(itry) ! (select type of perturbation)
       case(unperturbed)
-       try0 = scalarEvapConductance
+       try0 = turbFluxGround
        exit
       case(perturbStateCanair)
        turbFluxCanair_dStateCanair = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
@@ -1380,12 +1388,12 @@ contains
        turbFluxGround_dStateCanair = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)   
        latHeatCanEvap_dStateCanair = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
       case(perturbStateCanopy)
-       try1 = scalarEvapConductance
        turbFluxCanair_dStateCanopy = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
        turbFluxCanopy_dStateCanopy = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
        turbFluxGround_dStateCanopy = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
        latHeatCanEvap_dStateCanopy = scalarLatHeatCanopyEvap ! perturbed value for the latent heat associated with canopy evaporation (W m-2)
       case(perturbStateGround)
+       try1 = turbFluxGround
        turbFluxCanair_dStateGround = turbFluxCanair          ! turbulent exchange from the canopy air space to the atmosphere (W m-2)
        turbFluxCanopy_dStateGround = turbFluxCanopy          ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
        turbFluxGround_dStateGround = turbFluxGround          ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
@@ -1404,7 +1412,7 @@ contains
    ! test derivative
    !if(ix_fDerivMeth == numerical)  print*, 'try0, try1 = ', try0, try1
    !if(ix_fDerivMeth == numerical)  print*, 'derivative = ', (ix_fDerivMeth == numerical), (try1 - try0)/dx
-   !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dLatHeatCanopyEvap_dTCanair
+   !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dTurbFluxGround_dTGround
    !pause
 
    ! compute numerical derivatives
@@ -1532,7 +1540,7 @@ contains
    dGroundNetFlux_dCanairTemp = dTurbFluxGround_dTCanair
    dGroundNetFlux_dCanopyTemp = dLWNetGround_dTCanopy + dTurbFluxGround_dTCanopy 
    dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround - Cp_water*scalarThroughfallRain - Cp_ice*scalarThroughfallSnow
-  
+ 
    ! check if evaporation or sublimation
    if(scalarLatHeatSubVapCanopy < LH_vap+verySmall)then ! evaporation
 
@@ -3246,10 +3254,12 @@ contains
    dLatHeatGround_dTCanopy = 0._dp
 
    ! compute derivatives for the ground fluxes w.r.t. ground temperature
-   dSenHeatGround_dTGround = (-volHeatCapacityAir*dGroundCondSH_dGroundTemp)*(groundTemp - airtemp) + &                               ! d(ground sensible heat flux)/d(ground temp)
+   dSenHeatGround_dTGround = (-volHeatCapacityAir*dGroundCondSH_dGroundTemp)*(groundTemp - airtemp) + &                                               ! d(ground sensible heat flux)/d(ground temp)
                              (-volHeatCapacityAir*groundConductanceSH)
-   dLatHeatGround_dTGround = (-latHeatSubVapGround*latentHeatConstant*dGroundCondLH_dGroundTemp)*(satVP_GroundTemp - VPair) + &       ! d(ground latent heat flux)/d(ground temp)
-                             (-latHeatSubVapGround*latentHeatConstant*groundConductanceLH)*dSVPGround_dGroundTemp
+   dLatHeatGround_dTGround = (-latHeatSubVapGround*latentHeatConstant*dGroundCondLH_dGroundTemp)*(satVP_GroundTemp*soilRelHumidity - VPair) + &       ! d(ground latent heat flux)/d(ground temp)
+                             (-latHeatSubVapGround*latentHeatConstant*groundConductanceLH)*dSVPGround_dGroundTemp*soilRelHumidity
+
+   !print*, 'dGroundCondLH_dGroundTemp = ', dGroundCondLH_dGroundTemp
 
   endif   ! (if canopy is defined)
 

@@ -322,11 +322,11 @@ do iHRU=1,nHRU
   if(type_hru(jHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(iHRU)%var(iLookTYPE%hruIndex))then
    upArea(iHRU) = upArea(iHRU) + attr_hru(jHRU)%var(iLookATTR%HRUarea)
    ! check that jHRU does not have any upstream HRUs -- implement more complex topologies later
-   do kHRU=1,nHRU
-    if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
-     call handle_err(20,'currently only capable of a single upslope HRU')     
-    endif
-   end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
+   !do kHRU=1,nHRU
+   ! if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
+   !  call handle_err(20,'currently only capable of a single upslope HRU')     
+   ! endif
+   !end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
   endif   ! (if jHRU is an upstream HRU)
  end do  ! jHRU
 end do  ! iHRU
@@ -423,7 +423,7 @@ do istep=1,numtim
  bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
  bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
 
- ! initialize total inflow to each layer in a soil column 
+ ! initialize total inflow for each layer in a soil column 
  do iHRU=1,nHRU
   mvar_hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
  end do
@@ -432,7 +432,8 @@ do istep=1,numtim
  ! ****************************************************************************
  ! (8) loop through HRUs
  ! ****************************************************************************
- do iHRU=1,nHRU
+ !do iHRU=1,nHRU
+ do iHRU=1,1
 
   ! assign pointers to HRUs
   time_data => time_hru(iHRU)
@@ -555,7 +556,7 @@ do istep=1,numtim
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
   end select 
-  !printRestart = .true.
+  printRestart = .true.
   !print*, 'iHRU = ', iHRU
 
   ! run the model for a single parameter set and time step
@@ -637,23 +638,23 @@ do istep=1,numtim
 
  ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
-  call groundwatr(&
-                 ! input
-                 data_step,                                              & ! intent(in): time step of the forcing data (s)
-                 model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,   & ! intent(in): method used to calculate flux derivatives
-                 ! input: effective parameters
-                 bpar_data%var(iLookBPAR%basin__aquiferHydCond),         & ! intent(in): hydraulic conductivity (m s-1)
-                 bpar_data%var(iLookBPAR%basin__aquiferScaleFactor),     & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
-                 bpar_data%var(iLookBPAR%basin__aquiferBaseflowExp),     & ! intent(in): exponent in bucket baseflow parameterization (-)
-                 ! input: aquifer fluxes
-                 bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), & ! intent(in): aquifer recharge (m s-1)
-                 bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),& ! intent(in): aquifer transpiration (m s-1)
-                 ! input-output
-                 bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  & ! intent(inout): aquifer storage (m)
-                 ! output
-                 bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
-                 err,message)                                              ! intent(out): error control
-  call handle_err(err,message)                
+  !call groundwatr(&
+  !               ! input
+  !               data_step,                                              & ! intent(in): time step of the forcing data (s)
+  !               model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,   & ! intent(in): method used to calculate flux derivatives
+  !               ! input: effective parameters
+  !               bpar_data%var(iLookBPAR%basin__aquiferHydCond),         & ! intent(in): hydraulic conductivity (m s-1)
+  !               bpar_data%var(iLookBPAR%basin__aquiferScaleFactor),     & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
+  !               bpar_data%var(iLookBPAR%basin__aquiferBaseflowExp),     & ! intent(in): exponent in bucket baseflow parameterization (-)
+  !               ! input: aquifer fluxes
+  !               bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), & ! intent(in): aquifer recharge (m s-1)
+  !               bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),& ! intent(in): aquifer transpiration (m s-1)
+  !               ! input-output
+  !               bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  & ! intent(inout): aquifer storage (m)
+  !               ! output
+  !               bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
+  !               err,message)                                              ! intent(out): error control
+  !call handle_err(err,message)                
  endif
 
  ! perform the routing
@@ -676,6 +677,8 @@ do istep=1,numtim
 
  ! increment the time index
  jstep = jstep+1
+
+ !pause 'end of time step'
 
 end do  ! (looping through time)
 

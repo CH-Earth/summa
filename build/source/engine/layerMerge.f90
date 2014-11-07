@@ -163,6 +163,10 @@ contains
      nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
      nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
      nLayers = nSnow + nSoil
+     ! save the number of layers
+     indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+     indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+     indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
      ! update coordinate variables
      call calcHeight(&
                      ! input/output: data structures
@@ -368,6 +372,11 @@ contains
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
  nLayers = nSnow + nSoil
+
+ ! save the number of layers in the data structures
+ indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+ indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
  ! ***** put state variables for the combined layer in the appropriate place
  mvar_data%var(iLookMVAR%mLayerTemp)%dat(iSnow)       = cTemp

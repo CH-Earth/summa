@@ -246,6 +246,11 @@ contains
    nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
    nLayers = nSnow + nSoil
 
+   ! save the number of layers in the data structures
+   indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+   indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+   indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
+
    ! check
    print*, trim(message)
    do kLayer=1,nLayers
@@ -309,6 +314,11 @@ contains
    nSnow   = count(layerType==ix_snow)
    nSoil   = count(layerType==ix_soil)
    nLayers = nSnow + nSoil
+
+   ! save the number of layers in the data structures
+   indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+   indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+   indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
    ! check
    mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
