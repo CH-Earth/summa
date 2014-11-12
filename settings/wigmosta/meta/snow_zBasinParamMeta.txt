@@ -1,0 +1,32 @@
+! **********************************************************************************************************************
+! **********************************************************************************************************************
+! ***** DEFINITION OF BASIN PARAMETERS *********************************************************************************
+! **********************************************************************************************************************
+! **********************************************************************************************************************
+! NOTES: 
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "| " must be present (format a2), as these are used to check the integrety of the file
+! columns are:
+! 1: parameter name
+! 2: parameter description
+! 3: parameter units
+! 4: parameter type (scalar, separate parameter for each model layer, separate parameter at the interface of layers)
+! 5: write parameter to output file? (T/F)
+! **********************************************************************************************************************
+! define format string for parameter descriptions
+! **********************************************************************************************************************
+'(a25,(1x,a1,1x),a65,(1x,a1,1x),a10,(1x,a1,1x),a7,(1x,a1,1x),L1)' ! format string (must be in single quotes)
+! **********************************************************************************************************************
+! baseflow
+! **********************************************************************************************************************
+basin__aquiferHydCond     | hydraulic conductivity of the aquifer                             | m s-1      | scalarv | T
+basin__aquiferScaleFactor | scaling factor for aquifer storage in the big bucket              | m          | scalarv | T
+basin__aquiferBaseflowExp | baseflow exponent for the big bucket                              | -          | scalarv | T
+! **********************************************************************************************************************
+! sub-grid routing
+! **********************************************************************************************************************
+routingGammaShape         | shape parameter in Gamma distribution used for sub-grid routing   | -          | scalarv | T
+routingGammaScale         | scale parameter in Gamma distribution used for sub-grid routing   | s          | scalarv | T
+! **********************************************************************************************************************
