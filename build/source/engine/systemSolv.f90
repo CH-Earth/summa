@@ -325,7 +325,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: numericalJacobian=.true.    ! flag to compute the Jacobian matrix
+ logical(lgt),parameter          :: numericalJacobian=.false.     ! flag to compute the Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  real(dp),allocatable            :: stateVecInit(:)              ! initial state vector (mixed units)
@@ -360,7 +360,7 @@ contains
  real(dp)                        :: stpmax                       ! scaled maximum step size
  real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
  real(dp),parameter              :: fScaleMat=10._dp             ! func eval: characteristic scale for matric head (m)
- real(dp),parameter              :: fScaleNrg=10000._dp          ! func eval: characteristic scale for energy (J m-3)
+ real(dp),parameter              :: fScaleNrg=1000000._dp          ! func eval: characteristic scale for energy (J m-3)
  real(dp),parameter              :: xScaleLiq=0.1_dp             ! state var: characteristic scale for volumetric liquid water content (-)
  real(dp),parameter              :: xScaleMat=10._dp             ! state var: characteristic scale for matric head (m)
  real(dp),parameter              :: xScaleTemp=1._dp             ! state var: characteristic scale for temperature (K)
@@ -466,7 +466,7 @@ contains
  firstFluxCall=.true.
 
  ! set the flag to control printing
- printFlagInit=.true.
+ printFlagInit=.false.
  printFlag=printFlagInit
 
  ! set the flag for pausing
@@ -687,14 +687,14 @@ contains
   niter = iter
 
   ! test
-  print*, '***'
-  print*, '***'
-  print*, '***'
-  print*, '***'
-  print*, '***'
-  print*, '***'
-  print*, '***'
-  write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
+  !print*, '***'
+  !print*, '***'
+  !print*, '***'
+  !print*, '***'
+  !print*, '***'
+  !print*, '***'
+  !print*, '***'
+  !write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
   !write(*,'(a,1x,10(e15.5,1x))') 'stateVecInit(1:10)  = ', stateVecInit(1:10)
   !write(*,'(a,1x,10(e15.5,1x))') 'stateVecTrial(1:10) = ', stateVecTrial(1:10)
   !write(*,'(a,1x,10(e15.5,1x))') 'xInc(1:10)          = ', xInc(1:10)
@@ -1041,6 +1041,7 @@ contains
 
  ! compute total baseflow from the soil zone (needed for mass balance checks)
  scalarSoilBaseflow = sum(mLayerBaseflow)
+ !write(*,'(a,1x,e20.10)') 'scalarSoilBaseflow = ', scalarSoilBaseflow
 
  ! update states
  call updatState(&
@@ -2026,9 +2027,7 @@ contains
    if(local_ixGroundwater==qbaseTopmodel)then  ! check if the option for lateral soil flux is invoked
     call groundwatr(&
                     ! input
-                    dt,                                      & ! intent(in):    length of the model time step 
-                    mLayerHydCond,                           & ! intent(in):    hydraulic conductivity in each layer (m s-1)
-                    dHydCond_dMatric,                        & ! intent(in):    derivative in hydraulic conductivity w.r.t. matric head in each layer (s-1)
+                    dt,                                      & ! intent(in):    length of the model time step (s)
                     mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
                     mLayerMatricHeadLiq,                     & ! intent(in):    liquid water matric potential (m)
                     mLayerVolFracLiqTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of liquid water (-)
@@ -2376,9 +2375,9 @@ contains
   end do  ! (looping through soil layers)
 
   ! print the Jacobian
-  print*, '** analytical Jacobian:'
-  write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-  do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+  !print*, '** analytical Jacobian:'
+  !write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+  !do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
   !pause 'testing analytical jacobian'
 
   ! end the association to data structures
@@ -2855,10 +2854,10 @@ contains
 
    ! compute the function evaluation
    f=0.5_dp*norm2(rVec/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
-   write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
-   write(*,'(a,1x,100(f20.12,1x))') trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
-   write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
-   write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
+   !write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
+   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
+   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
+   !write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
 
    ! check
    !if(iter>1 .and. printFlag)then

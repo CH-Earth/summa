@@ -817,14 +817,14 @@ contains
  balanceSoilDrainage      = averageSoilDrainage*iden_water*dt
  balanceSoilTranspiration = averageCanopyTranspiration*dt      ! NOTE ground evaporation included in the flux at the upper boundary
 
- write(*,'(a,1x,f20.10)') 'totalSoilCompress          = ', totalSoilCompress                  ! kg m-2
- write(*,'(a,1x,f20.10)') 'averageSoilInflux          = ', averageSoilInflux*iden_water*dt    ! m s-1  -> kg m-2
- write(*,'(a,1x,f20.10)') 'averageSoilBaseflow        = ', averageSoilBaseflow*iden_water*dt
- write(*,'(a,1x,f20.10)') 'averageSoilDrainage        = ', averageSoilDrainage*iden_water*dt
- write(*,'(a,1x,f20.10)') 'averageCanopyTranspiration = ', averageCanopyTranspiration*dt
- write(*,'(a,1x,f20.10)') 'averageGroundEvaporation   = ', averageGroundEvaporation*dt
+ !write(*,'(a,1x,f20.10)') 'totalSoilCompress          = ', totalSoilCompress                  ! kg m-2
+ !write(*,'(a,1x,f20.10)') 'averageSoilInflux          = ', averageSoilInflux*iden_water*dt    ! m s-1  -> kg m-2
+ !write(*,'(a,1x,f20.10)') 'averageSoilBaseflow        = ', averageSoilBaseflow*iden_water*dt
+ !write(*,'(a,1x,f20.10)') 'averageSoilDrainage        = ', averageSoilDrainage*iden_water*dt
+ !write(*,'(a,1x,f20.10)') 'averageCanopyTranspiration = ', averageCanopyTranspiration*dt
+ !write(*,'(a,1x,f20.10)') 'averageGroundEvaporation   = ', averageGroundEvaporation*dt
 
- print*, 'sum(mLayerBaseflow) = ', sum(mvar_data%var(iLookMVAR%mLayerBaseflow)%dat)
+ !print*, 'sum(mLayerBaseflow) = ', sum(mvar_data%var(iLookMVAR%mLayerBaseflow)%dat)
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
