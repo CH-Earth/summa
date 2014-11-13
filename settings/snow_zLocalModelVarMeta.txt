@@ -28,17 +28,17 @@
 ! timestep-average fluxes for a few key variables
 ! *************************************************************************************************************************************
 totalSoilCompress                   | change in total soil storage due to compression of soil matrix    | kg m-2          | scalarv | F
-averageThroughfallSnow              | snow that reaches the ground without ever touching the canopy     | kg m-2 s-1      | scalarv | F
-averageThroughfallRain              | rain that reaches the ground without ever touching the canopy     | kg m-2 s-1      | scalarv | F
-averageCanopySnowUnloading          | unloading of snow from the vegetion canopy                        | kg m-2 s-1      | scalarv | F
-averageCanopyLiqDrainage            | drainage of liquid water from the vegetation canopy               | kg m-2 s-1      | scalarv | F
-averageCanopyMeltFreeze             | melt/freeze of water stored in the canopy                         | kg m-2 s-1      | scalarv | F
+averageThroughfallSnow              | snow that reaches the ground without ever touching the canopy     | kg m-2 s-1      | scalarv | T
+averageThroughfallRain              | rain that reaches the ground without ever touching the canopy     | kg m-2 s-1      | scalarv | T
+averageCanopySnowUnloading          | unloading of snow from the vegetion canopy                        | kg m-2 s-1      | scalarv | T
+averageCanopyLiqDrainage            | drainage of liquid water from the vegetation canopy               | kg m-2 s-1      | scalarv | T
+averageCanopyMeltFreeze             | melt/freeze of water stored in the canopy                         | kg m-2 s-1      | scalarv | T
 averageCanopyTranspiration          | canopy transpiration                                              | kg m-2 s-1      | scalarv | T
 averageCanopyEvaporation            | canopy evaporation/condensation                                   | kg m-2 s-1      | scalarv | T
 averageCanopySublimation            | canopy sublimation/frost                                          | kg m-2 s-1      | scalarv | T
 averageSnowSublimation              | snow sublimation/frost (below canopy or non-vegetated)            | kg m-2 s-1      | scalarv | T
-averageGroundEvaporation            | ground evaporation/condensation (below canopy or non-vegetated)   | kg m-2 s-1      | scalarv | F
-averageRainPlusMelt                 | rain plus melt input to soil before calculating surface runoff    | m s-1           | scalarv | F
+averageGroundEvaporation            | ground evaporation/condensation (below canopy or non-vegetated)   | kg m-2 s-1      | scalarv | T
+averageRainPlusMelt                 | rain plus melt input to soil before calculating surface runoff    | m s-1           | scalarv | T
 averageSurfaceRunoff                | surface runoff                                                    | m s-1           | scalarv | T
 averageSoilInflux                   | influx of water at the top of the soil profile                    | m s-1           | scalarv | T
 averageSoilBaseflow                 | total baseflow from throughout the soil profile                   | m s-1           | scalarv | T
@@ -88,8 +88,8 @@ scalarLAI                           | one-sided leaf area index                 
 scalarSAI                           | one-sided stem area index                                         | m2 m-2          | scalarv | F
 scalarExposedLAI                    | exposed leaf area index (after burial by snow)                    | m2 m-2          | scalarv | T
 scalarExposedSAI                    | exposed stem area index (after burial by snow)                    | m2 m-2          | scalarv | T
-scalarCanopyIceMax                  | maximum interception storage capacity for ice                     | kg m-2          | scalarv | F
-scalarCanopyLiqMax                  | maximum interception storage capacity for liquid water            | kg m-2          | scalarv | F
+scalarCanopyIceMax                  | maximum interception storage capacity for ice                     | kg m-2          | scalarv | T
+scalarCanopyLiqMax                  | maximum interception storage capacity for liquid water            | kg m-2          | scalarv | T
 scalarGrowingSeasonIndex            | growing season index (0=off, 1=on)                                | -               | scalarv | F
 scalarVP_CanopyAir                  | vapor pressure of the canopy air space                            | Pa              | scalarv | F
 ! *************************************************************************************************************************************
@@ -106,8 +106,8 @@ scalarBelowCanopySolar              | solar radiation transmitted below the cano
 spectralAlbGndDirect                | direct  albedo of underlying surface for each spectral band       | -               | wLength | F
 spectralAlbGndDiffuse               | diffuse albedo of underlying surface for each spectral band       | -               | wLength | F
 scalarGroundAlbedo                  | albedo of the ground surface                                      | -               | scalarv | F
-scalarCanopyAbsorbedSolar           | solar radiation absorbed by canopy                                | W m-2           | scalarv | F
-scalarGroundAbsorbedSolar           | solar radiation absorbed by ground                                | W m-2           | scalarv | F
+scalarCanopyAbsorbedSolar           | solar radiation absorbed by canopy                                | W m-2           | scalarv | T
+scalarGroundAbsorbedSolar           | solar radiation absorbed by ground                                | W m-2           | scalarv | T
 ! *************************************************************************************************************************************
 ! NOAH-MP vegetation variables (longwave radiation)
 ! *************************************************************************************************************************************
