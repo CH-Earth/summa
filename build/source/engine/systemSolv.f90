@@ -1516,6 +1516,7 @@ contains
    ! --> mass balance
    rVec(ixVegWat) = sMul(ixVegWat)*scalarCanopyWatTrial  - ( (sMul(ixVegWat)*scalarCanopyWat  + fVec(ixVegWat)*dt) + rAdd(ixVegWat) )
   endif
+  !write(*,'(a,1x,2(e20.10,1x))') 'rVec(ixVegWat), fVec(ixVegWat) = ', rVec(ixVegWat), fVec(ixVegWat)
 
   ! compute the residual vector for the snow and soil sub-domains for energy
   !rAdd(ixSnowSoilNrg) = 0._dp

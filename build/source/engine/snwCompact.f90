@@ -131,7 +131,6 @@ contains
    ! (adjust snow depth to account for cavitation)
    scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
    !print*, 'volFracIceLoss = ', volFracIceLoss
-   !scalarDepthNew = min(mLayerVolFracIceNew(iSnow)/mLayerVolFracIce(iSnow), 1._dp)*mLayerDepth(iSnow)
   else
    scalarDepthNew = mLayerDepth(iSnow)
   endif

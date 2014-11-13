@@ -112,9 +112,14 @@ contains
  integer(i4b)                         :: nTrial                 ! number of trial sub-steps
  logical(lgt)                         :: rejectedStep           ! flag to denote if the sub-step is rejected (convergence problem, etc.)
  ! balance checks
+ real(dp),pointer                     :: scalarSnowfall         ! snowfall rate
+ real(dp),pointer                     :: scalarRainfall         ! rainfall rate
+ real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
  real(dp)                             :: scalarTotalSoilLiq     ! total liquid water in the soil column (kg m-2)
  real(dp)                             :: scalarTotalSoilIce     ! total ice in the soil column (kg m-2)
+ real(dp)                             :: balanceCanopyWater0    ! total water stored in the vegetation canopy at the start of the step (kg m-2)
+ real(dp)                             :: balanceCanopyWater1    ! total water stored in the vegetation canopy at the end of the step (kg m-2)
  real(dp)                             :: balanceSoilWater0      ! total soil storage at the start of the step (kg m-2)
  real(dp)                             :: balanceSoilWater1      ! total soil storage at the end of the step (kg m-2)
  real(dp)                             :: balanceSoilInflux      ! input to the soil zone
@@ -132,6 +137,8 @@ contains
  real(dp),pointer                     :: mLayerVolFracIce(:)    ! volumetric ice content in each soil layer (-)
  real(dp),pointer                     :: mLayerVolFracLiq(:)    ! volumetric liquid water content in each soil layer (-)
  real(dp),pointer                     :: scalarAquiferStorage   ! aquifer storage (m)
+ real(dp),pointer                     :: scalarCanopyLiq        ! canopy liquid water content (kg m-2)
+ real(dp),pointer                     :: scalarCanopyIce        ! canopy ice content (kg m-2)
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! ** local pointers to increment fluxes
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -187,6 +194,10 @@ contains
 
  ! compute the total number of snow and soil layers
  nLayers = nSnow + nSoil
+
+ scalarCanopyLiq => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)
+ scalarCanopyIce => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
+ balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
 
  ! point to model state variables
  ! NOTE: need to do this at the start of each sub-step because number of layers may change
@@ -390,7 +401,6 @@ contains
    mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) = 0._dp
   endif
 
-
   ! (6) add snowfall to the snowpack...
   ! -----------------------------------
 
@@ -434,7 +444,6 @@ contains
                   err,cmessage)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-
   ! ****************************************************************************************************
   ! *** MAIN SOLVER ************************************************************************************
   ! ****************************************************************************************************
@@ -475,7 +484,6 @@ contains
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
  
-
     ! (7) compute diagnostic variables for each layer...
     ! --------------------------------------------------
     ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
@@ -792,6 +800,45 @@ contains
  ! ---
  ! (14) balance checks...
  ! ----------------------
+
+ ! get total canopy water
+ scalarCanopyLiq => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)
+ scalarCanopyIce => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
+ balanceCanopyWater1 = scalarCanopyLiq + scalarCanopyIce
+
+ ! get snowfall and rainfall
+ scalarSnowfall => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)        ! computed snowfall rate (kg m-2 s-1)
+ scalarRainfall => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)        ! computed rainfall rate (kg m-2 s-1)
+
+ ! print progress
+ !write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
+ !write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
+ !write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)*dt = ', (scalarSnowfall - averageThroughfallSnow)*dt
+ !write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)*dt = ', (scalarRainfall - averageThroughfallRain)*dt
+ !write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading*dt
+ !write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage*dt
+ !write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation*dt
+ !write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation*dt
+
+ ! balance checks for the canopy
+ scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*dt + (scalarRainfall - averageThroughfallRain)*dt &
+                            - averageCanopySnowUnloading*dt - averageCanopyLiqDrainage*dt + averageCanopySublimation*dt + averageCanopyEvaporation*dt)
+ if(abs(scalarCanopyWatBalError) > 1.d-3)then
+  print*, '** canopy water balance error:'
+  write(*,'(a,1x,f20.10)') 'dt                                           = ', dt
+  write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
+  write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
+  write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)*dt = ', (scalarSnowfall - averageThroughfallSnow)*dt
+  write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)*dt = ', (scalarRainfall - averageThroughfallRain)*dt
+  write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading*dt
+  write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage*dt
+  write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation*dt
+  write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation*dt
+  write(*,'(a,1x,f20.10)') 'scalarCanopyWatBalError                      = ', scalarCanopyWatBalError
+  message=trim(message)//'canopy hydrology does not balance'
+  err=20; return
+ endif
+ !pause 'canopy hydrology does balance'
 
  ! point to model state variables
  ! NOTE: need to do this at the end of each sub-step because number of layers may change

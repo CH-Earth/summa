@@ -103,6 +103,8 @@ contains
    endif
    ! (put data in the structure)
    parFallback(ivar)=parTemp
+   !write(*,'(a,1x,i4,1x,a30,1x,f20.10,1x)') 'ivar, trim(varname), parFallback(ivar)%default_val = ', &
+   !                                          ivar, trim(varname), parFallback(ivar)%default_val
   else
    err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return
   endif

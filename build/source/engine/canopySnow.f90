@@ -123,7 +123,6 @@ contains
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
 
- ! *****
  ! compute unloading due to melt drip...
  ! *************************************
 
@@ -132,7 +131,7 @@ contains
  else
   unloading_melt = 0._dp
  endif
- scalarCanopyIce = scalarCanopyIce - unloading_melt
+ scalarCanopyIce = scalarCanopyIce - unloading_melt*dt
 
  ! *****
  ! compute the ice balance due to snowfall and unloading...
@@ -151,12 +150,17 @@ contains
  ! iterate
  do iter=1,maxiter
 
+  ! ** compute unloading
+  scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
+  unloadingDeriv            = snowUnloadingCoeff
+
   ! ** compute throughfall
 
   ! no snowfall
   if(scalarSnowfall<tiny(dt))then ! no snow
    ! compute throughfall -- note this is effectively zero (no snow case)
    scalarThroughfallSnow = scalarSnowfall  ! throughfall (kg m-2 s-1)
+   canopyIceScaleFactor  = valueMissing    ! not used
    throughfallDeriv      = 0._dp
 
   ! snowfall: compute interception
@@ -170,7 +174,8 @@ contains
      ! (check new snow density is valid)
      if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; endif
      ! (compute storage capacity of new snow)
-     leafInterceptCapSnow  = refInterceptCapSnow*(0.27_dp + 46._dp/scalarNewSnowDensity)  ! per unit leaf area (kg m-2)
+     leafScaleFactor       = 0.27_dp + 46._dp/scalarNewSnowDensity
+     leafInterceptCapSnow  = refInterceptCapSnow*leafScaleFactor  ! per unit leaf area (kg m-2)
 
     ! * option 2: maximum interception capacity an increasing function of air temerature
     case(stickySnow)
@@ -197,11 +202,13 @@ contains
    scalarThroughfallSnow = scalarSnowfall*(scalarCanopyIceIter/canopyIceScaleFactor)
    throughfallDeriv      = scalarSnowfall/canopyIceScaleFactor
 
+   !write(*,'(a,1x,10(e20.10,1x))') 'scalarSnowfall, scalarNewSnowDensity, refInterceptCapSnow, leafScaleFactor, leafInterceptCapSnow, exposedVAI, canopyIceScaleFactor = ', &
+   !                                 scalarSnowfall, scalarNewSnowDensity, refInterceptCapSnow, leafScaleFactor, leafInterceptCapSnow, exposedVAI, canopyIceScaleFactor
+
   endif  ! (if snow is falling)
 
-  ! ** compute unloading
-  scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
-  unloadingDeriv            = snowUnloadingCoeff
+  !write(*,'(a,1x,10(e20.10,1x))') 'scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt = ', &
+  !                                 scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt
 
   ! ** compute iteration increment  
   flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
@@ -221,9 +228,10 @@ contains
 
  end do  ! iterating
 
- ! add the unloading associated with melt drip
+ ! add the unloading associated with melt drip (kg m-2 s-1)
  scalarCanopySnowUnloading = scalarCanopySnowUnloading + unloading_melt
 
+ ! *****
  ! update mass of ice on the canopy (kg m-2)
  scalarCanopyIce = scalarCanopyIceIter
 

@@ -434,6 +434,9 @@ do istep=1,numtim
  ! ****************************************************************************
  do iHRU=1,nHRU
 
+  ! print progress
+  !print*, 'iHRU = ', iHRU
+
   ! assign pointers to HRUs
   time_data => time_hru(iHRU)
   forc_data => forc_hru(iHRU)
@@ -555,8 +558,7 @@ do istep=1,numtim
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
   end select 
-  printRestart = .true.
-  !print*, 'iHRU = ', iHRU
+  !printRestart = .true.
 
   ! run the model for a single parameter set and time step
   call coupled_em(printRestart,                    & ! flag to print a re-start file

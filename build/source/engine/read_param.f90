@@ -37,6 +37,7 @@ contains
  character(LEN=1024),allocatable :: varnames(:)       ! vector of variable names
  character(LEN=1024),allocatable :: charline(:)       ! vector of character strings
  character(LEN=1024),allocatable :: chardata(:)       ! vector of character data
+ logical(lgt)                    :: checkHRU(nHRU)    ! vector of flags to check that an HRU will be populated with parameter data
  integer(i4b)                    :: hruIndex          ! HRU identifier
  integer(i4b)                    :: iHRU,jHRU,kHRU    ! index of HRU within data vector
  integer(i4b)                    :: ipar,jpar         ! index of model parameter
@@ -92,6 +93,8 @@ contains
  if(.not.associated(localParFallback))then
   err=20;message=trim(message)//"parFallbackUninitialized"; return
  endif
+ ! initialize the check HRU vector
+ checkHRU(:) = .false. ! logical array to ensure that all HRUs are populated
  ! allocate space for the character data
  allocate(chardata(nPars),stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateChardata"; return; endif
@@ -107,6 +110,7 @@ contains
   do jHRU=1,nHRU
    if(hruIndex == type_hru(jHRU)%var(iLookTYPE%hruIndex))then
     kHRU=jHRU
+    checkHRU(jHRU) = .true.
     exit
    endif
    if(jHRU == nHRU)then ! we get to here if we have tested the last HRU and have not exited the loop
@@ -134,9 +138,18 @@ contains
    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
    print*, trim(varnames(ipar)), mpar_data%var(jpar)
   end do    ! (looping through model parameters)
-  !write(*,'(a,2(i4,1x),2(f20.10,1x))') 'in read_param 2: iHRU, kHRU, mpar_data%var(iLookPARAM%vGn_alpha), mpar_hru(kHRU)%var(iLookPARAM%vGn_alpha) = ', & 
-  !                                                       iHRU, kHRU, mpar_data%var(iLookPARAM%vGn_alpha), mpar_hru(kHRU)%var(iLookPARAM%vGn_alpha)
+  !write(*,'(a,2(i4,1x),2(f20.10,1x))') 'in read_param 2: iHRU, kHRU, mpar_data%var(iLookPARAM%zmaxLayer1_upper), mpar_hru(kHRU)%var(iLookPARAM%zmaxLayer1_upper) = ', & 
+  !                                                       iHRU, kHRU, mpar_data%var(iLookPARAM%zmaxLayer1_upper), mpar_hru(kHRU)%var(iLookPARAM%zmaxLayer1_upper)
  end do    ! (looping through HRUs)
+ ! check that all HRUs are populated
+ if(count(checkHRU) /= nHRU)then
+  do iHRU=1,nHRU
+   if(.not.checkHRU(iHRU))then
+    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',type_hru(iHRU)%var(iLookTYPE%hruIndex),'; file='//trim(infile)//']'
+    err=20; return
+   endif
+  end do  ! looping through HRUs
+ endif   ! if some HRUs are not populated
  ! **********************************************************************************************
  deallocate(varnames,charline,chardata,stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemDeallocate"; return; endif

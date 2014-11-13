@@ -71,6 +71,8 @@ contains
     endif
     ! ensure that the maximum thickness is 3 times greater than the minimum thickness
     if(zmaxLayer_upper(iLayer)/zminLayer(iLayer) < 2.5_dp .or. zmaxLayer_upper(iLayer)/zminLayer(iLayer+1) < 2.5_dp)then
+     write(*,'(a,1x,3(f20.10,1x))') 'zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1) = ', &
+                                     zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1)
      write(message,'(a,3(i0,a))') trim(message)//'zmaxLayer_upper for layer ',iLayer,' must be 2.5 times larger than zminLayer for layers ',&
                                   iLayer,' and ',iLayer+1,': this avoids merging layers that have just been divided'
      err=20; return

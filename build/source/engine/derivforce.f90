@@ -173,14 +173,6 @@ contains
  ! compute wet bulb temperature (K)
  twetbulb = WETBULBTMP(airtemp, relhum, airpres)
 
- ! ensure precipitation rate can be resolved by the data model
- if(pptrate<eps)then
-  rainfall     = 0._dp
-  snowfall     = 0._dp
-  snowfallTemp = Tfreeze ! just so the value is populated
-  return
- endif
-
  ! compute the maximum temperature of snow when the snow is predominantely frozen (K)
  maxFrozenSnowTemp = templiquid(unfrozenLiq,fc_param)
 
@@ -197,16 +189,23 @@ contains
   fracrain     = (Tmax - tempCritRain)/(Tmax - Tmin)
   snowfallTemp = 0.5_dp*(Tmin + maxFrozenSnowTemp)
  endif
+ !write(*,'(a,1x,10(f20.10,1x))') 'Tmin, twetbulb, tempRangeTimestep, tempCritRain = ', &
+ !                                 Tmin, twetbulb, tempRangeTimestep, tempCritRain
 
- ! ensure that snow falls at a temperature where all water 
- if(snowfallTemp < maxFrozenSnowTemp) snowfallTemp=maxFrozenSnowTemp
  ! ensure that snowfall temperature creates predominantely solid precipitation
- maxFrozenSnowTemp = templiquid(unfrozenLiq,fc_param)    ! snow temperature at fraction "unfrozenLiq" (K)
  snowfallTemp      = min(maxFrozenSnowTemp,snowfallTemp) ! snowfall temperature
 
- ! compute rainfall and snowfall
- rainfall = fracrain*pptrate
- snowfall = (1._dp - fracrain)*pptrate*frozenPrecipMultip
+ ! ensure precipitation rate can be resolved by the data model
+ if(pptrate<eps)then
+  ! set rainfall and snowfall to zero
+  rainfall     = 0._dp
+  snowfall     = 0._dp
+ else
+  ! compute rainfall and snowfall
+  rainfall = fracrain*pptrate
+  snowfall = (1._dp - fracrain)*pptrate*frozenPrecipMultip
+ endif
+
  !print*, 'tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp = '
  !print*, tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp
 
