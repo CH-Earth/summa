@@ -128,26 +128,26 @@ scalarLWNetUbound                   | net longwave radiation at the upper atmosp
 ! *************************************************************************************************************************************
 ! NOAH-MP vegetation variables (turbulent heat transfer)
 ! *************************************************************************************************************************************
-scalarLatHeatSubVapCanopy           | latent heat of sublimation/vaporization used for veg canopy       | J kg-1          | scalarv | F
-scalarLatHeatSubVapGround           | latent heat of sublimation/vaporization used for ground surface   | J kg-1          | scalarv | F
-scalarSatVP_CanopyTemp              | saturation vapor pressure at the temperature of vegetation canopy | Pa              | scalarv | F
-scalarSatVP_GroundTemp              | saturation vapor pressure at the temperature of the ground        | Pa              | scalarv | F
-scalarZ0Canopy                      | roughness length of the canopy                                    | m               | scalarv | F
-scalarWindReductionFactor           | canopy wind reduction factor                                      | -               | scalarv | F
-scalarZeroPlaneDisplacement         | zero plane displacement                                           | m               | scalarv | F
-scalarRiBulkCanopy                  | bulk Richardson number for the canopy                             | -               | scalarv | F     
-scalarRiBulkGround                  | bulk Richardson number for the ground surface                     | -               | scalarv | F
-scalarCanopyStabilityCorrection     | stability correction for the canopy                               | -               | scalarv | F
-scalarGroundStabilityCorrection     | stability correction for the ground surface                       | -               | scalarv | F
-scalarEddyDiffusCanopyTop           | eddy diffusivity for heat at the top of the canopy                | m2 s-1          | scalarv | F 
-scalarFrictionVelocity              | friction velocity (canopy momentum sink)                          | m s-1           | scalarv | F
-scalarWindspdCanopyTop              | windspeed at the top of the canopy                                | m s-1           | scalarv | F
+scalarLatHeatSubVapCanopy           | latent heat of sublimation/vaporization used for veg canopy       | J kg-1          | scalarv | T
+scalarLatHeatSubVapGround           | latent heat of sublimation/vaporization used for ground surface   | J kg-1          | scalarv | T
+scalarSatVP_CanopyTemp              | saturation vapor pressure at the temperature of vegetation canopy | Pa              | scalarv | T
+scalarSatVP_GroundTemp              | saturation vapor pressure at the temperature of the ground        | Pa              | scalarv | T
+scalarZ0Canopy                      | roughness length of the canopy                                    | m               | scalarv | T
+scalarWindReductionFactor           | canopy wind reduction factor                                      | -               | scalarv | T
+scalarZeroPlaneDisplacement         | zero plane displacement                                           | m               | scalarv | T
+scalarRiBulkCanopy                  | bulk Richardson number for the canopy                             | -               | scalarv | T     
+scalarRiBulkGround                  | bulk Richardson number for the ground surface                     | -               | scalarv | T
+scalarCanopyStabilityCorrection     | stability correction for the canopy                               | -               | scalarv | T
+scalarGroundStabilityCorrection     | stability correction for the ground surface                       | -               | scalarv | T
+scalarEddyDiffusCanopyTop           | eddy diffusivity for heat at the top of the canopy                | m2 s-1          | scalarv | T 
+scalarFrictionVelocity              | friction velocity (canopy momentum sink)                          | m s-1           | scalarv | T
+scalarWindspdCanopyTop              | windspeed at the top of the canopy                                | m s-1           | scalarv | T
 scalarWindspdCanopyBottom           | windspeed at the height of the bottom of the canopy               | m s-1           | scalarv | T
-scalarGroundResistance              | below canopy aerodynamic resistance                               | s m-1           | scalarv | F
-scalarCanopyResistance              | above canopy aerodynamic resistance                               | s m-1           | scalarv | F
-scalarLeafResistance                | mean leaf boundary layer resistance per unit leaf area            | s m-1           | scalarv | F
-scalarSoilResistance                | soil surface resistance                                           | s m-1           | scalarv | F
-scalarSoilRelHumidity               | relative humidity in the soil pores in the upper-most soil layer  | -               | scalarv | F
+scalarGroundResistance              | below canopy aerodynamic resistance                               | s m-1           | scalarv | T
+scalarCanopyResistance              | above canopy aerodynamic resistance                               | s m-1           | scalarv | T
+scalarLeafResistance                | mean leaf boundary layer resistance per unit leaf area            | s m-1           | scalarv | T
+scalarSoilResistance                | soil surface resistance                                           | s m-1           | scalarv | T
+scalarSoilRelHumidity               | relative humidity in the soil pores in the upper-most soil layer  | -               | scalarv | T
 scalarSenHeatTotal                  | sensible heat from the canopy air space to the atmosphere         | W m-2           | scalarv | T
 scalarSenHeatCanopy                 | sensible heat from the canopy to the canopy air space             | W m-2           | scalarv | T
 scalarSenHeatGround                 | sensible heat from the ground (below canopy or non-vegetated)     | W m-2           | scalarv | T
