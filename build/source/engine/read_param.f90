@@ -32,11 +32,12 @@ contains
  integer(i4b),parameter          :: unt=99            ! DK: need to either define units globally, or use getSpareUnit
  integer(i4b)                    :: iline             ! loop through lines in the file 
  integer(i4b),parameter          :: maxLines=1000     ! maximum lines in the file 
- character(LEN=1024)             :: temp              ! single line of information
  integer(i4b)                    :: iend              ! check for the end of the file
- character(LEN=1024),allocatable :: varnames(:)       ! vector of variable names
- character(LEN=1024),allocatable :: charline(:)       ! vector of character strings
- character(LEN=1024),allocatable :: chardata(:)       ! vector of character data
+ integer(i4b),parameter          :: sLen=2048         ! string length for line of parameter data
+ character(LEN=sLen)             :: temp              ! single line of information
+ character(LEN=sLen),allocatable :: charline(:)       ! vector of character strings
+ character(LEN=64),allocatable   :: varnames(:)       ! vector of variable names
+ character(LEN=64),allocatable   :: chardata(:)       ! vector of character data
  logical(lgt)                    :: checkHRU(nHRU)    ! vector of flags to check that an HRU will be populated with parameter data
  integer(i4b)                    :: hruIndex          ! HRU identifier
  integer(i4b)                    :: iHRU,jHRU,kHRU    ! index of HRU within data vector

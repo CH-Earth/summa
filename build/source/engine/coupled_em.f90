@@ -875,7 +875,7 @@ contains
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
- if(abs(scalarSoilWatBalError) > 1.d-3)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+ if(abs(scalarSoilWatBalError) > 1.d-2)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   write(*,'(a,1x,f20.10)') 'dt_sub                    = ', dt_sub
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
   write(*,'(a,1x,f20.10)') 'balanceSoilWater0         = ', balanceSoilWater0

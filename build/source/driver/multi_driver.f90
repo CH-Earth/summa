@@ -639,6 +639,7 @@ do istep=1,numtim
 
  ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
+  call handle_err(20,'multi_driver/bigBucket groundwater code not transferred from old code base yet')
   !call groundwatr(&
   !               ! input
   !               data_step,                                              & ! intent(in): time step of the forcing data (s)
@@ -679,7 +680,7 @@ do istep=1,numtim
  ! increment the time index
  jstep = jstep+1
 
- !pause 'end of time step'
+ !stop 'end of time step'
 
 end do  ! (looping through time)
 

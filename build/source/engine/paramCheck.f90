@@ -98,6 +98,8 @@ contains
  ! check that the soil wilting point is within bounds
  if(mpar_data%var(iLookPARAM%critSoilWilting)>mpar_data%var(iLookPARAM%theta_sat) .or. &
     mpar_data%var(iLookPARAM%critSoilWilting)<mpar_data%var(iLookPARAM%theta_res))then
+  print*, 'mpar_data%var(iLookPARAM%theta_res) = ', mpar_data%var(iLookPARAM%theta_res)
+  print*, 'mpar_data%var(iLookPARAM%theta_sat) = ', mpar_data%var(iLookPARAM%theta_sat)
   message=trim(message)//'critSoilWilting parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
@@ -106,7 +108,8 @@ contains
  ! check that the field capacity is within bounds
  if(mpar_data%var(iLookPARAM%fieldCapacity)>mpar_data%var(iLookPARAM%theta_sat) .or. &
     mpar_data%var(iLookPARAM%fieldCapacity)<mpar_data%var(iLookPARAM%theta_res))then
-  message=trim(message)//'critSoilWilting parameter is out of range '// &
+  print*, 'mpar_data%var(iLookPARAM%fieldCapacity) = ', mpar_data%var(iLookPARAM%fieldCapacity)
+  message=trim(message)//'fieldCapacity parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
  endif

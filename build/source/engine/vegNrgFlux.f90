@@ -1258,10 +1258,10 @@ contains
      ! (soil water evaporation factor [0-1])
      soilEvapFactor = mLayerVolFracLiq(1)/(theta_sat - theta_res)
      ! (resistance from the soil [s m-1])
-     !scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
-     scalarSoilResistance = scalarGroundSnowFraction*0._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
+     scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
+     !scalarSoilResistance = scalarGroundSnowFraction*0._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
      ! (relative humidity in the soil pores [0-1])
-     if(mLayerMatricHead(1) > -1.e+3_dp)then  ! avoid problems with numerical precision when soil is very dry
+     if(mLayerMatricHead(1) > -1.e+6_dp)then  ! avoid problems with numerical precision when soil is very dry
       soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTemp*R_wv) )
      else
       soilRelHumidity_noSnow = 0._dp

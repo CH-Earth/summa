@@ -55,7 +55,8 @@ contains
  integer(i4b),intent(out)             :: err      ! error code
  character(*),intent(out)             :: message  ! error message
  ! declare local variables
- character(len=256)      :: temp                  ! temporary line of characters
+ integer(i4b),parameter  :: cLen=2048
+ character(len=cLen)     :: temp                  ! temporary line of characters
  integer(i4b)            :: iword                 ! loop through words
  integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line 
  integer(i4b)            :: i1                    ! index at the start of a given word
@@ -119,12 +120,12 @@ contains
  ! declare local variables
  integer(i4b)            :: iline                    ! loop through lines in the file
  integer(i4b),parameter  :: maxLines=1000            ! maximum number of valid lines in a file
- character(len=256)      :: temp                     ! character data or a given line
+ character(len=2048)     :: temp                     ! character data or a given line
  integer(i4b)            :: icount                   ! counter for the valid lines
  integer(i4b)            :: iend                     ! index to indicate end of the file
  ! define pointers for linked list
  type node
-  character(len=256)     :: chardat
+  character(len=2048)    :: chardat
   integer(i4b)           :: ix
   type(node),pointer     :: next=>null()
  end type node

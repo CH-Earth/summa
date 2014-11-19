@@ -153,12 +153,14 @@ contains
  real(dp),dimension(nLayers)     :: mLayerMeltFreeze             ! intent(out): melt-freeze in each snow and soil layer (kg m-3)
  real(dp),dimension(nSnow)       :: mLayerThetaResid             ! intent(out): residual volumetric liquid water content in each snow layer (-)
  ! model fluxes
- real(dp),dimension(0:nSnow)     :: iLayerLiqFluxSnow            ! vertical liquid water flux at layer interfaces (m s-1)
- real(dp),dimension(0:nSoil)     :: iLayerLiqFluxSoil            ! liquid flux at soil layer interfaces (m s-1)
- real(dp),dimension(nSoil)       :: mLayerBaseflow               ! baseflow from each soil layer -- only compute at the start of the step (m s-1)
- real(dp),dimension(nSoil)       :: mLayerCompress               ! change in storage associated with compression of the soil matrix (-)
+ real(dp)                        :: scalarSurfaceRunoff          ! intent(out): surface runoff (m s-1)
+ real(dp),dimension(0:nSnow)     :: iLayerLiqFluxSnow            ! intent(out): vertical liquid water flux at layer interfaces (m s-1)
+ real(dp),dimension(0:nSoil)     :: iLayerLiqFluxSoil            ! intent(out): liquid flux at soil layer interfaces (m s-1)
+ real(dp),dimension(nSoil)       :: mLayerBaseflow               ! intent(out): baseflow from each soil layer -- only compute at the start of the step (m s-1)
+ real(dp),dimension(nSoil)       :: mLayerCompress               ! intent(out): change in storage associated with compression of the soil matrix (-)
  real(dp)                        :: scalarCanopySublimation      ! intent(out): sublimation of ice from the vegetation canopy (kg m-2 s-1)
  real(dp)                        :: scalarSnowSublimation        ! intent(out): sublimation of ice from the snow surface (kg m-2 s-1)
+ real(dp)                        :: scalarExfiltration           ! intent(out): exfiltration from the soil profile (m s-1)
  ! vegetation parameters
  real(dp)                        :: heightCanopyTop              ! intent(in): height of the top of the vegetation canopy (m)
  real(dp)                        :: heightCanopyBottom           ! intent(in): height of the bottom of the vegetation canopy (m)
@@ -298,7 +300,6 @@ contains
  real(dp)                        :: xMaxInfilRate                ! maximum infiltration rate (m s-1)
  real(dp)                        :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
  real(dp)                        :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
- real(dp)                        :: scalarSurfaceRunoff          ! surface runoff (m s-1)
  real(dp)                        :: scalarSoilBaseflow           ! total baseflow from the soil profile (m s-1)
  real(dp)                        :: soilControl                  ! soil control on infiltration (-)
  real(dp)                        :: scalarSurfaceInfiltration    ! surface infiltration rate (m s-1) -- only computed for iter==1
@@ -414,9 +415,10 @@ contains
  ! model fluxes
  iLayerLiqFluxSnow       => mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
  iLayerLiqFluxSoil       => mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
- mLayerBaseflow          => mvar_data%var(iLookMVAR%mLayerBaseflow)%dat,            &  ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
- mLayerCompress          => mvar_data%var(iLookMVAR%mLayerCompress)%dat,            &  ! intent(out): [dp(:)] change in storage associated with compression of the soil matrix (-)
+ mLayerBaseflow          => mvar_data%var(iLookMVAR%mLayerBaseflow)%dat            ,&  ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
+ mLayerCompress          => mvar_data%var(iLookMVAR%mLayerCompress)%dat            ,&  ! intent(out): [dp(:)] change in storage associated with compression of the soil matrix (-)
  scalarSoilBaseflow      => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)     ,&  ! intent(out): [dp] total baseflow from the soil profile (m s-1)
+ scalarExfiltration      => mvar_data%var(iLookMVAR%scalarExfiltration)%dat(1)     ,& ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
 
  ! sublimation (needed to check mass balance constraints)
  scalarCanopySublimation => mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1),&  ! intent(out): [dp] sublimation of ice from the vegetation canopy (kg m-2 s-1)
@@ -1677,14 +1679,20 @@ contains
   ! model diagnostic variables
   scalarThroughfallRain   => mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1)  ,&  ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
   scalarCanopyLiqDrainage => mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1),&  ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+  scalarSurfaceRunoff     => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)    ,&  ! intent(out): [dp] surface runoff (m s-1)
   scalarRainPlusMelt      => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)     ,&  ! intent(out): [dp] rain plus melt (m s-1)
 
-  ! model fluxes
+  ! soil fluxes
   iLayerLiqFluxSnow       => mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-  iLayerLiqFluxSoil       => mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat,         &  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
-  mLayerBaseflow          => mvar_data%var(iLookMVAR%mLayerBaseflow)%dat             &  ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
+  iLayerLiqFluxSoil       => mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+  mLayerBaseflow          => mvar_data%var(iLookMVAR%mLayerBaseflow)%dat            ,&  ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
 
-  )
+  ! aquifer fluxes
+  scalarAquiferTranspire  => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1) ,&  ! intent(out): [dp] transpiration loss from the aquifer (m s-1
+  scalarAquiferRecharge   => mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1)  ,&  ! intent(out): [dp] recharge to the aquifer (m s-1)
+  scalarAquiferBaseflow   => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)   &  ! intent(out): [dp] total baseflow from the aquifer (m s-1)
+
+  )  ! association to data in structures
 
   ! check that canopy temperature is reasonable
   if(scalarCanopyTempTrial > canopyTempMax)then
@@ -2024,38 +2032,24 @@ contains
   ! *************************************
 
   ! compute the baseflow flux
-  !if(firstFluxCall)then  ! use baseflow flux at the start of the step for all iterations (avoid off-diagonal elements)
-   if(local_ixGroundwater==qbaseTopmodel)then  ! check if the option for lateral soil flux is invoked
-    call groundwatr(&
-                    ! input
-                    dt,                                      & ! intent(in):    length of the model time step (s)
-                    mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
-                    mLayerMatricHeadLiq,                     & ! intent(in):    liquid water matric potential (m)
-                    mLayerVolFracLiqTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of liquid water (-)
-                    mLayerVolFracIceTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of ice (-)
-                    ! input: data structures
-                    attr_data,                               & ! intent(in):    model attributes
-                    mpar_data,                               & ! intent(in):    model parameters
-                    mvar_data,                               & ! intent(inout): model variables for a local HRU
-                    ! output
-                    mLayerBaseflow,                          & ! intent(out): baseflow from each soil layer (m s-1)
-                    dBaseflow_dMatric,                       & ! intent(out): derivative in baseflow w.r.t. matric head (s-1)
-                    err,cmessage)                              ! intent(out): error control
-
-
-    ! test: turn off baseflow
-    !mLayerBaseflow(:)      = 0._dp
-    !dBaseflow_dMatric(:,:) = 0._dp
-
-
-
-
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   else  ! if not computing the lateral soil flux
-    mLayerBaseflow(:)      = 0._dp
-    dBaseflow_dMatric(:,:) = 0._dp
-   endif
-  !endif  ! if the first flux call
+  call groundwatr(&
+                  ! input: model control
+                  dt,                                      & ! intent(in):    length of the model time step (s)
+                  local_ixGroundwater,                     & ! intent(in):    option for lateral soil flux
+                  ! input: state and diagnostic variables
+                  mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+                  mLayerMatricHeadLiq,                     & ! intent(in):    liquid water matric potential (m)
+                  mLayerVolFracLiqTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of liquid water (-)
+                  mLayerVolFracIceTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of ice (-)
+                  ! input: data structures
+                  attr_data,                               & ! intent(in):    model attributes
+                  mpar_data,                               & ! intent(in):    model parameters
+                  mvar_data,                               & ! intent(inout): model variables for a local HRU
+                  ! output
+                  mLayerBaseflow,                          & ! intent(out): baseflow from each soil layer (m s-1)
+                  dBaseflow_dMatric,                       & ! intent(out): derivative in baseflow w.r.t. matric head (s-1)
+                  err,cmessage)                              ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   !write(*,'(a,1x,10(e20.10,1x))') 'iter, mLayerBaseflow(:) = ', mLayerBaseflow(:)
   !pause 'computing baseflow fluxes'
 
@@ -2069,6 +2063,21 @@ contains
    !end do
   endif
 
+  ! *****
+  ! (7) CALCUALTE FLUXES FOR THE DEEP AQUIFER...
+  ! ********************************************
+
+  ! identify modeling decision
+  if(ixGroundwater==bigBucket)then
+   ! deep aquifer is not yet transfered from old code structure
+   message=trim(message)//'bigBucket groundwater parameterization is not yet transfered from old code structure'
+   err=20; return
+  else
+   ! if no quifer, then fluxes are zero
+   scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1
+   scalarAquiferRecharge  = 0._dp  ! recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow  = 0._dp  ! total baseflow from the aquifer (m s-1)
+  endif
 
   ! *****
   ! (X) WRAP UP...
