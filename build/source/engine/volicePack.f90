@@ -12,110 +12,89 @@ USE multiconst,only:&
                     iden_air, & ! intrinsic density of air    (kg m-3)
                     iden_ice, & ! intrinsic density of ice    (kg m-3)
                     iden_water  ! intrinsic density of water  (kg m-3)
+! access the number of snow and soil layers
+USE data_struc,only:&
+                    nSnow,   & ! number of snow layers  
+                    nSoil,   & ! number of soil layers  
+                    nLayers    ! total number of layers
 implicit none
-! number of snow and soil layers
-integer(i4b)                  :: nSnow         ! number of snow layers
-integer(i4b)                  :: nSoil         ! number of soil layers
-integer(i4b)                  :: nLayers       ! total number of snow and soil layers
 private
 public::volicePack
+public::newsnwfall
 
 contains
 
  ! ************************************************************************************************
- ! new subroutine: account for changes in volumetric ice content in the snowpack
- ! (add snowfall; combine and sub-divide layers if necessary)
+ ! new subroutine: combine and sub-divide layers if necessary)
  ! ************************************************************************************************
  subroutine volicePack(&
-                       dt,                          & ! intent(in): time step (seconds)
+                       ! input/output: model data structures
+                       model_decisions,             & ! intent(in):    model decisions 
+                       mpar_data,                   & ! intent(in):    model parameters
+                       indx_data,                   & ! intent(inout): type of each layer
+                       mvar_data,                   & ! intent(inout): model variables for a local HRU
+                       ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
- ! model variables, parameters, forcing data, etc.
- USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
- USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
- ! model decision structures
- USE data_struc,only:model_decisions     ! model decision structure
- USE var_lookup,only:iLookDECISIONS      ! named variables for elements of the decision structure
+ ! provide access to the derived types to define the data structures
+ USE data_struc,only:&
+                     var_d,            & ! data vector (dp)
+                     var_ilength,      & ! data vector with variable length dimension (i4b)
+                     var_dlength,      & ! data vector with variable length dimension (dp)
+                     model_options       ! defines the model decisions
+ ! provide access to named variables defining elements in the data structures
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! external subroutine
- USE var_derive_module,only:calcHeight   ! module to calculate height at layer interfaces and layer mid-point
  USE layerMerge_module,only:layerMerge   ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide ! sub-divide layers if they are too thick
  implicit none
- ! dummy variables
- real(dp),intent(in)           :: dt                  ! time step (seconds)
- integer(i4b),intent(out)      :: err                 ! error code
- character(*),intent(out)      :: message             ! error message
+ ! ------------------------------------------------------------------------------------------------
+ ! input/output: model data structures
+ type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
+ type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_ilength),intent(inout) :: indx_data           ! type of each layer
+ type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
+ ! output: error control
+ integer(i4b),intent(out)        :: err                 ! error code
+ character(*),intent(out)        :: message             ! error message
+ ! ------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)            :: cmessage            ! error message of downwind routine
+ character(LEN=256)              :: cmessage            ! error message of downwind routine
  ! initialize error control
  err=0; message='volicePack/'
 
- ! identify the number of snow and soil layers
- nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
-
- ! compute the total number of snow and soil layers
- nLayers = nSnow + nSoil
-
- ! NOTE: sublimation and densification handled in picardSolv
-
- !write(*,'(a,1x,f20.10)') 'before newsnwfall; mvar_data%var(iLookMVAR%scalarSWE)%dat(1) = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-
- ! *****
- ! * add new snowfall...
- ! *********************
- call newsnwfall(&
-                 ! input: model control
-                 dt,                                                        & ! time step (seconds)
-                 mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
-                 ! input: diagnostic scalar variables
-                 mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K) 
-                 mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
-                 mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
-                 mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
-                 ! input/output: state variables
-                 mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
-                 mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
-                 mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),                & ! temperature of each layer (K)
-                 mvar_data%var(iLookMVAR%mLayerDepth)%dat(1),               & ! depth of each layer (m)
-                 mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1),          & ! volumetric fraction of ice in each layer (-)
-                 mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1),          & ! volumetric fraction of liquid water in each layer (-)
-                 ! output: error control
-                 err,cmessage)                                                ! error control
- if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
-
- ! re-compute snow depth and SWE
- if(nSnow > 0)then
-  mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-  mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                          mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                          * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
- endif
-
- !write(*,'(a,1x,f20.10)') ' after newsnwfall; mvar_data%var(iLookMVAR%scalarSWE)%dat(1) = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-
- ! check for errors
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! update coordinate variables
- call calcHeight(err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
- ! *****
- ! * combine and sub-divide layers, if necessary...
- ! ************************************************
-
  ! divide snow layers if too thick
- call layerDivide(err,cmessage)        ! error control
- if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
+ call layerDivide(&
+                  ! input/output: model data structures
+                  model_decisions,             & ! intent(in):    model decisions
+                  mpar_data,                   & ! intent(in):    model parameters
+                  indx_data,                   & ! intent(inout): type of each layer
+                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
+ if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
  ! merge snow layers if they are too thin
- call layerMerge(err,cmessage)        ! error control
+ call layerMerge(&
+                 ! input/output: model data structures
+                 model_decisions,             & ! intent(in):    model decisions
+                 mpar_data,                   & ! intent(in):    model parameters
+                 indx_data,                   & ! intent(inout): type of each layer
+                 mvar_data,                   & ! intent(inout): model variables for a local HRU
+                 ! output: error control
+                 err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
  ! recompute the number of snow and soil layers
- nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+ nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+ nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+ nLayers = nSnow+nSoil
+
+ ! put the data in the structures
+ indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+ indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
  ! re-compute snow depth and SWE
  if(nSnow > 0)then
@@ -127,15 +106,12 @@ contains
 
  !write(*,'(a,1x,i4,f20.10)') ' after combine; mvar_data%var(iLookMVAR%scalarSWE)%dat(1) = ', nSnow, mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
 
-
  end subroutine volicePack
 
-
-
  ! *****************************************************************************************************************************************************************
  ! *****************************************************************************************************************************************************************
  ! *****************************************************************************************************************************************************************
- ! ***** PRIVATE SUBROUTINES ***************************************************************************************************************************************
+ ! ***** PUBLIC SUBROUTINES ****************************************************************************************************************************************
  ! *****************************************************************************************************************************************************************
  ! *****************************************************************************************************************************************************************
  ! *****************************************************************************************************************************************************************
@@ -199,7 +175,7 @@ contains
  ! initialize error control
  err=0; message="newsnwfall/"
 
- ! compute the new snowfall
+ ! compute the new snowfall (kg m-2 s-1)
  newSnowfall = scalarThroughfallSnow + scalarCanopySnowUnloading
 
  ! early return if there is no snowfall
@@ -224,6 +200,9 @@ contains
   totalMassIceSurfLayer  = iden_ice*surfaceLayerVolFracIce*surfaceLayerDepth + newSnowfall*dt
   ! get the total snow depth
   totalDepthSurfLayer    = surfaceLayerDepth + newSnowDepth
+  !write(*,'(a,1x,10(f20.10,1x))') 'scalarSnowfallTemp, surfaceLayerTemp, newSnowDepth, surfaceLayerDepth, tempSWE0, totalMassIceSurfLayer/totalDepthSurfLayer = ', &
+  !                                 scalarSnowfallTemp, surfaceLayerTemp, newSnowDepth, surfaceLayerDepth, tempSWE0, totalMassIceSurfLayer/totalDepthSurfLayer
+
   ! compute the new temperature
   surfaceLayerTemp       = (surfaceLayerTemp*surfaceLayerDepth + scalarSnowfallTemp*newSnowDepth) / totalDepthSurfLayer
   ! compute new SWE for the upper layer (kg m-2)
