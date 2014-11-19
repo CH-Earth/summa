@@ -1,0 +1,24 @@
+SNOW_FILEMANAGER_V1.4
+! Comment line:
+! *** paths (must be in single quotes)
+'/home/mclark/summa/settings/'                        ! SETNGS_PATH
+'/home/mclark/summa/input/reynolds/'                  ! INPUT_PATH
+'/home/mclark/summa/output/reynolds/'                 ! OUTPUT_PATH
+! *** control files (must be in single quotes)
+'reynolds/snow_zDecisions_riparianAspenExpWindProfile.txt'  ! M_DECISIONS      = definition of model decisions
+'snow_zTimeMeta.txt'                                    ! META_TIME        = metadata for time
+'snow_zLocalAttributeMeta.txt'                          ! META_ATTR        = metadata for local attributes
+'snow_zCategoryMeta.txt'                                ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'snow_zForceMeta.txt'                                   ! META_FORCE       = metadata for model forcing variables
+'snow_zLocalParamMeta.txt'                              ! META_LOCALPARAM  = metadata for local model parameters
+'snow_zLocalModelVarMeta.txt'                           ! META_LOCALMVAR   = metadata for local model variables
+'snow_zLocalModelIndexMeta.txt'                         ! META_INDEX       = metadata for model indices
+'snow_zBasinParamMeta.txt'                              ! META_BASINPARAM  = metadata for basin-average model parameters
+'snow_zBasinModelVarMeta.txt'                           ! META_BASINMVAR   = metadata for basin-average model variables
+'reynolds/snow_zLocalAttributes_riparianAspen.txt'      ! LOCAL_ATTRIBUTES = local attributes
+'reynolds/snow_zLocalParamInfo.txt'                     ! LOCALPARAM_INFO  = default values and constraints for local model parameters
+'reynolds/snow_zBasinParamInfo.txt'                     ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
+'reynolds/snow_zForcingFileList_riparianAspen.txt'      ! FORCING_FILELIST = list of files used in each HRU
+'reynolds/snow_zInitialCond.txt'                        ! MODEL_INITCOND   = model initial conditions
+'reynolds/snow_zParamTrial_riparianAspen.txt'           ! PARAMETER_TRIAL  = trial values for model parameters
+'vegImpacts'                                            ! OUTPUT_PREFIX    = prefix for the output file

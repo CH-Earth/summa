@@ -7,7 +7,7 @@ MODULE data_struc
  ! Define the model decisions
  ! ***********************************************************************************************************
  ! the model decision structure
- type model_options
+ type,public  :: model_options
   character(len=64)                      :: cOption
   character(len=64)                      :: cDecision
   integer(i4b)                           :: iDecision

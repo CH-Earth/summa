@@ -71,6 +71,8 @@ contains
     endif
     ! ensure that the maximum thickness is 3 times greater than the minimum thickness
     if(zmaxLayer_upper(iLayer)/zminLayer(iLayer) < 2.5_dp .or. zmaxLayer_upper(iLayer)/zminLayer(iLayer+1) < 2.5_dp)then
+     write(*,'(a,1x,3(f20.10,1x))') 'zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1) = ', &
+                                     zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1)
      write(message,'(a,3(i0,a))') trim(message)//'zmaxLayer_upper for layer ',iLayer,' must be 2.5 times larger than zminLayer for layers ',&
                                   iLayer,' and ',iLayer+1,': this avoids merging layers that have just been divided'
      err=20; return
@@ -96,6 +98,8 @@ contains
  ! check that the soil wilting point is within bounds
  if(mpar_data%var(iLookPARAM%critSoilWilting)>mpar_data%var(iLookPARAM%theta_sat) .or. &
     mpar_data%var(iLookPARAM%critSoilWilting)<mpar_data%var(iLookPARAM%theta_res))then
+  print*, 'mpar_data%var(iLookPARAM%theta_res) = ', mpar_data%var(iLookPARAM%theta_res)
+  print*, 'mpar_data%var(iLookPARAM%theta_sat) = ', mpar_data%var(iLookPARAM%theta_sat)
   message=trim(message)//'critSoilWilting parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
@@ -104,7 +108,8 @@ contains
  ! check that the field capacity is within bounds
  if(mpar_data%var(iLookPARAM%fieldCapacity)>mpar_data%var(iLookPARAM%theta_sat) .or. &
     mpar_data%var(iLookPARAM%fieldCapacity)<mpar_data%var(iLookPARAM%theta_res))then
-  message=trim(message)//'critSoilWilting parameter is out of range '// &
+  print*, 'mpar_data%var(iLookPARAM%fieldCapacity) = ', mpar_data%var(iLookPARAM%fieldCapacity)
+  message=trim(message)//'fieldCapacity parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
  endif

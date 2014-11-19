@@ -1,0 +1,12 @@
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! ***** DEFINITION OF TRIAL MODEL PARAMETER VALUES **********************************************************************
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! Note: Lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
+!
+! Variable names are important: They must match the variables in the code, and they must occur before the data.
+!  NOTE: must include information for all HRUs
+! ***********************************************************************************************************************
+hruIndex frozenPrecipMultip theta_mp theta_sat theta_res vGn_alpha vGn_n f_impede     k_soil k_macropore critSoilWilting critSoilTranspire winterSAI summerLAI heightCanopyTop heightCanopyBottom rootingDepth rootDistExp
+    1001               1.00    0.300     0.550     0.139     -0.50  1.30      2.0  0.0000075        0.01            0.15              0.20      0.45      1.41            9.50               3.00          2.0        1.00
