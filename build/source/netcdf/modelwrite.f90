@@ -169,6 +169,7 @@ contains
   err = nf90_inq_varid(ncid,'time',iVarId); call netcdf_err(err,message); if (err/=0) return
   err = nf90_put_var(ncid,iVarId,(/dtime/),start=(/istep/),count=(/1/))
   call netcdf_err(err,message); if (err/=0) return
+  message="f-writeForce/"
  endif
 
  ! loop through model forcing variables

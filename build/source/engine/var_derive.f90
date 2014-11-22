@@ -12,34 +12,62 @@ contains
  ! **********************************************************************************************************
  ! new subroutine: compute snow height
  ! **********************************************************************************************************
- subroutine calcHeight(err,message)
- USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
+ subroutine calcHeight(&
+                       ! input/output: data structures
+                       indx_data,   & ! intent(in): layer type
+                       mvar_data,   & ! intent(inout): model variables for a local HRU
+                       ! output: error control
+                       err,message)
+ ! access the number of snow and soil layers
+ USE data_struc,only:&
+                     nSnow,   & ! number of snow layers  
+                     nSoil,   & ! number of soil layers  
+                     nLayers    ! total number of layers
+ ! access named variables for snow and soil
+ USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
+ ! access to the derived types to define the data structures
+ USE data_struc,only:&
+                     var_ilength,        & ! data vector with variable length dimension (i4b)
+                     var_dlength           ! data vector with variable length dimension (dp)
+ ! provide access to named variables defining elements in the data structures
+ USE var_lookup,only:iLookMVAR,iLookINDEX  ! named variables for structure elements
  implicit none
- ! declare dummy variables
- integer(i4b),intent(out) :: err               ! error code
- character(*),intent(out) :: message           ! error message
- ! declare pointers to data in model variable structures
- real(dp),pointer         :: mLayerDepth(:)    ! depth of the layer (m)
- real(dp),pointer         :: mLayerHeight(:)   ! height of the layer mid-point (m)
- real(dp),pointer         :: iLayerHeight(:)   ! height of the layer interface (m)
- ! declare pointers to model index variables
- integer(i4b),pointer     :: nLayers           ! number of layers
- integer(i4b),pointer     :: layerType(:)      ! type of the layer (ix_soil or ix_snow)
- ! declare local variables
- integer(i4b)             :: iLayer            ! loop through layers
+ ! ----------------------------------------------------------------------------------
+ ! dummy variables
+ ! input/output: data structures
+ type(var_ilength),intent(in)    :: indx_data      ! type of model layer
+ type(var_dlength),intent(inout) :: mvar_data      ! model variables for a local HRU
+ ! output: error control
+ integer(i4b),intent(out)        :: err            ! error code
+ character(*),intent(out)        :: message        ! error message
+ ! ----------------------------------------------------------------------------------
+ ! model index variables
+ integer(i4b),dimension(nLayers) :: layerType      ! type of the layer (ix_soil or ix_snow)
+ ! model variables
+ real(dp),dimension(nLayers)     :: mLayerDepth    ! depth of the layer (m)
+ real(dp),dimension(nLayers)     :: mLayerHeight   ! height of the layer mid-point (m)
+ real(dp),dimension(nLayers+1)   :: iLayerHeight   ! height of the layer interface (m)
+ ! ----------------------------------------------------------------------------------
+ ! local variables
+ integer(i4b)                    :: iLayer         ! loop through layers
+ ! ----------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='calcHeight/'
- ! assign local pointers to the values in the model variable structures
- mLayerDepth    =>mvar_data%var(iLookMVAR%mLayerDepth)%dat             ! depth of the layer (m)
- mLayerHeight   =>mvar_data%var(iLookMVAR%mLayerHeight)%dat            ! height of the layer mid-point (m)
- iLayerHeight   =>mvar_data%var(iLookMVAR%iLayerHeight)%dat            ! height of the layer interface (m)
- ! assign local pointers to the model index structures
- nLayers        =>indx_data%var(iLookINDEX%nLayers)%dat(1)             ! number of layers
- layerType      =>indx_data%var(iLookINDEX%layerType)%dat              ! layer type (ix_soil or ix_snow)
- ! ************************************************************************************************************************
+ ! ----------------------------------------------------------------------------------
+ ! associate variables in data structure
+ associate(&
+ ! assign the model index structures
+ layerType      => indx_data%var(iLookINDEX%layerType)%dat,   &   ! layer type (ix_soil or ix_snow)
+ ! assign the values in the model variable structures
+ mLayerDepth    => mvar_data%var(iLookMVAR%mLayerDepth)%dat,  &   ! depth of the layer (m)
+ mLayerHeight   => mvar_data%var(iLookMVAR%mLayerHeight)%dat, &   ! height of the layer mid-point (m)
+ iLayerHeight   => mvar_data%var(iLookMVAR%iLayerHeight)%dat  &   ! height of the layer interface (m)
+ ) ! end associate
+ ! ----------------------------------------------------------------------------------
+
  ! initialize layer height as the top of the snowpack -- positive downward
  iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==ix_snow)
+
  ! loop through layers
  do iLayer=1,nLayers
   ! compute the height at the layer midpoint
@@ -47,11 +75,16 @@ contains
   ! compute the height at layer interfaces
   iLayerHeight(iLayer) = iLayerHeight(iLayer-1) + mLayerDepth(iLayer)
  end do ! (looping through layers)
+
  !print*, 'layerType   = ',  layerType
  !print*, 'mLayerDepth = ',  mLayerDepth
  !print*, 'mLayerHeight = ', mLayerHeight
  !print*, 'iLayerHeight = ', iLayerHeight
  !print*, '************** '
+
+ ! end association to variables in the data structure
+ end associate
+
  end subroutine calcHeight
 
 
@@ -148,6 +181,7 @@ contains
   endif
  endif
 
+ !print*, 'iLookMVAR%scalarAquiferRootFrac = ', iLookMVAR%scalarAquiferRootFrac
  !print*, 'iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac = ', iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac
  !pause
 
@@ -209,6 +243,8 @@ contains
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
 
+ print*, 'k_soil = ', k_soil
+
  ! loop through soil layers
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
  do iLayer=nSnow,nLayers
@@ -233,6 +269,11 @@ contains
      ! (--> macropores)
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
                                                     / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     !print*, 'compactedDepth = ', compactedDepth
+     !print*, 'k_macropore    = ', k_macropore
+     !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
+     !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
+     !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
     endif  ! if the mid-point of a layer
    ! error check (errors checked earlier also, so should not get here)
    case default
@@ -339,7 +380,7 @@ contains
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)
    if(abs(1._dp - sumFrac) > tolerFrac)then
-    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in XXX'
+    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in alloc_bvar'
     err=20; return
    endif
    ! ensure the fraction sums to one

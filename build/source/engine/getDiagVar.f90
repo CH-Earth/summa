@@ -46,6 +46,8 @@ contains
                         attr_data%var(iLookATTR%latitude),                         & ! intent(in): latitude
                         model_decisions(iLookDECISIONS%canopySrad)%iDecision,      & ! intent(in): index of method used for canopy sw radiation
                         model_decisions(iLookDECISIONS%alb_method)%iDecision,      & ! intent(in): index of method used for snow albedo
+                        model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,      & ! intent(in): index of method used for the upper boundary condition for thermodynamics
+                        model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,      & ! intent(in): index of method used for the upper boundary condition for soil hydrology
                         ! input: state variables
                         mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): canopy ice content (kg m-2)
                         mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
@@ -135,6 +137,8 @@ contains
                               latitude,                    & ! intent(in): latitude
                               ixCanSWMethod,               & ! intent(in): index of the method used for canopy shortwave radiation
                               ixAlbedoMethod,              & ! intent(in): index of the method used for snow albedo
+                              ixUbThDynMethod,             & ! intent(in): index of method used for the upper boundary condition for thermodynamics
+                              ixUbSoHydMethod,             & ! intent(in): index of method used for the upper boundary condition for soil hydrology
                               ! input: state variables
                               scalarCanopyIce,             & ! intent(in): canopy ice content (kg m-2)
                               scalarCanopyLiq,             & ! intent(in): canopy liquid water content (kg m-2)
@@ -203,6 +207,11 @@ contains
  USE NOAHMP_ROUTINES,only:phenology         ! determine vegetation phenology
  USE diagn_evar_module,only:diagn_evar      ! compute diagnostic energy variables -- thermal conductivity and heat capacity
  USE snowAlbedo_module,only:snowAlbedo      ! compute snow albedo
+ ! look-up values for the boundary conditions
+ USE mDecisions_module,only:      &
+ prescribedHead,                  &         ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+ prescribedTemp,                  &         ! prescribed temperature
+ zeroFlux                                   ! zero flux
  ! look-up values for the choice of canopy shortwave radiation method
  USE mDecisions_module,only:      &
   noah_mp,                        &         ! full Noah-MP implementation (including albedo)
@@ -220,6 +229,8 @@ contains
  real(dp),intent(in)                  :: latitude                     ! latitude
  integer(i4b),intent(in)              :: ixCanSWMethod                ! index of method used for canopy sw radiation
  integer(i4b),intent(in)              :: ixAlbedoMethod               ! index of method used for snow albedo
+ integer(i4b),intent(in)              :: ixUbThDynMethod              ! index of method used for the upper boundary condition for thermodynamics
+ integer(i4b),intent(in)              :: ixUbSoHydMethod              ! index of method used for the upper boundary condition for soil hydrology
  ! input: state variables
  real(dp),intent(in)                  :: scalarCanopyLiq              ! canopy liquid water content (kg m-2)
  real(dp),intent(in)                  :: scalarCanopyIce              ! canopy ice content (kg m-2)
@@ -298,37 +309,57 @@ contains
  ! get the number of snow layers
  nSnow = count(layerType==ix_snow)
 
- ! * vegetation phenology...
- ! -------------------------
+ ! check if we have isolated the snow-soil domain (used in test cases)
+ if(ixUbThDynMethod == prescribedTemp .or. ixUbThDynMethod == zeroFlux .or. ixUbSoHydMethod == prescribedHead)then
 
- ! determine vegetation phenology
- ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
- call phenology(&
-                ! input
-                vegTypeIndex,                & ! intent(in): vegetation type index
-                urbanVegCategory,            & ! intent(in): vegetation category for urban areas               
-                scalarSnowDepth,             & ! intent(in): snow depth on the ground surface (m)
-                scalarCanopyTemp,            & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
-                latitude,                    & ! intent(in): latitude
-                yearLength,                  & ! intent(in): number of days in the current year
-                fracJulday,                  & ! intent(in): fractional julian days since the start of year
-                scalarLAI,                   & ! intent(inout): one-sided leaf area index (m2 m-2)
-                scalarSAI,                   & ! intent(inout): one-sided stem area index (m2 m-2)
-                scalarRootZoneTemp,          & ! intent(in): root zone temperature (K)
-                ! output
-                notUsed_heightCanopyTop,     & ! intent(out): height of the top of the canopy layer (m)
-                scalarExposedLAI,            & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
-                scalarExposedSAI,            & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
-                scalarGrowingSeasonIndex     ) ! intent(out): growing season index (0=off, 1=on)
+  ! isolated snow-soil domain: do not compute fluxes over vegetation
+  computeVegFlux = .false.
 
- ! determine additional phenological variables
- exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
- canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
- heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
+  ! set vegetation phenology variables to missing
+  scalarLAI                = valueMissing    ! one-sided leaf area index (m2 m-2)
+  scalarSAI                = valueMissing    ! one-sided stem area index (m2 m-2)
+  scalarExposedLAI         = valueMissing    ! exposed leaf area index after burial by snow (m2 m-2)
+  scalarExposedSAI         = valueMissing    ! exposed stem area index after burial by snow (m2 m-2)
+  scalarGrowingSeasonIndex = valueMissing    ! growing season index (0=off, 1=on)
+  exposedVAI               = valueMissing    ! exposed vegetation area index (m2 m-2)
+  canopyDepth              = valueMissing    ! canopy depth (m)
+  heightAboveSnow          = valueMissing    ! height top of canopy is above the snow surface (m)
 
- ! determine if need to include vegetation in the energy flux routines
- computeVegFlux  = (exposedVAI > 0.05_dp .and. heightAboveSnow > 0.05_dp)
+ ! compute vegetation phenology (checks for complete burial of vegetation)
+ else
 
+  ! * vegetation phenology...
+  ! -------------------------
+
+  ! determine vegetation phenology
+  ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
+  call phenology(&
+                 ! input
+                 vegTypeIndex,                & ! intent(in): vegetation type index
+                 urbanVegCategory,            & ! intent(in): vegetation category for urban areas               
+                 scalarSnowDepth,             & ! intent(in): snow depth on the ground surface (m)
+                 scalarCanopyTemp,            & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
+                 latitude,                    & ! intent(in): latitude
+                 yearLength,                  & ! intent(in): number of days in the current year
+                 fracJulday,                  & ! intent(in): fractional julian days since the start of year
+                 scalarLAI,                   & ! intent(inout): one-sided leaf area index (m2 m-2)
+                 scalarSAI,                   & ! intent(inout): one-sided stem area index (m2 m-2)
+                 scalarRootZoneTemp,          & ! intent(in): root zone temperature (K)
+                 ! output
+                 notUsed_heightCanopyTop,     & ! intent(out): height of the top of the canopy layer (m)
+                 scalarExposedLAI,            & ! intent(out): exposed leaf area index after burial by snow (m2 m-2)
+                 scalarExposedSAI,            & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
+                 scalarGrowingSeasonIndex     ) ! intent(out): growing season index (0=off, 1=on)
+
+  ! determine additional phenological variables
+  exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
+  canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
+  heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
+
+  ! determine if need to include vegetation in the energy flux routines
+  computeVegFlux  = (exposedVAI > 0.05_dp .and. heightAboveSnow > 0.05_dp)
+
+ endif  ! (check if the snow-soil column is isolated)
 
  ! * heat capacity and thermal conductivity...
  ! -------------------------------------------

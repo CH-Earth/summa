@@ -365,7 +365,7 @@ contains
  ! local variables
  integer(i4b)                         :: iVar        ! index of variables
  integer(i4b)                         :: nVar        ! number of variables
- integer(i4b),parameter               :: nTimeDelay=1000 ! number of elements in the time delay histogram
+ integer(i4b),parameter               :: nTimeDelay=2000 ! number of elements in the time delay histogram
  ! initialize errors
  err=0; message="alloc_bvar/"
  ! check that the metadata structure is allocated

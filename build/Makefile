@@ -11,7 +11,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =
+F_MASTER = /home/mclark/summa
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/build/source
@@ -74,8 +74,8 @@ MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
 
 # Solver
 SUMMA_SOLVER= \
+		vegPhenlgy.f90 \
 		diagn_evar.f90 \
-		getDiagVar.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
@@ -90,7 +90,6 @@ SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 # Old routines that are not currently used as part of the new refactor
 SUMMA_UNUSED= \
 		tridagSolv.f90 \
-		phseChange.f90 \
 		heatTransf.f90 \
 		can_Hydrol.f90 \
 		snowHydrol.f90 \
@@ -106,6 +105,7 @@ SUMMA_PRELIM= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
+		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
 		read_metad.f90 \
@@ -134,6 +134,7 @@ SUMMA_MODRUN = \
 		derivforce.f90 \
 		snowAlbedo.f90 \
 		canopySnow.f90 \
+		tempAdjust.f90 \
 		snwCompact.f90 \
 		layerMerge.f90 \
 		layerDivide.f90 \
@@ -161,7 +162,7 @@ SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
 #========================================================================
 
 # Define the Fortran Compiler
-FC  =
+FC  = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -178,6 +179,10 @@ ifeq "$(FC)" "pgf90"
 endif
 LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
 INCNETCDF = -I$(NCDF_PATH)/include
+
+# define the lapack libraries
+LAPK_PATH = /usr
+LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 
 # Define the driver routine
 SUMMA_DRIVER= \
@@ -264,7 +269,7 @@ compile_summa:
 
 # link routines
 link:
-	$(FC) *.o $(LIBNETCDF) -o $(DRIVER__EX)
+	$(FC) *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
 
 # Remove object files
 clean:
