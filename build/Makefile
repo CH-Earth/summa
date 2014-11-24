@@ -11,7 +11,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /home/mclark/summa
+F_MASTER = /home/wayandn/summa
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/build/source
@@ -172,7 +172,7 @@ ifeq "$(FC)" "gfortran-mp-4.8"
  NCDF_PATH = /opt/local
 endif
 ifeq "$(FC)" "ifort"
- NCDF_PATH = /usr/local/netcdf-4.3.0/ifort+gcc
+ NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
 endif
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = /usr/local/netcdf-4.3.0/pgi-13.8
