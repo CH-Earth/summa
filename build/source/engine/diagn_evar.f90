@@ -119,9 +119,8 @@ contains
  real(dp),parameter                :: c5=4._dp               ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(dp),parameter                :: f1=13.05_dp            ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(dp),parameter                :: f2=1.06_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter                :: convHeatCoeff=28.0_dp  ! convective heat transfer coefficient (W m-2 K-1)
- logical(lgt),parameter            :: hansson_th=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 thermal conductivity parameters
- logical(lgt),parameter            :: hansson_hc=.false.     ! flag to temporarily use the Hansson et al. VZJ 2005 heat transfer coefficient
+ logical(lgt),parameter            :: hansson_th=.true.      ! flag to temporarily use the Hansson et al. VZJ 2005 thermal conductivity parameters
+ logical(lgt),parameter            :: hansson_hc=.true.      ! flag to temporarily use the Hansson et al. VZJ 2005 heat transfer coefficient
  real(dp)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -256,7 +255,7 @@ contains
 
  ! special case of hansson
  if(hansson_hc)then
-  iLayerThermalC(0) = convHeatCoeff*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
+  iLayerThermalC(0) = thCond_soil*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
  else
   iLayerThermalC(0) = mLayerThermalC(1)
  endif

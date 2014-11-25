@@ -56,6 +56,7 @@ contains
 
                        ! input: model control
                        dt,                                     & ! intent(in): length of the model time step (s)
+                       getSatDepth,                            & ! intent(in): logical flag to compute index of the lowest saturated layer
                        ixGroundwater,                          & ! intent(in): choice of groundwater parameterization
 
                        ! input: state and diagnostic variables
@@ -70,6 +71,7 @@ contains
                        mvar_data,                              & ! intent(inout): model variables for a local HRU
 
                        ! output: baseflow
+                       ixSaturation,                           & ! intent(inout) index of lowest saturated layer (NOTE: only computed on the first iteration)
                        mLayerBaseflow,                         & ! intent(out): baseflow from each soil layer (m s-1)
                        dBaseflow_dMatric,                      & ! intent(out): derivative in baseflow w.r.t. matric head (s-1)
 
@@ -91,6 +93,7 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)              :: dt                           ! length of the model time step (s)
+ logical(lgt),intent(in)          :: getSatDepth                  ! logical flag to compute index of the lowest saturated layer
  integer(i4b),intent(in)          :: ixGroundwater                ! choice of groundwater parameterization
  ! input: state and diagnostic variables
  real(dp),intent(in)              :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -102,6 +105,7 @@ contains
  type(var_d),intent(in)           :: mpar_data                    ! model parameters
  type(var_dlength),intent(inout)  :: mvar_data                    ! model variables for a local HRU
  ! output: baseflow
+ integer(i4b),intent(inout)       :: ixSaturation                 ! index of lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)             :: mLayerBaseflow(:)            ! baseflow from each soil layer (m s-1)
  real(dp),intent(out)             :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: error control
@@ -125,7 +129,6 @@ contains
  ! general local variables
  character(LEN=256)              :: cmessage                      ! error message of downwind routine
  integer(i4b)                    :: iLayer                        ! index of soil layer
- integer(i4b)                    :: ixSaturation                  ! index of the lowest saturated soil layer
  real(dp),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq             ! derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
  ! local variables to compute the numerical Jacobian
  logical(lgt),parameter          :: doNumericalJacobian=.false.   ! flag to compute the numerical Jacobian
@@ -180,11 +183,13 @@ contains
  ! ************************************************************************************************
 
  ! get index of the lowest saturated layer
- ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
- do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
-  if(mLayerVolFracLiq(iLayer) > fieldCapacity)then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
-  else; exit; endif                                                        ! (only consider saturated layer at the bottom of the soil profile) 
- end do  ! (looping through soil layers)
+ if(getSatDepth)then  ! NOTE: only compute for the first flux call
+  ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
+  do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
+   if(mLayerVolFracLiq(iLayer) > fieldCapacity)then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
+   else; exit; endif                                                        ! (only consider saturated layer at the bottom of the soil profile) 
+  end do  ! (looping through soil layers)
+ endif
 
  ! check for an early return (no layers are "active")
  if(ixSaturation > nSoil)then
@@ -207,6 +212,7 @@ contains
                       ixSaturation,            & ! intent(in): index of upper-most "saturated" layer
                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in each soil layer (-)
+                      mLayerMatricHeadLiq,     & ! intent(in): liquid water matric potential (m)
                       ! input/output: data structures
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -252,6 +258,7 @@ contains
                         ixSaturation,              & ! intent(in): index of upper-most "saturated" layer
                         mLayerVolFracLiqPerturbed, & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                         mLayerVolFracIce,          & ! intent(in): volumetric fraction of ice in each soil layer (-)
+                        mLayerMatricHeadPerturbed, & ! intent(in): liquid water matric potential (m)
                         ! input/output: data structures
                         attr_data,                 & ! intent(in):    spatial attributes
                         mpar_data,                 & ! intent(in):    model parameters
@@ -303,6 +310,7 @@ contains
                             ixSaturation,                  & ! intent(in): index of upper-most "saturated" layer
                             mLayerVolFracLiq,              & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                             mLayerVolFracIce,              & ! intent(in): volumetric fraction of ice in each soil layer (-)
+                            mLayerMatricHeadLiq,           & ! intent(in): liquid water matric potential (m)
                             ! input/output: data structures
                             attr_data,                     & ! intent(in):    spatial attributes
                             mpar_data,                     & ! intent(in):    model parameters
@@ -320,6 +328,7 @@ contains
  integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
  real(dp),intent(in)              :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
  real(dp),intent(in)              :: mLayerVolFracIce(:)     ! volumetric fraction of ice (-)
+ real(dp),intent(in)              :: mLayerMatricHeadLiq(:)  ! liquid water matric potential (m)
  ! input/output: data structures
  type(var_d),intent(in)           :: attr_data               ! spatial attributes
  type(var_d),intent(in)           :: mpar_data               ! model parameters
@@ -363,6 +372,7 @@ contains
  real(dp)                        :: expF,logF                ! logistic smoothing function (-)
  ! local variables for the lateral flux among soil columns
  real(dp)                        :: activePorosity           ! "active" porosity associated with storage above a threshold (-)
+ real(dp)                        :: drainableWater           ! drainable water in eaxch layer (m)
  real(dp)                        :: tran0                    ! maximum transmissivity (m2 s-1)
  real(dp),dimension(nSoil)       :: zActive                  ! water table thickness associated with storage below and including the given layer (m)
  real(dp),dimension(nSoil)       :: trTotal                  ! total transmissivity associated with total water table depth zActive (m2 s-1)
@@ -426,17 +436,20 @@ contains
 
  ! compute the water table thickness (m) and transmissivity in each layer (m2 s-1)
  do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
+  ! define drainable water in each layer (m)
+  drainableWater = mLayerDepth(iLayer)*(max(0._dp,mLayerVolFracLiq(iLayer) - fieldCapacity))/activePorosity
+  ! compute layer transmissivity
   if(iLayer==nSoil)then
-   zActive(iLayer) = mLayerDepth(iLayer)*(mLayerVolFracLiq(iLayer) - fieldCapacity)/activePorosity  ! water table thickness associated with storage in a given layer (m)
+   zActive(iLayer) = drainableWater                                       ! water table thickness associated with storage in a given layer (m)
    trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL   ! total transmissivity for total depth zActive (m2 s-1)
    trSoil(iLayer)  = trTotal(iLayer)                                      ! transmissivity of water in a given layer (m2 s-1)
   else
-   zActive(iLayer) = zActive(iLayer+1) + mLayerDepth(iLayer)*(mLayerVolFracLiq(iLayer) - fieldCapacity)/activePorosity
+   zActive(iLayer) = zActive(iLayer+1) + drainableWater
    trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL
    trSoil(iLayer)  = trTotal(iLayer) - trTotal(iLayer+1)
   endif
-  !write(*,'(a,1x,i4,1x,5(f20.15,1x))') 'iLayer, mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer) = ', &
-  !                                      iLayer, mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer)
+  !write(*,'(a,1x,i4,1x,10(f20.15,1x))') 'iLayer, mLayerMatricHeadLiq(iLayer), mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer) = ', &
+  !                                       iLayer, mLayerMatricHeadLiq(iLayer), mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer)
  end do  ! looping through soil layers
 
  ! set un-used portions of the vectors to zero

@@ -240,7 +240,7 @@ contains
  integer(i4b)                    :: ixSolve=ixFullMatrix         ! option selected for the type of matrix used to solve the linear system A.X=B
  !integer(i4b)                    :: ixSolve=ixBandMatrix        ! option selected for the type of matrix used to solve the linear system A.X=B
  integer(i4b),parameter          :: iJac1=1                      ! first layer of the Jacobian to print
- integer(i4b),parameter          :: iJac2=10                      ! last layer of the Jacobian to print
+ integer(i4b),parameter          :: iJac2=5                      ! last layer of the Jacobian to print
  ! ------------------------------------------------------------------------------------------------------
  ! * fluxes and derivatives
  ! ------------------------------------------------------------------------------------------------------
@@ -319,6 +319,7 @@ contains
  real(dp),dimension(nSoil)       :: soilNetLiqFlux               ! net liquid water flux for each soil layer (s-1)
  real(dp),dimension(nSoil,nSoil) :: dBaseflow_dMatric            ! derivative in baseflow w.r.t. matric head (s-1)
  real(dp),dimension(nSoil)       :: mLayerMatricHeadDiff         ! iteration increment for the matric head (m)
+ integer(i4b)                    :: ixSaturation                 ! index of lowest saturated layer (NOTE: only computed on the first iteration)
  ! liquid water fluxes and derivatives for the aquifer
  real(dp)                        :: scalarAquiferTranspire       ! transpiration loss from the aquifer at the start-of-step (m s-1)
  real(dp)                        :: scalarAquiferRecharge        ! recharge to the aquifer (m s-1)
@@ -375,7 +376,7 @@ contains
  real(dp)                        :: xIncScale                    ! scaling factor for the iteration increment (-)
  integer(i4b)                    :: iMin(1)                      ! index of most excessive drainage
  integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
- logical(lgt),dimension(nSoil)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
+ logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
  logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
  integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
  real(dp)                        :: xPsi00                       ! matric head after applying the iteration increment (m)
@@ -1175,6 +1176,7 @@ contains
   character(*),intent(out)       :: message                   ! error message
   ! local
   character(LEN=256)             :: cmessage                  ! error message of downwind routine
+  real(dp),dimension(nSoil)      :: mLayerPsiLiq              ! liquid water matric potential (m)
   ! initialize error control
   err=0; message='updatState/'
 
@@ -1254,14 +1256,15 @@ contains
                      stateVecTrial(ixSoilOnlyMat(iLayer-nSnow)),& ! intent(in): matric head (m)
                      vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                      ! output
+                     mLayerPsiLiq(iLayer-nSnow),                & ! intent(out): liquid water matric potential
                      mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
                      mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
                      err,cmessage)                                ! intent(out): error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
      !if(printFlag)&
-     !write(*,'(a,1x,i4,1x,10(e20.10,1x))') 'iLayer, mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer) = ',&
-     !                                       iLayer, mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer)
+     !if(iLayer==1)     write(*,'(a)')        'stateVecTrial(ixSnowSoilNrg(iLayer)), stateVecTrial(ixSoilOnlyMat(iLayer-nSnow)), mLayerPsiLiq(iLayer-nSnow), mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer) = '
+     !write(*,'(i4,1x,10(f20.10,1x))') iLayer, stateVecTrial(ixSnowSoilNrg(iLayer)), stateVecTrial(ixSoilOnlyMat(iLayer-nSnow)), mLayerPsiLiq(iLayer-nSnow), mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer)
 
     !** check errors
     case default; err=40; message=trim(message)//"cannot identify the layer as snow or soil"; return
@@ -2035,6 +2038,7 @@ contains
   call groundwatr(&
                   ! input: model control
                   dt,                                      & ! intent(in):    length of the model time step (s)
+                  firstFluxCall,                           & ! intent(in):    logical flag to compute index of the lowest saturated layer
                   local_ixGroundwater,                     & ! intent(in):    option for lateral soil flux
                   ! input: state and diagnostic variables
                   mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -2046,6 +2050,7 @@ contains
                   mpar_data,                               & ! intent(in):    model parameters
                   mvar_data,                               & ! intent(inout): model variables for a local HRU
                   ! output
+                  ixSaturation,                            & ! intent(inout) index of lowest saturated layer (NOTE: only computed on the first iteration)
                   mLayerBaseflow,                          & ! intent(out): baseflow from each soil layer (m s-1)
                   dBaseflow_dMatric,                       & ! intent(out): derivative in baseflow w.r.t. matric head (s-1)
                   err,cmessage)                              ! intent(out): error control
@@ -2810,7 +2815,7 @@ contains
   integer(i4b),parameter :: maxiter=5
   REAL(DP) :: a,alam,alam2,alamin,b,disc,f2,fold2,pabs,rhs1,rhs2,slope,&
       tmplam
-  ! NOTE: tese variables are only used for testing
+  ! NOTE: these variables are only used for testing
   !real(dp),dimension(size(xOld)) :: rVecOld
   !integer(i4b) :: iCheck
   ! initialize error control
@@ -2870,7 +2875,7 @@ contains
    !write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
 
    ! check
-   !if(iter>1 .and. printFlag)then
+   !if(iter>1)then   !.and. printFlag)then
    ! do iCheck=1,size(xOld)
    !  write(*,'(i4,1x,10(e20.10,1x))') iCheck, rVec(iCheck), rVecOld(iCheck), fScale(iCheck)
    ! end do
@@ -2879,7 +2884,7 @@ contains
 
    ! return if not doing the line search
    if(.not.doLineSearch)then
-    converged = .false.
+    converged = checkConv(rVec,p,x)
     return
    endif
 
