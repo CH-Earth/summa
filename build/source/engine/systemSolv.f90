@@ -240,7 +240,7 @@ contains
  integer(i4b)                    :: ixSolve=ixFullMatrix         ! option selected for the type of matrix used to solve the linear system A.X=B
  !integer(i4b)                    :: ixSolve=ixBandMatrix        ! option selected for the type of matrix used to solve the linear system A.X=B
  integer(i4b),parameter          :: iJac1=1                      ! first layer of the Jacobian to print
- integer(i4b),parameter          :: iJac2=5                      ! last layer of the Jacobian to print
+ integer(i4b),parameter          :: iJac2=10                     ! last layer of the Jacobian to print
  ! ------------------------------------------------------------------------------------------------------
  ! * fluxes and derivatives
  ! ------------------------------------------------------------------------------------------------------
@@ -2870,7 +2870,7 @@ contains
    ! compute the function evaluation
    f=0.5_dp*norm2(rVec/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
    !write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
-   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
+   !write(*,'(a,1x,100(f20.8,1x))') trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
    !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
    !write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
 
