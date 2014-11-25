@@ -375,7 +375,7 @@ contains
  real(dp)                        :: xIncScale                    ! scaling factor for the iteration increment (-)
  integer(i4b)                    :: iMin(1)                      ! index of most excessive drainage
  integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
- logical(lgt),dimension(nSoil)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
+ logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
  logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
  integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
  real(dp)                        :: xPsi00                       ! matric head after applying the iteration increment (m)
