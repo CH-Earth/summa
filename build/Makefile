@@ -177,7 +177,7 @@ endif
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = /usr/local/netcdf-4.3.0/pgi-13.8
 endif
-LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
 INCNETCDF = -I$(NCDF_PATH)/include
 
 # define the lapack libraries
