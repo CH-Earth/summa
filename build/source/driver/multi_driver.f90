@@ -147,10 +147,9 @@ character(len=1024)       :: message=''                     ! error message
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
-print*, 'start'
+print*, 'start simulation'
 ! get the initial time
 call date_and_time(cdate1,ctime1)
-print*,ctime1
 ! get command-line arguments for the output file suffix
 call getarg(1,output_fileSuffix)
 if (len_trim(output_fileSuffix) == 0) then
@@ -255,7 +254,6 @@ do iHRU=1,nHRU
  ! read description of model initial conditions -- also initializes model structure components
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
- print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
  ! re-calculate height of each layer
  call calcHeight(&
                  ! input/output: data structures
@@ -432,8 +430,7 @@ do istep=1,numtim
  ! ****************************************************************************
  ! (8) loop through HRUs
  ! ****************************************************************************
- !do iHRU=1,nHRU
- do iHRU=4,4
+ do iHRU=1,nHRU
 
   ! print progress
   !print*, 'iHRU = ', iHRU
@@ -848,7 +845,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
         ! CALL wrf_message( mess )
         LUMATCH=1
      ELSE
-        call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        ! call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
         DO LC = 1, LUCATS+12
            read(19,*)
         ENDDO
@@ -932,7 +929,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
-    call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    ! call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
     DO LC = 1, SLCATS
      read(19,*)
     ENDDO

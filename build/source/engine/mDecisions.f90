@@ -498,7 +498,7 @@ contains
  err=0; message='readoption/'
  ! build filename
  infile = trim(SETNGS_PATH)//trim(M_DECISIONS)
- print*, 'decisions file = ', trim(infile)
+ write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
