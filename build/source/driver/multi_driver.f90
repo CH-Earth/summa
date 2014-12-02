@@ -94,6 +94,12 @@ integer(i4b)              :: nHRU                           ! number of hydrolog
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
 integer(i4b)              :: iMonth                         ! index of the current month
+! define the re-start file
+logical(lgt)              :: printRestart                   ! flag to print a re-start file
+integer(i4b),parameter    :: ixRestart_im=1001              ! named variable to print a re-start file once per month
+integer(i4b),parameter    :: ixRestart_id=1002              ! named variable to print a re-start file once per day
+integer(i4b),parameter    :: ixRestart_never=1003           ! named variable to print a re-start file never
+integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency to write restart files
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
@@ -141,9 +147,9 @@ character(len=1024)       :: message=''                     ! error message
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
+print*, 'start simulation'
 ! get the initial time
 call date_and_time(cdate1,ctime1)
-print*,ctime1
 ! get command-line arguments for the output file suffix
 call getarg(1,output_fileSuffix)
 if (len_trim(output_fileSuffix) == 0) then
@@ -201,7 +207,7 @@ call ffile_info(nHRU,err,message); call handle_err(err,message)
 call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (5a) read Noah vegetation tables
+! (5a) read Noah vegetation and soil tables
 ! *****************************************************************************
 ! define monthly fraction of green vegetation
 !                           J        F        M        A        M        J        J        A        S        O        N        D
@@ -248,11 +254,16 @@ do iHRU=1,nHRU
  ! read description of model initial conditions -- also initializes model structure components
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
- print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
+ ! re-calculate height of each layer
+ call calcHeight(&
+                 ! input/output: data structures
+                 indx_data,   & ! intent(in): layer type
+                 mvar_data,   & ! intent(inout): model variables for a local HRU
+                 ! output: error control
+                 err,message); call handle_err(err,message)
  ! compute derived model variables that are pretty much constant over each HRU
  call E2T_lookup(err,message); call handle_err(err,message) ! calculate a look-up table for the temperature-enthalpy conversion
  call rootDensty(err,message); call handle_err(err,message) ! calculate vertical distribution of root density
- call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
  call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
  call v_shortcut(err,message); call handle_err(err,message) ! calculate "short-cut" variables such as volumetric heat capacity
  ! overwrite the vegetation height
@@ -309,11 +320,11 @@ do iHRU=1,nHRU
   if(type_hru(jHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(iHRU)%var(iLookTYPE%hruIndex))then
    upArea(iHRU) = upArea(iHRU) + attr_hru(jHRU)%var(iLookATTR%HRUarea)
    ! check that jHRU does not have any upstream HRUs -- implement more complex topologies later
-   do kHRU=1,nHRU
-    if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
-     call handle_err(20,'currently only capable of a single upslope HRU')     
-    endif
-   end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
+   !do kHRU=1,nHRU
+   ! if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
+   !  call handle_err(20,'currently only capable of a single upslope HRU')     
+   ! endif
+   !end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
   endif   ! (if jHRU is an upstream HRU)
  end do  ! jHRU
 end do  ! iHRU
@@ -332,7 +343,9 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
 endselect
 
 ! initialize time step length for each HRU
-dt_init(:) = 360._dp ! seconds
+do iHRU=1,nHRU
+ dt_init(iHRU) = mvar_hru(iHRU)%var(iLookMVAR%dt_init)%dat(1) ! seconds
+end do
 
 ! initialize time step index
 jstep=1
@@ -341,6 +354,9 @@ jstep=1
 ! (6) loop through time
 ! ****************************************************************************
 do istep=1,numtim
+
+ ! check
+ !if(istep > 217) pause 'check time step'
 
  ! read a line of forcing data (if not already opened, open file, and get to the correct place)
  ! NOTE: only read data once: if same data used for multiple HRUs, data is copied across
@@ -405,7 +421,7 @@ do istep=1,numtim
  bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
  bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
 
- ! initialize total inflow to each layer in a soil column 
+ ! initialize total inflow for each layer in a soil column 
  do iHRU=1,nHRU
   mvar_hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
  end do
@@ -415,6 +431,9 @@ do istep=1,numtim
  ! (8) loop through HRUs
  ! ****************************************************************************
  do iHRU=1,nHRU
+
+  ! print progress
+  !print*, 'iHRU = ', iHRU
 
   ! assign pointers to HRUs
   time_data => time_hru(iHRU)
@@ -530,8 +549,21 @@ do istep=1,numtim
   ! ****************************************************************************
   ! (9) run the model
   ! ****************************************************************************
+  ! define the need to calculate the re-start file
+  select case(ixRestart)
+   case(ixRestart_im);    printRestart = (time_data%var(iLookTIME%id) == 1 .and. time_data%var(iLookTIME%ih) == 1  .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_id);    printRestart = (time_data%var(iLookTIME%ih) == 1 .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_never); printRestart = .false.
+   case default; call handle_err(20,'unable to identify option for the restart file')
+  end select 
+  printRestart = .true.
+
   ! run the model for a single parameter set and time step
-  call coupled_em(dt_init(iHRU),err,message); call handle_err(err,message) 
+  call coupled_em(printRestart,                    & ! flag to print a re-start file
+                  output_fileSuffix,               & ! name of the experiment used in the restart file
+                  dt_init(iHRU),                   & ! initial time step
+                  err,message)                       ! error control
+  call handle_err(err,message) 
   !if(exfiltration > 0.0001_dp) call handle_err(20,'model driver: testing exfiltration')
   !if(istep>1000) stop 'FORTRAN STOP: after call to coupled_em'
   !if(associated(forc_data))then
@@ -605,23 +637,24 @@ do istep=1,numtim
 
  ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
-  call groundwatr(&
-                 ! input
-                 data_step,                                              & ! intent(in): time step of the forcing data (s)
-                 model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,   & ! intent(in): method used to calculate flux derivatives
-                 ! input: effective parameters
-                 bpar_data%var(iLookBPAR%basin__aquiferHydCond),         & ! intent(in): hydraulic conductivity (m s-1)
-                 bpar_data%var(iLookBPAR%basin__aquiferScaleFactor),     & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
-                 bpar_data%var(iLookBPAR%basin__aquiferBaseflowExp),     & ! intent(in): exponent in bucket baseflow parameterization (-)
-                 ! input: aquifer fluxes
-                 bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), & ! intent(in): aquifer recharge (m s-1)
-                 bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),& ! intent(in): aquifer transpiration (m s-1)
-                 ! input-output
-                 bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  & ! intent(inout): aquifer storage (m)
-                 ! output
-                 bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
-                 err,message)                                              ! intent(out): error control
-  call handle_err(err,message)                
+  call handle_err(20,'multi_driver/bigBucket groundwater code not transferred from old code base yet')
+  !call groundwatr(&
+  !               ! input
+  !               data_step,                                              & ! intent(in): time step of the forcing data (s)
+  !               model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,   & ! intent(in): method used to calculate flux derivatives
+  !               ! input: effective parameters
+  !               bpar_data%var(iLookBPAR%basin__aquiferHydCond),         & ! intent(in): hydraulic conductivity (m s-1)
+  !               bpar_data%var(iLookBPAR%basin__aquiferScaleFactor),     & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
+  !               bpar_data%var(iLookBPAR%basin__aquiferBaseflowExp),     & ! intent(in): exponent in bucket baseflow parameterization (-)
+  !               ! input: aquifer fluxes
+  !               bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), & ! intent(in): aquifer recharge (m s-1)
+  !               bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),& ! intent(in): aquifer transpiration (m s-1)
+  !               ! input-output
+  !               bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  & ! intent(inout): aquifer storage (m)
+  !               ! output
+  !               bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
+  !               err,message)                                              ! intent(out): error control
+  !call handle_err(err,message)                
  endif
 
  ! perform the routing
@@ -644,6 +677,8 @@ do istep=1,numtim
 
  ! increment the time index
  jstep = jstep+1
+
+ !stop 'end of time step'
 
 end do  ! (looping through time)
 
@@ -810,7 +845,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
         ! CALL wrf_message( mess )
         LUMATCH=1
      ELSE
-        call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        ! call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
         DO LC = 1, LUCATS+12
            read(19,*)
         ENDDO
@@ -894,7 +929,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
-    call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    ! call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
     DO LC = 1, SLCATS
      read(19,*)
     ENDDO
