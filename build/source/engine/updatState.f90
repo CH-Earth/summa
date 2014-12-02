@@ -71,6 +71,7 @@ contains
                        theta_res        ,& ! intent(in): soil residual volumetric water content (-)
                        vGn_m            ,& ! intent(in): van Genutchen "m" parameter (-)
                        ! output
+                       mLayerPsiLiq,     & ! intent(out): liquid water matric potential (m)
                        mLayerVolFracLiq ,& ! intent(out): volumetric fraction of liquid water (-)
                        mLayerVolFracIce ,& ! intent(out): volumetric fraction of ice (-)
                        err,message)        ! intent(out): error control
@@ -87,13 +88,13 @@ contains
  real(dp),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
  real(dp),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
  ! output variables
+ real(dp),intent(out)          :: mLayerPsiLiq         ! liquid water matric potential (m)
  real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
  real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
  real(dp)                      :: vTheta               ! fractional volume of total water (-)
- real(dp)                      :: psiLiq               ! matric head associated with liquid water (m)
  real(dp)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
  real(dp)                      :: xConst               ! constant in the freezing curve function (m K-1)
  ! initialize error control
@@ -112,8 +113,8 @@ contains
 
   ! - volumetric liquid water content (-)
   xConst           = LH_fus/(gravity*Tfreeze)                            ! m K-1 (NOTE: J = kg m2 s-2)
-  psiLiq           = xConst*(mLayerTemp - Tfreeze)
-  mLayerVolFracLiq = volFracLiq(psiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+  mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)
+  mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
   ! - volumetric ice content (-)
   mLayerVolFracIce = vTheta - mLayerVolFracLiq
@@ -122,6 +123,7 @@ contains
  else
 
   ! all water is unfrozen
+  mLayerPsiLiq     = mLayerMatricHead
   mLayerVolFracLiq = vTheta
   mLayerVolFracIce = 0._dp
 

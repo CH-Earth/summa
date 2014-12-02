@@ -137,7 +137,7 @@ contains
    ! populate the appropriate element of the parameter vector
    read(chardata(ipar),*,iostat=err) mpar_data%var(jpar)
    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
-   print*, trim(varnames(ipar)), mpar_data%var(jpar)
+   !print*, trim(varnames(ipar)), mpar_data%var(jpar)
   end do    ! (looping through model parameters)
   !write(*,'(a,2(i4,1x),2(f20.10,1x))') 'in read_param 2: iHRU, kHRU, mpar_data%var(iLookPARAM%zmaxLayer1_upper), mpar_hru(kHRU)%var(iLookPARAM%zmaxLayer1_upper) = ', & 
   !                                                       iHRU, kHRU, mpar_data%var(iLookPARAM%zmaxLayer1_upper), mpar_hru(kHRU)%var(iLookPARAM%zmaxLayer1_upper)

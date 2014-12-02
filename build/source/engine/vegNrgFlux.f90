@@ -2593,7 +2593,7 @@ contains
    case default    ! check identified the option
     err=20; message=trim(message)//'cannot identify option for soil resistance'; return
   end select
-  ! save the factor the the given layer (ensure between zero and one)
+  ! save the factor for the given layer (ensure between zero and one)
   mLayerTranspireLimitFac(iLayer) = min( max(verySmall,gx), 1._dp)
   ! compute the weighted average (weighted by root density)
   wAvgTranspireLimitFac = wAvgTranspireLimitFac + mLayerTranspireLimitFac(iLayer)*mLayerRootDensity(iLayer)

@@ -82,7 +82,7 @@ contains
   end do
   ! put the filename in the structure
   forcFileInfo(kHRU)%filenmDesc = trim(filenameDesc)
-  print*, 'filenameDesc, hruIndex, kHRU = ', trim(filenameDesc), hruIndex, kHRU
+  write(*,'(2(a,1x),2(i6,1x))') 'filenameDesc, hruIndex, kHRU = ', trim(filenameDesc), hruIndex, kHRU
  end do  ! (looping through files)
  close(unt)
  ! ------------------------------------------------------------------------------------------------------------------
