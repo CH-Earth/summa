@@ -467,16 +467,16 @@ contains
      err=20; return
     endif
     ! compute the residual volumetric fraction of liquid water based on the specified volumetric fraction of ice
-    residlVolFracLiq = FCapil*(1._dp - scalarVolFracIce)  ! "residual" volumetric liquid water content (i.e., tension storage)
+    !residlVolFracLiq = FCapil*(1._dp - scalarVolFracIce)  ! "residual" volumetric liquid water content (i.e., tension storage)
     ! compute volumetric fraction of liquid water and ice based on temperature
-    scalarVolFracLiq = fracliquid(scalarTemp,snowfrz_scale)*scalarTheta        ! volumetric fraction of liquid water
-    scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)  ! volumetric fraction of ice
+    !!scalarVolFracLiq = fracliquid(scalarTemp,snowfrz_scale)*scalarTheta        ! volumetric fraction of liquid water
+    !!scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)  ! volumetric fraction of ice
     ! check that the volumetric liquid water content is not greater than tension storage
-    if(scalarVolFracLiq > residlVolFracLiq)then
-     scalarVolFracLiq = residlVolFracLiq                                       ! set volumetric liquid water content to tension storage
-     scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice) ! compute corresponding ice volume to maintain mass
-     scalarTemp       = templiquid(scalarVolFracLiq/scalarTheta,snowfrz_scale) ! identify the temperature associated with tension storage
-    endif  ! (if liquid water content > tension storage)
+    !!if(scalarVolFracLiq > residlVolFracLiq)then
+    !! scalarVolFracLiq = residlVolFracLiq                                       ! set volumetric liquid water content to tension storage
+    !! scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice) ! compute corresponding ice volume to maintain mass
+    !! scalarTemp       = templiquid(scalarVolFracLiq/scalarTheta,snowfrz_scale) ! identify the temperature associated with tension storage
+    !!endif  ! (if liquid water content > tension storage)
     ! ensure consistency among state variables
     call updateSnow(&
                     ! input
