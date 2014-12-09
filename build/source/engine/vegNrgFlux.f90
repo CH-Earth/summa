@@ -2257,6 +2257,7 @@ contains
   if(zeroPlaneDisplacement < snowDepth) zeroPlaneDisplacement = snowDepth
 
   ! check that everything is consistent
+  if(zeroPlaneDisplacement < heightCanopyBottom)then; err=20; message=trim(message)//'zero plane displacement is below the canopy bottom'; return; endif
   if(mHeight < zeroPlaneDisplacement)then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; endif
   if(mHeight < z0Canopy)then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; endif
 
@@ -2323,7 +2324,17 @@ contains
   referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground)
   windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
   windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
-  if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then; err=20; message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'; return; endif
+  if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then
+   print*, 'heightCanopyTop       = ', heightCanopyTop
+   print*, 'heightCanopyBottom    = ', heightCanopyBottom
+   print*, 'snowDepth             = ', snowDepth
+   print*, 'z0Ground              = ', z0Ground
+   print*, 'referenceHeight       = ', referenceHeight
+   print*, 'z0Canopy              = ', z0Canopy
+   print*, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
+   message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'
+   err=20; return
+  endif
 
   ! compute the leaf boundary layer resistance (s m-1)
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)

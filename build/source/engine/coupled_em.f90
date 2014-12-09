@@ -1162,16 +1162,16 @@ contains
 
  ! write scalar state variables
  write(ixUnit,'(a)') '<start_scalar_icond>'
- write(ixUnit,'(a25,1x,f20.10)') 'dt_init                 ', dt_init                                              ! time step length (s)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarCanopyIce         ', mvar_data%var(iLookMVAR%scalarCanopyIce     )%dat(1) ! canopy ice content (kg m-2)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarCanopyLiq         ', mvar_data%var(iLookMVAR%scalarCanopyLiq     )%dat(1) ! canopy liquid water content (kg m-2)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarCanairTemp        ', mvar_data%var(iLookMVAR%scalarCanairTemp    )%dat(1) ! temperature of the canopy air space (K)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarCanopyTemp        ', mvar_data%var(iLookMVAR%scalarCanopyTemp    )%dat(1) ! temperature of the vegetation canopy (K)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarSnowAlbedo        ', mvar_data%var(iLookMVAR%scalarSnowAlbedo    )%dat(1) ! snow albedo (-)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarSWE               ', mvar_data%var(iLookMVAR%scalarSWE           )%dat(1) ! snow water equivalent (kg m-2)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarSnowDepth         ', mvar_data%var(iLookMVAR%scalarSnowDepth     )%dat(1) ! snow depth (m)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarSfcMeltPond       ', mvar_data%var(iLookMVAR%scalarSfcMeltPond   )%dat(1) ! surface melt pond (kg m-2)
- write(ixUnit,'(a25,1x,f20.10)') 'scalarAquiferStorage    ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1) ! aquifer storage (m)
+ write(ixUnit,'(a25,1x,e20.10)') 'dt_init                 ', dt_init                                              ! time step length (s)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyIce         ', mvar_data%var(iLookMVAR%scalarCanopyIce     )%dat(1) ! canopy ice content (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyLiq         ', mvar_data%var(iLookMVAR%scalarCanopyLiq     )%dat(1) ! canopy liquid water content (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanairTemp        ', mvar_data%var(iLookMVAR%scalarCanairTemp    )%dat(1) ! temperature of the canopy air space (K)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyTemp        ', mvar_data%var(iLookMVAR%scalarCanopyTemp    )%dat(1) ! temperature of the vegetation canopy (K)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowAlbedo        ', mvar_data%var(iLookMVAR%scalarSnowAlbedo    )%dat(1) ! snow albedo (-)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSWE               ', mvar_data%var(iLookMVAR%scalarSWE           )%dat(1) ! snow water equivalent (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowDepth         ', mvar_data%var(iLookMVAR%scalarSnowDepth     )%dat(1) ! snow depth (m)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSfcMeltPond       ', mvar_data%var(iLookMVAR%scalarSfcMeltPond   )%dat(1) ! surface melt pond (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarAquiferStorage    ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1) ! aquifer storage (m)
  write(ixUnit,'(a)') '<end_scalar_icond>'
 
  ! make the file easier to read
@@ -1180,12 +1180,12 @@ contains
 
  ! write layer state variables
  write(ixUnit,'(a)') '<start_layer_icond>'
- write(ixUnit,'(a)') ' layerType            iLayerHeight             mLayerDepth   mLayerTemp mLayerVolFracIce mLayerVolFracLiq mLayerMatricHead'
+ write(ixUnit,'(a)') ' layerType            iLayerHeight             mLayerDepth            mLayerTemp     mLayerVolFracIce     mLayerVolFracLiq     mLayerMatricHead'
 
  ! write state variables for each snow layer
  if(nSnow>0)then
   do iLayer=1,nSnow  ! loop through snow layers
-   write(ixUnit,'(a10,2x,2(e22.15,2x),f11.7,1x,2(f16.12,1x),f16.4)') '      snow',                                            &
+   write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      snow',                                            &
                                                                      mvar_data%var(iLookMVAR%iLayerHeight    )%dat(iLayer-1), &  ! height at the top of the layer (m)
                                                                      mvar_data%var(iLookMVAR%mLayerDepth     )%dat(iLayer),   &  ! depth of each layer (m)
                                                                      mvar_data%var(iLookMVAR%mLayerTemp      )%dat(iLayer),   &  ! temperature of each layer (K)
@@ -1197,7 +1197,7 @@ contains
 
  ! write state variables for each soil layer
  do iLayer=1,nSoil  ! loop through snow layers
-  write(ixUnit,'(a10,2x,2(e22.15,2x),f11.7,1x,2(f16.12,1x),f16.4)') '      soil',                                                  &
+  write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      soil',                                                  &
                                                                     mvar_data%var(iLookMVAR%iLayerHeight    )%dat(nSnow+iLayer-1), &  ! height at the top of the layer (m)
                                                                     mvar_data%var(iLookMVAR%mLayerDepth     )%dat(nSnow+iLayer),   &  ! depth of each layer (m)
                                                                     mvar_data%var(iLookMVAR%mLayerTemp      )%dat(nSnow+iLayer),   &  ! temperature of each layer (K)

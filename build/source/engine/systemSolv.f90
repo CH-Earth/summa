@@ -6,6 +6,9 @@ USE nrtype
 ! layer types
 USE data_struc,only:ix_soil,ix_snow ! named variables for snow and soil
 
+! access the global print flag
+USE data_struc,only:globalPrintFlag
+
 ! access the number of snow and soil layers
 USE data_struc,only:&
                     nSnow,        & ! number of snow layers  
@@ -203,6 +206,7 @@ contains
  logical(lgt)                    :: printFlagInit                ! initialize flag to control printing
  logical(lgt)                    :: pauseProgress                ! flag to start looking at things more carefully
  logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
+ real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
  ! * model indices
  ! ------------------------------------------------------------------------------------------------------
@@ -481,7 +485,7 @@ contains
  else
   ixSolve=ixBandMatrix   ! band-diagonal matrix
  endif
- !print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
+ if(globalPrintFlag) print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
 
  ! print states
  !do iLayer=1,nLayers
@@ -659,7 +663,7 @@ contains
  if(computeVegFlux)then
   stateVecInit(ixCasNrg) = scalarCanairTemp
   stateVecInit(ixVegNrg) = scalarCanopyTemp
-  stateVecInit(ixVegWat) = scalarCanopyWat   ! kg m-2
+  stateVecInit(ixVegWat) = scalarCanopyWat  ! kg m-2
  endif
 
  ! build the state vector for the snow and soil domain
@@ -670,6 +674,9 @@ contains
 
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit 
+
+ ! need to intialize canopy water at a positive value
+ if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
 
  ! initialize the volumetric fraction of liquid water and ice in the vegetation canopy
  !print*, 'scalarCanopyIce = ', scalarCanopyIce
@@ -2316,6 +2323,10 @@ contains
    ! NOTE: dIce/dLiq = (1 - fracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
    aJac(ixVegNrg,ixVegWat) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - fracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
    aJac(ixTopNrg,ixVegWat) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq) 
+   !print*, '(dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) = ', (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq)
+   !print*, '(1._dp - fracLiqVeg)*LH_fus/canopyDepth = ', (1._dp - fracLiqVeg)*LH_fus/canopyDepth
+
+
 
    ! energy fluxes with the canopy air space (J m-3 K-1)
    aJac(ixCasNrg,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg)
@@ -2331,6 +2342,8 @@ contains
    aJac(ixTopNrg,ixCasNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanairTemp)
    aJac(ixTopNrg,ixVegNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
 
+   !print*, 'aJac(ixVegWat,ixVegNrg) = ', aJac(ixVegWat,ixVegNrg)
+   !print*, 'aJac(ixVegNrg,ixVegWat) = ', aJac(ixVegNrg,ixVegWat)
    !print*, 'aJac(ixTopNrg,ixVegWat) = ', aJac(ixTopNrg,ixVegWat)
    !print*, 'aJac(ixTopNrg,ixVegNrg) = ', aJac(ixTopNrg,ixVegNrg)
    !print*, 'aJac(ixTopLiq,ixVegNrg) = ', aJac(ixTopLiq,ixVegNrg)
@@ -2419,9 +2432,11 @@ contains
   end do  ! (looping through soil layers)
 
   ! print the Jacobian
-  !print*, '** analytical Jacobian:'
-  !write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-  !do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+  if(globalPrintFlag)then
+   print*, '** analytical Jacobian:'
+   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+  endif
   !pause 'testing analytical jacobian'
 
   ! end the association to data structures
@@ -2901,10 +2916,15 @@ contains
 
    ! compute the function evaluation
    f=0.5_dp*norm2(rVec/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
-   !write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
-   !write(*,'(a,1x,100(f20.8,1x))') trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
-   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
-   !write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
+
+   ! check
+   if(globalPrintFlag)then
+    write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
+    write(*,'(a,1x,100(f20.8,1x))')  trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
+    write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
+    write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
+    pause
+   endif
 
    ! check
    !if(iter>1)then   !.and. printFlag)then
@@ -3003,9 +3023,11 @@ contains
   matric_loc = maxloc(abs( xInc(ixSoilOnlyMat)/psiScale ) )
 
   ! print progress towards solution
-  !print*, 'iter, dt = ', iter, dt
-  !write(*,'(a,1x,3(e15.5,1x),2(i4,1x))') 'fNew, liquid_max(1), energy_max(1), liquid_loc(1), energy_loc(1) = ', &
-  !                                        fNew, liquid_max(1), energy_max(1), liquid_loc(1), energy_loc(1)
+  if(globalPrintFlag)then
+   print*, 'iter, dt = ', iter, dt
+   write(*,'(a,1x,3(e15.5,1x),2(i4,1x))') 'fNew, liquid_max(1), energy_max(1), liquid_loc(1), energy_loc(1) = ', &
+                                           fNew, liquid_max(1), energy_max(1), liquid_loc(1), energy_loc(1)
+  endif
 
   ! convergence check 
   if( liquid_max(1) < absConvTol_liquid .and. energy_max(1) < absConvTol_energy .and. matric_max(1) < absConvTol_matric)then
