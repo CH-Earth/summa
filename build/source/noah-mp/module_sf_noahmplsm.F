@@ -5371,11 +5371,16 @@ contains
       REAL :: T
 ! ---------------------------------------------------------------------------------------------
 
+! MPC change
+! Original code uses gs = g0 + g1*hs*An/cs (g0 is not limited by soil moisture stress)
+! Following Bonan et al. (JGR 2011) Improving canopy processes in the CLM... we replace the original code 
+!  with gs = g0*bTran + g1*hs*An/cs, where bTran is the soil moisture stress function
+
 ! initialize RS=RSMAX and PSN=0 because will only do calculations
 ! for APAR > 0, in which case RS <= RSMAX and PSN >= 0
 
          CF = SFCPRS/(8.314*SFCTMP)*1.e06
-         RS = 1./BP(VEGTYP) * CF
+         RS = 1./(BP(VEGTYP)*BTRAN) * CF    ! MPC change: include BTRAN multiplier
          PSN = 0.
 
          IF (APAR .LE. 0.) RETURN
@@ -5389,6 +5394,7 @@ contains
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
+         !print*,'BTRAN, VCMX = ', BTRAN, VCMX
 
 ! first guess ci
 
@@ -5409,10 +5415,11 @@ contains
             WC = MAX(CI-CP,0.)*VCMX/(CI+AWC)*C3PSN(VEGTYP) + VCMX*(1.-C3PSN(VEGTYP))
             WE = 0.5*VCMX*C3PSN(VEGTYP) + 4000.*VCMX*CI/SFCPRS*(1.-C3PSN(VEGTYP))
             PSN = MIN(WJ,WC,WE) * IGS
+            !write(*,'(a,1x,10(e20.10,1x))') 'WJ, WC, WE, PSN, BP(VEGTYP) = ', WJ, WC, WE, PSN, BP(VEGTYP)
 
             CS = MAX( CO2-1.37*RLB*SFCPRS*PSN, MPE )
-            A = MP(VEGTYP)*PSN*SFCPRS*CEA / (CS*EI) + BP(VEGTYP)
-            B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BP(VEGTYP) ) * RLB - 1.
+            A = MP(VEGTYP)*PSN*SFCPRS*CEA / (CS*EI) + BTRAN*BP(VEGTYP)      ! MPC change: include BTRAN multiplier for 2nd term
+            B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term om brackets
             C = -RLB
             IF (B .GE. 0.) THEN
                Q = -0.5*( B + SQRT(B*B-4.*A*C) )
@@ -5428,6 +5435,7 @@ contains
 ! rs, rb:  s m**2 / umol -> s/m
 
          RS = RS*CF
+         !print*, 'RS = ', RS
 
   END SUBROUTINE STOMATA
 ! ==================================================================================================

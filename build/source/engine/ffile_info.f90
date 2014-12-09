@@ -82,7 +82,7 @@ contains
   end do
   ! put the filename in the structure
   forcFileInfo(kHRU)%filenmDesc = trim(filenameDesc)
-  print*, 'filenameDesc, hruIndex, kHRU = ', trim(filenameDesc), hruIndex, kHRU
+  write(*,'(2(a,1x),2(i6,1x))') 'filenameDesc, hruIndex, kHRU = ', trim(filenameDesc), hruIndex, kHRU
  end do  ! (looping through files)
  close(unt)
  ! ------------------------------------------------------------------------------------------------------------------
@@ -125,6 +125,8 @@ contains
    ! save data into a temporary variables
    read(temp,trim(ffmt),iostat=err) varname, dLim, vardata
    if (err/=0) then; err=30; message=trim(message)//"errorReadLine[file="//trim(infile)//"; line="//trim(temp)//"]"; return; endif
+   ! check the delimiter
+   if(dLim(1:1)/='|')then; err=30; message=trim(message)//"incorrectFormat"//trim(infile); return; endif
    !print*, 'varname = ', trim(varname)
    !print*, 'vardata = ', trim(vardata)
    ! put data into data structure
