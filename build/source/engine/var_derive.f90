@@ -243,8 +243,6 @@ contains
  nSnow = count(layerType==ix_snow)
  nSoil = count(layerType==ix_soil)
 
- print*, 'k_soil = ', k_soil
-
  ! loop through soil layers
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
  do iLayer=nSnow,nLayers
@@ -346,7 +344,7 @@ contains
  ! initialize runoffFuture
  runoffFuture(1:nTDH) = 0._dp
 
- print*, 'nTDH = ', nTDH
+ !print*, 'nTDH = ', nTDH
 
  ! select option for sub-grid routing 
  select case(ixRouting)

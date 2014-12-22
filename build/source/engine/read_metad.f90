@@ -136,7 +136,7 @@ contains
    case(ix_type);  ivar = get_ixType(metaTemp%varname)
    case(ix_force); ivar = get_ixForce(metaTemp%varname)
    case(ix_param); ivar = get_ixParam(metaTemp%varname)
-   case(ix_mvar);  print*, trim(metaTemp%varname); ivar = get_ixMvar(metaTemp%varname)
+   case(ix_mvar);  ivar = get_ixMvar(metaTemp%varname)
    case(ix_index); ivar = get_ixIndex(metaTemp%varname)
    case(ix_bpar);  ivar = get_ixBpar(metaTemp%varname)
    case(ix_bvar);  ivar = get_ixBvar(metaTemp%varname)
