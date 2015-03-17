@@ -821,9 +821,10 @@ contains
  !write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation*dt
 
  ! balance checks for the canopy
+ ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
  scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*dt + (scalarRainfall - averageThroughfallRain)*dt &
                             - averageCanopySnowUnloading*dt - averageCanopyLiqDrainage*dt + averageCanopySublimation*dt + averageCanopyEvaporation*dt)
- if(abs(scalarCanopyWatBalError) > 1.d-3)then
+ if(abs(scalarCanopyWatBalError) > 1.d-1)then
   print*, '** canopy water balance error:'
   write(*,'(a,1x,f20.10)') 'dt                                           = ', dt
   write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0

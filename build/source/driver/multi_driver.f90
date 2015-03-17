@@ -104,7 +104,7 @@ integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency t
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
-character(len=32)         :: output_fileSuffix=''           ! suffix for the output file 
+character(len=64)         :: output_fileSuffix=''           ! suffix for the output file 
 character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 ! define pointers for model indices

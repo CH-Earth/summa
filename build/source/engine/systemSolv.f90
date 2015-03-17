@@ -352,6 +352,7 @@ contains
  real(dp),allocatable            :: rhs(:,:)                     ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
+ real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
  real(dp),dimension(1)           :: liquid_max                   ! maximum absolute value of the volumetric liquid water content residual (-)
  real(dp),dimension(1)           :: matric_max                   ! maximum absolute value of the matric head iteration increment (m)
@@ -676,7 +677,9 @@ contains
  stateVecTrial = stateVecInit 
 
  ! need to intialize canopy water at a positive value
- if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
+ if(computeVegFlux)then
+  if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
+ endif
 
  ! initialize the volumetric fraction of liquid water and ice in the vegetation canopy
  !print*, 'scalarCanopyIce = ', scalarCanopyIce
@@ -2923,7 +2926,6 @@ contains
     write(*,'(a,1x,100(f20.8,1x))')  trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
     write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
     write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
-    pause
    endif
 
    ! check
@@ -3005,6 +3007,7 @@ contains
 
   ! check convergence based on the residuals for energy (J m-3)
   if(computeVegFlux)then
+   !canopy_max = abs(rVec(ixVegWat))
    energy_max = maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
    energy_loc = maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
   else
@@ -3030,6 +3033,7 @@ contains
   endif
 
   ! convergence check 
+  !if( canopy_max < absConvTol_liquid .and. liquid_max(1) < absConvTol_liquid .and. energy_max(1) < absConvTol_energy .and. matric_max(1) < absConvTol_matric)then
   if( liquid_max(1) < absConvTol_liquid .and. energy_max(1) < absConvTol_energy .and. matric_max(1) < absConvTol_matric)then
    checkConv = .true.
   else

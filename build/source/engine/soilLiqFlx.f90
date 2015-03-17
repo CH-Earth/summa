@@ -1516,7 +1516,8 @@ contains
     if(rootZoneIce > tiny(rootZoneIce))then  ! (avoid divide by zero)
      alpha            = 1._dp/(soilIceCV**2._dp)        ! shape parameter in the Gamma distribution
      xLimg            = alpha*soilIceScale/rootZoneIce  ! upper limit of the integral
-     scalarFrozenArea = 1._dp - gammp(alpha,xLimg)      ! fraction of frozen area
+     !scalarFrozenArea = 1._dp - gammp(alpha,xLimg)      ! fraction of frozen area
+     scalarFrozenArea = 0._dp
     else
      scalarFrozenArea = 0._dp
     endif
