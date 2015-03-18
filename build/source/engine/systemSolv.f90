@@ -113,8 +113,6 @@ contains
  USE snowliqflx_module,only:snowliqflx                ! compute liquid water fluxes through snow 
  USE soilliqflx_module,only:soilliqflx                ! compute liquid water fluxes through soil
  USE groundwatr_module,only:groundwatr                ! compute the baseflow flux
- ! provide access to the solver modules
- USE matrixSolv_module,only:matrixSolv                ! solve full matrix
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables

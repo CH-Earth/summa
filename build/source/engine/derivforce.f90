@@ -9,7 +9,6 @@ contains
  ! new subroutine: compute derived forcing data
  ! ************************************************************************************************
  subroutine derivforce(err,message)
- USE nr_utility_module,only:erf                              ! provide access to the error function
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
  USE multiconst,only:secprhour                               ! number of seconds in an hour
  USE data_struc,only:data_step                               ! length of the data step (s)
