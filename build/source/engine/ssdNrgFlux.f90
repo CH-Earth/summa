@@ -96,6 +96,7 @@ contains
  call iLayer_nrg(&
                  ! input: model control variables
                  model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,          & ! intent(in): method used to calculate flux derivatives
+                 model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision,          & ! intent(in): method used to calculate the lower boundary condition for thermodynamics
                  ! input: model fluxes from other routines
                  groundNetFlux,                                                 & ! intent(in): total energy flux at the ground surface (W m-2)
                  iLayerLiqFluxSnow,                                             & ! intent(in): liquid flux at the interface of each snow layer (m s-1)
@@ -130,7 +131,8 @@ contains
  ! ************************************************************************************************
  subroutine iLayer_nrg(&
                        ! input: model control variables
-                       fDerivMeth,                         & ! intent(in): method used to compute derivatives (numerical or analytical)
+                       ix_fDerivMeth,                      & ! intent(in): index of the method used to compute derivatives (numerical or analytical)
+                       ix_bcLowrTdyn,                      & ! intent(in): index of the method used to define the lower boundary condition for thermodynamics
                        ! input: model fluxes from other routines
                        groundNetFlux,                      & ! intent(in): total flux at the ground surface (W m-2)
                        iLayerLiqFluxSnow,                  & ! intent(in): liquid flux at the interface of each snow layer (m s-1)
@@ -157,7 +159,8 @@ contains
  ! compute derivative in fluxes at layer interfaces w.r.t. temperature in the layer above and the layer below
  implicit none
  ! input: model control variables
- integer(i4b),intent(in)       :: fDerivMeth                 ! intent(in): method used to calculate derivatives
+ integer(i4b),intent(in)       :: ix_fDerivMeth              ! intent(in): index of the method used to calculate derivatives
+ integer(i4b),intent(in)       :: ix_bcLowrTdyn              ! intent(in): index of the method used to define the lower boundary condition for thermodynamics
  ! input: model fluxes from other routines
  real(dp),intent(in)           :: groundNetFlux              ! intent(in): total flux at the ground surface (W m-2)
  real(dp),intent(in)           :: iLayerLiqFluxSnow(0:)      ! intent(in): liquid flux at the interface of each snow layer (m s-1)
@@ -199,14 +202,22 @@ contains
  ! ***** compute the conductive fluxes at layer interfaces *****
  ! -------------------------------------------------------------------------------------------------------------------------
  do iLayer=1,nLayers
+
   ! compute fluxes at the lower boundary -- positive downwards
   if(iLayer==nLayers)then
-   iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_dp)
+   ! flux depends on the type of lower boundary condition
+   select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
+    case(prescribedTemp); iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_dp)
+    case(zeroFlux);       iLayerConductiveFlux(nLayers) = 0._dp
+    case default;         err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
+   end select  ! (identifying the lower boundary condition for thermodynamics)
 
   ! compute fluxes within the domain -- positive downwards
   else
     iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                     (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+
+    !print*, 'iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
   endif ! (the type of layer)
  end do
 
@@ -247,25 +258,40 @@ contains
  ! loop through INTERFACES...
  do iLayer=0,nLayers
 
-  ! ***** the upper boundary -- ** NOTE: dTotalSurfaceFlux_dTemp was computed previously using fDerivMeth
+  ! ***** the upper boundary -- ** NOTE: dTotalSurfaceFlux_dTemp was computed previously using ix_fDerivMeth
   if(iLayer==0)then  ! (upper boundary)
    dFlux_dTempBelow(iLayer) = dGroundNetFlux_dGroundTemp
 
   ! ***** the lower boundary
   elseif(iLayer==nLayers)then  ! (lower boundary)
-   dz = mLayerDepth(iLayer)*0.5_dp
-   if(fDerivMeth==analytical)then    ! ** analytical derivatives
-    dFlux_dTempAbove(iLayer) = iLayerThermalC(iLayer)/dz
-   else                              ! ** numerical derivatives
-    flux0 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)   ))/dz
-    flux1 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)+dx))/dz
-    dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
-   endif
+
+   ! identify the lower boundary condition
+   select case(ix_bcLowrTdyn)
+
+    ! * prescribed temperature at the lower boundary
+    case(prescribedTemp)
+
+     dz = mLayerDepth(iLayer)*0.5_dp
+     if(ix_fDerivMeth==analytical)then    ! ** analytical derivatives
+      dFlux_dTempAbove(iLayer) = iLayerThermalC(iLayer)/dz
+     else                              ! ** numerical derivatives
+      flux0 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)   ))/dz
+      flux1 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)+dx))/dz
+      dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
+     endif
+
+     ! * zero flux at the lower boundary
+     case(zeroFlux)
+      dFlux_dTempAbove(iLayer) = 0._dp
+
+     case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
+ 
+   end select  ! (identifying the lower boundary condition for thermodynamics)
 
   ! ***** internal layers
   else
    dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-   if(fDerivMeth==analytical)then    ! ** analytical derivatives
+   if(ix_fDerivMeth==analytical)then    ! ** analytical derivatives
     dFlux_dTempAbove(iLayer) =  iLayerThermalC(iLayer)/dz
     dFlux_dTempBelow(iLayer) = -iLayerThermalC(iLayer)/dz
    else                              ! ** numerical derivatives

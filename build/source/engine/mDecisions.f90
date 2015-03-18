@@ -275,6 +275,7 @@ contains
  select case(trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision))
   case('presTemp'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = prescribedTemp      ! prescribed temperature
   case('nrg_flux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = energyFlux          ! energy flux
+  case('zeroFlux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = zeroFlux            ! zero flux
   case default
    err=10; message=trim(message)//"unknown upper boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision)//"]"; return
  end select
@@ -412,6 +413,27 @@ contains
  ! check for consistency among options
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
 
+ ! check there is prescribedHead for soil hydrology when zeroFlux or prescribedTemp for thermodynamics
+ !select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
+ ! case(prescribedTemp,zeroFlux)
+ !  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision /= prescribedHead)then
+ !   message=trim(message)//'upper boundary condition for soil hydology must be presHead with presTemp and zeroFlux options for thermodynamics'
+ !   err=20; return
+ !  endif
+ !end select
+
+ ! check there is prescribedTemp or zeroFlux for thermodynamics when using prescribedHead for soil hydrology
+ !select case(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision)
+ ! case(prescribedHead)
+ !  ! check that upper boundary condition for thermodynamics is presTemp or zeroFlux
+ !  select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
+ !   case(prescribedTemp,zeroFlux) ! do nothing: this is OK
+ !   case default
+ !    message=trim(message)//'upper boundary condition for thermodynamics must be presTemp or zeroFlux with presHead option for soil hydology'
+ !    err=20; return
+ !  end select
+ !end select
+
  ! check zero flux lower boundary for topmodel baseflow option
  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
   case(qbaseTopmodel)
@@ -476,7 +498,7 @@ contains
  err=0; message='readoption/'
  ! build filename
  infile = trim(SETNGS_PATH)//trim(M_DECISIONS)
- print*, 'decisions file = ', trim(infile)
+ write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

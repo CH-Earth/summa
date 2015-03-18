@@ -2,87 +2,46 @@ module expIntegral_module
 USE nrtype
 implicit none
 private
-public::expIntegral
+public::expint
 contains
 
- SUBROUTINE expIntegral(n,x,expint,err,message)
- USE nr_utility_module, ONLY : arth
- IMPLICIT NONE
- ! dummy variables
- INTEGER(I4B), INTENT(IN) :: n
- REAL(DP), INTENT(IN) :: x
- REAL(DP),INTENT(OUT) :: expint
- integer(i4b),intent(out)      :: err
- character(*),intent(out)      :: message
- ! local variables
- INTEGER(I4B), PARAMETER :: MAXIT=100
- REAL(DP), PARAMETER :: EPS=epsilon(x),BIG=huge(x)*EPS
- INTEGER(I4B) :: i,nm1
- REAL(DP) :: a,b,c,d,del,fact,h
- ! initialize error control
- err=0; message="expint/"
- ! check that the size of the vectors match
- if(.not. ((n >= 0) .and. (x >= 0.0_dp) .and. (x > 0.0_dp .or. n > 1)))then
-  message=trim(message)//'incorrect arguments'
-  err=20; return
- endif
- 
- ! n=0
- if (n == 0) then
-  expint=exp(-x)/x
-  RETURN
- end if
- 
- ! x=0
- nm1=n-1
- if (x == 0.0) then
-  expint=1.0_dp/nm1
- 
- ! continued fraction
- else if (x > 1.0) then
-  b=x+n
-  c=BIG
-  d=1.0_dp/b
-  h=d
-  do i=1,MAXIT
-   a=-i*(nm1+i)
-   b=b+2.0_dp
-   d=1.0_dp/(a*d+b)
-   c=b+a/c
-   del=c*d
-   h=h*del
-   if (abs(del-1.0_dp) <= EPS) exit
-  end do
-  if (i > MAXIT)then
-   message=trim(message)//'continued fraction failed (exceeded maximum number of iterations)'
-   err=20; return
-  endif
-  expint=h*exp(-x)
- 
- ! series
- else
-  if (nm1 /= 0) then
-   expint=1.0_dp/nm1
-  else
-   expint=-log(x)-EULER
-  end if
-  fact=1.0
-  do i=1,MAXIT
-   fact=-fact*x/i
-   if (i /= nm1) then
-    del=-fact/(i-nm1)
-   else
-    del=fact*(-log(x)-EULER+sum(1.0_dp/arth(1,1,nm1)))
-   end if
-   expint=expint+del
-   if (abs(del) < abs(expint)*EPS) exit
-  end do
-  if (i > MAXIT)then
-   message=trim(message)//'series failed (exceeded maximum number of iterations)'
-   err=20; return
-  endif
- end if
+ ! Numerical recipes routines removed; use code from UEB-Veg
 
- END SUBROUTINE expIntegral
+ ! ****************** EXPONENTIAL INTEGRAL FUNCTION *****************************************
+ ! From UEB-Veg
+ ! Computes the exponential integral function for the given value
+ FUNCTION EXPINT (LAI)
+ REAL(DP) LAI
+ REAL(DP) EXPINT
+ REAL(DP) a0,a1,a2,a3,a4,a5,b1,b2,b3,b4
+ IF (LAI.EQ.0)THEN
+  EXPINT=1._dp
+
+ ELSEIF (LAI.LE.1.0) THEN
+  a0=-.57721566_dp
+  a1=.99999193_dp
+  a2=-.24991055_dp
+  a3=.05519968_dp
+  a4=-.00976004_dp
+  a5=.00107857_dp
+
+  EXPINT = a0+a1*LAI+a2*LAI**2+a3*LAI**3+a4*LAI**4+a5*LAI**5 - log(LAI)
+
+ ELSE
+  a1=8.5733287401_dp
+  a2=18.0590169730_dp
+  a3=8.6347637343_dp
+  a4=.2677737343_dp
+  b1=9.5733223454_dp
+  b2=25.6329561486_dp
+  b3=21.0996530827_dp
+  b4=3.9584969228_dp
+
+  EXPINT=(LAI**4+a1*LAI**3+a2*LAI**2+a3*LAI+a4)/ &
+      ((LAI**4+b1*LAI**3+b2*LAI**2+b3*LAI+b4)*LAI*exp(LAI))
+
+ END IF
+ RETURN
+ END FUNCTION EXPINT
 
 END MODULE expIntegral_module

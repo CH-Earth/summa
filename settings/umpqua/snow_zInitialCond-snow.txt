@@ -1,0 +1,55 @@
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! ***** DEFINITION OF MODEL INITIAL CONDITIONS **************************************************************************
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! Note: lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines.
+!
+!
+! ***********************************************************************************************************************
+! PART 1: DEFINE SCALAR VARIABLES
+! -------------------------------
+! Variable name followed by the value
+! The variable names are important, as they must match the variable names in the code
+! ***********************************************************************************************************************
+<start_scalar_icond>
+! --------------------------------
+scalarCanopyIce            7.000000000000
+scalarCanopyLiq            0.500000000000
+scalarCanairTemp         273.400000000000
+scalarCanopyTemp         273.150100000000
+scalarSnowAlbedo           0.820000000000
+scalarSWE                  0.000000000000
+scalarSnowDepth            0.000000000000
+scalarSfcMeltPond          0.000000000000
+scalarAquiferStorage       0.000000000000
+! --------------------------------
+<end_scalar_icond>
+! ***********************************************************************************************************************
+!
+!
+! ***********************************************************************************************************************
+! PART 2: DEFINE LAYER VARIABLES
+! -------------------------------
+! Variable names followed by values
+! The variable names are important, as they must match the variable names in the code
+! -------------------------------
+! layerType        = snow or soil (4-character string)
+! iLayerHeight     = height of the layer interface; top of soil = 0 (m)
+! mLayerDepth      = depth of the layer (m)
+! mLayerTemp       = temperature of the layer (K)
+! mLayerVolFracIce = volumetric fraction of ice (-)
+! mLayerVolFracLiq = volumetric fraction of liquid water (-)
+! mLayerMatricHead = matric head (m)
+! ***********************************************************************************************************************
+<start_layer_icond>
+! -------------------------------
+ layerType iLayerHeight  mLayerDepth mLayerTemp  mLayerVolFracIce mLayerVolFracLiq mLayerMatricHead
+      snow   -0.2000000    0.1000000    272.900          0.400000         0.000000      -999.000000
+      snow   -0.1000000    0.1000000    272.900          0.400000         0.000000      -999.000000
+      soil    0.0000000    0.1000000    272.900          0.000000         0.290000        -1.000000
+      soil    0.1000000    0.2000000    274.500          0.000000         0.290000        -1.000000
+      soil    0.3000000    0.2000000    275.500          0.000000         0.290000        -1.000000
+      soil    0.5000000    0.5000000    277.000          0.000000         0.282000        -1.000000
+      soil    1.0000000    1.0000000    279.000          0.000000         0.307000        -1.000000
+<end_layer_icond>
