@@ -360,6 +360,7 @@ contains
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
 
+
   ! (5) compute canopy throughfall and unloading...
   ! -----------------------------------------------
   ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation (and throughfall/unloading)
@@ -578,7 +579,7 @@ contains
    if(err<0)then
     ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
-    !print*, trim(cmessage), dt_temp
+    print*, trim(cmessage), dt_temp, minstep
     rejectedStep=.true. 
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then

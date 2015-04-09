@@ -11,7 +11,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /home/mclark/summa
+F_MASTER = /home/mclark/test_summa/summa
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/build/source
