@@ -73,3 +73,7 @@ Once you have all the above, you can compile SUMMA using the following steps:
 
 If you get this far then SUMMA is installed correctly and functional.
 
+## License
+
+SUMMA is distributed under the GNU Public License Version 3. For details see the file `gpl-3.0.txt` in the SUMMA root directory or visit the [online version](http://www.gnu.org/licenses/gpl-3.0.html).
+
