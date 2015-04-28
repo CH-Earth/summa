@@ -1,0 +1,13 @@
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! ***** DEFINITION OF TRIAL MODEL PARAMETER VALUES **********************************************************************
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+! Note: Lines starting with ! are treated as comment lines -- there is no limit on the number of comment lines.
+!
+! Variable names are important: They must match the variables in the code, and they must occur before the data.
+!  NOTE: must include information for all HRUs
+! ***********************************************************************************************************************
+hruIndex tempCritRain tempRangeTimestep heightCanopyTop heightCanopyBottom refInterceptCapSnow snowUnloadingCoeff ratioDrip2Unloading windReductionParam       k_soil   qSurfScale 
+    1001     273.1600              2.00           11.00               2.00                 3.0             1.3d-6                 0.0               0.04     0.000075         2.5d
+    1002     273.1600              2.00            0.25               0.05                 3.0             1.3d-6                 0.0               0.04     0.000075         2.5d

@@ -1,5 +1,5 @@
 #========================================================================
-# Makefile to compile the SUMMA-style snow model
+# Makefile to compile SUMMA
 #========================================================================
 #
 # To troubleshoot your paths and setup, type 'make check'
@@ -11,7 +11,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =
+F_MASTER = /home/mclark/test_summa/summa
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/build/source
@@ -43,11 +43,10 @@ NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(SUMMA_NRUTIL))
 
 #
 # Numerical recipes procedures
+# NOTE: all numerical recipes procedures are now replaced with free versions
 SUMMA_NRPROC= \
 		expIntegral.f90 \
-		spline_int.f90 \
-		intgr8func.f90 \
-		matrixSolv.f90
+		spline_int.f90
 NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
@@ -74,8 +73,8 @@ MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
 
 # Solver
 SUMMA_SOLVER= \
+		vegPhenlgy.f90 \
 		diagn_evar.f90 \
-		getDiagVar.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
@@ -87,16 +86,6 @@ SUMMA_SOLVER= \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 
-# Old routines that are not currently used as part of the new refactor
-SUMMA_UNUSED= \
-		tridagSolv.f90 \
-		phseChange.f90 \
-		heatTransf.f90 \
-		can_Hydrol.f90 \
-		snowHydrol.f90 \
-		soilHydrol.f90 \
-		picardSolv.f90
-
 # Define routines for SUMMA preliminaries
 SUMMA_PRELIM= \
 		conv_funcs.f90 \
@@ -106,6 +95,7 @@ SUMMA_PRELIM= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
+		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
 		read_metad.f90 \
@@ -134,6 +124,7 @@ SUMMA_MODRUN = \
 		derivforce.f90 \
 		snowAlbedo.f90 \
 		canopySnow.f90 \
+		tempAdjust.f90 \
 		snwCompact.f90 \
 		layerMerge.f90 \
 		layerDivide.f90 \
@@ -161,7 +152,7 @@ SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
 #========================================================================
 
 # Define the Fortran Compiler
-FC  =
+FC  = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -171,13 +162,17 @@ ifeq "$(FC)" "gfortran-mp-4.8"
  NCDF_PATH = /opt/local
 endif
 ifeq "$(FC)" "ifort"
- NCDF_PATH = /usr/local/netcdf-4.3.0/ifort+gcc
+ NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
 endif
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = /usr/local/netcdf-4.3.0/pgi-13.8
 endif
 LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
 INCNETCDF = -I$(NCDF_PATH)/include
+
+# define the lapack libraries
+LAPK_PATH = /usr
+LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 
 # Define the driver routine
 SUMMA_DRIVER= \
@@ -247,6 +242,7 @@ check:
 	$(info   FLAGS_NOAH : $(FLAGS_NOAH))
 	$(info   FLAGS_COMM : $(FLAGS_COMM))
 	$(info   FLAGS_SUMMA: $(FLAGS_SUMMA))
+	$(info Add $(NCDF_PATH)/lib to your LD_LIBRARY_PATH)
 	$(info)
 
 # compile Noah-MP routines
@@ -264,7 +260,7 @@ compile_summa:
 
 # link routines
 link:
-	$(FC) *.o $(LIBNETCDF) -o $(DRIVER__EX)
+	$(FC) *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

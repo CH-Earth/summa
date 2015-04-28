@@ -1,0 +1,152 @@
+#========================================================================
+# Makefile to compile the routing model
+#========================================================================
+#
+#
+#
+#========================================================================
+# PART 0: Define directory paths
+#========================================================================
+
+# Define core directory below which everything resides
+F_MASTER = /home/mclark/summa/
+
+# Core directory that contains source code
+F_KORE_DIR = $(F_MASTER)build/source/routing/
+
+# Define the directory for the executables
+EXE_PATH = $(F_MASTER)bin/
+#
+#========================================================================
+# PART 1: Assemble all of the FUSE sub-routines
+#========================================================================
+# Define subroutines
+#
+# data types
+DATATYPES = \
+		nrtype.f90 \
+		dataTypes.f90 \
+		var_lookup.f90 \
+		nhru2basin.f90 \
+		reachparam.f90 \
+		reachstate.f90 \
+		reach_flux.f90 \
+		lake_param.f90 \
+		lakes_flux.f90
+#
+# define utilities
+UTILS = \
+		nr.f90 \
+		nrutil.f90 \
+		ascii_util.f90
+#
+# define numerical recipes routines
+NUMREC = \
+		gammln.f90 \
+		gammp.f90 gcf.f90 gser.f90
+
+# read/write files
+IO = \
+		read_streamSeg.f90 \
+		read_simoutput.f90 \
+		write_simoutput.f90
+
+# perform model routing
+QROUTE = \
+		qtimedelay.f90 \
+		network_route.f90
+
+# concatanate model subroutines
+TEMP_MODSUB = $(DATATYPES) $(UTILS) $(NUMREC) $(IO) $(QROUTE)
+
+# insert appropriate directory name
+MODSUB = $(patsubst %, $(F_KORE_DIR)%, $(TEMP_MODSUB))
+
+#========================================================================
+# PART 2: Define the libraries, driver programs, and executables
+#========================================================================
+
+# Define the Fortran Compiler
+FC  = ifort
+
+# Define the NetCDF libraries and path to include files
+ifeq "$(FC)" "gfortran"
+ NCDF_PATH = /usr/local/netcdf-4.3.0/gcc-4.7.2
+endif
+ifeq "$(FC)" "gfortran-mp-4.8"
+ NCDF_PATH = /opt/local
+endif
+ifeq "$(FC)" "ifort"
+ NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
+endif
+ifeq "$(FC)" "pgf90"
+ NCDF_PATH = /usr/local/netcdf-4.3.0/pgi-13.8
+endif
+LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+INCNETCDF = -I$(NCDF_PATH)/include
+
+# Define the driver routine
+DRIVER = $(F_KORE_DIR)route_runoff.f90
+
+# Define the executable
+DRIVER__EX = route_runoff.exe
+
+#========================================================================
+# PART 3: Compile the puppy
+#========================================================================
+
+# Define flags
+ifeq "$(FC)" "gfortran"
+ FLAGS = -static -Wall -g -ffree-line-length-none
+endif
+ifeq "$(FC)" "ifort"
+ FLAGS1 = -warn all -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
+ FLAGS = -static -debug -warn all -check all,noarg_temp_created -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+endif
+ifeq "$(FC)" "pgf90"
+ FLAGS1 = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
+ FLAGS = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv
+endif
+
+# make sure that the paths are defined. These are just some high level checks
+ifndef F_MASTER
+ $(error F_MASTER is undefined)
+endif
+ifndef FC
+ $(error FC is undefined: Specify your compiler)
+endif
+ifndef FLAGS
+ $(error Specify flags for your compiler: $(FC))
+endif
+ifndef NCDF_PATH
+ $(error NCDF_PATH is undefined)
+endif
+
+#FLAGS = -O3 -W -v
+
+#.SUFFIXES: .f .o .f90
+
+# tasks
+all: compile link install clean
+
+# compile
+compile:
+	$(FC) $(FLAGS) -c $(MODSUB) $(DRIVER) \
+	$(INCNETCDF)
+
+# link
+link:
+	$(FC) *.o $(LIBNETCDF) -o $(DRIVER__EX)
+
+# Remove object files
+clean:
+						rm -f *.o
+						rm -f *.mod
+						rm -f *__genmod.f90
+#
+# Copy the executable to the bin directory
+install:
+	@mkdir -p $(EXE_PATH)
+	@mv $(DRIVER__EX) $(EXE_PATH)
+	$(info Add $(NCDF_PATH)/lib to your LD_LIBRARY_PATH)
+	$(info $(DRIVER__EX) successfully installed in $(EXE_PATH))

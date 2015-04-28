@@ -1,0 +1,29 @@
+! ***********************************************************************************************************************
+! DEFINITION OF THE FORCING FILE
+! ***********************************************************************************************************************
+! This file defines the name of the forcing data file, the number of columns in the file, the column index for each data
+!  variable, the start index of the simulation period, the length of the simulation period,
+!  and the length of the data time step
+! ***********************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "| " must be present (format a1), as these are used to check the integrety of the file
+! ***********************************************************************************************************************
+'(a15,a1,1x,a)'
+filenmData     | forcing_sheltered.txt       ! name of the forcing data file (must be in single quotes)
+ncols          | 17                          ! number of columns in the forcing file
+iyyy           | 1                           ! year
+im             | 2                           ! month
+id             | 3                           ! day
+ih             | 4                           ! hour
+imin           | 5                           ! minute
+pptrate        | 7                           ! precipitation rate              (kg m-2 s-1)
+SWRadAtm       | 8                           ! downwelling shortwave radiaiton (W m-2)
+LWRadAtm       | 9                           ! downwelling longwave radiation  (W m-2)
+airtemp        | 10                          ! air temperature                 (K)
+windspd        | 11                          ! windspeed                       (m/s)
+airpres        | 12                          ! pressure                        (Pa)
+spechum        | 13                          ! specific humidity               (g/g)
+data_step      | 3600                        ! length of time step (seconds)
