@@ -25,8 +25,9 @@ private
 public::read_param
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: read trial model parameter values
+ ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
  subroutine read_param(nHRU,err,message)
  ! used to read model initial conditions
@@ -50,8 +51,8 @@ contains
  character(len=1024)             :: cmessage          ! error message for downwind routine
  character(LEN=1024)             :: infile            ! input filename
  integer(i4b),parameter          :: unt=99            ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                    :: iline             ! loop through lines in the file 
- integer(i4b),parameter          :: maxLines=1000     ! maximum lines in the file 
+ integer(i4b)                    :: iline             ! loop through lines in the file
+ integer(i4b),parameter          :: maxLines=1000     ! maximum lines in the file
  integer(i4b)                    :: iend              ! check for the end of the file
  integer(i4b),parameter          :: sLen=2048         ! string length for line of parameter data
  character(LEN=sLen)             :: temp              ! single line of information
@@ -91,7 +92,7 @@ contains
  if(nPars < 2)then
   message=trim(message)//'expect need to modify at least one parameter [file = '//trim(infile)//']'
   err=20; return
- endif 
+ endif
  ! check that the first parameter is the HRU index
  if(varnames(1) /= 'hruIndex')then
   message=trim(message)//'expect first parameter name to be the HRU index [file = '//trim(infile)//']'
@@ -143,7 +144,7 @@ contains
   mpar_data => mpar_hru(kHRU)
   ! ***** overwrite default model parameters with information from the Noah-MP tables
   call pOverwrite(type_hru(kHRU)%var(iLookTYPE%vegTypeIndex),  &  ! vegetation category
-                  type_hru(kHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category                     
+                  type_hru(kHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category
                   err,cmessage)                                   ! error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
   ! ***** populate parameter set with default model parameters *****
@@ -159,7 +160,7 @@ contains
    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
    !print*, trim(varnames(ipar)), mpar_data%var(jpar)
   end do    ! (looping through model parameters)
-  !write(*,'(a,2(i4,1x),2(f20.10,1x))') 'in read_param 2: iHRU, kHRU, mpar_data%var(iLookPARAM%zmaxLayer1_upper), mpar_hru(kHRU)%var(iLookPARAM%zmaxLayer1_upper) = ', & 
+  !write(*,'(a,2(i4,1x),2(f20.10,1x))') 'in read_param 2: iHRU, kHRU, mpar_data%var(iLookPARAM%zmaxLayer1_upper), mpar_hru(kHRU)%var(iLookPARAM%zmaxLayer1_upper) = ', &
   !                                                       iHRU, kHRU, mpar_data%var(iLookPARAM%zmaxLayer1_upper), mpar_hru(kHRU)%var(iLookPARAM%zmaxLayer1_upper)
  end do    ! (looping through HRUs)
  ! check that all HRUs are populated
@@ -176,5 +177,6 @@ contains
  if(err/=0)then;err=30;message=trim(message)//"problemDeallocate"; return; endif
  ! **********************************************************************************************
  end subroutine read_param
+
 
 end module read_param_module

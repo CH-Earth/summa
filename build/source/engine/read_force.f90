@@ -24,8 +24,11 @@ private
 public::read_force
 contains
 
+
+ ! ************************************************************************************************
+ ! public subroutine read_force: read in forcing data
+ ! ************************************************************************************************
  subroutine read_force(istep,iHRU,err,message)
- ! used to read in initial conditions
  USE nrtype                                            ! variable types, etc.
  USE snow_fileManager,only:INPUT_PATH                  ! path of the forcing data file
  USE time_utils_module,only:extractTime,compJulday     ! extract time info from units string
@@ -40,7 +43,7 @@ contains
  USE data_struc,only:time_meta,forc_meta               ! metadata structures
  USE data_struc,only:time_data,time_hru                ! time information
  USE data_struc,only:forc_data,forc_hru                ! forcing data
- USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements 
+ USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
@@ -75,7 +78,7 @@ contains
  ! early return: check if we have the data already
  ! NOTE: scalar data structures are pointing to the HRU data structures
  if(forcFileInfo(iHRU)%ixFirstHRU > 0)then
-  time_data = time_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information  
+  time_data = time_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information
   forc_data = forc_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! forcing data
   return
  endif
@@ -171,7 +174,7 @@ contains
  ! **********************************************************************************************
  ! ***** part 2: read data
  ! **********************************************************************************************
- 
+
  ! initialize time and forcing data structures
  time_data%var(:) = imiss
  forc_data%var(:) = amiss
@@ -251,5 +254,6 @@ contains
  deallocate(cline,stat=err)
  if (err/=0) then; err=10; message=trim(message)//"problemDeallocate"; return; endif
  end subroutine read_force
+
 
 end module read_force_module

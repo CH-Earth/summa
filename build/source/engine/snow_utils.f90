@@ -28,8 +28,9 @@ public::dFracLiq_dTk
 public::tcond_snow
 contains
 
+
  ! ***********************************************************************************************************
- ! new function: compute fraction of liquid water
+ ! public function fracliquid: compute fraction of liquid water
  ! ***********************************************************************************************************
  function fracliquid(Tk,fc_param)
  USE multiconst,only:Tfreeze
@@ -43,7 +44,7 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new function: invert the fraction of liquid water function
+ ! public function templiquid: invert the fraction of liquid water function
  ! ***********************************************************************************************************
  function templiquid(fracliquid,fc_param)
  USE multiconst,only:Tfreeze
@@ -57,7 +58,7 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new function: differentiate the freezing curve
+ ! public function dFracLiq_dTk: differentiate the freezing curve
  ! ***********************************************************************************************************
  function dFracLiq_dTk(Tk,fc_param)
  USE multiconst,only:Tfreeze
@@ -78,7 +79,7 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new subroutine: compute thermal conductivity of snow
+ ! public subroutine tcond_snow: compute thermal conductivity of snow
  ! ***********************************************************************************************************
  subroutine tcond_snow(BulkDenIce,thermlcond,err,message)
  USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice

@@ -31,9 +31,10 @@ real(dp),dimension(nlook),public  :: E_lookup          ! enthalpy values (J kg-1
 real(dp),dimension(nlook),public  :: T_lookup          ! temperature values (K)
 contains
 
- ! **********************************************************************************************************
- ! new subroutine: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
- ! **********************************************************************************************************
+
+ ! ************************************************************************************************************************
+ ! public subroutine E2T_lookup: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
+ ! ************************************************************************************************************************
  subroutine E2T_lookup(err,message)
  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
  USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
@@ -80,9 +81,9 @@ contains
  end subroutine E2T_lookup
 
 
- ! **********************************************************************************************************
- ! new subroutine: compute temperature based on specific enthalpy -- appropriate when no dry mass, as in snow
- ! **********************************************************************************************************
+ ! ************************************************************************************************************************
+ ! public subroutine E2T_nosoil: compute temperature based on specific enthalpy -- appropriate when no dry mass, as in snow
+ ! ************************************************************************************************************************
  subroutine E2T_nosoil(Ey,BulkDenWater,fc_param,Tk,err,message)
  ! compute temperature based on enthalpy -- appropriate when no dry mass, as in snow
  USE multiconst, only: Tfreeze, &                   ! freezing point of water (K)
@@ -184,9 +185,9 @@ contains
  end subroutine E2T_nosoil
 
 
- ! **********************************************************************************************************
- ! new function: compute total enthalpy based on temperature and mass (J m-3)
- ! **********************************************************************************************************
+ ! ************************************************************************************************************************
+ ! public function temp2ethpy: compute total enthalpy based on temperature and mass (J m-3)
+ ! ************************************************************************************************************************
  function temp2ethpy(Tk,BulkDenWater,fc_param)
  ! used to compute enthalpy based on temperature and total mass in layer (snow or soil)
  ! NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
@@ -210,7 +211,7 @@ contains
  ! compute the temperature component of enthalpy for the soil constituent (J kg-1)
  !enthTempSoil = Cp_soil*(Tk - Tfreeze)
  ! compute the temperature component of enthalpy for total water (J kg-1)
- ! NOTE: negative enthalpy means require energy to bring to Tfreeze  
+ ! NOTE: negative enthalpy means require energy to bring to Tfreeze
  if(Tk< Tfreeze) enthTempWater =   Cp_ice*(Tk - Tfreeze) - (Cp_water - Cp_ice)*(atan(fc_param*(Tfreeze - Tk))/fc_param)
  if(Tk>=Tfreeze) enthTempWater = Cp_water*(Tk - Tfreeze)
  ! compute the mass component of enthalpy -- energy required to melt ice (J kg-1)
@@ -220,5 +221,6 @@ contains
  ! NOTE: this is the case for snow (no soil).. function needs modification to use vanGenuchten functions for soil
  temp2ethpy   = BulkDenWater*(enthTempWater + enthMass) !+ BulkDenSoil*enthTempSoil
  end function temp2ethpy
+
 
 end module ConvE2Temp_module

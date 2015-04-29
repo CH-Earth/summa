@@ -25,9 +25,10 @@ private
 public::qOverland
 contains
 
- ! ************************************************************************************************
- ! new subroutine: compute the time delay in runoff in a basin (places runoff in future time steps)
- ! ************************************************************************************************
+
+ ! *************************************************************************************************************
+ ! public subroutine qOverland: compute the time delay in runoff in a basin (places runoff in future time steps)
+ ! *************************************************************************************************************
  subroutine qOverland(&
                       ! input
                       ixRouting,             &  ! index for routing method
@@ -96,5 +97,6 @@ contains
  end select ! (select option for sub-grid routing)
 
  end subroutine qOverland
+
 
 end module qTimeDelay_module

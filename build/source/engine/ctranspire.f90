@@ -25,11 +25,12 @@ private
 public::ctranspire
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute energy flux
+ ! public subroutine ctranspire: compute energy flux
  ! ************************************************************************************************
  subroutine ctranspire(err,message)
- USE multiconst,only:ave_slp,&  ! mean sea level pressure     (Pa) 
+ USE multiconst,only:ave_slp,&  ! mean sea level pressure     (Pa)
                      gascnst,&  ! gas constant for dry air    (Pa K-1 m3 kg-1)
                      Cp_air,&   ! specific heat of air        (J kg-1 K-1)
                      gravity,&  ! acceleration of gravity     (m s-2)
@@ -49,16 +50,16 @@ contains
  real(dp),pointer              :: mheight              ! measurement height (m)
  real(dp),pointer              :: Fabs_vis             ! fraction of radiation in visible part of spectrum (-)
  real(dp),pointer              :: rad_ext              ! extinction coefficient for penetrating sw radiation (m-1)
- real(dp),pointer              :: pptrate              ! precipitation rate (kg m-2 s-1) 
+ real(dp),pointer              :: pptrate              ! precipitation rate (kg m-2 s-1)
  real(dp),pointer              :: sw_down              ! downward shortwave radiation (W m-2)
  real(dp),pointer              :: lw_down              ! downward longwave radiation (W m-2)
  real(dp),pointer              :: airtemp              ! air temperature at 2 meter height (K)
  real(dp),pointer              :: windspd              ! wind speed at 10 meter height (m s-1)
- real(dp),pointer              :: airpres              ! air pressure at 2 meter height (Pa) 
+ real(dp),pointer              :: airpres              ! air pressure at 2 meter height (Pa)
  real(dp),pointer              :: spechum              ! specific humidity at 2 meter height (g g-1)
  real(dp),pointer              :: scalarAlbedo         ! surface albedo (-)
  real(dp),pointer              :: scalarSenHeat        ! sensible heat flux at the surface (W m-2)
- real(dp),pointer              :: scalarLatHeat        ! latent heat flux at the surface (W m-2) 
+ real(dp),pointer              :: scalarLatHeat        ! latent heat flux at the surface (W m-2)
  real(dp),pointer              :: mLayerTemp(:)        ! temperature of each layer (K)
  real(dp),pointer              :: iLayerThermalC(:)    ! thermal conductivity at the interface of each layer (W m-1 K-1)
  real(dp),pointer              :: mLayerHeight(:)      ! height at the mid-point of each layer (m)
@@ -67,7 +68,7 @@ contains
  real(dp),pointer              :: mLayerRadCondFlux(:) ! change in energy in each layer (J m-2 s-1)
  integer(i4b),pointer          :: nLayers              ! number of layers
  ! define local variables
- character(LEN=256)            :: cmessage             ! error message of downwind routine 
+ character(LEN=256)            :: cmessage             ! error message of downwind routine
  real(dp)                      :: ptcorr               ! potential temperature correction
  real(dp)                      :: T_surf               ! surface temperature (corrected)
  real(dp)                      :: T__air               ! air temperature (corrected)
@@ -154,47 +155,19 @@ contains
  canopyDripSnow = canopyStorage/dripTimeSnow
 
  ! compute canopy evaporation/sublimation (kg m-2 s-1)
- canopyEvap     =  
-
+ canopyEvap     =
 
  ! define the canopy water balance (kg m-2 s-1)
  delCanopyWat = rainfall - canopyThruRain - canopyDripRain
 
- 
-
-
-
-
-
-
 (alog(stor)-alam)/zeta
 fdry = 0.5d*erfc(z_dm/sqrt(2.d))
 
-
-
-
-
-
-
-
-
- 
-
-
-
-
  ! canopy interception flux (kg m-2 s-1)
- 
-
 
  canopyInterceptFlux = rainfall * fracAreaLeafWet * ( 1._dp - exp(-0.5_dp*(lai + sai)) )
  ! canopy throughfall
- canopyThrufallFlux  = 
- 
-
-
-
-
+ canopyThrufallFlux  =
 
  ! compute potential temperature
  ptcorr = (ave_slp/airpres)**(gascnst/Cp_air) ! potential temperature correction
@@ -246,5 +219,6 @@ fdry = 0.5d*erfc(z_dm/sqrt(2.d))
   mLayerRadCondFlux(iLayer)  = iLayerRadCondFlux(iLayer) - iLayerRadCondFlux(iLayer-1)
  end do  ! looping through layers
  end subroutine ctranspire
+
 
 end module ctranspire_module

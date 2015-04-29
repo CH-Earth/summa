@@ -23,8 +23,8 @@ module ssdNrgFlux_module
 USE nrtype
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,        & ! number of snow layers  
-                    nSoil,        & ! number of soil layers  
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
                     nLayers         ! total number of layers
 ! physical constants
 USE multiconst,only:&
@@ -68,7 +68,7 @@ contains
 
 
  ! ************************************************************************************************
- ! new subroutine: compute energy fluxes and derivatives at layer interfaces
+ ! public subroutine ssdNrgFlux: compute energy fluxes and derivatives at layer interfaces
  ! ************************************************************************************************
  subroutine ssdNrgFlux(&
                        ! input: fluxes and derivatives at the upper boundary
@@ -147,7 +147,7 @@ contains
 
 
  ! ************************************************************************************************
- ! private subroutine: compute energy fluxes at layer interfaces, and their derivatives
+ ! private subroutine iLayer_nrg: compute energy fluxes at layer interfaces, and their derivatives
  ! ************************************************************************************************
  subroutine iLayer_nrg(&
                        ! input: model control variables
@@ -305,7 +305,7 @@ contains
       dFlux_dTempAbove(iLayer) = 0._dp
 
      case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
- 
+
    end select  ! (identifying the lower boundary condition for thermodynamics)
 
   ! ***** internal layers
@@ -325,9 +325,8 @@ contains
   endif  ! type of layer (upper, internal, or lower)
 
  end do  ! (looping through layers)
- 
- end subroutine iLayer_nrg
 
+ end subroutine iLayer_nrg
 
 
 end module ssdNrgFlux_module

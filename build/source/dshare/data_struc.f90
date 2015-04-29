@@ -34,7 +34,7 @@ MODULE data_struc
  end type model_options
  type(model_options),pointer,save,public :: model_decisions(:)      ! the decision structure
  ! ***********************************************************************************************************
- ! Define metadata for model forcing datafile 
+ ! Define metadata for model forcing datafile
  ! ***********************************************************************************************************
  ! define a derived type for the data in the file
  type,public  :: file_info
@@ -101,7 +101,7 @@ MODULE data_struc
  ! define derived types to hold data for multiple variables
  ! NOTE: use derived types here to facilitate adding extra dimensions (e.g., spatial)
  ! ** double precision type of variable length
- type, public :: var_dlength 
+ type, public :: var_dlength
   type(dlength),pointer                  :: var(:) => null()
  endtype var_dlength
  ! ** integer type of variable length
@@ -157,6 +157,7 @@ MODULE data_struc
  type(var_i),pointer,save,public         :: startTime    => null()   ! start time for the model simulation
  type(var_i),pointer,save,public         :: finshTime    => null()   ! end time for the model simulation
  ! ***********************************************************************************************************
+
+
 END MODULE data_struc
-! ***********************************************************************************************************************
 

@@ -26,19 +26,19 @@ USE mDecisions_module,only:  &
  mixdform                      ! mixed form of Richards' equation
 ! define the number of layers
 USE data_struc,only:&
-                    nSnow,        & ! number of snow layers  
-                    nSoil,        & ! number of soil layers  
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
                     nLayers         ! total number of layers
 implicit none
 private
 public::read_icond
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: read model initial conditions
+ ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
  subroutine read_icond(err,message)
- ! used to read model initial conditions
  USE multiconst, only:&
                        LH_fus,    &  ! latent heat of fusion                (J kg-1)
                        iden_ice,  &  ! intrinsic density of ice             (kg m-3)
@@ -66,7 +66,7 @@ contains
  USE data_struc,only:mpar_data                     ! data for model parameetrs
  USE data_struc,only:mvar_data,mvar_meta           ! data/metadata for model variables
  USE data_struc,only:indx_data,indx_meta           ! data/metadata for model indices
- USE data_struc,only:ix_soil,ix_snow               ! named variables to describe the type of layer 
+ USE data_struc,only:ix_soil,ix_snow               ! named variables to describe the type of layer
  USE var_lookup,only:iLookMVAR,iLookPARAM,iLookINDEX ! named variables to describe structure elements
  USE get_ixname_module,only:get_ixmvar,get_ixindex ! access function to find index of elements in structure
  implicit none
@@ -81,9 +81,9 @@ contains
  integer(i4b),parameter         :: nBand=2         ! number of spectral bands
  integer(i4b),parameter         :: ix_miss=-999    ! index for missing data
  integer(i4b),parameter         :: unt=99          ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                   :: iline           ! loop through lines in the file 
+ integer(i4b)                   :: iline           ! loop through lines in the file
  integer(i4b)                   :: iword           ! loop through words in a line
- integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
+ integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
  character(LEN=256)             :: namesScalarDesired(10) ! names of desired scalar variables
@@ -118,7 +118,7 @@ contains
  real(dp),pointer               :: FCapil              ! fraction of snow pore space in tension storage (-)
  real(dp)                       :: Tcrit               ! temperature above which all water is unfrozen (K)
  real(dp)                       :: vGn_m               ! van Genutchen "m" parameter (-)
- real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1) 
+ real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1)
  real(dp)                       :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
  real(dp)                       :: residlVolFracLiq    ! volumetric fraction of liquid water in tension storage (snow)
  real(dp)                       :: h1,h2               ! used to check depth and height are consistent
@@ -126,7 +126,7 @@ contains
  real(dp),pointer               :: scalarCanopyIce     ! mass of ice on the vegetation canopy (kg m-2)
  real(dp),pointer               :: scalarCanopyLiq     ! mass of liquid water on the vegetation canopy (kg m-2)
  real(dp)                       :: fLiq                ! fraction of liquid water on the vegetation canopy (-)
- real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2) 
+ real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2)
  logical(lgt),parameter         :: doPrintStates=.false.  ! flag to print states
  ! Start procedure here
  err=0; message="read_icond/"
@@ -225,7 +225,7 @@ contains
   if(err/=0)then;err=30;message=trim(message)//"problemAllocate[var='"//trim(indx_meta(ivar)%varname)//"']"; return; endif
   ! fill data with missing values
   indx_data%var(ivar)%dat(:) = missingInteger
- end do  ! (loop through model indices) 
+ end do  ! (loop through model indices)
  ! save the number of layers
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
  indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
@@ -427,7 +427,7 @@ contains
  ! loop through all layers
  do iLayer=1,nLayers
   ! define short-cuts
-  scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)          ! temperature (K) 
+  scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)          ! temperature (K)
   scalarVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer)    ! volumetric fraction of liquid water in each snow layer (-)
   scalarVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer)    ! volumetric fraction of ice in each snow layer (-)
   scalarLayerType  => indx_data%var(iLookINDEX%layerType)%dat(iLayer)          ! type of layer (ix_soil or ix_snow)
@@ -513,7 +513,7 @@ contains
    ! ** soil
    case(ix_soil)
     ! assign pointers to model state variables
-    scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)             ! temperature (K) 
+    scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)             ! temperature (K)
     scalarMatricHead => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer-nSnow) ! matric head (m)
     scalarVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer)       ! volumetric fraction of liquid water in each soil layer (-)
     scalarVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer)       ! volumetric fraction of ice in each soil layer (-)
@@ -565,7 +565,7 @@ contains
   print*, 'mLayerVolFracIce ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(:)
   print*, 'mLayerVolFracLiq ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(:)
   print*, 'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
-  print*, 'scalarCanopyIce  ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(:) 
+  print*, 'scalarCanopyIce  ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(:)
   print*, 'scalarCanopyLiq  ', mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(:)
   print*, 'scalarCanairTemp ', mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(:)
   print*, 'scalarCanopyTemp ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(:)

@@ -30,7 +30,7 @@ public::snwDensify
 contains
 
  ! ************************************************************************************************
- ! new subroutine: compute change in snow density over the time step
+ ! public subroutine snwDensify: compute change in snow density over the time step
  ! ************************************************************************************************
  subroutine snwDensify(&
 
@@ -48,7 +48,7 @@ contains
                        tempScalOvrbdn,                 & ! intent(in): temperature scaling factor for overburden pressure (K-1)
                        base_visc,                      & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
 
-                       ! intent(inout): state variables      
+                       ! intent(inout): state variables
                        mLayerDepth,                    & ! intent(inout): depth of each layer (m)
                        mLayerVolFracLiqNew,            & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
                        mLayerVolFracIceNew,            & ! intent(inout):  volumetric fraction of ice after itertations (-)
@@ -191,5 +191,6 @@ contains
  endif
 
  end subroutine snwDensify
+
 
 end module snwDensify_module

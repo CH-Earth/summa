@@ -23,8 +23,8 @@ module layerMerge_module
 USE nrtype
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,   & ! number of snow layers  
-                    nSoil,   & ! number of soil layers  
+                    nSnow,   & ! number of snow layers
+                    nSoil,   & ! number of soil layers
                     nLayers    ! total number of layers
 ! access named variables for snow and soil
 USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
@@ -47,9 +47,10 @@ end interface removeOneLayer
 
 contains
 
- ! ************************************************************************************************
- ! new subroutine: merge layers if the thickness is less than zmin
- ! ************************************************************************************************
+
+ ! *****************************************************************************************************************
+ ! public subroutine layerMerge: merge layers if the thickness is less than zmin
+ ! *****************************************************************************************************************
  subroutine layerMerge(&
                        ! input/output: model data structures
                        model_decisions,             & ! intent(in):    model decisions
@@ -85,11 +86,11 @@ contains
  integer(i4b)                    :: ix_snowLayers       ! decision for snow combination
  ! model parameters (control on the depth of snow layers)
  real(dp)                        :: zmin                ! minimum layer depth (m)
- real(dp)                        :: zminLayer1          ! minimum layer depth for the 1st (top) layer(m) 
- real(dp)                        :: zminLayer2          ! minimum layer depth for the 2nd layer(m) 
- real(dp)                        :: zminLayer3          ! minimum layer depth for the 3rd layer(m) 
- real(dp)                        :: zminLayer4          ! minimum layer depth for the 4th layer(m) 
- real(dp)                        :: zminLayer5          ! minimum layer depth for the 5th (bottom) layer(m) 
+ real(dp)                        :: zminLayer1          ! minimum layer depth for the 1st (top) layer(m)
+ real(dp)                        :: zminLayer2          ! minimum layer depth for the 2nd layer(m)
+ real(dp)                        :: zminLayer3          ! minimum layer depth for the 3rd layer(m)
+ real(dp)                        :: zminLayer4          ! minimum layer depth for the 4th layer(m)
+ real(dp)                        :: zminLayer5          ! minimum layer depth for the 5th (bottom) layer(m)
  ! model index variables
  ! NOTE: use pointers because the dimension length changes
  integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
@@ -265,9 +266,10 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new subroutine: combine snow layers and re-compute model state variables
+ ! private subroutine layer_combine: combine snow layers and re-compute model state variables
  ! ***********************************************************************************************************
  ! combines layer iSnow with iSnow+1
+ ! ***********************************************************************************************************
  subroutine layer_combine(mpar_data,mvar_data,indx_data,iSnow,err,message)
  ! provide access to variables in the data structures
  USE data_struc,only:var_d                    ! data structures with fixed dimension
@@ -422,12 +424,14 @@ contains
 
  end subroutine layer_combine
 
+
  ! ***********************************************************************************************************
- ! new subroutine: reduce the length of the vectors in data structures
+ ! private subroutine rmLyAllVars: reduce the length of the vectors in data structures
  ! ***********************************************************************************************************
- subroutine rmLyAllVars(mvar_data,indx_data,iSnow,err,message)
  ! removes layer "iSnow+1" and sets layer "iSnow" to a missing value
  ! (layer "iSnow" will be filled with a combined layer later)
+ ! ***********************************************************************************************************
+ subroutine rmLyAllVars(mvar_data,indx_data,iSnow,err,message)
  USE data_struc,only:mvar_meta,indx_meta      ! metadata
  USE data_struc,only:var_ilength,var_dlength  ! data vectors with variable length dimension
  USE var_lookup,only:iLookMVAR,iLookINDEX     ! named variables for structure elements
@@ -467,13 +471,14 @@ contains
  end subroutine rmLyAllVars
 
 
- ! ***********************************************************************************************************
- ! new subroutine: combine snow layers and reduce the length of the vectors in data structures
- ! ***********************************************************************************************************
+ ! *****************************************************************************************************************
+ ! private subroutine removeOneLayer: combine snow layers and reduce the length of the vectors in data structures
+ ! *****************************************************************************************************************
  ! double precision
- subroutine removeOneLayer_rv(datavec,ix_lower,ix_upper,iSnow,err,message)
  ! Removes layer iSnow+1 from the input vector, set layer iSnow to a missing value,
  ! and reduce size of the vector by 1 element
+ ! *****************************************************************************************************************
+ subroutine removeOneLayer_rv(datavec,ix_lower,ix_upper,iSnow,err,message)
  implicit none
  ! dummies
  real(dp),pointer,intent(inout)     :: datavec(:)  ! the original and the new vector
@@ -503,10 +508,15 @@ contains
  datavec=tempvec
  end subroutine RemoveOneLayer_rv
 
+
+ ! *****************************************************************************************************************
+ ! private subroutine RemoveOneLayer_iv: combine snow layers and reduce the length of the vectors in data structures
+ ! *****************************************************************************************************************
  ! integer
- subroutine RemoveOneLayer_iv(datavec,ix_lower,ix_upper,iSnow,err,message)
  ! Removes layer iSnow+1 from the input vector, set layer iSnow to a missing value,
  ! and reduce size of the vector by 1 element
+ ! *****************************************************************************************************************
+ subroutine RemoveOneLayer_iv(datavec,ix_lower,ix_upper,iSnow,err,message)
  implicit none
  ! dummies
  integer(i4b),pointer,intent(inout) :: datavec(:)  ! the original and the new vector

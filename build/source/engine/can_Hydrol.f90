@@ -25,8 +25,9 @@ private
 public::can_Hydrol
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute water balance for the vegetation canopy
+ ! public subroutine can_Hydrol: compute water balance for the vegetation canopy
  ! ************************************************************************************************
  subroutine can_Hydrol(&
                        ! input: control
@@ -89,7 +90,7 @@ contains
                         ! input: forcing and diagnostic variables
                         mvar_data%var(iLookMVAR%scalarRainfall)%dat(1),            & ! intent(in): computed rainfall rate (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),          & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                        mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),          & ! intent(in): exposed stem area index after burial by snow (m2 m-2)                       
+                        mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),          & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
                         ! input: parameters
                         mpar_data%var(iLookPARAM%refInterceptCapRain),             & ! intent(in): reference canopy interception capacity for rain per unit leaf area (kg m-2)
                         mpar_data%var(iLookPARAM%throughfallScaleRain),            & ! intent(in): scaling factor for throughfall (rain) (-)
@@ -109,11 +110,8 @@ contains
  end subroutine can_Hydrol
 
 
-
-
-
  ! ************************************************************************************************
- ! private subroutine: compute water balance for the vegetation canopy
+ ! private subroutine can_Hydrol_muster: compute water balance for the vegetation canopy
  ! ************************************************************************************************
  subroutine can_Hydrol_muster(&
                               ! input: control
@@ -232,18 +230,12 @@ contains
    canopyLiqDrainageDeriv  = 0._dp
   endif
 
-  
-
-
-
-  ! ** compute iteration increment  
+  ! ** compute iteration increment
   flux = scalarRainfall - scalarThroughfallRain + scalarCanopyEvaporation - scalarCanopyLiqDrainage  ! net flux (kg m-2 s-1)
   phse = scalarCanopyIceIter - scalarCanopyIce  ! change in mass of ice (kg m-2)
   xRes = flux*dt - (scalarCanopyLiqTrial - scalarCanopyLiq) - (scalarCanopyIceIter - scalarCanopyIce)
   delS = xRes / (1._dp + canopyLiqDrainageDeriv*dt)
 
-
-  
   !print*, 'scalarCanopyLiqTrial - scalarCanopyLiq = ', scalarCanopyLiqTrial - scalarCanopyLiq
   !print*, 'canopyLiqDrainageDeriv = ', canopyLiqDrainageDeriv
 
@@ -270,10 +262,10 @@ contains
   !if(jiter==maxiter)then; err=20; message=trim(message)//'failed to converge'; return; endif
 
   ! ** impose solution constraints
-  if(scalarCanopyLiqTrial+delS < 0._dp) delS = -0.9_dp*scalarCanopyLiqTrial 
+  if(scalarCanopyLiqTrial+delS < 0._dp) delS = -0.9_dp*scalarCanopyLiqTrial
   !print*, 'delS (after constraints)= ', delS
 
-  ! ** update value  
+  ! ** update value
   scalarCanopyLiqTrial = scalarCanopyLiqTrial + delS
   !print*, 'scalarCanopyLiqTrial = ', scalarCanopyLiqTrial
 
@@ -290,5 +282,6 @@ contains
  scalarCanopyLiqNew = scalarCanopyLiqTrial
 
  end subroutine can_Hydrol_muster
+
 
 end module can_Hydrol_module

@@ -26,7 +26,7 @@ public::radTransfr
 contains
 
  ! ************************************************************************************************
- ! main subroutine: compute radiation absorbed by vegetation and ground
+ ! public subroutine: compute radiation absorbed by vegetation and ground
  ! ************************************************************************************************
  subroutine radTransfr(dt,&          ! input: time step (seconds)
                        err,message)  ! output: error control
@@ -39,11 +39,11 @@ contains
  integer(i4b),intent(out)      :: err                        ! error code
  character(*),intent(out)      :: message                    ! error message
  ! local pointers to model forcing data
- real(dp),pointer              :: sw_down                    ! downwelling shortwave radiation (W m-2) 
+ real(dp),pointer              :: sw_down                    ! downwelling shortwave radiation (W m-2)
  ! local pointers to model parameters
  real(dp),pointer              :: Frad_vis                   ! fraction of radiation in the visible part of the spectrum (-)
  ! local pointers to model variables
- 
+
 
  ! compute the surface albedo (constant over the iterations)
  if(nSnow > 0)then
@@ -85,13 +85,13 @@ contains
  real(dp),pointer              :: alb_fresh                  ! fresh snow albedo (-)
  real(dp),pointer              :: alb_dry                    ! minimum snow albedo during winter (-)
  real(dp),pointer              :: alb_wet                    ! minimum snow albedo during spring (-)
- real(dp),pointer              :: alb_decay                  ! temporal decay factor for snow albedo (s-1) 
+ real(dp),pointer              :: alb_decay                  ! temporal decay factor for snow albedo (s-1)
  real(dp),pointer              :: alb_scale                  ! temporal albedo scaling factor (s)
  real(dp),pointer              :: soot_load                  ! albedo decay associated with soot load (-)
  ! local pointers to model forcing data
- real(dp),pointer              :: snowfall                   ! snowfall (kg m-2 s-1) 
+ real(dp),pointer              :: snowfall                   ! snowfall (kg m-2 s-1)
  ! local pointers to model state variables
- real(dp),pointer              :: surfaceAlbedo              ! surface albedo (-) 
+ real(dp),pointer              :: surfaceAlbedo              ! surface albedo (-)
  real(dp),pointer              :: surfaceTemp                ! temperature of the top layer (K)
  real(dp),pointer              :: surfaceVolFracLiq          ! volumetric fraction of liquid water the top snow layer (-)
  ! local variables
@@ -110,14 +110,14 @@ contains
  ! ***** compute increase in snow albedo
  if(snowfall > 0._dp)then
   ! assign pointers to albedo refreshment parameters
-  snw_crit   => mpar_data%var(iLookPARAM%snw_crit)           ! critical mass necessary for albedo refreshment (kg m-2)  
+  snw_crit   => mpar_data%var(iLookPARAM%snw_crit)           ! critical mass necessary for albedo refreshment (kg m-2)
   alb_fresh  => mpar_data%var(iLookPARAM%alb_fresh)          ! fresh snow albedo (-)
   ! compute increase in snow albedo with time (s-1)
   dAlb_dt = min(snowfall/snw_crit, (alb_fresh - surfaceAlbedo)/dt)
 
  ! ***** compute decrease in snow albedo
  else
-  
+
   ! identify the albedo decay method
   select case(model_decisions(iLookDECISIONS%alb_method)%iDecision)
 
@@ -147,7 +147,7 @@ contains
    ! method 2: albedo decay based on a BATS-like approach, with destructive metamorphism + soot content
    ! --------------------------------------------------------------------------------------------------
    case(BATSlike)
-    
+
 
 
 
@@ -163,7 +163,8 @@ contains
 
  endif ! (if snowing: switch between albedo increase or decay)
 
- 
+
  end subroutine snowAlbedo
+
 
 end module radTransfr_module

@@ -23,8 +23,8 @@ module coupled_em_module
 USE nrtype
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,        & ! number of snow layers  
-                    nSoil,        & ! number of soil layers  
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
                     nLayers         ! total number of layers
 ! physical constants
 USE multiconst,only:&
@@ -38,12 +38,13 @@ public::coupled_em
 ! algorithmic parameters
 real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
+real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
 real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: run the coupled energy-mass model for one timestep
+ ! public subroutine coupled_em: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
  subroutine coupled_em(printRestart,output_fileSuffix,dt_init,err,message)
  ! data structures and named variables
@@ -174,7 +175,7 @@ contains
  real(dp),pointer                     :: scalarSnowSublimation       ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: scalarGroundEvaporation     ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: scalarRainPlusMelt          ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
- real(dp),pointer                     :: scalarSurfaceRunoff         ! surface runoff (m s-1) 
+ real(dp),pointer                     :: scalarSurfaceRunoff         ! surface runoff (m s-1)
  real(dp),pointer                     :: scalarSoilInflux            ! influx of water at the top of the soil profile (m s-1)
  real(dp),pointer                     :: scalarSoilCompress          ! change in storage associated with compression of the soil matrix (kg m-2)
  real(dp),pointer                     :: scalarSoilBaseflow          ! total baseflow from throughout the soil profile (m s-1)
@@ -196,7 +197,7 @@ contains
  real(dp),pointer                     :: averageSnowSublimation      ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: averageGroundEvaporation    ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
  real(dp),pointer                     :: averageRainPlusMelt         ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
- real(dp),pointer                     :: averageSurfaceRunoff        ! surface runoff (m s-1) 
+ real(dp),pointer                     :: averageSurfaceRunoff        ! surface runoff (m s-1)
  real(dp),pointer                     :: averageSoilInflux           ! influx of water at the top of the soil profile (m s-1)
  real(dp),pointer                     :: averageSoilBaseflow         ! total baseflow from throughout the soil profile (m s-1)
  real(dp),pointer                     :: averageSoilDrainage         ! drainage from the bottom of the soil profile (m s-1)
@@ -429,14 +430,14 @@ contains
   call newsnwfall(&
                  ! input: model control
                  dt_sub,                                                    & ! time step (seconds)
-                 mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1) 
+                 mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
                  ! input: diagnostic scalar variables
                  mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
                  mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
                  mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
                  mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
                  ! input/output: state variables
-                 mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                 & ! SWE (kg m-2) 
+                 mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
                  mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
                  mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),                & ! temperature of the top layer (K)
                  mvar_data%var(iLookMVAR%mLayerDepth)%dat(1),               & ! depth of the top layer (m)
@@ -496,14 +497,14 @@ contains
     ! -----------------------------------
     call volicePack(&
                     ! input/output: model data structures
-                    model_decisions,             & ! intent(in):    model decisions 
+                    model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer
                     mvar_data,                   & ! intent(inout): model variables for a local HRU
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
- 
+
     ! (7) compute diagnostic variables for each layer...
     ! --------------------------------------------------
     ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
@@ -581,7 +582,7 @@ contains
                    err,cmessage)                             ! intent(out): error code and error message
 
    ! check for fatal errors
-   if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif 
+   if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    !print*, 'after solv: mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt = ', mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt
 
    ! test: recompute snow depth and SWE
@@ -599,7 +600,7 @@ contains
     ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
     !print*, trim(cmessage), dt_temp
-    rejectedStep=.true. 
+    rejectedStep=.true.
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then
      message=trim(message)//'dt_temp is below the minimum time step'
@@ -612,7 +613,7 @@ contains
     rejectedStep=.false.
     !pause 'accepted step'
    endif
-   
+
 
    ! check that err=0 at this point (it should be)
    if(err/=0)then; message=trim(message)//'expect err=0'; return; endif
@@ -691,7 +692,7 @@ contains
                     mpar_data%var(iLookPARAM%densScalOvrbdn),               & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
                     mpar_data%var(iLookPARAM%tempScalOvrbdn),               & ! intent(in): temperature scaling factor for overburden pressure (K-1)
                     mpar_data%var(iLookPARAM%base_visc),                    & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
-                    ! intent(inout): state variables      
+                    ! intent(inout): state variables
                     mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow),      & ! intent(inout): depth of each layer (m)
                     mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
                     mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
@@ -813,7 +814,7 @@ contains
 
   ! make sure that we don't exceed the step
   dt_sub = min(dt-dt_done, dt_sub)
-  
+
  end do  ! (sub-step loop)
  !stop 'completed time step'
 
@@ -939,13 +940,16 @@ contains
 
  contains
 
-  ! calculate timestep-average fluxes
+
+  ! *********************************************************************************************************
+  ! internal subroutine increment_fluxes: calculate timestep-average fluxes
+  ! *********************************************************************************************************
   subroutine increment_fluxes(dt_wght,initialize)
   real(dp),intent(in)     :: dt_wght    ! weight assigned to sub-step
   logical(lgt),intent(in) :: initialize ! flag to initialize fluxes
 
   ! set up pointers
-  
+
   ! assign pointers to timestep-average model fluxes
   if(initialize)then
    totalSoilCompress          => mvar_data%var(iLookMVAR%totalSoilCompress)%dat(1)             ! change in storage associated with compression of the soil matrix (kg m-2)
@@ -1015,7 +1019,7 @@ contains
   scalarAquiferRecharge     => mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1)           ! recharge to the aquifer (m s-1)
   scalarAquiferBaseflow     => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)           ! baseflow from the aquifer (m s-1)
   scalarAquiferTranspire    => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)          ! transpiration from the aquifer (m s-1)
-  mLayerColumnOutflow       => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat                ! total outflow from each layer in a given soil column (m3 s-1) 
+  mLayerColumnOutflow       => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat                ! total outflow from each layer in a given soil column (m3 s-1)
 
   ! increment storage over the time step
   totalSoilCompress          = totalSoilCompress          + scalarSoilCompress ! NOTE mass not rate  ! change in storage associated with compression of the soil matrix (kg m-2)
@@ -1043,14 +1047,12 @@ contains
 
   end subroutine increment_fluxes
 
-  ! ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
- 
  end subroutine coupled_em
 
 
  ! *********************************************************************************************************
- ! private subroutine: compute melt of the "snow without a layer"
+ ! private subroutine implctMelt: compute melt of the "snow without a layer"
  ! *********************************************************************************************************
  subroutine implctMelt(&
                        ! input/output: integrated snowpack properties
@@ -1114,7 +1116,7 @@ contains
  end subroutine implctMelt
 
  ! *********************************************************************************************************
- ! private subroutine: print a re-start file
+ ! private subroutine printRestartFile: print a re-start file
  ! *********************************************************************************************************
  subroutine printRestartFile(&
                              output_fileSuffix,& ! intent(in): suffix defining the model experiment
@@ -1146,7 +1148,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b),parameter          :: ixUnit=64           ! file unit
- logical(lgt)                    :: fileOpen            ! flag to denote if the file unit is already used 
+ logical(lgt)                    :: fileOpen            ! flag to denote if the file unit is already used
  character(len=256),parameter    :: filepref='summaRestart'  ! prefix for the restart filename
  character(len=256)              :: timeString          ! string to define the time
  character(len=256)              :: filename            ! name of the restart file
@@ -1233,7 +1235,6 @@ contains
  close(ixUnit)
 
  end subroutine printRestartFile
-
 
 
 end module coupled_em_module

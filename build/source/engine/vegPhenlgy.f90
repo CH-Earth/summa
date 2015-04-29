@@ -43,8 +43,9 @@ real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when dia
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute vegetation phenology
+ ! public subroutine vegPhenlgy: compute vegetation phenology
  ! ************************************************************************************************
  subroutine vegPhenlgy(&
                        ! input/output: data structures
@@ -122,7 +123,7 @@ contains
 
  ! input: model decisions
  ix_bcUpprTdyn                   => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,      & ! intent(in): [i4b] choice of upper boundary condition for thermodynamics
- ix_bcUpprSoiH                   => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,      & ! intent(in): [i4b] index of method used for the upper boundary condition for soil hydrology 
+ ix_bcUpprSoiH                   => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,      & ! intent(in): [i4b] index of method used for the upper boundary condition for soil hydrology
 
  ! local attributes
  vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                     & ! intent(in): [i4b] vegetation type index
@@ -171,7 +172,7 @@ contains
   call phenology(&
                  ! input
                  vegTypeIndex,                & ! intent(in): vegetation type index
-                 urbanVegCategory,            & ! intent(in): vegetation category for urban areas               
+                 urbanVegCategory,            & ! intent(in): vegetation category for urban areas
                  scalarSnowDepth,             & ! intent(in): snow depth on the ground surface (m)
                  scalarCanopyTemp,            & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
                  latitude,                    & ! intent(in): latitude
@@ -200,5 +201,6 @@ contains
  end associate
 
  end subroutine vegPhenlgy
+
 
 end module vegPhenlgy_module

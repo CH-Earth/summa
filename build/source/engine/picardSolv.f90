@@ -59,8 +59,9 @@ real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
 real(dp),parameter  :: verySmall=1.e-6_dp         ! a very small number
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: run the coupled energy-mass model for one timestep
+ ! public subroutine picardSolv: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
  subroutine picardSolv(&
                        ! input
@@ -102,13 +103,13 @@ contains
  real(dp)                             :: scalarAquiferStorageNew  ! aquifer storage at the end of the sub-step (m)
  real(dp)                             :: scalarCanopyWater        ! total storage of wate rin the canopy; liquidwater plus ice (kg m-2)
  real(dp)                             :: volSub                   ! volumetric sublimation (kg m-3)
- real(dp)                             :: testSWE                  ! test SWE (kg m-2) 
+ real(dp)                             :: testSWE                  ! test SWE (kg m-2)
 
  ! initialize error control
  err=0; message="picardSolv/"
 
  ! define the total number of snow+soil layers
- nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1) 
+ nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! identify the number of snow and soil layers
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat == ix_snow)
@@ -134,7 +135,7 @@ contains
    endif
    ! set canopy temperature to the temperature of the top snow layer + small offset to check derivative calculations
    mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1) + 0.1_dp
-   mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1) + 0.1_dp 
+   mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1) + 0.1_dp
   endif  ! (if canopy temperature undefined -- means canopy previously buried with snow)
  endif  ! (if computing vegetation fluxes -- canopy exposed)
 
@@ -188,7 +189,7 @@ contains
                         ! input: forcing and diagnostic variables
                         forc_data%var(iLookFORCE%airtemp),                               & ! intent(in): air temperature (K)
                         mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),         & ! intent(in): bulk volumetric heat capacity of vegetation (J m-3 K-1)
-                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,                 & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1) 
+                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,                 & ! intent(in): volumetric heat capacity in each layer (J m-3 K-1)
 
                         ! input: snow parameters
                         mpar_data%var(iLookPARAM%snowfrz_scale),                         & ! intent(in): scaling parameter for the snow freezing curve (K-1)
@@ -231,7 +232,7 @@ contains
                         mLayerVolFracLiqNew,                                             & ! intent(out): volumetric fraction of liquid water at the end of the sub-step (-)
                         mLayerMatricHeadNew,                                             & ! intent(out): matric head at the end of the sub-step (m)
                         scalarAquiferStorageNew,                                         & ! intent(out): aquifer storage at the end of the sub-step (m)
-  
+
                         ! output: number of iterations
                         niter,                                                           & ! intent(out): number of iterations
 
@@ -346,7 +347,7 @@ contains
  ! water balance check...
  ! **********************
  call wBal_check(&
-                        
+
                  ! input: model control
                  dt,                                                                 & ! intent(in): time step (s)
                  mpar_data%var(iLookPARAM%wimplicit),                                & ! intent(in): weight assigned to start-of-step fluxes (-)
@@ -364,7 +365,7 @@ contains
                  mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                      & ! intent(in): matric head at the start of the sub-step (m)
                  mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),               & ! intent(in): aquifer storage at the start of the sub-step (m)
 
-                 ! input: state variables after iteration                
+                 ! input: state variables after iteration
                  mLayerVolFracIceNew,                                                & ! intent(in): volumetric fraction of ice at the end of the sub-step (-)
                  mLayerVolFracLiqNew,                                                & ! intent(in): volumetric fraction of liquid water at the end of the sub-step (-)
                  mLayerMatricHeadNew,                                                & ! intent(in): matric head at the end of the sub-step (-)
@@ -441,18 +442,8 @@ contains
  end subroutine picardSolv
 
 
-
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! ***** PRIVATE SUBROUTINES ***************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
-
-
  ! *********************************************************************************************************
- ! private subroutine: wrapper subroutine for the picard solver itself
+ ! private subroutine picardSolv_muster: wrapper subroutine for the picard solver itself
  ! *********************************************************************************************************
  subroutine picardSolv_muster(&
 
@@ -508,7 +499,7 @@ contains
                               absConvTol_energy,                 & ! intent(in): absolute convergence tolerance for energy (J m-3)
                               relConvTol_aquifr,                 & ! intent(in): relative convergence tolerance for aquifer storage (-)
                               absConvTol_aquifr,                 & ! intent(in): absolute convergence tolerance for aquifer storage (m)
-                               
+
                               ! output: diagnostic variables
                               scalarVP_CanopyAir,                & ! intent(out): trial vapor pressure of the canopy air space (Pa)
                               scalarCanopyStabilityCorrection,   & ! intent(out): stability correction for the canopy (-)
@@ -560,7 +551,7 @@ contains
  integer(i4b),intent(in)        :: ixBcUpperSoilHydrology      ! choice of upper boundary condition for soil hydrology
  real(dp),intent(in)            :: upperBoundHead              ! upper boundary condition for matric head (m)
  real(dp),intent(in)            :: upperBoundTheta             ! upper boundary condition for volumetric liquid water content (-)
- ! input: coordinate variables 
+ ! input: coordinate variables
  integer(i4b),intent(in)        :: layerType(:)                ! type of the layer (ix_soil or ix_snow)
  real(dp),intent(in)            :: mLayerDepth(:)              ! depth of each layer (m)
  real(dp),intent(in)            :: mLayerHeight(:)             ! height at the mid-point of each layer (m)
@@ -578,7 +569,7 @@ contains
  ! input: forcing and diagnostic variables
  real(dp),intent(in)            :: airtemp                     ! air temperature (K)
  real(dp),intent(in)            :: scalarBulkVolHeatCapVeg     ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
- real(dp),intent(in)            :: mLayerVolHtCapBulk(:)       ! volumetric heat capacity in each layer (J m-3 K-1) 
+ real(dp),intent(in)            :: mLayerVolHtCapBulk(:)       ! volumetric heat capacity in each layer (J m-3 K-1)
  ! input: snow parameters
  real(dp),intent(in)            :: snowfrz_scale               ! scaling parameter for the snow freezing curve (K-1)
  ! input: van Genutchen soil parameters
@@ -632,13 +623,13 @@ contains
  integer(i4b)                   :: iLayer                      ! loop through model layers
  integer(i4b)                   :: iter                        ! iteration index
  real(dp)                       :: theta                       ! liquid water equivalent of the volumetric fraction of total water, liquid plus ice (-)
- real(dp)                       :: volFrac_water               ! total volumetric fraction of water, liquid water plus ice (-) 
+ real(dp)                       :: volFrac_water               ! total volumetric fraction of water, liquid water plus ice (-)
  real(dp),parameter             :: eps=1.e-10_dp               ! small increment used to define ice content at the freezing point
  real(dp)                       :: scalarSurfaceInfiltration   ! infiltration rate (m s-1)
  ! define derivatives in canopy air space variables
  real(dp)                       :: dTempCanopyAir_dTCanopy     ! derivative in the temperature of the canopy air space w.r.t. temperature of the canopy
  real(dp)                       :: dTempCanopyAir_dTGround     ! derivative in the temperature of the canopy air space w.r.t. temperature of the ground
- real(dp)                       :: dVPCanopyAir_dTCanopy       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy 
+ real(dp)                       :: dVPCanopyAir_dTCanopy       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the canopy
  real(dp)                       :: dVPCanopyAir_dTGround       ! derivative in the vapor pressure of the canopy air space w.r.t. temperature of the ground
  ! define state variables for the vegetation canopy
  real(dp)                       :: scalarCanairTempIter        ! trial value of temperature of the canopy air space (K)
@@ -673,8 +664,8 @@ contains
  real(dp)                       :: scaleIncrement              ! scaling factor for the iteration increment
  real(dp)                       :: maxMatric                   ! maximum possible value of matric head (m)
  real(dp)                       :: allowablePressureViolation=0.0_dp ! allowable pressure violation before time step reduction (m)
- real(dp),dimension(nLevels)    :: soilVolFracLiqNew           ! volumetric fraction of liquid water in the soil 
- real(dp),dimension(nLevels)    :: soilVolFracIceNew           ! volumetric fraction of ice in the soil 
+ real(dp),dimension(nLevels)    :: soilVolFracLiqNew           ! volumetric fraction of liquid water in the soil
+ real(dp),dimension(nLevels)    :: soilVolFracIceNew           ! volumetric fraction of ice in the soil
  ! define error monitoring variables
  real(dp)                       :: canopyTempComponent         ! veg canopy: temperature component of the energy increment (J m-3)
  real(dp),dimension(nLayers)    :: mLayerTempComponent         ! snow-soil vector: temperature component of the energy increment (J m-3)
@@ -694,7 +685,7 @@ contains
  real(dp)                       :: aquifr_max                  ! absolute change in aquifer storage for a given iteration (m)
  ! define local variables for phase change
  real(dp)                       :: fLiq                        ! fraction of liquid water on the vegetation canopy (-)
- real(dp)                       :: tWat                        ! total water on the vegetation canopy (kg m-2) 
+ real(dp)                       :: tWat                        ! total water on the vegetation canopy (kg m-2)
  real(dp)                       :: testSWE                     ! SWE (kg m-2)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -781,7 +772,7 @@ contains
   print*, '***************************************************************'
   print*, '***** iter = ', iter, '*****'
   print*, '***************************************************************'
-  
+
 
   ! *****
   ! * thermodynamics...
@@ -828,13 +819,13 @@ contains
                   mLayerTempIncr,                 & ! intent(out): iteration increment for temperature of the snow-soil system (K)
                   scalarCanairTempNew,            & ! intent(out): new temperature of the canopy air space (K)
                   scalarCanopyTempNew,            & ! intent(out): new temperature of the vegetation canopy (K)
-                  scalarCanopyIceNew,             & ! intent(out): mass of ice on the canopy (kg m-2) 
+                  scalarCanopyIceNew,             & ! intent(out): mass of ice on the canopy (kg m-2)
                   scalarCanopyLiqNew,             & ! intent(out): mass of liquid water on the canopy (kg m-2)
                   mLayerTempNew,                  & ! intent(out): new temperature each snow/soil layer (K)
                   mLayerMatricHeadNew,            & ! intent(out): after phase change: new matric head (m)
                   mLayerVolFracLiqNew,            & ! intent(out): after phase change: new volumetric fraction of liquid water (-)
                   mLayerVolFracIceNew,            & ! intent(out): after phase change: new volumetric fraction of ice (-)
-                   
+
                   err,cmessage)                     ! intent(out): error control
   ! check errors
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -948,7 +939,7 @@ contains
                   mLayerVolFracIceNew(nSnow+1:nSnow+nLevels), & ! *** from heatTrans (not changed here) *** volumetric fraction of ice at the current iteration (-)
                   scalarAquiferStorageIter,                   & ! aquifer storage (m)
                   mLayerMatricIncrOld(1:nLevels),             & ! iteration increment for matric head of soil layers in the previous iteration (m)
-                  mLayerLiquidIncrOld(1:nLevels),             & ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-) 
+                  mLayerLiquidIncrOld(1:nLevels),             & ! iteration increment for volumetric liquid water content of soil layers in the previous iteration (-)
                   ! output
                   mLayerResidual(1:nLevels),                  & ! residual vector (-)
                   mLayerMatricHeadNew(1:nLevels),             & ! matric head in each layer at the next iteration (m)
@@ -977,8 +968,8 @@ contains
   mLayerLiquidIncrOld(1:nSoil) = mLayerVolFracLiqNew(nSnow+1:nSnow+nSoil) - mLayerVolFracLiqIter(nSnow+1:nSnow+nSoil)
 
   ! compute the iteration increment for the matric head and volumetric fraction of liquid water
-  mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter 
-  mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter 
+  mLayerMatIncr = mLayerMatricHeadNew - mLayerMatricHeadIter
+  mLayerLiqIncr = mLayerVolFracLiqNew - mLayerVolFracLiqIter
   write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadIter = ', mLayerMatricHeadIter(1:5)
   write(*,'(a,10(f20.10,1x))') 'in picardSolv: mLayerMatricHeadNew  = ', mLayerMatricHeadNew(1:5)
   !pause
@@ -1153,7 +1144,7 @@ contains
 
   ! compute melt/freeze of infiltrating liquid water in each layer (kg m-3 s-1) -- melt is negative
   mLayerInfilFreeze = mLayerInfilFreeze + iden_ice*(mLayerVolFracIceIter - mLayerVolFracIceNew)/dt
- 
+
   ! compute increment in energy for the vegetation canopy
   canopyNrgIncr       = canopyTempComponent
 
@@ -1235,7 +1226,7 @@ contains
 
   !print*, 'iterating..., scalarCanopyLiqNew = ', scalarCanopyLiqNew
 
-  ! convergence check: 
+  ! convergence check:
   if( liquid_max(1) < absConvTol_liquid .or.                       & ! volumetric fraction of liquid water (-)
      (matric_max(1) < 0._dp .or. hydrol_max(1) < 1.e-6_dp)   .and. & ! matric head (m)
       energy_max(1) < absConvTol_energy .and.                      & ! energy (J m-3)
@@ -1274,7 +1265,7 @@ contains
  ! =================================================================================================================================================
  ! =================================================================================================================================================
 
- ! 
+ !
  !write(*,'(a,1x,f20.10,1x,i5))') 'dt, niter = ', dt, niter
  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanairTempNew      = ', scalarCanairTempNew
  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyTempNew      = ', scalarCanopyTempNew
@@ -1338,20 +1329,11 @@ contains
  ! =================================================================================================================================================
  ! =================================================================================================================================================
 
-
  end subroutine picardSolv_muster
 
 
- ! *****************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************
-
-
-
-
-
  ! *********************************************************************************************************
- ! private subroutine: check the water balance
+ ! private subroutine wBal_check: check the water balance
  ! *********************************************************************************************************
  subroutine wBal_check(&
 
@@ -1365,14 +1347,14 @@ contains
                        ! input: soil parameters
                        theta_sat,                             & ! intent(in): soil porosity (-)
                        specificStorage,                       & ! intent(in): specific storage (m-1)
- 
+
                        ! input: state variables at the start of the sub-step
                        mLayerVolFracIce,                      & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                        mLayerVolFracLiq,                      & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                        mLayerMatricHead,                      & ! intent(in): matric head at the start of the sub-step (-)
                        scalarAquiferStorage,                  & ! intent(in): aquifer storage at the start of the sub-step (m)
 
-                       ! input: state variables after iteration                
+                       ! input: state variables after iteration
                        mLayerVolFracIceNew,                   & ! intent(in): volumetric fraction of ice at the end of the sub-step (-)
                        mLayerVolFracLiqNew,                   & ! intent(in): volumetric fraction of liquid water at the end of the sub-step (-)
                        mLayerMatricHeadNew,                   & ! intent(in): matric head at the end of the sub-step (-)
@@ -1429,14 +1411,14 @@ contains
  integer(i4b),intent(in)        :: ix_groundwatr                ! choice of groundwater parameterization
  integer(i4b),intent(in)        :: ix_spatialGW                 ! choice of method for the spatial representation of groundwater
  ! input: soil parameters
- real(dp),intent(in)            :: theta_sat                    ! soil porosity (-) 
+ real(dp),intent(in)            :: theta_sat                    ! soil porosity (-)
  real(dp),intent(in)            :: specificStorage              ! specific storage (m-1)
  ! input: state variables at the start of the sub-step
  real(dp),intent(in)            :: mLayerVolFracIce(:)          ! volumetric fraction of ice in each layer (-)
  real(dp),intent(in)            :: mLayerVolFracLiq(:)          ! volumetric fraction of liquid water in each layer (-)
  real(dp),intent(in)            :: mLayerMatricHead(:)          ! matric head in each layer (-)
  real(dp),intent(in)            :: scalarAquiferStorage         ! aquifer storage at the start of the sub-step (m)
- ! input: state variables after iteration                
+ ! input: state variables after iteration
  real(dp),intent(in)            :: mLayerVolFracIceNew(:)       ! volumetric fraction of ice at the end of the sub-step (-)
  real(dp),intent(in)            :: mLayerVolFracLiqNew(:)       ! volumetric fraction of liquid water at the end of the sub-step (-)
  real(dp),intent(in)            :: mLayerMatricHeadNew(:)       ! matric head at the end of the sub-step (-)
@@ -1474,7 +1456,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------
  ! local: define balance check variables
  integer(i4b)                   :: iLayer                       ! index of model layers
- real(dp)                       :: totalChange                  ! total change in volumetric liquid water content over a layer 
+ real(dp)                       :: totalChange                  ! total change in volumetric liquid water content over a layer
  real(dp)                       :: phaseChange                  ! change in volumetric liquid water content associated with phase change
  real(dp)                       :: flux_Change                  ! change in volumetric liquid water content associated with fluxes
  real(dp)                       :: evap_Change                  ! change in volumetric liquid water content associated with transpiration
@@ -1520,7 +1502,7 @@ contains
                            (wimplicit*iLayerInitFluxReversal(0)      + (1._dp - wimplicit)*iLayerFluxReversal(0)     )
  scalarSoilBaseflow      = (wimplicit*sum(mLayerInitBaseflow)        + (1._dp - wimplicit)*sum(mLayerBaseflow)       )
  scalarSoilDrainage      = (wimplicit*iLayerInitLiqFluxSoil(nLevels) + (1._dp - wimplicit)*iLayerLiqFluxSoil(nLevels))
- scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)      ) 
+ scalarSoilTranspiration = (wimplicit*sum(mLayerInitTranspire)       + (1._dp - wimplicit)*sum(mLayerTranspire)      )
  !print*, 'iLayerLiqFluxSoil(0), scalarSoilInflux = ', iLayerLiqFluxSoil(0), scalarSoilInflux
 
  ! get the total water released due to change in pressure (kg m-2)
@@ -1601,16 +1583,8 @@ contains
  end subroutine wBal_check
 
 
- ! *****************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************
-
-
-
-
-
  ! *********************************************************************************************************
- ! private subroutine: compute melt of the "snow without a layer"
+ ! private subroutine implctMelt: compute melt of the "snow without a layer"
  ! *********************************************************************************************************
  subroutine implctMelt(&
                        ! input/output: integrated snowpack properties
@@ -1672,9 +1646,6 @@ contains
  endif ! (if the "snow without a layer" exists)
 
  end subroutine implctMelt
-
-
-
 
 
 end module picardSolv_module

@@ -35,11 +35,11 @@ integer(i4b),parameter :: ix_bpar =1008
 integer(i4b),parameter :: ix_bvar =1009
 contains
 
- ! ************************************************************************************************
- ! (1) new subroutine: populate metadata structures
- ! ************************************************************************************************
+
+ ! ********************************************************************************************************
+ ! public subroutine read_metad: populate metadata structures
+ ! ********************************************************************************************************
  subroutine read_metad(err,message)
- ! used to populate metadata structures with metadata
  USE snow_fileManager,only:SETNGS_PATH                ! path for metadata files
  USE snow_fileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE         ! name of metadata files (global)
  USE snow_fileManager,only:META_LOCALPARAM,META_LOCALMVAR,META_LOCALINDEX   ! name of metadata files (local column)
@@ -85,11 +85,10 @@ contains
  end subroutine read_metad
 
 
- ! ************************************************************************************************
- ! (1) new subroutine: read metadata from a file
- ! ************************************************************************************************
+ ! ********************************************************************************************************
+ ! private subroutine v_metadata: read metadata from a file and populate the appropriate metadata structure
+ ! ********************************************************************************************************
  subroutine v_metadata(infile,ivar_lookup,meta_vec,err,message)
- ! used to read metadata from an input file and populate the appropriate metadata structure
  USE data_struc,only:var_info                                   ! metadata structure
  USE ascii_util_module,only:file_open
  ! identify indices of named variables
@@ -114,8 +113,8 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                         :: iline          ! loop through lines in the file 
- integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file 
+ integer(i4b)                         :: iline          ! loop through lines in the file
+ integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file
  character(LEN=256)                   :: temp           ! single lime of information
  integer(i4b)                         :: iend           ! check for the end of the file
  character(LEN=256)                   :: ffmt           ! file format
@@ -127,7 +126,7 @@ contains
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- ! get to the start of the variable descriptions 
+ ! get to the start of the variable descriptions
  do iline=1,maxLines
   read(unt,'(a)',iostat=iend)temp; if (iend/=0)exit    ! read line of data
   if (temp(1:1)/='!') exit  ! assume first line not comment is format code
@@ -166,7 +165,7 @@ contains
   ! check if index is within range
   if(ivar>size(meta_vec))then; err=50; message=trim(message)//"variableExceedsVectorSize[var="//trim(metaTemp%varname)//"]"; return; endif
   ! put data into the metadata vector
-  meta_vec(ivar) = metaTemp 
+  meta_vec(ivar) = metaTemp
  enddo  ! looping through lines in the file
  ! check that all elements are populated
  if(any(meta_vec(:)%varname==''))then
@@ -178,5 +177,6 @@ contains
  ! close file unit
  close(unt)
  end subroutine v_metadata
+
 
 end module read_metad_module

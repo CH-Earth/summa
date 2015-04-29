@@ -36,9 +36,10 @@ public::updateSnow
 public::updateSoil
 contains
 
- ! ************************************************************************************************
- ! new subroutine: compute phase change impacts on matric head and volumetric liquid water and ice
- ! ************************************************************************************************
+
+ ! *************************************************************************************************************
+ ! public subroutine updateSnow: compute phase change impacts on matric head and volumetric liquid water and ice
+ ! *************************************************************************************************************
  subroutine updateSnow(&
                        ! input
                        mLayerTemp       ,& ! intent(in): temperature (K)
@@ -76,11 +77,11 @@ contains
  !                                               fLiq, mLayerTheta, mLayerVolFracIce
  !pause
 
- endsubroutine updateSnow
+ end subroutine updateSnow
 
- ! ************************************************************************************************
- ! new subroutine: compute phase change impacts on matric head and volumetric liquid water and ice
- ! ************************************************************************************************
+ ! *************************************************************************************************************
+ ! public subroutine updateSoil: compute phase change impacts on matric head and volumetric liquid water and ice
+ ! *************************************************************************************************************
  subroutine updateSoil(&
                        ! input
                        mLayerTemp       ,& ! intent(in): temperature vector (K)
@@ -138,7 +139,7 @@ contains
 
   ! - volumetric ice content (-)
   mLayerVolFracIce = vTheta - mLayerVolFracLiq
- 
+
  ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
  else
 
@@ -150,5 +151,6 @@ contains
  endif  ! (check if soil is partially frozen)
 
  end subroutine updateSoil
+
 
 end module updatState_module

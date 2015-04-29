@@ -26,10 +26,10 @@ public::snowHydrol
 contains
 
  ! ************************************************************************************************
- ! new subroutine: compute liquid water flux through the snowpack
+ ! public subroutine snowHydrol: compute liquid water flux through the snowpack
  ! ************************************************************************************************
  subroutine snowHydrol(dt,                      & ! time step (seconds)
-                       iter,                    & ! current iteration count 
+                       iter,                    & ! current iteration count
                        mLayerVolFracLiqIter,    & ! volumetric fraction of liquid water at the current iteration (-)
                        mLayerVolFracIceIter,    & ! volumetric fraction of ice at the current iteration (-)
                        mLayerVolFracLiqNew,     & ! volumetric fraction of liquid water at the next iteration (-)
@@ -56,7 +56,7 @@ contains
  ! local pointers to model forcing data
  real(dp),pointer              :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
  real(dp),pointer              :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
- ! local pointers to model state variables 
+ ! local pointers to model state variables
  real(dp),pointer              :: mLayerDepth(:)             ! depth of the layer (m)
  real(dp),pointer              :: mLayerVolFracLiq(:)        ! volumetric fraction of liquid water in each snow layer (-)
  real(dp),pointer              :: mLayerVolFracIce(:)        ! volumetric fraction of ice in each snow layer (-)
@@ -98,7 +98,7 @@ contains
 
  ! initialize printflag
  printflag=.false.
- 
+
  ! assign local pointers to the model index structures
  layerType => indx_data%var(iLookINDEX%layerType)%dat              ! layer type (ix_soil or ix_snow)
 
@@ -274,5 +274,6 @@ contains
   end subroutine mw_func
 
  end subroutine snowHydrol
+
 
 end module snowHydrol_module

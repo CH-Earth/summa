@@ -33,8 +33,9 @@ public::tempAdjust
 
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute change in snow stored on the vegetation canopy
+ ! public subroutine tempAdjust: compute change in snow stored on the vegetation canopy
  ! ************************************************************************************************
  subroutine tempAdjust(&
                        ! input: derived parameters
@@ -115,7 +116,7 @@ contains
  scalarCanopyLiq           => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),             & ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
  scalarCanopyIce           => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
  scalarCanopyTemp          => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),            & ! intent(inout): [dp] temperature of the vegetation canopy (K)
- 
+
  ! diagnostic variables (output)
  scalarBulkVolHeatCapVeg   => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)      & ! intent(out): [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
 
@@ -239,7 +240,7 @@ contains
   !write(*,'(a,1x,i4,1x,l1,1x,e20.10,1x,4(f20.10,1x))') 'iter, fBis, fTry, xTry, xInc, tempMin, tempMax = ', iter, fBis, fTry, xTry, xInc, tempMin, tempMax
 
   ! check convergence
-  if(abs(fTry) < resNrgToler) exit 
+  if(abs(fTry) < resNrgToler) exit
 
   ! check non-convergence
   if(iter==maxiter)then
@@ -258,21 +259,21 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
 
  ! update state variables
- scalarCanopyTemp = xTry 
+ scalarCanopyTemp = xTry
  scalarCanopyIce  = (1._dp - fracliquid(xTry,snowfrz_scale))*scalarCanopyWat
  scalarCanopyLiq  = scalarCanopyWat - scalarCanopyIce
 
  ! end association to variables in the data structure
  end associate
 
-
  contains
 
-  ! ** internal functions
 
-  ! calculate function
+  ! ************************************************************************************************
+  ! internal function resNrgFunc: calculate the residual in energy (J m-3)
+  ! ************************************************************************************************
   function resNrgFunc(xTemp,xTemp0,bulkVolHeatCapVeg,snowfrz_scale)
-  ! calculate the residual in energy (J m-3)
+  !
   implicit none
   real(dp),intent(in) :: xTemp              ! temperature (K)
   real(dp),intent(in) :: xTemp0             ! initial temperature (K)
@@ -285,9 +286,11 @@ contains
   return
   end function resNrgFunc
 
-  ! calculate derivative
+
+  ! ************************************************************************************************
+  ! internal function resNrgDer: calculate the derivative (J m-3 K-1)
+  ! ************************************************************************************************
   function resNrgDer(xTemp,bulkVolHeatCapVeg,snowfrz_scale)
-  ! calculate the derivatve (J m-3 K-1)
   implicit none
   real(dp),intent(in) :: xTemp              ! temperature (K)
   real(dp),intent(in) :: bulkVolHeatCapVeg  ! volumetric heat capacity of veg (J m-3 K-1)

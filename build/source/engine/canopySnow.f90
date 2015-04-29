@@ -33,8 +33,9 @@ public::canopySnow
 
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute change in snow stored on the vegetation canopy
+ ! public subroutine canopySnow: compute change in snow stored on the vegetation canopy
  ! ************************************************************************************************
  subroutine canopySnow(&
                        ! input: model control
@@ -107,7 +108,7 @@ contains
  real(dp)                      :: scalarCanopyIceIter        ! trial value for mass of ice on the vegetation canopy (kg m-2) (kg m-2)
  real(dp)                      :: flux                       ! net flux (kg m-2 s-1)
  real(dp)                      :: delS                       ! change in storage (kg m-2)
- real(dp)                      :: resMass                    ! residual in mass equation (kg m-2) 
+ real(dp)                      :: resMass                    ! residual in mass equation (kg m-2)
  real(dp),parameter            :: convTolerMass=0.0001_dp    ! convergence tolerance for mass (kg m-2)
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -117,7 +118,7 @@ contains
  associate(&
 
  ! model decisions
- ixSnowInterception        => model_decisions(iLookDECISIONS%snowIncept)%iDecision,        & ! intent(in): [i4b] choice of option to determine maximum snow interception capacity 
+ ixSnowInterception        => model_decisions(iLookDECISIONS%snowIncept)%iDecision,        & ! intent(in): [i4b] choice of option to determine maximum snow interception capacity
 
  ! model forcing data
  scalarAirtemp             => forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): [dp] air temperature (K)
@@ -185,12 +186,12 @@ contains
 
   ! snowfall: compute interception
   else
- 
+
    ! ** process different options for maximum branch snow interception
    select case(ixSnowInterception)
 
     ! * option 1: maximum interception capacity an inverse function of new snow density (e.g., Mahat and Tarboton, HydProc 2013)
-    case(lightSnow)  
+    case(lightSnow)
      ! (check new snow density is valid)
      if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; endif
      ! (compute storage capacity of new snow)
@@ -207,7 +208,7 @@ contains
      leafInterceptCapSnow = refInterceptCapSnow*leafScaleFactor
      !write(*,'(a,1x,2(f20.10,1x))') 'airtemp_degC, leafInterceptCapSnow = ', airtemp_degC, leafInterceptCapSnow
      !pause 'in stickysnow'
- 
+
     ! check we found the case
     case default
      message=trim(message)//'unable to identify option for maximum branch interception capacity'
@@ -230,11 +231,11 @@ contains
   !write(*,'(a,1x,10(e20.10,1x))') 'scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt = ', &
   !                                 scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt
 
-  ! ** compute iteration increment  
+  ! ** compute iteration increment
   flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
   delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._dp + (throughfallDeriv + unloadingDeriv)*dt)
   !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyIceIter, flux, delS, scalarSnowfall, scalarThroughfallSnow, scalarCanopySnowUnloading = ',&
-  !                                 scalarCanopyIceIter, flux, delS, scalarSnowfall, scalarThroughfallSnow, scalarCanopySnowUnloading 
+  !                                 scalarCanopyIceIter, flux, delS, scalarSnowfall, scalarThroughfallSnow, scalarCanopySnowUnloading
 
   ! ** check for convergence
   resMass = scalarCanopyIceIter - (scalarCanopyIce + flux*dt)
@@ -243,7 +244,7 @@ contains
   ! ** check for non-convengence
   if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge [mass]'; return; endif
 
-  ! ** update value  
+  ! ** update value
   scalarCanopyIceIter = scalarCanopyIceIter + delS
 
  end do  ! iterating

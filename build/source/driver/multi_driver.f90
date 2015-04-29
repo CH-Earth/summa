@@ -29,8 +29,8 @@ USE snow_fileManager,only:fuse_SetDirsUndPhiles             ! sets directories a
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
-USE allocspace_module,only:alloc_stim                       ! module to allocate space for scalar time structures 
-USE allocspace_module,only:alloc_time                       ! module to allocate space for model time structures 
+USE allocspace_module,only:alloc_stim                       ! module to allocate space for scalar time structures
+USE allocspace_module,only:alloc_time                       ! module to allocate space for model time structures
 USE allocspace_module,only:alloc_forc                       ! module to allocate space for model forcing data strictures
 USE allocspace_module,only:alloc_mpar                       ! module to allocate space for local column model parameter structures
 USE allocspace_module,only:alloc_mvar                       ! module to allocate space for local column model variable structures
@@ -104,6 +104,7 @@ USE mDecisions_module,only:&                                ! look-up values for
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
 implicit none
+private
 
 ! *****************************************************************************
 ! (0) variable definitions
@@ -123,7 +124,7 @@ integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency t
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
-character(len=32)         :: output_fileSuffix=''           ! suffix for the output file 
+character(len=32)         :: output_fileSuffix=''           ! suffix for the output file
 character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 ! define pointers for model indices
@@ -222,7 +223,7 @@ allocate(dt_init(nHRU),stat=err); call handle_err(err,'problem allocating space 
 call ffile_info(nHRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (4b) read model decisions 
+! (4b) read model decisions
 ! *****************************************************************************
 call mDecisions(err,message); call handle_err(err,message)
 
@@ -342,7 +343,7 @@ do iHRU=1,nHRU
    ! check that jHRU does not have any upstream HRUs -- implement more complex topologies later
    !do kHRU=1,nHRU
    ! if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
-   !  call handle_err(20,'currently only capable of a single upslope HRU')     
+   !  call handle_err(20,'currently only capable of a single upslope HRU')
    ! endif
    !end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
   endif   ! (if jHRU is an upstream HRU)
@@ -441,7 +442,7 @@ do istep=1,numtim
  bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
  bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
 
- ! initialize total inflow for each layer in a soil column 
+ ! initialize total inflow for each layer in a soil column
  do iHRU=1,nHRU
   mvar_hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
  end do
@@ -506,7 +507,7 @@ do istep=1,numtim
 
   ! define the green vegetation fraction of the grid box (used to compute LAI)
   mvar_data%var(iLookMVAR%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(time_data%var(iLookTIME%im))
-   
+
   ! compute derived forcing variables
   call derivforce(err,message); call handle_err(err,message)
 
@@ -575,7 +576,7 @@ do istep=1,numtim
    case(ixRestart_id);    printRestart = (time_data%var(iLookTIME%ih) == 1 .and. time_data%var(iLookTIME%imin) == 0)
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
-  end select 
+  end select
   printRestart = .true.
 
   ! run the model for a single parameter set and time step
@@ -583,7 +584,7 @@ do istep=1,numtim
                   output_fileSuffix,               & ! name of the experiment used in the restart file
                   dt_init(iHRU),                   & ! initial time step
                   err,message)                       ! error control
-  call handle_err(err,message) 
+  call handle_err(err,message)
   !if(exfiltration > 0.0001_dp) call handle_err(20,'model driver: testing exfiltration')
   !if(istep>1000) stop 'FORTRAN STOP: after call to coupled_em'
   !if(associated(forc_data))then
@@ -641,14 +642,14 @@ do istep=1,numtim
   ! write the model output to the NetCDF file
   call writeModel(fileout,iHRU,jstep,err,message); call handle_err(err,message)
   !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
-  
+
   ! increment the model indices
   midSnowStartIndex = midSnowStartIndex + nSnow
   midSoilStartIndex = midSoilStartIndex + nSoil
   midTotoStartIndex = midTotoStartIndex + nLayers
-  ifcSnowStartIndex = ifcSnowStartIndex + nSnow+1 
-  ifcSoilStartIndex = ifcSoilStartIndex + nSoil+1 
-  ifcTotoStartIndex = ifcTotoStartIndex + nLayers+1 
+  ifcSnowStartIndex = ifcSnowStartIndex + nSnow+1
+  ifcSoilStartIndex = ifcSoilStartIndex + nSoil+1
+  ifcTotoStartIndex = ifcTotoStartIndex + nLayers+1
 
   ! deallocate height at bottom of each soil layer(used in Noah MP)
   deallocate(zSoilReverseSign,stat=err); call handle_err(err,'problem deallocating space for zSoilReverseSign')
@@ -674,7 +675,7 @@ do istep=1,numtim
   !               ! output
   !               bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
   !               err,message)                                              ! intent(out): error control
-  !call handle_err(err,message)                
+  !call handle_err(err,message)
  endif
 
  ! perform the routing
@@ -709,6 +710,9 @@ call stop_program('finished simulation')
 
 contains
 
+ ! **************************************************************************************************
+ ! private subroutine handle_err: error handler
+ ! **************************************************************************************************
  subroutine handle_err(err,message)
  ! used to handle error codes
  USE data_struc,only:mvar_data,mpar_data,indx_data     ! variable data structure
@@ -766,6 +770,9 @@ contains
  stop
  end subroutine handle_err
 
+ ! **************************************************************************************************
+ ! private subroutine stop_program: stop program execution
+ ! **************************************************************************************************
  subroutine stop_program(message)
  ! used to stop program execution
  implicit none
@@ -790,7 +797,9 @@ contains
 end program multi_driver
 
 
-
+ ! **************************************************************************************************
+ ! private subroutine SOIL_VEG_GEN_PARM: Read soil, vegetation and other model parameters (from NOAH)
+ ! **************************************************************************************************
 !-----------------------------------------------------------------
 SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GENERAL, MMINLU, MMINSL)
 !-----------------------------------------------------------------

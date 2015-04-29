@@ -25,9 +25,10 @@ private
 public::tridag
 contains
 
- ! *************************************************************
- ! new subroutine: tridag
- ! *************************************************************
+
+ ! ********************************************************************************
+ ! public subroutine tridag: solve matrix equation Au=r with A a tridiagonal matrix
+ ! ********************************************************************************
  SUBROUTINE tridag(a,b,c,r,u,err,message)
  ! solve the tridiagonal system of equations
  USE nrtype
@@ -60,5 +61,6 @@ contains
   u(j)=u(j)-gam(j+1)*u(j+1)
  end do
  END SUBROUTINE tridag
+
 
 end module tridagSolv_module

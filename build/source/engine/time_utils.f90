@@ -24,11 +24,12 @@ implicit none
 private
 public::extractTime
 public::compjulday
-contains 
+contains
 
- ! *********************************************************************************
- ! new subroutine: extract year/month/day/hour/minute/second from units string
- ! *********************************************************************************
+
+ ! ******************************************************************************************
+ ! public subroutine extractTime: extract year/month/day/hour/minute/second from units string
+ ! ******************************************************************************************
  subroutine extractTime(refdate,iyyy,im,id,ih,imin,dsec,err,message)
  implicit none
  ! dummy variables
@@ -93,6 +94,11 @@ contains
  read(refdate(istart:n),*) dsec
 
  contains
+
+
+  ! ******************************************************************************************
+  ! internal subroutine extract: extract substring
+  ! ******************************************************************************************
   subroutine extract(substring,cdelim,iend,itemp,err,message)
   implicit none
   ! input
@@ -119,9 +125,10 @@ contains
 
  end subroutine extractTime
 
- ! *********************************************************************************
- ! new subroutine: convert date to julian day (units of days)
- ! *********************************************************************************
+
+ ! ***************************************************************************************
+ ! public subroutine compjulday: convert date to julian day (units of days)
+ ! ***************************************************************************************
  subroutine compjulday(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)      ! output
  USE multiconst,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)
@@ -166,7 +173,6 @@ contains
  juldayss = real(julday,kind(dp)) + jfrac
 
  end subroutine compjulday
-
 
 
 end module time_utils_module

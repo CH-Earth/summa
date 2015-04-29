@@ -46,9 +46,10 @@ real(dp),parameter     :: verySmall=epsilon(1.0_dp) ! a very small number (used 
 real(dp),parameter     :: dx=1.e-8_dp               ! finite difference increment
 contains
 
- ! ***********************************************************************************************************
- ! new function: compute the ice impedence factor
- ! ***********************************************************************************************************
+
+ ! ******************************************************************************************************************************
+ ! public subroutine iceImpede: compute the ice impedence factor
+ ! ******************************************************************************************************************************
  subroutine iceImpede(volFracIce,volFracLiq,theta_sat,f_impede,lTangent, &  ! input
                       iceImpedeFactor,dIceImpede_dLiq)                      ! output
  ! computes the ice impedence factor (separate function, as used multiple times)
@@ -61,7 +62,7 @@ contains
  logical(lgt),intent(in) :: lTangent          ! method used to compute derivative (.true. = analytical)
  ! output variables
  real(dp)                :: iceImpedeFactor   ! ice impedence factor (-)
- real(dp)                :: dIceImpede_dLiq   ! derivative in ice impedence factor w.r.t. volumetric liquid water content (-) 
+ real(dp)                :: dIceImpede_dLiq   ! derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
  ! local variables
  !real(dp)                :: avCapIce          ! available capacity for ice
  !real(dp)                :: xArg              ! argument in the power function
@@ -94,9 +95,10 @@ contains
  !endif
  end subroutine iceImpede
 
- ! ***********************************************************************************************************
- ! new function: compute the derivative in the ice impedence factor w.r.t. temperature
- ! ***********************************************************************************************************
+
+ ! ******************************************************************************************************************************
+ ! public subroutine dIceImpede_dTemp: compute the derivative in the ice impedence factor w.r.t. temperature
+ ! ******************************************************************************************************************************
  subroutine dIceImpede_dTemp(volFracIce,dTheta_dT,f_impede,dIceImpede_dT)
  ! computes the derivative in the ice impedance factor w.r.t. temperature
  implicit none
@@ -110,9 +112,10 @@ contains
  dIceImpede_dT = log(10._dp)*f_impede*(10._dp**(-f_impede*volFracIce))*dTheta_dT
  end subroutine dIceImpede_dTemp
 
- ! ***********************************************************************************************************
- ! new function: compute the hydraulic conductivity of macropores as a function of liquid water content (m s-1)
- ! ***********************************************************************************************************
+
+ ! ******************************************************************************************************************************
+ ! public function hydCondMP_liq: compute the hydraulic conductivity of macropores as a function of liquid water content (m s-1)
+ ! ******************************************************************************************************************************
  function hydCondMP_liq(volFracLiq,theta_sat,theta_mp,mpExp,satHydCond_ma,satHydCond_mi)
  ! computes hydraulic conductivity given volFracLiq and soil hydraulic parameters
  !  theta_sat, theta_mp, mpExp, satHydCond_ma, and satHydCond_mi
@@ -138,9 +141,9 @@ contains
  end function hydCondMP_liq
 
 
- ! ***********************************************************************************************************
- ! new function: compute the hydraulic conductivity as a function of matric head (m s-1)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function hydCond_psi: compute the hydraulic conductivity as a function of matric head (m s-1)
+ ! ******************************************************************************************************************************
  function hydCond_psi(psi,k_sat,alpha,n,m)
  ! computes hydraulic conductivity given psi and soil hydraulic parameters k_sat, alpha, n, and m
  implicit none
@@ -161,9 +164,9 @@ contains
  end function hydCond_psi
 
 
- ! ***********************************************************************************************************
- ! new function: compute the hydraulic conductivity as a function of volumetric liquid water content (m s-1)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function hydCond_liq: compute the hydraulic conductivity as a function of volumetric liquid water content (m s-1)
+ ! ******************************************************************************************************************************
  function hydCond_liq(volFracLiq,k_sat,theta_res,theta_sat,m)
  ! computes hydraulic conductivity given volFracLiq and soil hydraulic parameters k_sat, theta_sat, theta_res, and m
  implicit none
@@ -185,9 +188,9 @@ contains
  end function hydCond_liq
 
 
- ! ***********************************************************************************************************
- ! new function: compute the saturation deficit -- amount of water required to bring soil to saturation (-)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function satDeficit: compute the saturation deficit -- amount of water required to bring soil to saturation (-)
+ ! ******************************************************************************************************************************
  function satDeficit(psi)
  ! model variables and parameters
  USE data_struc,only:mpar_data,mvar_data    ! data structures
@@ -216,10 +219,9 @@ contains
  end function satDeficit
 
 
-
- ! ***********************************************************************************************************
- ! new function: compute the volumetric liquid water content (-)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function volFracLiq: compute the volumetric liquid water content (-)
+ ! ******************************************************************************************************************************
  function volFracLiq(psi,alpha,theta_res,theta_sat,n,m)
  ! computes the volumetric liquid water content given psi and soil hydraulic parameters theta_res, theta_sat, alpha, n, and m
  implicit none
@@ -238,9 +240,9 @@ contains
  end function volFracLiq
 
 
- ! ***********************************************************************************************************
- ! new function: compute the matric head (m) based on the volumetric liquid water content
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function matricHead: compute the matric head (m) based on the volumetric liquid water content
+ ! ******************************************************************************************************************************
  function matricHead(theta,alpha,theta_res,theta_sat,n,m)
  ! computes the volumetric liquid water content given psi and soil hydraulic parameters theta_res, theta_sat, alpha, n, and m
  implicit none
@@ -265,9 +267,9 @@ contains
  end function matricHead
 
 
- ! ***********************************************************************************************************
- ! new function: compute the derivative of the soil water characteristic (m-1)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function dTheta_dPsi: compute the derivative of the soil water characteristic (m-1)
+ ! ******************************************************************************************************************************
  function dTheta_dPsi(psi,alpha,theta_res,theta_sat,n,m)
  implicit none
  real(dp),intent(in) :: psi         ! soil water suction (m)
@@ -287,9 +289,9 @@ contains
  end function dTheta_dPsi
 
 
- ! ***********************************************************************************************************
- ! new function: compute the derivative of the soil water characteristic (m-1)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function dPsi_dTheta: compute the derivative of the soil water characteristic (m-1)
+ ! ******************************************************************************************************************************
  function dPsi_dTheta(volFracLiq,alpha,theta_res,theta_sat,n,m)
  implicit none
  ! dummies
@@ -322,9 +324,9 @@ contains
  end function dPsi_dTheta
 
 
- ! ***********************************************************************************************************
- ! new function: compute the derivative of dPsi_dTheta (m-1)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function dPsi_dTheta2: compute the derivative of dPsi_dTheta (m-1)
+ ! ******************************************************************************************************************************
  function dPsi_dTheta2(volFracLiq,alpha,theta_res,theta_sat,n,m,lTangent)
  implicit none
  ! dummies
@@ -371,9 +373,9 @@ contains
  end function dPsi_dTheta2
 
 
- ! ***********************************************************************************************************
- ! new function: compute the derivative in hydraulic conductivity w.r.t. matric head (s-1)
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function dHydCond_dPsi: compute the derivative in hydraulic conductivity w.r.t. matric head (s-1)
+ ! ******************************************************************************************************************************
  function dHydCond_dPsi(psi,k_sat,alpha,n,m,lTangent)
  ! computes the derivative in hydraulic conductivity w.r.t matric head,
  !  given psi and soil hydraulic parameters k_sat, alpha, n, and m
@@ -426,12 +428,13 @@ contains
  end function dHydCond_dPsi
 
 
- ! ***********************************************************************************************************
- ! new function: compute the derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
- ! ***********************************************************************************************************
- function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
+ ! ******************************************************************************************************************************
+ ! public function dHydCond_dLiq: compute the derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
+ ! ******************************************************************************************************************************
  ! computes the derivative in hydraulic conductivity w.r.t the volumetric fraction of liquid water,
- !  given volFracLiq and soil hydraulic parameters k_sat, theta_sat, theta_res, and m
+ ! given volFracLiq and soil hydraulic parameters k_sat, theta_sat, theta_res, and m
+ ! ******************************************************************************************************************************
+ function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
  implicit none
  ! dummies
  real(dp),intent(in)     :: volFracLiq ! volumetric fraction of liquid water (-)
@@ -487,9 +490,9 @@ contains
  end function dHydCond_dLiq
 
 
- ! ***********************************************************************************************************
- ! new function: compute relative humidity of air in soil pore space
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function RH_soilair: compute relative humidity of air in soil pore space
+ ! ******************************************************************************************************************************
  function RH_soilair(matpot,Tk)
  USE multiconst,only: gravity, &      ! acceleration of gravity       (m s-2)
                       R_wv            ! gas constant for water vapor  (J kg-1 K-1; [J = Pa m3])
@@ -502,9 +505,9 @@ contains
  end function RH_soilair
 
 
- ! ***********************************************************************************************************
- ! new function: compute the critical temperature above which all water is unfrozen
- ! ***********************************************************************************************************
+ ! ******************************************************************************************************************************
+ ! public function crit_soilT: compute the critical temperature above which all water is unfrozen
+ ! ******************************************************************************************************************************
  function crit_soilT(theta,theta_res,theta_sat,alpha,n,m)
  USE multiconst,only: gravity,   &    ! acceleration of gravity    (m s-2)
                       Tfreeze,   &    ! temperature at freezing    (K)
@@ -534,9 +537,9 @@ contains
  end function crit_soilT
 
 
- ! ***********************************************************************************************************
- ! new function: differentiate the freezing curve w.r.t. temperature
- ! *********************************************************************************************************** 
+ ! ******************************************************************************************************************************
+ ! public function dTheta_dTk: differentiate the freezing curve w.r.t. temperature
+ ! ******************************************************************************************************************************
  function dTheta_dTk(Tk,theta_res,theta_sat,alpha,n,m)
  USE multiconst,only: gravity,   &    ! acceleration of gravity    (m s-2)
                       Tfreeze,   &    ! temperature at freezing    (K)
@@ -568,9 +571,9 @@ contains
  end function dTheta_dTk
 
 
- ! ***********************************************************************************************************
- ! new function: compute cumulative probability using the Gamma distribution
- ! *********************************************************************************************************** 
+ ! ******************************************************************************************************************************
+ ! public function gammp: compute cumulative probability using the Gamma distribution
+ ! ******************************************************************************************************************************
  FUNCTION gammp(a,x)
  IMPLICIT NONE
  REAL(DP), INTENT(IN) :: a,x
@@ -582,7 +585,10 @@ contains
  end if
  END FUNCTION gammp
 
- ! private function: continued fraction development of the incomplete Gamma function
+
+ ! ******************************************************************************************************************************
+ ! private function gcf: continued fraction development of the incomplete Gamma function
+ ! ******************************************************************************************************************************
  FUNCTION gcf(a,x,gln)
  IMPLICIT NONE
  REAL(DP), INTENT(IN) :: a,x
@@ -621,7 +627,10 @@ contains
  end if
  END FUNCTION gcf
 
- ! private function: series development of the incomplete Gamma function
+
+ ! ******************************************************************************************************************************
+ ! private function gser: series development of the incomplete Gamma function
+ ! ******************************************************************************************************************************
  FUNCTION gser(a,x,gln)
  IMPLICIT NONE
  REAL(DP), INTENT(IN) :: a,x
@@ -653,7 +662,10 @@ contains
  end if
  END FUNCTION gser
 
- ! private function: gamma function
+
+ ! ******************************************************************************************************************************
+ ! private function gammln: gamma function
+ ! ******************************************************************************************************************************
  FUNCTION gammln(xx)
  USE nr_utility_module,only:arth  ! use to build vectors with regular increments
  IMPLICIT NONE
