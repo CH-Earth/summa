@@ -1,18 +1,39 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module snowLiqFlx_module
 USE nrtype                                    ! numerical recipes data types
 USE multiconst,only:iden_ice,iden_water       ! intrinsic density of ice and water (kg m-3)
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,        & ! number of snow layers  
-                    nSoil,        & ! number of soil layers  
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
                     nLayers         ! total number of layers
 implicit none
 private
 public::snowLiqFlx
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute liquid water flux through the snowpack
+ ! public subroutine snowLiqFlx: compute liquid water flux through the snowpack
  ! ************************************************************************************************
  subroutine snowLiqFlx(&
                        ! input: model control
@@ -78,9 +99,9 @@ contains
  end subroutine snowLiqFlx
 
 
- ! *********************************************************************************************************************************************************
+ ! ************************************************************************************************
  ! * private subroutine: calculate fluxes and derivatives for liquid water flow through snow
- ! *********************************************************************************************************************************************************
+ ! ************************************************************************************************
  subroutine snowLiqFlx_muster(&
                               ! input: model control
                               iter,                                                       & ! intent(in): iteration index
@@ -132,7 +153,9 @@ contains
  real(dp),parameter            :: residScal=10._dp           ! scaling factor for residual liquid water content reduction factor (kg m-3)
  real(dp),parameter            :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
  real(dp)                      :: availCap                   ! available storage capacity [0,1] (-)
- real(dp)                      :: relSaturn                  ! relative saturation [0,1] (-)
+ real(dp)                      :: relSaturn,relSaturn1       ! relative saturation [0,1] (-)
+ real(dp),parameter            :: dx = 1.e-8_dp              ! finite difference increment
+ real(dp)                      :: testFlux                   ! test value of the flux (to compute numerical derivatives)
  ! ---------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='snowLiqFlx_muster/'
@@ -157,7 +180,7 @@ contains
    ! compute the reduction in liquid water holding capacity at high snow density (-)
    multResid = 1._dp / ( 1._dp + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
    ! compute the pore space (-)
-   mLayerPoreSpace(iLayer)  = (iden_ice/iden_water) - mLayerVolFracIce(iLayer)
+   mLayerPoreSpace(iLayer)  = 1._dp - mLayerVolFracIce(iLayer)
    ! compute the residual volumetric liquid water content (-)
    mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
   end do  ! (looping through snow layers)
@@ -176,9 +199,17 @@ contains
     ! compute the relative saturation (-)
     availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
     relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+    !print*, 'mLayerVolFracLiqTrial(iLayer) = ', mLayerVolFracLiqTrial(iLayer)
+    !print*, 'mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer) = ', mLayerThetaResid(iLayer)
+    !print*, 'iLayer, availCap, relSaturn, k_snow = ', iLayer, availCap, relSaturn, k_snow
     ! compute the flux and derivative (m s-1)
     iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
     iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)
+    ! check the derivative
+    !relSaturn1 = (mLayerVolFracLiqTrial(iLayer)+dx - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+    !testFlux   =  k_snow*relSaturn1**mw_exp
+    !write(*,'(a,1x,10(e25.10,1x))') 'iLayerLiqFluxSnow(iLayer), testFlux, iLayerLiqFluxSnowDeriv(iLayer), (testFlux - iLayerLiqFluxSnow(iLayer))/dx = ', &
+    !                                 iLayerLiqFluxSnow(iLayer), testFlux, iLayerLiqFluxSnowDeriv(iLayer), (testFlux - iLayerLiqFluxSnow(iLayer))/dx
    else  ! flow does not ocur
     iLayerLiqFluxSnow(iLayer)      = 0._dp
     iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
@@ -187,5 +218,6 @@ contains
  end do  ! loop through snow layers
 
  end subroutine snowLiqFlx_muster
+
 
 end module snowLiqFlx_module

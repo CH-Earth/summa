@@ -16,11 +16,15 @@ The important modeling features are:
 SUMMA can be used to configure a wide range of hydrological model alternatives. We anticipate that systematic model analysis will help researchers and practitioners understand reasons for inter-model differences in model behavior, and, when applied across a large sample of catchments, may provide insights on the dominance of different physical processes and regional variability in the suitability of different modeling approaches. An important application of SUMMA is selecting specific physics options to reproduce the behavior of existing models – these applications of *“model mimicry”* can be used to define reference (benchmark) cases in structured model comparison experiments, and can help diagnose weaknesses of individual models in different hydroclimatic regimes.
 
 ##Credits
-SUMMA's initial implementation is described in two papers that have been submitted to [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
+SUMMA's initial implementation is described in two papers published in [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
 
- * Clark, Martyn P., Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andy W. Wood, Levi D. Brekke, Jeff A. Arnold, David J. Gochis, and Roy M. Rasmussen, 2014: A unified approach for process-based hydrologic modeling. Part 1: Modeling concept. *Water Resources Research*, in review.
+ * Martyn P. Clark, Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andrew W. Wood, Levi D. Brekke, Jeffrey R. Arnold, David J. Gochis, Roy M. Rasmussen, 2015: A unified approach for process-based hydrologic modeling. Part 1: Modeling concept. *Water Resources Research*, [doi:10.1002/2015WR017198](http://dx.doi.org/10.1002/2015WR017198).
 
- * Clark, Martyn P., Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andy W. Wood, David J. Gochis, Roy M. Rasmussen, David G. Tarboton, Vinod Mahat, Gerald N. Flerchinger, and Danny G. Marks, 2014: A unified approach for process-based hydrologic modeling: Part 2. Model implementation and example applications. *Water Resources Research*, in review.
+ * Martyn P. Clark, Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andrew W. Wood, David J. Gochis, Roy M. Rasmussen, David G. Tarboton, Vinod Mahat, Gerald N. Flerchinger, Danny G. Marks, 2015: A unified approach for process-based hydrologic modeling: Part 2. Model implementation and example applications. *Water Resources Research*, [doi:10.1002/2015WR017200](http://dx.doi.org/10.1002/2015WR017200).
+
+ In addition, an NCAR technical note describes the SUMMA implementation in detail:
+
+ * Martyn P. Clark, Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, Andy W. Wood, Levi D. Brekke, Jeffrey R. Arnold, David J. Gochis, Roy M. Rasmussen, David G. Tarboton, Vinod Mahat, Gerald N. Flerchinger, and Danny G. Marks, 2015: The structure for unifying multiple modeling alternatives (SUMMA), Version 1.0: Technical Description. *NCAR Technical Note NCAR/TN-514+STR*, 50 pp., [doi:10.5065/D6WQ01TD](http://dx.doi.org/10.5065/D6WQ01TD).
 
 ##Installation
 
@@ -68,4 +72,8 @@ Once you have all the above, you can compile SUMMA using the following steps:
     ```
 
 If you get this far then SUMMA is installed correctly and functional.
+
+## License
+
+SUMMA is distributed under the GNU Public License Version 3. For details see the file `COPYING` in the SUMMA root directory or visit the [online version](http://www.gnu.org/licenses/gpl-3.0.html).
 

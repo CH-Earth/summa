@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module vegSWavRad_module
 ! Numerical recipes data types
 USE nrtype
@@ -32,14 +52,15 @@ integer(i4b)                  :: nLayers       ! total number of snow and soil l
 ! algorithmic parameters
 real(dp),parameter            :: missingValue=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
 real(dp),parameter            :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter            :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
+real(dp),parameter            :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
 real(dp),parameter            :: dx=1.e-6_dp          ! finite difference increment
 ! control
 logical(lgt)                  :: printflag            ! flag to turn on printing
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: muster program to compute sw radiation in vegetation
+ ! public subroutine vegSWavRad: muster program to compute sw radiation in vegetation
  ! ************************************************************************************************
  subroutine vegSWavRad(&
                        dt,                           & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
@@ -121,21 +142,12 @@ contains
  end subroutine vegSWavRad
 
 
-
  ! ************************************************************************************************
- ! ************************************************************************************************
- ! ************************************************************************************************
- ! ***** PRIVATE SUBROUTINES **********************************************************************
- ! ************************************************************************************************
- ! ************************************************************************************************
- ! ************************************************************************************************
-
- ! ************************************************************************************************
- ! private subroutine: wrapper for the sw radiation routines
+ ! private subroutine vegSWavRad_muster: wrapper for the sw radiation routines
  ! ************************************************************************************************
  subroutine vegSWavRad_muster(&
                               ! input: control
-                              dt,                                & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo                         
+                              dt,                                & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
                               computeVegFlux,                    & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                               vegTypeIndex,                      & ! intent(in): vegetation type index
                               soilTypeIndex,                     & ! intent(in): soil type index
@@ -156,7 +168,7 @@ contains
                               scalarSnowAge,                     & ! intent(inout): non-dimensional snow age (-)
                               ! input: vegetation characteristix
                               scalarExposedLAI,                  & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                              scalarExposedSAI,                  & ! intent(in): exposed stem area index after burial by snow (m2 m-2)          
+                              scalarExposedSAI,                  & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
                               scalarCanopyWetFraction,           & ! intent(in): canopy wetted fraction (-)
                               ! input: ground and canopy temperature
                               scalarGroundTemp,                  & ! intent(in): ground temperature (K)
@@ -224,7 +236,7 @@ contains
  ! output: error control
  integer(i4b),intent(out)        :: err                            ! error code
  character(*),intent(out)        :: message                        ! error message
- ! ---------------------------------------------------------------------------------------------------------------------------------- 
+ ! ----------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  character(LEN=256)             :: cmessage                        ! error message of downwind routine
  real(dp)                       :: snowmassPlusNewsnow             ! sum of snow mass and new snowfall (kg m-2 [mm])
@@ -234,10 +246,10 @@ contains
  real(dp)                       :: scalarTotalReflectedSolar       ! total reflected solar radiation (W m-2)
  real(dp)                       :: scalarTotalAbsorbedSolar        ! total absorbed solar radiation (W m-2)
  real(dp)                       :: scalarCanopyReflectedSolar      ! solar radiation reflected from the canopy (W m-2)
- real(dp)                       :: scalarGroundReflectedSolar      ! solar radiation reflected from the ground (W m-2) 
+ real(dp)                       :: scalarGroundReflectedSolar      ! solar radiation reflected from the ground (W m-2)
  real(dp)                       :: scalarBetweenCanopyGapFraction  ! between canopy gap fraction for beam (-)
  real(dp)                       :: scalarWithinCanopyGapFraction   ! within canopy gap fraction for beam (-)
- ! ---------------------------------------------------------------------------------------------------------------------------------- 
+ ! ----------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='vegSWavRad_muster/'
 
@@ -268,8 +280,8 @@ contains
                   ! input
                   vegTypeIndex,                       & ! intent(in): vegetation type index
                   ist, isc, ice,                      & ! intent(in): indices to define surface type, soil color, and ice type (constant)
-                  nSoil,                              & ! intent(in): number of soil layers               
-                  scalarSWE,                          & ! intent(in): snow water equivalent (kg m-2) 
+                  nSoil,                              & ! intent(in): number of soil layers
+                  scalarSWE,                          & ! intent(in): snow water equivalent (kg m-2)
                   snowmassPlusNewsnow,                & ! intent(in): sum of snow mass and new snowfall (kg m-2 [mm])
                   dt,                                 & ! intent(in): time step (s)
                   scalarCosZenith,                    & ! intent(in): cosine of the solar zenith angle (0-1)
@@ -280,12 +292,12 @@ contains
                   scalarSnowfall,                     & ! intent(in): snowfall (kg m-2 s-1 [mm/s])
                   scalarCanopyWetFraction,            & ! intent(in): fraction of canopy that is wet
                   scalarExposedLAI,                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
-                  scalarExposedSAI,                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)          
+                  scalarExposedSAI,                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
                   mLayerVolFracLiq(1:nSoil),          & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                   spectralIncomingDirect(1:nBands),   & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
                   spectralIncomingDiffuse(1:nBands),  & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
                   scalarVegFraction,                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
-                  iLoc, jLoc,                         & ! intent(in): spatial location indices      
+                  iLoc, jLoc,                         & ! intent(in): spatial location indices
                   ! output
                   scalarSnowAlbedo,                   & ! intent(inout): snow albedo (-)
                   scalarSnowAge,                      & ! intent(inout): non-dimensional snow age (-)
@@ -299,11 +311,11 @@ contains
                   scalarTotalReflectedSolar,          & ! intent(out): total reflected solar radiation (W m-2)
                   scalarTotalAbsorbedSolar,           & ! intent(out): total absorbed solar radiation (W m-2)
                   scalarCanopyReflectedSolar,         & ! intent(out): solar radiation reflected from the canopy (W m-2)
-                  scalarGroundReflectedSolar,         & ! intent(out): solar radiation reflected from the ground (W m-2) 
+                  scalarGroundReflectedSolar,         & ! intent(out): solar radiation reflected from the ground (W m-2)
                   scalarBetweenCanopyGapFraction,     & ! intent(out): between canopy gap fraction for beam (-)
                   scalarWithinCanopyGapFraction       ) ! intent(out): within canopy gap fraction for beam (-)
 
-  ! **** all other options 
+  ! **** all other options
   case(CLM_2stream,UEB_2stream,NL_scatter,BeersLaw)
 
    call canopy_SW(&
@@ -352,7 +364,7 @@ contains
 
 
  ! ************************************************************************************************
- ! private subroutine: various options to compute canopy sw radiation fluxes
+ ! private subroutine canopy_SW: various options to compute canopy sw radiation fluxes
  ! ************************************************************************************************
  subroutine canopy_SW(&
                       ! input: model control
@@ -389,7 +401,7 @@ contains
                       scalarCanopyShadedPAR,                              & ! intent(out): average absorbed par for shaded leaves (w m-2)
                       err,message)                                          ! intent(out): error control
  ! utilities
- USE expIntegral_module,only:expIntegral                                     ! subroutine to calculate the exponential integral
+ USE expIntegral_module,only:expInt                                          ! function to calculate the exponential integral
  ! Noah-MP modules
  USE NOAHMP_ROUTINES,only:twoStream                                          ! two-stream radiative transfer
  ! Noah vegetation tables
@@ -545,7 +557,7 @@ contains
     spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)
     spectralBelowCanopyDiffuse(iBand) = spectralIncomingDiffuse(iBand)
    else
-    spectralBelowCanopyDirect(iBand)  = 0._dp 
+    spectralBelowCanopyDirect(iBand)  = 0._dp
     spectralBelowCanopyDiffuse(iBand) = 0._dp
    endif
    ! (accumulate radiation transmitted below the canopy)
@@ -565,7 +577,7 @@ contains
 
  ! ============================================================================================================================================================
  ! ============================================================================================================================================================
- 
+
  ! different options for radiation transmission
  select case(ix_canopySrad)
 
@@ -676,9 +688,9 @@ contains
    ! compute transmission of direct radiation according to Beer's Law (-)
    tauFinite = exp(-transCoef*scalarExposedVAI)
 
-   ! compute transmission of diffuse radiation (-) 
-   vFactor      = scalarGproj*scalarExposedVAI
-   call expIntegral(1,vFactor,expi,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! compute transmission of diffuse radiation (-)
+   vFactor    = scalarGproj*scalarExposedVAI
+   expi       = expInt(vFactor)
    taudFinite = (1._dp - vFactor)*exp(-vFactor) + (vFactor**2._dp)*expi
 
    ! compute ground albedo (-)
@@ -789,7 +801,7 @@ contains
 
    ! compute transmission of diffuse radiation (-)
    vFactor      = transCoefPrime*scalarGproj*scalarExposedVAI
-   call expIntegral(1,vFactor,expi,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   expi         = expInt(vFactor)
    taudInfinite = (1._dp - vFactor)*exp(-vFactor) + (vFactor**2._dp)*expi
    taudFinite   = taudInfinite*(1._dp - betaInfinite**2._dp)/(1._dp - (betaInfinite**2._dp)*taudInfinite**2._dp)
 
@@ -861,7 +873,7 @@ contains
    do iBand = 1,nBands  ! loop through spectral bands
     spectralVegReflc(iBand) = RHOL(vegTypeIndex,iBand)*weightLeaf + RHOS(vegTypeIndex,iBand)*weightStem
     spectralVegTrans(iBand) = TAUL(vegTypeIndex,iBand)*weightLeaf + TAUS(vegTypeIndex,iBand)*weightStem
-   end do  
+   end do
 
    ! loop through wave bands
    do iBand=1,nBands
@@ -895,7 +907,7 @@ contains
                    ! input-output
                    scalarBetweenCanopyGapFraction,    & ! intent(inout): between canopy gap fraction for beam (-)
                    scalarWithinCanopyGapFraction      ) ! intent(inout): within canopy gap fraction for beam (-)
-  
+
     ic = 1
     ! two-stream approximation for diffuse radiation (from CLM/Noah-MP)
     call twoStream(&
@@ -931,7 +943,7 @@ contains
     spectralBelowCanopyDirect(iBand)  = spectralIncomingDirect(iBand)*spectralDirectBelowCanopyDirect(iBand)      ! direct radiation
     spectralBelowCanopyDiffuse(iBand) = spectralIncomingDirect(iBand)*spectralDiffuseBelowCanopyDirect(iBand) + & ! direct radiation transmitted as diffuse
                                         spectralIncomingDiffuse(iBand)*spectralDiffuseBelowCanopyDiffuse(iBand)   ! diffuse radiation transmitted as diffuse
- 
+
     ! accumulate radiation transmitted below the canopy (W m-2)
     scalarBelowCanopySolar    = scalarBelowCanopySolar + &                                                  ! contribution from all previous wave bands
                                 spectralBelowCanopyDirect(iBand) + spectralBelowCanopyDiffuse(iBand)        ! contribution from current wave band
@@ -960,7 +972,7 @@ contains
 
  end select ! (option for canopy sw radiation)
 
- 
+
  ! ============================================================================================================================================================
  ! ============================================================================================================================================================
 
@@ -989,12 +1001,12 @@ contains
  !         scalarCanopySunlitLAI, fractionLAI, visibleAbsDirect, visibleAbsDiffuse, scalarCanopySunlitPAR
 
 
- 
+
  end subroutine canopy_SW
 
 
  ! *************************************************************************************************************************************
- ! ***** PRIVATE SUBROUTINE: gndAlbedo: compute the albedo of the ground surface
+ ! private subroutine gndAlbedo: compute the albedo of the ground surface
  ! *************************************************************************************************************************************
  subroutine gndAlbedo(&
                       ! input

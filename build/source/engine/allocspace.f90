@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module allocspace_module
 USE nrtype
 implicit none
@@ -18,8 +38,9 @@ integer(i4b),parameter :: missingInteger=-9999
 real(dp),parameter     :: missingDouble=-9999._dp
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: initialize metadata structures
+ ! public subroutine init_metad: initialize metadata structures
  ! ************************************************************************************************
  subroutine init_metad(err,message)
  ! used to initialize the metadata structures
@@ -54,7 +75,7 @@ contains
 
 
  ! ************************************************************************************************
- ! new subroutine: initialize data structures for scalar time structures
+ ! public subroutine alloc_stim: initialize data structures for scalar time structures
  ! ************************************************************************************************
  subroutine alloc_stim(datastr,err,message)
  ! used to initialize structure components for model variables
@@ -82,7 +103,7 @@ contains
  end subroutine alloc_stim
 
  ! ************************************************************************************************
- ! new subroutine: initialize data structures for time structures
+ ! public subroutine alloc_time: initialize data structures for time structures
  ! ************************************************************************************************
  subroutine alloc_time(nHRU,err,message)
  ! used to initialize structure components for model variables
@@ -115,9 +136,9 @@ contains
  end do
  end subroutine alloc_time
 
- 
+
  ! ************************************************************************************************
- ! new subroutine: initialize data structures for model forcing data
+ ! public subroutine alloc_forc: initialize data structures for model forcing data
  ! ************************************************************************************************
  subroutine alloc_forc(nHRU,err,message)
  ! used to initialize structure components for model variables
@@ -152,7 +173,7 @@ contains
 
 
  ! ************************************************************************************************
- ! new subroutine: initialize data structures for local attributes
+ ! public subroutine alloc_attr: initialize data structures for local attributes
  ! ************************************************************************************************
  subroutine alloc_attr(nHRU,err,message)
  ! used to initialize structure components for model variables
@@ -186,9 +207,9 @@ contains
  end subroutine alloc_attr
 
 
- ! ************************************************************************************************
- ! new subroutine: initialize data structures for local classification of veg, soil, etc.
- ! ************************************************************************************************
+ ! *************************************************************************************************
+ ! public subroutine alloc_type: initialize data structures for local classification of veg, soil, etc.
+ ! *************************************************************************************************
  subroutine alloc_type(nHRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:type_hru,type_meta             ! data structures
@@ -221,9 +242,9 @@ contains
  end subroutine alloc_type
 
 
- ! ************************************************************************************************
- ! new subroutine: initialize data structures for model parameters
- ! ************************************************************************************************
+ ! *************************************************************************************************
+ ! public subroutine alloc_mpar: initialize data structures for model parameters
+ ! *************************************************************************************************
  subroutine alloc_mpar(nHRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:mpar_hru,mpar_meta             ! data structures
@@ -257,9 +278,10 @@ contains
  end do  ! looping through HRUs
  end subroutine alloc_mpar
 
- ! ************************************************************************************************
- ! new subroutine: initialize data structures for model variables
- ! ************************************************************************************************
+
+ ! *************************************************************************************************
+ ! public subroutine alloc_mvar: initialize data structures for model variables
+ ! *************************************************************************************************
  subroutine alloc_mvar(nHRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:mvar_hru,mvar_meta             ! data structures
@@ -286,12 +308,13 @@ contains
  do iHRU=1,nHRU
   allocate(mvar_hru(iHRU)%var(nVar),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- end do ! (looping through the HRUs) 
+ end do ! (looping through the HRUs)
  end subroutine alloc_mvar
 
- ! ************************************************************************************************
- ! new subroutine: initialize structure components for model indices
- ! ************************************************************************************************
+
+ ! *************************************************************************************************
+ ! public subroutine alloc_indx: initialize structure components for model indices
+ ! *************************************************************************************************
  subroutine alloc_indx(nHRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:indx_hru,indx_meta             ! data structures
@@ -318,12 +341,13 @@ contains
  do iHRU=1,nHRU
   allocate(indx_hru(iHRU)%var(nVar),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- end do ! (looping through HRUs in the data structure) 
+ end do ! (looping through HRUs in the data structure)
  end subroutine alloc_indx
 
- ! ************************************************************************************************
- ! new subroutine: initialize data structures for basin-average model parameters
- ! ************************************************************************************************
+
+ ! *************************************************************************************************
+ ! public subroutine alloc_bpar: initialize data structures for basin-average model parameters
+ ! *************************************************************************************************
  subroutine alloc_bpar(err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:bpar_data,bpar_meta             ! data structures
@@ -352,9 +376,10 @@ contains
  bpar_data%var(:) = missingDouble
  end subroutine alloc_bpar
 
- ! ************************************************************************************************
- ! new subroutine: initialize data structures for basin-average model variables
- ! ************************************************************************************************
+
+ ! *************************************************************************************************
+ ! public subroutine alloc_bvar: initialize data structures for basin-average model variables
+ ! *************************************************************************************************
  subroutine alloc_bvar(err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:bvar_data,bvar_meta             ! data structures
@@ -365,7 +390,7 @@ contains
  ! local variables
  integer(i4b)                         :: iVar        ! index of variables
  integer(i4b)                         :: nVar        ! number of variables
- integer(i4b),parameter               :: nTimeDelay=1000 ! number of elements in the time delay histogram
+ integer(i4b),parameter               :: nTimeDelay=2000 ! number of elements in the time delay histogram
  ! initialize errors
  err=0; message="alloc_bvar/"
  ! check that the metadata structure is allocated
@@ -393,7 +418,6 @@ contains
   bvar_data%var(ivar)%dat(:) = missingDouble
  end do ! (looping through model variables)
  end subroutine alloc_bvar
-
 
 
 end module allocspace_module

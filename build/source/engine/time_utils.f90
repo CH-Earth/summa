@@ -1,14 +1,35 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module time_utils_module
 USE nrtype
 implicit none
 private
 public::extractTime
 public::compjulday
-contains 
+contains
 
- ! *********************************************************************************
- ! new subroutine: extract year/month/day/hour/minute/second from units string
- ! *********************************************************************************
+
+ ! ******************************************************************************************
+ ! public subroutine extractTime: extract year/month/day/hour/minute/second from units string
+ ! ******************************************************************************************
  subroutine extractTime(refdate,iyyy,im,id,ih,imin,dsec,err,message)
  implicit none
  ! dummy variables
@@ -73,6 +94,11 @@ contains
  read(refdate(istart:n),*) dsec
 
  contains
+
+
+  ! ******************************************************************************************
+  ! internal subroutine extract: extract substring
+  ! ******************************************************************************************
   subroutine extract(substring,cdelim,iend,itemp,err,message)
   implicit none
   ! input
@@ -99,9 +125,10 @@ contains
 
  end subroutine extractTime
 
- ! *********************************************************************************
- ! new subroutine: convert date to julian day (units of days)
- ! *********************************************************************************
+
+ ! ***************************************************************************************
+ ! public subroutine compjulday: convert date to julian day (units of days)
+ ! ***************************************************************************************
  subroutine compjulday(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)      ! output
  USE multiconst,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)
@@ -146,7 +173,6 @@ contains
  juldayss = real(julday,kind(dp)) + jfrac
 
  end subroutine compjulday
-
 
 
 end module time_utils_module

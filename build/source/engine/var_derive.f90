@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module var_derive_module
 USE nrtype
 implicit none
@@ -9,37 +29,66 @@ public::fracFuture
 public::v_shortcut
 contains
 
+
  ! **********************************************************************************************************
- ! new subroutine: compute snow height
+ ! public subroutine calcHeight: compute snow height
  ! **********************************************************************************************************
- subroutine calcHeight(err,message)
- USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
+ subroutine calcHeight(&
+                       ! input/output: data structures
+                       indx_data,   & ! intent(in): layer type
+                       mvar_data,   & ! intent(inout): model variables for a local HRU
+                       ! output: error control
+                       err,message)
+ ! access the number of snow and soil layers
+ USE data_struc,only:&
+                     nSnow,   & ! number of snow layers
+                     nSoil,   & ! number of soil layers
+                     nLayers    ! total number of layers
+ ! access named variables for snow and soil
+ USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
+ ! access to the derived types to define the data structures
+ USE data_struc,only:&
+                     var_ilength,        & ! data vector with variable length dimension (i4b)
+                     var_dlength           ! data vector with variable length dimension (dp)
+ ! provide access to named variables defining elements in the data structures
+ USE var_lookup,only:iLookMVAR,iLookINDEX  ! named variables for structure elements
  implicit none
- ! declare dummy variables
- integer(i4b),intent(out) :: err               ! error code
- character(*),intent(out) :: message           ! error message
- ! declare pointers to data in model variable structures
- real(dp),pointer         :: mLayerDepth(:)    ! depth of the layer (m)
- real(dp),pointer         :: mLayerHeight(:)   ! height of the layer mid-point (m)
- real(dp),pointer         :: iLayerHeight(:)   ! height of the layer interface (m)
- ! declare pointers to model index variables
- integer(i4b),pointer     :: nLayers           ! number of layers
- integer(i4b),pointer     :: layerType(:)      ! type of the layer (ix_soil or ix_snow)
- ! declare local variables
- integer(i4b)             :: iLayer            ! loop through layers
+ ! ----------------------------------------------------------------------------------
+ ! dummy variables
+ ! input/output: data structures
+ type(var_ilength),intent(in)    :: indx_data      ! type of model layer
+ type(var_dlength),intent(inout) :: mvar_data      ! model variables for a local HRU
+ ! output: error control
+ integer(i4b),intent(out)        :: err            ! error code
+ character(*),intent(out)        :: message        ! error message
+ ! ----------------------------------------------------------------------------------
+ ! model index variables
+ integer(i4b),dimension(nLayers) :: layerType      ! type of the layer (ix_soil or ix_snow)
+ ! model variables
+ real(dp),dimension(nLayers)     :: mLayerDepth    ! depth of the layer (m)
+ real(dp),dimension(nLayers)     :: mLayerHeight   ! height of the layer mid-point (m)
+ real(dp),dimension(nLayers+1)   :: iLayerHeight   ! height of the layer interface (m)
+ ! ----------------------------------------------------------------------------------
+ ! local variables
+ integer(i4b)                    :: iLayer         ! loop through layers
+ ! ----------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='calcHeight/'
- ! assign local pointers to the values in the model variable structures
- mLayerDepth    =>mvar_data%var(iLookMVAR%mLayerDepth)%dat             ! depth of the layer (m)
- mLayerHeight   =>mvar_data%var(iLookMVAR%mLayerHeight)%dat            ! height of the layer mid-point (m)
- iLayerHeight   =>mvar_data%var(iLookMVAR%iLayerHeight)%dat            ! height of the layer interface (m)
- ! assign local pointers to the model index structures
- nLayers        =>indx_data%var(iLookINDEX%nLayers)%dat(1)             ! number of layers
- layerType      =>indx_data%var(iLookINDEX%layerType)%dat              ! layer type (ix_soil or ix_snow)
- ! ************************************************************************************************************************
+ ! ----------------------------------------------------------------------------------
+ ! associate variables in data structure
+ associate(&
+ ! assign the model index structures
+ layerType      => indx_data%var(iLookINDEX%layerType)%dat,   &   ! layer type (ix_soil or ix_snow)
+ ! assign the values in the model variable structures
+ mLayerDepth    => mvar_data%var(iLookMVAR%mLayerDepth)%dat,  &   ! depth of the layer (m)
+ mLayerHeight   => mvar_data%var(iLookMVAR%mLayerHeight)%dat, &   ! height of the layer mid-point (m)
+ iLayerHeight   => mvar_data%var(iLookMVAR%iLayerHeight)%dat  &   ! height of the layer interface (m)
+ ) ! end associate
+ ! ----------------------------------------------------------------------------------
+
  ! initialize layer height as the top of the snowpack -- positive downward
  iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==ix_snow)
+
  ! loop through layers
  do iLayer=1,nLayers
   ! compute the height at the layer midpoint
@@ -47,16 +96,21 @@ contains
   ! compute the height at layer interfaces
   iLayerHeight(iLayer) = iLayerHeight(iLayer-1) + mLayerDepth(iLayer)
  end do ! (looping through layers)
+
  !print*, 'layerType   = ',  layerType
  !print*, 'mLayerDepth = ',  mLayerDepth
  !print*, 'mLayerHeight = ', mLayerHeight
  !print*, 'iLayerHeight = ', iLayerHeight
  !print*, '************** '
+
+ ! end association to variables in the data structure
+ end associate
+
  end subroutine calcHeight
 
 
  ! **********************************************************************************************************
- ! new subroutine: compute vertical distribution of root density
+ ! public subroutine rootDensty: compute vertical distribution of root density
  ! **********************************************************************************************************
  subroutine rootDensty(err,message)
  ! model decision structures
@@ -136,7 +190,7 @@ contains
   if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then
    err=20; message=trim(message)//'problem with the aquifer root density calculations'; return
   endif
- 
+
  ! set fraction of aquifer roots to zero, and check everything is OK
  else
   scalarAquiferRootFrac = 0._dp
@@ -148,13 +202,15 @@ contains
   endif
  endif
 
+ !print*, 'iLookMVAR%scalarAquiferRootFrac = ', iLookMVAR%scalarAquiferRootFrac
  !print*, 'iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac = ', iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac
  !pause
 
  end subroutine rootDensty
 
+
  ! **********************************************************************************************************
- ! new subroutine: compute vertical profile of saturated hydraulic conductivity
+ ! public subroutine satHydCond: compute vertical profile of saturated hydraulic conductivity
  ! **********************************************************************************************************
  subroutine satHydCond(err,message)
  ! model decision structures
@@ -233,6 +289,11 @@ contains
      ! (--> macropores)
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
                                                     / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     !print*, 'compactedDepth = ', compactedDepth
+     !print*, 'k_macropore    = ', k_macropore
+     !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
+     !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
+     !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
     endif  ! if the mid-point of a layer
    ! error check (errors checked earlier also, so should not get here)
    case default
@@ -249,10 +310,8 @@ contains
  end subroutine satHydCond
 
 
-
-
  ! **********************************************************************************************************
- ! new subroutine: compute the fraction of runoff in future time steps
+ ! public subroutine fracFuture: compute the fraction of runoff in future time steps
  ! **********************************************************************************************************
  subroutine fracFuture(err,message)
  ! external functions
@@ -280,7 +339,7 @@ contains
  real(dp),pointer           :: runoffFuture(:)        ! runoff in future time steps (m s-1)
  real(dp),pointer           :: fractionFuture(:)      ! fraction of runoff in future time steps (-)
  ! internal
- integer(i4b)               :: nTDH                   ! number of points in the time-delay histogram 
+ integer(i4b)               :: nTDH                   ! number of points in the time-delay histogram
  integer(i4b)               :: iFuture                ! index in time delay histogram
  real(dp)                   :: aLambda                ! scale parameter in the Gamma distribution
  real(dp)                   :: tFuture                ! future time (end of step)
@@ -305,9 +364,9 @@ contains
  ! initialize runoffFuture
  runoffFuture(1:nTDH) = 0._dp
 
- print*, 'nTDH = ', nTDH
+ !print*, 'nTDH = ', nTDH
 
- ! select option for sub-grid routing 
+ ! select option for sub-grid routing
  select case(ixRouting)
 
   ! ** instantaneous routing
@@ -339,7 +398,7 @@ contains
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)
    if(abs(1._dp - sumFrac) > tolerFrac)then
-    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in XXX'
+    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in alloc_bvar'
     err=20; return
    endif
    ! ensure the fraction sums to one
@@ -353,10 +412,8 @@ contains
  end subroutine fracFuture
 
 
-
-
  ! **********************************************************************************************************
- ! new subroutine: compute "short-cut" variables
+ ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
  subroutine v_shortcut(err,message)
  ! used to compute derived model variables

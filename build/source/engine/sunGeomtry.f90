@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 MODULE sunGeomtry_module
 USE nrtype
 implicit none
@@ -5,6 +25,9 @@ private
 public::clrsky_rad
 contains
 
+! *************************************************************************************************
+! public subroutine CLRSKY_RAD: get hourly radiation index
+! *************************************************************************************************
  SUBROUTINE CLRSKY_RAD(MONTH,DAY,HOUR,DT,SLOPE,AZI,LAT,HRI,COSZEN)
  ! ----------------------------------------------------------------------------------------
  ! Used to get hourly radiation index
@@ -13,13 +36,13 @@ contains
  !  - comments added by David Rupp 2006.
  !
  ! Procedure appears similar to Stull(1988) "An Introduction to Boundary Layer
- ! Meteorology " as seen in matlab routine obtained from Joe Kidston <joekidston@yahoo.co.uk>. 
+ ! Meteorology " as seen in matlab routine obtained from Joe Kidston <joekidston@yahoo.co.uk>.
  ! Note that equation of time is not used.  Also, solar declination is assumed to stay
  ! constant over the period of one day. What other assumptions are made?  Is this
  ! adequate for the level of precision we require?  Worth reading Stull(1988).
  !
  !  - Modified to integrate over time step up to, but not greater than, 24 hours (D. Rupp, July 2006)
- !  
+ !
  ! ----------------------------------------------------------------------------------------
  IMPLICIT NONE
  ! Input variables
@@ -94,7 +117,7 @@ contains
  ! Calculate integral of radiation index from T1 to T2 and divide by time step DELTA1
  ! NOTE: this assumes the declination does not change from T1 to T2
   HRI=(SIN(D)*SIN(LP)*(T2-T1)+COS(D)*COS(LP)*(SIN(T2+DDT) &
-      -SIN(T1+DDT)))/(COS(SLOPE1)*DELT1)  ! radiation index 
+      -SIN(T1+DDT)))/(COS(SLOPE1)*DELT1)  ! radiation index
  ENDIF
  ! print *, hri
  ! ----------------- for time intervals that extend to following day ----------------------
@@ -125,7 +148,7 @@ contains
    ! Calculate integral of radiation index from T1 to T2 and divide by time step DELTA1
    ! NOTE: this assumes the declination does not change from T1 to T2
    HRI=HRI+(SIN(D)*SIN(LP)*(T2-T1)+COS(D)*COS(LP)*(SIN(T2+DDT) &
-           -SIN(T1+DDT)))/(COS(SLOPE1)*DELT1)  ! radiation index 
+           -SIN(T1+DDT)))/(COS(SLOPE1)*DELT1)  ! radiation index
   ENDIF
   ! print *, hri
  ENDIF
@@ -136,11 +159,16 @@ contains
  ! time step.  It is used for albedo calculations.
  ! ----------------------------------------------------------------------------------------
  CONTAINS
+
+
+ ! *************************************************************************************************
+ ! internal function JULIAN: calculate day of year
+ ! *************************************************************************************************
   FUNCTION JULIAN(MONTH,DAY)
   USE nrtype
   IMPLICIT NONE
   ! input
-  INTEGER(I4B)                             :: MONTH,DAY  ! month and day    
+  INTEGER(I4B)                             :: MONTH,DAY  ! month and day
   ! output
   INTEGER(I4B)                             :: JULIAN     ! julian day
   ! internal
@@ -153,6 +181,7 @@ contains
   END FUNCTION JULIAN
  ! ----------------------------------------------------------------------------------------
  END SUBROUTINE CLRSKY_RAD
+
 
 end module sunGeomtry_module
 

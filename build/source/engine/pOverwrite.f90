@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module pOverwrite_module
 USE nrtype
 implicit none
@@ -5,8 +25,9 @@ private
 public::pOverwrite
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: use Noah tables to overwrite default model parameters
+ ! public subroutine pOverwrite: use Noah tables to overwrite default model parameters
  ! ************************************************************************************************
  subroutine pOverwrite(ixVeg,ixSoil,err,message)
  ! FUSE data structures
@@ -21,7 +42,7 @@ contains
  USE NOAHMP_VEG_PARAMETERS, only: HVB       ! Noah-MP: height at bottom of canopy (m)
  USE NOAHMP_VEG_PARAMETERS, only: DLEAF     ! Noah-MP: characteristic leaf dimension (m)
  ! Noah soil tables
- USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters 
+ USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters
  USE module_sf_noahlsm, only: REFSMC        ! Noah-MP: reference volumetric soil moisture content (-)
  USE module_sf_noahlsm, only: WLTSMC        ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
  implicit none
@@ -66,5 +87,6 @@ contains
  localParFallback(iLookPARAM%critSoilWilting)%default_val     = WLTSMC(ixSoil)      ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
 
  end subroutine pOverwrite
+
 
 end module pOverwrite_module
