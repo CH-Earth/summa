@@ -77,7 +77,6 @@ contains
                        ! input: model control
                        dt,                                     & ! intent(in): length of the model time step (s)
                        getSatDepth,                            & ! intent(in): logical flag to compute index of the lowest saturated layer
-                       ixGroundwater,                          & ! intent(in): choice of groundwater parameterization
 
                        ! input: state and diagnostic variables
                        mLayerdTheta_dPsi,                      & ! intent(in): derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -114,7 +113,6 @@ contains
  ! input: model control
  real(dp),intent(in)              :: dt                           ! length of the model time step (s)
  logical(lgt),intent(in)          :: getSatDepth                  ! logical flag to compute index of the lowest saturated layer
- integer(i4b),intent(in)          :: ixGroundwater                ! choice of groundwater parameterization
  ! input: state and diagnostic variables
  real(dp),intent(in)              :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
  real(dp),intent(in)              :: mLayerMatricHeadLiq(:)       ! matric head in each layer at the current iteration (m)
@@ -180,23 +178,6 @@ contains
  mLayerColumnOutflow     => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat        & ! intent(out):[dp(:)] column outflow from each soil layer (m3 s-1)
 
  )  ! end association to variables in data structures
-
-
- ! ***********************************************************************************************************************
- ! (0) set fluxes to zero if the baseflow routine is not used
- ! ***********************************************************************************************************************
-
- ! set fluxes to zero if the baseflow routine is not used
- if(ixGroundwater/=qbaseTopmodel)then
-  ! (diagnostic variables in the data structures)
-  scalarExfiltration     = 0._dp  ! exfiltration from the soil profile (m s-1)
-  mLayerColumnOutflow(:) = 0._dp  ! column outflow from each soil layer (m3 s-1)
-  ! (variables needed for the numerical solution)
-  mLayerBaseflow(:)      = 0._dp  ! baseflow from each soil layer (m s-1)
-  dBaseflow_dMatric(:,:) = 0._dp  ! derivative in baseflow w.r.t. matric head (s-1)
-  ! early return
-  return
- endif
 
  ! ************************************************************************************************
  ! (1) compute the "active" portion of the soil profile

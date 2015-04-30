@@ -81,6 +81,7 @@ USE data_struc,only:bpar_data                               ! basin-average mode
 USE data_struc,only:bvar_data                               ! basin-average model variables
 USE data_struc,only:model_decisions                         ! model decisions
 USE data_struc,only:urbanVegCategory                        ! vegetation category for urban areas
+USE data_struc,only:globalPrintFlag                         ! global print flag
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
 ! named variables for elements of model structures
@@ -123,7 +124,7 @@ integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency t
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
-character(len=32)         :: output_fileSuffix=''           ! suffix for the output file 
+character(len=64)         :: output_fileSuffix=''           ! suffix for the output file 
 character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 ! define pointers for model indices
@@ -167,9 +168,10 @@ character(len=1024)       :: message=''                     ! error message
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
-print*, 'start simulation'
+print*, 'start'
 ! get the initial time
 call date_and_time(cdate1,ctime1)
+print*,ctime1
 ! get command-line arguments for the output file suffix
 call getarg(1,output_fileSuffix)
 if (len_trim(output_fileSuffix) == 0) then
@@ -274,6 +276,7 @@ do iHRU=1,nHRU
  ! read description of model initial conditions -- also initializes model structure components
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
+ print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
  ! re-calculate height of each layer
  call calcHeight(&
                  ! input/output: data structures
@@ -374,6 +377,10 @@ jstep=1
 ! (6) loop through time
 ! ****************************************************************************
 do istep=1,numtim
+
+ ! set print flag
+ globalPrintFlag=.false.
+ !if(istep > 0) globalPrintFlag=.true.
 
  ! check
  !if(istep > 217) pause 'check time step'
@@ -576,7 +583,7 @@ do istep=1,numtim
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
   end select 
-  printRestart = .true.
+  !printRestart = .true.
 
   ! run the model for a single parameter set and time step
   call coupled_em(printRestart,                    & ! flag to print a re-start file
@@ -865,7 +872,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
         ! CALL wrf_message( mess )
         LUMATCH=1
      ELSE
-        ! call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
         DO LC = 1, LUCATS+12
            read(19,*)
         ENDDO
@@ -949,7 +956,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
-    ! call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
     DO LC = 1, SLCATS
      read(19,*)
     ENDDO

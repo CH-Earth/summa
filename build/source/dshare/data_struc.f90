@@ -150,6 +150,7 @@ MODULE data_struc
  integer(i4b),save,public                :: yearLength               ! number of days in the current year
  integer(i4b),save,public                :: urbanVegCategory=1       ! vegetation category for urban areas
  logical(lgt),save,public                :: doJacobian=.false.       ! flag to compute the Jacobian
+ logical(lgt),save,public                :: globalPrintFlag=.false.  ! flag to compute the Jacobian
  ! ***********************************************************************************************************
  ! Define ancillary data structures
  ! ***********************************************************************************************************

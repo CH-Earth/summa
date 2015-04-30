@@ -1,9 +1,9 @@
 SNOW_FILEMANAGER_V1.4
 ! Comment line:
 ! *** paths (must be in single quotes)
-'/home/mclark/summa/settings/'                  ! SETNGS_PATH
-'/home/mclark/summa/input/miller1998/'          ! INPUT_PATH
-'/home/mclark/summa/output/miller1998/'         ! OUTPUT_PATH
+'/home/mclark/test_summa/summa/settings/'                  ! SETNGS_PATH
+'/home/mclark/test_summa/summa/input/miller1998/'          ! INPUT_PATH
+'/home/mclark/test_summa/summa/output/miller1998/'         ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
 'miller1998/snow_zDecisions_miller1998.txt'     ! M_DECISIONS      = definition of model decisions
 'snow_zTimeMeta.txt'                            ! META_TIME        = metadata for time

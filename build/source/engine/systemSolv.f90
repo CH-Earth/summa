@@ -26,6 +26,9 @@ USE nrtype
 ! layer types
 USE data_struc,only:ix_soil,ix_snow ! named variables for snow and soil
 
+! access the global print flag
+USE data_struc,only:globalPrintFlag
+
 ! access the number of snow and soil layers
 USE data_struc,only:&
                     nSnow,        & ! number of snow layers  
@@ -130,8 +133,6 @@ contains
  USE snowliqflx_module,only:snowliqflx                ! compute liquid water fluxes through snow 
  USE soilliqflx_module,only:soilliqflx                ! compute liquid water fluxes through soil
  USE groundwatr_module,only:groundwatr                ! compute the baseflow flux
- ! provide access to the solver modules
- USE matrixSolv_module,only:matrixSolv                ! solve full matrix
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -176,6 +177,7 @@ contains
  real(dp)                        :: scalarSurfaceRunoff          ! intent(out): surface runoff (m s-1)
  real(dp),dimension(0:nSnow)     :: iLayerLiqFluxSnow            ! intent(out): vertical liquid water flux at layer interfaces (m s-1)
  real(dp),dimension(0:nSoil)     :: iLayerLiqFluxSoil            ! intent(out): liquid flux at soil layer interfaces (m s-1)
+ real(dp),dimension(nSoil)       :: mLayerColumnOutflow          ! intent(out): column outflow from each soil layer (m3 s-1)
  real(dp),dimension(nSoil)       :: mLayerBaseflow               ! intent(out): baseflow from each soil layer -- only compute at the start of the step (m s-1)
  real(dp),dimension(nSoil)       :: mLayerCompress               ! intent(out): change in storage associated with compression of the soil matrix (-)
  real(dp)                        :: scalarCanopySublimation      ! intent(out): sublimation of ice from the vegetation canopy (kg m-2 s-1)
@@ -223,6 +225,7 @@ contains
  logical(lgt)                    :: printFlagInit                ! initialize flag to control printing
  logical(lgt)                    :: pauseProgress                ! flag to start looking at things more carefully
  logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
+ real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
  ! * model indices
  ! ------------------------------------------------------------------------------------------------------
@@ -260,6 +263,8 @@ contains
  integer(i4b)                    :: ixSolve                      ! the type of matrix used to solve the linear system A.X=B
  integer(i4b),parameter          :: iJac1=1                      ! first layer of the Jacobian to print
  integer(i4b),parameter          :: iJac2=10                     ! last layer of the Jacobian to print
+ !integer(i4b),parameter          :: iJac1=457                    ! first layer of the Jacobian to print
+ !integer(i4b),parameter          :: iJac2=466                    ! last layer of the Jacobian to print
  ! ------------------------------------------------------------------------------------------------------
  ! * fluxes and derivatives
  ! ------------------------------------------------------------------------------------------------------
@@ -336,7 +341,7 @@ contains
  real(dp),dimension(nSoil)       :: dCompress_dPsi               ! derivative in compressibility w.r.t matric head (m-1)
  real(dp),dimension(nSnow)       :: snowNetLiqFlux               ! net liquid water flux for each snow layer (s-1)
  real(dp),dimension(nSoil)       :: soilNetLiqFlux               ! net liquid water flux for each soil layer (s-1)
- real(dp),dimension(nSoil,nSoil) :: dBaseflow_dMatric            ! derivative in baseflow w.r.t. matric head (s-1)
+ real(dp),allocatable            :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
  real(dp),dimension(nSoil)       :: mLayerMatricHeadDiff         ! iteration increment for the matric head (m)
  integer(i4b)                    :: ixSaturation                 ! index of lowest saturated layer (NOTE: only computed on the first iteration)
  ! liquid water fluxes and derivatives for the aquifer
@@ -368,6 +373,7 @@ contains
  real(dp),allocatable            :: rhs(:,:)                     ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
+ real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
  real(dp),dimension(1)           :: liquid_max                   ! maximum absolute value of the volumetric liquid water content residual (-)
  real(dp),dimension(1)           :: matric_max                   ! maximum absolute value of the matric head iteration increment (m)
@@ -376,7 +382,7 @@ contains
  integer(i4b),dimension(1)       :: matric_loc                   ! location of maximum absolute value of the matric head increment (-)
  real(dp),parameter              :: absConvTol_energy=1.e-0_dp   ! convergence tolerance for energy (J m-3)
  real(dp),parameter              :: absConvTol_liquid=1.e-6_dp   ! convergence tolerance for volumetric liquid water content (-)
- real(dp),parameter              :: absConvTol_matric=1.e-6_dp   ! convergence tolerance for matric head increment in soil layers (m)
+ real(dp),parameter              :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
  real(dp),parameter              :: stepMax=1._dp                ! maximum step size (K, m, -)
  real(dp)                        :: stpmax                       ! scaled maximum step size
  real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
@@ -501,7 +507,7 @@ contains
  else
   ixSolve=ixBandMatrix   ! band-diagonal matrix
  endif
- !print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
+ if(globalPrintFlag) print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
 
  ! print states
  !do iLayer=1,nLayers
@@ -557,6 +563,12 @@ contains
  ! allocate space for the state vectors
  allocate(stateVecInit(nState),stateVecTrial(nState),stateVecNew(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the state vector'; return; endif
+
+ ! allocate space for the baseflow derivatives
+ if(ixGroundwater==qbaseTopmodel)then
+  allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; endif
+ endif
 
  ! allocate space for the Jacobian matrix
  select case(ixSolve)
@@ -679,7 +691,7 @@ contains
  if(computeVegFlux)then
   stateVecInit(ixCasNrg) = scalarCanairTemp
   stateVecInit(ixVegNrg) = scalarCanopyTemp
-  stateVecInit(ixVegWat) = scalarCanopyWat   ! kg m-2
+  stateVecInit(ixVegWat) = scalarCanopyWat  ! kg m-2
  endif
 
  ! build the state vector for the snow and soil domain
@@ -690,6 +702,11 @@ contains
 
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit 
+
+ ! need to intialize canopy water at a positive value
+ if(computeVegFlux)then
+  if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
+ endif
 
  ! initialize the volumetric fraction of liquid water and ice in the vegetation canopy
  !print*, 'scalarCanopyIce = ', scalarCanopyIce
@@ -1157,6 +1174,12 @@ contains
  ! deallocate space for the state vectors etc.
  deallocate(stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,xScale,fluxVec0,aJac,grad,rVec,rhs,iPiv,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
+
+ ! deallocate space for the baseflow derivatives
+ if(ixGroundwater==qbaseTopmodel)then
+  deallocate(dBaseflow_dMatric,stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
+ endif
 
  ! deallocate space for the variables used to create the numerical Jacobian matrix
  if(numericalJacobian)then
@@ -1713,6 +1736,8 @@ contains
   scalarCanopyLiqDrainage => mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1),&  ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
   scalarSurfaceRunoff     => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)    ,&  ! intent(out): [dp] surface runoff (m s-1)
   scalarRainPlusMelt      => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)     ,&  ! intent(out): [dp] rain plus melt (m s-1)
+  scalarExfiltration      => mvar_data%var(iLookMVAR%scalarExfiltration)%dat(1)     ,&  ! intent(out): [dp] exfiltration from the soil profile (m s-1)
+  mLayerColumnOutflow     => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat       ,&  ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
 
   ! soil fluxes
   iLayerLiqFluxSnow       => mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
@@ -1922,6 +1947,7 @@ contains
   !print*, 'iLayerNrgFlux = ', iLayerNrgFlux
   !print*, 'ssdNetNrgFlux = ', ssdNetNrgFlux
 
+
   ! *****
   ! (3) CALCULATE THE LIQUID FLUX THROUGH VEGETATION...
   ! ***************************************************
@@ -2063,38 +2089,48 @@ contains
   ! (6) CALCULATE THE GROUNDWATER FLOW...
   ! *************************************
 
-  ! compute the baseflow flux
-  call groundwatr(&
-                  ! input: model control
-                  dt,                                      & ! intent(in):    length of the model time step (s)
-                  firstFluxCall,                           & ! intent(in):    logical flag to compute index of the lowest saturated layer
-                  local_ixGroundwater,                     & ! intent(in):    option for lateral soil flux
-                  ! input: state and diagnostic variables
-                  mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
-                  mLayerMatricHeadLiq,                     & ! intent(in):    liquid water matric potential (m)
-                  mLayerVolFracLiqTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of liquid water (-)
-                  mLayerVolFracIceTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of ice (-)
-                  ! input: data structures
-                  attr_data,                               & ! intent(in):    model attributes
-                  mpar_data,                               & ! intent(in):    model parameters
-                  mvar_data,                               & ! intent(inout): model variables for a local HRU
-                  ! output
-                  ixSaturation,                            & ! intent(inout) index of lowest saturated layer (NOTE: only computed on the first iteration)
-                  mLayerBaseflow,                          & ! intent(out): baseflow from each soil layer (m s-1)
-                  dBaseflow_dMatric,                       & ! intent(out): derivative in baseflow w.r.t. matric head (s-1)
-                  err,cmessage)                              ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  !write(*,'(a,1x,10(e20.10,1x))') 'iter, mLayerBaseflow(:) = ', mLayerBaseflow(:)
-  !pause 'computing baseflow fluxes'
+  ! set baseflow fluxes to zero if the baseflow routine is not used
+  if(local_ixGroundwater/=qbaseTopmodel)then
+   ! (diagnostic variables in the data structures)
+   scalarExfiltration     = 0._dp  ! exfiltration from the soil profile (m s-1)
+   mLayerColumnOutflow(:) = 0._dp  ! column outflow from each soil layer (m3 s-1)
+   ! (variables needed for the numerical solution)
+   mLayerBaseflow(:)      = 0._dp  ! baseflow from each soil layer (m s-1)
 
-  ! check
-  if(printFlag)then
-   ! check baseflow
-   write(*,'(a,1x,10(e30.20,1x))') 'baseflow: ', mLayerBaseflow(:)
-   ! check baseflow derivatives
-   !do iLayer=1,nSoil
-   ! write(*,'(a,1x,i4,1x,100(e20.10,1x))') 'dBaseflow: ', iLayer, dBaseflow_dMatric(:,iLayer)
-   !end do
+  ! compute the basdeflow flux
+  else ! local_ixGroundwater==qbaseTopmodel
+   call groundwatr(&
+                   ! input: model control
+                   dt,                                      & ! intent(in):    length of the model time step (s)
+                   firstFluxCall,                           & ! intent(in):    logical flag to compute index of the lowest saturated layer
+                   ! input: state and diagnostic variables
+                   mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+                   mLayerMatricHeadLiq,                     & ! intent(in):    liquid water matric potential (m)
+                   mLayerVolFracLiqTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of liquid water (-)
+                   mLayerVolFracIceTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of ice (-)
+                   ! input: data structures
+                   attr_data,                               & ! intent(in):    model attributes
+                   mpar_data,                               & ! intent(in):    model parameters
+                   mvar_data,                               & ! intent(inout): model variables for a local HRU
+                   ! output
+                   ixSaturation,                            & ! intent(inout) index of lowest saturated layer (NOTE: only computed on the first iteration)
+                   mLayerBaseflow,                          & ! intent(out): baseflow from each soil layer (m s-1)
+                   dBaseflow_dMatric,                       & ! intent(out): derivative in baseflow w.r.t. matric head (s-1)
+                   err,cmessage)                              ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   !write(*,'(a,1x,10(e20.10,1x))') 'iter, mLayerBaseflow(:) = ', mLayerBaseflow(:)
+   !pause 'computing baseflow fluxes'
+
+   ! check
+   if(printFlag)then
+    ! check baseflow
+    write(*,'(a,1x,10(e30.20,1x))') 'baseflow: ', mLayerBaseflow(:)
+    ! check baseflow derivatives
+    !do iLayer=1,nSoil
+    ! write(*,'(a,1x,i4,1x,100(e20.10,1x))') 'dBaseflow: ', iLayer, dBaseflow_dMatric(:,iLayer)
+    !end do
+   endif
+
   endif
 
   ! *****
@@ -2336,6 +2372,10 @@ contains
    ! NOTE: dIce/dLiq = (1 - fracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
    aJac(ixVegNrg,ixVegWat) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - fracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
    aJac(ixTopNrg,ixVegWat) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq) 
+   !print*, '(dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) = ', (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq)
+   !print*, '(1._dp - fracLiqVeg)*LH_fus/canopyDepth = ', (1._dp - fracLiqVeg)*LH_fus/canopyDepth
+
+
 
    ! energy fluxes with the canopy air space (J m-3 K-1)
    aJac(ixCasNrg,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg)
@@ -2351,6 +2391,8 @@ contains
    aJac(ixTopNrg,ixCasNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanairTemp)
    aJac(ixTopNrg,ixVegNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
 
+   !print*, 'aJac(ixVegWat,ixVegNrg) = ', aJac(ixVegWat,ixVegNrg)
+   !print*, 'aJac(ixVegNrg,ixVegWat) = ', aJac(ixVegNrg,ixVegWat)
    !print*, 'aJac(ixTopNrg,ixVegWat) = ', aJac(ixTopNrg,ixVegWat)
    !print*, 'aJac(ixTopNrg,ixVegNrg) = ', aJac(ixTopNrg,ixVegNrg)
    !print*, 'aJac(ixTopLiq,ixVegNrg) = ', aJac(ixTopLiq,ixVegNrg)
@@ -2439,9 +2481,11 @@ contains
   end do  ! (looping through soil layers)
 
   ! print the Jacobian
-  !print*, '** analytical Jacobian:'
-  !write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-  !do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+  if(globalPrintFlag)then
+   print*, '** analytical Jacobian:'
+   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+  endif
   !pause 'testing analytical jacobian'
 
   ! end the association to data structures
@@ -2863,8 +2907,8 @@ contains
   character(LEN=256)            :: cmessage                 ! error message of downwind routine
   ! variables for the line search
   REAL(DP), PARAMETER :: ALF=1.0e-4_dp,TOLX=epsilon(x),xTolInc=1.0e-4_dp
-  INTEGER(I4B) :: ndum,iter,iMax(1)
-  integer(i4b),parameter :: maxiter=5
+  INTEGER(I4B) :: ndum,iterLS,iMax(1)
+  integer(i4b),parameter :: maxiterLS=5
   REAL(DP) :: a,alam,alam2,alamin,b,disc,f2,fold2,pabs,rhs1,rhs2,slope,&
       tmplam
   ! NOTE: these variables are only used for testing
@@ -2890,7 +2934,7 @@ contains
   alam=1.0_dp
 
   ! backtrack
-  do iter=1,maxIter
+  do iterLS=1,maxIterLS
 
    ! update the state vector
    x(:)=xold(:)+alam*p(:)
@@ -2921,13 +2965,18 @@ contains
 
    ! compute the function evaluation
    f=0.5_dp*norm2(rVec/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
-   !write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
-   !write(*,'(a,1x,100(f20.8,1x))') trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
-   !write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
-   !write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
 
    ! check
-   !if(iter>1)then   !.and. printFlag)then
+   if(globalPrintFlag)then
+    print*, '***'
+    write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
+    write(*,'(a,1x,100(f20.8,1x))')  trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
+    write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
+    write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
+   endif
+
+   ! check
+   !if(iterLS>1)then   !.and. printFlag)then
    ! do iCheck=1,size(xOld)
    !  write(*,'(i4,1x,10(e20.10,1x))') iCheck, rVec(iCheck), rVecOld(iCheck), fScale(iCheck)
    ! end do
@@ -2946,7 +2995,7 @@ contains
    if(converged) return
 
    ! check if backtracked all the way to the original value
-   if (iter==maxIter) then   !if (alam < alamin) then
+   if (iterLS==maxIterLS) then   !if (alam < alamin) then
     x(:)=xold(:)
     !print*, '*****************************************************************************'
     !print*, '*****************************************************************************'
@@ -3001,10 +3050,14 @@ contains
   logical(lgt)              :: checkConv       ! flag to denote convergence
   ! locals
   real(dp),dimension(nSoil) :: psiScale        ! scaling factor for matric head
-  real(dp),parameter        :: xSmall=1.e-4_dp ! a small offset
+  real(dp),parameter        :: xSmall=1.e-0_dp ! a small offset
+  logical(lgt)              :: liquidConv      ! flag for residual convergence
+  logical(lgt)              :: matricConv      ! flag for matric head convergence
+  logical(lgt)              :: energyConv      ! flag for energy convergence
 
   ! check convergence based on the residuals for energy (J m-3)
   if(computeVegFlux)then
+   !canopy_max = abs(rVec(ixVegWat))
    energy_max = maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
    energy_loc = maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
   else
@@ -3022,17 +3075,20 @@ contains
   matric_max = maxval(abs( xInc(ixSoilOnlyMat)/psiScale ) )
   matric_loc = maxloc(abs( xInc(ixSoilOnlyMat)/psiScale ) )
 
-  ! print progress towards solution
-  !print*, 'iter, dt = ', iter, dt
-  !write(*,'(a,1x,3(e15.5,1x),2(i4,1x))') 'fNew, liquid_max(1), energy_max(1), liquid_loc(1), energy_loc(1) = ', &
-  !                                        fNew, liquid_max(1), energy_max(1), liquid_loc(1), energy_loc(1)
+  ! convergence check
+  matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
+  liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+  energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
 
-  ! convergence check 
-  if( liquid_max(1) < absConvTol_liquid .and. energy_max(1) < absConvTol_energy .and. matric_max(1) < absConvTol_matric)then
-   checkConv = .true.
-  else
-   checkConv = .false.
+  ! print progress towards solution
+  if(globalPrintFlag)then
+   print*, 'iter, dt = ', iter, dt
+   write(*,'(a,1x,4(e15.5,1x),3(i4,1x),3(L1,1x))') 'fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv = ', &
+                                                    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv
   endif
+
+  ! final convergence check
+  checkConv = (matricConv .and. liquidConv .and. energyConv)
 
   end function checkConv
 

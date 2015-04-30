@@ -409,7 +409,7 @@ contains
                       scalarCanopyShadedPAR,                              & ! intent(out): average absorbed par for shaded leaves (w m-2)
                       err,message)                                          ! intent(out): error control
  ! utilities
- USE expIntegral_module,only:expIntegral                                     ! subroutine to calculate the exponential integral
+ USE expIntegral_module,only:expInt                                          ! function to calculate the exponential integral
  ! Noah-MP modules
  USE NOAHMP_ROUTINES,only:twoStream                                          ! two-stream radiative transfer
  ! Noah vegetation tables
@@ -697,8 +697,8 @@ contains
    tauFinite = exp(-transCoef*scalarExposedVAI)
 
    ! compute transmission of diffuse radiation (-) 
-   vFactor      = scalarGproj*scalarExposedVAI
-   call expIntegral(1,vFactor,expi,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   vFactor    = scalarGproj*scalarExposedVAI
+   expi       = expInt(vFactor)
    taudFinite = (1._dp - vFactor)*exp(-vFactor) + (vFactor**2._dp)*expi
 
    ! compute ground albedo (-)
@@ -809,7 +809,7 @@ contains
 
    ! compute transmission of diffuse radiation (-)
    vFactor      = transCoefPrime*scalarGproj*scalarExposedVAI
-   call expIntegral(1,vFactor,expi,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   expi         = expInt(vFactor)
    taudInfinite = (1._dp - vFactor)*exp(-vFactor) + (vFactor**2._dp)*expi
    taudFinite   = taudInfinite*(1._dp - betaInfinite**2._dp)/(1._dp - (betaInfinite**2._dp)*taudInfinite**2._dp)
 
