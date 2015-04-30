@@ -105,7 +105,6 @@ USE mDecisions_module,only:&                                ! look-up values for
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
 implicit none
-private
 
 ! *****************************************************************************
 ! (0) variable definitions
