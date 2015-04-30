@@ -178,7 +178,7 @@ contains
  USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! utilities
- USE expIntegral_module,only:expIntegral                          ! subroutine to calculate the exponential integral
+ USE expIntegral_module,only:expInt                               ! function to calculate the exponential integral
  ! conversion functions
  USE conv_funcs_module,only:satVapPress                           ! function to compute the saturated vapor pressure (Pa)
  USE conv_funcs_module,only:getLatentHeatValue                    ! function to identify latent heat of vaporization/sublimation (J kg-1)
@@ -809,8 +809,7 @@ contains
      case(difTrans)
       ! compute the exponential integral
       scaleLAI = 0.5_dp*exposedVAI
-      call expIntegral(1,scaleLAI,expi,err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      expi     = expInt(scaleLAI)
       ! compute diffuse transmissivity (-)
       diffuseTrans = (1._dp - scaleLAI)*exp(-scaleLAI) + (scaleLAI**2._dp)*expi
       ! compute the canopy emissivity
@@ -2270,6 +2269,7 @@ contains
   if(zeroPlaneDisplacement < snowDepth) zeroPlaneDisplacement = snowDepth
 
   ! check that everything is consistent
+  if(zeroPlaneDisplacement < heightCanopyBottom)then; err=20; message=trim(message)//'zero plane displacement is below the canopy bottom'; return; endif
   if(mHeight < zeroPlaneDisplacement)then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; endif
   if(mHeight < z0Canopy)then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; endif
 
@@ -2336,7 +2336,17 @@ contains
   referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground)
   windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
   windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
-  if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then; err=20; message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'; return; endif
+  if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then
+   print*, 'heightCanopyTop       = ', heightCanopyTop
+   print*, 'heightCanopyBottom    = ', heightCanopyBottom
+   print*, 'snowDepth             = ', snowDepth
+   print*, 'z0Ground              = ', z0Ground
+   print*, 'referenceHeight       = ', referenceHeight
+   print*, 'z0Canopy              = ', z0Canopy
+   print*, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
+   message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'
+   err=20; return
+  endif
 
   ! compute the leaf boundary layer resistance (s m-1)
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
@@ -3517,46 +3527,6 @@ contains
   dRiBulk_dSfcTemp = 1._dp
  endif
  end subroutine bulkRichardson
-
-
- ! *******************************************************************************************************
- ! private function EXPINT: computes the exponential integral function for the given value
- ! *******************************************************************************************************
- ! From UEBVeg
- ! *******************************************************************************************************
- FUNCTION EXPINT (LAI)
- REAL(DP) LAI
- REAL(DP) EXPINT
- REAL(DP) a0,a1,a2,a3,a4,a5,b1,b2,b3,b4
- IF (LAI.EQ.0)THEN
-  EXPINT=1._dp
-
- ELSEIF (LAI.LE.1.0) THEN
-  a0=-.57721566_dp
-  a1=.99999193_dp
-  a2=-.24991055_dp
-  a3=.05519968_dp
-  a4=-.00976004_dp
-  a5=.00107857_dp
-
-  EXPINT = a0+a1*LAI+a2*LAI**2+a3*LAI**3+a4*LAI**4+a5*LAI**5 - log(LAI)
-
- ELSE
-  a1=8.5733287401_dp
-  a2=18.0590169730_dp
-  a3=8.6347637343_dp
-  a4=.2677737343_dp
-  b1=9.5733223454_dp
-  b2=25.6329561486_dp
-  b3=21.0996530827_dp
-  b4=3.9584969228_dp
-
-  EXPINT=(LAI**4+a1*LAI**3+a2*LAI**2+a3*LAI+a4)/ &
-      ((LAI**4+b1*LAI**3+b2*LAI**2+b3*LAI+b4)*LAI*exp(LAI))
-
- END IF
- RETURN
- END FUNCTION EXPINT
 
 
 end module vegNrgFlux_module

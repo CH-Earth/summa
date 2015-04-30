@@ -216,6 +216,7 @@ contains
  ! print*, 'latitude       = ', attr_hru(iHRU)%var(iLookATTR%latitude)
  ! print*, 'longitude      = ', attr_hru(iHRU)%var(iLookATTR%longitude)
  ! print*, 'elevation      = ', attr_hru(iHRU)%var(iLookATTR%elevation)
+ ! print*, 'mHeight        = ', attr_hru(iHRU)%var(iLookATTR%mHeight)
  ! print*, 'vegTypeIndex   = ', type_hru(iHRU)%var(iLookTYPE%vegTypeIndex)
  ! print*, 'soilTypeIndex  = ', type_hru(iHRU)%var(iLookTYPE%soilTypeIndex)
  ! print*, 'slopeTypeIndex = ', type_hru(iHRU)%var(iLookTYPE%slopeTypeIndex)

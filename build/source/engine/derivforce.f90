@@ -30,7 +30,6 @@ contains
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
  subroutine derivforce(err,message)
- USE nr_utility_module,only:erf                              ! provide access to the error function
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
  USE multiconst,only:secprhour                               ! number of seconds in an hour
  USE data_struc,only:data_step                               ! length of the data step (s)
@@ -162,7 +161,8 @@ contains
   err=20; return
  endif
  ! ensure solar radiation is zero between sunset and sunrise
- if(cosZenith <= 0._dp) SWRadAtm = 0._dp
+ ! NOTE: also ensure that sw radiation is positive
+ if(cosZenith <= 0._dp .or. SWRadAtm < 0._dp) SWRadAtm = 0._dp
  ! compute the fraction of direct radiation using the parameterization of Nijssen and Lettenmaier (1999)
  if(cosZenith > 0._dp)then
   scalarFractionDirect = Frad_direct*cosZenith/(cosZenith + directScale)
