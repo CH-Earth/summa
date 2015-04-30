@@ -32,8 +32,9 @@ public::writeBasin
 integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
 contains
 
+
  ! **********************************************************************************************************
- ! new subroutine: write local attributes
+ ! public subroutine writeAttrb: write local attributes
  ! **********************************************************************************************************
  subroutine writeAttrb(fileout,iHRU,err,message)
  USE data_struc,only:attr_data,attr_meta                   ! local attributes
@@ -92,9 +93,8 @@ contains
  end subroutine writeAttrb
 
 
-
  ! **********************************************************************************************************
- ! new subroutine: write model parameters
+ ! public subroutine writeParam: write model parameters
  ! **********************************************************************************************************
  subroutine writeParam(fileout,iHRU,err,message)
  USE data_struc,only:mpar_data,mpar_meta                   ! local-column model parameter structures
@@ -154,7 +154,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! new subroutine: write model forcing data
+ ! public subroutine writeParam: write model forcing data
  ! **********************************************************************************************************
  subroutine writeForce(fileout,iHRU,istep,err,message)
  USE data_struc,only:forc_data,forc_meta                   ! forcing data structures
@@ -214,7 +214,7 @@ contains
  end subroutine writeForce
 
  ! **********************************************************************************************************
- ! new subroutine: write local column model variables
+ ! public subroutine writeModel: write local column model variables
  ! **********************************************************************************************************
  subroutine writeModel(fileout,iHRU,istep,err,message)
  USE data_struc,only:indx_data,indx_meta                   ! index data structures
@@ -312,7 +312,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! new subroutine: write basin-average variables
+ ! public subroutine writeBasin: write basin-average variables
  ! **********************************************************************************************************
  subroutine writeBasin(fileout,istep,err,message)
  USE data_struc,only:bvar_data,bvar_meta                   ! model data structures
@@ -366,7 +366,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! subroutine X: error control
+ ! private subroutine netcdf_err: error control
  ! **********************************************************************************************************
  subroutine netcdf_err(err,message)
  ! used to handle errors for NetCDF calls
@@ -382,5 +382,6 @@ contains
   err=0
  endif
  end subroutine netcdf_err
+
 
 end module modelwrite_module

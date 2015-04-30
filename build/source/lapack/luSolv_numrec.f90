@@ -25,6 +25,10 @@ private
 public::ludcmp,lubksb
 contains
 
+
+ ! *********************************************************************************************************************
+ ! public subroutine ludcmp: Replaces an n-by-n matrix, a, with the LU decomposition of a row-wise permutation of itself
+ ! *********************************************************************************************************************
  SUBROUTINE ludcmp(a,indx,d,err,message)
  IMPLICIT NONE
  ! input/output
@@ -65,6 +69,10 @@ contains
  end do
  END SUBROUTINE ludcmp
 
+
+ ! *********************************************************************************************************************
+ ! public subroutine lubksb: Solves the set of n linear equations Ax = b (used with ludcmp to do this)
+ ! *********************************************************************************************************************
  SUBROUTINE lubksb(a,indx,b,err,message)
  IMPLICIT NONE
  ! input/output
@@ -100,6 +108,10 @@ contains
  end do
  END SUBROUTINE lubksb
 
+
+ ! *********************************************************************************************************************
+ ! private subroutine swap: swap two reals
+ ! *********************************************************************************************************************
  SUBROUTINE swap(a,b)
  REAL(DP), DIMENSION(:), INTENT(INOUT) :: a,b
  REAL(DP), DIMENSION(SIZE(a)) :: dum
@@ -108,6 +120,10 @@ contains
  b=dum
  END SUBROUTINE swap
 
+
+ ! *********************************************************************************************************************
+ ! private subroutine outerprod: outer product of vectors a and b
+ ! *********************************************************************************************************************
  FUNCTION outerprod(a,b)
  REAL(DP), DIMENSION(:), INTENT(IN) :: a,b
  REAL(DP), DIMENSION(size(a),size(b)) :: outerprod
@@ -115,6 +131,10 @@ contains
   spread(b,dim=1,ncopies=size(a))
  END FUNCTION outerprod
 
+
+ ! *********************************************************************************************************************
+ ! private subroutine imaxloc: returns the index of the maxloc on an array
+ ! *********************************************************************************************************************
  FUNCTION imaxloc(arr)
  REAL(DP), DIMENSION(:), INTENT(IN) :: arr
  INTEGER(I4B) :: imaxloc
@@ -122,5 +142,6 @@ contains
  imax=maxloc(arr(:))
  imaxloc=imax(1)
  END FUNCTION imaxloc
+
 
 end module luSolv_module

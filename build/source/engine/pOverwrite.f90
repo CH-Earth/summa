@@ -25,8 +25,9 @@ private
 public::pOverwrite
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: use Noah tables to overwrite default model parameters
+ ! public subroutine pOverwrite: use Noah tables to overwrite default model parameters
  ! ************************************************************************************************
  subroutine pOverwrite(ixVeg,ixSoil,err,message)
  ! FUSE data structures
@@ -41,7 +42,7 @@ contains
  USE NOAHMP_VEG_PARAMETERS, only: HVB       ! Noah-MP: height at bottom of canopy (m)
  USE NOAHMP_VEG_PARAMETERS, only: DLEAF     ! Noah-MP: characteristic leaf dimension (m)
  ! Noah soil tables
- USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters 
+ USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters
  USE module_sf_noahlsm, only: REFSMC        ! Noah-MP: reference volumetric soil moisture content (-)
  USE module_sf_noahlsm, only: WLTSMC        ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
  implicit none
@@ -86,5 +87,6 @@ contains
  localParFallback(iLookPARAM%critSoilWilting)%default_val     = WLTSMC(ixSoil)      ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
 
  end subroutine pOverwrite
+
 
 end module pOverwrite_module

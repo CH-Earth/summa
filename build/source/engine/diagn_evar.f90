@@ -39,8 +39,8 @@ USE multiconst,only:&
 
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,        & ! number of snow layers  
-                    nSoil,        & ! number of soil layers  
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
                     nLayers         ! total number of layers
 
 ! named variables that define the layer type
@@ -52,13 +52,14 @@ public::diagn_evar
 ! algorithmic parameters
 real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero 
+real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
 real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
 contains
 
- ! ************************************************************************************************
- ! new subroutine: compute diagnostic energy variables (thermal conductivity and heat capacity) 
- ! ************************************************************************************************
+
+ ! **********************************************************************************************************
+ ! public subroutine diagn_evar: compute diagnostic energy variables (thermal conductivity and heat capacity)
+ ! **********************************************************************************************************
  subroutine diagn_evar(&
                        ! input: control variables
                        computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
@@ -167,7 +168,7 @@ contains
  frac_clay               => mpar_data%var(iLookPARAM%frac_clay),                       & ! intent(in): fraction of clay (-)
  ! output: diagnostic variables
  scalarBulkVolHeatCapVeg => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
- mLayerVolHtCapBulk      => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
+ mLayerVolHtCapBulk      => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
  mLayerThermalC          => mvar_data%var(iLookMVAR%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
  iLayerThermalC          => mvar_data%var(iLookMVAR%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
  mLayerVolFracAir        => mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat              & ! intent(out): volumetric fraction of air in each layer (-)
@@ -181,7 +182,7 @@ contains
                             Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
  else
   scalarBulkVolHeatCapVeg = valueMissing
- endif 
+ endif
  !print*, 'diagn_evar: scalarBulkVolHeatCapVeg = ', scalarBulkVolHeatCapVeg
 
  ! compute the thermal conductivity of dry and wet soils (W m-1)
@@ -287,5 +288,6 @@ contains
  end associate
 
  end subroutine diagn_evar
+
 
 end module diagn_evar_module

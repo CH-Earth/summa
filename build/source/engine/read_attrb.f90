@@ -26,14 +26,14 @@ public::read_attrb
 contains
 
  ! ************************************************************************************************
- ! (1) new subroutine: read information on local attributes
+ ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
  subroutine read_attrb(nHRU,err,message)
  ! provide access to subroutines
  USE ascii_util_module,only:file_open              ! open ascii file
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines             ! read a vector of non-comment lines from an ASCII file
- USE allocspace_module,only:alloc_attr             ! module to allocate space for local attributes 
+ USE allocspace_module,only:alloc_attr             ! module to allocate space for local attributes
  USE allocspace_module,only:alloc_type             ! module to allocate space for categorical data
  ! provide access to data
  USE snow_fileManager,only:SETNGS_PATH             ! path for metadata files
@@ -53,8 +53,8 @@ contains
  character(len=256)                   :: cmessage        ! error message for downwind routine
  character(LEN=256)                   :: infile          ! input filename
  integer(i4b),parameter               :: unt=99          ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                         :: iline           ! loop through lines in the file 
- integer(i4b),parameter               :: maxLines=1000   ! maximum lines in the file 
+ integer(i4b)                         :: iline           ! loop through lines in the file
+ integer(i4b),parameter               :: maxLines=1000   ! maximum lines in the file
  character(LEN=256)                   :: temp            ! single lime of information
  ! define local variables
  integer(i4b)                         :: iend            ! check for the end of the file
@@ -66,7 +66,7 @@ contains
  integer(i4b),parameter               :: numerical=102   ! named variable to denote numerical data
  integer(i4b),allocatable             :: varType(:)      ! type of variable (categorical or numerical)
  integer(i4b),allocatable             :: varIndx(:)      ! index of variable within its data structure
- integer(i4b)                         :: iAtt            ! index of an attribute name 
+ integer(i4b)                         :: iAtt            ! index of an attribute name
  integer(i4b)                         :: iHRU            ! index of an HRU
  integer(i4b)                         :: nAtt            ! number of model attributes
  integer(i4b)                         :: nVar_attr       ! number of variables in the model attribute structure
@@ -202,7 +202,7 @@ contains
    if(err/=0)then; err=20; message=trim(message)//'problem with internal read of attribute data'; return; endif
   end do  ! (looping through model attributes)
  end do  ! (looping through HRUs)
- 
+
  ! **********************************************************************************************
  ! (5) deallocate space
  ! **********************************************************************************************
@@ -225,5 +225,6 @@ contains
 
 
  end subroutine read_attrb
+
 
 end module read_attrb_module

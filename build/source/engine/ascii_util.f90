@@ -27,9 +27,10 @@ public::split_line
 public::get_vlines
 contains
 
- ! **********************************************************************************************
- ! new subroutine: open file
- ! **********************************************************************************************
+
+ ! *********************************************************************************************************
+ ! public subroutine file_open: open file
+ ! *********************************************************************************************************
  subroutine file_open(infile,unt,err,message)
  implicit none
  ! declare dummy variables
@@ -63,9 +64,9 @@ contains
  end subroutine file_open
 
 
- ! **********************************************************************************************
- ! new subroutine: split a line of characters into an vector of "words"
- ! **********************************************************************************************
+ ! *********************************************************************************************************
+ ! public subroutine split_line: split a line of characters into an vector of "words"
+ ! *********************************************************************************************************
  subroutine split_line(inline,words,err,message)
  ! do not know how many "words", so use linked lists
  implicit none
@@ -78,7 +79,7 @@ contains
  integer(i4b),parameter  :: cLen=2048
  character(len=cLen)     :: temp                  ! temporary line of characters
  integer(i4b)            :: iword                 ! loop through words
- integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line 
+ integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line
  integer(i4b)            :: i1                    ! index at the start of a given word
  character(len=256)      :: cword                 ! the current word
  integer(i4b)            :: nWords                ! number of words in the character string
@@ -126,9 +127,9 @@ contains
  end subroutine split_line
 
 
- ! **********************************************************************************************
- ! new subroutine: get valid lines of data from file and store as a vector of charater strings
- ! **********************************************************************************************
+ ! *********************************************************************************************************
+ ! public subroutine get_vlines: get valid lines of data from file and store as a vector of charater strings
+ ! *********************************************************************************************************
  subroutine get_vlines(unt,vlines,err,message)
  ! do not know how many valid lines, so use linked lists
  implicit none
@@ -155,7 +156,7 @@ contains
  ! start procedure here
  err=0; message='get_vlines/'
  ! ***** get the valid lines of data from the file and store in linked lists *****
- icount=0  ! initialize the counter for the valid lines 
+ icount=0  ! initialize the counter for the valid lines
  do iline=1,maxLines
   read(unt,'(a)',iostat=iend)temp; if(iend/=0)exit    ! read line of data
   if (temp(1:1)=='!')cycle

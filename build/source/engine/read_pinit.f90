@@ -25,8 +25,9 @@ private
 public::read_pinit
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: read default model parameter values and constraints
+ ! public subroutine read_pinit: read default model parameter values and constraints
  ! ************************************************************************************************
  subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
@@ -51,8 +52,8 @@ contains
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                         :: iline          ! loop through lines in the file 
- integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file 
+ integer(i4b)                         :: iline          ! loop through lines in the file
+ integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file
  character(LEN=256)                   :: temp           ! single line of information
  ! define local variables for the default model parameters
  integer(i4b)                         :: iend           ! check for the end of the file
@@ -93,11 +94,11 @@ contains
   ! (read through comment lines)
   read(unt,'(a)',iostat=iend) temp  ! read a line of data
   if(iend/=0)then; err=20; message=trim(message)//'got to end of file before found the format code'; return; endif
-  if (temp(1:1)=='!')cycle 
+  if (temp(1:1)=='!')cycle
   ! (read in format string -- assume that the first non-comment line is the format code)
   read(temp,*)ffmt  ! read in format string
   exit
-  if(iLine==maxLines)then; err=20; message=trim(message)//'problem finding format code -- no non-comment line after start of parameter definitions'; return; endif 
+  if(iLine==maxLines)then; err=20; message=trim(message)//'problem finding format code -- no non-comment line after start of parameter definitions'; return; endif
  end do ! looping through lines
  ! ---------------------------------------------------------------------------------------------
  ! read in default values of model parameters, and parameter constraints
@@ -140,5 +141,6 @@ contains
  ! close file unit
  close(unt)
  end subroutine read_pinit
+
 
 end module read_pinit_module

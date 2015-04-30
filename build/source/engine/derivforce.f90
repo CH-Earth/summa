@@ -25,8 +25,9 @@ private
 public::derivforce
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute derived forcing data
+ ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
  subroutine derivforce(err,message)
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
@@ -141,7 +142,7 @@ contains
  rainfall       => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)       ! computed rainfall rate (kg m-2 s-1)
  snowfall       => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)       ! computed snowfall rate (kg m-2 s-1)
  snowfallTemp   => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1)   ! computed temperature of fresh snow (K)
- newSnowDensity => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1) ! computed density of new snow (kg m-3) 
+ newSnowDensity => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1) ! computed density of new snow (kg m-3)
 
  ! compute the partial pressure of o2 and co2
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
@@ -239,5 +240,6 @@ contains
  endif
 
  end subroutine derivforce
+
 
 end module derivforce_module

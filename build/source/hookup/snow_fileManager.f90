@@ -49,9 +49,12 @@ CHARACTER(LEN=fusePathLen)  :: FORCING_FILELIST ='snow_zForcingFileList.txt'    
 CHARACTER(LEN=fusePathLen)  :: MODEL_INITCOND   ='snow_zInitialCond.txt'         ! model initial conditions
 CHARACTER(LEN=fusePathLen)  :: PARAMETER_TRIAL  ='snow_zParamTrial.txt'          ! trial values for model parameters
 CHARACTER(LEN=fusePathLen)  :: OUTPUT_PREFIX    ='xx'                            ! prefix for the output file
-!----------------------------------------------------
 contains
-!----------------------------------------------------
+
+
+! *************************************************************************************************
+! public subroutine fuse_SetDirsUndPhiles: Sets directories and filenames for FUSE
+! *************************************************************************************************
 subroutine fuse_SetDirsUndPhiles(fuseFileManagerIn,err,message)
 ! Purpose: Sets directories and philenames for FUSE.
 ! ---
@@ -131,9 +134,12 @@ write(runinfo_fileunit,*) 'ccyy='//cdate(1:4)//' - mm='//cdate(5:6)//' - dd='//c
                          ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
 close(runinfo_fileunit)
 ! End procedure here
-endsubroutine fuse_SetDirsUndPhiles
-!----------------------------------------------------
-! check if there is a space in the character string
+end subroutine fuse_SetDirsUndPhiles
+
+
+! *************************************************************************************************
+! public subroutine checkLineRead: check if there is a space in the character string
+! *************************************************************************************************
 subroutine checkLineRead(stringInput,err,message)
 implicit none
 character(*),intent(in)   :: stringInput
@@ -143,5 +149,6 @@ if(index(trim(stringInput),' ')/=0) then
  err=30; message="f-fuseSetDirsUndPhiles/spaceInString[string="//trim(stringInput)//"]"
 endif
 end subroutine checkLineRead
-!----------------------------------------------------
+
+
 END MODULE snow_filemanager

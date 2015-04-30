@@ -47,9 +47,10 @@ public::snowAlbedo
 integer(i4b),parameter        :: nBands=2      ! number of spectral bands for shortwave radiation
 contains
 
- ! ************************************************************************************************
- ! new subroutine: muster program to compute energy fluxes at vegetation and ground surfaces
- ! ************************************************************************************************
+
+ ! *******************************************************************************************************
+ ! public subroutine snowAlbedo: muster program to compute energy fluxes at vegetation and ground surfaces
+ ! *******************************************************************************************************
  subroutine snowAlbedo(&
                        ! input: model control
                        dt,                                    & ! intent(in): model time step (s)
@@ -99,14 +100,14 @@ contains
  real(dp)                        :: albedoMaxNearIR             ! maximum snow albedo in the near infra-red part of the spectrum (-)
  real(dp)                        :: albedoMinNearIR             ! minimum snow albedo in the near infra-red part of the spectrum (-)
  real(dp)                        :: albedoDecayRate             ! albedo decay rate (s)
- real(dp)                        :: tempScalGrowth              ! temperature scaling factor for grain growth (K-1) 
+ real(dp)                        :: tempScalGrowth              ! temperature scaling factor for grain growth (K-1)
  real(dp)                        :: albedoSootLoad              ! soot load factor (-)
  real(dp)                        :: albedoRefresh               ! critical mass necessary for albedo refreshment (kg m-2)
  real(dp)                        :: snowfrz_scale               ! scaling parameter for the freezing curve for snow (K-1)
  ! input: model variables
  real(dp)                        :: snowfallRate                ! snowfall rate (kg m-2 s-1)
  real(dp)                        :: surfaceTemp                 ! surface temperature (K)
- real(dp)                        :: cosZenith                   ! cosine of the zenith angle 
+ real(dp)                        :: cosZenith                   ! cosine of the zenith angle
  ! input-output: snow albedo
  real(dp),dimension(nBands)      :: spectralSnowAlbedoDiffuse   ! diffuse snow albedo in each spectral band (-)
  real(dp),dimension(nBands)      :: spectralSnowAlbedoDirect    ! direct snow albedo in each spectral band (-)
@@ -144,10 +145,10 @@ contains
  albedoMaxNearIR           => mpar_data%var(iLookPARAM%albedoMaxNearIR),              & ! intent(in): maximum snow albedo in the near infra-red part of the spectrum (-)
  albedoMinNearIR           => mpar_data%var(iLookPARAM%albedoMinNearIR),              & ! intent(in): minimum snow albedo in the near infra-red part of the spectrum (-)
  albedoDecayRate           => mpar_data%var(iLookPARAM%albedoDecayRate),              & ! intent(in): albedo decay rate (s)
- tempScalGrowth            => mpar_data%var(iLookPARAM%tempScalGrowth),               & ! intent(in): temperature scaling factor for grain growth (K-1) 
+ tempScalGrowth            => mpar_data%var(iLookPARAM%tempScalGrowth),               & ! intent(in): temperature scaling factor for grain growth (K-1)
  albedoSootLoad            => mpar_data%var(iLookPARAM%albedoSootLoad),               & ! intent(in): soot load factor (-)
  albedoRefresh             => mpar_data%var(iLookPARAM%albedoRefresh),                & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
- snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale),                & ! intent(in): scaling parameter for the freezing curve for snow (K-1) 
+ snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale),                & ! intent(in): scaling parameter for the freezing curve for snow (K-1)
  ! input: model variables
  surfaceTemp               => mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),             & ! intent(in): surface temperature
  snowfallRate              => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),         & ! intent(in): snowfall rate (kg m-2 s-1)
@@ -166,7 +167,7 @@ contains
  if(.not. snowPresence)then
   scalarSnowAlbedo             = valueMissing
   spectralSnowAlbedoDirect(:)  = valueMissing
-  spectralSnowAlbedoDiffuse(:) = valueMissing 
+  spectralSnowAlbedoDiffuse(:) = valueMissing
   return
  endif
 
@@ -174,7 +175,7 @@ contains
  refreshFactor = dt*snowfallRate/albedoRefresh
 
  ! identify option for snow albedo
- select case(ixAlbedoMethod) 
+ select case(ixAlbedoMethod)
 
 
   ! *** constant decay rate
@@ -195,11 +196,11 @@ contains
    spectralSnowAlbedoDiffuse(ixNearIR)  = scalarSnowAlbedo
    spectralSnowAlbedoDirect(ixVisible)  = scalarSnowAlbedo
    spectralSnowAlbedoDirect(ixNearIR)   = scalarSnowAlbedo
-   
+
 
   ! *** variable decay rate
   case(variableDecay)
-   ! compute decay factor 
+   ! compute decay factor
    age1 = exp(-tempScalGrowth*(Tfreeze - surfaceTemp ))  ! temperature dependence
    age2 = age1**slushExp                                 ! increase with liquid water
    age3 = albedoSootLoad                                 ! soot loading
@@ -234,8 +235,10 @@ contains
 
  end subroutine snowAlbedo
 
- ! ** private function
- ! compute change in albedo -- implicit solution
+
+ ! *******************************************************************************************************
+ ! private subroutine computeAlbedo: compute change in albedo -- implicit solution
+ ! *******************************************************************************************************
  subroutine computeAlbedo(snowAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
  implicit none
  ! dummy variables
@@ -247,7 +250,7 @@ contains
  ! local variables
  real(dp)                 :: albedoChange ! change in albedo over the time step (-)
  ! compute change in albedo
- albedoChange = refreshFactor*(albedoMax - snowAlbedo) - (decayFactor*(snowAlbedo - albedoMin)) / (1._dp + decayFactor) 
+ albedoChange = refreshFactor*(albedoMax - snowAlbedo) - (decayFactor*(snowAlbedo - albedoMin)) / (1._dp + decayFactor)
  snowAlbedo   = snowAlbedo + albedoChange
  if(snowAlbedo > albedoMax) snowAlbedo = albedoMax
  end subroutine computeAlbedo

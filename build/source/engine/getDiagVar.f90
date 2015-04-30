@@ -29,9 +29,10 @@ real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when dia
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 contains
 
- ! ************************************************************************************************
- ! new subroutine: get diagnostic variables treated as constant over a model substep
- ! ************************************************************************************************
+
+ ! *******************************************************************************************************
+ ! public subroutine getDiagVar: get diagnostic variables treated as constant over a model substep
+ ! *******************************************************************************************************
  subroutine getDiagVar(&
                        dt,                          & ! intent(in): time step (s)
                        computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -47,7 +48,7 @@ contains
  USE data_struc,only:yearLength             ! number of days in the current year
  implicit none
  real(dp),intent(in)                  :: dt                          ! time step (seconds)
- 
+
  logical(lgt),intent(out)             :: computeVegFlux              ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  integer(i4b),intent(out)             :: err                         ! error code
  character(*),intent(out)             :: message                     ! error message
@@ -79,7 +80,7 @@ contains
                         mvar_data%var(iLookMVAR%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
                         ! input: vegetation phenology
                         type_data%var(iLookTYPE%vegTypeIndex),                     & ! intent(in): vegetation type index
-                        urbanVegCategory,                                          & ! intent(in): vegetation category for urban areas               
+                        urbanVegCategory,                                          & ! intent(in): vegetation category for urban areas
                         mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),           & ! intent(in): snow depth on the ground surface (m)
                         mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),          & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
                         mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1),        & ! intent(in): root zone temperature (K)
@@ -107,10 +108,10 @@ contains
                         mpar_data%var(iLookPARAM%albedoMaxNearIR),                 & ! intent(in): maximum snow albedo in the near infra-red part of the spectrum (-)
                         mpar_data%var(iLookPARAM%albedoMinNearIR),                 & ! intent(in): minimum snow albedo in the near infra-red part of the spectrum (-)
                         mpar_data%var(iLookPARAM%albedoDecayRate),                 & ! intent(in): albedo decay rate (s)
-                        mpar_data%var(iLookPARAM%tempScalGrowth),                  & ! intent(in): temperature scaling factor for grain growth (K-1) 
+                        mpar_data%var(iLookPARAM%tempScalGrowth),                  & ! intent(in): temperature scaling factor for grain growth (K-1)
                         mpar_data%var(iLookPARAM%albedoSootLoad),                  & ! intent(in): soot load factor (-)
                         mpar_data%var(iLookPARAM%albedoRefresh),                   & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
-                        mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! intent(in): scaling parameter for the freezing curve for snow (K-1) 
+                        mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! intent(in): scaling parameter for the freezing curve for snow (K-1)
                         mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),                & ! intent(in): surface temperature
                         mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),            & ! intent(in): snowfall rate (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1),           & ! intent(in): cosine of the zenith angle (-)
@@ -122,7 +123,7 @@ contains
                         computeVegFlux,                                            & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                         ! output: heat capacity and thermal conductivity
                         mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
-                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
+                        mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
                         mvar_data%var(iLookMVAR%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
                         mvar_data%var(iLookMVAR%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
                         mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat,             & ! intent(out): volumetric fraction of air in each layer (-)
@@ -136,19 +137,9 @@ contains
 
  end subroutine getDiagVar
 
-
-
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! ***** PRIVATE SUBROUTINES ***************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
-
- ! ************************************************************************************************
- ! private subroutine: get diagnostic variables treated as constant over a model substep
- ! ************************************************************************************************
+ ! *******************************************************************************************************
+ ! private subroutine getDiagVar_muster: get diagnostic variables treated as constant over a model substep
+ ! *******************************************************************************************************
  subroutine getDiagVar_muster(&
                               ! input: model control
                               dt,                          & ! intent(in): time step (s)
@@ -170,7 +161,7 @@ contains
                               iLayerHeight,                & ! intent(in): height at the interface of each layer (m)
                               ! input: vegetation phenology
                               vegTypeIndex,                & ! intent(in): vegetation type index
-                              urbanVegCategory,            & ! intent(in): vegetation category for urban areas               
+                              urbanVegCategory,            & ! intent(in): vegetation category for urban areas
                               scalarSnowDepth,             & ! intent(in): snow depth on the ground surface (m)
                               scalarCanopyTemp,            & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
                               scalarRootZoneTemp,          & ! intent(in): root zone temperature (K)
@@ -198,10 +189,10 @@ contains
                               albedoMaxNearIR,             & ! intent(in): maximum snow albedo in the near infra-red part of the spectrum (-)
                               albedoMinNearIR,             & ! intent(in): minimum snow albedo in the near infra-red part of the spectrum (-)
                               albedoDecayRate,             & ! intent(in): albedo decay rate (s)
-                              tempScalGrowth,              & ! intent(in): temperature scaling factor for grain growth (K-1) 
+                              tempScalGrowth,              & ! intent(in): temperature scaling factor for grain growth (K-1)
                               albedoSootLoad,              & ! intent(in): soot load factor (-)
                               albedoRefresh,               & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
-                              snowfrz_scale,               & ! intent(in): scaling parameter for the freezing curve for snow (K-1) 
+                              snowfrz_scale,               & ! intent(in): scaling parameter for the freezing curve for snow (K-1)
                               scalarSurfTemp,              & ! intent(in): surface temperature
                               scalarSnowfall,              & ! intent(in): snowfall rate (kg m-2 s-1)
                               scalarCosZenith,             & ! intent(in): cosine of the zenith angle (-)
@@ -213,7 +204,7 @@ contains
                               computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                               ! output: heat capacity and thermal conductivity
                               scalarBulkVolHeatCapVeg,     & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
-                              mLayerVolHtCapBulk,          & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
+                              mLayerVolHtCapBulk,          & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
                               mLayerThermalC,              & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
                               iLayerThermalC,              & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
                               mLayerVolFracAir,            & ! intent(out): volumetric fraction of air in each layer (-)
@@ -256,13 +247,13 @@ contains
  real(dp),intent(in)                  :: scalarCanopyIce              ! canopy ice content (kg m-2)
  real(dp),intent(in)                  :: mLayerVolFracLiq(:)          ! volumetric fraction of liquid water in each layer (-)
  real(dp),intent(in)                  :: mLayerVolFracIce(:)          ! volumetric fraction of ice in each layer (-)
- ! input: coordinate variables 
+ ! input: coordinate variables
  integer(i4b),intent(in)              :: layerType(:)                 ! type of the layer (ix_soil or ix_snow)
  real(dp),intent(in)                  :: mLayerHeight(:)              ! height at the mid-point of each layer (m)
  real(dp),intent(in)                  :: iLayerHeight(0:)             ! height at the interface of each layer (m)
  ! input: vegetation phenology
  integer(i4b),intent(in)              :: vegTypeIndex                 ! vegetation type index
- integer(i4b),intent(in)              :: urbanVegCategory             ! vegetation category for urban areas               
+ integer(i4b),intent(in)              :: urbanVegCategory             ! vegetation category for urban areas
  real(dp),intent(in)                  :: scalarSnowDepth              ! snow depth on the ground surface (m)
  real(dp),intent(in)                  :: scalarCanopyTemp             ! temperature of the vegetation canopy at the start of the sub-step (K)
  real(dp),intent(in)                  :: scalarRootZoneTemp           ! root zone temperature (K)
@@ -279,7 +270,7 @@ contains
  real(dp),intent(in)                  :: frac_sand                    ! fraction of sand (-)
  real(dp),intent(in)                  :: frac_silt                    ! fraction of silt (-)
  real(dp),intent(in)                  :: frac_clay                    ! fraction of clay (-)
- ! input: snow albedo     
+ ! input: snow albedo
  real(dp),intent(in)                  :: Frad_vis                     ! fraction of radiation in visible part of spectrum (-)
  real(dp),intent(in)                  :: Frad_direct                  ! fraction direct solar radiation (-)
  real(dp),intent(in)                  :: albedoMax                    ! maximum snow albedo for a single spectral band (-)
@@ -290,7 +281,7 @@ contains
  real(dp),intent(in)                  :: albedoMaxNearIR              ! maximum snow albedo in the near infra-red part of the spectrum (-)
  real(dp),intent(in)                  :: albedoMinNearIR              ! minimum snow albedo in the near infra-red part of the spectrum (-)
  real(dp),intent(in)                  :: albedoDecayRate              ! albedo decay rate (s)
- real(dp),intent(in)                  :: tempScalGrowth               ! temperature scaling factor for grain growth (K-1) 
+ real(dp),intent(in)                  :: tempScalGrowth               ! temperature scaling factor for grain growth (K-1)
  real(dp),intent(in)                  :: albedoSootLoad               ! soot load factor (-)
  real(dp),intent(in)                  :: albedoRefresh                ! critical mass necessary for albedo refreshment (kg m-2)
  real(dp),intent(in)                  :: snowfrz_scale                ! scaling parameter for the freezing curve for snow (K-1)
@@ -304,7 +295,7 @@ contains
  logical(lgt),intent(out)             :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! output: heat capacity and thermal conductivity
  real(dp),intent(out)                 :: scalarBulkVolHeatCapVeg      ! volumetric heat capacity of the vegetation (J m-3 K-1)
- real(dp),intent(out)                 :: mLayerVolHtCapBulk(:)        ! volumetric heat capacity in each layer (J m-3 K-1) 
+ real(dp),intent(out)                 :: mLayerVolHtCapBulk(:)        ! volumetric heat capacity in each layer (J m-3 K-1)
  real(dp),intent(out)                 :: mLayerThermalC(:)            ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
  real(dp),intent(out)                 :: iLayerThermalC(0:)           ! thermal conductivity at the interface of each layer (W m-1 K-1)
  real(dp),intent(out)                 :: mLayerVolFracAir(:)          ! volumetric fraction of air in each layer (-)
@@ -356,7 +347,7 @@ contains
   call phenology(&
                  ! input
                  vegTypeIndex,                & ! intent(in): vegetation type index
-                 urbanVegCategory,            & ! intent(in): vegetation category for urban areas               
+                 urbanVegCategory,            & ! intent(in): vegetation category for urban areas
                  scalarSnowDepth,             & ! intent(in): snow depth on the ground surface (m)
                  scalarCanopyTemp,            & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
                  latitude,                    & ! intent(in): latitude
@@ -409,7 +400,7 @@ contains
                  frac_clay,                 & ! intent(in): fraction of clay (-)
                  ! output: diagnostic variables
                  scalarBulkVolHeatCapVeg,   & ! intent(out): bulk volumetric heat capacity of vegetation (J m-3 K-1)
-                 mLayerVolHtCapBulk,        & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1) 
+                 mLayerVolHtCapBulk,        & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
                  mLayerThermalC,            & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
                  iLayerThermalC,            & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
                  mLayerVolFracAir,          & ! intent(out): volumetric fraction of air in each layer (-)
@@ -442,7 +433,7 @@ contains
                   albedoMaxNearIR,            & ! intent(in): maximum snow albedo in the near infra-red part of the spectrum (-)
                   albedoMinNearIR,            & ! intent(in): minimum snow albedo in the near infra-red part of the spectrum (-)
                   albedoDecayRate,            & ! intent(in): albedo decay rate (s)
-                  tempScalGrowth,             & ! intent(in): temperature scaling factor for grain growth (K-1) 
+                  tempScalGrowth,             & ! intent(in): temperature scaling factor for grain growth (K-1)
                   albedoSootLoad,             & ! intent(in): soot load factor (-)
                   albedoRefresh,              & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
                   snowfrz_scale,              & ! intent(in): scaling parameter for the freezing curve for snow (K-1)
@@ -455,5 +446,6 @@ contains
  endif  ! (if NOT using the Noah-MP radiation routine)
 
  end subroutine getDiagVar_muster
+
 
 end module getDiagVar_module

@@ -11,7 +11,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /home/mclark/test_summa/summa
+F_MASTER =
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/build/source
@@ -152,27 +152,35 @@ SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = ifort
+FC  = gfortran-mp-4.8
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
  NCDF_PATH = /usr/local/netcdf-4.3.0/gcc-4.7.2
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
 endif
 ifeq "$(FC)" "gfortran-mp-4.8"
  NCDF_PATH = /opt/local
+ LAPK_PATH = /opt/local
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
 endif
 ifeq "$(FC)" "ifort"
  NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 endif
 ifeq "$(FC)" "pgf90"
  NCDF_PATH = /usr/local/netcdf-4.3.0/pgi-13.8
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 endif
 LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
 INCNETCDF = -I$(NCDF_PATH)/include
-
-# define the lapack libraries
-LAPK_PATH = /usr
-LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 
 # Define the driver routine
 SUMMA_DRIVER= \
@@ -239,6 +247,8 @@ check:
 	$(info   NCDF_PATH  : $(NCDF_PATH))
 	$(info   LIBNETCDF  : $(LIBNETCDF))
 	$(info   INCNETCDF  : $(INCNETCDF))
+	$(info   LAPK_PATH  : $(LAPK_PATH))
+	$(info   LIBLAPACK  : $(LIBLAPACK))
 	$(info   FLAGS_NOAH : $(FLAGS_NOAH))
 	$(info   FLAGS_COMM : $(FLAGS_COMM))
 	$(info   FLAGS_SUMMA: $(FLAGS_SUMMA))

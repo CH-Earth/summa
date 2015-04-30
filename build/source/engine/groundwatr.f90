@@ -30,15 +30,15 @@ USE mDecisions_module,only:  &
  noExplicit                    ! no explicit groundwater parameterization
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,     & ! number of snow layers  
-                    nSoil,     & ! number of soil layers  
+                    nSnow,     & ! number of snow layers
+                    nSoil,     & ! number of soil layers
                     nLayers      ! total number of layers
 ! provide access to the derived types to define the data structures
 USE data_struc,only:&
                     var_d,     & ! data vector (dp)
                     var_dlength  ! data vector with variable length dimension (dp)
 ! provide access to named variables defining elements in the data structures
-USE var_lookup,only:iLookATTR,iLookPARAM,iLookMVAR     
+USE var_lookup,only:iLookATTR,iLookPARAM,iLookMVAR
  ! utility modules
 implicit none
 ! constant parameters
@@ -49,8 +49,9 @@ private
 public::groundwatr
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute the groundwater sink term in Richards' equation
+ ! public subroutine groundwatr: compute the groundwater sink term in Richards' equation
  ! ************************************************************************************************
  !
  ! Method
@@ -134,8 +135,8 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! input: baseflow parameters
  real(dp)                         :: fieldCapacity                ! intent(in): field capacity (-)
- real(dp)                         :: theta_sat                    ! intent(in): soil porosity (-) 
- real(dp)                         :: theta_res                    ! intent(in): residual volumetric water content (-) 
+ real(dp)                         :: theta_sat                    ! intent(in): soil porosity (-)
+ real(dp)                         :: theta_res                    ! intent(in): residual volumetric water content (-)
  ! input: van Genuchten soil parameters
  real(dp)                         :: vGn_alpha,vGn_n,vGn_m        ! van Genuchten parameters
  ! output: diagnostic variables
@@ -188,7 +189,7 @@ contains
   ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
   do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
    if(mLayerVolFracLiq(iLayer) > fieldCapacity)then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
-   else; exit; endif                                                        ! (only consider saturated layer at the bottom of the soil profile) 
+   else; exit; endif                                                        ! (only consider saturated layer at the bottom of the soil profile)
   end do  ! (looping through soil layers)
  endif
 
@@ -246,7 +247,7 @@ contains
   do iLayer=1,nSoil
 
    ! perturb state vector
-   mLayerMatricHeadPerturbed(iLayer) = mLayerMatricHeadPerturbed(iLayer) + dx 
+   mLayerMatricHeadPerturbed(iLayer) = mLayerMatricHeadPerturbed(iLayer) + dx
 
    ! compute the columetruc liquid water content
    mLayerVolFracLiqPerturbed(iLayer) = volFracLiq(mLayerMatricHeadPerturbed(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
@@ -267,7 +268,7 @@ contains
                         ! output: fluxes and derivatives
                         mLayerBaseflowPerturbed,   & ! intent(out): baseflow flux in each soil layer (m s-1)
                         dBaseflow_dVolLiq)           ! intent(out): ** NOT USED ** derivative in baseflow w.r.t. volumetric liquid water content (s-1)
-   
+
    ! compute the numerical Jacobian
    nJac(:,iLayer) = (mLayerBaseflowPerturbed(:) - mLayerBaseflow(:))/dx    ! compute the Jacobian
 
@@ -292,17 +293,7 @@ contains
 
 
  ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! **** PRIVATE SUBROUTINES **********************************************************************************************
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
-
- ! ***********************************************************************************************************************
- ! * compute baseflow: private subroutine so can be used to test the numerical jacobian
+ ! * private subroutine computeBaseflow: private subroutine so can be used to test the numerical jacobian
  ! ***********************************************************************************************************************
  subroutine computeBaseflow(&
                             ! input: control and state variables
@@ -354,7 +345,7 @@ contains
  real(dp)                         :: zScale_TOPMODEL         ! intent(in): TOPMODEL exponent (-)
  real(dp)                         :: kAnisotropic            ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
  real(dp)                         :: fieldCapacity           ! intent(in): field capacity (-)
- real(dp)                         :: theta_sat               ! intent(in): soil porosity (-) 
+ real(dp)                         :: theta_sat               ! intent(in): soil porosity (-)
  ! output: diagnostic variables
  real(dp)                         :: scalarExfiltration      ! intent(out): exfiltration from the soil profile (m s-1)
  real(dp),dimension(nSoil)        :: mLayerColumnOutflow     ! intent(out): column outflow from each soil layer (m3 s-1)
@@ -480,7 +471,7 @@ contains
   ! (test the derivative)
   !if(testDerivatives)then
   ! do iLayer=1,nSoil
-  !  mLayerVolFracLiqCopy(:) = mLayerVolFracLiq(:) 
+  !  mLayerVolFracLiqCopy(:) = mLayerVolFracLiq(:)
   !  mLayerVolFracLiqCopy(iLayer) = mLayerVolFracLiq(iLayer) + dx
   !  t1 = sum(mLayerDepth(1:nSoil)*(theta_sat - (mLayerVolFracLiqCopy(1:nSoil)+mLayerVolFracIce(1:nSoil))) )
   !  f1 = 1._dp / (1._dp + exp((t1 - xCenter)/xWidth))
@@ -500,7 +491,7 @@ contains
  else
   scalarExfiltration = 0._dp
  endif
- 
+
  ! check
  !write(*,'(a,1x,10(f30.20,1x))') 'zActive(1), soilDepth, availStorage, logF, scalarExfiltration = ', &
  !                                 zActive(1), soilDepth, availStorage, logF, scalarExfiltration
@@ -582,7 +573,7 @@ contains
   ! compute analytical derivatives for baseflow w.r.t. volumetric liquid water content (m s-1)
   dPart1 = mLayerDepth(iLayer)/(activePorosity*soilDepth)
   dPart2 = tran0*zScale_TOPMODEL*(zActive(iLayer)/SoilDepth)**(zScale_TOPMODEL - 1._dp)
-  write(*,'(a,1x,e20.10,1x)') 'anal deriv   = ', dPart1*dPart2*tan_slope*contourLength/HRUarea 
+  write(*,'(a,1x,e20.10,1x)') 'anal deriv   = ', dPart1*dPart2*tan_slope*contourLength/HRUarea
 
   ! check x-derivative terms....
 
@@ -612,7 +603,7 @@ contains
   dPart1 = tan_slope*contourLength*tran0
   dPart2 = zScale_TOPMODEL*(zActive(iLayer)/SoilDepth)**(zScale_TOPMODEL - 1._dp)
   dPart3 = zScale_TOPMODEL*(zActive(iLayer+1)/SoilDepth)**(zScale_TOPMODEL - 1._dp)
-  
+
   write(*,'(a,1x,2(e20.10,1x))') 'dPart0, depth2capacity(jLayer) = ', dPart0, depth2capacity(jLayer)
   write(*,'(a,1x,2(e20.10,1x))') 'dPart1/HRUarea, tran0*tan_slope*contourLength/HRUarea = ', dPart1/HRUarea, tran0*tan_slope*contourLength/HRUarea
   write(*,'(a,1x,2(e20.10,1x))') 'dPart2 - dPart3, dXdS(iLayer) - dXdS(iLayer+1) = ', dPart2 - dPart3, dXdS(iLayer) - dXdS(iLayer+1)
@@ -626,6 +617,5 @@ contains
 
  end subroutine computeBaseflow
 
- ! -- end of private subroutines
 
 end module groundwatr_module

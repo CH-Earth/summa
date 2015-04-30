@@ -30,8 +30,9 @@ private
 public::paramCheck
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: check consistency of model parameters
+ ! public subroutine paramCheck: check consistency of model parameters
  ! ************************************************************************************************
  subroutine paramCheck(err,message)
  ! model decisions
@@ -47,8 +48,8 @@ contains
  ! local variables
  integer(i4b)                   :: iLayer               ! index of model layers
  real(dp),dimension(5)          :: zminLayer            ! minimum layer depth in each layer (m)
- real(dp),dimension(4)          :: zmaxLayer_lower      ! lower value of maximum layer depth 
- real(dp),dimension(4)          :: zmaxLayer_upper      ! upper value of maximum layer depth 
+ real(dp),dimension(4)          :: zmaxLayer_lower      ! lower value of maximum layer depth
+ real(dp),dimension(4)          :: zmaxLayer_upper      ! upper value of maximum layer depth
  ! Start procedure here
  err=0; message="paramCheck/"
 
@@ -135,5 +136,6 @@ contains
  endif
 
  end subroutine paramCheck
+
 
 end module paramCheck_module

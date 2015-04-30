@@ -29,8 +29,9 @@ public::fracFuture
 public::v_shortcut
 contains
 
+
  ! **********************************************************************************************************
- ! new subroutine: compute snow height
+ ! public subroutine calcHeight: compute snow height
  ! **********************************************************************************************************
  subroutine calcHeight(&
                        ! input/output: data structures
@@ -40,8 +41,8 @@ contains
                        err,message)
  ! access the number of snow and soil layers
  USE data_struc,only:&
-                     nSnow,   & ! number of snow layers  
-                     nSoil,   & ! number of soil layers  
+                     nSnow,   & ! number of snow layers
+                     nSoil,   & ! number of soil layers
                      nLayers    ! total number of layers
  ! access named variables for snow and soil
  USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
@@ -109,7 +110,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! new subroutine: compute vertical distribution of root density
+ ! public subroutine rootDensty: compute vertical distribution of root density
  ! **********************************************************************************************************
  subroutine rootDensty(err,message)
  ! model decision structures
@@ -189,7 +190,7 @@ contains
   if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then
    err=20; message=trim(message)//'problem with the aquifer root density calculations'; return
   endif
- 
+
  ! set fraction of aquifer roots to zero, and check everything is OK
  else
   scalarAquiferRootFrac = 0._dp
@@ -207,8 +208,9 @@ contains
 
  end subroutine rootDensty
 
+
  ! **********************************************************************************************************
- ! new subroutine: compute vertical profile of saturated hydraulic conductivity
+ ! public subroutine satHydCond: compute vertical profile of saturated hydraulic conductivity
  ! **********************************************************************************************************
  subroutine satHydCond(err,message)
  ! model decision structures
@@ -308,10 +310,8 @@ contains
  end subroutine satHydCond
 
 
-
-
  ! **********************************************************************************************************
- ! new subroutine: compute the fraction of runoff in future time steps
+ ! public subroutine fracFuture: compute the fraction of runoff in future time steps
  ! **********************************************************************************************************
  subroutine fracFuture(err,message)
  ! external functions
@@ -339,7 +339,7 @@ contains
  real(dp),pointer           :: runoffFuture(:)        ! runoff in future time steps (m s-1)
  real(dp),pointer           :: fractionFuture(:)      ! fraction of runoff in future time steps (-)
  ! internal
- integer(i4b)               :: nTDH                   ! number of points in the time-delay histogram 
+ integer(i4b)               :: nTDH                   ! number of points in the time-delay histogram
  integer(i4b)               :: iFuture                ! index in time delay histogram
  real(dp)                   :: aLambda                ! scale parameter in the Gamma distribution
  real(dp)                   :: tFuture                ! future time (end of step)
@@ -366,7 +366,7 @@ contains
 
  !print*, 'nTDH = ', nTDH
 
- ! select option for sub-grid routing 
+ ! select option for sub-grid routing
  select case(ixRouting)
 
   ! ** instantaneous routing
@@ -412,10 +412,8 @@ contains
  end subroutine fracFuture
 
 
-
-
  ! **********************************************************************************************************
- ! new subroutine: compute "short-cut" variables
+ ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
  subroutine v_shortcut(err,message)
  ! used to compute derived model variables

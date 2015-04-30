@@ -34,8 +34,8 @@ USE multiconst,only:&
                     iden_water  ! intrinsic density of water  (kg m-3)
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,   & ! number of snow layers  
-                    nSoil,   & ! number of soil layers  
+                    nSnow,   & ! number of snow layers
+                    nSoil,   & ! number of soil layers
                     nLayers    ! total number of layers
 implicit none
 private
@@ -44,12 +44,13 @@ public::newsnwfall
 
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: combine and sub-divide layers if necessary)
+ ! public subroutine volicePack: combine and sub-divide layers if necessary)
  ! ************************************************************************************************
  subroutine volicePack(&
                        ! input/output: model data structures
-                       model_decisions,             & ! intent(in):    model decisions 
+                       model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
                        mvar_data,                   & ! intent(inout): model variables for a local HRU
@@ -128,23 +129,16 @@ contains
 
  end subroutine volicePack
 
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! ***** PUBLIC SUBROUTINES ****************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
- ! *****************************************************************************************************************************************************************
 
  ! ************************************************************************************************
- ! new subroutine: add new snowfall to the system
+ ! public subroutine newsnwfall: add new snowfall to the system
  ! ************************************************************************************************
  subroutine newsnwfall(&
                        ! input: model control
                        dt,                        & ! time step (seconds)
                        fc_param,                  & ! freeezing curve parameter for snow (K-1)
                        ! input: diagnostic scalar variables
-                       scalarSnowfallTemp,        & ! computed temperature of fresh snow (K) 
+                       scalarSnowfallTemp,        & ! computed temperature of fresh snow (K)
                        scalarNewSnowDensity,      & ! computed density of new snow (kg m-3)
                        scalarThroughfallSnow,     & ! throughfall of snow through the canopy (kg m-2 s-1)
                        scalarCanopySnowUnloading, & ! unloading of snow from the canopy (kg m-2 s-1)
@@ -165,7 +159,7 @@ contains
  real(dp),intent(in)                 :: dt                         ! time step (seconds)
  real(dp),intent(in)                 :: fc_param                   ! freeezing curve parameter for snow (K-1)
  ! input: diagnostic scalar variables
- real(dp),intent(in)                 :: scalarSnowfallTemp         ! computed temperature of fresh snow (K) 
+ real(dp),intent(in)                 :: scalarSnowfallTemp         ! computed temperature of fresh snow (K)
  real(dp),intent(in)                 :: scalarNewSnowDensity       ! computed density of new snow (kg m-3)
  real(dp),intent(in)                 :: scalarThroughfallSnow      ! throughfall of snow through the canopy (kg m-2 s-1)
  real(dp),intent(in)                 :: scalarCanopySnowUnloading  ! unloading of snow from the canopy (kg m-2 s-1)

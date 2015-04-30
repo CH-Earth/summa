@@ -25,8 +25,9 @@ private
 public::vegLiqFlux
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute water balance for the vegetation canopy
+ ! public subroutine vegLiqFlux: compute water balance for the vegetation canopy
  ! ************************************************************************************************
  subroutine vegLiqFlux(&
                        ! input
@@ -78,14 +79,9 @@ contains
 
  end subroutine vegLiqFlux
 
- ! ************************************************************************************************
- ! ************************************************************************************************
- ! *** PRIVATE SUBROUTINES ************************************************************************
- ! ************************************************************************************************
- ! ************************************************************************************************
 
  ! ************************************************************************************************
- ! new subroutine: compute water balance for the vegetation canopy
+ ! private subroutine vegLiqFlux_muster: compute water balance for the vegetation canopy
  ! ************************************************************************************************
  subroutine vegLiqFlux_muster(&
                               ! input
@@ -137,5 +133,6 @@ contains
  endif
 
  end subroutine vegLiqFlux_muster
+
 
 end module vegLiqFlux_module

@@ -30,8 +30,8 @@ USE multiconst,only:&
 
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,   & ! number of snow layers  
-                    nSoil,   & ! number of soil layers  
+                    nSnow,   & ! number of snow layers
+                    nSoil,   & ! number of soil layers
                     nLayers    ! total number of layers
 
 ! access named variables for snow and soil
@@ -64,9 +64,9 @@ end interface AddOneLayer
 
 contains
 
- ! ************************************************************************************************
- ! new subroutine: add new snowfall to the system, and increase number of snow layers if needed
- ! ************************************************************************************************
+ ! ***********************************************************************************************************
+ ! public subroutine layerDivide: add new snowfall to the system, and increase number of snow layers if needed
+ ! ***********************************************************************************************************
  subroutine layerDivide(&
                         ! input/output: model data structures
                         model_decisions,             & ! intent(in):    model decisions
@@ -108,21 +108,21 @@ contains
  real(dp)                        :: newSnowDenScal      ! scaling factor for new snow density (K)
  ! model parameters (control on the depth of snow layers)
  real(dp)                        :: zmax                ! maximum layer depth (m)
- real(dp)                        :: zmaxLayer1_lower    ! maximum layer depth for the 1st (top) layer when only 1 layer (m) 
- real(dp)                        :: zmaxLayer2_lower    ! maximum layer depth for the 2nd layer when only 2 layers (m) 
- real(dp)                        :: zmaxLayer3_lower    ! maximum layer depth for the 3rd layer when only 3 layers (m) 
- real(dp)                        :: zmaxLayer4_lower    ! maximum layer depth for the 4th layer when only 4 layers (m) 
- real(dp)                        :: zmaxLayer1_upper    ! maximum layer depth for the 1st (top) layer when > 1 layer (m) 
- real(dp)                        :: zmaxLayer2_upper    ! maximum layer depth for the 2nd layer when > 2 layers (m) 
- real(dp)                        :: zmaxLayer3_upper    ! maximum layer depth for the 3rd layer when > 3 layers (m) 
- real(dp)                        :: zmaxLayer4_upper    ! maximum layer depth for the 4th layer when > 4 layers (m) 
+ real(dp)                        :: zmaxLayer1_lower    ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
+ real(dp)                        :: zmaxLayer2_lower    ! maximum layer depth for the 2nd layer when only 2 layers (m)
+ real(dp)                        :: zmaxLayer3_lower    ! maximum layer depth for the 3rd layer when only 3 layers (m)
+ real(dp)                        :: zmaxLayer4_lower    ! maximum layer depth for the 4th layer when only 4 layers (m)
+ real(dp)                        :: zmaxLayer1_upper    ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
+ real(dp)                        :: zmaxLayer2_upper    ! maximum layer depth for the 2nd layer when > 2 layers (m)
+ real(dp)                        :: zmaxLayer3_upper    ! maximum layer depth for the 3rd layer when > 3 layers (m)
+ real(dp)                        :: zmaxLayer4_upper    ! maximum layer depth for the 4th layer when > 4 layers (m)
  ! model parameters (compute layer temperature)
  real(dp)                        :: fc_param            ! freeezing curve parameter for snow (K-1)
  ! diagnostic scalar variables
  real(dp)                        :: scalarSnowDepth     ! total snow depth (m)
  real(dp)                        :: scalarSWE           ! SWE (kg m-2)
  real(dp)                        :: scalarSnowfall      ! snowfall flux (kg m-2 s-1)
- real(dp)                        :: scalarSnowfallTemp  ! computed temperature of fresh snow (K) 
+ real(dp)                        :: scalarSnowfallTemp  ! computed temperature of fresh snow (K)
  ! model state variables (all layers)
  ! NOTE: use pointers because dimension length changes
  real(dp),pointer                :: mLayerTemp(:)       ! temperature of each layer (K)
@@ -143,11 +143,11 @@ contains
  integer(i4b)                    :: jLayer              ! layer index
  integer(i4b)                    :: kLayer              ! layer index
  integer(i4b)                    :: ivar                ! variable index
- real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth 
- real(dp),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth 
+ real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
+ real(dp),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
  real(dp)                        :: zmaxCheck           ! value of zmax for a given snow layer
  integer(i4b)                    :: nCheck              ! number of layers to check to divide
- logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer 
+ logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
  real(dp)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
  real(dp)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
  real(dp),parameter              :: unfrozenLiq=0.01_dp ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
@@ -169,14 +169,14 @@ contains
  newSnowDenScal         => mpar_data%var(iLookPARAM%newSnowDenScal),           & ! scaling factor for new snow density (K)
  ! model parameters (control the depth of snow layers)
  zmax                   => mpar_data%var(iLookPARAM%zmax),                     & ! maximum layer depth (m)
- zmaxLayer1_lower       => mpar_data%var(iLookPARAM%zmaxLayer1_lower),         & ! maximum layer depth for the 1st (top) layer when only 1 layer (m) 
- zmaxLayer2_lower       => mpar_data%var(iLookPARAM%zmaxLayer2_lower),         & ! maximum layer depth for the 2nd layer when only 2 layers (m) 
- zmaxLayer3_lower       => mpar_data%var(iLookPARAM%zmaxLayer3_lower),         & ! maximum layer depth for the 3rd layer when only 3 layers (m) 
- zmaxLayer4_lower       => mpar_data%var(iLookPARAM%zmaxLayer4_lower),         & ! maximum layer depth for the 4th layer when only 4 layers (m) 
- zmaxLayer1_upper       => mpar_data%var(iLookPARAM%zmaxLayer1_upper),         & ! maximum layer depth for the 1st (top) layer when > 1 layer (m) 
- zmaxLayer2_upper       => mpar_data%var(iLookPARAM%zmaxLayer2_upper),         & ! maximum layer depth for the 2nd layer when > 2 layers (m) 
- zmaxLayer3_upper       => mpar_data%var(iLookPARAM%zmaxLayer3_upper),         & ! maximum layer depth for the 3rd layer when > 3 layers (m) 
- zmaxLayer4_upper       => mpar_data%var(iLookPARAM%zmaxLayer4_upper),         & ! maximum layer depth for the 4th layer when > 4 layers (m) 
+ zmaxLayer1_lower       => mpar_data%var(iLookPARAM%zmaxLayer1_lower),         & ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
+ zmaxLayer2_lower       => mpar_data%var(iLookPARAM%zmaxLayer2_lower),         & ! maximum layer depth for the 2nd layer when only 2 layers (m)
+ zmaxLayer3_lower       => mpar_data%var(iLookPARAM%zmaxLayer3_lower),         & ! maximum layer depth for the 3rd layer when only 3 layers (m)
+ zmaxLayer4_lower       => mpar_data%var(iLookPARAM%zmaxLayer4_lower),         & ! maximum layer depth for the 4th layer when only 4 layers (m)
+ zmaxLayer1_upper       => mpar_data%var(iLookPARAM%zmaxLayer1_upper),         & ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
+ zmaxLayer2_upper       => mpar_data%var(iLookPARAM%zmaxLayer2_upper),         & ! maximum layer depth for the 2nd layer when > 2 layers (m)
+ zmaxLayer3_upper       => mpar_data%var(iLookPARAM%zmaxLayer3_upper),         & ! maximum layer depth for the 3rd layer when > 3 layers (m)
+ zmaxLayer4_upper       => mpar_data%var(iLookPARAM%zmaxLayer4_upper),         & ! maximum layer depth for the 4th layer when > 4 layers (m)
  ! model parameters (compute layer temperature)
  fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale),            & ! freezing curve parameter for snow (K-1)
  ! diagnostic scalar variables
@@ -198,7 +198,7 @@ contains
 
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zmax_lower = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
- zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/) 
+ zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
 
  ! ***** special case of no snow layers
  if(nSnow==0)then
@@ -215,7 +215,7 @@ contains
 
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
-   call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage) 
+   call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage)
    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
    ! re-assign pointers to the coordinate variables
@@ -360,13 +360,13 @@ contains
 
  ! end associate variables in data structure
  end associate
- 
+
  end subroutine layerDivide
 
 
- ! *********************************************************************************************
- ! new subroutine: add an additional layer to all model vectors
- ! *********************************************************************************************
+ ! ************************************************************************************************
+ ! private subroutine addModelLayer: add an additional layer to all model vectors
+ ! ************************************************************************************************
  subroutine addModelLayer(mvar_data,indx_data,ix_divide,err,message)
  ! provide access to variables in the data structures
  USE data_struc,only:mvar_meta,indx_meta      ! metadata
@@ -479,14 +479,14 @@ contains
  end subroutine addModelLayer
 
 
-
- ! ************************************************************************************************
- ! new subroutine: add an additional snow layer
- ! ************************************************************************************************
- subroutine AddOneLayer_rv(datavec,ix_lower,ix_upper,ix_divide,stateVariable,err,message)
+ ! ***************************************************************************************************
+ ! private subroutine AddOneLayer_rv: add an additional snow layer (real version)
+ ! ***************************************************************************************************
  ! Returns a new vector which has one more element than the input vector
  !  -- optionally copies data from the original vector to the new vector for elements (2:n)->(3:n+1),
  !      and copies element 1 into elements 1:2, and copies element 0 into element 0
+ ! ***************************************************************************************************
+ subroutine AddOneLayer_rv(datavec,ix_lower,ix_upper,ix_divide,stateVariable,err,message)
  implicit none
  ! dummies
  real(dp),pointer,intent(inout)     :: datavec(:)    ! the original and the new vector
@@ -502,7 +502,7 @@ contains
  ! initialize error control
  err=0; message='AddOneLayer_rv/'
  ! check the data vector is associated
- if(.not.associated(datavec))then; err=20; message='data vector is not associated'; return; endif 
+ if(.not.associated(datavec))then; err=20; message='data vector is not associated'; return; endif
  ! assign the data vector to the temporary vector
  tempvec=datavec
  ! reallocate space for the new vector
@@ -523,10 +523,14 @@ contains
  endif
  end subroutine AddOneLayer_rv
 
- subroutine AddOneLayer_iv(datavec,ix_lower,ix_upper,ix_divide,stateVariable,err,message)
+ ! ***************************************************************************************************
+ ! private subroutine AddOneLayer_iv: add an additional snow layer (integer version)
+ ! ***************************************************************************************************
  ! Returns a new vector which has one more element than the input vector
  !  -- optionally copies data from the original vector to the new vector for elements (2:n)->(3:n+1),
  !      and copies element 1 into elements 1:2, and copies element 0 into element 0
+ ! ***************************************************************************************************
+ subroutine AddOneLayer_iv(datavec,ix_lower,ix_upper,ix_divide,stateVariable,err,message)
  implicit none
  ! dummies
  integer(i4b),pointer,intent(inout) :: datavec(:)    ! the original and the new vector
@@ -562,5 +566,6 @@ contains
   datavec = missingInteger
  endif
  end subroutine AddOneLayer_iv
+
 
 end module layerDivide_module

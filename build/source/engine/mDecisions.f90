@@ -80,7 +80,7 @@ integer(i4b),parameter,public :: lightSnow            = 112    ! maximum interce
 integer(i4b),parameter,public :: exponential          = 121    ! exponential wind profile extends to the surface
 integer(i4b),parameter,public :: logBelowCanopy       = 122    ! logarithmic profile below the vegetation canopy
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard             = 131    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: standard             = 131    ! standard MO similarity, a la Anderson (1976)
 integer(i4b),parameter,public :: louisInversePower    = 132    ! Louis (1979) inverse power function
 integer(i4b),parameter,public :: mahrtExponential     = 133    ! Mahrt (1987) exponential
 ! look-up values for the choice of canopy shortwave radiation method
@@ -112,8 +112,9 @@ integer(i4b),parameter,public :: qInstant             = 202    ! instantaneous r
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: save model decisions as named integers
+ ! public subroutine mDecisions: save model decisions as named integers
  ! ************************************************************************************************
  subroutine mDecisions(err,message)
  ! model time structures
@@ -164,7 +165,7 @@ contains
 
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
-                  startTime%var(iLookTIME%iyyy),                         & ! year 
+                  startTime%var(iLookTIME%iyyy),                         & ! year
                   startTime%var(iLookTIME%im),                           & ! month
                   startTime%var(iLookTIME%id),                           & ! day
                   startTime%var(iLookTIME%ih),                           & ! hour
@@ -175,7 +176,7 @@ contains
 
  ! put simulation end time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
-                  finshTime%var(iLookTIME%iyyy),                         & ! year 
+                  finshTime%var(iLookTIME%iyyy),                         & ! year
                   finshTime%var(iLookTIME%im),                           & ! month
                   finshTime%var(iLookTIME%id),                           & ! day
                   finshTime%var(iLookTIME%ih),                           & ! hour
@@ -186,7 +187,7 @@ contains
 
  ! compute the julian date (fraction of day) for the start of the simulation
  call compjulday(&
-                 startTime%var(iLookTIME%iyyy),                         & ! year 
+                 startTime%var(iLookTIME%iyyy),                         & ! year
                  startTime%var(iLookTIME%im),                           & ! month
                  startTime%var(iLookTIME%id),                           & ! day
                  startTime%var(iLookTIME%ih),                           & ! hour
@@ -198,7 +199,7 @@ contains
 
  ! compute the julian date (fraction of day) for the end of the simulation
  call compjulday(&
-                 finshTime%var(iLookTIME%iyyy),                         & ! year 
+                 finshTime%var(iLookTIME%iyyy),                         & ! year
                  finshTime%var(iLookTIME%im),                           & ! month
                  finshTime%var(iLookTIME%id),                           & ! day
                  finshTime%var(iLookTIME%ih),                           & ! hour
@@ -213,7 +214,7 @@ contains
 
  ! compute the number of time steps
  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
- 
+
  ! -------------------------------------------------------------------------------------------------
 
  ! (0) set Noah-MP options
@@ -405,7 +406,7 @@ contains
 
  ! (F-19) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
-  case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
+  case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965)
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
   case('jrdn1991'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Jordan1991          ! Jordan (1991)
   case('smnv2000'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Smirnova2000        ! Smirnova et al. (2000)
@@ -459,7 +460,7 @@ contains
   case(qbaseTopmodel)
    if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
     message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater'
-    err=20; return 
+    err=20; return
    endif
  end select
 
@@ -489,8 +490,9 @@ contains
 
  end subroutine mDecisions
 
+
  ! ************************************************************************************************
- ! private subroutine: read information from model decisions file
+ ! private subroutine readoption: read information from model decisions file
  ! ************************************************************************************************
  subroutine readoption(err,message)
  ! used to read information from model decisions file
@@ -542,9 +544,10 @@ contains
   iVar = get_ixdecisions(trim(option))
   if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; endif
   ! populate the model decisions structure
-  model_decisions(iVar)%cOption   = trim(option) 
+  model_decisions(iVar)%cOption   = trim(option)
   model_decisions(iVar)%cDecision = trim(decision)
  end do
  end subroutine readoption
+
 
 end module mDecisions_module

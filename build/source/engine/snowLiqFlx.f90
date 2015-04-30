@@ -23,16 +23,17 @@ USE nrtype                                    ! numerical recipes data types
 USE multiconst,only:iden_ice,iden_water       ! intrinsic density of ice and water (kg m-3)
 ! access the number of snow and soil layers
 USE data_struc,only:&
-                    nSnow,        & ! number of snow layers  
-                    nSoil,        & ! number of soil layers  
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
                     nLayers         ! total number of layers
 implicit none
 private
 public::snowLiqFlx
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute liquid water flux through the snowpack
+ ! public subroutine snowLiqFlx: compute liquid water flux through the snowpack
  ! ************************************************************************************************
  subroutine snowLiqFlx(&
                        ! input: model control
@@ -98,9 +99,9 @@ contains
  end subroutine snowLiqFlx
 
 
- ! *********************************************************************************************************************************************************
+ ! ************************************************************************************************
  ! * private subroutine: calculate fluxes and derivatives for liquid water flow through snow
- ! *********************************************************************************************************************************************************
+ ! ************************************************************************************************
  subroutine snowLiqFlx_muster(&
                               ! input: model control
                               iter,                                                       & ! intent(in): iteration index
@@ -217,5 +218,6 @@ contains
  end do  ! loop through snow layers
 
  end subroutine snowLiqFlx_muster
+
 
 end module snowLiqFlx_module

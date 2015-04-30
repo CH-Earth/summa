@@ -25,8 +25,9 @@ private
 public::ffile_info
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: read information on model forcing files
+ ! public subroutine ffile_info: read information on model forcing files
  ! ************************************************************************************************
  subroutine ffile_info(nHRU,err,message)
  ! used to read metadata on the forcing data file
@@ -52,8 +53,8 @@ contains
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                         :: iline          ! loop through lines in the file 
- integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file 
+ integer(i4b)                         :: iline          ! loop through lines in the file
+ integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file
  character(LEN=256)                   :: filenameDesc   ! name of file that describes the forcing datafile
  character(LEN=256)                   :: temp='uninitialized'  ! single lime of information
  integer(i4b)                         :: iend           ! check for the end of the file
@@ -129,7 +130,7 @@ contains
   ! open file
   call file_open(trim(infile),unt,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! get to the start of the variable descriptions 
+  ! get to the start of the variable descriptions
   do iline=1,maxLines
    read(unt,'(a)',iostat=iend)temp; if (iend/=0)exit    ! read line of data
    if (temp(1:1)/='!') exit  ! assume first line not comment is format code
@@ -202,5 +203,6 @@ contains
   end do
  end do
  end subroutine ffile_info
+
 
 end module ffile_info_module
