@@ -432,7 +432,7 @@ contains
  ! (layer "iSnow" will be filled with a combined layer later)
  ! ***********************************************************************************************************
  subroutine rmLyAllVars(mvar_data,indx_data,iSnow,err,message)
- USE data_struc,only:mvar_meta,indx_meta      ! metadata
+ USE data_struc,only:mvar_meta                ! metadata
  USE data_struc,only:var_ilength,var_dlength  ! data vectors with variable length dimension
  USE var_lookup,only:iLookMVAR,iLookINDEX     ! named variables for structure elements
  implicit none
