@@ -2095,7 +2095,6 @@ contains
   else ! local_ixGroundwater==qbaseTopmodel
    call groundwatr(&
                    ! input: model control
-                   dt,                                      & ! intent(in):    length of the model time step (s)
                    firstFluxCall,                           & ! intent(in):    logical flag to compute index of the lowest saturated layer
                    ! input: state and diagnostic variables
                    mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
