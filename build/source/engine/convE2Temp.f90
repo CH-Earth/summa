@@ -202,7 +202,6 @@ contains
  real(dp)             :: temp2ethpy    ! return value of the function, total specific enthalpy (J m-3)
  ! declare local variables
  real(dp)             :: frac_liq      ! fraction of liquid water
- real(dp)             :: enthTempSoil  ! temperature component of specific enthalpy for dry soil (J kg-1)
  real(dp)             :: enthTempWater ! temperature component of specific enthalpy for total water (liquid and ice) (J kg-1)
  real(dp)             :: enthMass      ! mass component of specific enthalpy (J kg-1)
  ! NOTE: this function assumes the freezing curve for snow ... it needs modification to use vanGenuchten functions for soil
