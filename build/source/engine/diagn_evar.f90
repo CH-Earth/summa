@@ -92,33 +92,6 @@ contains
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
- ! --------------------------------------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! input: state variables
- real(dp)                          :: scalarCanopyIce      ! mass of ice on the vegetation canopy (kg m-2)
- real(dp)                          :: scalarCanopyLiquid   ! mass of liquid water on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)       :: mLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
- real(dp),dimension(nLayers)       :: mLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
- ! input: coordinate variables
- integer(i4b),dimension(nLayers)   :: layerType            ! type of the layer (snow or soil)
- real(dp),dimension(nLayers)       :: mLayerHeight         ! height of the layer mid-point (top of soil = 0)
- real(dp),dimension(0:nLayers)     :: iLayerHeight         ! height of the layer interface (top of soil = 0)
- ! input: model parameters
- real(dp)                          :: specificHeatVeg      ! specific heat of vegetation (J kg-1 K-1)
- real(dp)                          :: maxMassVegetation    ! maximum mass of vegetation (full foliage) (kg m-2)
- real(dp)                          :: iden_soil            ! intrinsic density of soil (kg m-3)
- real(dp)                          :: thCond_soil          ! thermal conductivity of soil (W m-1 K-1)
- real(dp)                          :: theta_sat            ! soil porosity (-)
- real(dp)                          :: frac_sand            ! fraction of sand (-)
- real(dp)                          :: frac_silt            ! fraction of silt (-)
- real(dp)                          :: frac_clay            ! fraction of clay (-)
- ! output: diagnostic variables
- real(dp)                          :: scalarBulkVolHeatCapVeg ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
- real(dp),dimension(nLayers)       :: mLayerVolHtCapBulk   ! volumetric heat capacity in each layer (J m-3 K-1)
- real(dp),dimension(nLayers)       :: mLayerThermalC       ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
- real(dp),dimension(0:nLayers)     :: iLayerThermalC       ! thermal conductivity at the interface of each layer (W m-1 K-1)
- real(dp),dimension(nLayers)       :: mLayerVolFracAir     ! volumetric fraction of air in each layer (-)
- ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  character(LEN=256)                :: cmessage               ! error message of downwind routine
@@ -127,8 +100,6 @@ contains
  real(dp)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
  real(dp)                          :: zdn                    ! height difference between interface and lower value (m)
  real(dp)                          :: zdp                    ! height difference between interface and upper value (m)
- real(dp)                          :: lambda_wet             ! thermal conductivity of the wet material
- !real(dp)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
  real(dp)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
  real(dp)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
  real(dp)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
@@ -244,12 +215,6 @@ contains
      !                                       iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer)
 
     endif
-    ! compute the thermal conductivity of the wet material (W m-1)
-    !lambda_wet = lambda_wetsoil**(1._dp - theta_sat) * lambda_water**theta_sat * lambda_ice**(theta_sat - mLayerVolFracLiq(iLayer))
-    ! compute the Kersten number (-)
-    !kerstenNum = log10( (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat ) + 1._dp
-    ! ...and, compute the thermal conductivity
-    !mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._dp - kerstenNum)*lambda_drysoil
    ! * snow
    case(ix_snow)
     call tcond_snow(mLayerVolFracIce(iLayer)*iden_ice,mLayerThermalC(iLayer),err,cmessage)
