@@ -99,44 +99,6 @@ contains
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! model decisions
- integer(i4b)                    :: ix_snowLayers       ! decision for snow combination
- ! model parameters (new snow density)
- real(dp)                        :: newSnowDenMin       ! minimum new snow density (kg m-3)
- real(dp)                        :: newSnowDenMult      ! multiplier for new snow density (kg m-3)
- real(dp)                        :: newSnowDenScal      ! scaling factor for new snow density (K)
- ! model parameters (control on the depth of snow layers)
- real(dp)                        :: zmax                ! maximum layer depth (m)
- real(dp)                        :: zmaxLayer1_lower    ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
- real(dp)                        :: zmaxLayer2_lower    ! maximum layer depth for the 2nd layer when only 2 layers (m)
- real(dp)                        :: zmaxLayer3_lower    ! maximum layer depth for the 3rd layer when only 3 layers (m)
- real(dp)                        :: zmaxLayer4_lower    ! maximum layer depth for the 4th layer when only 4 layers (m)
- real(dp)                        :: zmaxLayer1_upper    ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
- real(dp)                        :: zmaxLayer2_upper    ! maximum layer depth for the 2nd layer when > 2 layers (m)
- real(dp)                        :: zmaxLayer3_upper    ! maximum layer depth for the 3rd layer when > 3 layers (m)
- real(dp)                        :: zmaxLayer4_upper    ! maximum layer depth for the 4th layer when > 4 layers (m)
- ! model parameters (compute layer temperature)
- real(dp)                        :: fc_param            ! freeezing curve parameter for snow (K-1)
- ! diagnostic scalar variables
- real(dp)                        :: scalarSnowDepth     ! total snow depth (m)
- real(dp)                        :: scalarSWE           ! SWE (kg m-2)
- real(dp)                        :: scalarSnowfall      ! snowfall flux (kg m-2 s-1)
- real(dp)                        :: scalarSnowfallTemp  ! computed temperature of fresh snow (K)
- ! model state variables (all layers)
- ! NOTE: use pointers because dimension length changes
- real(dp),pointer                :: mLayerTemp(:)       ! temperature of each layer (K)
- real(dp),pointer                :: mLayerVolFracIce(:) ! volumetric fraction of ice in each layer (-)
- real(dp),pointer                :: mLayerVolFracLiq(:) ! volumetric fraction of liquid water in each layer (-)
- ! model coordinate variables
- ! NOTE: use pointers because dimension length changes
- real(dp),pointer                :: mLayerDepth(:)      ! depth of the layer (m)
- real(dp),pointer                :: mLayerHeight(:)     ! height of the layer mid-point (m)
- real(dp),pointer                :: iLayerHeight(:)     ! height of the layer interface (m)
- ! model index variables
- ! NOTE: use pointers because dimension length changes
- integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
- ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iLayer              ! layer index
@@ -183,16 +145,16 @@ contains
  scalarSnowfall         => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),     & ! snowfall flux (kg m-2 s-1)
  scalarSnowfallTemp     => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1), & ! computed temperature of fresh snow (K)
  scalarSnowDepth        => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),    & ! total snow depth (m)
- scalarSWE              => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)           & ! SWE (kg m-2)
+ scalarSWE              => mvar_data%var(iLookMVAR%scalarSWE)%dat(1),          & ! SWE (kg m-2)
+ ! model state variables
+ mLayerDepth            => mvar_data%var(iLookMVAR%mLayerDepth)%dat,           & ! depth of the layer (m)
+ mLayerTemp             => mvar_data%var(iLookMVAR%mLayerTemp)%dat,            & ! temperature of each layer (K)
+ mLayerVolFracIce       => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,      & ! volumetric fraction of ice in each layer (-)
+ mLayerVolFracLiq       => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,      & ! volumetric fraction of liquid water in each layer (-)
+ ! model index structures
+ layerType              => indx_data%var(iLookINDEX%layerType)%dat             & ! layer type (ix_soil or ix_snow)
  )  ! end associate statement
 
- ! assign pointers to model state variables
- mLayerDepth            => mvar_data%var(iLookMVAR%mLayerDepth)%dat           ! depth of the layer (m)
- mLayerTemp             => mvar_data%var(iLookMVAR%mLayerTemp)%dat            ! temperature of each layer (K)
- mLayerVolFracIce       => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat      ! volumetric fraction of ice in each layer (-)
- mLayerVolFracLiq       => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat      ! volumetric fraction of liquid water in each layer (-)
- ! assign local pointers to the model index structures
- layerType              => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
 
  ! --------------------------------------------------------------------------------------------------------
 
@@ -218,15 +180,15 @@ contains
    call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage)
    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
-   ! re-assign pointers to the coordinate variables
-   mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
-   layerType        => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
+   ! re-assign to the coordinate variables
+   mLayerDepth = mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
+   layerType   = indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
 
-   ! re-assign pointers to the model state variables
+   ! re-assign to the model state variables
    ! NOTE: need to do this here, since state vectors have just been modified
-   mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
-   mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer (-)
-   mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
+   mLayerTemp       = mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
+   mLayerVolFracIce = mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer (-)
+   mLayerVolFracLiq = mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
 
    ! compute surface layer temperature
    surfaceLayerSoilTemp = mLayerTemp(2)    ! temperature of the top soil layer (K)
@@ -327,8 +289,8 @@ contains
    call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage)  ! adds model layer to the index BELOW the layer that is too thick
    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
-   ! re-assign local pointer to the model index structures
-   layerType => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
+   ! re-assign to the model index structures
+   layerType = indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
 
    ! identify the number of snow and soil layers, and check all is a-OK
    nSnow   = count(layerType==ix_snow)
@@ -341,10 +303,10 @@ contains
    indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
    ! check
-   mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
-   mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
-   mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer (-)
-   mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
+   mLayerTemp       = mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
+   mLayerDepth      = mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
+   mLayerVolFracIce = mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer (-)
+   mLayerVolFracLiq = mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
    !print*, 'after sub-division'
    !do kLayer=1,nLayers
    ! write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
@@ -383,18 +345,6 @@ contains
  integer(i4b),intent(out)        :: err       ! error code
  character(*),intent(out)        :: message   ! error message
  ! ---------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! diagnostic variables
- real(dp)                        :: scalarSnowDepth     ! total snow depth (m)
- ! model coordinate variables
- ! NOTE: use pointers because dimension length changes
- real(dp),pointer                :: mLayerDepth(:)      ! depth of the layer (m)
- real(dp),pointer                :: mLayerHeight(:)     ! height of the layer mid-point (m)
- real(dp),pointer                :: iLayerHeight(:)     ! height of the layer interface (m)
- ! model index variables
- ! NOTE: use pointers because dimension length changes
- integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
- ! ---------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                    :: ivar                ! index of model variable
  integer(i4b)                    :: jLayer              ! index of model layer
@@ -410,7 +360,12 @@ contains
 
  ! associate variables in data structure
  associate(&
- scalarSnowDepth        => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)    & ! total snow depth (m)
+ scalarSnowDepth  => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),    & ! total snow depth (m)
+ ! associate model coordinate variables
+ mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat,           & ! depth of the layer (m)
+ mLayerHeight     => mvar_data%var(iLookMVAR%mLayerHeight)%dat,          & ! height of the layer mid-point (m)
+ iLayerHeight     => mvar_data%var(iLookMVAR%iLayerHeight)%dat,          & ! height of the layer interface (m)
+ layerType        => indx_data%var(iLookINDEX%layerType)%dat             & ! type of each layer (ix_snow or ix_soil)
  )  ! associate
 
  ! ***** add a layer to each model variable
@@ -445,11 +400,6 @@ contains
  indx_data%var(iLookINDEX%layerType)%dat(nSnow+2:nLayers+1) = ix_soil
  nLayers = nLayers + 1
 
- ! assign pointers to model coordinate variables
- mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of the layer (m)
- mLayerHeight     => mvar_data%var(iLookMVAR%mLayerHeight)%dat         ! height of the layer mid-point (m)
- iLayerHeight     => mvar_data%var(iLookMVAR%iLayerHeight)%dat         ! height of the layer interface (m)
- layerType        => indx_data%var(iLookINDEX%layerType)%dat           ! type of each layer (ix_snow or ix_soil)
 
  ! ***** modify the layer depth
  if(ix_divide==0)then ! no layers exist currently
