@@ -36,7 +36,6 @@ contains
  USE data_struc,only:forcFileInfo                      ! forcing file info
  USE data_struc,only:data_step                         ! length of the data step (s)
  USE data_struc,only:dJulianStart                      ! julian day of start time of simulation
- USE data_struc,only:dJulianFinsh                      ! julian day of end time of simulation
  USE data_struc,only:refTime,refJulday                 ! reference time
  USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
  USE data_struc,only:yearLength                        ! number of days in the current year
