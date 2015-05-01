@@ -140,9 +140,7 @@ contains
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iLayer              ! layer index
- integer(i4b)                    :: jLayer              ! layer index
  integer(i4b)                    :: kLayer              ! layer index
- integer(i4b)                    :: ivar                ! variable index
  real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
  real(dp),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
  real(dp)                        :: zmaxCheck           ! value of zmax for a given snow layer
@@ -369,8 +367,8 @@ contains
  ! ************************************************************************************************
  subroutine addModelLayer(mvar_data,indx_data,ix_divide,err,message)
  ! provide access to variables in the data structures
- USE data_struc,only:mvar_meta,indx_meta      ! metadata
- USE data_struc,only:var_ilength,var_dlength  ! data vectors with variable length dimension
+ USE data_struc,only:mvar_meta                        ! metadata
+ USE data_struc,only:var_ilength,var_dlength          ! data vectors with variable length dimension
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX  ! named variables for structure elements
  implicit none
  ! ---------------------------------------------------------------------------------------------
