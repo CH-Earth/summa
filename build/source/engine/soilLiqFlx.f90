@@ -1169,8 +1169,8 @@ contains
  ! compute hydraulic conductivity and its derivative in each soil layer
 
  ! compute the ice impedence factor and its derivative w.r.t. volumetric liquid water content (-)
- call iceImpede(scalarVolFracIceTrial,scalarVolFracLiqTrial,theta_sat,f_impede,deriv_desired, &  ! input
-                iceImpedeFac,dIceImpede_dLiq)                                                    ! output
+ call iceImpede(scalarVolFracIceTrial,f_impede, &  ! input
+                iceImpedeFac,dIceImpede_dLiq)      ! output
 
 
  select case(ixRichards)
@@ -1241,7 +1241,7 @@ contains
     !effSat = (volLiq - theta_res) / (theta_sat - volIce - theta_res)
     !psiLiq = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! use effective saturation, so theta_res=0 and theta_sat=1
     !hydCon = hydCond_psi(psiLiq,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
-    !call iceImpede(volIce,volLiq,theta_sat,f_impede,deriv_desired,iceImpedeFac,dIceImpede_dLiq)
+    !call iceImpede(volIce,f_impede,iceImpedeFac,dIceImpede_dLiq)
     !hydIce = hydCon*iceImpedeFac
     !print*, 'test derivative: ', (psiLiq - scalarMatricHeadTrial)/dx, dPsiLiq_dTemp
     !print*, 'test derivative: ', (hydCon - hydCond_noIce)/dx, dHydCondMicro_dTemp
