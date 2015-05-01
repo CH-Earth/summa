@@ -147,12 +147,6 @@ real(dp),parameter        :: supersatScale=0.001_dp         ! scaling factor for
 real(dp),parameter        :: xMatch = 0.99999_dp            ! point where x-value and function value match (-)
 real(dp),parameter        :: safety = 0.01_dp               ! safety factor to ensure logistic function is less than 1
 real(dp),parameter        :: fSmall = epsilon(xMatch)       ! smallest possible value to test
-real(dp)                  :: supersatThresh                 ! threshold in super-saturation function (-)
-real(dp)                  :: exfilMin                       ! minimum fraction of storage filled for exfiltration to occur (-)
-real(dp)                  :: expFunc                        ! exponential function used as part of the flux calculation (-)
-real(dp)                  :: logFunc                        ! logistic smoothing function (-)
-real(dp)                  :: fracCap                        ! fraction of storage filled with liquid water and ice (-)
-real(dp)                  :: exfiltration                   ! exfiltration (m3/s)
 real(dp),allocatable      :: upArea(:)                      ! area upslope of each HRU
 ! general local variables
 real(dp)                  :: fracHRU                        ! fractional area of a given HRU (-)
@@ -321,12 +315,6 @@ end do  ! (looping through HRUs)
 
 ! allocate space for the upslope area
 allocate(upArea(nHRU),stat=err); call handle_err(err,'problem allocating space for upArea')
-
-! define threshold in the exfiltration function (-)
-supersatThresh = supersatScale * log(1._dp/xMatch - 1._dp) + (xMatch - safety)
-
-! define minimum value to calculate exfiltration
-exfilMin = -supersatScale*log(1._dp/fSmall - 1._dp) + supersatThresh
 
 ! identify the total basin area (m2)
 totalArea => bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
