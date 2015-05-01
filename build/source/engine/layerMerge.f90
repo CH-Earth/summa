@@ -81,28 +81,6 @@ contains
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! model decisions
- integer(i4b)                    :: ix_snowLayers       ! decision for snow combination
- ! model parameters (control on the depth of snow layers)
- real(dp)                        :: zmin                ! minimum layer depth (m)
- real(dp)                        :: zminLayer1          ! minimum layer depth for the 1st (top) layer(m)
- real(dp)                        :: zminLayer2          ! minimum layer depth for the 2nd layer(m)
- real(dp)                        :: zminLayer3          ! minimum layer depth for the 3rd layer(m)
- real(dp)                        :: zminLayer4          ! minimum layer depth for the 4th layer(m)
- real(dp)                        :: zminLayer5          ! minimum layer depth for the 5th (bottom) layer(m)
- ! model index variables
- ! NOTE: use pointers because the dimension length changes
- integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
- ! model state variables
- ! NOTE: use pointers because the dimension length changes
- real(dp),pointer                :: mLayerDepth(:)      ! depth of each layer (m)
- real(dp),pointer                :: mLayerVolFracIce(:) ! volumetric fraction of ice in each layer (-)
- real(dp),pointer                :: mLayerVolFracLiq(:) ! volumetric fraction of liquid water in each layer (-)
- ! diagnostic scalar variables
- real(dp)                        :: scalarSnowDepth     ! total snow depth (m)
- real(dp)                        :: scalarSWE           ! SWE (kg m-2)
- ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
  real(dp),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
@@ -130,20 +108,21 @@ contains
 
  ! diagnostic scalar variables
  scalarSnowDepth  => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
- scalarSWE        => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)             & ! SWE (kg m-2)
+ scalarSWE        => mvar_data%var(iLookMVAR%scalarSWE)%dat(1),            & ! SWE (kg m-2)
+
+ ! model index structures
+ layerType        => indx_data%var(iLookINDEX%layerType)%dat,              & ! layer type (ix_soil or ix_snow)
+
+ ! model state variables
+ mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat,             & ! depth of each layer (m)
+ mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,        & ! volumetric fraction of ice in each layer  (-)
+ mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat         & ! volumetric fraction of liquid water in each layer (-)
 
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------
 
- ! point to the model index structures
- layerType        => indx_data%var(iLookINDEX%layerType)%dat                 ! layer type (ix_soil or ix_snow)
 
- ! point to the model state variables
- mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat                ! depth of each layer (m)
- mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat           ! volumetric fraction of ice in each layer  (-)
- mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat           ! volumetric fraction of liquid water in each layer (-)
-
- ! identify algorithmic control parameters to syb-divide and combine snow layers
+ ! identify algorithmic control parameters to sub-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
 
  kSnow=0 ! initialize first layer to test (top layer)
@@ -216,8 +195,8 @@ contains
     call layer_combine(mpar_data,mvar_data,indx_data,kSnow,err,cmessage)
     if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
 
-    ! re-assign pointers to the layer depth
-    mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
+    ! re-assign mLayerDepth to the layer depth
+    mLayerDepth = mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
     !print*, 'removed layer: mLayerDepth = ', mLayerDepth
     !pause
 
@@ -244,8 +223,8 @@ contains
   ! combine 5th layer with layer below
   call layer_combine(mpar_data,mvar_data,indx_data,5,err,cmessage)
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
-  ! re-assign pointers to the layer depth
-  mLayerDepth => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
+  ! re-assign mLayerDepth to the layer depth
+  mLayerDepth = mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
   !print*, 'removed layer: mLayerDepth = ', mLayerDepth
   !pause
   if(nSnow /= 5)then; err=5; message=trim(message)//'special case of > 5 layers: expect to reduced layers to exactly 5'; return; endif
@@ -290,16 +269,6 @@ contains
  integer(i4b),intent(out)        :: err       ! error code
  character(*),intent(out)        :: message   ! error message
  ! ------------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! model parameters
- real(dp)                        :: snowfrz_scale            ! scaling parameter for the freezing curve for snow (K-1)
- ! model state variables
- ! NOTE: these are defined as pointers because the length of the data dimension changes
- real(dp),pointer                :: mLayerTemp(:)            ! temperature of each layer (K)
- real(dp),pointer                :: mLayerDepth(:)           ! depth of each layer (m)
- real(dp),pointer                :: mLayerVolFracIce(:)      ! volumetric fraction of ice in each layer (-)
- real(dp),pointer                :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water in each layer (-)
- ! ------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
  real(dp)                        :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
@@ -319,17 +288,17 @@ contains
 
  ! associate variables with information in the data structures
  associate(&
- snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)      & ! scaling parameter for the freezing curve for snow (K-1)
+ snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale),          & ! scaling parameter for the freezing curve for snow (K-1)
+ ! associate model state variables
+ mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat,       & ! temperature of each layer (K)
+ mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat,      & ! depth of each layer (m)
+ mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat, & ! volumetric fraction of ice in each layer  (-)
+ mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat  & ! volumetric fraction of liquid water in each layer (-)
  ) ! end associate block
 
  print*, '***** removing layer', iSnow
 
  ! ***** compute combined model state variables
- ! assign pointers to model state variables
- mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
- mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
- mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer  (-)
- mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
  !write(*,'(a,1x,6(i12,1x))')   'layer_combine, before merge: indx_data%var(iLookINDEX%layerType)%dat(1:6) = ', &
  !                                                            indx_data%var(iLookINDEX%layerType)%dat(1:6)
  !write(*,'(a,1x,6(f12.3,1x))') 'layer_combine, before merge: mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6) = ', &
