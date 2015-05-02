@@ -1845,7 +1845,6 @@ contains
 
   call vegNrgFlux(&
                   ! input: model control
-                  iter,                                   & ! intent(in): iteration index
                   firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                   firstFluxCall,                          & ! intent(in): flag to indicate if we are processing the first flux call
                   computeVegFlux,                         & ! intent(in): flag to indicate if we need to compute fluxes over vegetation

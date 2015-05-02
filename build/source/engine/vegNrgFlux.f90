@@ -110,7 +110,6 @@ contains
  ! *******************************************************************************************************
  subroutine vegNrgFlux(&
                        ! input: model control
-                       iter,                                    & ! intent(in): iteration index
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
                        firstFluxCall,                           & ! intent(in): flag to indicate if we are processing the first flux call
                        computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
@@ -188,7 +187,6 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- integer(i4b),intent(in)         :: iter                            ! iteration index
  logical(lgt),intent(in)         :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)         :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
@@ -239,160 +237,10 @@ contains
  integer(i4b),intent(out)        :: err                             ! error code
  character(*),intent(out)        :: message                         ! error message
  ! ---------------------------------------------------------------------------------------
- ! * variables in the data structures
- ! ---------------------------------------------------------------------------------------
- ! input: model decisions
- integer(i4b)                    :: ix_bcUpprTdyn                   ! intent(in): choice of upper boundary condition for thermodynamics
- integer(i4b)                    :: ix_fDerivMeth                   ! intent(in): choice of method to compute derivatives
- integer(i4b)                    :: ix_veg_traits                   ! intent(in): choice of parameterization for vegetation roughness length and displacement height
- integer(i4b)                    :: ix_canopyEmis                   ! intent(in): choice of parameterization for canopy emissivity
- integer(i4b)                    :: ix_windPrfile                   ! intent(in): choice of canopy wind profile
- integer(i4b)                    :: ix_astability                   ! intent(in): choice of stability function
- integer(i4b)                    :: ix_soilStress                   ! intent(in): choice of function for the soil moisture control on stomatal resistance
- integer(i4b)                    :: ix_groundwatr                   ! intent(in): choice of groundwater parameterization
- integer(i4b)                    :: ix_stomResist                   ! intent(in): choice of function for stomatal resistance
- integer(i4b)                    :: ix_spatial_gw                   ! intent(in): [i4b] choice of groundwater representation (local, basin)
- ! input: physical attributes
- integer(i4b)                    :: vegTypeIndex                    ! intent(in): vegetation type index
- integer(i4b)                    :: soilTypeIndex                   ! intent(in): soil type index
- ! input: vegetation parameters
- real(dp)                        :: heightCanopyTop                 ! intent(in): height at the top of the vegetation canopy (m)
- real(dp)                        :: heightCanopyBottom              ! intent(in): height at the bottom of the vegetation canopy (m)
- real(dp)                        :: scalarCanopyIceMax              ! intent(in): maximum interception storage capacity for ice (kg m-2)
- real(dp)                        :: scalarCanopyLiqMax              ! intent(in): maximum interception storage capacity for liquid water (kg m-2)
- ! input: vegetation phenology
- real(dp)                        :: scalarLAI                       ! intent(in): one-sided leaf area index (m2 m-2)
- real(dp)                        :: scalarSAI                       ! intent(in): one-sided stem area index (m2 m-2)
- real(dp)                        :: scalarExposedLAI                ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
- real(dp)                        :: scalarExposedSAI                ! intent(in): exposed stem area index after burial by snow (m2 m-2)
- real(dp)                        :: scalarGrowingSeasonIndex        ! intent(in): growing season index (0=off, 1=on)
- real(dp)                        :: scalarFoliageNitrogenFactor     ! intent(in): foliage nitrogen concentration (1.0 = saturated)
- ! input: aerodynamic resistance parameters
- real(dp)                        :: z0Snow                          ! intent(in): roughness length of snow (m)
- real(dp)                        :: z0Soil                          ! intent(in): roughness length of soil (m)
- real(dp)                        :: z0CanopyParam                   ! intent(in): roughness length of the canopy (m)
- real(dp)                        :: zpdFraction                     ! intent(in): zero plane displacement / canopy height (-)
- real(dp)                        :: critRichNumber                  ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
- real(dp)                        :: Louis79_bparam                  ! intent(in): parameter in Louis (1979) stability function
- real(dp)                        :: Louis79_cStar                   ! intent(in): parameter in Louis (1979) stability function
- real(dp)                        :: Mahrt87_eScale                  ! intent(in): exponential scaling factor in the Mahrt (1987) stability function
- real(dp)                        :: windReductionParam              ! intent(in): canopy wind reduction parameter (-)
- real(dp)                        :: leafExchangeCoeff               ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
- real(dp)                        :: leafDimension                   ! intent(in): characteristic leaf dimension (m)
- ! input: soil stress parameters
- real(dp)                        :: theta_sat                       ! intent(in): soil porosity (-)
- real(dp)                        :: theta_res                       ! intent(in): residual volumetric liquid water content (-)
- real(dp)                        :: plantWiltPsi                    ! intent(in): matric head at wilting point (m)
- real(dp)                        :: soilStressParam                 ! intent(in): parameter in the exponential soil stress function (-)
- real(dp)                        :: critSoilWilting                 ! intent(in): critical vol. liq. water content when plants are wilting (-)
- real(dp)                        :: critSoilTranspire               ! intent(in): critical vol. liq. water content when transpiration is limited (-)
- real(dp)                        :: critAquiferTranspire            ! intent(in): critical aquifer storage value when transpiration is limited (m)
- real(dp)                        :: minStomatalResistance           ! intent(in): mimimum stomatal resistance (s m-1)
- ! input: forcing at the upper boundary
- real(dp)                        :: mHeight                         ! intent(in): measurement height (m)
- real(dp)                        :: airtemp                         ! intent(in): air temperature at some height above the surface (K)
- real(dp)                        :: windspd                         ! intent(in): wind speed at some height above the surface (m s-1)
- real(dp)                        :: airpres                         ! intent(in): air pressure at some height above the surface (Pa)
- real(dp)                        :: LWRadAtm                        ! intent(in): downwelling longwave radiation at the upper boundary (W m-2)
- real(dp)                        :: scalarVPair                     ! intent(in): vapor pressure at some height above the surface (Pa)
- real(dp)                        :: scalarO2air                     ! intent(in): atmospheric o2 concentration (Pa)
- real(dp)                        :: scalarCO2air                    ! intent(in): atmospheric co2 concentration (Pa)
- real(dp)                        :: scalarTwetbulb                  ! intent(in): wetbulb temperature (K)
- real(dp)                        :: scalarRainfall                  ! intent(in): computed rainfall rate (kg m-2 s-1)
- real(dp)                        :: scalarSnowfall                  ! intent(in): computed snowfall rate (kg m-2 s-1)
- real(dp)                        :: scalarThroughfallRain           ! intent(in): rainfall through the vegetation canopy (kg m-2 s-1)
- real(dp)                        :: scalarThroughfallSnow           ! intent(in): snowfall through the vegetation canopy (kg m-2 s-1)
- ! input: water storage
- ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
- real(dp)                        :: scalarSWE                       ! intent(in): snow water equivalent on the ground (kg m-2)
- real(dp)                        :: scalarSnowDepth                 ! intent(in): snow depth on the ground surface (m)
- real(dp),dimension(nSoil)       :: mLayerVolFracLiq                ! intent(in): volumetric fraction of liquid water in each soil layer (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHead                ! intent(in): matric head in each layer (m)
- real(dp)                        :: localAquiferStorage             ! intent(in): aquifer storage for the local column (m)
- real(dp)                        :: basinAquiferStorage             ! intent(in): aquifer storage for the single basin (m)
- ! input: shortwave radiation fluxes
- real(dp)                        :: scalarCanopySunlitLAI           ! intent(in): sunlit leaf area (-)
- real(dp)                        :: scalarCanopyShadedLAI           ! intent(in): shaded leaf area (-)
- real(dp)                        :: scalarCanopySunlitPAR           ! intent(in): average absorbed par for sunlit leaves (w m-2)
- real(dp)                        :: scalarCanopyShadedPAR           ! intent(in): average absorbed par for shaded leaves (w m-2)
- real(dp)                        :: scalarCanopyAbsorbedSolar       ! intent(in): solar radiation absorbed by canopy (W m-2)
- real(dp)                        :: scalarGroundAbsorbedSolar       ! intent(in): solar radiation absorbed by ground (W m-2)
- ! output: fraction of wetted canopy area and fraction of snow on the ground
- real(dp)                        :: scalarCanopyWetFraction         ! intent(out): fraction of canopy that is wet
- real(dp)                        :: scalarGroundSnowFraction        ! intent(out): fraction of ground covered with snow (-)
- ! output: longwave radiation fluxes
- real(dp)                        :: scalarCanopyEmissivity          ! intent(out): effective emissivity of the canopy (-)
- real(dp)                        :: scalarLWRadCanopy               ! intent(out): longwave radiation emitted from the canopy (W m-2)
- real(dp)                        :: scalarLWRadGround               ! intent(out): longwave radiation emitted at the ground surface (W m-2)
- real(dp)                        :: scalarLWRadUbound2Canopy        ! intent(out): downward atmospheric longwave radiation absorbed by the canopy (W m-2)
- real(dp)                        :: scalarLWRadUbound2Ground        ! intent(out): downward atmospheric longwave radiation absorbed by the ground (W m-2)
- real(dp)                        :: scalarLWRadUbound2Ubound        ! intent(out): atmospheric radiation reflected by the ground and lost thru upper boundary (W m-2)
- real(dp)                        :: scalarLWRadCanopy2Ubound        ! intent(out): longwave radiation emitted from canopy lost thru upper boundary (W m-2)
- real(dp)                        :: scalarLWRadCanopy2Ground        ! intent(out): longwave radiation emitted from canopy absorbed by the ground (W m-2)
- real(dp)                        :: scalarLWRadCanopy2Canopy        ! intent(out): canopy longwave reflected from ground and absorbed by the canopy (W m-2)
- real(dp)                        :: scalarLWRadGround2Ubound        ! intent(out): longwave radiation emitted from ground lost thru upper boundary (W m-2)
- real(dp)                        :: scalarLWRadGround2Canopy        ! intent(out): longwave radiation emitted from ground and absorbed by the canopy (W m-2)
- real(dp)                        :: scalarLWNetCanopy               ! intent(out): net longwave radiation at the canopy (W m-2)
- real(dp)                        :: scalarLWNetGround               ! intent(out): net longwave radiation at the ground surface (W m-2)
- real(dp)                        :: scalarLWNetUbound               ! intent(out): net longwave radiation at the upper boundary (W m-2)
- ! output: aerodynamic resistance
- real(dp)                        :: scalarZ0Canopy                  ! intent(out): roughness length of the canopy (m)
- real(dp)                        :: scalarWindReductionFactor       ! intent(out): canopy wind reduction factor (-)
- real(dp)                        :: scalarZeroPlaneDisplacement     ! intent(out): zero plane displacement (m)
- real(dp)                        :: scalarRiBulkCanopy              ! intent(out): bulk Richardson number for the canopy (-)
- real(dp)                        :: scalarRiBulkGround              ! intent(out): bulk Richardson number for the ground surface (-)
- real(dp)                        :: scalarEddyDiffusCanopyTop       ! intent(out): eddy diffusivity for heat at the top of the canopy (m2 s-1)
- real(dp)                        :: scalarFrictionVelocity          ! intent(out): friction velocity (m s-1)
- real(dp)                        :: scalarWindspdCanopyTop          ! intent(out): windspeed at the top of the canopy (m s-1)
- real(dp)                        :: scalarWindspdCanopyBottom       ! intent(out): windspeed at the height of the bottom of the canopy (m s-1)
- real(dp)                        :: scalarLeafResistance            ! intent(out): mean leaf boundary layer resistance per unit leaf area (s m-1)
- real(dp)                        :: scalarGroundResistance          ! intent(out): below canopy aerodynamic resistance (s m-1)
- real(dp)                        :: scalarCanopyResistance          ! intent(out): above canopy aerodynamic resistance (s m-1)
- ! input/output: soil resistance -- intent(in) and intent(inout) because only called at the first flux call
- real(dp),dimension(nSoil)       :: mLayerRootDensity               ! intent(in):    root density in each layer (-)
- real(dp)                        :: scalarAquiferRootFrac           ! intent(in):    fraction of roots below the lowest soil layer (-)
- real(dp)                        :: scalarTranspireLim              ! intent(inout): weighted average of the transpiration limiting factor (-)
- real(dp),dimension(nSoil)       :: mLayerTranspireLim              ! intent(inout): transpiration limiting factor in each layer (-)
- real(dp)                        :: scalarTranspireLimAqfr          ! intent(inout): transpiration limiting factor for the aquifer (-)
- real(dp)                        :: scalarSoilRelHumidity           ! intent(inout): relative humidity in the soil pores [0-1]
- real(dp)                        :: scalarSoilResistance            ! intent(inout): resistance from the soil (s m-1)
- ! input/output: stomatal resistance -- intent(inout) because only called at the first flux call
- real(dp)                        :: scalarStomResistSunlit          ! intent(inout): stomatal resistance for sunlit leaves (s m-1)
- real(dp)                        :: scalarStomResistShaded          ! intent(inout): stomatal resistance for shaded leaves (s m-1)
- real(dp)                        :: scalarPhotosynthesisSunlit      ! intent(inout): sunlit photosynthesis (umolco2 m-2 s-1)
- real(dp)                        :: scalarPhotosynthesisShaded      ! intent(inout): shaded photosynthesis (umolco2 m-2 s-1)
- ! output: turbulent heat fluxes
- real(dp)                        :: scalarLatHeatSubVapCanopy       ! intent(inout): latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
- real(dp)                        :: scalarLatHeatSubVapGround       ! intent(inout): latent heat of sublimation/vaporization for the ground surface (J kg-1)
- real(dp)                        :: scalarSatVP_canopyTemp          ! intent(out):   saturation vapor pressure at the temperature of the vegetation canopy (Pa)
- real(dp)                        :: scalarSatVP_groundTemp          ! intent(out):   saturation vapor pressure at the temperature of the ground surface (Pa)
- real(dp)                        :: scalarSenHeatTotal              ! intent(out):   sensible heat flux from the canopy air space to the atmosphere (W m-2)
- real(dp)                        :: scalarSenHeatCanopy             ! intent(out):   sensible heat flux from the canopy to the canopy air space (W m-2)
- real(dp)                        :: scalarSenHeatGround             ! intent(out):   sensible heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
- real(dp)                        :: scalarLatHeatTotal              ! intent(out):   latent heat flux from the canopy air space to the atmosphere (W m-2)
- real(dp)                        :: scalarLatHeatCanopyEvap         ! intent(out):   latent heat flux associated with evaporation from the canopy to the canopy air space (W m-2)
- real(dp)                        :: scalarLatHeatCanopyTrans        ! intent(out):   latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
- real(dp)                        :: scalarLatHeatGround             ! intent(out):   latent heat flux from ground surface below vegetation, bare ground, or snow covered vegetation (W m-2)
- ! output: advective heat flux
- real(dp)                        :: scalarCanopyAdvectiveHeatFlux   ! intent(out): heat advected to the canopy surface with rain + snow (W m-2)
- real(dp)                        :: scalarGroundAdvectiveHeatFlux   ! intent(out): heat advected to the ground surface with throughfall (W m-2)
- ! output: mass fluxes
- real(dp)                        :: scalarCanopySublimation         ! intent(out): canopy sublimation/frost (kg m-2 s-1)
- real(dp)                        :: scalarSnowSublimation           ! intent(out): snow sublimation/frost -- below canopy or non-vegetated (kg m-2 s-1)
- ! input/output: canopy air space variables
- real(dp)                        :: scalarVP_CanopyAir              ! intent(inout): vapor pressure of the canopy air space (Pa)
- real(dp)                        :: scalarCanopyStabilityCorrection ! intent(inout): stability correction for the canopy (-)
- real(dp)                        :: scalarGroundStabilityCorrection ! intent(inout): stability correction for the ground surface (-)
- ! output: mass fluxes associated with evaporation/transpiration
- real(dp)                        :: scalarCanopyTranspiration       ! intent(out): canopy transpiration (kg m-2 s-1)
- real(dp)                        :: scalarCanopyEvaporation         ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
- real(dp)                        :: scalarGroundEvaporation         ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
- ! ---------------------------------------------------------------------------------------
  ! * local variables
  ! ---------------------------------------------------------------------------------------
  ! local (general)
  character(LEN=256)             :: cmessage                         ! error message of downwind routine
- real(dp)                       :: snowmassPlusNewsnow              ! sum of snow mass and new snowfall (kg m-2 [mm])
  real(dp)                       :: VAI                              ! vegetation area index (m2 m-2)
  real(dp)                       :: exposedVAI                       ! exposed vegetation area index (m2 m-2)
  real(dp)                       :: totalCanopyWater                 ! total water on the vegetation canopy (kg m-2)
@@ -409,7 +257,7 @@ contains
  real(dp)                       :: groundTemp                       ! value of ground temperature used in flux calculations (may be perturbed)
  real(dp)                       :: canopyTemp                       ! value of canopy temperature used in flux calculations (may be perturbed)
  real(dp)                       :: canairTemp                       ! value of canopy air temperature used in flux calculations (may be perturbed)
- real(dp)                       :: try0,try1,try2                   ! trial values to evaluate specific derivatives (testing only)
+ real(dp)                       :: try0,try1                        ! trial values to evaluate specific derivatives (testing only)
  ! local (saturation vapor pressure of veg)
  real(dp)                       :: TV_celcius                       ! vegetaion temperature (C)
  real(dp)                       :: TG_celcius                       ! ground temperature (C)
@@ -433,7 +281,6 @@ contains
  real(dp)                       :: dLWNetCanopy_dTGround            ! derivative in net canopy radiation w.r.t. ground temperature (W m-2 K-1)
  real(dp)                       :: dLWNetGround_dTCanopy            ! derivative in net ground radiation w.r.t. canopy temperature (W m-2 K-1)
  ! local (aerodynamic resistance)
- real(dp)                       :: saveTemp_CanopyAir               ! temperature of the canopy air space (K)
  real(dp)                       :: scalarCanopyStabilityCorrection_old    ! stability correction for the canopy (-)
  real(dp)                       :: scalarGroundStabilityCorrection_old    ! stability correction for the ground surface (-)
  ! local (turbulent heat transfer)
@@ -884,7 +731,6 @@ contains
    !       Mahat et al. (Below-canopy turbulence in a snowmelt model, WRR, 2012)
    call aeroResist(&
                    ! input: model control
-                   iter,                               & ! intent(in): iteration index
                    computeVegFlux,                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                    (ix_fDerivMeth == analytical),      & ! intent(in): logical flag if would like to compute analytical derivaties
                    ix_veg_traits,                      & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
@@ -896,7 +742,6 @@ contains
                    windspd,                            & ! intent(in): wind speed at some height above the surface (m s-1)
                    ! input: canopy and ground temperature
                    canairTempTrial,                    & ! intent(in): temperature of the canopy air space (K)
-                   canopyTempTrial,                    & ! intent(in): temperature of the vegetation canopy (K)
                    groundTempTrial,                    & ! intent(in): temperature of the ground surface (K)
                    ! input: diagnostic variables
                    exposedVAI,                         & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
@@ -907,16 +752,12 @@ contains
                    zpdFraction,                        & ! intent(in): zero plane displacement / canopy height (-)
                    critRichNumber,                     & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
                    Louis79_bparam,                     & ! intent(in): parameter in Louis (1979) stability function
-                   Louis79_cStar,                      & ! intent(in): parameter in Louis (1979) stability function
                    Mahrt87_eScale,                     & ! intent(in): exponential scaling factor in the Mahrt (1987) stability function
                    windReductionParam,                 & ! intent(in): canopy wind reduction parameter (-)
                    leafExchangeCoeff,                  & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
                    leafDimension,                      & ! intent(in): characteristic leaf dimension (m)
                    heightCanopyTop,                    & ! intent(in): height at the top of the vegetation canopy (m)
                    heightCanopyBottom,                 & ! intent(in): height at the bottom of the vegetation canopy (m)
-                   ! input: stability correction from the last iteration
-                   scalarCanopyStabilityCorrection_old,& ! intent(in): stability correction for the canopy (-)
-                   scalarGroundStabilityCorrection_old,& ! intent(in): stability correction for the ground surface (-)
                    ! output: stability corrections
                    scalarRiBulkCanopy,                 & ! intent(out): bulk Richardson number for the canopy (-)
                    scalarRiBulkGround,                 & ! intent(out): bulk Richardson number for the ground surface (-)
@@ -1201,7 +1042,6 @@ contains
     if(itry /= unperturbed)then
      call aeroResist(&
                      ! input: model control
-                     iter,                                    & ! intent(in): iteration index
                      computeVegFlux,                          & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                      .false.,                                 & ! intent(in): logical flag if would like to compute analytical derivaties
                      ix_veg_traits,                           & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
@@ -1213,7 +1053,6 @@ contains
                      windspd,                                 & ! intent(in): wind speed at some height above the surface (m s-1)
                      ! input: temperature (canopy, ground, canopy air space)
                      canairTemp,                              & ! intent(in): temperature of the canopy air space (K)
-                     canopyTemp,                              & ! intent(in): canopy temperature (K)
                      groundTemp,                              & ! intent(in): ground temperature (K)
                      ! input: diagnostic variables
                      exposedVAI,                              & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
@@ -1224,16 +1063,12 @@ contains
                      zpdFraction,                             & ! intent(in): zero plane displacement / canopy height (-)
                      critRichNumber,                          & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
                      Louis79_bparam,                          & ! intent(in): parameter in Louis (1979) stability function
-                     Louis79_cStar,                           & ! intent(in): parameter in Louis (1979) stability function
                      Mahrt87_eScale,                          & ! intent(in): exponential scaling factor in the Mahrt (1987) stability function
                      windReductionParam,                      & ! intent(in): canopy wind reduction parameter (-)
                      leafExchangeCoeff,                       & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
                      leafDimension,                           & ! intent(in): characteristic leaf dimension (m)
                      heightCanopyTop,                         & ! intent(in): height at the top of the vegetation canopy (m)
                      heightCanopyBottom,                      & ! intent(in): height at the bottom of the vegetation canopy (m)
-                     ! input: stability correction from the last iteration
-                     scalarCanopyStabilityCorrection_old,     & ! intent(in): stability correction for the canopy (-)
-                     scalarGroundStabilityCorrection_old,     & ! intent(in): stability correction for the ground surface (-)
                      ! output: stability corrections
                      notUsed_RiBulkCanopy,                    & ! intent(out): bulk Richardson number for the canopy (-)
                      notUsed_RiBulkGround,                    & ! intent(out): bulk Richardson number for the ground surface (-)
@@ -2052,7 +1887,6 @@ contains
  ! *******************************************************************************************************
  subroutine aeroResist(&
                        ! input: model control
-                       iter,                          & ! intent(in): iteration index
                        computeVegFlux,                & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        derivDesired,                  & ! intent(in): flag to indicate if analytical derivatives are desired
                        ixVegTraits,                   & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
@@ -2064,7 +1898,6 @@ contains
                        windspd,                       & ! intent(in): wind speed at some height above the surface (m s-1)
                        ! input: temperature (canopy, ground, canopy air space)
                        canairTemp,                    & ! intent(in): temperature of the canopy air space (K)
-                       canopyTemp,                    & ! intent(in): canopy temperature (K)
                        groundTemp,                    & ! intent(in): ground temperature (K)
                        ! input: diagnostic variables
                        exposedVAI,                    & ! intent(in): exposed vegetation area index -- leaf plus stem (m2 m-2)
@@ -2075,16 +1908,12 @@ contains
                        zpdFraction,                   & ! intent(in): zero plane displacement / canopy height (-)
                        critRichNumber,                & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
                        Louis79_bparam,                & ! intent(in): parameter in Louis (1979) stability function
-                       Louis79_cStar,                 & ! intent(in): parameter in Louis (1979) stability function
                        Mahrt87_eScale,                & ! intent(in): exponential scaling factor in the Mahrt (1987) stability function
                        windReductionParam,            & ! intent(in): canopy wind reduction parameter (-)
                        leafExchangeCoeff,             & ! intent(in): turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
                        leafDimension,                 & ! intent(in): characteristic leaf dimension (m)
                        heightCanopyTop,               & ! intent(in): height at the top of the vegetation canopy (m)
                        heightCanopyBottom,            & ! intent(in): height at the bottom of the vegetation canopy (m)
-                       ! input: stability correction from the last iteration
-                       canopyStabilityCorrection_old, & ! intent(in): stability correction for the canopy (-)
-                       groundStabilityCorrection_old, & ! intent(in): stability correction for the ground surface (-)
                        ! output: stability corrections
                        RiBulkCanopy,                  & ! intent(out): bulk Richardson number for the canopy (-)
                        RiBulkGround,                  & ! intent(out): bulk Richardson number for the ground surface (-)
@@ -2116,7 +1945,6 @@ contains
  !       Mahat et al. (Below-canopy turbulence in a snowmelt model, WRR, 2012)
  implicit none
  ! input: model control
- integer(i4b),intent(in)       :: iter                          ! iteration index
  logical(lgt),intent(in)       :: computeVegFlux                ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  logical(lgt),intent(in)       :: derivDesired                  ! logical flag to indicate if analytical derivatives are desired
  integer(i4b),intent(in)       :: ixVegTraits                   ! choice of parameterization for vegetation roughness length and displacement height
@@ -2128,7 +1956,6 @@ contains
  real(dp),intent(in)           :: windspd                       ! wind speed at some height above the surface (m s-1)
  ! input: temperature (canopy, ground, canopy air space)
  real(dp),intent(in)           :: canairTemp                    ! temperature of the canopy air space (K)
- real(dp),intent(in)           :: canopyTemp                    ! canopy temperature (K)
  real(dp),intent(in)           :: groundTemp                    ! ground temperature (K)
  ! input: diagnostic variables
  real(dp),intent(in)           :: exposedVAI                    ! exposed vegetation area index -- leaf plus stem (m2 m-2)
@@ -2139,16 +1966,12 @@ contains
  real(dp),intent(in)           :: zpdFraction                   ! zero plane displacement / canopy height (-)
  real(dp),intent(in)           :: critRichNumber                ! critical value for the bulk Richardson number where turbulence ceases (-)
  real(dp),intent(in)           :: Louis79_bparam                ! parameter in Louis (1979) stability function
- real(dp),intent(in)           :: Louis79_cStar                 ! parameter in Louis (1979) stability function
  real(dp),intent(in)           :: Mahrt87_eScale                ! exponential scaling factor in the Mahrt (1987) stability function
  real(dp),intent(in)           :: windReductionParam            ! canopy wind reduction parameter (-)
  real(dp),intent(in)           :: leafExchangeCoeff             ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
  real(dp),intent(in)           :: leafDimension                 ! characteristic leaf dimension (m)
  real(dp),intent(in)           :: heightCanopyTop               ! height at the top of the vegetation canopy (m)
  real(dp),intent(in)           :: heightCanopyBottom            ! height at the bottom of the vegetation canopy (m)
- ! input: stability correction from the last iteration
- real(dp),intent(in)           :: canopyStabilityCorrection_old ! stability correction for the canopy (-)
- real(dp),intent(in)           :: groundStabilityCorrection_old ! stability correction for the ground surface (-)
  ! output: stability corrections
  real(dp),intent(out)          :: RiBulkCanopy                  ! bulk Richardson number for the canopy (-)
  real(dp),intent(out)          :: RiBulkGround                  ! bulk Richardson number for the ground surface (-)
@@ -2203,10 +2026,6 @@ contains
  real(dp)                      :: dED_dT                        ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
  real(dp)                      :: dGR_dT                        ! derivative in neutral ground resistance w.r.t. canopy air temperature
  real(dp)                      :: tmp1,tmp2                     ! temporary variables used in calculation of ground resistance
- real(dp)                      :: dLeafResistance_dStateCanopy         ! leaf resistance after perturbing canopy temperature (s m-1)
- real(dp)                      :: dCanopyResistance_dStateCanopy       ! canopy resistance after perturbing canopy temperature (s m-1)
- real(dp)                      :: dGroundResistance_dStateCanopy       ! ground resistance after perturbing canopy temperature (s m-1)
- real(dp)                      :: dGroundResistance_dStateGround       ! ground resistance after perturbing ground temperature (s m-1)
  real(dp)                      :: dCanopyStabilityCorrection_dRich     ! derivative in stability correction w.r.t. Richardson number for the canopy (-)
  real(dp)                      :: dGroundStabilityCorrection_dRich     ! derivative in stability correction w.r.t. Richardson number for the ground surface (-)
  real(dp)                      :: dCanopyStabilityCorrection_dAirTemp  ! (not used) derivative in stability correction w.r.t. air temperature (K-1)
@@ -2295,7 +2114,6 @@ contains
                   ! input: stability parameters
                   critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
                   Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
-                  Louis79_cStar,                                    & ! input: parameter in Louis (1979) stability function
                   Mahrt87_eScale,                                   & ! input: exponential scaling factor in the Mahrt (1987) stability function
                   ! output
                   RiBulkCanopy,                                     & ! output: bulk Richardson number (-)
@@ -2394,7 +2212,6 @@ contains
                   ! input: stability parameters
                   critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
                   Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
-                  Louis79_cStar,                                    & ! input: parameter in Louis (1979) stability function
                   Mahrt87_eScale,                                   & ! input: exponential scaling factor in the Mahrt (1987) stability function
                   ! output
                   RiBulkGround,                                     & ! output: bulk Richardson number (-)
@@ -2451,7 +2268,6 @@ contains
                   ! input: stability parameters
                   critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
                   Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
-                  Louis79_cStar,                                    & ! input: parameter in Louis (1979) stability function
                   Mahrt87_eScale,                                   & ! input: exponential scaling factor in the Mahrt (1987) stability function
                   ! output
                   RiBulkGround,                                     & ! output: bulk Richardson number (-)
@@ -2967,13 +2783,9 @@ contains
  character(*),intent(out)      :: message                      ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! local variables -- general
- real(dp)                      :: fpart0,fpart1,fpart2         ! different parts of a function
+ real(dp)                      :: fpart1,fpart2         ! different parts of a function
  real(dp)                      :: dPart0,dpart1,dpart2         ! derivatives for different parts of a function
  real(dp),parameter            :: evapSmooth=1._dp             ! smoothing parameter for latent heat (W m-2)
- real(dp)                      :: damping                      ! damping factor used to maintain feasible solution (-)
- real(dp)                      :: maxFlux                      ! maximum possible latent heat flux (W m-2)
- real(dp)                      :: nrgDiff                      ! initial change in energy associated with latent heat (W m-2)
- real(dp)                      :: corDiff                      ! corrected change in energy after imposing solution constraints (W m-2)
  ! local variables -- "constants"
  real(dp)                      :: volHeatCapacityAir           ! volumetric heat capacity of air (J m-3)
  real(dp)                      :: latentHeatConstant           ! latent heat constant (kg m-3 K-1)
@@ -3353,7 +3165,6 @@ contains
                        ! input: stability parameters
                        critRichNumber,                 & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
                        Louis79_bparam,                 & ! input: parameter in Louis (1979) stability function
-                       Louis79_cStar,                  & ! input: parameter in Louis (1979) stability function
                        Mahrt87_eScale,                 & ! input: exponential scaling factor in the Mahrt (1987) stability function
                        ! output
                        RiBulk,                         & ! output: bulk Richardson number (-)
@@ -3374,7 +3185,6 @@ contains
  ! input: stability parameters
  real(dp),intent(in)           :: critRichNumber         ! critical value for the bulk Richardson number where turbulence ceases (-)
  real(dp),intent(in)           :: Louis79_bparam         ! parameter in Louis (1979) stability function
- real(dp),intent(in)           :: Louis79_cStar          ! parameter in Louis (1979) stability function
  real(dp),intent(in)           :: Mahrt87_eScale         ! exponential scaling factor in the Mahrt (1987) stability function
  ! output
  real(dp),intent(out)          :: RiBulk                 ! bulk Richardson number (-)
