@@ -59,6 +59,14 @@ contains
  ! output: error control
  integer(i4b),intent(out)        :: err            ! error code
  character(*),intent(out)        :: message        ! error message
+ ! ----------------------------------------------------------------------------------
+ ! model index variables
+ integer(i4b),dimension(nLayers) :: layerType      ! type of the layer (ix_soil or ix_snow)
+ ! model variables
+ real(dp),dimension(nLayers)     :: mLayerDepth    ! depth of the layer (m)
+ real(dp),dimension(nLayers)     :: mLayerHeight   ! height of the layer mid-point (m)
+ real(dp),dimension(nLayers+1)   :: iLayerHeight   ! height of the layer interface (m)
+ ! ----------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                    :: iLayer         ! loop through layers
  ! ----------------------------------------------------------------------------------
