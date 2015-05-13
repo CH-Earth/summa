@@ -41,6 +41,8 @@ contains
                        err,message)
  ! access the number of snow and soil layers
  USE data_struc,only:&
+                     nSnow,   & ! number of snow layers
+                     nSoil,   & ! number of soil layers
                      nLayers    ! total number of layers
  ! access named variables for snow and soil
  USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
@@ -426,7 +428,7 @@ contains
                        iden_water,&            ! intrinsic density of liquid water    (kg m-3)
                        gravity,   &            ! gravitational acceleration           (m s-2)
                        Tfreeze                 ! freezing point of pure water         (K)
- USE data_struc,only:mpar_data,mvar_data,ix_soil,ix_snow    ! data structures
+ USE data_struc,only:mpar_data,mvar_data,indx_data,ix_soil,ix_snow    ! data structures
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
  implicit none
  ! declare dummy variables
