@@ -128,17 +128,10 @@ character(len=64)         :: output_fileSuffix=''           ! suffix for the out
 character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 ! define pointers for model indices
-integer(i4b),pointer      :: nSnow=>null()                  ! number of snow layers
-integer(i4b),pointer      :: nSoil=>null()                  ! number of soil layers
-integer(i4b),pointer      :: nLayers=>null()                ! total number of layers
-integer(i4b),pointer      :: midSnowStartIndex=>null()      ! start index of the midSnow vector for a given timestep
-integer(i4b),pointer      :: midSoilStartIndex=>null()      ! start index of the midSoil vector for a given timestep
-integer(i4b),pointer      :: midTotoStartIndex=>null()      ! start index of the midToto vector for a given timestep
-integer(i4b),pointer      :: ifcSnowStartIndex=>null()      ! start index of the ifcSnow vector for a given timestep
-integer(i4b),pointer      :: ifcSoilStartIndex=>null()      ! start index of the ifcSoil vector for a given timestep
-integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the ifcToto vector for a given timestep
+integer(i4b)              :: nSnow                          ! number of snow layers
+integer(i4b)              :: nSoil                          ! number of soil layers
+integer(i4b)              :: nLayers                        ! total number of layers
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
-real(dp),pointer          :: totalArea=>null()              ! total basin area (m2)
 ! exfiltration
 real(dp)                  :: totalStorage                   ! total water in the soil column (m)
 real(dp)                  :: availStorage                   ! water required to bring the entire soil column to saturation (m)
@@ -164,6 +157,21 @@ integer(i4b)              :: ixIce                          ! index of bottom-mo
 ! error control
 integer(i4b)              :: err=0                          ! error code
 character(len=1024)       :: message=''                     ! error message
+
+ ! ----------------------------------------------------------------------------------
+ ! associate variables in data structure
+ associate(&
+  ! associate the model index structures
+  midSnowStartIndex => indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1), &
+  midSoilStartIndex => indx_data%var(iLookINDEX%midSoilStartIndex)%dat(1), &
+  midTotoStartIndex => indx_data%var(iLookINDEX%midTotoStartIndex)%dat(1), &
+  ifcSnowStartIndex => indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1), &
+  ifcSoilStartIndex => indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1), &
+  ifcTotoStartIndex => indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1), &
+  ! associate the model variables
+  totalArea         => bvar_data%var(iLookBVAR%basin__totalArea)%dat(1) &
+ ) ! end associate
+ ! ----------------------------------------------------------------------------------
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -329,7 +337,6 @@ supersatThresh = supersatScale * log(1._dp/xMatch - 1._dp) + (xMatch - safety)
 exfilMin = -supersatScale*log(1._dp/fSmall - 1._dp) + supersatThresh
 
 ! identify the total basin area (m2)
-totalArea => bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
 totalArea = 0._dp
 do iHRU=1,nHRU
  totalArea = totalArea + attr_hru(iHRU)%var(iLookATTR%HRUarea)
@@ -475,23 +482,11 @@ do istep=1,numtim
   fracHRU =  attr_data%var(iLookATTR%HRUarea) / bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
 
   ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
-  nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
-  nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
+  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
   allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
   zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
-
-  ! assign pointers to model layers
-  nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
-  nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
-  nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
-
-  ! assign pointers to model indices
-  midSnowStartIndex => indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1)
-  midSoilStartIndex => indx_data%var(iLookINDEX%midSoilStartIndex)%dat(1)
-  midTotoStartIndex => indx_data%var(iLookINDEX%midTotoStartIndex)%dat(1)
-  ifcSnowStartIndex => indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1)
-  ifcSoilStartIndex => indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1)
-  ifcTotoStartIndex => indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1)
 
   ! get NOAH-MP parameters
   call REDPRM(type_data%var(iLookTYPE%vegTypeIndex),                           & ! vegetation type index
@@ -714,10 +709,13 @@ deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate s
 
 call stop_program('finished simulation')
 
+end associate
+
 contains
 
+
  ! **************************************************************************************************
- ! private subroutine handle_err: error handler
+ ! internal subroutine handle_err: error handler
  ! **************************************************************************************************
  subroutine handle_err(err,message)
  ! used to handle error codes
@@ -776,8 +774,9 @@ contains
  stop
  end subroutine handle_err
 
+
  ! **************************************************************************************************
- ! private subroutine stop_program: stop program execution
+ ! internal subroutine stop_program: stop program execution
  ! **************************************************************************************************
  subroutine stop_program(message)
  ! used to stop program execution
