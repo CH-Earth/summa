@@ -89,7 +89,7 @@ contains
  USE data_struc,only:model_decisions                         ! model decision structure
  USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
  ! model variables, parameters, forcing data, etc.
- USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE data_struc,only:mpar_data,mvar_data,indx_data    ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: fluxes and derivatives at the upper boundary

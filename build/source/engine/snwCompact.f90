@@ -79,7 +79,6 @@ contains
  character(*),intent(out)            :: message                  ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! define local variables
- character(len=256)                  :: cmessage                 ! error message for downwind routine
  real(dp),parameter                  :: dt_toler=0.1_dp          ! fraction of compaction allowed in a time step (-)
  integer(i4b)                        :: iSnow                    ! index of snow layers
  integer(i4b)                        :: nSnow                    ! number of snow layers

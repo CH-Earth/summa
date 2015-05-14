@@ -70,7 +70,7 @@ contains
  USE data_struc,only:model_decisions                              ! model decision structure
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! model variables, parameters, etc.
- USE data_struc,only:time_data,type_data,attr_data,forc_data,mpar_data,mvar_data,bvar_data,indx_data     ! data structures
+ USE data_struc,only:type_data,mvar_data,indx_data     ! data structures
  USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
  implicit none
  ! dummy variables
@@ -80,8 +80,6 @@ contains
  character(*),intent(out)       :: message                        ! error message
  ! local variables
  character(LEN=256)             :: cmessage                       ! error message of downwind routine
- real(dp)                       :: snowmassPlusNewsnow            ! sum of snow mass and new snowfall (kg m-2 [mm])
- real(dp)                       :: scalarGroundSnowFraction       ! snow cover fraction on the ground surface (-)
  ! initialize error control
  err=0; message='vegSWavRad/'
 
@@ -99,7 +97,6 @@ contains
                         type_data%var(iLookTYPE%vegTypeIndex),                             & ! intent(in): vegetation type index
                         type_data%var(iLookTYPE%soilTypeIndex),                            & ! intent(in): soil type index
                         model_decisions(iLookDECISIONS%canopySrad)%iDecision,              & ! intent(in): index defining method for canopy shortwave radiation
-                        model_decisions(iLookDECISIONS%snowIncept)%iDecision,              & ! intent(in): index defining method to determine maximum snow interception capacity
                         ! input: forcing at the upper boundary
                         mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
                         mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1),                   & ! intent(in): cosine of the solar zenith angle (0-1)
@@ -152,7 +149,6 @@ contains
                               vegTypeIndex,                      & ! intent(in): vegetation type index
                               soilTypeIndex,                     & ! intent(in): soil type index
                               ix_canopySrad,                     & ! intent(in): index defining method for canopy shortwave radiation
-                              ix_snowInterception,               & ! intent(in): index defining method to determine maximum snow interception capacity
                               ! input: forcing at the upper boundary
                               scalarSnowfall,                    & ! intent(in): computed snowfall rate (kg m-2 s-1)
                               scalarCosZenith,                   & ! intent(in): cosine of the solar zenith angle (0-1)
@@ -198,7 +194,6 @@ contains
  integer(i4b),intent(in)         :: vegTypeIndex                   ! vegetation type index
  integer(i4b),intent(in)         :: soilTypeIndex                  ! soil type index
  integer(i4b),intent(in)         :: ix_canopySrad                  ! index defining method for canopy shortwave radiation
- integer(i4b),intent(in)         :: ix_snowInterception            ! index defining method to determine maximum snow interception capacity
  ! input: forcing at the upper boundary
  real(dp),intent(in)             :: scalarSnowfall                 ! computed snowfall rate (kg m-2 s-1)
  real(dp),intent(in)             :: scalarCosZenith                ! cosine of the solar zenith angle (0-1)
@@ -241,7 +236,6 @@ contains
  character(LEN=256)             :: cmessage                        ! error message of downwind routine
  real(dp)                       :: snowmassPlusNewsnow             ! sum of snow mass and new snowfall (kg m-2 [mm])
  real(dp)                       :: scalarGroundSnowFraction        ! snow cover fraction on the ground surface (-)
- real(dp)                       :: relativeCanopyWater             ! fraction of storage capacity (-)
  real(dp),parameter             :: scalarVegFraction=1._dp         ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
  real(dp)                       :: scalarTotalReflectedSolar       ! total reflected solar radiation (W m-2)
  real(dp)                       :: scalarTotalAbsorbedSolar        ! total absorbed solar radiation (W m-2)
@@ -455,7 +449,6 @@ contains
  real(dp),dimension(1:nBands)          :: spectralIncomingSolar              ! total incoming solar radiation in each spectral band (W m-2)
  real(dp),dimension(1:nBands)          :: spectralGroundAbsorbedDirect       ! total direct radiation absorbed at the ground surface (W m-2)
  real(dp),dimension(1:nBands)          :: spectralGroundAbsorbedDiffuse      ! total diffuse radiation absorbed at the ground surface (W m-2)
- real(dp)                              :: fractionSolarReflected             ! fraction of solar radiation reflected (-)
  real(dp)                              :: Fdirect                            ! fraction of direct radiation (-)
  real(dp)                              :: tauInitial                         ! transmission in the absence of scattering and multiple reflections (-)
  real(dp)                              :: tauTotal                           ! transmission due to scattering and multiple reflections (-)

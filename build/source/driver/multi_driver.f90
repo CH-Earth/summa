@@ -65,11 +65,10 @@ USE snow_fileManager,only:SETNGS_PATH                       ! define path to set
 USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE snow_fileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
 USE data_struc,only:doJacobian                              ! flag to compute the Jacobian
-USE data_struc,only:forcFileInfo                            ! information on forcing data file
 USE data_struc,only:localParFallback                        ! local column default parameters
 USE data_struc,only:basinParFallback                        ! basin-average default parameters
 USE data_struc,only:mpar_meta,bpar_meta                     ! metadata for local column and basin-average model parameters
-USE data_struc,only:data_step,numtim                        ! length of data step (s) and number of time steps
+USE data_struc,only:numtim                                  ! number of time steps
 USE data_struc,only:time_data,time_hru,refTime              ! time and reference time
 USE data_struc,only:forc_data,forc_hru                      ! model forcing data
 USE data_struc,only:type_data,type_hru                      ! classification of veg, soils etc.
@@ -114,7 +113,6 @@ integer(i4b)              :: iHRU,jHRU,kHRU                 ! index of the hydro
 integer(i4b)              :: nHRU                           ! number of hydrologic response units
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
-integer(i4b)              :: iMonth                         ! index of the current month
 ! define the re-start file
 logical(lgt)              :: printRestart                   ! flag to print a re-start file
 integer(i4b),parameter    :: ixRestart_im=1001              ! named variable to print a re-start file once per month
@@ -140,9 +138,6 @@ integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
 real(dp),pointer          :: totalArea=>null()              ! total basin area (m2)
 ! exfiltration
-real(dp)                  :: totalStorage                   ! total water in the soil column (m)
-real(dp)                  :: availStorage                   ! water required to bring the entire soil column to saturation (m)
-real(dp)                  :: totalInflow                    ! total inflow to the soil column from upstream HRUs (m s-1)
 real(dp),parameter        :: supersatScale=0.001_dp         ! scaling factor for the logistic function (-)
 real(dp),parameter        :: xMatch = 0.99999_dp            ! point where x-value and function value match (-)
 real(dp),parameter        :: safety = 0.01_dp               ! safety factor to ensure logistic function is less than 1
@@ -153,8 +148,6 @@ real(dp)                  :: fracHRU                        ! fractional area of
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
-integer(i4b)              :: iSoil                          ! index of soil layer
-integer(i4b)              :: ixIce                          ! index of bottom-most ice layer
 ! error control
 integer(i4b)              :: err=0                          ! error code
 character(len=1024)       :: message=''                     ! error message

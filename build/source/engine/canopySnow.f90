@@ -73,31 +73,10 @@ contains
  ! output: error control
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
- ! -------------------------------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! input: model decisions
- integer(i4b)                  :: ixSnowInterception         ! choice of option to determine maximum snow interception capacity
- ! input: model forcing data
- real(dp)                      :: scalarAirtemp              ! air temperature (K)
- ! input: model parameters
- real(dp)                      :: refInterceptCapSnow        ! reference canopy interception capacity for snow per unit leaf area (kg m-2)
- real(dp)                      :: ratioDrip2Unloading        ! ratio of canopy drip to snow unloading (-)
- real(dp)                      :: snowUnloadingCoeff         ! time constant for unloading of snow from the forest canopy (s-1)
- ! input: diagnostic variables
- real(dp)                      :: scalarSnowfall             ! computed snowfall rate (kg m-2 s-1)
- real(dp)                      :: scalarNewSnowDensity       ! density of new snow (kg m-3)
- real(dp)                      :: scalarCanopyLiqDrainage    ! liquid drainage from the vegetation canopy (kg m-2 s-1)
- ! input-output: state variables
- real(dp)                      :: scalarCanopyIce            ! mass of ice on the vegetation canopy (kg m-2)
- ! output: diagnostic variables
- real(dp)                      :: scalarThroughfallSnow      ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
- real(dp)                      :: scalarCanopySnowUnloading  ! unloading of snow from the vegetion canopy (kg m-2 s-1)
- ! ------------------------------------------------------------------------------------------------
  ! local variables
  real(dp),parameter            :: valueMissing=-9999._dp     ! missing value
  integer(i4b)                  :: iter                       ! iteration index
  integer(i4b),parameter        :: maxiter=50                 ! maximum number of iterations
- integer(i4b)                  :: itry                       ! index of loop used for testing
  real(dp)                      :: unloading_melt             ! unloading associated with canopy drip (kg m-2 s-1)
  real(dp)                      :: airtemp_degC               ! value of air temperature in degrees Celcius
  real(dp)                      :: leafScaleFactor            ! scaling factor for interception based on temperature (-)

@@ -84,35 +84,6 @@ contains
  ! output: error control
  integer(i4b),intent(out)        :: err                         ! error code
  character(*),intent(out)        :: message                     ! error message
- ! --------------------------------------------------------------------------------------------------------------------------------------
- ! variables in data structures
- ! input: model decisions
- integer(i4b)                    :: ixCanopySrad                ! index of method used for canopy sw radiation
- integer(i4b)                    :: ixAlbedoMethod              ! index of method used for snow albedo
- ! input: model parameters
- real(dp)                        :: Frad_vis                    ! fraction of radiation in visible part of spectrum (-)
- real(dp)                        :: Frad_direct                 ! fraction direct solar radiation (-)
- real(dp)                        :: albedoMax                   ! maximum snow albedo for a single spectral band (-)
- real(dp)                        :: albedoMinWinter             ! minimum snow albedo during winter for a single spectral band (-)
- real(dp)                        :: albedoMinSpring             ! minimum snow albedo during spring for a single spectral band (-)
- real(dp)                        :: albedoMaxVisible            ! maximum snow albedo in the visible part of the spectrum (-)
- real(dp)                        :: albedoMinVisible            ! minimum snow albedo in the visible part of the spectrum (-)
- real(dp)                        :: albedoMaxNearIR             ! maximum snow albedo in the near infra-red part of the spectrum (-)
- real(dp)                        :: albedoMinNearIR             ! minimum snow albedo in the near infra-red part of the spectrum (-)
- real(dp)                        :: albedoDecayRate             ! albedo decay rate (s)
- real(dp)                        :: tempScalGrowth              ! temperature scaling factor for grain growth (K-1)
- real(dp)                        :: albedoSootLoad              ! soot load factor (-)
- real(dp)                        :: albedoRefresh               ! critical mass necessary for albedo refreshment (kg m-2)
- real(dp)                        :: snowfrz_scale               ! scaling parameter for the freezing curve for snow (K-1)
- ! input: model variables
- real(dp)                        :: snowfallRate                ! snowfall rate (kg m-2 s-1)
- real(dp)                        :: surfaceTemp                 ! surface temperature (K)
- real(dp)                        :: cosZenith                   ! cosine of the zenith angle
- ! input-output: snow albedo
- real(dp),dimension(nBands)      :: spectralSnowAlbedoDiffuse   ! diffuse snow albedo in each spectral band (-)
- real(dp),dimension(nBands)      :: spectralSnowAlbedoDirect    ! direct snow albedo in each spectral band (-)
- real(dp)                        :: scalarSnowAlbedo            ! snow albedo for the entire spectral band (-)
- ! --------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b),parameter          :: ixVisible=1                  ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2                   ! named variable to define index in array of near IR part of the spectrum

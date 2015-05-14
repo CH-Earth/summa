@@ -50,49 +50,20 @@ contains
  ! ******************************************************************************************************************************
  ! public subroutine iceImpede: compute the ice impedence factor
  ! ******************************************************************************************************************************
- subroutine iceImpede(volFracIce,volFracLiq,theta_sat,f_impede,lTangent, &  ! input
-                      iceImpedeFactor,dIceImpede_dLiq)                      ! output
+ subroutine iceImpede(volFracIce,f_impede, &            ! input
+                      iceImpedeFactor,dIceImpede_dLiq)  ! output
  ! computes the ice impedence factor (separate function, as used multiple times)
  implicit none
  ! input variables
  real(dp),intent(in)     :: volFracIce        ! volumetric fraction of ice (-)
- real(dp),intent(in)     :: volFracLiq        ! volumetric fraction of liquid water (-)
- real(dp),intent(in)     :: theta_sat         ! soil porosity (-)
  real(dp),intent(in)     :: f_impede          ! ice impedence parameter (-)
- logical(lgt),intent(in) :: lTangent          ! method used to compute derivative (.true. = analytical)
  ! output variables
  real(dp)                :: iceImpedeFactor   ! ice impedence factor (-)
  real(dp)                :: dIceImpede_dLiq   ! derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
- ! local variables
- !real(dp)                :: avCapIce          ! available capacity for ice
- !real(dp)                :: xArg              ! argument in the power function
- !real(dp)                :: f1                ! new function used to calculate numerical derivatives
- ! compute ice impedance factor
- ! NOTE: simplify so just a function of volumetric ice content
+ ! compute ice impedance factor as a function of volumetric ice content
  iceImpedeFactor = 10._dp**(-f_impede*volFracIce)
  dIceImpede_dLiq = 0._dp
 
- ! compute volumetric fraction available for ice (-)
- !avCapIce = theta_sat - volFracLiq
- !if(volFracIce < avCapIce)then
- !
- ! ! compute the ice impedence factor
- ! xArg = 1._dp - volFracIce/avCapIce
- ! iceImpedeFactor = xArg**f_impede
- !
- ! ! compute derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
- ! if(lTangent)then
- !  dIceImpede_dLiq = -volFracIce*(f_impede*xArg**(f_impede - 1._dp))/(avCapIce**2._dp)
- ! else  ! (numerical derivatives)
- !  f1 = (1._dp - (volFracIce/ (theta_sat - (volFracLiq+dx)) ) )**f_impede
- !  dIceImpede_dLiq = (f1 - iceImpedeFactor)/dx
- ! endif
- !
- ! pore space completely filled with ice
- !else
- ! iceImpedeFactor = 0._dp
- ! dIceImpede_dLiq = 0._dp
- !endif
  end subroutine iceImpede
 
 
