@@ -49,7 +49,7 @@ contains
                        ! output: error control
                        err,message)               ! intent(out): error control
  ! model variables, parameters, forcing data, etc.
- USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE data_struc,only:mpar_data,mvar_data                                  ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: model control
@@ -153,9 +153,8 @@ contains
  real(dp),parameter            :: residScal=10._dp           ! scaling factor for residual liquid water content reduction factor (kg m-3)
  real(dp),parameter            :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
  real(dp)                      :: availCap                   ! available storage capacity [0,1] (-)
- real(dp)                      :: relSaturn,relSaturn1       ! relative saturation [0,1] (-)
+ real(dp)                      :: relSaturn                  ! relative saturation [0,1] (-)
  real(dp),parameter            :: dx = 1.e-8_dp              ! finite difference increment
- real(dp)                      :: testFlux                   ! test value of the flux (to compute numerical derivatives)
  ! ---------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='snowLiqFlx_muster/'
