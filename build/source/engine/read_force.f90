@@ -248,7 +248,7 @@ contains
                                          time_data%var(iLookTIME%imin),           & ! minute
                                          fracJulday,                              & ! fractional julian day for the current time step
                                          yearLength                                 ! number of days in the current year
-  pause ' checking time'
+  !pause ' checking time'
  endif
  ! deallocate cline
  deallocate(cline,stat=err)
