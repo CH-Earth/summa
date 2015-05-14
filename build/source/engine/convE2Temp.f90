@@ -45,8 +45,6 @@ contains
  ! declare dummy variables
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
- ! define pointers to parameter structures
- real(dp),pointer              :: snowfrz_scale        ! freezing curve parameter for snow (K-1)
  ! declare local variables
  character(len=128)            :: cmessage             ! error message in downwind routine
  real(dp),parameter            :: T_start=260.0_dp     ! start temperature value where all liquid water is assumed frozen (K)
@@ -58,8 +56,10 @@ contains
  integer(i4b)                  :: ilook                ! loop through lookup table
  ! initialize error control
  err=0; message="E2T_lookup/"
- ! assign pointers
- snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)
+ ! associate
+ associate(&
+  snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale) &
+ )
  ! define initial temperature vector
  T_incr = (Tfreeze - T_start) / real(nlook-1, kind(dp))  ! temperature increment
  Tk     = arth(T_start,T_incr,nlook)
@@ -78,6 +78,7 @@ contains
   if(err/=0) then; message=trim(message)//trim(cmessage); return; endif
   !write(*,'(i6,1x,2(f20.4,1x))') ilook, E_lookup(ilook), T_lookup(ilook)
  end do
+ end associate
  end subroutine E2T_lookup
 
 
