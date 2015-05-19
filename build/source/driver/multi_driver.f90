@@ -266,6 +266,11 @@ do iHRU=1,nHRU
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
  print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
+ ! assign pointers to model layers
+ ! NOTE: layer structure is different for each HRU
+ nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
  ! re-calculate height of each layer
  call calcHeight(&
                  ! input/output: data structures
@@ -463,16 +468,15 @@ do istep=1,numtim
   ! identify the area covered by the current HRU
   fracHRU =  attr_data%var(iLookATTR%HRUarea) / bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
 
-  ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
-  nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
-  nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
-  allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
-  zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
-
   ! assign pointers to model layers
+  ! NOTE: layer structure is different for each HRU
   nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
   nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
   nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
+
+  ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
+  allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
+  zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
 
   ! assign pointers to model indices
   midSnowStartIndex => indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1)

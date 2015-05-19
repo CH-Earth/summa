@@ -32,11 +32,6 @@ USE multiconst,only:&
                     iden_air, & ! intrinsic density of air    (kg m-3)
                     iden_ice, & ! intrinsic density of ice    (kg m-3)
                     iden_water  ! intrinsic density of water  (kg m-3)
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,   & ! number of snow layers
-                    nSoil,   & ! number of soil layers
-                    nLayers    ! total number of layers
 implicit none
 private
 public::volicePack
@@ -107,26 +102,6 @@ contains
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
- ! recompute the number of snow and soil layers
- nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
- nLayers = nSnow+nSoil
-
- ! put the data in the structures
- indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
- indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
- indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
-
- ! re-compute snow depth and SWE
- if(nSnow > 0)then
-  mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-  mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                          mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                          * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
- endif
-
- !write(*,'(a,1x,i4,f20.10)') ' after combine; mvar_data%var(iLookMVAR%scalarSWE)%dat(1) = ', nSnow, mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
-
  end subroutine volicePack
 
 
@@ -136,6 +111,7 @@ contains
  subroutine newsnwfall(&
                        ! input: model control
                        dt,                        & ! time step (seconds)
+                       snowLayers,                & ! logical flag if snow layers exist
                        fc_param,                  & ! freeezing curve parameter for snow (K-1)
                        ! input: diagnostic scalar variables
                        scalarSnowfallTemp,        & ! computed temperature of fresh snow (K)
@@ -157,6 +133,7 @@ contains
  implicit none
  ! input: model control
  real(dp),intent(in)                 :: dt                         ! time step (seconds)
+ logical(lgt),intent(in)             :: snowLayers                 ! logical flag if snow layers exist
  real(dp),intent(in)                 :: fc_param                   ! freeezing curve parameter for snow (K-1)
  ! input: diagnostic scalar variables
  real(dp),intent(in)                 :: scalarSnowfallTemp         ! computed temperature of fresh snow (K)
@@ -199,7 +176,7 @@ contains
  newSnowDepth     = dt*(scalarThroughfallSnow/scalarNewSnowDensity + scalarCanopySnowUnloading/densityCanopySnow)  ! new snow depth (m)
 
  ! process special case of "snow without a layer"
- if(nSnow==0)then
+ if(.not.snowLayers)then
   ! increment depth and water equivalent
   scalarSnowDepth = scalarSnowDepth + newSnowDepth
   scalarSWE       = scalarSWE + dt*newSnowfall

@@ -209,7 +209,11 @@ contains
  ! initialize error control
  err=0; message="coupled_em/"
 
- ! identify the number of snow and soil layers
+ ! This is the start of a data step for a local HRU
+
+ ! count the number of snow and soil layers
+ ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
+ !         (nSnow and nSoil are shared in the data structure)
  nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
  nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
 
@@ -431,6 +435,7 @@ contains
   call newsnwfall(&
                  ! input: model control
                  dt_sub,                                                    & ! time step (seconds)
+                 (nSnow > 0),                                               & ! logical flag if snow layers exist
                  mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
                  ! input: diagnostic scalar variables
                  mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
@@ -505,6 +510,25 @@ contains
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
+
+    ! recompute the number of snow and soil layers
+    ! NOTE: do this here for greater visibility
+    nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+    nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+    nLayers = nSnow+nSoil
+
+    ! put the data in the structures
+    indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+    indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+    indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
+
+    ! re-compute snow depth and SWE
+    if(nSnow > 0)then
+     mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
+     mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                             mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                             * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+    endif
 
     ! (7) compute diagnostic variables for each layer...
     ! --------------------------------------------------

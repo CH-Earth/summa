@@ -23,6 +23,11 @@ module vegSWavRad_module
 USE nrtype
 ! named variables for snow and soil
 USE data_struc,only:ix_soil,ix_snow
+! access the number of snow and soil layers
+USE data_struc,only:&
+                      nSnow,        & ! number of snow layers
+                      nSoil,        & ! number of soil layers
+                      nLayers         ! total number of layers
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:         &
                       noah_mp,      & ! full Noah-MP implementation (including albedo)
@@ -45,10 +50,6 @@ integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  
 ! spatial indices
 integer(i4b),parameter        :: iLoc    = 1   ! i-location
 integer(i4b),parameter        :: jLoc    = 1   ! j-location
-! number of snow and soil layers
-integer(i4b)                  :: nSnow         ! number of snow layers
-integer(i4b)                  :: nSoil         ! number of soil layers
-integer(i4b)                  :: nLayers       ! total number of snow and soil layers
 ! algorithmic parameters
 real(dp),parameter            :: missingValue=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
 real(dp),parameter            :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
@@ -82,13 +83,6 @@ contains
  character(LEN=256)             :: cmessage                       ! error message of downwind routine
  ! initialize error control
  err=0; message='vegSWavRad/'
-
- ! identify the number of snow and soil layers
- nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
-
- ! compute the total number of snow and soil layers
- nLayers = nSnow + nSoil
 
  call vegSWavRad_muster(&
                         ! input: model control
@@ -247,13 +241,11 @@ contains
  ! initialize error control
  err=0; message='vegSWavRad_muster/'
 
-
  ! * preliminaries...
  ! ------------------
 
  ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
  snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
-
 
  ! compute the ground snow fraction
  if(nSnow > 0)then
