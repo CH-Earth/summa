@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module vegLiqFlux_module
 USE nrtype
 implicit none
@@ -5,8 +25,9 @@ private
 public::vegLiqFlux
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: compute water balance for the vegetation canopy
+ ! public subroutine vegLiqFlux: compute water balance for the vegetation canopy
  ! ************************************************************************************************
  subroutine vegLiqFlux(&
                        ! input
@@ -19,7 +40,7 @@ contains
                        scalarCanopyLiqDrainageDeriv, & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
                        err,message)                    ! intent(out): error control
  ! model variables, parameters, forcing data, etc.
- USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE data_struc,only:mpar_data,mvar_data    ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input
@@ -58,14 +79,9 @@ contains
 
  end subroutine vegLiqFlux
 
- ! ************************************************************************************************
- ! ************************************************************************************************
- ! *** PRIVATE SUBROUTINES ************************************************************************
- ! ************************************************************************************************
- ! ************************************************************************************************
 
  ! ************************************************************************************************
- ! new subroutine: compute water balance for the vegetation canopy
+ ! private subroutine vegLiqFlux_muster: compute water balance for the vegetation canopy
  ! ************************************************************************************************
  subroutine vegLiqFlux_muster(&
                               ! input
@@ -117,5 +133,6 @@ contains
  endif
 
  end subroutine vegLiqFlux_muster
+
 
 end module vegLiqFlux_module

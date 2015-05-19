@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 !******************************************************************
 ! (C) Copyright 2009-2010  ---  Dmitri Kavetski and Martyn Clark ---  All rights reserved
 !******************************************************************
@@ -29,9 +49,12 @@ CHARACTER(LEN=fusePathLen)  :: FORCING_FILELIST ='snow_zForcingFileList.txt'    
 CHARACTER(LEN=fusePathLen)  :: MODEL_INITCOND   ='snow_zInitialCond.txt'         ! model initial conditions
 CHARACTER(LEN=fusePathLen)  :: PARAMETER_TRIAL  ='snow_zParamTrial.txt'          ! trial values for model parameters
 CHARACTER(LEN=fusePathLen)  :: OUTPUT_PREFIX    ='xx'                            ! prefix for the output file
-!----------------------------------------------------
 contains
-!----------------------------------------------------
+
+
+! *************************************************************************************************
+! public subroutine fuse_SetDirsUndPhiles: Sets directories and filenames for FUSE
+! *************************************************************************************************
 subroutine fuse_SetDirsUndPhiles(fuseFileManagerIn,err,message)
 ! Purpose: Sets directories and philenames for FUSE.
 ! ---
@@ -111,9 +134,12 @@ write(runinfo_fileunit,*) 'ccyy='//cdate(1:4)//' - mm='//cdate(5:6)//' - dd='//c
                          ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
 close(runinfo_fileunit)
 ! End procedure here
-endsubroutine fuse_SetDirsUndPhiles
-!----------------------------------------------------
-! check if there is a space in the character string
+end subroutine fuse_SetDirsUndPhiles
+
+
+! *************************************************************************************************
+! public subroutine checkLineRead: check if there is a space in the character string
+! *************************************************************************************************
 subroutine checkLineRead(stringInput,err,message)
 implicit none
 character(*),intent(in)   :: stringInput
@@ -123,5 +149,6 @@ if(index(trim(stringInput),' ')/=0) then
  err=30; message="f-fuseSetDirsUndPhiles/spaceInString[string="//trim(stringInput)//"]"
 endif
 end subroutine checkLineRead
-!----------------------------------------------------
+
+
 END MODULE snow_filemanager

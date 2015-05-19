@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module paramCheck_module
 ! define numerical recipes data type
 USE nrtype
@@ -10,8 +30,9 @@ private
 public::paramCheck
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: check consistency of model parameters
+ ! public subroutine paramCheck: check consistency of model parameters
  ! ************************************************************************************************
  subroutine paramCheck(err,message)
  ! model decisions
@@ -27,8 +48,8 @@ contains
  ! local variables
  integer(i4b)                   :: iLayer               ! index of model layers
  real(dp),dimension(5)          :: zminLayer            ! minimum layer depth in each layer (m)
- real(dp),dimension(4)          :: zmaxLayer_lower      ! lower value of maximum layer depth 
- real(dp),dimension(4)          :: zmaxLayer_upper      ! upper value of maximum layer depth 
+ real(dp),dimension(4)          :: zmaxLayer_lower      ! lower value of maximum layer depth
+ real(dp),dimension(4)          :: zmaxLayer_upper      ! upper value of maximum layer depth
  ! Start procedure here
  err=0; message="paramCheck/"
 
@@ -71,6 +92,8 @@ contains
     endif
     ! ensure that the maximum thickness is 3 times greater than the minimum thickness
     if(zmaxLayer_upper(iLayer)/zminLayer(iLayer) < 2.5_dp .or. zmaxLayer_upper(iLayer)/zminLayer(iLayer+1) < 2.5_dp)then
+     write(*,'(a,1x,3(f20.10,1x))') 'zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1) = ', &
+                                     zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1)
      write(message,'(a,3(i0,a))') trim(message)//'zmaxLayer_upper for layer ',iLayer,' must be 2.5 times larger than zminLayer for layers ',&
                                   iLayer,' and ',iLayer+1,': this avoids merging layers that have just been divided'
      err=20; return
@@ -96,6 +119,8 @@ contains
  ! check that the soil wilting point is within bounds
  if(mpar_data%var(iLookPARAM%critSoilWilting)>mpar_data%var(iLookPARAM%theta_sat) .or. &
     mpar_data%var(iLookPARAM%critSoilWilting)<mpar_data%var(iLookPARAM%theta_res))then
+  print*, 'mpar_data%var(iLookPARAM%theta_res) = ', mpar_data%var(iLookPARAM%theta_res)
+  print*, 'mpar_data%var(iLookPARAM%theta_sat) = ', mpar_data%var(iLookPARAM%theta_sat)
   message=trim(message)//'critSoilWilting parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
@@ -104,11 +129,13 @@ contains
  ! check that the field capacity is within bounds
  if(mpar_data%var(iLookPARAM%fieldCapacity)>mpar_data%var(iLookPARAM%theta_sat) .or. &
     mpar_data%var(iLookPARAM%fieldCapacity)<mpar_data%var(iLookPARAM%theta_res))then
-  message=trim(message)//'critSoilWilting parameter is out of range '// &
+  print*, 'mpar_data%var(iLookPARAM%fieldCapacity) = ', mpar_data%var(iLookPARAM%fieldCapacity)
+  message=trim(message)//'fieldCapacity parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
  endif
 
  end subroutine paramCheck
+
 
 end module paramCheck_module

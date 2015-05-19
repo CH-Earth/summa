@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module mDecisions_module
 USE nrtype
 implicit none
@@ -60,7 +80,7 @@ integer(i4b),parameter,public :: lightSnow            = 112    ! maximum interce
 integer(i4b),parameter,public :: exponential          = 121    ! exponential wind profile extends to the surface
 integer(i4b),parameter,public :: logBelowCanopy       = 122    ! logarithmic profile below the vegetation canopy
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard             = 131    ! standard MO similarity, a la Anderson (1976) 
+integer(i4b),parameter,public :: standard             = 131    ! standard MO similarity, a la Anderson (1976)
 integer(i4b),parameter,public :: louisInversePower    = 132    ! Louis (1979) inverse power function
 integer(i4b),parameter,public :: mahrtExponential     = 133    ! Mahrt (1987) exponential
 ! look-up values for the choice of canopy shortwave radiation method
@@ -92,8 +112,9 @@ integer(i4b),parameter,public :: qInstant             = 202    ! instantaneous r
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
+
  ! ************************************************************************************************
- ! new subroutine: save model decisions as named integers
+ ! public subroutine mDecisions: save model decisions as named integers
  ! ************************************************************************************************
  subroutine mDecisions(err,message)
  ! model time structures
@@ -144,7 +165,7 @@ contains
 
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
-                  startTime%var(iLookTIME%iyyy),                         & ! year 
+                  startTime%var(iLookTIME%iyyy),                         & ! year
                   startTime%var(iLookTIME%im),                           & ! month
                   startTime%var(iLookTIME%id),                           & ! day
                   startTime%var(iLookTIME%ih),                           & ! hour
@@ -155,7 +176,7 @@ contains
 
  ! put simulation end time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
-                  finshTime%var(iLookTIME%iyyy),                         & ! year 
+                  finshTime%var(iLookTIME%iyyy),                         & ! year
                   finshTime%var(iLookTIME%im),                           & ! month
                   finshTime%var(iLookTIME%id),                           & ! day
                   finshTime%var(iLookTIME%ih),                           & ! hour
@@ -166,7 +187,7 @@ contains
 
  ! compute the julian date (fraction of day) for the start of the simulation
  call compjulday(&
-                 startTime%var(iLookTIME%iyyy),                         & ! year 
+                 startTime%var(iLookTIME%iyyy),                         & ! year
                  startTime%var(iLookTIME%im),                           & ! month
                  startTime%var(iLookTIME%id),                           & ! day
                  startTime%var(iLookTIME%ih),                           & ! hour
@@ -178,7 +199,7 @@ contains
 
  ! compute the julian date (fraction of day) for the end of the simulation
  call compjulday(&
-                 finshTime%var(iLookTIME%iyyy),                         & ! year 
+                 finshTime%var(iLookTIME%iyyy),                         & ! year
                  finshTime%var(iLookTIME%im),                           & ! month
                  finshTime%var(iLookTIME%id),                           & ! day
                  finshTime%var(iLookTIME%ih),                           & ! hour
@@ -193,7 +214,7 @@ contains
 
  ! compute the number of time steps
  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
- 
+
  ! -------------------------------------------------------------------------------------------------
 
  ! (0) set Noah-MP options
@@ -275,6 +296,7 @@ contains
  select case(trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision))
   case('presTemp'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = prescribedTemp      ! prescribed temperature
   case('nrg_flux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = energyFlux          ! energy flux
+  case('zeroFlux'); model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision = zeroFlux            ! zero flux
   case default
    err=10; message=trim(message)//"unknown upper boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcUpprTdyn)%cDecision)//"]"; return
  end select
@@ -384,7 +406,7 @@ contains
 
  ! (F-19) choice of thermal conductivity
  select case(trim(model_decisions(iLookDECISIONS%thermlcond)%cDecision))
-  case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965) 
+  case('tyen1965'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Yen1965             ! Yen (1965)
   case('melr1977'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Mellor1977          ! Mellor (1977)
   case('jrdn1991'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Jordan1991          ! Jordan (1991)
   case('smnv2000'); model_decisions(iLookDECISIONS%thermlcond)%iDecision = Smirnova2000        ! Smirnova et al. (2000)
@@ -412,12 +434,33 @@ contains
  ! check for consistency among options
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
 
+ ! check there is prescribedHead for soil hydrology when zeroFlux or prescribedTemp for thermodynamics
+ !select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
+ ! case(prescribedTemp,zeroFlux)
+ !  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision /= prescribedHead)then
+ !   message=trim(message)//'upper boundary condition for soil hydology must be presHead with presTemp and zeroFlux options for thermodynamics'
+ !   err=20; return
+ !  endif
+ !end select
+
+ ! check there is prescribedTemp or zeroFlux for thermodynamics when using prescribedHead for soil hydrology
+ !select case(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision)
+ ! case(prescribedHead)
+ !  ! check that upper boundary condition for thermodynamics is presTemp or zeroFlux
+ !  select case(model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision)
+ !   case(prescribedTemp,zeroFlux) ! do nothing: this is OK
+ !   case default
+ !    message=trim(message)//'upper boundary condition for thermodynamics must be presTemp or zeroFlux with presHead option for soil hydology'
+ !    err=20; return
+ !  end select
+ !end select
+
  ! check zero flux lower boundary for topmodel baseflow option
  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
   case(qbaseTopmodel)
    if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
     message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater'
-    err=20; return 
+    err=20; return
    endif
  end select
 
@@ -447,8 +490,9 @@ contains
 
  end subroutine mDecisions
 
+
  ! ************************************************************************************************
- ! private subroutine: read information from model decisions file
+ ! private subroutine readoption: read information from model decisions file
  ! ************************************************************************************************
  subroutine readoption(err,message)
  ! used to read information from model decisions file
@@ -476,7 +520,7 @@ contains
  err=0; message='readoption/'
  ! build filename
  infile = trim(SETNGS_PATH)//trim(M_DECISIONS)
- print*, 'decisions file = ', trim(infile)
+ write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -500,9 +544,10 @@ contains
   iVar = get_ixdecisions(trim(option))
   if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; endif
   ! populate the model decisions structure
-  model_decisions(iVar)%cOption   = trim(option) 
+  model_decisions(iVar)%cOption   = trim(option)
   model_decisions(iVar)%cDecision = trim(decision)
  end do
  end subroutine readoption
+
 
 end module mDecisions_module

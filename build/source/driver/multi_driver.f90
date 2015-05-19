@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 program multi_driver
 ! used to evaluate different methods for simulating snow processes
 ! *****************************************************************************
@@ -9,8 +29,8 @@ USE snow_fileManager,only:fuse_SetDirsUndPhiles             ! sets directories a
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
-USE allocspace_module,only:alloc_stim                       ! module to allocate space for scalar time structures 
-USE allocspace_module,only:alloc_time                       ! module to allocate space for model time structures 
+USE allocspace_module,only:alloc_stim                       ! module to allocate space for scalar time structures
+USE allocspace_module,only:alloc_time                       ! module to allocate space for model time structures
 USE allocspace_module,only:alloc_forc                       ! module to allocate space for model forcing data strictures
 USE allocspace_module,only:alloc_mpar                       ! module to allocate space for local column model parameter structures
 USE allocspace_module,only:alloc_mvar                       ! module to allocate space for local column model variable structures
@@ -45,11 +65,10 @@ USE snow_fileManager,only:SETNGS_PATH                       ! define path to set
 USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE snow_fileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
 USE data_struc,only:doJacobian                              ! flag to compute the Jacobian
-USE data_struc,only:forcFileInfo                            ! information on forcing data file
 USE data_struc,only:localParFallback                        ! local column default parameters
 USE data_struc,only:basinParFallback                        ! basin-average default parameters
 USE data_struc,only:mpar_meta,bpar_meta                     ! metadata for local column and basin-average model parameters
-USE data_struc,only:data_step,numtim                        ! length of data step (s) and number of time steps
+USE data_struc,only:numtim                                  ! number of time steps
 USE data_struc,only:time_data,time_hru,refTime              ! time and reference time
 USE data_struc,only:forc_data,forc_hru                      ! model forcing data
 USE data_struc,only:type_data,type_hru                      ! classification of veg, soils etc.
@@ -61,6 +80,7 @@ USE data_struc,only:bpar_data                               ! basin-average mode
 USE data_struc,only:bvar_data                               ! basin-average model variables
 USE data_struc,only:model_decisions                         ! model decisions
 USE data_struc,only:urbanVegCategory                        ! vegetation category for urban areas
+USE data_struc,only:globalPrintFlag                         ! global print flag
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
 ! named variables for elements of model structures
@@ -93,11 +113,16 @@ integer(i4b)              :: iHRU,jHRU,kHRU                 ! index of the hydro
 integer(i4b)              :: nHRU                           ! number of hydrologic response units
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
-integer(i4b)              :: iMonth                         ! index of the current month
+! define the re-start file
+logical(lgt)              :: printRestart                   ! flag to print a re-start file
+integer(i4b),parameter    :: ixRestart_im=1001              ! named variable to print a re-start file once per month
+integer(i4b),parameter    :: ixRestart_id=1002              ! named variable to print a re-start file once per day
+integer(i4b),parameter    :: ixRestart_never=1003           ! named variable to print a re-start file never
+integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency to write restart files
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
-character(len=32)         :: output_fileSuffix=''           ! suffix for the output file 
+character(len=64)         :: output_fileSuffix=''           ! suffix for the output file
 character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 ! define pointers for model indices
@@ -113,27 +138,18 @@ integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
 real(dp),pointer          :: totalArea=>null()              ! total basin area (m2)
 ! exfiltration
-real(dp)                  :: totalStorage                   ! total water in the soil column (m)
-real(dp)                  :: availStorage                   ! water required to bring the entire soil column to saturation (m)
-real(dp)                  :: totalInflow                    ! total inflow to the soil column from upstream HRUs (m s-1)
 real(dp),parameter        :: supersatScale=0.001_dp         ! scaling factor for the logistic function (-)
 real(dp),parameter        :: xMatch = 0.99999_dp            ! point where x-value and function value match (-)
 real(dp),parameter        :: safety = 0.01_dp               ! safety factor to ensure logistic function is less than 1
 real(dp),parameter        :: fSmall = epsilon(xMatch)       ! smallest possible value to test
 real(dp)                  :: supersatThresh                 ! threshold in super-saturation function (-)
 real(dp)                  :: exfilMin                       ! minimum fraction of storage filled for exfiltration to occur (-)
-real(dp)                  :: expFunc                        ! exponential function used as part of the flux calculation (-)
-real(dp)                  :: logFunc                        ! logistic smoothing function (-)
-real(dp)                  :: fracCap                        ! fraction of storage filled with liquid water and ice (-)
-real(dp)                  :: exfiltration                   ! exfiltration (m3/s)
 real(dp),allocatable      :: upArea(:)                      ! area upslope of each HRU
 ! general local variables
 real(dp)                  :: fracHRU                        ! fractional area of a given HRU (-)
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
-integer(i4b)              :: iSoil                          ! index of soil layer
-integer(i4b)              :: ixIce                          ! index of bottom-most ice layer
 ! error control
 integer(i4b)              :: err=0                          ! error code
 character(len=1024)       :: message=''                     ! error message
@@ -141,6 +157,7 @@ character(len=1024)       :: message=''                     ! error message
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
+print*, 'start'
 ! get the initial time
 call date_and_time(cdate1,ctime1)
 print*,ctime1
@@ -196,12 +213,12 @@ allocate(dt_init(nHRU),stat=err); call handle_err(err,'problem allocating space 
 call ffile_info(nHRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (4b) read model decisions 
+! (4b) read model decisions
 ! *****************************************************************************
 call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (5a) read Noah vegetation tables
+! (5a) read Noah vegetation and soil tables
 ! *****************************************************************************
 ! define monthly fraction of green vegetation
 !                           J        F        M        A        M        J        J        A        S        O        N        D
@@ -249,10 +266,21 @@ do iHRU=1,nHRU
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(err,message); call handle_err(err,message)
  print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
+ ! assign pointers to model layers
+ ! NOTE: layer structure is different for each HRU
+ nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
+ ! re-calculate height of each layer
+ call calcHeight(&
+                 ! input/output: data structures
+                 indx_data,   & ! intent(in): layer type
+                 mvar_data,   & ! intent(inout): model variables for a local HRU
+                 ! output: error control
+                 err,message); call handle_err(err,message)
  ! compute derived model variables that are pretty much constant over each HRU
  call E2T_lookup(err,message); call handle_err(err,message) ! calculate a look-up table for the temperature-enthalpy conversion
  call rootDensty(err,message); call handle_err(err,message) ! calculate vertical distribution of root density
- call calcHeight(err,message); call handle_err(err,message) ! calculate height at layer interfaces and layer mid-point
  call satHydCond(err,message); call handle_err(err,message) ! calculate saturated hydraulic conductivity in each soil layer
  call v_shortcut(err,message); call handle_err(err,message) ! calculate "short-cut" variables such as volumetric heat capacity
  ! overwrite the vegetation height
@@ -309,11 +337,11 @@ do iHRU=1,nHRU
   if(type_hru(jHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(iHRU)%var(iLookTYPE%hruIndex))then
    upArea(iHRU) = upArea(iHRU) + attr_hru(jHRU)%var(iLookATTR%HRUarea)
    ! check that jHRU does not have any upstream HRUs -- implement more complex topologies later
-   do kHRU=1,nHRU
-    if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
-     call handle_err(20,'currently only capable of a single upslope HRU')     
-    endif
-   end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
+   !do kHRU=1,nHRU
+   ! if(type_hru(kHRU)%var(iLookTYPE%downHRUindex) ==  type_hru(jHRU)%var(iLookTYPE%hruIndex))then
+   !  call handle_err(20,'currently only capable of a single upslope HRU')
+   ! endif
+   !end do  ! (checking that the upstream HRU does not itself have an upstream HRU)
   endif   ! (if jHRU is an upstream HRU)
  end do  ! jHRU
 end do  ! iHRU
@@ -332,7 +360,9 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
 endselect
 
 ! initialize time step length for each HRU
-dt_init(:) = 360._dp ! seconds
+do iHRU=1,nHRU
+ dt_init(iHRU) = mvar_hru(iHRU)%var(iLookMVAR%dt_init)%dat(1) ! seconds
+end do
 
 ! initialize time step index
 jstep=1
@@ -341,6 +371,13 @@ jstep=1
 ! (6) loop through time
 ! ****************************************************************************
 do istep=1,numtim
+
+ ! set print flag
+ globalPrintFlag=.false.
+ !if(istep > 0) globalPrintFlag=.true.
+
+ ! check
+ !if(istep > 217) pause 'check time step'
 
  ! read a line of forcing data (if not already opened, open file, and get to the correct place)
  ! NOTE: only read data once: if same data used for multiple HRUs, data is copied across
@@ -405,7 +442,7 @@ do istep=1,numtim
  bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
  bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
 
- ! initialize total inflow to each layer in a soil column 
+ ! initialize total inflow for each layer in a soil column
  do iHRU=1,nHRU
   mvar_hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
  end do
@@ -415,6 +452,9 @@ do istep=1,numtim
  ! (8) loop through HRUs
  ! ****************************************************************************
  do iHRU=1,nHRU
+
+  ! print progress
+  !print*, 'iHRU = ', iHRU
 
   ! assign pointers to HRUs
   time_data => time_hru(iHRU)
@@ -428,16 +468,15 @@ do istep=1,numtim
   ! identify the area covered by the current HRU
   fracHRU =  attr_data%var(iLookATTR%HRUarea) / bvar_data%var(iLookBVAR%basin__totalArea)%dat(1)
 
-  ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
-  nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
-  nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
-  allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
-  zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
-
   ! assign pointers to model layers
+  ! NOTE: layer structure is different for each HRU
   nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
   nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
   nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
+
+  ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
+  allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
+  zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
 
   ! assign pointers to model indices
   midSnowStartIndex => indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1)
@@ -467,7 +506,7 @@ do istep=1,numtim
 
   ! define the green vegetation fraction of the grid box (used to compute LAI)
   mvar_data%var(iLookMVAR%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(time_data%var(iLookTIME%im))
-   
+
   ! compute derived forcing variables
   call derivforce(err,message); call handle_err(err,message)
 
@@ -530,8 +569,21 @@ do istep=1,numtim
   ! ****************************************************************************
   ! (9) run the model
   ! ****************************************************************************
+  ! define the need to calculate the re-start file
+  select case(ixRestart)
+   case(ixRestart_im);    printRestart = (time_data%var(iLookTIME%id) == 1 .and. time_data%var(iLookTIME%ih) == 1  .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_id);    printRestart = (time_data%var(iLookTIME%ih) == 1 .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_never); printRestart = .false.
+   case default; call handle_err(20,'unable to identify option for the restart file')
+  end select
+  !printRestart = .true.
+
   ! run the model for a single parameter set and time step
-  call coupled_em(dt_init(iHRU),err,message); call handle_err(err,message) 
+  call coupled_em(printRestart,                    & ! flag to print a re-start file
+                  output_fileSuffix,               & ! name of the experiment used in the restart file
+                  dt_init(iHRU),                   & ! initial time step
+                  err,message)                       ! error control
+  call handle_err(err,message)
   !if(exfiltration > 0.0001_dp) call handle_err(20,'model driver: testing exfiltration')
   !if(istep>1000) stop 'FORTRAN STOP: after call to coupled_em'
   !if(associated(forc_data))then
@@ -589,14 +641,14 @@ do istep=1,numtim
   ! write the model output to the NetCDF file
   call writeModel(fileout,iHRU,jstep,err,message); call handle_err(err,message)
   !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
-  
+
   ! increment the model indices
   midSnowStartIndex = midSnowStartIndex + nSnow
   midSoilStartIndex = midSoilStartIndex + nSoil
   midTotoStartIndex = midTotoStartIndex + nLayers
-  ifcSnowStartIndex = ifcSnowStartIndex + nSnow+1 
-  ifcSoilStartIndex = ifcSoilStartIndex + nSoil+1 
-  ifcTotoStartIndex = ifcTotoStartIndex + nLayers+1 
+  ifcSnowStartIndex = ifcSnowStartIndex + nSnow+1
+  ifcSoilStartIndex = ifcSoilStartIndex + nSoil+1
+  ifcTotoStartIndex = ifcTotoStartIndex + nLayers+1
 
   ! deallocate height at bottom of each soil layer(used in Noah MP)
   deallocate(zSoilReverseSign,stat=err); call handle_err(err,'problem deallocating space for zSoilReverseSign')
@@ -605,23 +657,24 @@ do istep=1,numtim
 
  ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
-  call groundwatr(&
-                 ! input
-                 data_step,                                              & ! intent(in): time step of the forcing data (s)
-                 model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,   & ! intent(in): method used to calculate flux derivatives
-                 ! input: effective parameters
-                 bpar_data%var(iLookBPAR%basin__aquiferHydCond),         & ! intent(in): hydraulic conductivity (m s-1)
-                 bpar_data%var(iLookBPAR%basin__aquiferScaleFactor),     & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
-                 bpar_data%var(iLookBPAR%basin__aquiferBaseflowExp),     & ! intent(in): exponent in bucket baseflow parameterization (-)
-                 ! input: aquifer fluxes
-                 bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), & ! intent(in): aquifer recharge (m s-1)
-                 bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),& ! intent(in): aquifer transpiration (m s-1)
-                 ! input-output
-                 bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  & ! intent(inout): aquifer storage (m)
-                 ! output
-                 bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
-                 err,message)                                              ! intent(out): error control
-  call handle_err(err,message)                
+  call handle_err(20,'multi_driver/bigBucket groundwater code not transferred from old code base yet')
+  !call groundwatr(&
+  !               ! input
+  !               data_step,                                              & ! intent(in): time step of the forcing data (s)
+  !               model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,   & ! intent(in): method used to calculate flux derivatives
+  !               ! input: effective parameters
+  !               bpar_data%var(iLookBPAR%basin__aquiferHydCond),         & ! intent(in): hydraulic conductivity (m s-1)
+  !               bpar_data%var(iLookBPAR%basin__aquiferScaleFactor),     & ! intent(in): scaling factor for aquifer storage in the big bucket (m)
+  !               bpar_data%var(iLookBPAR%basin__aquiferBaseflowExp),     & ! intent(in): exponent in bucket baseflow parameterization (-)
+  !               ! input: aquifer fluxes
+  !               bvar_data%var(iLookBVAR%basin__AquiferRecharge)%dat(1), & ! intent(in): aquifer recharge (m s-1)
+  !               bvar_data%var(iLookBVAR%basin__AquiferTranspire)%dat(1),& ! intent(in): aquifer transpiration (m s-1)
+  !               ! input-output
+  !               bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),  & ! intent(inout): aquifer storage (m)
+  !               ! output
+  !               bvar_data%var(iLookBVAR%basin__AquiferBaseflow)%dat(1), & ! intent(out): aquifer baseflow (m s-1)
+  !               err,message)                                              ! intent(out): error control
+  !call handle_err(err,message)
  endif
 
  ! perform the routing
@@ -645,6 +698,8 @@ do istep=1,numtim
  ! increment the time index
  jstep = jstep+1
 
+ !stop 'end of time step'
+
 end do  ! (looping through time)
 
 ! deallocate space for dt_init and upArea
@@ -654,6 +709,9 @@ call stop_program('finished simulation')
 
 contains
 
+ ! **************************************************************************************************
+ ! private subroutine handle_err: error handler
+ ! **************************************************************************************************
  subroutine handle_err(err,message)
  ! used to handle error codes
  USE data_struc,only:mvar_data,mpar_data,indx_data     ! variable data structure
@@ -711,6 +769,9 @@ contains
  stop
  end subroutine handle_err
 
+ ! **************************************************************************************************
+ ! private subroutine stop_program: stop program execution
+ ! **************************************************************************************************
  subroutine stop_program(message)
  ! used to stop program execution
  implicit none
@@ -735,7 +796,9 @@ contains
 end program multi_driver
 
 
-
+ ! **************************************************************************************************
+ ! private subroutine SOIL_VEG_GEN_PARM: Read soil, vegetation and other model parameters (from NOAH)
+ ! **************************************************************************************************
 !-----------------------------------------------------------------
 SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GENERAL, MMINLU, MMINSL)
 !-----------------------------------------------------------------

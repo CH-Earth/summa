@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module convE2Temp_module
 USE nrtype
 implicit none
@@ -11,9 +31,10 @@ real(dp),dimension(nlook),public  :: E_lookup          ! enthalpy values (J kg-1
 real(dp),dimension(nlook),public  :: T_lookup          ! temperature values (K)
 contains
 
- ! **********************************************************************************************************
- ! new subroutine: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
- ! **********************************************************************************************************
+
+ ! ************************************************************************************************************************
+ ! public subroutine E2T_lookup: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
+ ! ************************************************************************************************************************
  subroutine E2T_lookup(err,message)
  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
  USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
@@ -24,8 +45,6 @@ contains
  ! declare dummy variables
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
- ! define pointers to parameter structures
- real(dp),pointer              :: snowfrz_scale        ! freezing curve parameter for snow (K-1)
  ! declare local variables
  character(len=128)            :: cmessage             ! error message in downwind routine
  real(dp),parameter            :: T_start=260.0_dp     ! start temperature value where all liquid water is assumed frozen (K)
@@ -37,8 +56,10 @@ contains
  integer(i4b)                  :: ilook                ! loop through lookup table
  ! initialize error control
  err=0; message="E2T_lookup/"
- ! assign pointers
- snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)
+ ! associate
+ associate(&
+  snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale) &
+ )
  ! define initial temperature vector
  T_incr = (Tfreeze - T_start) / real(nlook-1, kind(dp))  ! temperature increment
  Tk     = arth(T_start,T_incr,nlook)
@@ -57,12 +78,13 @@ contains
   if(err/=0) then; message=trim(message)//trim(cmessage); return; endif
   !write(*,'(i6,1x,2(f20.4,1x))') ilook, E_lookup(ilook), T_lookup(ilook)
  end do
+ end associate
  end subroutine E2T_lookup
 
 
- ! **********************************************************************************************************
- ! new subroutine: compute temperature based on specific enthalpy -- appropriate when no dry mass, as in snow
- ! **********************************************************************************************************
+ ! ************************************************************************************************************************
+ ! public subroutine E2T_nosoil: compute temperature based on specific enthalpy -- appropriate when no dry mass, as in snow
+ ! ************************************************************************************************************************
  subroutine E2T_nosoil(Ey,BulkDenWater,fc_param,Tk,err,message)
  ! compute temperature based on enthalpy -- appropriate when no dry mass, as in snow
  USE multiconst, only: Tfreeze, &                   ! freezing point of water (K)
@@ -164,9 +186,9 @@ contains
  end subroutine E2T_nosoil
 
 
- ! **********************************************************************************************************
- ! new function: compute total enthalpy based on temperature and mass (J m-3)
- ! **********************************************************************************************************
+ ! ************************************************************************************************************************
+ ! public function temp2ethpy: compute total enthalpy based on temperature and mass (J m-3)
+ ! ************************************************************************************************************************
  function temp2ethpy(Tk,BulkDenWater,fc_param)
  ! used to compute enthalpy based on temperature and total mass in layer (snow or soil)
  ! NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
@@ -181,7 +203,6 @@ contains
  real(dp)             :: temp2ethpy    ! return value of the function, total specific enthalpy (J m-3)
  ! declare local variables
  real(dp)             :: frac_liq      ! fraction of liquid water
- real(dp)             :: enthTempSoil  ! temperature component of specific enthalpy for dry soil (J kg-1)
  real(dp)             :: enthTempWater ! temperature component of specific enthalpy for total water (liquid and ice) (J kg-1)
  real(dp)             :: enthMass      ! mass component of specific enthalpy (J kg-1)
  ! NOTE: this function assumes the freezing curve for snow ... it needs modification to use vanGenuchten functions for soil
@@ -190,7 +211,7 @@ contains
  ! compute the temperature component of enthalpy for the soil constituent (J kg-1)
  !enthTempSoil = Cp_soil*(Tk - Tfreeze)
  ! compute the temperature component of enthalpy for total water (J kg-1)
- ! NOTE: negative enthalpy means require energy to bring to Tfreeze  
+ ! NOTE: negative enthalpy means require energy to bring to Tfreeze
  if(Tk< Tfreeze) enthTempWater =   Cp_ice*(Tk - Tfreeze) - (Cp_water - Cp_ice)*(atan(fc_param*(Tfreeze - Tk))/fc_param)
  if(Tk>=Tfreeze) enthTempWater = Cp_water*(Tk - Tfreeze)
  ! compute the mass component of enthalpy -- energy required to melt ice (J kg-1)
@@ -200,5 +221,6 @@ contains
  ! NOTE: this is the case for snow (no soil).. function needs modification to use vanGenuchten functions for soil
  temp2ethpy   = BulkDenWater*(enthTempWater + enthMass) !+ BulkDenSoil*enthTempSoil
  end function temp2ethpy
+
 
 end module ConvE2Temp_module

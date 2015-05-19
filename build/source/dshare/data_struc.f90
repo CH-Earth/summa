@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 MODULE data_struc
  ! used to define model data structures
  USE nrtype
@@ -7,14 +27,14 @@ MODULE data_struc
  ! Define the model decisions
  ! ***********************************************************************************************************
  ! the model decision structure
- type model_options
+ type,public  :: model_options
   character(len=64)                      :: cOption
   character(len=64)                      :: cDecision
   integer(i4b)                           :: iDecision
  end type model_options
  type(model_options),pointer,save,public :: model_decisions(:)      ! the decision structure
  ! ***********************************************************************************************************
- ! Define metadata for model forcing datafile 
+ ! Define metadata for model forcing datafile
  ! ***********************************************************************************************************
  ! define a derived type for the data in the file
  type,public  :: file_info
@@ -81,7 +101,7 @@ MODULE data_struc
  ! define derived types to hold data for multiple variables
  ! NOTE: use derived types here to facilitate adding extra dimensions (e.g., spatial)
  ! ** double precision type of variable length
- type, public :: var_dlength 
+ type, public :: var_dlength
   type(dlength),pointer                  :: var(:) => null()
  endtype var_dlength
  ! ** integer type of variable length
@@ -130,6 +150,7 @@ MODULE data_struc
  integer(i4b),save,public                :: yearLength               ! number of days in the current year
  integer(i4b),save,public                :: urbanVegCategory=1       ! vegetation category for urban areas
  logical(lgt),save,public                :: doJacobian=.false.       ! flag to compute the Jacobian
+ logical(lgt),save,public                :: globalPrintFlag=.false.  ! flag to compute the Jacobian
  ! ***********************************************************************************************************
  ! Define ancillary data structures
  ! ***********************************************************************************************************
@@ -137,6 +158,7 @@ MODULE data_struc
  type(var_i),pointer,save,public         :: startTime    => null()   ! start time for the model simulation
  type(var_i),pointer,save,public         :: finshTime    => null()   ! end time for the model simulation
  ! ***********************************************************************************************************
+
+
 END MODULE data_struc
-! ***********************************************************************************************************************
 

@@ -1,18 +1,44 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module read_icond_module
 USE nrtype
+! define modeling decisions
 USE mDecisions_module,only:  &
  moisture,                   & ! moisture-based form of Richards' equation
  mixdform                      ! mixed form of Richards' equation
+! define the number of layers
+USE data_struc,only:&
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
+                    nLayers         ! total number of layers
 implicit none
 private
 public::read_icond
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: read model initial conditions
+ ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
  subroutine read_icond(err,message)
- ! used to read model initial conditions
  USE multiconst, only:&
                        LH_fus,    &  ! latent heat of fusion                (J kg-1)
                        iden_ice,  &  ! intrinsic density of ice             (kg m-3)
@@ -25,6 +51,8 @@ contains
  USE soil_utils_module,only:volFracLiq             ! compute volumetric fraction of liquid water based on matric head
  USE soil_utils_module,only:matricHead             ! compute matric head based on volumetric fraction of liquid water
  USE soil_utils_module,only:crit_soilT             ! compute temperature above which all water is unfrozen
+ USE updatState_module,only:updateSnow             ! update snow states
+ USE updatState_module,only:updateSoil             ! update soil states
  USE snow_fileManager,only:SETNGS_PATH             ! path for metadata files
  USE snow_fileManager,only:MODEL_INITCOND          ! model initial conditions file
  USE ascii_util_module,only:file_open              ! open file
@@ -33,12 +61,11 @@ contains
  USE allocspace_module,only:alloc_mvar             ! allocate space for model variables
  USE allocspace_module,only:alloc_indx             ! allocate space for model variables
  ! data structures
- USE data_struc,only:model_decisions               ! model decision structure
  USE var_lookup,only:iLookDECISIONS                ! named variables for elements of the decision structure
  USE data_struc,only:mpar_data                     ! data for model parameetrs
  USE data_struc,only:mvar_data,mvar_meta           ! data/metadata for model variables
  USE data_struc,only:indx_data,indx_meta           ! data/metadata for model indices
- USE data_struc,only:ix_soil,ix_snow               ! named variables to describe the type of layer 
+ USE data_struc,only:ix_soil,ix_snow               ! named variables to describe the type of layer
  USE var_lookup,only:iLookMVAR,iLookPARAM,iLookINDEX ! named variables to describe structure elements
  USE get_ixname_module,only:get_ixmvar,get_ixindex ! access function to find index of elements in structure
  implicit none
@@ -53,24 +80,21 @@ contains
  integer(i4b),parameter         :: nBand=2         ! number of spectral bands
  integer(i4b),parameter         :: ix_miss=-999    ! index for missing data
  integer(i4b),parameter         :: unt=99          ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                   :: iline           ! loop through lines in the file 
+ integer(i4b)                   :: iline           ! loop through lines in the file
  integer(i4b)                   :: iword           ! loop through words in a line
- integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file 
+ integer(i4b),parameter         :: maxLines=10000  ! maximum lines in the file
  character(LEN=256)             :: temp            ! single line of information
  integer(i4b)                   :: iend            ! check for the end of the file
- character(LEN=256)             :: namesScalarDesired(9) ! names of desired scalar variables
+ character(LEN=256)             :: namesScalarDesired(10) ! names of desired scalar variables
  logical(lgt),allocatable       :: checkGotVars(:) ! used to check if we have got desired variables
  character(LEN=256),allocatable :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable :: chardata(:)     ! vector of character data
  integer(i4b)                   :: ivar,jvar       ! index of model variable
  integer(i4b)                   :: layerType       ! ix_snow or ix_soil
  integer(i4b)                   :: nVars           ! number of model variables
- integer(i4b)                   :: nSnow           ! number of snow layers
- integer(i4b)                   :: nSoil           ! number of soil layers
  integer(i4b)                   :: iSnow           ! index of snow model layers
  integer(i4b)                   :: iSoil           ! index of soil model layers
  integer(i4b)                   :: iToto           ! index of model layers
- integer(i4b)                   :: nLayers         ! number of model layers
  character(len=256),parameter   :: scalar_tag='scalar_icond' ! tag for the scalar initial conditions
  character(len=256),parameter   :: layer_tag='layer_icond'   ! tag for the layer initial conditions
  logical(lgt)                   :: scalar_flag=.false. ! flag determines if in the scalar portion of the file
@@ -81,6 +105,7 @@ contains
  real(dp),pointer               :: scalarTemp          ! temperature (K)
  real(dp)                       :: scalarTheta         ! liquid water equivalent of total water [liquid water + ice] (-)
  integer(i4b),pointer           :: scalarLayerType     ! layer type
+ real(dp)                       :: scalarPsiLiq        ! liquid water matric potential (m)
  real(dp),pointer               :: scalarVolFracIce    ! volumetric fraction of ice (-)
  real(dp),pointer               :: scalarVolFracLiq    ! volumetric fraction of liquid water (-)
  real(dp),pointer               :: scalarMatricHead    ! matric head (m)
@@ -90,18 +115,16 @@ contains
  real(dp),pointer               :: theta_res           ! soil residual volumetric water content (-)
  real(dp),pointer               :: snowfrz_scale       ! scaling parameter for the snow freezing curve (K-1)
  real(dp),pointer               :: FCapil              ! fraction of snow pore space in tension storage (-)
- real(dp)                       :: Tcrit               ! temperature above which all water is unfrozen (K)
  real(dp)                       :: vGn_m               ! van Genutchen "m" parameter (-)
- real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1) 
+ real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1)
  real(dp)                       :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
- real(dp)                       :: residlVolFracLiq    ! volumetric fraction of liquid water in tension storage (snow)
  real(dp)                       :: h1,h2               ! used to check depth and height are consistent
  real(dp),pointer               :: scalarCanopyTemp    ! canopy temperature (K)
  real(dp),pointer               :: scalarCanopyIce     ! mass of ice on the vegetation canopy (kg m-2)
  real(dp),pointer               :: scalarCanopyLiq     ! mass of liquid water on the vegetation canopy (kg m-2)
  real(dp)                       :: fLiq                ! fraction of liquid water on the vegetation canopy (-)
- real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2) 
-
+ real(dp)                       :: tWat                ! total water on the vegetation canopy (kg m-2)
+ logical(lgt),parameter         :: doPrintStates=.false.  ! flag to print states
  ! Start procedure here
  err=0; message="read_icond/"
  ! check the missing data flag is OK
@@ -112,18 +135,19 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
  ! define desired scalar variables
- if(size(namesScalarDesired)/=9)then
-  err=20; message=trim(message)//'expect 9 variables in namesScalarDesired'; return
+ if(size(namesScalarDesired)/=10)then
+  err=20; message=trim(message)//'expect 10 variables in namesScalarDesired'; return
  endif
- namesScalarDesired( 1) = 'scalarCanopyIce'
- namesScalarDesired( 2) = 'scalarCanopyLiq'
- namesScalarDesired( 3) = 'scalarCanairTemp'
- namesScalarDesired( 4) = 'scalarCanopyTemp'
- namesScalarDesired( 5) = 'scalarSnowAlbedo'
- namesScalarDesired( 6) = 'scalarSWE'
- namesScalarDesired( 7) = 'scalarSnowDepth'
- namesScalarDesired( 8) = 'scalarSfcMeltPond'
- namesScalarDesired( 9) = 'scalarAquiferStorage'
+ namesScalarDesired( 1) = 'dt_init'
+ namesScalarDesired( 2) = 'scalarCanopyIce'
+ namesScalarDesired( 3) = 'scalarCanopyLiq'
+ namesScalarDesired( 4) = 'scalarCanairTemp'
+ namesScalarDesired( 5) = 'scalarCanopyTemp'
+ namesScalarDesired( 6) = 'scalarSnowAlbedo'
+ namesScalarDesired( 7) = 'scalarSWE'
+ namesScalarDesired( 8) = 'scalarSnowDepth'
+ namesScalarDesired( 9) = 'scalarSfcMeltPond'
+ namesScalarDesired(10) = 'scalarAquiferStorage'
 
  ! **********************************************************************************************
  ! (1) open files, etc.
@@ -164,7 +188,6 @@ contains
   if (iline==maxLines) rewind(unt)
  end do  ! looping through lines
  nLayers = nSnow + nSoil
- print *, 'nLayers = ', nLayers
  ! **********************************************************************************************
  ! (3) allocate space for structure components
  ! **********************************************************************************************
@@ -199,7 +222,7 @@ contains
   if(err/=0)then;err=30;message=trim(message)//"problemAllocate[var='"//trim(indx_meta(ivar)%varname)//"']"; return; endif
   ! fill data with missing values
   indx_data%var(ivar)%dat(:) = missingInteger
- end do  ! (loop through model indices) 
+ end do  ! (loop through model indices)
  ! save the number of layers
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
  indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
@@ -345,7 +368,7 @@ contains
  mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers) = &
  mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers-1) + mvar_data%var(iLookMVAR%mLayerDepth)%dat(nLayers)
  ! check matric head is read correctly
- print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
+ !print*,'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! ensure the snow albedo is realistic
@@ -401,7 +424,7 @@ contains
  ! loop through all layers
  do iLayer=1,nLayers
   ! define short-cuts
-  scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)          ! temperature (K) 
+  scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)          ! temperature (K)
   scalarVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer)    ! volumetric fraction of liquid water in each snow layer (-)
   scalarVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer)    ! volumetric fraction of ice in each snow layer (-)
   scalarLayerType  => indx_data%var(iLookINDEX%layerType)%dat(iLayer)          ! type of layer (ix_soil or ix_snow)
@@ -452,6 +475,7 @@ contains
 
   ! process snow and soil separately
   select case(scalarLayerType)
+
    ! ** snow
    case(ix_snow)
     ! check that snow temperature is less than freezing
@@ -460,39 +484,48 @@ contains
      err=20; return
     endif
     ! compute the residual volumetric fraction of liquid water based on the specified volumetric fraction of ice
-    residlVolFracLiq = FCapil*(1._dp - scalarVolFracIce)  ! "residual" volumetric liquid water content (i.e., tension storage)
+    !residlVolFracLiq = FCapil*(1._dp - scalarVolFracIce)  ! "residual" volumetric liquid water content (i.e., tension storage)
     ! compute volumetric fraction of liquid water and ice based on temperature
-    scalarVolFracLiq = fracliquid(scalarTemp,snowfrz_scale)*scalarTheta        ! volumetric fraction of liquid water
-    scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)  ! volumetric fraction of ice
+    !!scalarVolFracLiq = fracliquid(scalarTemp,snowfrz_scale)*scalarTheta        ! volumetric fraction of liquid water
+    !!scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)  ! volumetric fraction of ice
     ! check that the volumetric liquid water content is not greater than tension storage
-    if(scalarVolFracLiq > residlVolFracLiq)then
-     scalarVolFracLiq = residlVolFracLiq                                       ! set volumetric liquid water content to tension storage
-     scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice) ! compute corresponding ice volume to maintain mass
-     scalarTemp       = templiquid(scalarVolFracLiq/scalarTheta,snowfrz_scale) ! identify the temperature associated with tension storage
-    endif  ! (if liquid water content > tension storage)
+    !!if(scalarVolFracLiq > residlVolFracLiq)then
+    !! scalarVolFracLiq = residlVolFracLiq                                       ! set volumetric liquid water content to tension storage
+    !! scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice) ! compute corresponding ice volume to maintain mass
+    !! scalarTemp       = templiquid(scalarVolFracLiq/scalarTheta,snowfrz_scale) ! identify the temperature associated with tension storage
+    !!endif  ! (if liquid water content > tension storage)
+    ! ensure consistency among state variables
+    call updateSnow(&
+                    ! input
+                       scalarTemp                                              ,& ! intent(in): temperature (K)
+                       scalarVolFracLiq+scalarVolFracIce*(iden_ice/iden_water) ,& ! intent(in): mass fraction of total water (-)
+                       snowfrz_scale                                           ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                       ! output
+                       scalarVolFracLiq                                        ,& ! intent(out): volumetric fraction of liquid water (-)
+                       scalarVolFracIce                                        ,& ! intent(out): volumetric fraction of ice (-)
+                       fLiq                                                    ,& ! intent(out): fraction of liquid water (-)
+                       err,cmessage)                                              ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
    ! ** soil
    case(ix_soil)
-    ! assign pointer to the matric head
-    scalarMatricHead => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer-nSnow)
-    ! compute the critical temperature above which all water is unfrozen (K)
-    Tcrit = crit_soilT(scalarTheta,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
-    ! compute the matric head (m) and volumetric fractio of liquid water and ice (-) for cases of frozen soil
-    if(scalarTemp < Tcrit) then
-     scalarMatricHead = kappa*(scalarTemp - Tfreeze)
-     scalarVolFracLiq = volFracLiq(scalarMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-     scalarVolFracIce = (scalarTheta - scalarVolFracLiq)*(iden_water/iden_ice)
-    ! compute volumetric fraction of liquid water and ice (-) for cases of unfrozen soil
-    else
-     select case(model_decisions(iLookDECISIONS%f_Richards)%iDecision)
-      case(moisture)
-       scalarVolFracLiq = min(scalarVolFracLiq,maxVolFracLiq)
-       scalarMatricHead = matricHead(scalarVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      case(mixdform)
-       scalarVolFracLiq = volFracLiq(scalarMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      case default; err=20; message=trim(message)//"unknown form of Richards' equation"; return
-     end select
-     scalarVolFracIce = 0._dp
-    endif
+    ! assign pointers to model state variables
+    scalarTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat(iLayer)             ! temperature (K)
+    scalarMatricHead => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer-nSnow) ! matric head (m)
+    scalarVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer)       ! volumetric fraction of liquid water in each soil layer (-)
+    scalarVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer)       ! volumetric fraction of ice in each soil layer (-)
+    ! ensure consistency among state variables
+    call updateSoil(&
+                    ! input
+                    scalarTemp,                                & ! intent(in): layer temperature (K)
+                    scalarMatricHead,                          & ! intent(in): matric head (m)
+                    vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
+                    ! output
+                    scalarPsiLiq,                              & ! intent(out): liquid water matric potential (m)
+                    scalarVolFracLiq,                          & ! intent(out): volumetric fraction of liquid water (-)
+                    scalarVolFracIce,                          & ! intent(out): volumetric fraction of ice (-)
+                    err,cmessage)                                ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
   endselect
  end do  ! (looping through layers)
@@ -507,7 +540,7 @@ contains
  do iLayer=1,nLayers
   h1 = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
   h2 = mvar_data%var(iLookMVAR%iLayerHeight)%dat(iLayer) - mvar_data%var(iLookMVAR%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
-  write(*,'(a,1x,10(e20.10,1x))') 'h1, h2, (h1 - h2) = ', h1, h2, (h1 - h2)
+  !write(*,'(a,1x,10(e20.10,1x))') 'h1, h2, (h1 - h2) = ', h1, h2, (h1 - h2)
   if(abs(h1 - h2) > 1.e-12_dp)then
    write(message,'(a,1x,i0)') trim(message)//'mis-match between layer depth and layer height [suggest round numbers in initial conditions file]; layer = ', iLayer
    err=20; return
@@ -520,23 +553,26 @@ contains
  ! deallocate variable check vector
  deallocate(checkGotVars,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'deallocating logical check vector'; return; endif
- print*,'****************************************************************************************'
- print*, 'mLayerDepth      ', mvar_data%var(iLookMVAR%mLayerDepth)%dat(:)
- print*, 'iLayerHeight     ', mvar_data%var(iLookMVAR%iLayerHeight)%dat(:)
- print*, 'mLayerTemp       ', mvar_data%var(iLookMVAR%mLayerTemp)%dat(:)
- print*, 'mLayerVolFracIce ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(:)
- print*, 'mLayerVolFracLiq ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(:)
- print*, 'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
- print*, 'scalarCanopyIce  ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(:) 
- print*, 'scalarCanopyLiq  ', mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(:)
- print*, 'scalarCanairTemp ', mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(:)
- print*, 'scalarCanopyTemp ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(:)
- print*, 'scalarSnowAlbedo ', mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(:)
- print*, 'scalarSnowDepth  ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(:)
- print*, 'scalarSWE        ', mvar_data%var(iLookMVAR%scalarSWE)%dat(:)
- print*, 'layerType        ', indx_data%var(iLookINDEX%layerType)%dat(:)
- print*,'****************************************************************************************'
- !pause
+ ! print states
+ if(doPrintStates)then
+  print*,'****************************************************************************************'
+  print*, 'mLayerDepth      ', mvar_data%var(iLookMVAR%mLayerDepth)%dat(:)
+  print*, 'iLayerHeight     ', mvar_data%var(iLookMVAR%iLayerHeight)%dat(:)
+  print*, 'mLayerTemp       ', mvar_data%var(iLookMVAR%mLayerTemp)%dat(:)
+  print*, 'mLayerVolFracIce ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(:)
+  print*, 'mLayerVolFracLiq ', mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(:)
+  print*, 'mLayerMatricHead ', mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(:)
+  print*, 'scalarCanopyIce  ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(:)
+  print*, 'scalarCanopyLiq  ', mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(:)
+  print*, 'scalarCanairTemp ', mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(:)
+  print*, 'scalarCanopyTemp ', mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(:)
+  print*, 'scalarSnowAlbedo ', mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(:)
+  print*, 'scalarSnowDepth  ', mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(:)
+  print*, 'scalarSWE        ', mvar_data%var(iLookMVAR%scalarSWE)%dat(:)
+  print*, 'layerType        ', indx_data%var(iLookINDEX%layerType)%dat(:)
+  print*,'****************************************************************************************'
+  !pause
+ endif  ! (if printing states)
  end subroutine read_icond
 
 

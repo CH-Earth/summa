@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module get_ixname_module
 ! used to get the index of a named variable
 USE nrtype                                          ! variable types, etc.
@@ -16,7 +36,7 @@ public::get_ixBvar
 contains
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the model decisions
+ ! public function get_ixdecisions: get the index of the named variables for the model decisions
  ! *******************************************************************************************************************
  function get_ixdecisions(varName)
  USE var_lookup,only:iLookDECISIONS                  ! indices of the named variables
@@ -49,7 +69,7 @@ contains
   case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (16) type of lower boundary condition for soil hydrology
   case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (17) choice of parameterization for vegetation roughness length and displacement height
   case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (18) choice of parameterization for canopy emissivity
-  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (19) choice of parameterization for snow interception 
+  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (19) choice of parameterization for snow interception
   case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! (20) choice of canopy wind profile
   case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (21) choice of stability function
   case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (22) choice of compaction routine
@@ -67,7 +87,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the model time
+ ! public function get_ixtime: get the index of the named variables for the model time
  ! *******************************************************************************************************************
  function get_ixtime(varName)
  USE var_lookup,only:iLookTIME                       ! indices of the named variables
@@ -92,7 +112,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the model forcing data
+ ! public function get_ixforce: get the index of the named variables for the model forcing data
  ! *******************************************************************************************************************
  function get_ixforce(varName)
  USE var_lookup,only:iLookFORCE                      ! indices of the named variables
@@ -120,7 +140,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the site characteristics
+ ! public function get_ixAttr: get the index of the named variables for the site characteristics
  ! *******************************************************************************************************************
  function get_ixAttr(varName)
  USE var_lookup,only:iLookATTR                       ! indices of the named variables
@@ -147,7 +167,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the local classification of veg, soil, etc.
+ ! public function get_ixType: get the index of the named variables for the local classification of veg, soil, etc.
  ! *******************************************************************************************************************
  function get_ixType(varName)
  USE var_lookup,only:iLookTYPE                       ! indices of the named variables
@@ -172,7 +192,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the model parameters
+ ! public function get_ixparam: get the index of the named variables for the model parameters
  ! *******************************************************************************************************************
  function get_ixparam(varName)
  USE var_lookup,only:iLookPARAM                      ! indices of the named variables
@@ -210,7 +230,7 @@ contains
   case('albedoRefresh'            ); get_ixparam = iLookPARAM%albedoRefresh          ! critical mass necessary for albedo refreshment (kg m-2)
   ! radiation transfer
   case('radExt_snow'              ); get_ixparam = iLookPARAM%radExt_snow            ! extinction coefficient for radiation penetration within the snowpack (m-1)
-  case('directScale'              ); get_ixparam = iLookPARAM%directScale            ! scaling factor for fractional driect radiaion parameterization (-) 
+  case('directScale'              ); get_ixparam = iLookPARAM%directScale            ! scaling factor for fractional driect radiaion parameterization (-)
   case('Frad_direct'              ); get_ixparam = iLookPARAM%Frad_direct            ! maximum fraction of direct radiation (-)
   case('Frad_vis'                 ); get_ixparam = iLookPARAM%Frad_vis               ! fraction of radiation in the visible part of the spectrum (-)
   ! new snow density
@@ -274,7 +294,7 @@ contains
   case('theta_sat'                ); get_ixparam = iLookPARAM%theta_sat              ! soil porosity (-)
   case('theta_res'                ); get_ixparam = iLookPARAM%theta_res              ! volumetric residual water content (-)
   case('vGn_alpha'                ); get_ixparam = iLookPARAM%vGn_alpha              ! van Genuchten "alpha" parameter (m-1)
-  case('vGn_n'                    ); get_ixparam = iLookPARAM%vGn_n                  ! van Genuchten "n" parameter (-) 
+  case('vGn_n'                    ); get_ixparam = iLookPARAM%vGn_n                  ! van Genuchten "n" parameter (-)
   case('mpExp'                    ); get_ixparam = iLookPARAM%mpExp                  ! empirical exponent in macropore flow equation (-)
   case('k_soil'                   ); get_ixparam = iLookPARAM%k_soil                 ! saturated hydraulic conductivity (m s-1)
   case('k_macropore'              ); get_ixparam = iLookPARAM%k_macropore            ! saturated hydraulic conductivity for the macropores (m s-1)
@@ -306,18 +326,18 @@ contains
   case('zmin'                     ); get_ixparam = iLookPARAM%zmin                   ! minimum layer depth (m)
   case('zmax'                     ); get_ixparam = iLookPARAM%zmax                   ! maximum layer depth (m)
   case('zminLayer1'               ); get_ixparam = iLookPARAM%zminLayer1             ! minimum layer depth for the 1st (top) layer (m)
-  case('zminLayer2'               ); get_ixparam = iLookPARAM%zminLayer2             ! minimum layer depth for the 2nd layer (m) 
-  case('zminLayer3'               ); get_ixparam = iLookPARAM%zminLayer3             ! minimum layer depth for the 3rd layer (m) 
-  case('zminLayer4'               ); get_ixparam = iLookPARAM%zminLayer4             ! minimum layer depth for the 4th layer (m) 
-  case('zminLayer5'               ); get_ixparam = iLookPARAM%zminLayer5             ! minimum layer depth for the 5th (bottom) layer (m) 
-  case('zmaxLayer1_lower'         ); get_ixparam = iLookPARAM%zmaxLayer1_lower       ! maximum layer depth for the 1st (top) layer when only 1 layer (m) 
-  case('zmaxLayer2_lower'         ); get_ixparam = iLookPARAM%zmaxLayer2_lower       ! maximum layer depth for the 2nd layer when only 2 layers (m) 
-  case('zmaxLayer3_lower'         ); get_ixparam = iLookPARAM%zmaxLayer3_lower       ! maximum layer depth for the 3rd layer when only 3 layers (m) 
-  case('zmaxLayer4_lower'         ); get_ixparam = iLookPARAM%zmaxLayer4_lower       ! maximum layer depth for the 4th layer when only 4 layers (m) 
-  case('zmaxLayer1_upper'         ); get_ixparam = iLookPARAM%zmaxLayer1_upper       ! maximum layer depth for the 1st (top) layer when > 1 layer (m) 
-  case('zmaxLayer2_upper'         ); get_ixparam = iLookPARAM%zmaxLayer2_upper       ! maximum layer depth for the 2nd layer when > 2 layers (m) 
-  case('zmaxLayer3_upper'         ); get_ixparam = iLookPARAM%zmaxLayer3_upper       ! maximum layer depth for the 3rd layer when > 3 layers (m) 
-  case('zmaxLayer4_upper'         ); get_ixparam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m) 
+  case('zminLayer2'               ); get_ixparam = iLookPARAM%zminLayer2             ! minimum layer depth for the 2nd layer (m)
+  case('zminLayer3'               ); get_ixparam = iLookPARAM%zminLayer3             ! minimum layer depth for the 3rd layer (m)
+  case('zminLayer4'               ); get_ixparam = iLookPARAM%zminLayer4             ! minimum layer depth for the 4th layer (m)
+  case('zminLayer5'               ); get_ixparam = iLookPARAM%zminLayer5             ! minimum layer depth for the 5th (bottom) layer (m)
+  case('zmaxLayer1_lower'         ); get_ixparam = iLookPARAM%zmaxLayer1_lower       ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
+  case('zmaxLayer2_lower'         ); get_ixparam = iLookPARAM%zmaxLayer2_lower       ! maximum layer depth for the 2nd layer when only 2 layers (m)
+  case('zmaxLayer3_lower'         ); get_ixparam = iLookPARAM%zmaxLayer3_lower       ! maximum layer depth for the 3rd layer when only 3 layers (m)
+  case('zmaxLayer4_lower'         ); get_ixparam = iLookPARAM%zmaxLayer4_lower       ! maximum layer depth for the 4th layer when only 4 layers (m)
+  case('zmaxLayer1_upper'         ); get_ixparam = iLookPARAM%zmaxLayer1_upper       ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
+  case('zmaxLayer2_upper'         ); get_ixparam = iLookPARAM%zmaxLayer2_upper       ! maximum layer depth for the 2nd layer when > 2 layers (m)
+  case('zmaxLayer3_upper'         ); get_ixparam = iLookPARAM%zmaxLayer3_upper       ! maximum layer depth for the 3rd layer when > 3 layers (m)
+  case('zmaxLayer4_upper'         ); get_ixparam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m)
   ! get to here if cannot find the variable
   case default
    get_ixparam = imiss
@@ -326,7 +346,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the model variables
+ ! public function get_ixmvar: get the index of the named variables for the model variables
  ! *******************************************************************************************************************
  function get_ixmvar(varName)
  USE var_lookup,only:iLookMVAR                       ! indices of the named variables
@@ -339,11 +359,15 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! define timestep-average fluxes for a few key variables
+  case('totalSoilCompress'              ); get_ixmvar = iLookMVAR%totalSoilCompress                ! change in total soil storage due to compression of the soil matrix (kg m-2)
   case('averageThroughfallSnow'         ); get_ixmvar = iLookMVAR%averageThroughfallSnow           ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('averageThroughfallRain'         ); get_ixmvar = iLookMVAR%averageThroughfallRain           ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
   case('averageCanopySnowUnloading'     ); get_ixmvar = iLookMVAR%averageCanopySnowUnloading       ! unloading of snow from the vegetion canopy (kg m-2 s-1)
   case('averageCanopyLiqDrainage'       ); get_ixmvar = iLookMVAR%averageCanopyLiqDrainage         ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
   case('averageCanopyMeltFreeze'        ); get_ixmvar = iLookMVAR%averageCanopyMeltFreeze          ! melt/freeze of water stored in the canopy (kg m-2 s-1)
+  case('averageCanopyTranspiration'     ); get_ixmvar = iLookMVAR%averageCanopyTranspiration       ! canopy transpiration (kg m-2 s-1)
+  case('averageCanopyEvaporation'       ); get_ixmvar = iLookMVAR%averageCanopyEvaporation         ! canopy evaporation/condensation (kg m-2 s-1)
+  case('averageCanopySublimation'       ); get_ixmvar = iLookMVAR%averageCanopySublimation         ! canopy sublimation/frost (kg m-2 s-1)
   case('averageSnowSublimation'         ); get_ixmvar = iLookMVAR%averageSnowSublimation           ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
   case('averageGroundEvaporation'       ); get_ixmvar = iLookMVAR%averageGroundEvaporation         ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
   case('averageRainPlusMelt'            ); get_ixmvar = iLookMVAR%averageRainPlusMelt              ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
@@ -354,7 +378,7 @@ contains
   case('averageAquiferRecharge'         ); get_ixmvar = iLookMVAR%averageAquiferRecharge           ! recharge to the aquifer (m s-1)
   case('averageAquiferBaseflow'         ); get_ixmvar = iLookMVAR%averageAquiferBaseflow           ! baseflow from the aquifer (m s-1)
   case('averageAquiferTranspire'        ); get_ixmvar = iLookMVAR%averageAquiferTranspire          ! transpiration from the aquifer (m s-1)
-  case('averageColumnOutflow'           ); get_ixmvar = iLookMVAR%averageColumnOutflow             ! outflow from each layer in the soil profile (m3 s-1) 
+  case('averageColumnOutflow'           ); get_ixmvar = iLookMVAR%averageColumnOutflow             ! outflow from each layer in the soil profile (m3 s-1)
   ! scalar variables -- forcing
   case('scalarCosZenith'                ); get_ixmvar = iLookMVAR%scalarCosZenith                  ! cosine of the solar zenith angle (0-1)
   case('scalarFractionDirect'           ); get_ixmvar = iLookMVAR%scalarFractionDirect             ! fraction of direct radiation (0-1)
@@ -381,9 +405,9 @@ contains
   case('scalarSWE'                      ); get_ixmvar = iLookMVAR%scalarSWE                        ! snow water equivalent (kg m-2)
   case('scalarSfcMeltPond'              ); get_ixmvar = iLookMVAR%scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   case('scalarAquiferStorage'           ); get_ixmvar = iLookMVAR%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
-  case('scalarSurfaceTemp'              ); get_ixmvar = iLookMVAR%scalarSurfaceTemp                ! surface temperature (K)  
+  case('scalarSurfaceTemp'              ); get_ixmvar = iLookMVAR%scalarSurfaceTemp                ! surface temperature (K)
   ! NOAH-MP vegetation variables (general)
-  case('scalarGreenVegFraction'         ); get_ixmvar = iLookMVAR%scalarGreenVegFraction           ! green vegetation fraction used to compute LAI (-) 
+  case('scalarGreenVegFraction'         ); get_ixmvar = iLookMVAR%scalarGreenVegFraction           ! green vegetation fraction used to compute LAI (-)
   case('scalarBulkVolHeatCapVeg'        ); get_ixmvar = iLookMVAR%scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
   case('scalarRootZoneTemp'             ); get_ixmvar = iLookMVAR%scalarRootZoneTemp               ! average temperature of the root zone (K)
   case('scalarLAI'                      ); get_ixmvar = iLookMVAR%scalarLAI                        ! one-sided leaf area index (m2 m-2)
@@ -430,7 +454,7 @@ contains
   case('scalarSatVP_GroundTemp'         ); get_ixmvar = iLookMVAR%scalarSatVP_GroundTemp           ! saturation vapor pressure at the temperature of the ground (Pa)
   case('scalarZ0Canopy'                 ); get_ixmvar = iLookMVAR%scalarZ0Canopy                   ! roughness length of the canopy (m)
   case('scalarWindReductionFactor'      ); get_ixmvar = iLookMVAR%scalarWindReductionFactor        ! canopy wind reduction factor (-)
-  case('scalarZeroPlaneDisplacement'    ); get_ixmvar = iLookMVAR%scalarZeroPlaneDisplacement      ! zero plane displacement (m) 
+  case('scalarZeroPlaneDisplacement'    ); get_ixmvar = iLookMVAR%scalarZeroPlaneDisplacement      ! zero plane displacement (m)
   case('scalarRiBulkCanopy'             ); get_ixmvar = iLookMVAR%scalarRiBulkCanopy               ! bulk Richardson number for the canopy (-)
   case('scalarRiBulkGround'             ); get_ixmvar = iLookMVAR%scalarRiBulkGround               ! bulk Richardson number for the ground surface (-)
   case('scalarCanopyStabilityCorrection'); get_ixmvar = iLookMVAR%scalarCanopyStabilityCorrection  ! stability correction for the canopy (-)
@@ -439,13 +463,13 @@ contains
   case('scalarFrictionVelocity'         ); get_ixmvar = iLookMVAR%scalarFrictionVelocity           ! friction velocity - canopy momentum sink (m s-1)
   case('scalarWindspdCanopyTop'         ); get_ixmvar = iLookMVAR%scalarWindspdCanopyTop           ! windspeed at the top of the canopy (m s-1)
   case('scalarWindspdCanopyBottom'      ); get_ixmvar = iLookMVAR%scalarWindspdCanopyBottom        ! windspeed at the height of the bottom of the canopy (m s-1)
-  case('scalarGroundResistance'         ); get_ixmvar = iLookMVAR%scalarGroundResistance           ! below canopy aerodynamic resistance (s m-1) 
+  case('scalarGroundResistance'         ); get_ixmvar = iLookMVAR%scalarGroundResistance           ! below canopy aerodynamic resistance (s m-1)
   case('scalarCanopyResistance'         ); get_ixmvar = iLookMVAR%scalarCanopyResistance           ! above canopy aerodynamic resistance (s m-1)
   case('scalarLeafResistance'           ); get_ixmvar = iLookMVAR%scalarLeafResistance             ! mean leaf boundary layer resistance per unit leaf area (s m-1)
   case('scalarSoilResistance'           ); get_ixmvar = iLookMVAR%scalarSoilResistance             ! soil surface resistance (s m-1)
   case('scalarSoilRelHumidity'          ); get_ixmvar = iLookMVAR%scalarSoilRelHumidity            ! relative humidity in the soil pores in the upper-most soil layer (-)
   case('scalarSenHeatTotal'             ); get_ixmvar = iLookMVAR%scalarSenHeatTotal               ! sensible heat from the canopy air space to the atmosphere (W m-2)
-  case('scalarSenHeatCanopy'            ); get_ixmvar = iLookMVAR%scalarSenHeatCanopy              ! sensible heat from the canopy to the canopy air space (W m-2) 
+  case('scalarSenHeatCanopy'            ); get_ixmvar = iLookMVAR%scalarSenHeatCanopy              ! sensible heat from the canopy to the canopy air space (W m-2)
   case('scalarSenHeatGround'            ); get_ixmvar = iLookMVAR%scalarSenHeatGround              ! sensible heat from the ground (below canopy or non-vegetated) (W m-2)
   case('scalarLatHeatTotal'             ); get_ixmvar = iLookMVAR%scalarLatHeatTotal               ! latent heat from the canopy air space to the atmosphere (W m-2)
   case('scalarLatHeatCanopyEvap'        ); get_ixmvar = iLookMVAR%scalarLatHeatCanopyEvap          ! evaporation latent heat from the canopy to the canopy air space (W m-2)
@@ -458,7 +482,7 @@ contains
   case('scalarCanopySublimation'        ); get_ixmvar = iLookMVAR%scalarCanopySublimation          ! canopy sublimation/frost (kg m-2 s-1)
   case('scalarGroundEvaporation'        ); get_ixmvar = iLookMVAR%scalarGroundEvaporation          ! ground evaporation/condensation (below canopy or non-vegetated) (kg m-2 s-1)
   case('scalarSnowSublimation'          ); get_ixmvar = iLookMVAR%scalarSnowSublimation            ! snow sublimation/frost (below canopy or non-vegetated) (kg m-2 s-1)
-  ! NOAH-MP vegetation variables (transpiration) 
+  ! NOAH-MP vegetation variables (transpiration)
   case('scalarTranspireLim'             ); get_ixmvar = iLookMVAR%scalarTranspireLim               ! aggregate soil moisture and aquifer storage limit on transpiration (-)
   case('scalarTranspireLimAqfr'         ); get_ixmvar = iLookMVAR%scalarTranspireLimAqfr           ! aquifer storage limit on transpiration (-)
   case('scalarFoliageNitrogenFactor'    ); get_ixmvar = iLookMVAR%scalarFoliageNitrogenFactor      ! foliage nitrogen concentration, 1=saturated (-)
@@ -489,6 +513,7 @@ contains
   case('scalarAquiferBaseflow'          ); get_ixmvar = iLookMVAR%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
   ! scalar variables -- sub-step average fluxes for the soil zone
   case('scalarSoilInflux'               ); get_ixmvar = iLookMVAR%scalarSoilInflux                 ! sub-step average: influx of water at the top of the soil profile (m s-1)
+  case('scalarSoilCompress'             ); get_ixmvar = iLookMVAR%scalarSoilCompress               ! change in total soil storage due to compression of the soil matrix (kg m-2)
   case('scalarSoilBaseflow'             ); get_ixmvar = iLookMVAR%scalarSoilBaseflow               ! sub-step average: total baseflow from throughout the soil profile (m s-1)
   case('scalarSoilDrainage'             ); get_ixmvar = iLookMVAR%scalarSoilDrainage               ! sub-step average: drainage from the bottom of the soil profile (m s-1)
   case('scalarSoilTranspiration'        ); get_ixmvar = iLookMVAR%scalarSoilTranspiration          ! sub-step average: total transpiration from the soil (m s-1)
@@ -511,7 +536,7 @@ contains
   case('mLayerdTheta_dTk'               ); get_ixmvar = iLookMVAR%mLayerdTheta_dTk                 ! analytical derivative in the freezing curve (K-1)
   case('mLayerThermalC'                 ); get_ixmvar = iLookMVAR%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('mLayerRadCondFlux'              ); get_ixmvar = iLookMVAR%mLayerRadCondFlux                ! temporal derivative in energy from radiative and conductive flux (J m-2 s-1)
-  case('mLayerMeltFreeze'               ); get_ixmvar = iLookMVAR%mLayerMeltFreeze                 ! rate of ice content change from melt/freeze in each layer (kg m-3 s-1) 
+  case('mLayerMeltFreeze'               ); get_ixmvar = iLookMVAR%mLayerMeltFreeze                 ! rate of ice content change from melt/freeze in each layer (kg m-3 s-1)
   case('mLayerInfilFreeze'              ); get_ixmvar = iLookMVAR%mLayerInfilFreeze                ! rate of ice content change by freezing infiltrating flux (kg m-3 s-1)
   case('mLayerSatHydCond'               ); get_ixmvar = iLookMVAR%mLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
   case('mLayerSatHydCondMP'             ); get_ixmvar = iLookMVAR%mLayerSatHydCondMP               ! saturated hydraulic conductivity of macropores in each layer (m s-1)
@@ -520,6 +545,7 @@ contains
   case('mLayerdPsi_dTheta'              ); get_ixmvar = iLookMVAR%mLayerdPsi_dTheta                ! analytical derivative in the soil water characteristic w.r.t. theta (m)
   case('mLayerThetaResid'               ); get_ixmvar = iLookMVAR%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixmvar = iLookMVAR%mLayerPoreSpace                  ! total pore space in each snow layer (-)
+  case('mLayerCompress'                 ); get_ixmvar = iLookMVAR%mLayerCompress                   ! change in volumetric water content due to compression of soil (-)
   case('mLayerTranspireLim'             ); get_ixmvar = iLookMVAR%mLayerTranspireLim               ! moisture avail factor limiting transpiration in each layer (-)
   case('mLayerInitTranspire'            ); get_ixmvar = iLookMVAR%mLayerInitTranspire              ! transpiration loss from each soil layer at the start of the step (kg m-2 s-1)
   case('mLayerTranspire'                ); get_ixmvar = iLookMVAR%mLayerTranspire                  ! transpiration loss from each soil layer (kg m-2 s-1)
@@ -542,9 +568,11 @@ contains
   case('iLayerInitFluxReversal'         ); get_ixmvar = iLookMVAR%iLayerInitFluxReversal           ! start of step liquid flux at soil layer interfaces from impedance (m s-1)
   case('iLayerLiqFluxSnow'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('iLayerLiqFluxSoil'              ); get_ixmvar = iLookMVAR%iLayerLiqFluxSoil                ! liquid flux at soil layer interfaces at the end of the time step (m s-1)
-  case('iLayerFluxReversal'             ); get_ixmvar = iLookMVAR%iLayerFluxReversal               ! end of step liquid flux at soil layer interfaces from impedance (m s-1)       
+  case('iLayerFluxReversal'             ); get_ixmvar = iLookMVAR%iLayerFluxReversal               ! end of step liquid flux at soil layer interfaces from impedance (m s-1)
+  ! time stepping variables
+  case('dt_init'                        ); get_ixmvar = iLookMVAR%dt_init                          ! length of initial time step at start of next data interval (s)
   ! "short-cut" variables
-  case('scalarVGn_m'                    ); get_ixmvar = iLookMVAR%scalarVGn_m                      ! van Genuchten "m" parameter (-) 
+  case('scalarVGn_m'                    ); get_ixmvar = iLookMVAR%scalarVGn_m                      ! van Genuchten "m" parameter (-)
   case('scalarKappa'                    ); get_ixmvar = iLookMVAR%scalarKappa                      ! constant in the freezing curve function (m K-1)
   case('scalarVolHtCap_air'             ); get_ixmvar = iLookMVAR%scalarVolHtCap_air               ! volumetric heat capacity air         (J m-3 K-1)
   case('scalarVolHtCap_ice'             ); get_ixmvar = iLookMVAR%scalarVolHtCap_ice               ! volumetric heat capacity ice         (J m-3 K-1)
@@ -562,7 +590,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the model indices
+ ! public function get_ixindex: get the index of the named variables for the model indices
  ! *******************************************************************************************************************
  function get_ixindex(varName)
  USE var_lookup,only:iLookINDEX                      ! indices of the named variables
@@ -592,7 +620,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the basin-average variables
+ ! public function get_ixbpar: get the index of the named variables for the basin-average variables
  ! *******************************************************************************************************************
  function get_ixbpar(varName)
  USE var_lookup,only:iLookBPAR                       ! indices of the named variables
@@ -619,7 +647,7 @@ contains
 
 
  ! *******************************************************************************************************************
- ! new function: get the index of the named variables for the basin-average variables
+ ! public function get_ixbvar: get the index of the named variables for the basin-average variables
  ! *******************************************************************************************************************
  function get_ixbvar(varName)
  USE var_lookup,only:iLookBVAR                       ! indices of the named variables
@@ -650,5 +678,6 @@ contains
    get_ixbvar = imiss
  endselect
  end function get_ixbvar
+
 
 end module get_ixname_module

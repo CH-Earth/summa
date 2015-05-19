@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module qTimeDelay_module
 USE nrtype
 implicit none
@@ -5,9 +25,10 @@ private
 public::qOverland
 contains
 
- ! ************************************************************************************************
- ! new subroutine: compute the time delay in runoff in a basin (places runoff in future time steps)
- ! ************************************************************************************************
+
+ ! *************************************************************************************************************
+ ! public subroutine qOverland: compute the time delay in runoff in a basin (places runoff in future time steps)
+ ! *************************************************************************************************************
  subroutine qOverland(&
                       ! input
                       ixRouting,             &  ! index for routing method
@@ -76,5 +97,6 @@ contains
  end select ! (select option for sub-grid routing)
 
  end subroutine qOverland
+
 
 end module qTimeDelay_module
