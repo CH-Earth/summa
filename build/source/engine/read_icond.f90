@@ -61,7 +61,6 @@ contains
  USE allocspace_module,only:alloc_mvar             ! allocate space for model variables
  USE allocspace_module,only:alloc_indx             ! allocate space for model variables
  ! data structures
- USE data_struc,only:model_decisions               ! model decision structure
  USE var_lookup,only:iLookDECISIONS                ! named variables for elements of the decision structure
  USE data_struc,only:mpar_data                     ! data for model parameetrs
  USE data_struc,only:mvar_data,mvar_meta           ! data/metadata for model variables
@@ -116,11 +115,9 @@ contains
  real(dp),pointer               :: theta_res           ! soil residual volumetric water content (-)
  real(dp),pointer               :: snowfrz_scale       ! scaling parameter for the snow freezing curve (K-1)
  real(dp),pointer               :: FCapil              ! fraction of snow pore space in tension storage (-)
- real(dp)                       :: Tcrit               ! temperature above which all water is unfrozen (K)
  real(dp)                       :: vGn_m               ! van Genutchen "m" parameter (-)
  real(dp)                       :: kappa               ! constant in the freezing curve function (m K-1)
  real(dp)                       :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
- real(dp)                       :: residlVolFracLiq    ! volumetric fraction of liquid water in tension storage (snow)
  real(dp)                       :: h1,h2               ! used to check depth and height are consistent
  real(dp),pointer               :: scalarCanopyTemp    ! canopy temperature (K)
  real(dp),pointer               :: scalarCanopyIce     ! mass of ice on the vegetation canopy (kg m-2)

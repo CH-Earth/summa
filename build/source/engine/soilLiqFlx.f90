@@ -116,7 +116,7 @@ contains
  USE data_struc,only:model_decisions                         ! model decision structure
  USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
  ! model variables, parameters, forcing data, etc.
- USE data_struc,only:attr_data,type_data,mpar_data,forc_data,mvar_data,indx_data    ! data structures
+ USE data_struc,only:mpar_data,mvar_data                                            ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: model control
@@ -481,7 +481,7 @@ contains
  ! local variables: general
  character(LEN=256)               :: cmessage                     ! error message of downwind routine
  logical(lgt)                     :: desireAnal                   ! flag to identify if analytical derivatives are desired
- integer(i4b)                     :: iLayer,iSoil,jSoil           ! index of soil layer
+ integer(i4b)                     :: iLayer,iSoil                 ! index of soil layer
  ! additional variables to compute numerical derivatives
  integer(i4b)                     :: nFlux                        ! number of flux calculations required (>1 = numerical derivatives with one-sided finite differences)
  integer(i4b)                     :: itry                         ! index of different flux calculations
@@ -497,13 +497,8 @@ contains
  real(dp)                         :: scalarHydCondMicro           ! trial value of hydraulic conductivity of micropores (m s-1)
  real(dp)                         :: scalarHydCondMacro           ! trial value of hydraulic conductivity of macropores (m s-1)
  real(dp)                         :: scalarFlux                   ! vertical flux (m s-1)
- real(dp)                         :: scalarFlux_dState            ! vertical flux with perturbation to the current state (m s-1)
  real(dp)                         :: scalarFlux_dStateAbove       ! vertical flux with perturbation to the state above (m s-1)
  real(dp)                         :: scalarFlux_dStateBelow       ! vertical flux with perturbation to the state below (m s-1)
- real(dp)                         :: scalarFluxUpper              ! flux at the top of the layer
- real(dp)                         :: scalarFluxLower              ! flux at the bottom of the layer
- real(dp)                         :: scalarFluxUpper_dx           ! flux at the top of the layer after perturbation
- real(dp)                         :: scalarFluxLower_dx           ! flux at the bottom of the layer after perturbation
  ! transpiration sink term
  real(dp),dimension(nSoil)        :: mLayerTranspireFrac          ! fraction of transpiration allocated to each soil layer (-)
  ! diagnostic variables
@@ -1169,8 +1164,8 @@ contains
  ! compute hydraulic conductivity and its derivative in each soil layer
 
  ! compute the ice impedence factor and its derivative w.r.t. volumetric liquid water content (-)
- call iceImpede(scalarVolFracIceTrial,scalarVolFracLiqTrial,theta_sat,f_impede,deriv_desired, &  ! input
-                iceImpedeFac,dIceImpede_dLiq)                                                    ! output
+ call iceImpede(scalarVolFracIceTrial,f_impede, &  ! input
+                iceImpedeFac,dIceImpede_dLiq)      ! output
 
 
  select case(ixRichards)
@@ -1241,7 +1236,7 @@ contains
     !effSat = (volLiq - theta_res) / (theta_sat - volIce - theta_res)
     !psiLiq = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! use effective saturation, so theta_res=0 and theta_sat=1
     !hydCon = hydCond_psi(psiLiq,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
-    !call iceImpede(volIce,volLiq,theta_sat,f_impede,deriv_desired,iceImpedeFac,dIceImpede_dLiq)
+    !call iceImpede(volIce,f_impede,iceImpedeFac,dIceImpede_dLiq)
     !hydIce = hydCon*iceImpedeFac
     !print*, 'test derivative: ', (psiLiq - scalarMatricHeadTrial)/dx, dPsiLiq_dTemp
     !print*, 'test derivative: ', (hydCon - hydCond_noIce)/dx, dHydCondMicro_dTemp
@@ -1393,8 +1388,6 @@ contains
  integer(i4b)                  :: iLayer                    ! index of soil layer
  ! (head boundary condition)
  real(dp)                      :: cFlux                     ! capillary flux (m s-1)
- real(dp)                      :: vFracLiq                  ! volumetric fraction of liquid water
- real(dp)                      :: surfaceInfiltration1      ! perturbed value of surface infiltration (used to compute the numerical derivative)
  real(dp)                      :: dNum                      ! numerical derivative
  ! (simplified Green-Ampt infiltration)
  real(dp)                      :: rootZoneLiq               ! depth of liquid water in the root zone (m)

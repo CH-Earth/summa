@@ -90,29 +90,7 @@ contains
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! -------------------------------------------------------------------------------------------------
- ! variables in the data structure
- ! input: model decisions
- integer(i4b)             :: ix_bcUpprTdyn              ! intent(in): [i4b] index of method used for the upper boundary condition for thermodynamics
- integer(i4b)             :: ix_bcUpprSoiH              ! intent(in): [i4b] index of method used for the upper boundary condition for soil hydrology
- ! input: local attributes
- integer(i4b)             :: vegTypeIndex               ! intent(in): [i4b] vegetation type index
- real(dp)                 :: latitude                   ! intent(in): [dp] latitude
- ! input: vegetation phenology
- real(dp)                 :: scalarSnowDepth            ! intent(in): [dp] snow depth on the ground surface (m)
- real(dp)                 :: scalarCanopyTemp           ! intent(in): [dp] temperature of the vegetation canopy at the start of the sub-step (K)
- real(dp)                 :: scalarRootZoneTemp         ! intent(in): [dp] root zone temperature (K)
- real(dp)                 :: heightCanopyTop            ! intent(in): [dp] height of the top of the canopy (m)
- real(dp)                 :: heightCanopyBottom         ! intent(in): [dp] height of the bottom of the canopy (m)
- ! input/output: vegetation phenology
- real(dp)                 :: scalarLAI                  ! intent(inout): [dp] one-sided leaf area index (m2 m-2)
- real(dp)                 :: scalarSAI                  ! intent(inout): [dp] one-sided stem area index (m2 m-2)
- ! output: vegetation phenology
- real(dp)                 :: scalarExposedLAI           ! intent(out): [dp] exposed leaf area index after burial by snow (m2 m-2)
- real(dp)                 :: scalarExposedSAI           ! intent(out): [dp] exposed stem area index after burial by snow (m2 m-2)
- real(dp)                 :: scalarGrowingSeasonIndex   ! intent(out): [dp] growing season index (0=off, 1=on)
- ! -------------------------------------------------------------------------------------------------
  ! local
- character(LEN=256)       :: cmessage                   ! error message of downwind routine
  real(dp)                 :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
  real(dp)                 :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
  ! initialize error control
