@@ -48,7 +48,6 @@ contains
  character(*),intent(out)             :: message        ! error message
  ! define local variables
  character(LEN=1024),allocatable      :: dataLines(:)   ! vector of lines of information (non-comment lines)
- character(LEN=1024),allocatable      :: charData(:)    ! vector of information (words) for a given line of information
  integer(i4b),parameter               :: imiss = -999   ! missing data
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename

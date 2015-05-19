@@ -76,7 +76,6 @@ contains
  subroutine groundwatr(&
 
                        ! input: model control
-                       dt,                                     & ! intent(in): length of the model time step (s)
                        getSatDepth,                            & ! intent(in): logical flag to compute index of the lowest saturated layer
 
                        ! input: state and diagnostic variables
@@ -112,7 +111,6 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- real(dp),intent(in)              :: dt                           ! length of the model time step (s)
  logical(lgt),intent(in)          :: getSatDepth                  ! logical flag to compute index of the lowest saturated layer
  ! input: state and diagnostic variables
  real(dp),intent(in)              :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -131,22 +129,9 @@ contains
  integer(i4b),intent(out)         :: err                          ! error code
  character(*),intent(out)         :: message                      ! error message
  ! ---------------------------------------------------------------------------------------
- ! * variables in the data structures
- ! ---------------------------------------------------------------------------------------
- ! input: baseflow parameters
- real(dp)                         :: fieldCapacity                ! intent(in): field capacity (-)
- real(dp)                         :: theta_sat                    ! intent(in): soil porosity (-)
- real(dp)                         :: theta_res                    ! intent(in): residual volumetric water content (-)
- ! input: van Genuchten soil parameters
- real(dp)                         :: vGn_alpha,vGn_n,vGn_m        ! van Genuchten parameters
- ! output: diagnostic variables
- real(dp)                         :: scalarExfiltration           ! intent(out): exfiltration from the soil profile (m s-1)
- real(dp),dimension(nSoil)        :: mLayerColumnOutflow          ! intent(out): column outflow from each soil layer (m3 s-1)
- ! ---------------------------------------------------------------------------------------
  ! * local variables
  ! ---------------------------------------------------------------------------------------
  ! general local variables
- character(LEN=256)              :: cmessage                      ! error message of downwind routine
  integer(i4b)                    :: iLayer                        ! index of soil layer
  real(dp),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq             ! derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
  ! local variables to compute the numerical Jacobian
@@ -209,12 +194,10 @@ contains
  ! use private subroutine to compute baseflow (for multiple calls for numerical Jacobian)
  call computeBaseflow(&
                       ! input: control and state variables
-                      dt,                      & ! intent(in): length of the model time step (s)
                       .true.,                  & ! intent(in): .true. if derivatives are desired
                       ixSaturation,            & ! intent(in): index of upper-most "saturated" layer
                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in each soil layer (-)
-                      mLayerMatricHeadLiq,     & ! intent(in): liquid water matric potential (m)
                       ! input/output: data structures
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -255,12 +238,10 @@ contains
    ! compute baseflow flux
    call computeBaseflow(&
                         ! input: control and state variables
-                        dt,                        & ! intent(in): length of the model time step (s)
                         .false.,                   & ! intent(in): .true. if derivatives are desired
                         ixSaturation,              & ! intent(in): index of upper-most "saturated" layer
                         mLayerVolFracLiqPerturbed, & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                         mLayerVolFracIce,          & ! intent(in): volumetric fraction of ice in each soil layer (-)
-                        mLayerMatricHeadPerturbed, & ! intent(in): liquid water matric potential (m)
                         ! input/output: data structures
                         attr_data,                 & ! intent(in):    spatial attributes
                         mpar_data,                 & ! intent(in):    model parameters
@@ -297,12 +278,10 @@ contains
  ! ***********************************************************************************************************************
  subroutine computeBaseflow(&
                             ! input: control and state variables
-                            dt,                            & ! intent(in): length of the model time step (s)
                             derivDesired,                  & ! intent(in): .true. if derivatives are desired
                             ixSaturation,                  & ! intent(in): index of upper-most "saturated" layer
                             mLayerVolFracLiq,              & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                             mLayerVolFracIce,              & ! intent(in): volumetric fraction of ice in each soil layer (-)
-                            mLayerMatricHeadLiq,           & ! intent(in): liquid water matric potential (m)
                             ! input/output: data structures
                             attr_data,                     & ! intent(in):    spatial attributes
                             mpar_data,                     & ! intent(in):    model parameters
@@ -315,12 +294,10 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: control and state variables
- real(dp),intent(in)              :: dt                      ! length of the model time step (s)
  logical(lgt),intent(in)          :: derivDesired            ! .true. if derivatives are desired
  integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
  real(dp),intent(in)              :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
  real(dp),intent(in)              :: mLayerVolFracIce(:)     ! volumetric fraction of ice (-)
- real(dp),intent(in)              :: mLayerMatricHeadLiq(:)  ! liquid water matric potential (m)
  ! input/output: data structures
  type(var_d),intent(in)           :: attr_data               ! spatial attributes
  type(var_d),intent(in)           :: mpar_data               ! model parameters
@@ -328,27 +305,6 @@ contains
  ! output: baseflow
  real(dp),intent(out)             :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
  real(dp),intent(out)             :: dBaseflow_dVolLiq(:,:)  ! derivative in baseflow w.r.t. matric head (s-1)
- ! ---------------------------------------------------------------------------------------
- ! * variables in the data structures
- ! ---------------------------------------------------------------------------------------
- ! input: coordinate variables
- real(dp)                         :: soilDepth               ! intent(in): total soil depth (m)
- real(dp),dimension(nSoil)        :: mLayerDepth             ! intent(in): depth of each soil layer (m)
- ! input: diagnostic variables
- real(dp)                         :: surfaceHydCond          ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
- real(dp),dimension(nSoil)        :: mLayerColumnInflow      ! intent(in): inflow into each soil layer (m3/s)
- ! input: local attributes
- real(dp)                         :: HRUarea                 ! intent(in): HRU area (m2)
- real(dp)                         :: tan_slope               ! intent(in): tan water table slope, taken as tan local ground surface slope (-)
- real(dp)                         :: contourLength           ! intent(in): length of contour at downslope edge of HRU (m)
- ! input: baseflow parameters
- real(dp)                         :: zScale_TOPMODEL         ! intent(in): TOPMODEL exponent (-)
- real(dp)                         :: kAnisotropic            ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
- real(dp)                         :: fieldCapacity           ! intent(in): field capacity (-)
- real(dp)                         :: theta_sat               ! intent(in): soil porosity (-)
- ! output: diagnostic variables
- real(dp)                         :: scalarExfiltration      ! intent(out): exfiltration from the soil profile (m s-1)
- real(dp),dimension(nSoil)        :: mLayerColumnOutflow     ! intent(out): column outflow from each soil layer (m3 s-1)
  ! ---------------------------------------------------------------------------------------
  ! * local variables
  ! ---------------------------------------------------------------------------------------
@@ -379,7 +335,6 @@ contains
  ! local variables for testing (debugging)
  logical(lgt),parameter          :: printFlag=.false.        ! flag for printing (debugging)
  logical(lgt),parameter          :: testDerivatives=.false.  ! flag to test derivatives (debugging)
- real(dp),dimension(nSoil)       :: mLayerVolFracLiqCopy     ! copy of volumetric liquid water content vector (-)
  real(dp)                        :: xDepth,xTran,xFlow       ! temporary variables (depth, transmissivity, flow)
  real(qp)                        :: dPart0,dPart1,dPart2,dPart3  ! derivatives for part of a function
  real(qp)                        :: f0,f1                    ! different function evaluations

@@ -1845,7 +1845,6 @@ contains
 
   call vegNrgFlux(&
                   ! input: model control
-                  iter,                                   & ! intent(in): iteration index
                   firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                   firstFluxCall,                          & ! intent(in): flag to indicate if we are processing the first flux call
                   computeVegFlux,                         & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
@@ -2095,7 +2094,6 @@ contains
   else ! local_ixGroundwater==qbaseTopmodel
    call groundwatr(&
                    ! input: model control
-                   dt,                                      & ! intent(in):    length of the model time step (s)
                    firstFluxCall,                           & ! intent(in):    logical flag to compute index of the lowest saturated layer
                    ! input: state and diagnostic variables
                    mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)

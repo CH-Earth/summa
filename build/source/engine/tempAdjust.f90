@@ -65,18 +65,6 @@ contains
  ! output: error control
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
- ! -------------------------------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! input: model parameters for canopy thermodynamics
- real(dp)                      :: snowfrz_scale              ! scaling factor for snow freezing curve (K)
- real(dp)                      :: specificHeatVeg            ! specific heat of vegetation mass (J kg-1 K-1)
- real(dp)                      :: maxMassVegetation          ! maximum mass of vegetation (full foliage) (kg m-2)
- ! input-output: state variables
- real(dp)                      :: scalarCanopyLiq            ! mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                      :: scalarCanopyIce            ! mass of ice on the vegetation canopy (kg m-2)
- real(dp)                      :: scalarCanopyTemp           ! temperature of the vegetation canopy (K)
- ! output: diagnostic variables
- real(dp)                      :: scalarBulkVolHeatCapVeg    ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
  ! ------------------------------------------------------------------------------------------------
  ! local variables for canopy thermodynamics
  integer(i4b)                  :: iTry                       ! trial index
@@ -84,22 +72,13 @@ contains
  integer(i4b),parameter        :: maxiter=100                ! maximum number of iterations
  real(dp),parameter            :: dx=1.e-6_dp                ! finite difference increment (used to test derivatives)
  real(dp)                      :: fLiq                       ! fraction of liquid water (-)
- real(dp)                      :: dW_dT                      ! derivative in canopy ice content w.r.t canopy temperature (kg m-2 K-1)
  real(dp)                      :: tempMin,tempMax            ! solution constraints for temperature (K)
  real(dp)                      :: nrgMeltFreeze              ! energy required to melt-freeze the water to the current canopy temperature (J m-3)
  real(dp)                      :: scalarCanopyWat            ! total canopy water (kg m-2)
  real(dp)                      :: scalarCanopyIceOld         ! canopy ice content after melt-freeze to the initial temperature (kg m-2)
- real(dp)                      :: scalarCanopyIceIter        ! trial value for canopy ice content (kg m-2)
- real(dp)                      :: scalarCanopyTempIter       ! trial value for canopy temperature (K)
- real(dp)                      :: scalarCanopyTempTrial      ! trial value for canopy temperature, before update (K)
- real(dp)                      :: resNrg,resNrgOld           ! energy residual (J m-3)
  real(dp),parameter            :: resNrgToler=0.1_dp         ! tolerance for the energy residual (J m-3)
- real(dp)                      :: delTemp                    ! iteration increment for temperature
- real(dp)                      :: xLambda                    ! scaling factor for the iteration increment (-)
- real(dp)                      :: adjTemp                    ! adjusted iteration increment (K)
- real(dp)                      :: f1,f2,x1,x2,fTry,xTry,fDer,xInc
- logical(lgt) :: fBis  ! .true. if bisection
- real(dp) :: term1, term2
+ real(dp)                      :: f1,f2,x1,x2,fTry,xTry,fDer,xInc ! iteration variables
+ logical(lgt)                  :: fBis                       ! .true. if bisection
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='tempAdjust/'

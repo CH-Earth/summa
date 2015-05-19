@@ -325,7 +325,6 @@ contains
  character(*),intent(out)    :: message                    ! error message
  ! local variables
  integer(i4b)                :: ncid                       ! NetCDF file ID
- integer(i4b)                :: iindex                     ! loop through model index variables
  integer(i4b)                :: imodel                     ! loop through model variables
  integer(i4b)                :: iVarId                     ! variable ID
  ! initialize error control
