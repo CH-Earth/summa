@@ -92,9 +92,9 @@ contains
  integer(i4b),intent(out) :: err            ! error code
  character(*),intent(out) :: message        ! error message
  ! initialize error control
- err=0; message="f-tcond_snow/"
+ err=0; message="tcond_snow/"
  ! compute thermal conductivity of snow
- select case(model_decisions(iLookDECISIONS%thermlcond)%iDecision)
+ select case(model_decisions(iLookDECISIONS%thCondSnow)%iDecision)
   case(Yen1965);      thermlcond = 3.217d-6 * BulkDenIce**2._dp               ! Yen (1965)
   case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2._dp + 7.4d-2      ! Mellor (1977)
   case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._dp)) &
