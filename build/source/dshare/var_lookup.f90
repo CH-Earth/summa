@@ -37,7 +37,7 @@ MODULE var_lookup
   integer(i4b)    :: vegeParTbl       = 4  ! vegetation category dataset
   integer(i4b)    :: soilStress       = 5  ! choice of function for the soil moisture control on stomatal resistance
   integer(i4b)    :: stomResist       = 6  ! choice of function for stomatal resistance
-  ! FUSE options
+  ! other options
   integer(i4b)    :: num_method       = 7  ! choice of numerical method
   integer(i4b)    :: fDerivMeth       = 8  ! method used to calculate flux derivatives
   integer(i4b)    :: LAI_method       = 9  ! method used to determine LAI and SAI
@@ -57,9 +57,10 @@ MODULE var_lookup
   integer(i4b)    :: alb_method       = 23 ! choice of albedo representation
   integer(i4b)    :: snowLayers       = 24 ! choice of method to combine and sub-divide snow layers
   integer(i4b)    :: compaction       = 25 ! choice of compaction routine
-  integer(i4b)    :: thermlcond       = 26 ! choice of thermal conductivity representation
-  integer(i4b)    :: spatial_gw       = 27 ! choice of method for spatial representation of groundwater
-  integer(i4b)    :: subRouting       = 28 ! choice of method for sub-grid routing
+  integer(i4b)    :: thCondSnow       = 26 ! choice of thermal conductivity representation for snow
+  integer(i4b)    :: thCondSoil       = 27 ! choice of thermal conductivity representation for soil
+  integer(i4b)    :: spatial_gw       = 28 ! choice of method for spatial representation of groundwater
+  integer(i4b)    :: subRouting       = 29 ! choice of method for sub-grid routing
  endtype iLook_decision
  ! ***********************************************************************************************************
  ! (1) define model time
@@ -530,7 +531,7 @@ MODULE var_lookup
  ! define look-up structures
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25, 26, 27, 28)
+                                                                         21, 22, 23, 24, 25, 26, 27, 28, 29)
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5)
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   (  1,  2,  3,  4,  5,  6,  7,  8)
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
@@ -574,7 +575,7 @@ MODULE var_lookup
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11)
  ! define maximum number of variables of each type
- integer(i4b),parameter,public :: maxvarDecisions= 28
+ integer(i4b),parameter,public :: maxvarDecisions= 29
  integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarAttr     = 7

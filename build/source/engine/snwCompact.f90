@@ -24,6 +24,8 @@ USE multiconst,only:&
                     Tfreeze,    &     ! freezing point of pure water (K)
                     iden_ice,   &     ! intrinsic density of ice (kg m-3)
                     iden_water        ! intrinsic density of liquid water (kg m-3)
+! access the number of snow layers
+USE data_struc,only:nSnow             ! number of snow layers
 implicit none
 private
 public::snwDensify
@@ -81,7 +83,6 @@ contains
  ! define local variables
  real(dp),parameter                  :: dt_toler=0.1_dp          ! fraction of compaction allowed in a time step (-)
  integer(i4b)                        :: iSnow                    ! index of snow layers
- integer(i4b)                        :: nSnow                    ! number of snow layers
  real(dp)                            :: chi1,chi2,chi3,chi4,chi5 ! multipliers in the densification algorithm (-)
  real(dp)                            :: halfWeight               ! half of the weight of the current snow layer (kg m-2)
  real(dp)                            :: weightSnow               ! total weight of snow above the current snow layer (kg m-2)
@@ -98,9 +99,6 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="snwDensify/"
-
- ! identify the number of snow layers
- nSnow = size(mLayerTemp)
 
  ! NOTE: still need to process the case of "snow without a layer"
  if(nSnow==0)return
