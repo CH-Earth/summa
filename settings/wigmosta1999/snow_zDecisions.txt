@@ -7,37 +7,37 @@
 ! (2) the name of the decision is followed by the character string defining the decision
 ! (3) the simulation start/end times must be within single quotes
 ! ***********************************************************************************************************************
-simulStart              '2000-01-01 01:00'  ! (01) simulation start time -- must be in single quotes
-simulFinsh              '2000-02-11 23:00'  ! (02) simulation end time -- must be in single quotes
+simulStart              '2000-01-01 01:00'      ! (01) simulation start time -- must be in single quotes
+simulFinsh              '2000-02-11 23:00'      ! (02) simulation end time -- must be in single quotes
 ! ***********************************************************************************************************************
-soilCatTbl                      ROSETTA       ! (03) soil-category dateset
-vegeParTbl                      USGS          ! (04) vegetation category dataset
-soilStress                      NoahType      ! (05) choice of function for the soil moisture control on stomatal resistance
-stomResist                      BallBerry     ! (06) choice of function for stomatal resistance
+soilCatTbl                      ROSETTA         ! (03) soil-category dateset
+vegeParTbl                      USGS            ! (04) vegetation category dataset
+soilStress                      NoahType        ! (05) choice of function for the soil moisture control on stomatal resistance
+stomResist                      BallBerry       ! (06) choice of function for stomatal resistance
 ! ***********************************************************************************************************************
-num_method                      itertive      ! (07) choice of numerical method
-fDerivMeth                      analytic      ! (08) method used to calculate flux derivatives
-LAI_method                      specified     ! (09) method used to determine LAI and SAI
-f_Richards                      mixdform      ! (10) form of Richard's equation
-groundwatr                      qTopmodl      ! (11) choice of groundwater parameterization
-hc_profile                      pow_prof      ! (12) choice of hydraulic conductivity profile
-bcUpprTdyn                      nrg_flux      ! (13) type of upper boundary condition for thermodynamics
-bcLowrTdyn                      zeroFlux      ! (14) type of lower boundary condition for thermodynamics
-bcUpprSoiH                      liq_flux      ! (15) type of upper boundary condition for soil hydrology
-bcLowrSoiH                      zeroFlux      ! (16) type of lower boundary condition for soil hydrology
-veg_traits                      CM_QJRMS1998  ! (17) choice of parameterization for vegetation roughness length and displacement height
-canopyEmis                      simplExp      ! (18) choice of parameterization for canopy emissivity
-snowIncept                      lightSnow	  ! (19) choice of parameterization for snow interception
-windPrfile                      logBelowCanopy   ! (20) choice of wind profile through the canopy
-astability                      louisinv      ! (21) choice of stability function
-canopySrad                      CLM_2stream   ! (22) choice of canopy shortwave radiation method
-alb_method                      varDecay      ! (23) choice of albedo representation
-compaction                      anderson      ! (24) choice of compaction routine
-snowLayers                      CLM_2010      ! (25) choice of method to combine and sub-divide snow layers
-thCondSnow                      jrdn1991      ! (26) choice of thermal conductivity representation for snow
-thCondSoil                      mixConstit    ! (27) choice of thermal conductivity representation for soil
-spatial_gw                      localColumn   ! (28) choice of method for the spatial representation of groundwater
-subRouting                      timeDlay      ! (29) choice of method for sub-grid routing
+num_method                      itertive        ! (07) choice of numerical method
+fDerivMeth                      analytic        ! (08) method used to calculate flux derivatives
+LAI_method                      specified       ! (09) method used to determine LAI and SAI
+f_Richards                      mixdform        ! (10) form of Richard's equation
+groundwatr                      qTopmodl        ! (11) choice of groundwater parameterization
+hc_profile                      pow_prof        ! (12) choice of hydraulic conductivity profile
+bcUpprTdyn                      nrg_flux        ! (13) type of upper boundary condition for thermodynamics
+bcLowrTdyn                      zeroFlux        ! (14) type of lower boundary condition for thermodynamics
+bcUpprSoiH                      liq_flux        ! (15) type of upper boundary condition for soil hydrology
+bcLowrSoiH                      zeroFlux        ! (16) type of lower boundary condition for soil hydrology
+veg_traits                      CM_QJRMS1998    ! (17) choice of parameterization for vegetation roughness length and displacement height
+canopyEmis                      simplExp        ! (18) choice of parameterization for canopy emissivity
+snowIncept                      lightSnow	    ! (19) choice of parameterization for snow interception
+windPrfile                      logBelowCanopy  ! (20) choice of wind profile through the canopy
+astability                      louisinv        ! (21) choice of stability function
+canopySrad                      CLM_2stream     ! (22) choice of canopy shortwave radiation method
+alb_method                      varDecay        ! (23) choice of albedo representation
+compaction                      anderson        ! (24) choice of compaction routine
+snowLayers                      CLM_2010        ! (25) choice of method to combine and sub-divide snow layers
+thCondSnow                      jrdn1991        ! (26) choice of thermal conductivity representation for snow
+thCondSoil                      mixConstit      ! (27) choice of thermal conductivity representation for soil
+spatial_gw                      localColumn     ! (28) choice of method for the spatial representation of groundwater
+subRouting                      timeDlay        ! (29) choice of method for sub-grid routing
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
