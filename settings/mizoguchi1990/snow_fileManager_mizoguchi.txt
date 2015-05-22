@@ -1,9 +1,9 @@
 SNOW_FILEMANAGER_V1.4
 ! Comment line:
 ! *** paths (must be in single quotes)
-'/home/mclark/summa/settings/'                  ! SETNGS_PATH
-'/home/mclark/summa/input/mizoguchi1990/'       ! INPUT_PATH
-'/home/mclark/summa/output/mizoguchi1990/'      ! OUTPUT_PATH
+'/home/mclark/test_summa/summa/settings/'                  ! SETNGS_PATH
+'/home/mclark/test_summa/summa/input/mizoguchi1990/'       ! INPUT_PATH
+'/home/mclark/test_summa/summa/output/mizoguchi1990/'      ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
 'mizoguchi1990/snow_zDecisions_mizoguchi.txt'   ! M_DECISIONS      = definition of model decisions
 'snow_zTimeMeta.txt'                            ! META_TIME        = metadata for time
@@ -21,4 +21,4 @@ SNOW_FILEMANAGER_V1.4
 'mizoguchi1990/snow_zForcingFileList.txt'       ! FORCING_FILELIST = list of files used in each HRU
 'mizoguchi1990/snow_zInitialCond_mizoguchi.txt' ! MODEL_INITCOND   = model initial conditions
 'mizoguchi1990/snow_zParamTrial_mizoguchi.txt'  ! PARAMETER_TRIAL  = trial values for model parameters
-'mizoguchi'                                     ! OUTPUT_PREFIX    = prefix for the output file
+'mizoguchi1990'                                 ! OUTPUT_PREFIX    = prefix for the output file

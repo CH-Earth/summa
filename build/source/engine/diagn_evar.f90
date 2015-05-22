@@ -267,7 +267,6 @@ contains
  ! special case of hansson
  if(ixThCondSoil==hanssonVZJ)then
   iLayerThermalC(0) = 28._dp*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
-  print*, 'iLayerThermalC(0) = ', iLayerThermalC(0)
  else
   iLayerThermalC(0) = mLayerThermalC(1)
  endif

@@ -98,7 +98,7 @@ integer(i4b),parameter,public :: andersonEmpirical    = 162    ! semi-empirical 
 ! look-up values for the choice of method to combine and sub-divide snow layers
 integer(i4b),parameter,public :: sameRulesAllLayers   = 171    ! same combination/sub-division rules applied to all layers
 integer(i4b),parameter,public :: rulesDependLayerIndex= 172    ! combination/sub-dividion rules depend on layer index
-! look-up values for the choice of thermal conductivityi representation for snow
+! look-up values for the choice of thermal conductivity representation for snow
 integer(i4b),parameter,public :: Yen1965              = 181    ! Yen (1965)
 integer(i4b),parameter,public :: Mellor1977           = 182    ! Mellor (1977)
 integer(i4b),parameter,public :: Jordan1991           = 183    ! Jordan (1991)
