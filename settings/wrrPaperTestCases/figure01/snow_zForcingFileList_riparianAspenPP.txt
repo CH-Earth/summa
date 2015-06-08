@@ -7,3 +7,7 @@
 !        --> filename must be in single quotes
 ! ****************************************************************************************************
     1001   'wrrPaperTestCases/figure01/snow_zForcingInfo_riparianAspen.txt'
+    1002   'wrrPaperTestCases/figure01/snow_zForcingInfo_riparianAspen.txt'
+    1003   'wrrPaperTestCases/figure01/snow_zForcingInfo_riparianAspen.txt'
+    1004   'wrrPaperTestCases/figure01/snow_zForcingInfo_riparianAspen.txt'
+    1005   'wrrPaperTestCases/figure01/snow_zForcingInfo_riparianAspen.txt'
