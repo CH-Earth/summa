@@ -382,8 +382,9 @@ contains
  integer(i4b),dimension(1)       :: liquid_loc                   ! location of maximum absolute value of the volumetric liquid water content residual (-)
  integer(i4b),dimension(1)       :: matric_loc                   ! location of maximum absolute value of the matric head increment (-)
  real(dp),parameter              :: absConvTol_energy=1.e-0_dp   ! convergence tolerance for energy (J m-3)
- real(dp),parameter              :: absConvTol_liquid=1.e-6_dp   ! convergence tolerance for volumetric liquid water content (-)
+ real(dp),parameter              :: absConvTol_liquid=1.e-8_dp   ! convergence tolerance for volumetric liquid water content (-)
  real(dp),parameter              :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
+ real(dp),parameter              :: absConvTol_watbal=1.e-8_dp   ! convergence tolerance for soil water balance (m)
  real(dp),parameter              :: stepMax=1._dp                ! maximum step size (K, m, -)
  real(dp)                        :: stpmax                       ! scaled maximum step size
  real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
@@ -412,7 +413,8 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * mass balance checks
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: checkMassBalance=.false.     ! flag to check the mass balance
+ logical(lgt),parameter          :: checkMassBalance=.true.      ! flag to check the mass balance
+ real(dp)                        :: soilWaterBalanceError        ! water balance error for soil
  real(dp)                        :: balance0,balance1            ! storage at start and end of time step
  real(dp)                        :: vertFlux                     ! change in storage due to vertical fluxes
  real(dp)                        :: tranSink,baseSink,compSink   ! change in storage sue to sink terms
@@ -1052,6 +1054,12 @@ contains
 
 
  end do  ! iterating
+
+ !print*, 'endIter'
+ !print*, '**************************************'
+ !print*, '**************************************'
+ !print*, '**************************************'
+
  !pause 'after iterations'
 
  ! check that we got baseflow
@@ -1064,36 +1072,16 @@ contains
  ! update temperatures (ensure new temperature is consistent with the fluxes)
  stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVec0(ixSnowSoilNrg)*dt + rAdd(ixSnowSoilNrg))/sMul(ixSnowSoilNrg)
 
- ! update volumetric liquid water content in the snow (ensure change in state is consistent with the fluxes)
- ! NOTE: should really update fluxes based on the iteration increment (as for soil below)
+ ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
+ ! NOTE: for soil water balance is constrained within the iteration loop
  if(nSnow>0)&
  stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVec0(ixSnowOnlyWat)*dt + rAdd(ixSnowOnlyWat))
-
- ! update fluxes in the soil layers
- ! (extract iteration increment for the matric head)
- mLayerMatricHeadDiff = xInc(ixSoilOnlyMat)
- ! (loop through soil layers)
- do iLayer=1,nSoil
-  ! (update vertical fluxes)
-  if(iLayer==0)then;         iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dHydStateBelow(iLayer)*mLayerMatricHeadDiff(iLayer+1)
-  elseif(iLayer==nSoil)then; iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dHydStateAbove(iLayer)*mLayerMatricHeadDiff(iLayer)
-  else;                      iLayerLiqFluxSoil(iLayer) = iLayerLiqFluxSoil(iLayer) + dq_dHydStateAbove(iLayer)*mLayerMatricHeadDiff(iLayer) &
-                                                                                   + dq_dHydStateBelow(iLayer)*mLayerMatricHeadDiff(iLayer+1)
-  endif
-  !print*, '**'
-  ! (update the baseflow fluxes)
-  !do jLayer=1,nSoil
-  ! !write(*,'(a,1x,2(i4,1x),10(e20.10,1x))') 'iLayer, jLayer, dBaseflow_dMatric(jLayer,iLayer), dBaseflow_dMatric(iLayer,jLayer), dVolTot_dPsi0(iLayer), mLayerMatricHeadDiff(iLayer) = ', &
-  ! !                                          iLayer, jLayer, dBaseflow_dMatric(jLayer,iLayer), dBaseflow_dMatric(iLayer,jLayer), dVolTot_dPsi0(iLayer), mLayerMatricHeadDiff(iLayer)
-  ! mLayerBaseflow(iLayer) = mLayerBaseflow(iLayer) + dBaseflow_dMatric(jLayer,iLayer)*mLayerMatricHeadDiff(iLayer)
-  !end do  ! looping through soil layers
- end do  ! looping through soil layers
 
  ! compute total baseflow from the soil zone (needed for mass balance checks)
  scalarSoilBaseflow = sum(mLayerBaseflow)
  !write(*,'(a,1x,e20.10)') 'scalarSoilBaseflow = ', scalarSoilBaseflow
 
- ! update states
+ ! update states: compute liquid water and ice content from total water content
  call updatState(&
                  stateVecTrial,         & ! intent(in): full state vector (mixed units)
                  mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
@@ -1103,19 +1091,20 @@ contains
                  err,cmessage)            ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
- ! check the mass balance for each soil layer
- if(checkMassBalance)then
-  do iLayer=1,nSoil
-   balance0 = (mLayerVolFracLiq(nSnow+iLayer)      + mLayerVolFracIce(nSnow+iLayer)      )*mLayerDepth(nSnow+iLayer)   ! dimensionless --> m
-   balance1 = (mLayerVolFracLiqTrial(nSnow+iLayer) + mLayerVolFracIceTrial(nSnow+iLayer) )*mLayerDepth(nSnow+iLayer)   ! dimensionless --> m
-   vertFlux = dt * -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))  ! m s-1 --> m
-   tranSink = dt*mLayerTranspire(iLayer)                                       ! m s-1 --> m
-   baseSink = dt*mLayerBaseflow(iLayer)                                        ! m s-1 --> m
-   compSink = mLayerCompress(iLayer)*mLayerDepth(nSnow+iLayer)                 ! dimensionless --> m
-   liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
-   write(*,'(a,1x,e20.10,1x,10(f20.10,1x))') 'liqError, balance0, balance1, vertFlux, tranSink, baseSink, compSink = ', &
-                                              liqError, balance0, balance1, vertFlux, tranSink, baseSink, compSink
-  end do  ! looping through soil layers
+ ! check the mass balance for the soil domain
+ ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_watbal
+ if(checkMassBalance)then   
+  balance0 = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
+  balance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
+  vertFlux = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt  ! m s-1 --> m
+  tranSink = sum(mLayerTranspire)*dt                                ! m s-1 --> m
+  baseSink = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
+  compSink = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
+  liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
+  if(abs(liqError) > absConvTol_watbal*10._dp)then  ! *10 to avoid precision issues
+   message=trim(message)//'water balance error in the soil domain'
+   err=-20; return ! negative error code forces time step reduction and another trial
+  endif  ! if there is a water balance error
  endif  ! checking mass balance
 
  ! compute the melt in each snow and soil layer
@@ -1376,6 +1365,8 @@ contains
   real(dp)                       :: xCompress                 ! compression in a given layer (m)
   real(dp)                       :: xFlux0,xFlux1             ! fluxes at the layer boundaries (m)
   real(dp)                       :: xBalance                  ! water balance (m)
+  real(dp)                       :: xTotSink                  ! total water sink (m)
+  real(dp)                       :: xTotFlux                  ! total water flux (m)
   ! initialize error control
   err=0; message='xFluxResid/'
 
@@ -1604,20 +1595,9 @@ contains
   vThetaTrial(1:nSoil) = mLayerVolFracLiqLocal(nSnow+1:nLayers) + mLayerVolFracIceLocal(nSnow+1:nLayers) ! liquid equivalent of total water at the current iteration
   rVec(ixSoilOnlyMat)  = vThetaTrial(1:nSoil) - ( (vThetaInit(1:nSoil) + fVec(ixSoilOnlyMat)*dt) + rAdd(ixSoilOnlyMat) )
 
-  !do iLayer=1,nSoil
-  ! xCompress = mLayerCompress(iLayer)*mLayerDepth(iLayer)  ! m
-  ! xFlux0    = iLayerLiqFluxSoil(iLayer-1)*dt              ! m
-  ! xFlux1    = iLayerLiqFluxSoil(iLayer)*dt                ! m
-  ! if(iLayer==1) write(*,'(a)')                     'iLayer, vThetaTrial(iLayer), vThetaInit(iLayer), (xFlux1 - xFlux0), xCompress, fVec(ixSoilOnlyMat(iLayer))*dt, rAdd(ixSoilOnlyMat(iLayer)), rVec(ixSoilOnlyMat(iLayer)) = '
-  !               write(*,'(1x,i4,1x,10(e20.10,1x))') iLayer, vThetaTrial(iLayer), vThetaInit(iLayer), (xFlux1 - xFlux0), xCompress, fVec(ixSoilOnlyMat(iLayer))*dt, rAdd(ixSoilOnlyMat(iLayer)), rVec(ixSoilOnlyMat(iLayer))
-  !end do
-  !xBalance = sum((vThetaTrial(1:nSoil) - vThetaInit(1:nSoil))*mLayerDepth(nSnow+1:nSoil))
-  !write(*,'(a,e20.10)') 'xBalance                                                       = ', xBalance
-  !write(*,'(a,e20.10)') 'sum(rAdd(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil))            = ', sum(rAdd(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil))
-  !write(*,'(a,e20.10)') 'sum(rAdd(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil)) - xBalance = ', sum(rAdd(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil)) - xBalance
-  !write(*,'(a,e20.10)') 'sum(fVec(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil))*dt         = ', sum(fVec(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil))*dt
-  !write(*,'(a,e20.10)') 'iLayerLiqFluxSoil(0)*dt                                        = ', iLayerLiqFluxSoil(0)*dt
-
+  ! compute the soil water balance error (m)
+  ! NOTE: declared in the main routine so accessible in all internal routines
+  soilWaterBalanceError = abs( sum(rVec(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil)) )
 
   !if(printFlag)then
   ! write(*,'(a,1x,10(e20.10,1x))') 'vThetaInit(1:nSoil)  = ', vThetaInit(1:nSoil)
@@ -2975,13 +2955,13 @@ contains
 
    ! return if not doing the line search
    if(.not.doLineSearch)then
-    converged = checkConv(rVec,p,x)
+    converged = checkConv(rVec,p,x,soilWaterBalanceError)
     return
    endif
 
    ! check convergence
    ! NOTE: this must be after the first flux call
-   converged = checkConv(rVec,p,x)
+   converged = checkConv(rVec,p,x,soilWaterBalanceError)
    if(converged) return
 
    ! check if backtracked all the way to the original value
@@ -3032,16 +3012,18 @@ contains
   ! *********************************************************************************************************
   ! internal function checkConv: check convergence based on the residual vector
   ! *********************************************************************************************************
-  function checkConv(rVec,xInc,xVec)
+  function checkConv(rVec,xInc,xVec,soilWatbalErr)
   implicit none
   ! dummies
   real(qp),intent(in)       :: rVec(:)         ! residual vector (mixed units)
   real(dp),intent(in)       :: xInc(:)         ! iteration increment (mixed units)
   real(dp),intent(in)       :: xVec(:)         ! state vector (mixed units)
+  real(dp),intent(in)       :: soilWatbalErr   ! soil water balance error (m)
   logical(lgt)              :: checkConv       ! flag to denote convergence
   ! locals
   real(dp),dimension(nSoil) :: psiScale        ! scaling factor for matric head
   real(dp),parameter        :: xSmall=1.e-0_dp ! a small offset
+  logical(lgt)              :: watbalConv      ! flag for total water balance convergence
   logical(lgt)              :: liquidConv      ! flag for residual convergence
   logical(lgt)              :: matricConv      ! flag for matric head convergence
   logical(lgt)              :: energyConv      ! flag for energy convergence
@@ -3067,6 +3049,7 @@ contains
   matric_loc = maxloc(abs( xInc(ixSoilOnlyMat)/psiScale ) )
 
   ! convergence check
+  watbalConv = (soilWatbalErr < absConvTol_watbal)  ! absolute error in total soil water balance (m)
   matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
   liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
   energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
