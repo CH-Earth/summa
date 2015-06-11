@@ -1,0 +1,30 @@
+! ***************************************************************************************************************************
+! ***************************************************************************************************************************
+! ***** DEFINITION OF MODEL FORCING DATA ************************************************************************************
+! ***************************************************************************************************************************
+! ***************************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "| " must be present (format a2), as these are used to check the integrety of the file
+! columns are:
+! 1: variable name
+! 2: variable description
+! 3: variable units
+! 4: variable type (scalar, separate parameter for each model layer, separate parameter at the interface of layers)
+! 5: write variable to output file? (T/F)
+! ***************************************************************************************************************************
+'(a10,(1x,a1,1x),a50,(1x,a1,1x),a40,(1x,a1,1x),a7,(1x,a1,1x),l1)'  ! format of the descriptions that follow (must be in single quotes)
+! ***************************************************************************************************************************
+! forcing data information
+! ***************************************************************************************************************************
+time       | time since time reference                          | seconds since 1990-1-1 0:0:0.0 -0:00     | scalarv | T
+pptrate    | precipitation rate                                 | kg m-2 s-1                               | scalarv | T
+SWRadAtm   | downward shortwave radiation at the upper boundary | W m-2                                    | scalarv | T
+LWRadAtm   | downward longwave radiation at the upper boundary  | W m-2                                    | scalarv | T
+airtemp    | air temperature at the measurement height          | K                                        | scalarv | T
+windspd    | wind speed at the measurement height               | m s-1                                    | scalarv | T
+airpres    | air pressure at the the measurement height         | Pa                                       | scalarv | T
+spechum    | specific humidity at the measurement height        | g g-1                                    | scalarv | T
+! ***************************************************************************************************************************

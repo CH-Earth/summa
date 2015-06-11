@@ -1,0 +1,27 @@
+! ***************************************************************************************************************************
+! ***************************************************************************************************************************
+! ***** DEFINITION OF CLASSIFICATIONS ***************************************************************************************
+! ***************************************************************************************************************************
+! ***************************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "| " must be present (format 1x,a1,1x), as these are used to check the integrety of the file
+! columns are:
+! 1: variable name
+! 2: variable description
+! 3: variable units
+! 4: variable type (e.g., scalar, vector of monthly values)
+! 5: write variable to output file? (T/F)
+! ***************************************************************************************************************************
+'(a20,(1x,a1,1x),a60,(1x,a1,1x),a10,(1x,a1,1x),a7,(1x,a1,1x),L1)'    ! format string (must be in single quotes)
+! ***************************************************************************************************************************
+! classifications
+! ***************************************************************************************************************************
+hruIndex             | index defining the hydrologic response unit                  | -          | scalarv | T
+vegTypeIndex         | index defining vegetation type                               | -          | scalarv | T
+soilTypeIndex        | index defining soil type                                     | -          | scalarv | T
+slopeTypeIndex       | index defining slope                                         | -          | scalarv | T
+downHRUindex         | index of downslope HRU (0 = basin outlet)                    | -          | scalarv | T
+! ***************************************************************************************************************************

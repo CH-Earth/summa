@@ -1,0 +1,31 @@
+! ***********************************************************************************************************************
+! DEFINITION OF THE FORCING FILE
+! ***********************************************************************************************************************
+! This file defines the name of the forcing data file, the number of columns in the file, the column index for each data
+!  variable, the start index of the simulation period, the length of the simulation period,
+!  and the length of the data time step
+! ***********************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "| " must be present (format a2), as these are used to check the integrety of the file
+! ***********************************************************************************************************************
+'(a10,a1,1x,a)'
+filenm    | Vielsalm_1996-2008_flag_0.dat  ! name of the forcing data file (must be in single quotes)
+ncols     | 12                    ! number of columns in the forcing file
+iyyy      | 1                     ! year
+im        | 2                     ! month
+id        | 3                     ! day
+ih        | 4                     ! hour
+imin      | 5                     ! minute
+pptrate   | 6                     ! precipitation rate              (kg m-2 s-1)
+sw_down   | 7                     ! downwelling shortwave radiaiton (W m-2)
+lw_down   | 8                     ! downwelling longwave radiation  (W m-2)
+airtemp   | 9                     ! air temperature                 (K)
+windspd   | 10                    ! windspeed                       (m/s)
+airpres   | 11                    ! pressure                        (Pa)
+spechum   | 12                    ! specific humidity               (g/g)
+istart    | 43849                 ! start of the simulation period
+numtim    | 15311                 ! number of time steps (113976)
+data_step | 3600                  ! length of time step (seconds)

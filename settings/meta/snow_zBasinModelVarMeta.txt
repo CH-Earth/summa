@@ -1,0 +1,44 @@
+! *************************************************************************************************************************************
+! *************************************************************************************************************************************
+! *************************************************************************************************************************************
+! *************************************************************************************************************************************
+! ***** DEFINITION OF BASIN VARIABLES *************************************************************************************************
+! *************************************************************************************************************************************
+! *************************************************************************************************************************************
+! NOTES:
+! (1) lines starting with "!" are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the format definition defines the format of the file, which can be changed
+! (3) the format definition must be the first non-comment line
+! (4) the delimiters "|" must be present (format a1), as these are used to check the integrety of the file
+! *************************************************************************************************************************************
+! columns are:
+! 1: variable name
+! 2: variable description
+! 3: variable units
+! 4: variable type (scalar, separate parameter for each model layer, separate parameter at the interface of layers)
+! 5: write variable to output file? (T/F)
+! *************************************************************************************************************************************
+! define format string for parameter descriptions
+! *************************************************************************************************************************************
+'(a35,(1x,a1,1x),a65,(1x,a1,1x),a15,(1x,a1,1x),a7,(1x,a1,1x),l1)'    ! format string (must be in single quotes)
+! *************************************************************************************************************************************
+! define variables
+! *************************************************************************************************************************************
+! *************************************************************************************************************************************
+! scalar variables (runoff and aquifer fluxes)
+! *************************************************************************************************************************************
+basin__totalArea                    | total basin area                                                  | m2              | scalarv | T
+basin__SurfaceRunoff                | surface runoff                                                    | m s-1           | scalarv | T
+basin__ColumnOutflow                | outflow from all "outlet" HRUs (those with no downstream HRU)     | m3 s-1          | scalarv | T
+basin__AquiferStorage               | aquifer storage                                                   | m               | scalarv | T
+basin__AquiferRecharge              | recharge to the aquifer                                           | m s-1           | scalarv | T
+basin__AquiferBaseflow              | baseflow from the aquifer                                         | m s-1           | scalarv | T
+basin__AquiferTranspire             | transpiration loss from the aquifer                               | m s-1           | scalarv | T
+! *************************************************************************************************************************************
+! runoff
+! *************************************************************************************************************************************
+routingRunoffFuture                 | runoff in future time steps                                       | m s-1           | routing | F
+routingFractionFuture               | fraction of runoff in future time steps                           | -               | routing | F
+averageInstantRunoff                | instantaneous runoff                                              | m s-1           | scalarv | T
+averageRoutedRunoff                 | routed runoff                                                     | m s-1           | scalarv | T
+! *************************************************************************************************************************************
