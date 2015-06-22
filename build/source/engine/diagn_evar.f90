@@ -79,6 +79,11 @@ contains
  ! provide access to named variables defining elements in the data structures
  USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
+ ! provide access to named variables for thermal conductivity of soil
+ USE data_struc,only:model_decisions        ! model decision structure
+ USE mDecisions_module,only: funcSoilWet, & ! function of soil wetness
+                             mixConstit,  & ! mixture of constituents
+                             hanssonVZJ     ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
  ! provide access to external subroutines
  USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
  ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -103,6 +108,8 @@ contains
  real(dp)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
  real(dp)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
  real(dp)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+ real(dp)                          :: lambda_wet             ! thermal conductivity of the wet material
+ real(dp)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
  ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
  real(dp),parameter                :: c1=0.55_dp             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
  real(dp),parameter                :: c2=0.8_dp              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
@@ -111,14 +118,14 @@ contains
  real(dp),parameter                :: c5=4._dp               ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(dp),parameter                :: f1=13.05_dp            ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(dp),parameter                :: f2=1.06_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- logical(lgt),parameter            :: hansson_th=.true.      ! flag to temporarily use the Hansson et al. VZJ 2005 thermal conductivity parameters
- logical(lgt),parameter            :: hansson_hc=.true.      ! flag to temporarily use the Hansson et al. VZJ 2005 heat transfer coefficient
  real(dp)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="diagn_evar/"
  ! associate variables in data structure
  associate(&
+ ! input: model decisions
+ ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in): choice of method for thermal conductivity of soil
  ! input: state variables
  scalarCanopyIce         => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): canopy ice content (kg m-2)
  scalarCanopyLiquid      => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
@@ -158,9 +165,11 @@ contains
 
  ! compute the thermal conductivity of dry and wet soils (W m-1)
  ! NOTE: this is actually constant over the simulation, and included here for clarity
- bulkden_soil   = iden_soil*(1._dp - theta_sat)
- lambda_drysoil = (0.135_dp*bulkden_soil + 64.7_dp) / (iden_soil - 0.947_dp*bulkden_soil)
- lambda_wetsoil = (8.80_dp*frac_sand + 2.92_dp*frac_clay) / (frac_sand + frac_clay)
+ if(ixThCondSoil == funcSoilWet)then
+  bulkden_soil   = iden_soil*(1._dp - theta_sat)
+  lambda_drysoil = (0.135_dp*bulkden_soil + 64.7_dp) / (iden_soil - 0.947_dp*bulkden_soil)
+  lambda_wetsoil = (8.80_dp*frac_sand + 2.92_dp*frac_clay) / (frac_sand + frac_clay)
+ endif
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -196,26 +205,42 @@ contains
   ! * compute the thermal conductivity of snow and soil at the mid-point of each layer...
   ! *************************************************************************************
   select case(layerType(iLayer))
-   ! * soil
+
+   ! ***** soil
    case(ix_soil)
-    ! check if desire to use the Hansson parameters
-    if(hansson_th)then
-     fArg  = 1._dp + f1*mLayerVolFracIce(iLayer)**f2
-     xArg  = mLayerVolFracLiq(iLayer) + fArg*mLayerVolFracIce(iLayer)
-     mLayerThermalC(iLayer) = c1 + c2*xArg + (c1 - c4)*exp(-(c3*xArg)**c5)
-     !write(*,'(a,1x,i4,1x,10(f20.12,1x))') 'iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer) = ', &
-     !                                       iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer)
 
-    else  ! (not hansson)
-     mLayerThermalC(iLayer) = thCond_soil * (1._dp - theta_sat)      + & ! soil component
-                              lambda_ice  * mLayerVolFracIce(iLayer) + & ! ice component
-                              lambda_water* mLayerVolFracLiq(iLayer) + & ! liquid water component
-                              lambda_air  * mLayerVolFracAir(iLayer)     ! air component
-     !write(*,'(a,1x,i4,1x,10(f20.12,1x))') 'iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer) = ', &
-     !                                       iLayer, mLayerVolFracIce(iLayer), mLayerVolFracLiq(iLayer), mLayerThermalC(iLayer)
+    ! select option for thermal conductivity of soil
+    select case(ixThCondSoil)
 
-    endif
-   ! * snow
+     ! ** function of soil wetness
+     case(funcSoilWet)
+
+      ! compute the thermal conductivity of the wet material (W m-1)
+      lambda_wet = lambda_wetsoil**(1._dp - theta_sat) * lambda_water**theta_sat * lambda_ice**(theta_sat - mLayerVolFracLiq(iLayer))
+      ! compute the Kersten number (-)
+      kerstenNum = log10( (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat ) + 1._dp
+      ! ...and, compute the thermal conductivity
+      mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._dp - kerstenNum)*lambda_drysoil
+
+     ! ** mixture of constituents
+     case(mixConstit)
+      mLayerThermalC(iLayer) = thCond_soil * (1._dp - theta_sat)      + & ! soil component
+                               lambda_ice  * mLayerVolFracIce(iLayer) + & ! ice component
+                               lambda_water* mLayerVolFracLiq(iLayer) + & ! liquid water component
+                               lambda_air  * mLayerVolFracAir(iLayer)     ! air component
+
+     ! ** test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
+     case(hanssonVZJ)
+      fArg  = 1._dp + f1*mLayerVolFracIce(iLayer)**f2
+      xArg  = mLayerVolFracLiq(iLayer) + fArg*mLayerVolFracIce(iLayer)
+      mLayerThermalC(iLayer) = c1 + c2*xArg + (c1 - c4)*exp(-(c3*xArg)**c5)
+
+     ! ** check
+     case default; err=20; message=trim(message)//'unable to identify option for thermal conductivity of soil'; return
+
+    end select  ! option for the thermal conductivity of soil
+    
+   ! ***** snow
    case(ix_snow)
     call tcond_snow(mLayerVolFracIce(iLayer)*iden_ice,mLayerThermalC(iLayer),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -240,8 +265,8 @@ contains
  end do
 
  ! special case of hansson
- if(hansson_hc)then
-  iLayerThermalC(0) = thCond_soil*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
+ if(ixThCondSoil==hanssonVZJ)then
+  iLayerThermalC(0) = 28._dp*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
  else
   iLayerThermalC(0) = mLayerThermalC(1)
  endif

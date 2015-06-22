@@ -20,6 +20,10 @@
 
 module var_derive_module
 USE nrtype
+USE data_struc,only:&
+                    nSnow,        & ! number of snow layers
+                    nSoil,        & ! number of soil layers
+                    nLayers         ! total number of layers
 implicit none
 private
 public::calcHeight
@@ -118,7 +122,6 @@ contains
  integer(i4b),intent(out) :: err                   ! error code
  character(*),intent(out) :: message               ! error message
  ! declare local variables
- integer(i4b)             :: nSoil,nSnow           ! number of soil and snow layers
  integer(i4b)             :: iLayer                ! loop through layers
  real(dp)                 :: fracRootLower         ! fraction of the rooting depth at the lower interface
  real(dp)                 :: fracRootUpper         ! fraction of the rooting depth at the upper interface
@@ -130,7 +133,7 @@ contains
  associate(&
  ! associate the model index structures
  nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! number of layers
- layerType             => indx_data%var(iLookINDEX%layerType)%dat,              & ! layer type (ix_soil or ix_snow)
+ layerType             =>indx_data%var(iLookINDEX%layerType)%dat,               & ! layer type (ix_soil or ix_snow)
  ! associate the values in the model parameter structures
  rootingDepth          =>mpar_data%var(iLookPARAM%rootingDepth),                & ! rooting depth (m)
  rootDistExp           =>mpar_data%var(iLookPARAM%rootDistExp),                 & ! root distribution exponent (-)
@@ -140,10 +143,6 @@ contains
  iLayerHeight          =>mvar_data%var(iLookMVAR%iLayerHeight)%dat              & ! height of the layer interface (m)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
-
- ! identify the number of snow and soil layers
- nSnow = count(layerType==ix_snow)
- nSoil = count(layerType==ix_soil)
 
  ! check that the rooting depth is less than the soil depth
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
@@ -214,7 +213,6 @@ contains
  integer(i4b),intent(out) :: err                   ! error code
  character(*),intent(out) :: message               ! error message
  ! declare local variables
- integer(i4b)             :: nSoil,nSnow           ! number of soil and snow layers
  integer(i4b)             :: iLayer                ! loop through layers
  ! initialize error control
  err=0; message='satHydCond/'
@@ -237,10 +235,6 @@ contains
  iLayerHeight       => mvar_data%var(iLookMVAR%iLayerHeight)%dat        & ! height at the interface of each layer (m)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
-
- ! identify the number of snow and soil layers
- nSnow = count(layerType==ix_snow)
- nSoil = count(layerType==ix_soil)
 
  ! loop through soil layers
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity

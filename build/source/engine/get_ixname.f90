@@ -56,7 +56,7 @@ contains
   case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! ( 4) vegetation category dataset
   case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! ( 5) choice of function for the soil moisture control on stomatal resistance
   case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! ( 6) choice of function for stomatal resistance
-  ! FUSE decisions
+  ! SUMMA decisions
   case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! ( 7) choice of numerical method
   case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 8) choice of method to calculate flux derivatives
   case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! ( 9) choice of method to determine LAI and SAI
@@ -74,11 +74,12 @@ contains
   case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (21) choice of stability function
   case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (22) choice of compaction routine
   case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (23) choice of method to combine and sub-divide snow layers
-  case('thermlcond'      ); get_ixdecisions=iLookDECISIONS%thermlcond  ! (24) choice of thermal conductivity representation
-  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (25) choice of method for canopy shortwave radiation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (26) choice of albedo representation
-  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (27) choice of method for spatial representation of groundwater
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (28) choice of method for sub-grid routing
+  case('thCondSnow'      ); get_ixdecisions=iLookDECISIONS%thCondSnow  ! (24) choice of thermal conductivity representation for snow
+  case('thCondSoil'      ); get_ixdecisions=iLookDECISIONS%thCondSoil  ! (25) choice of thermal conductivity representation for soil
+  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (26) choice of method for canopy shortwave radiation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (27) choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (28) choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (29) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
