@@ -25,8 +25,14 @@ xTime = [0.18d, 2.25d, 1.d] * 86400.d
 ; define the soil depth
 sDepth = [10.d,5.d,2.d]
 
+; define the path to the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+
+; define the name of the graphics file
+gname = 'syntheticTestCase_miller1998.png'
+
 ; define the file path
-fpath = '/home/mclark/test_summa/summa/output/miller1998/'
+fpath = '/home/mclark/test_summa/summa/output/syntheticTestCases/miller1998/'
 
 ; define experiment names
 expName = ['millerSand','millerLoam','millerClay']
@@ -97,7 +103,7 @@ for ivar=0,1 do begin
 endfor  ; loop through variables
 
 ; make a figure
-write_png, 'zFigures/miller1998_testSUMMA.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 stop
 end

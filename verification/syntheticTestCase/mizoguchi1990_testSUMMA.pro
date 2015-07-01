@@ -10,10 +10,16 @@ LOADCT, 39
 erase, color=255
 !P.MULTI=[0,3,1,0,0]
 
+; define the path to the validatiion data
+vpath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+
+; define the file of the validation data
+vfile = 'mizoguchiLabData.txt'
+
 aData = fltarr(4,20)
 
 ; read in the mizoguchi data
-openr, in_unit, 'zObs/mizoguchiData.txt', /get_lun
+openr, in_unit, vpath+vfile, /get_lun
  readf, in_unit, aData
 free_lun, in_unit
 
@@ -21,8 +27,14 @@ free_lun, in_unit
 Tfreeze = 273.16
 iden_ice= 917.
 
+; define the path to the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+
+; define the name of the graphics file
+gname = 'syntheticTestCase_mizoguchi1990.png'
+
 ; define file path
-file_path = '/home/mclark/test_summa/summa/output/mizoguchi1990/'
+file_path = '/home/mclark/test_summa/summa/output/syntheticTestCases/mizoguchi1990/'
 
 ; define file prefix
 file_pref = 'mizoguchi1990_spinup'
@@ -187,7 +199,7 @@ for iSuffix=0,0 do begin
 endfor ; loop through experiments
 
 ; make a figure
-write_png, 'zFigures/mizoguchi1990_testSUMMA.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 stop
