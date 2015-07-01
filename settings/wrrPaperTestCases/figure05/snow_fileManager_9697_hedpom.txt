@@ -1,24 +1,24 @@
 SNOW_FILEMANAGER_V1.4
 ! Comment line:
 ! *** paths (must be in single quotes)
-'/home/mclark/test_summa/summa/settings/'                                 ! SETNGS_PATH
-'/home/mclark/test_summa/summa/settings/wrrPaperTestCases/data/umpqua/'   ! INPUT_PATH
-'/home/mclark/test_summa/summa/output/wrrPaperTestCases/figure05/'        ! OUTPUT_PATH
+'/home/mclark/test_summa/summa/settings/'                                    ! SETNGS_PATH
+'/home/mclark/test_summa/summa/testCases_data/inputData/fieldData/umpqua/'   ! INPUT_PATH
+'/home/mclark/test_summa/summa/output/wrrPaperTestCases/figure05/'           ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
-'wrrPaperTestCases/figure05/snow_zDecisions_9697_hedpom.txt'              ! M_DECISIONS      = definition of model decisions
-'meta/snow_zTimeMeta.txt'                                                 ! META_TIME        = metadata for time
-'meta/snow_zLocalAttributeMeta.txt'                                       ! META_ATTR        = metadata for local attributes
-'meta/snow_zCategoryMeta.txt'                                             ! META_TYPE        = metadata for local classification of veg, soil, etc.
-'meta/snow_zForceMeta.txt'                                                ! META_FORCE       = metadata for model forcing variables
-'meta/snow_zLocalParamMeta.txt'                                           ! META_LOCALPARAM  = metadata for local model parameters
-'meta/snow_zLocalModelVarMeta.txt'                                        ! META_LOCALMVAR   = metadata for local model variables
-'meta/snow_zLocalModelIndexMeta.txt'                                      ! META_INDEX       = metadata for model indices
-'meta/snow_zBasinParamMeta.txt'                                           ! META_BASINPARAM  = metadata for basin-average model parameters
-'meta/snow_zBasinModelVarMeta.txt'                                        ! META_BASINMVAR   = metadata for basin-average model variables
-'wrrPaperTestCases/figure05/snow_zLocalAttributes_treePP.txt'             ! LOCAL_ATTRIBUTES = local attributes
-'wrrPaperTestCases/figure05/snow_zLocalParamInfo.txt'                     ! LOCALPARAM_INFO  = default values and constraints for local model parameters
-'wrrPaperTestCases/figure05/snow_zBasinParamInfo.txt'                     ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
-'wrrPaperTestCases/figure05/snow_zForcingFileList_treePP_9697.txt'        ! FORCING_FILELIST = list of files used in each HRU
-'wrrPaperTestCases/figure05/snow_zInitialCond.txt'                        ! MODEL_INITCOND   = model initial conditions
-'wrrPaperTestCases/figure05/snow_zParamTrial_hedpomPP.txt'                ! PARAMETER_TRIAL  = trial values for model parameters
-'storckSite'                                                              ! OUTPUT_PREFIX    = prefix for the output file
+'wrrPaperTestCases/figure05/snow_zDecisions_9697_hedpom.txt'                 ! M_DECISIONS      = definition of model decisions
+'meta/snow_zTimeMeta.txt'                                                    ! META_TIME        = metadata for time
+'meta/snow_zLocalAttributeMeta.txt'                                          ! META_ATTR        = metadata for local attributes
+'meta/snow_zCategoryMeta.txt'                                                ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'meta/snow_zForceMeta.txt'                                                   ! META_FORCE       = metadata for model forcing variables
+'meta/snow_zLocalParamMeta.txt'                                              ! META_LOCALPARAM  = metadata for local model parameters
+'meta/snow_zLocalModelVarMeta.txt'                                           ! META_LOCALMVAR   = metadata for local model variables
+'meta/snow_zLocalModelIndexMeta.txt'                                         ! META_INDEX       = metadata for model indices
+'meta/snow_zBasinParamMeta.txt'                                              ! META_BASINPARAM  = metadata for basin-average model parameters
+'meta/snow_zBasinModelVarMeta.txt'                                           ! META_BASINMVAR   = metadata for basin-average model variables
+'wrrPaperTestCases/figure05/snow_zLocalAttributes_treePP.txt'                ! LOCAL_ATTRIBUTES = local attributes
+'wrrPaperTestCases/figure05/snow_zLocalParamInfo.txt'                        ! LOCALPARAM_INFO  = default values and constraints for local model parameters
+'wrrPaperTestCases/figure05/snow_zBasinParamInfo.txt'                        ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
+'wrrPaperTestCases/figure05/snow_zForcingFileList_treePP_9697.txt'           ! FORCING_FILELIST = list of files used in each HRU
+'wrrPaperTestCases/figure05/snow_zInitialCond.txt'                           ! MODEL_INITCOND   = model initial conditions
+'wrrPaperTestCases/figure05/snow_zParamTrial_hedpomPP.txt'                   ! PARAMETER_TRIAL  = trial values for model parameters
+'storckSite'                                                                 ! OUTPUT_PREFIX    = prefix for the output file
