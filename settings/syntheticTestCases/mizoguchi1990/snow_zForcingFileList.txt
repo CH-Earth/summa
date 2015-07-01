@@ -6,4 +6,4 @@
 !  (2) The name of the descriptor file assigned to each HRU index
 !        --> filename must be in single quotes
 ! ****************************************************************************************************
-    1001   'mizoguchi1990/snow_zForcingInfo_mizoguchi.txt'
+    1001   'syntheticTestCases/mizoguchi1990/snow_zForcingInfo_mizoguchi.txt'
