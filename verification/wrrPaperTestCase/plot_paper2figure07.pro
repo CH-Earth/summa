@@ -14,6 +14,14 @@ erase, color=255
 TFreeze = 273.16d
 sb = 5.6705d-8
 
+; define the path and name of the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+gname = 'Clark_et_al__WRR2015b_figure07.png'
+
+; define the path and name of the validation data
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+valFile = valPath+'ReynoldsCreek_eddyFlux.nc'
+
 ; define name of the NetCDF file
 file_path = '/home/mclark/test_summa/summa/output/wrrPaperTestCases/figure07/'
 
@@ -22,9 +30,6 @@ file_pref = 'vegImpactsTranspire_'
 
 ; define file suffix for the stomatal resistance experiments
 file_suff = ['_ballBerry','_jarvis','_simpleResistance']
-
-; define the name of the validation data
-valFile = 'zObs/ReynoldsCreek_eddyFlux.nc'
 
 ; define HRUs
 iHRU = 0 
@@ -314,7 +319,7 @@ for iyear=2006,2006 do begin
 endfor  ; (looping through years)
 
 ; write figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure07.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 

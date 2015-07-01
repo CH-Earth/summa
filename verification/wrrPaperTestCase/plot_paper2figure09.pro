@@ -32,8 +32,15 @@ basarea = 389700.0d ; from Pierson et al. (WRR2001)
 secprday = 86400.d  ; number of seconds in a day
 iden_wat = 1000.d   ; intrinsic density of water (kg m-3)
 
-; define datafile with model validation
-valFile = 'zObs/ReynoldsCreek_valData.nc'
+; define the path and name of the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+gname = 'Clark_et_al__WRR2015b_figure09.png'
+
+; define the path and name of the validation data
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+valFile = valPath+'ReynoldsCreek_valData.nc'
+
+; define variable name and conversion factor
 valName = 'Q'
 valMult = iden_wat*secprday/basarea
 
@@ -271,7 +278,7 @@ for ifile=0,1 do begin
 endfor ; loop through experiments
 
  ; make a figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure09.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 stop
 end

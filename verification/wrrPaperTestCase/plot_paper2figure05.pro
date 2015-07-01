@@ -10,9 +10,16 @@ LOADCT, 39
 erase, color=255
 !P.MULTI=[0,2,2,0,0]
 
+; define the path and name of the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+gname = 'Clark_et_al__WRR2015b_figure05.png'
+
+; define the path of the validation data
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+
 ; define list of obs files
-file_list = ['zObs/Storck_9697_cutTreeData.txt', $
-             'zObs/Storck_9798_cutTreeData.txt']
+file_list = [valPath+'Storck_9697_cutTreeData.txt', $
+             valPath+'Storck_9798_cutTreeData.txt']
 
 ; define file path for model output
 file_path = '/home/mclark/test_summa/summa/output/wrrPaperTestCases/figure05/'
@@ -213,7 +220,7 @@ for ifile=0,n_elements(file_suff)-1 do begin
 endfor  ; looping through years
 
 ; make a figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure05.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 stop

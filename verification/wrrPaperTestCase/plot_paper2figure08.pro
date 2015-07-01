@@ -14,6 +14,14 @@ erase, color=255
 TFreeze = 273.16d
 sb = 5.6705d-8
 
+; define the path and name of the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+gname = 'Clark_et_al__WRR2015b_figure08.png'
+
+; define the path and name of the validation data
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+valFile = valPath+'ReynoldsCreek_eddyFlux.nc'
+
 ; define name of the NetCDF file
 file_path = '/home/mclark/test_summa/summa/output/wrrPaperTestCases/'
 
@@ -25,9 +33,6 @@ file_suff1 = ['_perturbRoots','_perturbRoots','_perturbRoots']
 
 ; define the file suffix for the lateral flow experiments
 file_suff2 = ['_1dRichards','_lumpedTopmodel','_distributedTopmodel']
-
-; define the name of the validation data
-valFile = 'zObs/ReynoldsCreek_eddyFlux.nc'
 
 ; define HRUs
 ixHRU1 = [1,2,3]
@@ -351,7 +356,7 @@ endfor  ; (looping through years)
 
 
 ; write figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure08.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 

@@ -16,9 +16,16 @@ iden_ice= 917.
 
 nsites = 2
 
+; define the path and name of the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+gname = 'Clark_et_al__WRR2015b_figure06.png'
+
+; define the path of the validation data
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+
 ; define datafiles with model validation
-valFile = ['zObs/ReynoldsCreek_valData.nc', $
-           'zObs/senatorBeck_SASP_1hr.nc']
+valFile = [valPath+'ReynoldsCreek_valData.nc', $
+           valPath+'senatorBeck_SASP_1hr.nc']
 
 ; define name of validation data
 valName = ['zs_sheltered','snowDepth']
@@ -222,7 +229,7 @@ for ifile=0,nsites-1 do begin
 endfor ; loop through sites
 
 ; make a figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure06.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 

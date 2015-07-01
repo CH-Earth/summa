@@ -21,6 +21,14 @@ tvlct, r, g, b
 dt      = 3600.d
 TFreeze =  273.16d
 
+; define the name of the validation data
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+valFile = valPath + 'ReynoldsCreek_eddyFlux.nc'
+
+; define the path and name of the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+gname = 'Clark_et_al__WRR2015b_figure03.png'
+
 ; define file path
 file_path = '/home/mclark/test_summa/summa/output/wrrPaperTestCases/'
 
@@ -255,7 +263,7 @@ for ivar=0,n_elements(cvar)-1 do begin
 endfor  ; looping through variables
 
 ; make a figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure03.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 

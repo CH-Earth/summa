@@ -21,7 +21,12 @@ file_path = '/home/mclark/test_summa/summa/output/wrrPaperTestCases/figure02/'
 file_name = file_path + 'vegImpactsWind_2006-2007_riparianAspenWindParamPerturb.nc'
 
 ; define the name of the validation data
-valFile = 'zObs/ReynoldsCreek_eddyFlux.nc' 
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+valFile = valPath + 'ReynoldsCreek_eddyFlux.nc'
+
+; define the path and name of the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+gname = 'Clark_et_al__WRR2015b_figure02.png'
 
 ; *****
 ; * GET BASIC DATA FROM THE MODEL OUTPUT FILE...
@@ -286,7 +291,7 @@ for ivar=0,4 do begin
 endfor
 
 ; make a figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure02.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 stop

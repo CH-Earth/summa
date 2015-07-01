@@ -23,7 +23,14 @@ file_pref = 'vegImpactsRad_'
 file_suff = ['_riparianAspenBeersLaw','_riparianAspenNLscatter','_riparianAspenUEB2stream','_riparianAspenCLM2stream']
 
 ; define the name of the validation data
-valFile = 'zObs/ReynoldsCreek_eddyFlux.nc'
+valPath = '/home/mclark/test_summa/summa/testCases_data/validationData/'
+valFile = valPath + 'ReynoldsCreek_eddyFlux.nc'
+
+; define the path to the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+
+; define the name of the graphics file
+gname = 'Clark_et_al__WRR2015b_figure01.png'
 
 ; loop through years
 for iyear=2005,2007 do begin
@@ -359,7 +366,7 @@ for iyear=2005,2007 do begin
 endfor  ; (looping through years)
 
 ; write figure
-write_png, 'zFigures/Clark_et_al__WRR2015b_figure01.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 
 
