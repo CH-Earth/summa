@@ -41,8 +41,14 @@ xCoord = totalLength*(dindgen(nCoord)+0.5d)/double(nCoord)
 ; define the x-xoordinate for the model simulations
 xSlope = totalLength*(dindgen(nHill)+0.5d)/double(nHill)
 
+; define the path to the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+
+; define the name of the graphics file
+gname = 'syntheticTestCase_wigmosta1999.png'
+
 ; define the file path
-fpath = '/home/mclark/test_summa/summa/output/wigmosta1999/'
+fpath = '/home/mclark/test_summa/summa/output/syntheticTestCases/wigmosta1999/'
 
 ; define the number of HRUs
 nHRU=50
@@ -331,7 +337,7 @@ for iExp=0,n_elements(cExp)-1 do begin
 endfor ; looping through experiments
 
 ; make a figure
-write_png, 'zFigures/wigmosta1999_testSUMMA.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 stop
 end
