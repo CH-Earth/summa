@@ -279,6 +279,7 @@ contains
 
   ! print progress
   !print*, '*** new substep'
+  !write(*,'(a,3(f11.4,1x))') 'dt_sub, dt_init, dt = ', dt_sub, dt_init, dt
 
   ! increment the number of sub-steps
   nsub = nsub+1
@@ -530,6 +531,7 @@ contains
                                                              * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
     endif
 
+
     ! (7) compute diagnostic variables for each layer...
     ! --------------------------------------------------
     ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
@@ -624,7 +626,7 @@ contains
    if(err<0)then
     ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
-    print*, trim(cmessage), dt_temp, minstep
+    write(*,'(a,1x,2(f13.3,1x))') trim(cmessage), dt_temp, minstep
     rejectedStep=.true.
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then
@@ -638,7 +640,6 @@ contains
     rejectedStep=.false.
     !pause 'accepted step'
    endif
-
 
    ! check that err=0 at this point (it should be)
    if(err/=0)then; message=trim(message)//'expect err=0'; return; endif
@@ -770,11 +771,10 @@ contains
 
    ! adjust length of the sub-step (make sure that we don't exceed the step)
    dt_temp = min(dt_sub - dt_solv, dt_temp)
-   !print*, 'dt_temp = ', dt_temp
-
+   !print*, 'dt_temp, dt_sub = ', dt_temp, dt_sub
 
   end do  ! (multiple attempts for non-convergence)
-
+  !print*, 'after do loop: dt_sub = ', dt_sub
 
   ! ****************************************************************************************************
   ! *** END MAIN SOLVER ********************************************************************************
@@ -839,6 +839,7 @@ contains
 
   ! make sure that we don't exceed the step
   dt_sub = min(dt-dt_done, dt_sub)
+  !print*, 'in substep loop: dt_sub = ', dt_sub
 
  end do  ! (sub-step loop)
  !stop 'completed time step'
@@ -923,7 +924,7 @@ contains
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
  if(abs(scalarSoilWatBalError) > 1.d-2)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
-  write(*,'(a,1x,f20.10)') 'dt_sub                    = ', dt_sub
+  write(*,'(a,1x,f20.10)') 'dt                        = ', dt
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
   write(*,'(a,1x,f20.10)') 'balanceSoilWater0         = ', balanceSoilWater0
   write(*,'(a,1x,f20.10)') 'balanceSoilWater1         = ', balanceSoilWater1
