@@ -11,10 +11,16 @@ erase, color=255
 !P.MULTI=[0,1,2]
 
 ; define the file path
-fpath = '/home/mclark/test_summa/summa/output/celia1990/'
+fpath = '/home/mclark/test_summa/summa/output/syntheticTestCases/celia1990/'
 
 ; define the file name
 fname = 'celia1990_spinup_testSumma.nc'
+
+; define the path to the graphics file
+gpath = '/home/mclark/test_summa/summa/verification/zFigures/'
+
+; define the name of the graphics file
+gname = 'syntheticTestCase_celia1990.png'
 
 ; define the HRU index
 iHRU=0
@@ -92,7 +98,7 @@ for ivar=0,1 do begin
 endfor  ; loop through variables
 
 ; make a figure
-write_png, 'zFigures/celia1990_testSUMMA.png', tvrd(true=1)
+write_png, gpath+gname, tvrd(true=1)
 
 stop
 end

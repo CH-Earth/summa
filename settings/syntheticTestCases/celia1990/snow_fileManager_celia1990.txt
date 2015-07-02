@@ -1,0 +1,24 @@
+SNOW_FILEMANAGER_V1.4
+! Comment line:
+! *** paths (must be in single quotes)
+'/home/mclark/test_summa/summa/settings/'                                          ! SETNGS_PATH
+'/home/mclark/test_summa/summa/testCases_data/inputData/syntheticData/celia1990/'  ! INPUT_PATH
+'/home/mclark/test_summa/summa/output/syntheticTestCases/celia1990/'               ! OUTPUT_PATH
+! *** control files (must be in single quotes)
+'syntheticTestCases/celia1990/snow_zDecisions_celia1990.txt'          ! M_DECISIONS      = definition of model decisions
+'meta/snow_zTimeMeta.txt'                                             ! META_TIME        = metadata for time
+'meta/snow_zLocalAttributeMeta.txt'                                   ! META_ATTR        = metadata for local attributes
+'meta/snow_zCategoryMeta.txt'                                         ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'meta/snow_zForceMeta.txt'                                            ! META_FORCE       = metadata for model forcing variables
+'meta/snow_zLocalParamMeta.txt'                                       ! META_LOCALPARAM  = metadata for local model parameters
+'meta/snow_zLocalModelVarMeta.txt'                                    ! META_LOCALMVAR   = metadata for local model variables
+'meta/snow_zLocalModelIndexMeta.txt'                                  ! META_INDEX       = metadata for model indices
+'meta/snow_zBasinParamMeta.txt'                                       ! META_BASINPARAM  = metadata for basin-average model parameters
+'meta/snow_zBasinModelVarMeta.txt'                                    ! META_BASINMVAR   = metadata for basin-average model variables
+'syntheticTestCases/celia1990/snow_zLocalAttributes.txt'              ! LOCAL_ATTRIBUTES = local attributes
+'syntheticTestCases/celia1990/snow_zLocalParamInfo.txt'               ! LOCALPARAM_INFO  = default values and constraints for local model parameters
+'syntheticTestCases/celia1990/snow_zBasinParamInfo.txt'               ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
+'syntheticTestCases/celia1990/snow_zForcingFileList.txt'              ! FORCING_FILELIST = list of files used in each HRU
+'syntheticTestCases/celia1990/snow_zInitialCond_celia1990.txt'        ! MODEL_INITCOND   = model initial conditions
+'syntheticTestCases/celia1990/snow_zParamTrial_celia1990.txt'         ! PARAMETER_TRIAL  = trial values for model parameters
+'celia1990'                                                           ! OUTPUT_PREFIX    = prefix for the output file
