@@ -39,7 +39,7 @@ ENGINE_DIR = $(F_KORE_DIR)/engine
 SUMMA_NRUTIL= \
         nrtype.f90 \
 		nr_utility.f90
-NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(SUMMA_NRUTIL))
+NRUTIL = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRUTIL))
 
 #
 # Numerical recipes procedures
@@ -47,7 +47,7 @@ NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(SUMMA_NRUTIL))
 SUMMA_NRPROC= \
 		expIntegral.f90 \
 		spline_int.f90
-NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(SUMMA_NRPROC))
+NRPROC = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
 SUMMA_HOOKUP= \
