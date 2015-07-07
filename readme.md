@@ -34,12 +34,13 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
     If you do not have a Fortran compiler, ou can install `gfortran` for free. The easiest way is to use a apackage manager. Which package manager depends on your *nix flavor. On OS X, you can use any of the free OS X package managers, including [MacPorts](http://www.macports.org), [fink](http://www.finkproject.org), or [homebrew](http://brew.sh). Note that `gfortran` is installed as part of the `gcc` compiler suite.
 
- * the NetCDF libraries. [NetCDF](http://www.unidata.ucar.edu/software/netcdf/) or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. They are widely used in the hydrometeorological community and eventually all SUMMA I/O will use NetCDF. Most *nix package managers (including  include a NetCDF port. Note that you need to ensure that:
+ * the NetCDF libraries. [NetCDF](http://www.unidata.ucar.edu/software/netcdf/) or the Network Common Data Format is a set of software libraries and self-describing, machine-independent data formats that support the creation, access, and sharing of array-oriented scientific data. They are widely used in the hydrometeorological community and eventually all SUMMA I/O will use NetCDF. Most *nix package managers include a NetCDF port. Note that you need to ensure that:
 
     * You have NetCDF version 4.x;
     * The NetCDF libraries are compiled with the same compiler as you plan to use for compiling SUMMA; and
     * You have the NetCDF Fortran library installed (`libnetcdff.*`) and not just the C-version.
 
+ * the LAPACK — Linear Algebra PACKage library. [LAPACK](http://www.netlib.org/lapack/) provides a series of routines for linear algebra operations, including matrix solvers. How to install the library depends on your *nix variant and is not covered here. For example, on OS X you will get all the necessary LAPACK routines by installing the ATLAS software (again, this is easiest using a package manager).
 
  * a copy of the SUMMA source code from [this repo](https://github.com/UCAR/summa). You have a number of options:
 
@@ -58,7 +59,7 @@ Once you have all the above, you can compile SUMMA using the following steps:
 
  1. Navigate to your local copy of the SUMMA directory and go to the `build` subdirectory;
 
- 1. Edit the `Makefile`. At the very least, you will need to set `F_MASTER` and `FC`. You may also need to set `NCDF_PATH` and you may need to add some extra entries if you are using a different Fortran compiler or your setup is different;
+ 1. Edit the `Makefile`. At the very least, you will need to set `F_MASTER` and `FC`. You may also need to set `NCDF_PATH` and `LAPK_PATH` and you may need to add some extra entries if you are using a different Fortran compiler or your setup is different (if someone wants to contribute an actual `configure` script that would be great);
 
  1. Type `make`. If all goes well, this will build SUMMA and move the executable `summa.exe` to the `bin` directory;
 
@@ -72,6 +73,8 @@ Once you have all the above, you can compile SUMMA using the following steps:
     ```
 
 If you get this far then SUMMA is installed correctly and functional.
+
+Continue reading [SUMMA configuration](https://github.com/UCAR/summa/blob/master/docs/howto/summa_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa/datasets.php) to help you get started.
 
 ## License
 
