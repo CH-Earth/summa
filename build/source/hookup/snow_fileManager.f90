@@ -71,7 +71,7 @@ character(*),intent(out)::message
 ! locals
 logical(lgt)::xist
 integer(i4b),parameter::unt=99 !DK: need to either define units globally, or use getSpareUnit
-character(*),parameter::fuseFileManagerHeader="SNOW_FILEMANAGER_V1.4"
+character(*),parameter::fuseFileManagerHeader="SUMMA_FILE_MANAGER_V1.0"
 character(LEN=100)::temp
 integer(i4b)::ierr ! temporary error code
 integer(i4b),parameter :: runinfo_fileunit=67 ! file unit for run time information
