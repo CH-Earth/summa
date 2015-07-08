@@ -51,7 +51,7 @@ NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
 SUMMA_HOOKUP= \
-        snow_fileManager.f90
+        summaFileManager.f90
 HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
 

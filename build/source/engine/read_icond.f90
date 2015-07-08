@@ -53,8 +53,8 @@ contains
  USE soil_utils_module,only:crit_soilT             ! compute temperature above which all water is unfrozen
  USE updatState_module,only:updateSnow             ! update snow states
  USE updatState_module,only:updateSoil             ! update soil states
- USE snow_fileManager,only:SETNGS_PATH             ! path for metadata files
- USE snow_fileManager,only:MODEL_INITCOND          ! model initial conditions file
+ USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
+ USE summaFileManager,only:MODEL_INITCOND          ! model initial conditions file
  USE ascii_util_module,only:file_open              ! open file
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines             ! get a list of character strings from non-comment lines

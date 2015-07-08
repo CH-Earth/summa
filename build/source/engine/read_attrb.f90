@@ -36,8 +36,8 @@ contains
  USE allocspace_module,only:alloc_attr             ! module to allocate space for local attributes
  USE allocspace_module,only:alloc_type             ! module to allocate space for categorical data
  ! provide access to data
- USE snow_fileManager,only:SETNGS_PATH             ! path for metadata files
- USE snow_fileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
+ USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
+ USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
  USE data_struc,only:attr_meta,type_meta           ! metadata structures
  USE data_struc,only:attr_hru,type_hru             ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE           ! named variables for elements of the data structures

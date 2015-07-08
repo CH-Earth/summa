@@ -30,7 +30,7 @@ contains
  ! ************************************************************************************************
  subroutine read_force(istep,iHRU,err,message)
  USE nrtype                                            ! variable types, etc.
- USE snow_fileManager,only:INPUT_PATH                  ! path of the forcing data file
+ USE summaFileManager,only:INPUT_PATH                  ! path of the forcing data file
  USE time_utils_module,only:extractTime,compJulday     ! extract time info from units string
  USE multiconst,only:secprday                          ! number of seconds in a day
  USE data_struc,only:forcFileInfo                      ! forcing file info

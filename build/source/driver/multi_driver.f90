@@ -25,7 +25,7 @@ program multi_driver
 ! *****************************************************************************
 USE nrtype                                                  ! variable types, etc.
 ! provide access to subroutines and functions
-USE snow_fileManager,only:fuse_SetDirsUndPhiles             ! sets directories and filenames
+USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
@@ -61,9 +61,9 @@ USE coupled_em_module,only:coupled_em                       ! module to run the 
 USE groundwatr_module,only:groundwatr                       ! module to simulate regional groundwater balance
 USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
 ! provide access to data
-USE snow_fileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
-USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
-USE snow_fileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
+USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
+USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
+USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
 USE data_struc,only:doJacobian                              ! flag to compute the Jacobian
 USE data_struc,only:localParFallback                        ! local column default parameters
 USE data_struc,only:basinParFallback                        ! basin-average default parameters
@@ -123,7 +123,7 @@ integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency t
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
 character(len=64)         :: output_fileSuffix=''           ! suffix for the output file
-character(len=256)        :: fuseFileManager=''             ! path/name of file defining directories and files
+character(len=256)        :: summaFileManagerFile=''        ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 ! define pointers for model indices
 integer(i4b),pointer      :: nSnow=>null()                  ! number of snow layers
@@ -165,12 +165,12 @@ if (len_trim(output_fileSuffix) == 0) then
  print*,'1st command-line argument missing, expect text string defining the output file suffix'; stop
 endif
 ! get command-line argument for the muster file
-call getarg(2,fuseFileManager) ! path/name of file defining directories and files
-if (len_trim(fuseFileManager) == 0) then
+call getarg(2,summaFileManagerFile) ! path/name of file defining directories and files
+if (len_trim(summaFileManagerFile) == 0) then
  print*,'2nd command-line argument missing, expect path/name of muster file'; stop
 endif
-! set directories and files -- fuseFileManager used as command-line argument
-call fuse_SetDirsUndPhiles(fuseFileManager,err,message); call handle_err(err,message)
+! set directories and files -- summaFileManager used as command-line argument
+call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
 ! initialize the Jacobian flag
 doJacobian=.false.
 

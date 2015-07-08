@@ -31,8 +31,8 @@ contains
  ! ************************************************************************************************
  subroutine read_param(nHRU,err,message)
  ! used to read model initial conditions
- USE snow_fileManager,only:SETNGS_PATH               ! path for metadata files
- USE snow_fileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
+ USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
+ USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
  USE ascii_util_module,only:file_open                ! open file
  USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines

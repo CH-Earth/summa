@@ -511,8 +511,8 @@ contains
  ! used to read information from model decisions file
  USE ascii_util_module,only:file_open       ! open file
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
- USE snow_fileManager,only:SETNGS_PATH      ! path for metadata files
- USE snow_fileManager,only:M_DECISIONS      ! definition of modeling options
+ USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
+ USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
  USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
  USE data_struc,only:model_decisions        ! model decision structure
  implicit none
