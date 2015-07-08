@@ -1,3 +1,0 @@
-SUMMA is an open-source project, with code made available under version 3 of the GNU General Public License ([GPLv3](http://www.gnu.org/licenses/gpl-3.0.html)). Among other things this means that we require that if you make changes to SUMMA (which we strongly encourage) and you want to distribute those changes, then all released improved versions must also be free software.
-
-The SUMMA source code is maintained and distributed through the [SUMMA page on github](https://github.com/UCAR/summa). This site also maintains information on model installation. Most of the active development on SUMMA is managed and discussed on this page as well.
