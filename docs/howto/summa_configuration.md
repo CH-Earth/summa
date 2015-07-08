@@ -86,3 +86,7 @@ The main configuration file for this test case is `<localApplications>/settings/
 1. file with all the model decisions, that is, the various model decisions that determine how summa will be configured for a particular model applications (`M_DECISIONS`).
 
 The paths that follow are briefly explained in the configuration file for the test case. The `meta` files provide metadata for model parameters. Often these values will remain the same for different model simulations (for example, we use a fixed set of metadata files for the test applications). The next set of files (beginning with `LOCAL_ATTRIBUTES`) provide location- and application-specific information. The final line provides a prefix for the model output files that can be used to identify your simulation.
+
+## SUMMA output files
+
+For now, the user is referred to the IDL plotting files in `<localApplications>/verification` to get a description of the SUMMA output files.
