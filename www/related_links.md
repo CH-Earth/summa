@@ -1,6 +1,0 @@
-* [NCAR RAL - Hydrometeorological Applications Program](http://www.ral.ucar.edu/hap/)
-* [WRF-Hydro](http://www.ral.ucar.edu/projects/wrf_hydro)
-* [UW Surface Water Hydrology Group](http://www.hydro.washington.edu)
-* [UW Mountain Hydrology Research Group](http://depts.washington.edu/mtnhydr)
-* [University of Adelaide WaterSystems](http://ecms.adelaide.edu.au/civeng/research/water)
-* [NASA-LIS](http://lis.gsfc.nasa.gov)
