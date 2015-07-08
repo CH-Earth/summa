@@ -1,0 +1,19 @@
+SNOW_FILEMANAGER_V1.1
+! Comment line:
+! *** paths (must be in single quotes)
+'/d1/mclark/FUSE_SNOW/settings/'             ! SETNGS_PATH
+'/d1/mclark/FUSE_SNOW/input/valdai/'         ! INPUT_PATH
+'/d1/mclark/FUSE_SNOW/output/valdai/'        ! OUTPUT_PATH
+! *** control files (must be in single quotes)
+'reynolds/summa_zDecisions_reynolds.txt'      ! M_DECISIONS     = definition of model decisions
+'summa_zTimeMeta.txt'                         ! META_TIME       = metadata for time
+'summa_zSiteMeta.txt'                         ! META_SITE       = metadata for site characteristics
+'summa_zForceMeta.txt'                        ! META_FORCE      = metadata for model forcing variables
+'summa_zParamMeta.txt'                        ! META_PARAM      = metadata for model parameters
+'summa_zModelVarMeta.txt'                     ! META_MVAR       = metadata for model variables
+'summa_zModelIndexMeta.txt'                   ! META_INDEX      = metadata for model indices
+'valdai/summa_zParamInfo_valdai.txt'          ! PARAMETER_INFO  = site characteristics, and default values and constraints for model parameters
+'valdai/summa_zForcingInfo_valdai.txt'        ! FORCEFILE_DESC  = description of forcing data file
+'valdai/summa_zInitialCond_valdai.txt'        ! MODEL_INITCOND  = model initial conditions
+'valdai/summa_zParamTrial_valdai.txt'         ! PARAMETER_TRIAL = trial values for model parameters
+'valdai'                                     ! OUTPUT_PREFIX   = prefix for the output file

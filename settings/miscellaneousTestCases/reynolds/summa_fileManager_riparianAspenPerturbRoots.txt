@@ -1,0 +1,24 @@
+SUMMA_FILE_MANAGER_V1.0
+! Comment line:
+! *** paths (must be in single quotes)
+'/home/mclark/summa/settings/'                            ! SETNGS_PATH
+'/home/mclark/summa/input/reynolds/'                      ! INPUT_PATH
+'/home/mclark/summa/output/reynolds/'                     ! OUTPUT_PATH
+! *** control files (must be in single quotes)
+'reynolds/summa_zDecisions_riparianAspenPerturbRoots.txt'  ! M_DECISIONS      = definition of model decisions
+'summa_zTimeMeta.txt'                                      ! META_TIME        = metadata for time
+'summa_zLocalAttributeMeta.txt'                            ! META_ATTR        = metadata for local attributes
+'summa_zCategoryMeta.txt'                                  ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'summa_zForceMeta.txt'                                     ! META_FORCE       = metadata for model forcing variables
+'summa_zLocalParamMeta.txt'                                ! META_LOCALPARAM  = metadata for local model parameters
+'summa_zLocalModelVarMeta.txt'                             ! META_LOCALMVAR   = metadata for local model variables
+'summa_zLocalModelIndexMeta.txt'                           ! META_INDEX       = metadata for model indices
+'summa_zBasinParamMeta.txt'                                ! META_BASINPARAM  = metadata for basin-average model parameters
+'summa_zBasinModelVarMeta.txt'                             ! META_BASINMVAR   = metadata for basin-average model variables
+'reynolds/summa_zLocalAttributes_riparianAspenPP.txt'      ! LOCAL_ATTRIBUTES = local attributes
+'reynolds/summa_zLocalParamInfo.txt'                       ! LOCALPARAM_INFO  = default values and constraints for local model parameters
+'reynolds/summa_zBasinParamInfo.txt'                       ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
+'reynolds/summa_zForcingFileList_riparianAspenPP.txt'      ! FORCING_FILELIST = list of files used in each HRU
+'reynolds/summa_zInitialCond.txt'                          ! MODEL_INITCOND   = model initial conditions
+'reynolds/summa_zParamTrial_riparianAspenPerturbRoots.txt' ! PARAMETER_TRIAL  = trial values for model parameters
+'vegImpacts'                                              ! OUTPUT_PREFIX    = prefix for the output file

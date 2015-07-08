@@ -1,0 +1,24 @@
+SUMMA_FILE_MANAGER_V1.0
+! Comment line:
+! *** paths (must be in single quotes)
+'/home/mclark/summa/settings/'                      ! SETNGS_PATH
+'/home/mclark/summa/input/senatorBeck/'             ! INPUT_PATH
+'/home/mclark/summa/output/senatorBeck/'            ! OUTPUT_PATH
+! *** control files (must be in single quotes)
+'senatorBeck/summa_zDecisions_senatorBeck.txt'       ! M_DECISIONS      = definition of model decisions
+'summa_zTimeMeta.txt'                                ! META_TIME        = metadata for time
+'summa_zLocalAttributeMeta.txt'                      ! META_ATTR        = metadata for local attributes
+'summa_zCategoryMeta.txt'                            ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'summa_zForceMeta.txt'                               ! META_FORCE       = metadata for model forcing variables
+'summa_zLocalParamMeta.txt'                          ! META_LOCALPARAM  = metadata for model parameters
+'summa_zLocalModelVarMeta.txt'                       ! META_LOCALMVAR   = metadata for model variables
+'summa_zLocalModelIndexMeta.txt'                     ! META_INDEX       = metadata for model indices
+'summa_zBasinParamMeta.txt'                          ! META_BASINPARAM  = metadata for basin-average model parameters
+'summa_zBasinModelVarMeta.txt'                       ! META_BASINMVAR   = metadata for basin-average model variables
+'senatorBeck/summa_zLocalAttributes.txt'             ! LOCAL_ATTRIBUTES = local attributes
+'senatorBeck/summa_zLocalParamInfo.txt'              ! LOCALPARAM_INFO  = default values and constraints for model parameters
+'senatorBeck/summa_zBasinParamInfo.txt'              ! BASINPARAM_INFO  = default values and constraints for model parameters
+'senatorBeck/summa_zForcingFileList.txt'             ! FORCING_FILELIST  = description of forcing data file
+'senatorBeck/summa_zInitialCond.txt'                 ! MODEL_INITCOND   = model initial conditions
+'senatorBeck/summa_zParamTrial.txt'                  ! PARAMETER_TRIAL  = trial values for model parameters
+'sheltered'                                         ! OUTPUT_PREFIX    = prefix for the output file

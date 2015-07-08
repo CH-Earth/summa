@@ -6,8 +6,8 @@
 nTrial=50
 #
 # Define file prefix
-#fPrefix='snow_fileManager_lumpedTopmodel__'
-fPrefix='snow_fileManager_1dRichards__'
+#fPrefix='summa_fileManager_lumpedTopmodel__'
+fPrefix='summa_fileManager_1dRichards__'
 #
 # Define the pattern to match for the directory
 cPatternPath='XXXXX'
