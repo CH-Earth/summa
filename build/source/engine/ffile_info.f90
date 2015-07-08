@@ -32,8 +32,8 @@ contains
  subroutine ffile_info(nHRU,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
- USE snow_fileManager,only:SETNGS_PATH       ! path for metadata files
- USE snow_fileManager,only:FORCING_FILELIST  ! list of model forcing files
+ USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
+ USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE data_struc,only:time_meta,forc_meta     ! model forcing metadata
  USE data_struc,only:forcFileInfo,data_step  ! info on model forcing file
  USE data_struc,only:type_hru                ! data structure for categorical data

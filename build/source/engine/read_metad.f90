@@ -40,10 +40,10 @@ contains
  ! public subroutine read_metad: populate metadata structures
  ! ********************************************************************************************************
  subroutine read_metad(err,message)
- USE snow_fileManager,only:SETNGS_PATH                ! path for metadata files
- USE snow_fileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE         ! name of metadata files (global)
- USE snow_fileManager,only:META_LOCALPARAM,META_LOCALMVAR,META_LOCALINDEX   ! name of metadata files (local column)
- USE snow_fileManager,only:META_BASINPARAM,META_BASINMVAR                   ! name of metadata files (basin-average)
+ USE summaFileManager,only:SETNGS_PATH                ! path for metadata files
+ USE summaFileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE         ! name of metadata files (global)
+ USE summaFileManager,only:META_LOCALPARAM,META_LOCALMVAR,META_LOCALINDEX   ! name of metadata files (local column)
+ USE summaFileManager,only:META_BASINPARAM,META_BASINMVAR                   ! name of metadata files (basin-average)
  USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta            ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta                      ! metadata structures

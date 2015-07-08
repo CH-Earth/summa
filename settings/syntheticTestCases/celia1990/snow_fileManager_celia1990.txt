@@ -1,4 +1,4 @@
-SNOW_FILEMANAGER_V1.4
+SUMMA_FILE_MANAGER_V1.0
 ! Comment line:
 ! *** paths (must be in single quotes)
 '/home/mclark/test_summa/summa/settings/'                                          ! SETNGS_PATH

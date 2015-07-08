@@ -31,7 +31,7 @@ contains
  ! ************************************************************************************************
  subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
- USE snow_fileManager,only:SETNGS_PATH     ! path for metadata files
+ USE summaFileManager,only:SETNGS_PATH     ! path for metadata files
  USE ascii_util_module,only:file_open      ! open ascii file
  USE ascii_util_module,only:split_line     ! extract the list of variable names from the character string
  USE data_struc,only:var_info              ! data type for metadata

@@ -1159,7 +1159,7 @@ contains
  ! access named variables defining elements in the data structures
  USE var_lookup,only:iLookMVAR,iLookTIME    ! named variables for structure elements
  ! access file paths
- USE snow_fileManager,only:OUTPUT_PATH,OUTPUT_PREFIX      ! define output file
+ USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX      ! define output file
  ! access desired modules
  USE ascii_util_module,only:file_open       ! open file
  implicit none
