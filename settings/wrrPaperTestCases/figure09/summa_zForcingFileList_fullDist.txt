@@ -1,0 +1,14 @@
+! ****************************************************************************************************
+! List of forcing data files used in each HRU
+!
+! This file includes two "words" per line:
+!  (1) The HRU index (must match the indices in the local attributes file)
+!  (2) The name of the descriptor file assigned to each HRU index
+!        --> filename must be in single quotes
+! ****************************************************************************************************
+    1002    'wrrPaperTestCases/figure09/summa_zForcingInfo_cluster1002.txt'
+    1003    'wrrPaperTestCases/figure09/summa_zForcingInfo_cluster1003.txt'
+    1004    'wrrPaperTestCases/figure09/summa_zForcingInfo_cluster1004.txt'
+    1005    'wrrPaperTestCases/figure09/summa_zForcingInfo_cluster1005.txt'
+    1006    'wrrPaperTestCases/figure09/summa_zForcingInfo_cluster1006.txt'
+    2001    'wrrPaperTestCases/figure09/summa_zForcingInfo_cluster2001.txt'

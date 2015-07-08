@@ -1,0 +1,9 @@
+! ****************************************************************************************************
+! List of forcing data files used in each HRU
+!
+! This file includes two "words" per line:
+!  (1) The HRU index (must match the indices in the local attributes file)
+!  (2) The name of the descriptor file assigned to each HRU index
+!        --> filename must be in single quotes
+! ****************************************************************************************************
+    1001   'wrrPaperTestCases/figure09/summa_zForcingInfo_riparianAspen.txt'

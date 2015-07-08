@@ -1,0 +1,19 @@
+SNOW_FILEMANAGER_V1.1
+! Comment line:
+! *** paths (must be in single quotes)
+'/home/mclark/FUSE_SNOW/settings/'             ! SETNGS_PATH
+'/home/mclark/FUSE_SNOW/input/vielsalm/'       ! INPUT_PATH
+'/home/mclark/FUSE_SNOW/output/vielsalm/'      ! OUTPUT_PATH
+! *** control files (must be in single quotes)
+'vielsalm/summa_zDecisions_vielsalm.txt'      ! M_DECISIONS     = definition of model decisions
+'summa_zTimeMeta.txt'                         ! META_TIME       = metadata for time
+'summa_zSiteMeta.txt'                         ! META_SITE       = metadata for site characteristics
+'summa_zForceMeta.txt'                        ! META_FORCE      = metadata for model forcing variables
+'summa_zParamMeta.txt'                        ! META_PARAM      = metadata for model parameters
+'summa_zModelVarMeta.txt'                     ! META_MVAR       = metadata for model variables
+'summa_zModelIndexMeta.txt'                   ! META_INDEX      = metadata for model indices
+'vielsalm/summa_zParamInfo_vielsalm.txt'      ! PARAMETER_INFO  = site characteristics, and default values and constraints for model parameters
+'vielsalm/summa_zForcingInfo_vielsalm.txt'    ! FORCEFILE_DESC  = description of forcing data file
+'vielsalm/summa_zInitialCond_vielsalm.txt'    ! MODEL_INITCOND  = model initial conditions
+'vielsalm/summa_zParamTrial_vielsalm.txt'     ! PARAMETER_TRIAL = trial values for model parameters
+'vielsalm'                                   ! OUTPUT_PREFIX   = prefix for the output file

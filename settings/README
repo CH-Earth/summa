@@ -11,66 +11,66 @@
 # * PART 1: TEST CASES BASED ON SYNTHETIC OR LAB DATA
 
 # Synthetic test case 1: Simulations from Celia (WRR 1990)
-./summa.exe _testSumma ../settings/syntheticTestCases/celia1990/snow_fileManager_celia1990.txt
+./summa.exe _testSumma ../settings/syntheticTestCases/celia1990/summa_fileManager_celia1990.txt
 
 # Synthetic test case 2: Simulations from Miller (WRR 1998)
-./summa.exe _testSumma ../settings/syntheticTestCases/miller1998/snow_fileManager_millerClay.txt
-./summa.exe _testSumma ../settings/syntheticTestCases/miller1998/snow_fileManager_millerLoam.txt
-./summa.exe _testSumma ../settings/syntheticTestCases/miller1998/snow_fileManager_millerSand.txt
+./summa.exe _testSumma ../settings/syntheticTestCases/miller1998/summa_fileManager_millerClay.txt
+./summa.exe _testSumma ../settings/syntheticTestCases/miller1998/summa_fileManager_millerLoam.txt
+./summa.exe _testSumma ../settings/syntheticTestCases/miller1998/summa_fileManager_millerSand.txt
 
 # Synthetic test case 3: Simulations of the lab experiment of Mizoguchi (1990)
 #                         as described by Hansson et al. (VZJ 2005)
-./summa.exe _testSumma ../settings/syntheticTestCases/mizoguchi1990/snow_fileManager_mizoguchi.txt
+./summa.exe _testSumma ../settings/syntheticTestCases/mizoguchi1990/summa_fileManager_mizoguchi.txt
 
 # Synthetic test case 4: Simulations of rain on a sloping hillslope from Wigmosta (WRR 1999)
-./summa.exe _testSumma ../settings/syntheticTestCases/wigmosta1999/snow_fileManager-exp1.txt
-./summa.exe _testSumma ../settings/syntheticTestCases/wigmosta1999/snow_fileManager-exp2.txt
+./summa.exe _testSumma ../settings/syntheticTestCases/wigmosta1999/summa_fileManager-exp1.txt
+./summa.exe _testSumma ../settings/syntheticTestCases/wigmosta1999/summa_fileManager-exp2.txt
 
 # End of test cases based on synthetic/lab data
 # *************************************************************************************************
 # * PART 2: TEST CASES BASED ON FIELD DATA, AS DESCRIBED BY CLARK ET AL. (WRR 2015B)
 
 # Figure 1: Radiation transmission through an Aspen stand, Reynolds Mountain East
-./summa.exe _riparianAspenBeersLaw        ../settings/wrrPaperTestCases/figure01/snow_fileManager_riparianAspenBeersLaw.txt
-./summa.exe _riparianAspenNLscatter       ../settings/wrrPaperTestCases/figure01/snow_fileManager_riparianAspenNLscatter.txt
-./summa.exe _riparianAspenUEB2stream      ../settings/wrrPaperTestCases/figure01/snow_fileManager_riparianAspenUEB2stream.txt
-./summa.exe _riparianAspenCLM2stream      ../settings/wrrPaperTestCases/figure01/snow_fileManager_riparianAspenCLM2stream.txt
-./summa.exe _riparianAspenVegParamPerturb ../settings/wrrPaperTestCases/figure01/snow_fileManager_riparianAspenVegParamPerturb.txt
+./summa.exe _riparianAspenBeersLaw        ../settings/wrrPaperTestCases/figure01/summa_fileManager_riparianAspenBeersLaw.txt
+./summa.exe _riparianAspenNLscatter       ../settings/wrrPaperTestCases/figure01/summa_fileManager_riparianAspenNLscatter.txt
+./summa.exe _riparianAspenUEB2stream      ../settings/wrrPaperTestCases/figure01/summa_fileManager_riparianAspenUEB2stream.txt
+./summa.exe _riparianAspenCLM2stream      ../settings/wrrPaperTestCases/figure01/summa_fileManager_riparianAspenCLM2stream.txt
+./summa.exe _riparianAspenVegParamPerturb ../settings/wrrPaperTestCases/figure01/summa_fileManager_riparianAspenVegParamPerturb.txt
 
 # Figure 2: Wind attenuation through an Aspen stand, Reynolds Mountain East
-./summa.exe _riparianAspenWindParamPerturb ../settings/wrrPaperTestCases/figure02/snow_fileManager_riparianAspenWindParamPerturb.txt
+./summa.exe _riparianAspenWindParamPerturb ../settings/wrrPaperTestCases/figure02/summa_fileManager_riparianAspenWindParamPerturb.txt
 
 # Figure 3: Impacts of canopy wind profile on surface fluxes, surface temperature, and snow melt (Aspen stand, Reynolds Mountain East)
-./summa.exe _riparianAspenExpWindProfile ../settings/wrrPaperTestCases/figure03/snow_fileManager_riparianAspenExpWindProfile.txt
+./summa.exe _riparianAspenExpWindProfile ../settings/wrrPaperTestCases/figure03/summa_fileManager_riparianAspenExpWindProfile.txt
 
 # Figure 4: Form of different interception capacity parameterizations
 # (no model simulations conducted/needed)
 
 # Figure 5: Snow interception at Umpqua
-./summa.exe _hedpom9697 ../settings/wrrPaperTestCases/figure05/snow_fileManager_9697_hedpom.txt
-./summa.exe _hedpom9798 ../settings/wrrPaperTestCases/figure05/snow_fileManager_9798_hedpom.txt
-./summa.exe _storck9697 ../settings/wrrPaperTestCases/figure05/snow_fileManager_9697_storck.txt
-./summa.exe _storck9798 ../settings/wrrPaperTestCases/figure05/snow_fileManager_9798_storck.txt
+./summa.exe _hedpom9697 ../settings/wrrPaperTestCases/figure05/summa_fileManager_9697_hedpom.txt
+./summa.exe _hedpom9798 ../settings/wrrPaperTestCases/figure05/summa_fileManager_9798_hedpom.txt
+./summa.exe _storck9697 ../settings/wrrPaperTestCases/figure05/summa_fileManager_9697_storck.txt
+./summa.exe _storck9798 ../settings/wrrPaperTestCases/figure05/summa_fileManager_9798_storck.txt
 
 # Figure 6: Sensitivity to snow albedo representations at Reynolds Mountain East and Senator Beck
-./summa.exe _reynoldsConstantDecayRate ../settings/wrrPaperTestCases/figure06/snow_fileManager_reynoldsConstantDecayRate.txt
-./summa.exe _reynoldsVariableDecayRate ../settings/wrrPaperTestCases/figure06/snow_fileManager_reynoldsVariableDecayRate.txt
-./summa.exe _senatorConstantDecayRate  ../settings/wrrPaperTestCases/figure06/snow_fileManager_senatorConstantDecayRate.txt
-./summa.exe _senatorVariableDecayRate  ../settings/wrrPaperTestCases/figure06/snow_fileManager_senatorVariableDecayRate.txt
+./summa.exe _reynoldsConstantDecayRate ../settings/wrrPaperTestCases/figure06/summa_fileManager_reynoldsConstantDecayRate.txt
+./summa.exe _reynoldsVariableDecayRate ../settings/wrrPaperTestCases/figure06/summa_fileManager_reynoldsVariableDecayRate.txt
+./summa.exe _senatorConstantDecayRate  ../settings/wrrPaperTestCases/figure06/summa_fileManager_senatorConstantDecayRate.txt
+./summa.exe _senatorVariableDecayRate  ../settings/wrrPaperTestCases/figure06/summa_fileManager_senatorVariableDecayRate.txt
 
 # Figure 7: Sensitivity of ET to the stomatal resistance parameterization (Aspen stand at Reynolds Mountain East)
-./summa.exe _jarvis           ../settings/wrrPaperTestCases/figure07/snow_fileManager_riparianAspenJarvis.txt
-./summa.exe _ballBerry        ../settings/wrrPaperTestCases/figure07/snow_fileManager_riparianAspenBallBerry.txt
-./summa.exe _simpleResistance ../settings/wrrPaperTestCases/figure07/snow_fileManager_riparianAspenSimpleResistance.txt
+./summa.exe _jarvis           ../settings/wrrPaperTestCases/figure07/summa_fileManager_riparianAspenJarvis.txt
+./summa.exe _ballBerry        ../settings/wrrPaperTestCases/figure07/summa_fileManager_riparianAspenBallBerry.txt
+./summa.exe _simpleResistance ../settings/wrrPaperTestCases/figure07/summa_fileManager_riparianAspenSimpleResistance.txt
 
 # Figure 8: Sensitivity of ET to the root distribution and the baseflow parameterization (Aspen stand at Reynolds Mountain East)
 #  (NOTE: baseflow simulations conducted as part of Figure 9)
-./summa.exe _perturbRoots ../settings/wrrPaperTestCases/figure08/snow_fileManager_riparianAspenPerturbRoots.txt
+./summa.exe _perturbRoots ../settings/wrrPaperTestCases/figure08/summa_fileManager_riparianAspenPerturbRoots.txt
 
 # Figure 9: Simulations of runoff using different baseflow parameterizations (Reynolds Mountain East)
-./summa.exe _1dRichards          ../settings/wrrPaperTestCases/figure09/snow_fileManager_1dRichards.txt 
-./summa.exe _lumpedTopmodel      ../settings/wrrPaperTestCases/figure09/snow_fileManager_lumpedTopmodel.txt 
-./summa.exe _distributedTopmodel ../settings/wrrPaperTestCases/figure09/snow_fileManager_distributedTopmodel.txt 
+./summa.exe _1dRichards          ../settings/wrrPaperTestCases/figure09/summa_fileManager_1dRichards.txt 
+./summa.exe _lumpedTopmodel      ../settings/wrrPaperTestCases/figure09/summa_fileManager_lumpedTopmodel.txt 
+./summa.exe _distributedTopmodel ../settings/wrrPaperTestCases/figure09/summa_fileManager_distributedTopmodel.txt 
 
 # End of test cases based on field data
 # *************************************************************************************************
