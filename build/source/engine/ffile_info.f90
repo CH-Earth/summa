@@ -193,11 +193,10 @@ contains
  end do  ! (looping through files describing each HRU)
  ! identify the first HRU to use a given data file
  do iHRU=1,nHRU
+  forcFileInfo(iHRU)%ixFirstHRU = 0
   do jHRU=1,iHRU-1
    if(trim(forcFileInfo(iHRU)%filenmData) == trim(forcFileInfo(jHRU)%filenmData))then
     forcFileInfo(iHRU)%ixFirstHRU = jHRU  ! index of first HRU to share the same data
-   else
-    forcFileInfo(iHRU)%ixFirstHRU = 0
    endif
   end do
  end do
