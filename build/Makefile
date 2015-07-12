@@ -152,7 +152,7 @@ SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = gfortran-mp-4.8
+FC  =
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
