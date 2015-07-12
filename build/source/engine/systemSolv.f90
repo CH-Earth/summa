@@ -1093,7 +1093,7 @@ contains
 
  ! check the mass balance for the soil domain
  ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_watbal
- if(checkMassBalance)then   
+ if(checkMassBalance)then
   balance0 = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
   balance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
   vertFlux = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt  ! m s-1 --> m
@@ -2709,7 +2709,7 @@ contains
      print*, '** test banded analytical Jacobian:'
      write(*,'(a4,1x,100(i11,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
      do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e11.5,1x))') iLayer, aJac_test(iLayer,iJac1:iJac2); end do
-     pause
+     !pause
 
     endif  ! (if desire to test band-diagonal matric
 
