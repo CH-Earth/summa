@@ -489,8 +489,8 @@ contains
  ! ********************
 
  !print*, 'kl, ku, nBands = ', kl, ku, nBands
- !print*, 'ixSup3, ixSup2, ixSup1 = ', ixSup3, ixSup2, ixSup1
- !print*, 'ixDiag, ixSub1, ixSub2 = ', ixDiag, ixSub1, ixSub2
+ !print*, 'ixSup3, ixSup2, ixSup1, ixDiag = ', ixSup3, ixSup2, ixSup1, ixDiag
+ !print*, 'ixSub1, ixSub2, ixSub3         = ', ixSub1, ixSub2, ixSub3
  !pause
 
  ! initialize the first flux call
@@ -1070,12 +1070,12 @@ contains
  ! ----------------------------------------------------
 
  ! update temperatures (ensure new temperature is consistent with the fluxes)
- stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVec0(ixSnowSoilNrg)*dt + rAdd(ixSnowSoilNrg))/sMul(ixSnowSoilNrg)
+ stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVec0(ixSnowSoilNrg)*dt + real(rAdd(ixSnowSoilNrg), dp))/real(sMul(ixSnowSoilNrg), dp)
 
  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
  ! NOTE: for soil water balance is constrained within the iteration loop
  if(nSnow>0)&
- stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVec0(ixSnowOnlyWat)*dt + rAdd(ixSnowOnlyWat))
+ stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVec0(ixSnowOnlyWat)*dt + real(rAdd(ixSnowOnlyWat), dp))
 
  ! compute total baseflow from the soil zone (needed for mass balance checks)
  scalarSoilBaseflow = sum(mLayerBaseflow)
@@ -1597,7 +1597,7 @@ contains
 
   ! compute the soil water balance error (m)
   ! NOTE: declared in the main routine so accessible in all internal routines
-  soilWaterBalanceError = abs( sum(rVec(ixSoilOnlyMat)*mLayerDepth(nSnow+1:nSoil)) )
+  soilWaterBalanceError = abs( sum(real(rVec(ixSoilOnlyMat), dp)*mLayerDepth(nSnow+1:nSoil)) )
 
   !if(printFlag)then
   ! write(*,'(a,1x,10(e20.10,1x))') 'vThetaInit(1:nSoil)  = ', vThetaInit(1:nSoil)
@@ -1973,7 +1973,7 @@ contains
    end do
   else
    ! define forcing for the soil domain
-   scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water + &  ! liquid flux from the canopy (m s-1)
+   scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
                          + (scalarSfcMeltPond/dt)/iden_water  ! melt of the snow without a layer (m s-1)
   endif
   !if(printFlag)then
@@ -2734,7 +2734,7 @@ contains
 
   ! form the rhs matrix
   ! NOTE: scale the residual vector
-  rhs(1:nState,1) = -rVec(1:nState)/fScale(1:nState)
+  rhs(1:nState,1) = -real(rVec(1:nState), dp)/fScale(1:nState)
 
   ! --------------------------------------------------------------
   ! * compute the gradient of the function vector
@@ -3031,16 +3031,16 @@ contains
   ! check convergence based on the residuals for energy (J m-3)
   if(computeVegFlux)then
    !canopy_max = abs(rVec(ixVegWat))
-   energy_max = maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
-   energy_loc = maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
+   energy_max = real(maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) ), dp)
+   energy_loc =      maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
   else
-   energy_max = maxval(abs( rVec(ixSnowSoilNrg) ) )
-   energy_loc = maxloc(abs( rVec(ixSnowSoilNrg) ) )
+   energy_max = real(maxval(abs( rVec(ixSnowSoilNrg) ) ), dp)
+   energy_loc =      maxloc(abs( rVec(ixSnowSoilNrg) ) )
   endif
 
   ! check convergence based on the residuals for volumetric liquid water content (-)
-  liquid_max = maxval(abs( rVec(ixSnowSoilWat) ) )
-  liquid_loc = maxloc(abs( rVec(ixSnowSoilWat) ) )
+  liquid_max = real(maxval(abs( rVec(ixSnowSoilWat) ) ), dp)
+  liquid_loc =      maxloc(abs( rVec(ixSnowSoilWat) ) )
 
   ! check convergence based on the iteration increment for matric head
   ! NOTE: scale by matric head to avoid unnecessairly tight convergence when there is no water
