@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module read_pinit_module
 USE nrtype
 implicit none
@@ -5,12 +25,13 @@ private
 public::read_pinit
 contains
 
+
  ! ************************************************************************************************
- ! (1) new subroutine: read default model parameter values and constraints
+ ! public subroutine read_pinit: read default model parameter values and constraints
  ! ************************************************************************************************
  subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
- USE snow_fileManager,only:SETNGS_PATH     ! path for metadata files
+ USE summaFileManager,only:SETNGS_PATH     ! path for metadata files
  USE ascii_util_module,only:file_open      ! open ascii file
  USE ascii_util_module,only:split_line     ! extract the list of variable names from the character string
  USE data_struc,only:var_info              ! data type for metadata
@@ -31,8 +52,8 @@ contains
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                         :: iline          ! loop through lines in the file 
- integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file 
+ integer(i4b)                         :: iline          ! loop through lines in the file
+ integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file
  character(LEN=256)                   :: temp           ! single line of information
  ! define local variables for the default model parameters
  integer(i4b)                         :: iend           ! check for the end of the file
@@ -73,11 +94,11 @@ contains
   ! (read through comment lines)
   read(unt,'(a)',iostat=iend) temp  ! read a line of data
   if(iend/=0)then; err=20; message=trim(message)//'got to end of file before found the format code'; return; endif
-  if (temp(1:1)=='!')cycle 
+  if (temp(1:1)=='!')cycle
   ! (read in format string -- assume that the first non-comment line is the format code)
   read(temp,*)ffmt  ! read in format string
   exit
-  if(iLine==maxLines)then; err=20; message=trim(message)//'problem finding format code -- no non-comment line after start of parameter definitions'; return; endif 
+  if(iLine==maxLines)then; err=20; message=trim(message)//'problem finding format code -- no non-comment line after start of parameter definitions'; return; endif
  end do ! looping through lines
  ! ---------------------------------------------------------------------------------------------
  ! read in default values of model parameters, and parameter constraints
@@ -103,6 +124,8 @@ contains
    endif
    ! (put data in the structure)
    parFallback(ivar)=parTemp
+   !write(*,'(a,1x,i4,1x,a30,1x,f20.10,1x)') 'ivar, trim(varname), parFallback(ivar)%default_val = ', &
+   !                                          ivar, trim(varname), parFallback(ivar)%default_val
   else
    err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return
   endif
@@ -118,5 +141,6 @@ contains
  ! close file unit
  close(unt)
  end subroutine read_pinit
+
 
 end module read_pinit_module

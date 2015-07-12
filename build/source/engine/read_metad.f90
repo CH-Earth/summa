@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module read_metad_module
 USE nrtype
 implicit none
@@ -15,15 +35,15 @@ integer(i4b),parameter :: ix_bpar =1008
 integer(i4b),parameter :: ix_bvar =1009
 contains
 
- ! ************************************************************************************************
- ! (1) new subroutine: populate metadata structures
- ! ************************************************************************************************
+
+ ! ********************************************************************************************************
+ ! public subroutine read_metad: populate metadata structures
+ ! ********************************************************************************************************
  subroutine read_metad(err,message)
- ! used to populate metadata structures with metadata
- USE snow_fileManager,only:SETNGS_PATH                ! path for metadata files
- USE snow_fileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE         ! name of metadata files (global)
- USE snow_fileManager,only:META_LOCALPARAM,META_LOCALMVAR,META_LOCALINDEX   ! name of metadata files (local column)
- USE snow_fileManager,only:META_BASINPARAM,META_BASINMVAR                   ! name of metadata files (basin-average)
+ USE summaFileManager,only:SETNGS_PATH                ! path for metadata files
+ USE summaFileManager,only:META_TIME,META_ATTR,META_TYPE,META_FORCE         ! name of metadata files (global)
+ USE summaFileManager,only:META_LOCALPARAM,META_LOCALMVAR,META_LOCALINDEX   ! name of metadata files (local column)
+ USE summaFileManager,only:META_BASINPARAM,META_BASINMVAR                   ! name of metadata files (basin-average)
  USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta            ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta                      ! metadata structures
@@ -65,11 +85,10 @@ contains
  end subroutine read_metad
 
 
- ! ************************************************************************************************
- ! (1) new subroutine: read metadata from a file
- ! ************************************************************************************************
+ ! ********************************************************************************************************
+ ! private subroutine v_metadata: read metadata from a file and populate the appropriate metadata structure
+ ! ********************************************************************************************************
  subroutine v_metadata(infile,ivar_lookup,meta_vec,err,message)
- ! used to read metadata from an input file and populate the appropriate metadata structure
  USE data_struc,only:var_info                                   ! metadata structure
  USE ascii_util_module,only:file_open
  ! identify indices of named variables
@@ -94,8 +113,8 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                         :: iline          ! loop through lines in the file 
- integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file 
+ integer(i4b)                         :: iline          ! loop through lines in the file
+ integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file
  character(LEN=256)                   :: temp           ! single lime of information
  integer(i4b)                         :: iend           ! check for the end of the file
  character(LEN=256)                   :: ffmt           ! file format
@@ -107,7 +126,7 @@ contains
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- ! get to the start of the variable descriptions 
+ ! get to the start of the variable descriptions
  do iline=1,maxLines
   read(unt,'(a)',iostat=iend)temp; if (iend/=0)exit    ! read line of data
   if (temp(1:1)/='!') exit  ! assume first line not comment is format code
@@ -146,7 +165,7 @@ contains
   ! check if index is within range
   if(ivar>size(meta_vec))then; err=50; message=trim(message)//"variableExceedsVectorSize[var="//trim(metaTemp%varname)//"]"; return; endif
   ! put data into the metadata vector
-  meta_vec(ivar) = metaTemp 
+  meta_vec(ivar) = metaTemp
  enddo  ! looping through lines in the file
  ! check that all elements are populated
  if(any(meta_vec(:)%varname==''))then
@@ -158,5 +177,6 @@ contains
  ! close file unit
  close(unt)
  end subroutine v_metadata
+
 
 end module read_metad_module

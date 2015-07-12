@@ -1,26 +1,48 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module read_force_module
 implicit none
 private
 public::read_force
 contains
 
+
+ ! ************************************************************************************************
+ ! public subroutine read_force: read in forcing data
+ ! ************************************************************************************************
  subroutine read_force(istep,iHRU,err,message)
- ! used to read in initial conditions
  USE nrtype                                            ! variable types, etc.
- USE snow_fileManager,only:INPUT_PATH                  ! path of the forcing data file
+ USE summaFileManager,only:INPUT_PATH                  ! path of the forcing data file
  USE time_utils_module,only:extractTime,compJulday     ! extract time info from units string
  USE multiconst,only:secprday                          ! number of seconds in a day
  USE data_struc,only:forcFileInfo                      ! forcing file info
  USE data_struc,only:data_step                         ! length of the data step (s)
  USE data_struc,only:dJulianStart                      ! julian day of start time of simulation
- USE data_struc,only:dJulianFinsh                      ! julian day of end time of simulation
  USE data_struc,only:refTime,refJulday                 ! reference time
  USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
  USE data_struc,only:yearLength                        ! number of days in the current year
  USE data_struc,only:time_meta,forc_meta               ! metadata structures
  USE data_struc,only:time_data,time_hru                ! time information
  USE data_struc,only:forc_data,forc_hru                ! forcing data
- USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements 
+ USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
@@ -55,7 +77,7 @@ contains
  ! early return: check if we have the data already
  ! NOTE: scalar data structures are pointing to the HRU data structures
  if(forcFileInfo(iHRU)%ixFirstHRU > 0)then
-  time_data = time_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information  
+  time_data = time_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information
   forc_data = forc_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! forcing data
   return
  endif
@@ -151,7 +173,7 @@ contains
  ! **********************************************************************************************
  ! ***** part 2: read data
  ! **********************************************************************************************
- 
+
  ! initialize time and forcing data structures
  time_data%var(:) = imiss
  forc_data%var(:) = amiss
@@ -225,11 +247,12 @@ contains
                                          time_data%var(iLookTIME%imin),           & ! minute
                                          fracJulday,                              & ! fractional julian day for the current time step
                                          yearLength                                 ! number of days in the current year
-  pause ' checking time'
+  !pause ' checking time'
  endif
  ! deallocate cline
  deallocate(cline,stat=err)
  if (err/=0) then; err=10; message=trim(message)//"problemDeallocate"; return; endif
  end subroutine read_force
+
 
 end module read_force_module

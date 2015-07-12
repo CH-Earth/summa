@@ -1,23 +1,46 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module snwDensify_module
 USE nrtype
 USE multiconst,only:&
                     Tfreeze,    &     ! freezing point of pure water (K)
                     iden_ice,   &     ! intrinsic density of ice (kg m-3)
                     iden_water        ! intrinsic density of liquid water (kg m-3)
+! access the number of snow layers
+USE data_struc,only:nSnow             ! number of snow layers
 implicit none
 private
 public::snwDensify
 contains
 
  ! ************************************************************************************************
- ! new subroutine: compute change in snow density over the time step
+ ! public subroutine snwDensify: compute change in snow density over the time step
  ! ************************************************************************************************
  subroutine snwDensify(&
 
                        ! intent(in): variables
                        dt,                             & ! intent(in) time step (s)
                        mLayerTemp,                     & ! intent(in): temperature of each layer (K)
-                       mLayerVolFracIce,               & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerMeltFreeze,               & ! intent(in): volumnetric melt in each layer (kg m-3)
+                       scalarSnowSublimation,          & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
 
                        ! intent(in): parameters
                        densScalGrowth,                 & ! intent(in): density scaling factor for grain growth (kg-1 m3)
@@ -27,7 +50,7 @@ contains
                        tempScalOvrbdn,                 & ! intent(in): temperature scaling factor for overburden pressure (K-1)
                        base_visc,                      & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
 
-                       ! intent(inout): state variables      
+                       ! intent(inout): state variables
                        mLayerDepth,                    & ! intent(inout): depth of each layer (m)
                        mLayerVolFracLiqNew,            & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
                        mLayerVolFracIceNew,            & ! intent(inout):  volumetric fraction of ice after itertations (-)
@@ -40,7 +63,8 @@ contains
  ! intent(in): variables
  real(dp),intent(in)                 :: dt                       ! time step (seconds)
  real(dp),intent(in)                 :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
- real(dp),intent(in)                 :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the start of the sub-step (-)
+ real(dp),intent(in)                 :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
+ real(dp),intent(in)                 :: scalarSnowSublimation    ! sublimation from the snow surface (kg m-2 s-1)
  ! intent(in): parameters
  real(dp),intent(in)                 :: densScalGrowth           ! density scaling factor for grain growth (kg-1 m3)
  real(dp),intent(in)                 :: tempScalGrowth           ! temperature scaling factor for grain growth (K-1)
@@ -57,10 +81,8 @@ contains
  character(*),intent(out)            :: message                  ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! define local variables
- character(len=256)                  :: cmessage                 ! error message for downwind routine
  real(dp),parameter                  :: dt_toler=0.1_dp          ! fraction of compaction allowed in a time step (-)
  integer(i4b)                        :: iSnow                    ! index of snow layers
- integer(i4b)                        :: nSnow                    ! number of snow layers
  real(dp)                            :: chi1,chi2,chi3,chi4,chi5 ! multipliers in the densification algorithm (-)
  real(dp)                            :: halfWeight               ! half of the weight of the current snow layer (kg m-2)
  real(dp)                            :: weightSnow               ! total weight of snow above the current snow layer (kg m-2)
@@ -70,15 +92,13 @@ contains
  real(dp)                            :: massIceOld               ! mass of ice in the snow layer (kg m-2)
  real(dp)                            :: massLiqOld               ! mass of liquid water in the snow layer (kg m-2)
  real(dp)                            :: scalarDepthNew           ! updated layer depth (m)
+ real(dp)                            :: volFracIceLoss           ! volumetric fraction of ice lost due to melt and sublimation (-)
  real(dp),parameter                  :: snwden_min=100._dp       ! minimum snow density for reducing metamorphism rate (kg m-3)
  real(dp),parameter                  :: snwDensityMax=550._dp    ! maximum snow density for collapse under melt (kg m-3)
  real(dp),parameter                  :: wetSnowThresh=0.01_dp    ! threshold to discriminate between "wet" and "dry" snow
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="snwDensify/"
-
- ! identify the number of snow layers
- nSnow = size(mLayerTemp)
 
  ! NOTE: still need to process the case of "snow without a layer"
  if(nSnow==0)return
@@ -88,6 +108,8 @@ contains
 
  ! loop through snow layers
  do iSnow=1,nSnow
+  ! print starting density
+  !write(*,'(a,1x,i4,1x,f9.3)') 'b4 compact: iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
   ! save mass of liquid water and ice (mass does not change)
   massIceOld = iden_ice*mLayerVolFracIceNew(iSnow)*mLayerDepth(iSnow)   ! (kg m-2)
   massLiqOld = iden_water*mLayerVolFracLiqNew(iSnow)*mLayerDepth(iSnow) ! (kg m-2)
@@ -117,7 +139,15 @@ contains
   ! *** compute the compaction rate associated with snow melt (s-1)
   ! NOTE: loss of ice due to snowmelt is implicit, so can be updated directly
   if(iden_ice*mLayerVolFracIceNew(iSnow) < snwDensityMax)then ! only collapse layers if below a critical density
-   scalarDepthNew = min(mLayerVolFracIceNew(iSnow)/mLayerVolFracIce(iSnow), 1._dp)*mLayerDepth(iSnow)
+   ! (compute volumetric losses of ice due to melt and sublimation)
+   if(iSnow==1)then  ! if top snow layer include sublimation and melt
+    volFracIceLoss = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice - dt*(scalarSnowSublimation/mLayerDepth(iSnow))/iden_ice )
+   else
+    volFracIceLoss = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
+   endif
+   ! (adjust snow depth to account for cavitation)
+   scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
+   !print*, 'volFracIceLoss = ', volFracIceLoss
   else
    scalarDepthNew = mLayerDepth(iSnow)
   endif
@@ -128,12 +158,14 @@ contains
   ! check that depth is reasonable
   if(mLayerDepth(iSnow) < 0._dp)then
    write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, dt, density, massIceOld, massLiqOld = ', iSnow, dt, mLayerVolFracIceNew(iSnow)*iden_ice, massIceOld, massLiqOld
-   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
-                                         iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerVolFracIce(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
+   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
+                                         iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
   endif
   ! update volumetric ice and liquid water content
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
   mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
+  !write(*,'(a,1x,i4,1x,f9.3)') 'after compact: iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
+  !if(mLayerMeltFreeze(iSnow) > 20._dp) pause 'meaningful melt'
  end do  ! looping through snow layers
 
  ! check depth
@@ -156,5 +188,6 @@ contains
  endif
 
  end subroutine snwDensify
+
 
 end module snwDensify_module

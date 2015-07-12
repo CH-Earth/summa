@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module snow_utils_module
 USE nrtype
 implicit none
@@ -8,8 +28,9 @@ public::dFracLiq_dTk
 public::tcond_snow
 contains
 
+
  ! ***********************************************************************************************************
- ! new function: compute fraction of liquid water
+ ! public function fracliquid: compute fraction of liquid water
  ! ***********************************************************************************************************
  function fracliquid(Tk,fc_param)
  USE multiconst,only:Tfreeze
@@ -23,7 +44,7 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new function: invert the fraction of liquid water function
+ ! public function templiquid: invert the fraction of liquid water function
  ! ***********************************************************************************************************
  function templiquid(fracliquid,fc_param)
  USE multiconst,only:Tfreeze
@@ -37,7 +58,7 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new function: differentiate the freezing curve
+ ! public function dFracLiq_dTk: differentiate the freezing curve
  ! ***********************************************************************************************************
  function dFracLiq_dTk(Tk,fc_param)
  USE multiconst,only:Tfreeze
@@ -58,7 +79,7 @@ contains
 
 
  ! ***********************************************************************************************************
- ! new subroutine: compute thermal conductivity of snow
+ ! public subroutine tcond_snow: compute thermal conductivity of snow
  ! ***********************************************************************************************************
  subroutine tcond_snow(BulkDenIce,thermlcond,err,message)
  USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
@@ -71,9 +92,9 @@ contains
  integer(i4b),intent(out) :: err            ! error code
  character(*),intent(out) :: message        ! error message
  ! initialize error control
- err=0; message="f-tcond_snow/"
+ err=0; message="tcond_snow/"
  ! compute thermal conductivity of snow
- select case(model_decisions(iLookDECISIONS%thermlcond)%iDecision)
+ select case(model_decisions(iLookDECISIONS%thCondSnow)%iDecision)
   case(Yen1965);      thermlcond = 3.217d-6 * BulkDenIce**2._dp               ! Yen (1965)
   case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2._dp + 7.4d-2      ! Mellor (1977)
   case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._dp)) &

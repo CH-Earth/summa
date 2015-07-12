@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2015 NCAR/RAL
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module def_output_module
 USE nrtype
 USE netcdf
@@ -9,7 +29,7 @@ character(len=32),parameter :: hru_DimName='hru'                       ! dimensi
 character(len=32),parameter :: scalar_DimName='scalar'                 ! dimension name for scalar variables
 character(len=32),parameter :: wLength_dimName='spectral_bands'        ! dimension name for the number of spectral bands
 character(len=32),parameter :: timestep_DimName='time'                 ! dimension name for the time step
-character(len=32),parameter :: routing_DimName='timeDelayRouting'      ! dimension name for thetime delay routing vectors     
+character(len=32),parameter :: routing_DimName='timeDelayRouting'      ! dimension name for thetime delay routing vectors
 character(len=32),parameter :: midSnowAndTime_DimName='midSnowAndTime' ! dimension name for midSnow-time
 character(len=32),parameter :: midSoilAndTime_DimName='midSoilAndTime' ! dimension name for midSoil-time
 character(len=32),parameter :: midTotoAndTime_DimName='midTotoAndTime' ! dimension name for midToto-time
@@ -18,8 +38,9 @@ character(len=32),parameter :: ifcSoilAndTime_DimName='ifcSoilAndTime' ! dimensi
 character(len=32),parameter :: ifcTotoAndTime_DimName='ifcTotoAndTime' ! dimension name for ifcToto-time
 contains
 
+
  ! **********************************************************************************************************
- ! new subroutine: define model output file
+ ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
  subroutine def_output(nHRU,infile,err,message)
  USE data_struc,only:forc_meta,attr_meta,type_meta  ! metadata structures
@@ -140,8 +161,9 @@ contains
 
  end subroutine def_output
 
+
  ! **********************************************************************************************************
- ! new subroutine: initial create
+ ! private subroutine ini_create: initial create
  ! **********************************************************************************************************
  subroutine ini_create(nHRU,infile,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
@@ -230,7 +252,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! new subroutine: put global attributes as character string
+ ! private subroutine put_attrib: put global attributes as character string
  ! **********************************************************************************************************
  subroutine put_attrib(infile,attname,attvalue,err,message)
  USE data_struc,only:var_info                              ! derived type for metadata
@@ -260,7 +282,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! new subroutine: define variables
+ ! private subroutine def_variab: define variables
  ! **********************************************************************************************************
  subroutine def_variab(infile,dimNames,metadata,ivtype,err,message)
  USE data_struc,only:var_info                              ! derived type for metadata
@@ -306,8 +328,9 @@ contains
  err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine def_variab
 
+
  ! **********************************************************************************************************
- ! subroutine X: error control
+ ! private subroutine netcdf_err: error control
  ! **********************************************************************************************************
  subroutine netcdf_err(err,message)
  ! used to handle errors for NetCDF calls
@@ -321,5 +344,6 @@ contains
   err=200
  endif
  end subroutine netcdf_err
+
 
 end module def_output_module
