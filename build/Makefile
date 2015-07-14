@@ -25,6 +25,12 @@ FC =
 # and settings. If none of this makes sense, please talk to your system
 # administrator.
 
+# Eventually we plan move to a real configure script, but for now we like
+# to keep track of successful compilations of SUMMA on different platforms
+# and with different compilers. If you are successful compiling SUMMA,
+# please add your configuration (operating system and compiler plus
+# part 0 of the Makefile) to the SUMMA wiki on github.
+
 # gfortran compiler -- needs to be 4.8 or higher
 # (works on Mac OS X with Macports)
 ifeq "$(FC)" "gfortran-mp-4.8"
@@ -37,14 +43,6 @@ endif
 # Intel fortran compiler
 ifeq "$(FC)" "ifort"
  NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
-endif
-
-# Portland group compiler
-ifeq "$(FC)" "pgf90"
- NCDF_PATH = /usr/local/netcdf-4.3.0/pgi-13.8
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
@@ -65,12 +63,6 @@ ifeq "$(FC)" "ifort"
  FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
  FLAGS_COMM = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
  FLAGS_SUMMA = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
-endif
-ifeq "$(FC)" "pgf90"
- FLAGS1 = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS_NOAH = -g -Mr8 -Mfree
- FLAGS_COMM = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=fp -traceback
- FLAGS_SUMMA = -Mbackslash -g -Mbounds -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv,ovf -traceback
 endif
 
 #========================================================================
