@@ -40,6 +40,16 @@ ifeq "$(FC)" "gfortran-mp-4.8"
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
 endif
 
+# gfortran compiler -- needs to be 4.8 or higher
+# default linux locations (*buntu, ...)
+ifeq "$(FC)" "gfortran"
+ NCDF_PATH = /usr
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
+endif
+
+
 # Intel fortran compiler
 ifeq "$(FC)" "ifort"
  NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
@@ -55,6 +65,11 @@ INCNETCDF = -I$(NCDF_PATH)/include
 # you will need to figure out what the equivalent flags are
 # and may need to update this section
 ifeq "$(FC)" "gfortran-mp-4.8"
+ FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+endif
+ifeq "$(FC)" "gfortran"
  FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
