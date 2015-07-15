@@ -42,6 +42,8 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
  * the LAPACK — Linear Algebra PACKage library. [LAPACK](http://www.netlib.org/lapack/) provides a series of routines for linear algebra operations, including matrix solvers. How to install the library depends on your *nix variant and is not covered here. For example, on OS X you will get all the necessary LAPACK routines by installing the ATLAS software (again, this is easiest using a package manager; note that ATLAS can take many hours to build the first time when you install it).
 
+ * The [ATLAS](http://math-atlas.sourceforge.net/) (Automatically Tuned Linear Algebra Software) library.
+
  * a copy of the SUMMA source code from [this repo](https://github.com/UCAR/summa). You have a number of options:
 
     * If you just want to use the latest stable release of SUMMA, then simply look for the most recent tag;
