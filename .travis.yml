@@ -16,4 +16,4 @@ script:
   - sed -i "s/FC =/FC = gfortran/" build/Makefile
   - sed -i "s|F_MASTER =|F_MASTER = ${TRAVIS_BUILD_DIR}|" build/Makefile
   - make -C build/ -f Makefile
-  - /home/travis/build/bartnijssen/summa/bin/summa.exe
+  - ${TRAVIS_BUILD_DIR}/bin/summa.exe
