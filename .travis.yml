@@ -1,0 +1,19 @@
+sudo: false
+language: fortran
+compiler:
+  - gfortran
+os:
+  - linux
+addons:
+  apt:
+    source:
+      - ubuntu-toolchain-r-test
+    packages:
+      - libnetcdf-dev
+      - liblapack-dev
+      - gfortran
+script:
+  - sed -i "s/FC =/FC = gfortran/" build/Makefile
+  - sed -i "s|F_MASTER =|F_MASTER = ${TRAVIS_BUILD_DIR}|" build/Makefile
+  - make -C build/ -f Makefile
+  - /home/travis/build/bartnijssen/summa/bin/summa.exe
