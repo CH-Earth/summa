@@ -21,7 +21,7 @@ F_MASTER =
 FC =
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
-# that the defaults paths defined are those that work for our compilers
+# that the default paths defined are those that work for our compilers
 # and settings. If none of this makes sense, please talk to your system
 # administrator.
 
@@ -31,24 +31,24 @@ FC =
 # please add your configuration (operating system and compiler plus
 # part 0 of the Makefile) to the SUMMA wiki on github.
 
-# gfortran compiler -- needs to be 4.8 or higher
+# gfortran compiler on OS X tested with 4.8 and higher
 # (works on Mac OS X with Macports)
 ifeq "$(FC)" "gfortran-mp-4.8"
  NCDF_PATH = /opt/local
  LAPK_PATH = /opt/local
- # define the lapack libraries
+ # define the lapack libraries - on OS X you need atlas and
+ # blas as well
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
 endif
 
-# gfortran compiler -- needs to be 4.8 or higher
-# default linux locations (*buntu, ...)
+# Ubuntu gfortran compiler tested with 4.6 and higher
+# also used for the travis build
 ifeq "$(FC)" "gfortran"
  NCDF_PATH = /usr
  LAPK_PATH = /usr
  # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 endif
-
 
 # Intel fortran compiler
 ifeq "$(FC)" "ifort"

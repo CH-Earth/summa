@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/UCAR/summa.svg)](https://travis-ci.org/UCAR/summa)
 #SUMMA
 
 This is the source code repository for the **Structure for Unifying Multiple Modeling Alternatives** or **SUMMA**. More information about SUMMA, including publications, test data sets, and sample applications can be found on the [SUMMA web site](http://www.ral.ucar.edu/projects/summa) at NCAR.
@@ -42,7 +43,7 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
  * the LAPACK — Linear Algebra PACKage library. [LAPACK](http://www.netlib.org/lapack/) provides a series of routines for linear algebra operations, including matrix solvers. How to install the library depends on your *nix variant and is not covered here. For example, on OS X you will get all the necessary LAPACK routines by installing the ATLAS software (again, this is easiest using a package manager; note that ATLAS can take many hours to build the first time when you install it).
 
- * The [ATLAS](http://math-atlas.sourceforge.net/) (Automatically Tuned Linear Algebra Software) library.
+ * The [ATLAS](http://math-atlas.sourceforge.net/) (Automatically Tuned Linear Algebra Software) library. Note that this is required on OS X using the gfortran compiler to be able to use LAPACK. It's not clear that this is used on other *nix machines.
 
  * a copy of the SUMMA source code from [this repo](https://github.com/UCAR/summa). You have a number of options:
 
