@@ -45,11 +45,7 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
  * The [ATLAS](http://math-atlas.sourceforge.net/) (Automatically Tuned Linear Algebra Software) library. Note that this is required on OS X using the gfortran compiler to be able to use LAPACK. It's not clear that this is used on other *nix machines.
 
-<<<<<<< HEAD
- * a copy of the SUMMA source code from [this repo](https://github.com/UCAR/summa). You have a number of options:
-=======
  * a copy of the SUMMA source code from [this repo](https://github.com/NCAR/summa). You have a number of options:
->>>>>>> 77b9d98c2733de9ef8df453b13bbdd8bf5fa1224
 
     * If you just want to use the latest stable release of SUMMA, then simply look for the most recent tag;
     * If you want the latest and greatest (and potentially erroneous), download a copy of the master branch (or clone it);
