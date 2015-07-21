@@ -80,6 +80,7 @@ contains
   case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (27) choice of albedo representation
   case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (28) choice of method for spatial representation of groundwater
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (29) choice of method for sub-grid routing
+  case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! (30) choice of method for new snow density  
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss

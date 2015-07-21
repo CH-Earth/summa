@@ -20,6 +20,12 @@
 
 module derivforce_module
 USE nrtype
+! look-up values for the choice of snow albedo options
+USE mDecisions_module,only:  &
+ constDens,              &    ! Constant new snow density
+ anderson,               &    ! Anderson 1976
+ hedAndPom,              &    ! Hedstrom and Pomeroy (1998), expoential increase
+ pahaut_76                    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 implicit none
 private
 public::derivforce
@@ -35,8 +41,10 @@ contains
  USE data_struc,only:data_step                               ! length of the data step (s)
  USE data_struc,only:time_data,forc_data                     ! forcing data structures
  USE data_struc,only:attr_data,mpar_data,mvar_data           ! model data structures
+ USE data_struc,only:model_decisions                         ! model decision structure
  USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
  USE var_lookup,only:iLookPARAM,iLookFORCE,iLookMVAR         ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions
@@ -68,6 +76,12 @@ contains
  real(dp),pointer              :: newSnowDenMin              ! minimum new snow density (kg m-3)
  real(dp),pointer              :: newSnowDenMult             ! multiplier for new snow density (kg m-3)
  real(dp),pointer              :: newSnowDenScal             ! scaling factor for new snow density (K)
+ real(dp),parameter            :: constSnowDen=100.0_dp      ! Constant new snow density (kg m-3)
+ real(dp),parameter            :: a_sn=109.0_dp              ! Pahaut 1976 param (kg m-3)
+ real(dp),parameter            :: b_sn=6.0_dp                ! Pahaut 1976 param (kg m-3 K-1)
+ real(dp),parameter            :: c_sn=26.0_dp               ! Pahaut 1976 param (kg m-7/2 s-1/2)
+ real(dp),parameter            :: d_sn=1.7_dp                ! Oleson et al. 2002 param (K-1)
+ real(dp),parameter            :: e_sn=15.0_dp               ! Oleson et al. 2002 param (K)
  ! local pointers to model forcing data
  real(dp),pointer              :: SWRadAtm                   ! downward shortwave radiation (W m-2)
  real(dp),pointer              :: airtemp                    ! air temperature at 2 meter height (K)
@@ -232,7 +246,28 @@ contains
 
  ! compute density of new snow
  if(snowfall > tiny(fracrain))then
-  newSnowDensity = newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal)  ! new snow density (kg m-3)
+  ! Determine which method to use 
+  select case(model_decisions(iLookDECISIONS%snowDenNew)%iDecision)
+   ! Hedstrom and Pomeroy 1998
+   case(hedAndPom) 
+    newSnowDensity = newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal)  ! new snow density (kg m-3)
+   ! Pahaut 1976 (Boone et al. 2002)
+   case(pahaut_76)
+    newSnowDensity = a_sn + (b_sn * (airtemp-Tfreeze))+(c_sn*((windspd)**0.5)); ! new snow density (kg m-3)
+   ! Anderson 1976 
+   case(anderson) 
+    if(airtemp>(Tfreeze+2))then
+     newSnowDensity = newSnowDenMin + d_sn*(e_sn)**(3/2) ! new snow density (kg m-3)
+    elseif(airtemp<=(Tfreeze-15))then
+     newSnowDensity = newSnowDenMin ! new snow density (kg m-3)
+    else
+     newSnowDensity = newSnowDenMin + d_sn*(airtemp-Tfreeze+e_sn)**(3/2) ! new snow density (kg m-3)
+    endif
+   ! Constant new snow density
+   case(constDens) 
+    newSnowDensity = constSnowDen; ! new snow density (kg m-3)
+   case default; message=trim(message)//'unable to identify option for new snow density'; err=20; return
+  end select ! identifying option for new snow density
  else
   newSnowDensity = valueMissing
   rainfall = rainfall + snowfall ! in most cases snowfall will be zero here
