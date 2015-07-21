@@ -239,6 +239,12 @@ contains
   case('newSnowDenMin'            ); get_ixparam = iLookPARAM%newSnowDenMin          ! minimum new snow density (kg m-3)
   case('newSnowDenMult'           ); get_ixparam = iLookPARAM%newSnowDenMult         ! multiplier for new snow density (kg m-3)
   case('newSnowDenScal'           ); get_ixparam = iLookPARAM%newSnowDenScal         ! scaling factor for new snow density (K)
+  case('constSnowDen'             ); get_ixparam = iLookPARAM%constSnowDen           ! Constant new snow density (kg m-3)
+  case('a_sn'                     ); get_ixparam = iLookPARAM%a_sn                   ! Pahaut 1976 param (kg m-3)
+  case('b_sn'                     ); get_ixparam = iLookPARAM%b_sn                   ! Pahaut 1976 param (kg m-3 K-1)
+  case('c_sn'                     ); get_ixparam = iLookPARAM%c_sn                   ! Pahaut 1976 param (kg m-7/2 s-1/2)
+  case('d_sn'                     ); get_ixparam = iLookPARAM%d_sn                   ! Oleson et al. 2002 param (K-1)
+  case('e_sn'                     ); get_ixparam = iLookPARAM%e_sn                   ! Oleson et al. 2002 param (K)
   ! snow compaction
   case('densScalGrowth'           ); get_ixparam = iLookPARAM%densScalGrowth         ! density scaling factor for grain growth (kg-1 m3)
   case('tempScalGrowth'           ); get_ixparam = iLookPARAM%tempScalGrowth         ! temperature scaling factor for grain growth (K-1)

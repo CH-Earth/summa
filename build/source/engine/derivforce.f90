@@ -76,12 +76,12 @@ contains
  real(dp),pointer              :: newSnowDenMin              ! minimum new snow density (kg m-3)
  real(dp),pointer              :: newSnowDenMult             ! multiplier for new snow density (kg m-3)
  real(dp),pointer              :: newSnowDenScal             ! scaling factor for new snow density (K)
- real(dp),parameter            :: constSnowDen=100.0_dp      ! Constant new snow density (kg m-3)
- real(dp),parameter            :: a_sn=109.0_dp              ! Pahaut 1976 param (kg m-3)
- real(dp),parameter            :: b_sn=6.0_dp                ! Pahaut 1976 param (kg m-3 K-1)
- real(dp),parameter            :: c_sn=26.0_dp               ! Pahaut 1976 param (kg m-7/2 s-1/2)
- real(dp),parameter            :: d_sn=1.7_dp                ! Oleson et al. 2002 param (K-1)
- real(dp),parameter            :: e_sn=15.0_dp               ! Oleson et al. 2002 param (K)
+ real(dp),pointer              :: constSnowDen               ! Constant new snow density (kg m-3)
+ real(dp),pointer              :: a_sn                       ! Pahaut 1976 param (kg m-3)
+ real(dp),pointer              :: b_sn                       ! Pahaut 1976 param (kg m-3 K-1)
+ real(dp),pointer              :: c_sn                       ! Pahaut 1976 param (kg m-7/2 s-1/2)
+ real(dp),pointer              :: d_sn                       ! Oleson et al. 2002 param (K-1)
+ real(dp),pointer              :: e_sn                       ! Oleson et al. 2002 param (K)
  ! local pointers to model forcing data
  real(dp),pointer              :: SWRadAtm                   ! downward shortwave radiation (W m-2)
  real(dp),pointer              :: airtemp                    ! air temperature at 2 meter height (K)
@@ -126,6 +126,12 @@ contains
  newSnowDenMin      => mpar_data%var(iLookPARAM%newSnowDenMin)      ! minimum new snow density (kg m-3)
  newSnowDenMult     => mpar_data%var(iLookPARAM%newSnowDenMult)     ! multiplier for new snow density (kg m-3)
  newSnowDenScal     => mpar_data%var(iLookPARAM%newSnowDenScal)     ! scaling factor for new snow density (K)
+ constSnowDen       => mpar_data%var(iLookPARAM%constSnowDen)       ! Constant new snow density (kg m-3)
+ a_sn               => mpar_data%var(iLookPARAM%a_sn)               ! Pahaut 1976 param (kg m-3)
+ b_sn               => mpar_data%var(iLookPARAM%b_sn)               ! Pahaut 1976 param (kg m-3)
+ c_sn               => mpar_data%var(iLookPARAM%c_sn)               ! Pahaut 1976 param (kg m-3)
+ d_sn               => mpar_data%var(iLookPARAM%d_sn)               ! Oleson et al. 2002 param (K-1)
+ e_sn               => mpar_data%var(iLookPARAM%e_sn)               ! Oleson et al. 2002 param (K)
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
