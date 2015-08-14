@@ -6,8 +6,8 @@
 # define file path for the vegetation data
 dataPath=/home/mclark/summa/input/plumber/
 
-# define the path to the decisions file
-managerPath=/home/mclark/summa/settings/plumber/decisions/
+# define the path to the file manager
+managerPath=/home/mclark/summa/settings/plumber/fileManager/
 
 # define pattern to replace with actual data file
 cPattern='XX_siteName_XX'
@@ -16,53 +16,24 @@ cPattern='XX_siteName_XX'
 for dataFile in $( ls  ${dataPath} ); do
 
  # split the string using underscores
- IFS='_' read -a strarr <<< "${dataFile}"
+ IFS='_' read -a strTemp0 <<< "${dataFile}"
+
+ # split the string using periods
+ IFS='.' read -a strTemp1 <<< "${strTemp0[-1]}"
 
  # define file suffix
- cSuffix=${strarr[-1]}
+ siteName=${strTemp1[0]}
+
+ # define the manager file
+ managerFile=${managerPath}summa_fileManager_${siteName}.txt
 
  # make the file manager file
- cp templates/summa_fileManager_template.txt ${managerPath}summa_fileManager_${cSuffix}
-
+ cp templates/summa_fileManager_template.txt ${managerFile}
 
  # replace the search string with the file suffix
-
-
- 
- $decisionsFilenm
-
-
- managerFilenm=summa_fileManager_$cSuffix
-
- 
-
-
-
-decisions filename (add the last element from the files in ${file_path})
- decisionsFilenm=summa_zDecisions_${strarr[-1]}
-
- # get the first line of a data file
- cHead=$(head -n1 $dataPath$dataFile)
-
- # extract the first "word" (year)
- IFS=' ' read -a dataLine <<< "${cHead}"
- startYear=${dataLine[0]}
-
- # get the last line of a data file
- cTail=$(tail -n1 $dataPath$dataFile)
-
- # extract the first "word" (year)
- IFS=' ' read -a dataLine <<< "${cTail}"
- endYear=${dataLine[0]}
-
- # make the decisions file
- cp templates/summa_zDecisions_template.txt $decisionsPath$decisionsFilenm
-
- # replace the search string with the start and end year
- sed -i 's/'${cPatternStart}'/'${startYear}'/g' $decisionsPath$decisionsFilenm
- sed -i 's/'${cPatternEnd}'/'${endYear}'/g' $decisionsPath$decisionsFilenm
+ sed -i 's/'${cPattern}'/'${siteName}'/g' ${managerFile}
 
  # print progress
- echo $dataFile $startYear $endYear
+ echo $managerFile
  
 done

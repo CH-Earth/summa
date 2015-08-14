@@ -1,5 +1,9 @@
 This directory holds routines to prepare plumber experiments for SUMMA
 
++++
+PREPARE INPUT FILES...
+**********************
+
 1) processPlumberInputData.pro
    IDL script to read the site netCDF files and output
     a) input data files for each site
@@ -10,7 +14,45 @@ This directory holds routines to prepare plumber experiments for SUMMA
     a) list of forcing info files used for each site
     b) information on the forcing data file for each site
 
+3) makeFileManager.sh
+   script to make the manager files; separate file for each site
 
+4) makeDecisionsFiles.sh
+   script to make the model decisions files
+   A separate decisions file is needed for each site, because the time
+   period of the simulation is a decision (which differs for each site)
 
+5) modifySiteVars.sh
+   script to read some of the needed site variables from one of the
+   participating PLUMBER models (CABLE in this case) and include the
+   site variables in a paramTrial file, separate trial file for each
+   site
 
++++
+RUN THE MODEL...
+****************
 
+6) runPlumberSites.sh
+   script to run SUMMA for all PLUMBER sites
+
++++
+POST-PROCESS...
+***************
+
+7) summa2plumber.sh
+   script to convert the SUMMA output to the PLUMBER format
+   uses two nco scripts
+    a) extractGroundHeatFlux1.nco
+    b) extractGroundHeatFlux2.nco
+   which use different methods to extract the heat flux at the top of the soil column
+   and convert to a scale groundHeatFlux variable.
+
++++
+EVALUATION...
+***************
+
+8) read_groundHeatFlux.pro
+   IDL script to check that we read the ground heat flux correctly
+
+9) plot_plumber.pro
+   IDL script to plot up the PLUMBER results

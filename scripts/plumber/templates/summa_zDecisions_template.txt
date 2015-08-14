@@ -7,8 +7,8 @@
 ! (2) the name of the decision is followed by the character string defining the decision
 ! (3) the simulation start/end times must be within single quotes
 ! ***********************************************************************************************************************
-simulStart              'XX_startYear_XX-01-01 00:00'      ! (01) simulation start time -- must be in single quotes
-simulFinsh              'XX_endYear_XX-12-31 23:30'      ! (02) simulation end time -- must be in single quotes
+simulStart              'XX_startYear_XX-01-01 00:30'      ! (01) simulation start time -- must be in single quotes
+simulFinsh              'XX_endYear_XX-12-31 23:00'      ! (02) simulation end time -- must be in single quotes
 ! ***********************************************************************************************************************
 soilCatTbl                      ROSETTA         ! (03) soil-category dateset
 vegeParTbl                      USGS            ! (04) vegetation category dataset
