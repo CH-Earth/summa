@@ -151,6 +151,7 @@ contains
   ! compute the start index
   iStart = nint( (dJulianStart - juldayFirst)*secprday/data_step )
   if(iStart < 0)then
+   print*, 'iStart = ', iStart
    message=trim(message)//'simulation start time is before the first time index in the datafile ['//trim(infile)//']'
    err=20; return
   endif
