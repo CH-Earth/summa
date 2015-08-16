@@ -73,7 +73,6 @@ contains
  if (istart+(iend-2)==n) then
   ih=0; imin=0; dsec=0._dp; return
  endif
- print*, 'iyyy, im, id = ', iyyy, im, id
 
  ! get the hour (":" at end of hour)
  istart = istart+iend
@@ -92,6 +91,7 @@ contains
  if(istart > len_trim(refdate)) return
  iend   = index(refdate(istart:n)," ")
  read(refdate(istart:n),*) dsec
+ write(*,'(a,i4,1x,4(i2,1x))') 'refdate: iyyy, im, id, ih, imin = ', iyyy, im, id, ih, imin
 
  contains
 

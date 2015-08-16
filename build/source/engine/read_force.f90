@@ -148,8 +148,10 @@ contains
                   time_data%var(iLookTIME%ih),              & ! input  = hour
                   time_data%var(iLookTIME%imin),dsec,       & ! input  = minute/second
                   juldayFirst,err,cmessage)                   ! output = julian day (fraction of day) + error control
+  write(*,'(a,i4,1x,4(i2,1x))') 'firstTime: iyyy, im, id, ih, imin = ', time_data%var
   ! compute the start index
   iStart = nint( (dJulianStart - juldayFirst)*secprday/data_step )
+  print*, 'iStartIndex = ', iStart
   if(iStart < 0)then
    print*, 'iStart = ', iStart
    message=trim(message)//'simulation start time is before the first time index in the datafile ['//trim(infile)//']'
@@ -161,6 +163,10 @@ contains
     read(unt,'(a)',iostat=err)
     if(err/=0)then; err=20; message=trim(message)//'problemLineRead[is there any data within the simulation period?]'; return; endif
    end do
+  ! iStart=0, then need to back up because of data read in the next block
+  else
+   backspace(unit=unt,iostat=err)
+   if(err/=0)then; err=20; message=trim(message)//'problemRewindingFile: iStart=0'; return; endif
   endif
   ! handle situation where istep>1
   if (istep>1) then

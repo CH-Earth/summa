@@ -372,7 +372,6 @@ do istep=1,numtim
  end do  ! (end looping through HRUs)
  print*, time_data%var
 
-
  ! *****************************************************************************
  ! (7) create a new NetCDF output file, and write parameters and forcing data
  ! *****************************************************************************
