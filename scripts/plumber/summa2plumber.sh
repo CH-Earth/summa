@@ -65,6 +65,16 @@ for outputFile in $( ls  ${outputPath}orig/*spinup* ); do
   ncks -a -O -x -v nSnow,iLayerHeight,iLayerNrgFlux,ifcTotoStartIndex,ifc_qFlux,srt_map1 $fileName $fileName
 
   # ****************************************************************
+  # * compute LAI
+  # ****************************************************************
+
+  # compute the total LAI
+  ncap2 -A -s 'LAI=scalarLAI+scalarSAI' $fileName $fileName
+
+  # remove undesired variables (scalarLAI and scalarSAI)
+  ncks -a -O -x -v scalarLAI,scalarSAI $fileName $fileName
+
+  # ****************************************************************
   # * re-name sensible and latent heat
   # ****************************************************************
 

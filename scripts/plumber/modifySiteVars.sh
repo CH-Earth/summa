@@ -29,6 +29,7 @@ for plumberSite in $( ls ${plumberPath}${plumberModel}/* ); do
  IFS='_' read -a strarr <<< "${plumberSite}"
  siteName=${strarr[-1]}
  siteName=${siteName%$undesiredSuffix}
+ echo '*****' $siteName
 
  # get the name of the local parameter file
  paramFilenm=${localParamPath}summa_zLocalParamTrial_${siteName}.txt
@@ -36,26 +37,65 @@ for plumberSite in $( ls ${plumberPath}${plumberModel}/* ); do
  # create the local parameter file
  cp templates/summa_zLocalParamTrial_template.txt $paramFilenm
 
- # get the string that defines the site variable
- varString=`ncks -C -u -v $plumberSiteVar $plumberSite | grep $plumberSiteVar | tail -1`
+ # loop through site variables
+ for plumberSiteVar in hc ssat sfc swilt hyds; do
 
- # extract the site variable (always last)
- IFS='=' read -a strarr <<< "${varString}"
- siteVar=${strarr[-1]}
+  # get the value for the given site variable
+  varStringValue=`ncks -C -u -v $plumberSiteVar $plumberSite | grep $plumberSiteVar | tail -1`
+  IFS='=' read -a strarr <<< "${varStringValue}"
+  siteVarValue=${strarr[-1]}
 
- # convert the site variable to a number
- siteVar=$(printf "%09.4f" $siteVar)
+  # convert the string to a number
+  if [ ${plumberSiteVar} == 'hyds' ]; then
+   siteVarValue=$(printf "%10.4E" $siteVarValue)
+  else
+   siteVarValue=$(printf "%010.4f" $siteVarValue)
+  fi
 
- # compute a modified site var
- siteVarDiv=10.0
- siteVarMod=$(echo "$siteVar/$siteVarDiv" | bc -l)
- siteVarMod=$(printf "%09.4f" $siteVarMod)
+  # define the match string
+  searchString=XX_${plumberSiteVar}_XX
 
- # replace the search string with the info name 
- sed -i 's/'${searchString_hvt}'/'${siteVar}'/g' $paramFilenm
- sed -i 's/'${searchString_hvb}'/'${siteVarMod}'/g' $paramFilenm
+  # replace the search string with the info name 
+  sed -i 's/'${searchString}'/'${siteVarValue}'/g' $paramFilenm
 
- echo $plumberSite $siteName $siteVar $siteVarMod
+  # save the canopy height
+  if [ ${plumberSiteVar} == 'hc' ]; then
+   canopyHeight=$siteVarValue
+  fi
+
+  # save the field capacity
+  if [ ${plumberSiteVar} == 'sfc' ]; then
+   fieldCapacity=$siteVarValue
+  fi
+
+  # save the residual volumetric water content
+  if [ ${plumberSiteVar} == 'swilt' ]; then
+   thetaRes=$siteVarValue
+  fi
+
+  # print progress
+  echo $plumberSite $siteName $siteVarValue
+
+ done
+
+ # compute the height at the bottom of the canopy
+ canopyDivisor=10.0
+ canopyBottom=$(echo "$canopyHeight/$canopyDivisor" | bc -l)
+ canopyBottom=$(printf "%010.4f" $canopyBottom)
+ sed -i 's/XX_hvb_XX/'${canopyBottom}'/g' $paramFilenm
+
+ # compute the critical point of plant wilting and plant transpiration
+ fracWilting=0.1
+ fracTranspr=0.9
+ soilStorage=$(echo "$fieldCapacity - $thetaRes" | bc -l)
+ critWilting=$(echo "$thetaRes + $fracWilting*$soilStorage" | bc -l)
+ critTranspr=$(echo "$thetaRes + $fracTranspr*$soilStorage" | bc -l)
+ critWilting=$(printf "%010.4f" $critWilting)
+ critTranspr=$(printf "%010.4f" $critTranspr)
+ sed -i 's/XX_critWilt_XX/'${critWilting}'/g' $paramFilenm
+ sed -i 's/XX_critTrans_XX/'${critTranspr}'/g' $paramFilenm
+
+ # check
+ echo $fieldCapacity $thetaRes $soilStorage $critWilting $critTranspr
 
 done
-

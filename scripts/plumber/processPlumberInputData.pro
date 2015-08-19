@@ -5,7 +5,7 @@ ixHRU=1001
 
 ; define indices for the plant functional types
 ; NOTE: use USGS tables
-ixCropland            = 2  ; Dryland Cropland and Pasture
+ixCropland            = 3  ; Irrigated Cropland and Pasture
 ixGrassland           = 7  ; Grassland
 ixSavanna             = 10 ; Savanna
 ixWoodySavanna        = 6  ; Cropland/Woodland Mosaic
@@ -32,8 +32,8 @@ site_path =  plumber_path + 'site_data/met/'
 site_names = ['Amplero',     $
               'Blodgett',    $
               'Bugac',       $
-              'ElSaler2',    $
               'ElSaler',     $
+              'ElSaler2',    $
               'Espirra',     $
               'FortPeck',    $
               'Harvard',     $
@@ -54,8 +54,8 @@ site_names = ['Amplero',     $
 site_pfts = [ixGrassland,          $       ; 'Amplero',     
              ixEvergreenNeedleleaf,$       ; 'Blodgett',    
              ixGrassland,          $       ; 'Bugac',       
-             ixEvergreenNeedleleaf,$       ; 'ElSaler2',    
-             ixCropland,           $       ; 'ElSaler',     
+             ixEvergreenNeedleleaf,$       ; 'ElSaler',    
+             ixCropland,           $       ; 'ElSaler2',     
              ixEvergreenBroadleaf, $       ; 'Espirra',     
              ixGrassland,          $       ; 'FortPeck',    
              ixDeciduousBroadleaf, $       ; 'Harvard',     
