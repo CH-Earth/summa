@@ -1,4 +1,5 @@
-This directory holds routines to prepare plumber experiments for SUMMA
+This directory holds routines to prepare, run, and evaluate
+ plumber experiments for SUMMA
 
 +++
 PREPARE INPUT FILES...
@@ -54,5 +55,22 @@ EVALUATION...
 8) read_groundHeatFlux.pro
    IDL script to check that we read the ground heat flux correctly
 
+<<<<<<< HEAD
 9) plot_plumber.pro
    IDL script to plot up the PLUMBER results
+=======
+ 9) plot_plumber.pro
+    IDL script to plot up the PLUMBER results
+
+10) plot_groundHeatFlux.pro
+    IDL script to plot the ground heat flux
+
+11) plot_skillStatistics.pro
+    IDL script to compute statistics used in the Best et al. JHM 2015 PLUMBER paper
+
+12) plot_xVar.pro
+    IDL script to plot a given variable in the PLUMBER output
+
+13) sym.pro
+    external procedure to plot symbols
+>>>>>>> 9406ef8... updated README file
