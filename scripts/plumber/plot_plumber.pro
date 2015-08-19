@@ -35,7 +35,8 @@ model_names = ['CABLE.2.0',                  $
                'NOAH.2.7.1',                 $
                'Noah.3.2',                   $
                'NOAH.3.3',                   $
-               'ORCHIDEE.trunk_r1401'        ]
+               'ORCHIDEE.trunk_r1401',       $
+               'SUMMA.1.0'                   ]
 
 ; define the site names
 site_names = ['Amplero',     $
@@ -231,8 +232,8 @@ for iSite=0,nSites-1 do begin
   ; close netcdf file
   ncdf_close, nc_file 
 
-  ; fix CHTESSEL
-  if(model_names[imodel] eq 'CHTESSEL')then begin
+  ; change sign for CHTESSEL and SUMMA
+  if(model_names[imodel] eq 'CHTESSEL' or model_names[imodel] eq 'SUMMA.1.0')then begin
    Qh_mod  = -Qh_mod
    Qle_mod = -Qle_mod
   endif
@@ -251,8 +252,13 @@ for iSite=0,nSites-1 do begin
   modQle[48] = modQle[0]  ; zee wrap-around
 
   ; plot model simulations
-  oplot, xtime, modQh,  color=210, thick=1
-  oplot, xtime, -modQle, color=90, thick=1
+  if(model_names[imodel] eq 'SUMMA.1.0')then begin
+   oplot, xtime, modQh,  color=250, thick=2
+   oplot, xtime, -modQle, color=60, thick=2
+  endif else begin
+   oplot, xtime, modQh,  color=210, thick=1
+   oplot, xtime, -modQle, color=90, thick=1
+  endelse
 
  endfor  ; (looping through models)
 
@@ -261,8 +267,8 @@ for iSite=0,nSites-1 do begin
  oplot, xtime, -datQle, color=60, thick=4
 
  ; plot the linear regression
- oplot, xtime, linQh,  color=250, thick=2
- oplot, xtime, -linQle, color=60, thick=2
+ ;oplot, xtime, linQh,  color=250, thick=2
+ ;oplot, xtime, -linQle, color=60, thick=2
 
 endfor  ; (looping through sites)
 
