@@ -1,14 +1,14 @@
-pro plot_hovmuller
+pro plot_canopyStorage
 
 ; define plotting parameters
-window, 0, xs=2000, ys=1400, retain=2
+window, 0, xs=1400, ys=1000, retain=2
 device, decomposed=0
 LOADCT, 39
 !P.BACKGROUND=255
 !P.CHARSIZE=2
 !P.COLOR=0
 erase, color=255
-!P.MULTI=[0,5,4,0,0]
+!P.MULTI=[0,3,2,0,0]
 
 ; define the date format
 dummy = label_date(date_format=['%D-%M'])
@@ -16,36 +16,110 @@ dummy = label_date(date_format=['%D-%M'])
 ; define the HRU
 iHRU=0
 
+; define the latent heat of vaporization
+LHvap=2501000.d   ; J kg-1
+
+; define the number of seconds in a day
+secprday=86400.d
+
 ; define file paths
 file_path = '/Volumes/d1/mclark/PLUMBER_data/model_output/'
 
-; define variable
-;cVarName='Qle'
-cVarName='scalarLatHeatCanopyEvap'
-;cVarName='scalarLatHeatCanopyTrans'
+; define named variables to switch between canopy evaporation and canopy storage
+ixStor=1      ; canopy storage
+ixEvap=2      ; canopy evaporation
+ixLatHeat=3   ; latent heat flux
+ixSoilMoist=4 ; root zone soil moisture
 
-; define variable range
-ymin=-500
-ymax=500
+; define desired variable
+ixVar=ixSoilMoist
+
+; define variables
+case ixVar of
+
+ ; *** canopy storage
+ ixStor: begin
+
+  ; define variable range
+  ymin=0
+  ymax=0.5
+
+  ; define canopy interception
+  cVarNames=['CanopInt','CanopInt','CanopInt','CanopInt','SurfStor','scalarCanopyLiq']
+
+  ; multiplier
+  xMult=[1.d,1.d,1.d,1.d,1.d,1.d]
+
+ end  ; canopy storage
+
+ ; *** canopy evaporation
+ ixEvap: begin
+
+  ; define variable range
+  ymin=0
+  ymax=250
+
+  ; define canopy evaporation
+  ;          kg/m2/s   kg/m2/s   mm/day  kg/m2/s  kg/m2/s     W/m2
+  cVarNames=['ECanop','ECanop','ECanop','ECanop','ECanop','scalarLatHeatCanopyEvap']
+
+  ; define multiplier
+  xMult=[LHvap,LHvap,-LHvap/secprday,LHvap,LHvap,-1.d]
+
+ end  ; canopy evaporation
+
+ ; latent heat flux
+ ixLatHeat: begin
+
+  ; define variable range
+  ymin=0
+  ymax=500
+
+  ; define latent heat flux
+  cVarNames=['Qle','Qle','Qle','Qle','Qle','Qle']
+
+  ; define multiplier
+  xMult=[1.d,1.d,-1.d,1.d,1.d,-1.d]
+
+ end
+
+ ; root zone soil moisture
+ ixSoilMoist: begin
+
+  ; define variable range
+  ymin=0
+  ymax=10000000
+
+  ; define latent heat flux
+  cVarNames=['Qle','Qle','RootMoist','RootMoist','SoilMoist_tot','Qle']
+
+  ; define multiplier
+  xMult=[-1.d,-1.d,1.d,1.d,1.d,1.d]
+
+ end
+
+
+ else: stop, 'cannot find desired variable'
+
+endcase
+
 
 ; define the model names
 model_names = ['CABLE.2.0',                  $
-               ;'CABLE_2.0_SLI.vxh599_r553',  $
-               ;'CHTESSEL',                   $
-               ;'COLASSiB.2.0',               $
+               'CABLE_2.0_SLI.vxh599_r553',  $
+               'CHTESSEL',                   $
+               'COLASSiB.2.0',               $
                ;'ISBA_SURFEX_3l.SURFEX7.3',   $
                ;'ISBA_SURFEX_dif.SURFEX7.3',  $
                ;'JULES.3.1',                  $
-               ;'JULES3.1_altP',              $
+               'JULES3.1_altP',              $
                ;'Mosaic.1',                   $
                ;'NOAH.2.7.1',                 $
                ;'Noah.3.2',                   $
                ;'NOAH.3.3',                   $
                ;'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0.exp.01.003']
+               'SUMMA.1.0.exp.01.test']
 
-; flux multiplier
-xMult=[1.d,-1.d]
 
 ; define the site names
 site_names = ['Amplero',     $
@@ -94,11 +168,15 @@ site_pfts = ['Grassland',          $        ; 'Amplero',
 nModels = n_elements(model_names)
 nSites  = n_elements(site_names)
 
-; loop through models
-for iModel=nModels-1,0,-1 do begin
+; loop through sites
+;for iSite=0,nSites-1 do begin
+for iSite=0,0 do begin
 
- ; loop through sites
- for iSite=0,nSites-1 do begin
+ ; loop through models
+ for iModel=nModels-1,0,-1 do begin
+
+  ; define the variable name
+  cVarName = cVarNames[iModel]
 
   ; define the file name
   file_name = model_names[iModel] + '/' + model_names[iModel] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
@@ -146,13 +224,13 @@ for iModel=nModels-1,0,-1 do begin
   ; make a hovmuller plot
   make_hovmuller, djulian_mod, xVar, cVarName, ymin, ymax, plotTitle
 
- endfor  ; looping through sites
+ endfor  ; looping through models
 
  ; write figure
- write_png, 'figures/hovmuller_'+cVarName+'_'+model_names[iModel]+'.png', tvrd(true=1)
+ write_png, 'figures/hovmuller_'+cVarName+'_'+site_names[iSite]+'.png', tvrd(true=1)
 
  stop
-endfor  ; looping through models
+endfor  ; looping through sites
 
 stop
 end
@@ -169,7 +247,7 @@ xSmall = 1.d-6
 caldat, dTime-xSmall, im, id, iyyy, ih, imin, asec
 
 ; identify the first year
-iSubset=where(iyyy eq iyyy[0], nSubset)
+iSubset=where(iyyy eq iyyy[1], nSubset)
 
 ; define the simulation time
 time0 = dTime[iSubset[0]]
@@ -210,13 +288,12 @@ for jTime=0,nSubset-1 do begin
  aHour0 = aHour1 - 0.5d
 
  ; plot data
- plots, [ahour0,ahour1,ahour1,ahour0], [djulian-0.5, djulian-0.5, djulian+0.5, djulian+0.5], color=icolor
+ polyfill, [ahour0,ahour1,ahour1,ahour0], [djulian-0.5, djulian-0.5, djulian+0.5, djulian+0.5], color=icolor
 
  ; print progress
  ;print, djulian, ih[itime], imin[itime], ahour1, varPlot[itime], icolor, format='(f30.10,1x,2(i4,1x),2(f9.3,1x),i4)'
  ;if(itime gt 500)then stop
 
 endfor
-
 
 end
