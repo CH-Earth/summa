@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/local/bin/bash
 #
 # used to convert the summa output files to the plumber format
 #
@@ -10,11 +10,20 @@ ixSort=2
 # define the desired option to extract the ground heat flux
 ixExtract=$ixSort
 
+# define the path for the input data
+inputPath=/Volumes/d1/mclark/PLUMBER_data/site_data/met/
+
 # define the output path
-outputPath=/home/mclark/summa/output/plumber/
+outputPath=/Users/mclark/summa/output/plumber/
+
+# define the new output path
+newOutputPath=/Volumes/d1/mclark/PLUMBER_data/model_output/
+
+# define the model name
+modelName=SUMMA.1.0.exp.01.test
 
 # loop through files in the local attributes folder
-for outputFile in $( ls  ${outputPath}orig/*spinup* ); do
+for outputFile in $( ls  ${outputPath}orig/Amplero*spinup* ); do
 
  # split the string using slashes
  IFS='/' read -a strTemp0 <<< "${outputFile}"
