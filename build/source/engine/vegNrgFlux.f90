@@ -388,6 +388,8 @@ contains
  ! input: vegetation parameters
  heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop),                      & ! intent(in): [dp] height at the top of the vegetation canopy (m)
  heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom),                   & ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
+ canopyWettingFactor             => mpar_data%var(iLookPARAM%canopyWettingFactor),                  & ! intent(in): [dp] maximum wetted fraction of the canopy (-)
+ canopyWettingExp                => mpar_data%var(iLookPARAM%canopyWettingExp),                     & ! intent(in): [dp] exponent in canopy wetting function (-)
  scalarCanopyIceMax              => mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),             & ! intent(in): [dp] maximum interception storage capacity for ice (kg m-2)
  scalarCanopyLiqMax              => mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),             & ! intent(in): [dp] maximum interception storage capacity for liquid water (kg m-2)
 
@@ -697,6 +699,8 @@ contains
                     canopyIceTrial,                                 & ! canopy ice (kg m-2)
                     scalarCanopyLiqMax,                             & ! maximum canopy liquid water (kg m-2)
                     scalarCanopyIceMax,                             & ! maximum canopy ice content (kg m-2)
+                    canopyWettingFactor,                            & ! maximum wetted fraction of the canopy (-)
+                    canopyWettingExp,                               & ! exponent in canopy wetting function (-)
                     ! output
                     scalarCanopyWetFraction,                        & ! canopy wetted fraction (-)
                     dCanopyWetFraction_dWat,                        & ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -1005,6 +1009,8 @@ contains
                        canopyIceTrial,                                 & ! canopy ice (kg m-2)
                        scalarCanopyLiqMax,                             & ! maximum canopy liquid water (kg m-2)
                        scalarCanopyIceMax,                             & ! maximum canopy ice content (kg m-2)
+                       canopyWettingFactor,                            & ! maximum wetted fraction of the canopy (-)
+                       canopyWettingExp,                               & ! exponent in canopy wetting function (-)
                        ! output
                        canopyWetFraction,                              & ! canopy wetted fraction (-)
                        dCanopyWetFraction_dWat,                        & ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
@@ -1458,6 +1464,8 @@ contains
                        canopyIce,              & ! canopy ice (kg m-2)
                        canopyLiqMax,           & ! maximum canopy liquid water (kg m-2)
                        canopyIceMax,           & ! maximum canopy ice content (kg m-2)
+                       canopyWettingFactor,    & ! maximum wetted fraction of the canopy (-)
+                       canopyWettingExp,       & ! exponent in canopy wetting function (-)
                        ! output
                        canopyWetFraction,      & ! canopy wetted fraction (-)
                        dCanopyWetFraction_dWat,& ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -1474,6 +1482,8 @@ contains
  real(dp),intent(in)           :: canopyIce               ! canopy ice (kg m-2)
  real(dp),intent(in)           :: canopyLiqMax            ! maximum canopy liquid water (kg m-2)
  real(dp),intent(in)           :: canopyIceMax            ! maximum canopy ice content (kg m-2)
+ real(dp),intent(in)           :: canopyWettingFactor     ! maximum wetted fraction of the canopy (-)
+ real(dp),intent(in)           :: canopyWettingExp        ! exponent in canopy wetting function (-)
  ! output
  real(dp),intent(out)          :: canopyWetFraction       ! canopy wetted fraction (-)
  real(dp),intent(out)          :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -1486,7 +1496,6 @@ contains
  logical(lgt),parameter        :: smoothing=.true.        ! flag to denote that smoothing is required
  logical(lgt),parameter        :: noSmoothing=.false.     ! flag to denote that no smoothing is required
  real(dp)                      :: canopyWetFractionPert   ! canopy wetted fraction after state perturbations (-)
- real(dp),parameter            :: maxScaleFactor=1._dp    ! temporary fix: since canopyLiqMax is not really max (it is the point when drainage begins), add scale factor for the wetted fraction (-)
  real(dp)                      :: canopyWetFractionDeriv  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -1495,10 +1504,10 @@ contains
  ! compute case where the canopy is frozen
  if(frozen)then
   ! compute fraction of liquid water on the canopy
-  call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce,canopyIceMax*maxScaleFactor,canopyWetFraction,canopyWetFractionDeriv)
+  call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce,canopyIceMax,canopyWettingFactor,canopyWettingExp,canopyWetFraction,canopyWetFractionDeriv)
   ! compute numerical derivative, if derivative is desired
   if(deriv.and.derNum)then
-   call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce+dx,canopyIceMax*maxScaleFactor,canopyWetFractionPert,canopyWetFractionDeriv)
+   call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce+dx,canopyIceMax,canopyWettingFactor,canopyWettingExp,canopyWetFractionPert,canopyWetFractionDeriv)
    canopyWetFractionDeriv = (canopyWetFractionPert - canopyWetFraction)/dx
   endif
   ! scale derivative by the fraction of water
@@ -1510,11 +1519,11 @@ contains
 
  ! compute fraction of liquid water on the canopy
  ! NOTE: if(.not.deriv) canopyWetFractionDeriv = 0._dp
- call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq,canopyLiqMax*maxScaleFactor,canopyWetFraction,canopyWetFractionDeriv)
+ call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq,canopyLiqMax,canopyWettingFactor,canopyWettingExp,canopyWetFraction,canopyWetFractionDeriv)
 
  ! compute numerical derivative
  if(deriv.and.derNum)then
-  call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq+dx,canopyLiqMax*maxScaleFactor,canopyWetFractionPert,canopyWetFractionDeriv)
+  call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq+dx,canopyLiqMax,canopyWettingFactor,canopyWettingExp,canopyWetFractionPert,canopyWetFractionDeriv)
   canopyWetFractionDeriv = (canopyWetFractionPert - canopyWetFraction)/dx
  endif
 
@@ -1533,18 +1542,20 @@ contains
  ! *******************************************************************************************************
  ! private subroutine wetFraction: compute fraction of canopy covered with liquid water
  ! *******************************************************************************************************
- subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWetFraction,canopyWetFractionDeriv)
+ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFactor,canopyWettingExp,canopyWetFraction,canopyWetFractionDeriv)
  implicit none
  ! dummy variables
  logical(lgt),intent(in) :: derDesire              ! flag to denote if analytical derivatives are desired
  logical(lgt),intent(in) :: smoothing              ! flag to denote if smoothing is required
  real(dp),intent(in)     :: canopyLiq              ! liquid water content (kg m-2)
  real(dp),intent(in)     :: canopyMax              ! liquid water content (kg m-2)
+ real(dp),intent(in)     :: canopyWettingFactor    ! maximum wetted fraction of the canopy (-)
+ real(dp),intent(in)     :: canopyWettingExp       ! exponent in canopy wetting function (-)
+
  real(dp),intent(out)    :: canopyWetFraction      ! canopy wetted fraction (-)
  real(dp),intent(out)    :: canopyWetFractionDeriv ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  ! local variables
  real(dp)                :: relativeCanopyWater    ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
- real(dp),parameter      :: wetExp=0.666666667_dp  ! exponent in wetted area function
  real(dp)                :: rawCanopyWetFraction   ! initial value of the canopy wet fraction (before smoothing)
  real(dp)                :: rawWetFractionDeriv    ! derivative in canopy wet fraction w.r.t. storage (kg-1 m2)
  real(dp)                :: smoothFunc             ! smoothing function used to improve numerical stability at times with limited water storage (-)
@@ -1559,9 +1570,9 @@ contains
  ! compute an initial value of the canopy wet fraction
  ! - canopy below value where canopy is 100% wet
  if(relativeCanopyWater < 1._dp)then
-  rawCanopyWetFraction = relativeCanopyWater**wetExp
+  rawCanopyWetFraction = canopyWettingFactor*(relativeCanopyWater**canopyWettingExp)
   if(derDesire .and. relativeCanopyWater>verySmall)then
-   rawWetFractionDeriv = (wetExp/canopyMax)*relativeCanopyWater**(wetExp - 1._dp)
+   rawWetFractionDeriv = (canopyWettingFactor*canopyWettingExp/canopyMax)*relativeCanopyWater**(canopyWettingExp - 1._dp)
   else
    rawWetFractionDeriv = 0._dp
   endif
