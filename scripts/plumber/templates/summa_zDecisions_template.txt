@@ -18,26 +18,27 @@ stomResist                      BallBerry       ! (06) choice of function for st
 num_method                      itertive        ! (07) choice of numerical method
 fDerivMeth                      analytic        ! (08) method used to calculate flux derivatives
 LAI_method                      monTable        ! (09) method used to determine LAI and SAI
-f_Richards                      mixdform        ! (10) form of Richard's equation
-groundwatr                      noXplict        ! (11) choice of groundwater parameterization
-hc_profile                      constant        ! (12) choice of hydraulic conductivity profile
-bcUpprTdyn                      nrg_flux        ! (13) type of upper boundary condition for thermodynamics
-bcLowrTdyn                      zeroFlux        ! (14) type of lower boundary condition for thermodynamics
-bcUpprSoiH                      liq_flux        ! (15) type of upper boundary condition for soil hydrology
-bcLowrSoiH                      drainage        ! (16) type of lower boundary condition for soil hydrology
-veg_traits                      CM_QJRMS1998    ! (17) choice of parameterization for vegetation roughness length and displacement height
-canopyEmis                      difTrans        ! (18) choice of parameterization for canopy emissivity
-snowIncept                      lightSnow       ! (19) choice of parameterization for snow interception
-windPrfile                      logBelowCanopy  ! (20) choice of wind profile through the canopy
-astability                      louisinv        ! (21) choice of stability function
-canopySrad                      BeersLaw        ! (22) choice of canopy shortwave radiation method
-alb_method                      varDecay        ! (23) choice of albedo representation
-compaction                      anderson        ! (24) choice of compaction routine
-snowLayers                      CLM_2010        ! (25) choice of method to combine and sub-divide snow layers
-thCondSnow                      jrdn1991        ! (26) choice of thermal conductivity representation for snow
-thCondSoil                      funcSoilWet     ! (27) choice of thermal conductivity representation for soil
-spatial_gw                      localColumn     ! (28) choice of method for the spatial representation of groundwater
-subRouting                      timeDlay        ! (29) choice of method for sub-grid routing
+cIntercept                      storageFunc     ! (10) choice of parameterization for canopy interception
+f_Richards                      mixdform        ! (11) form of Richard's equation
+groundwatr                      noXplict        ! (12) choice of groundwater parameterization
+hc_profile                      constant        ! (13) choice of hydraulic conductivity profile
+bcUpprTdyn                      nrg_flux        ! (14) type of upper boundary condition for thermodynamics
+bcLowrTdyn                      zeroFlux        ! (15) type of lower boundary condition for thermodynamics
+bcUpprSoiH                      liq_flux        ! (16) type of upper boundary condition for soil hydrology
+bcLowrSoiH                      drainage        ! (17) type of lower boundary condition for soil hydrology
+veg_traits                      CM_QJRMS1998    ! (18) choice of parameterization for vegetation roughness length and displacement height
+canopyEmis                      difTrans        ! (19) choice of parameterization for canopy emissivity
+snowIncept                      lightSnow       ! (20) choice of parameterization for snow interception
+windPrfile                      logBelowCanopy  ! (21) choice of wind profile through the canopy
+astability                      louisinv        ! (22) choice of stability function
+canopySrad                      BeersLaw        ! (23) choice of canopy shortwave radiation method
+alb_method                      varDecay        ! (24) choice of albedo representation
+compaction                      anderson        ! (25) choice of compaction routine
+snowLayers                      CLM_2010        ! (26) choice of method to combine and sub-divide snow layers
+thCondSnow                      jrdn1991        ! (27) choice of thermal conductivity representation for snow
+thCondSoil                      funcSoilWet     ! (28) choice of thermal conductivity representation for soil
+spatial_gw                      localColumn     ! (29) choice of method for the spatial representation of groundwater
+subRouting                      timeDlay        ! (30) choice of method for sub-grid routing
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -76,94 +77,98 @@ subRouting                      timeDlay        ! (29) choice of method for sub-
 ! monTable  ! LAI/SAI taken directly from a monthly table for different vegetation classes
 ! specified ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 ! -----------------------------------------------------------------------------------------------
-! (10) form of Richards' equation
+! (10) choice of parameterization for canopy interception
+! sparseCanopy  ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
+! storageFunc   ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
+! -----------------------------------------------------------------------------------------------
+! (11) form of Richards' equation
 ! moisture  ! moisture-based form of Richards' equation
 ! mixdform  ! mixed form of Richards' equation
 ! -----------------------------------------------------------------------------------------------
-! (11) choice of groundwater parameterization
+! (12) choice of groundwater parameterization
 ! qTopmodl  ! topmodel parameterization
 ! bigBuckt  ! a big bucket (lumped aquifer model)
 ! noXplict  ! no explicit groundwater parameterization
 ! -----------------------------------------------------------------------------------------------
-! (12) choice of hydraulic conductivity profile
+! (13) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth
 ! pow_prof  ! power-law profile
 ! -----------------------------------------------------------------------------------------------
-! (13) choice of upper boundary conditions for thermodynamics
+! (14) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! nrg_flux  ! energy flux
 ! -----------------------------------------------------------------------------------------------
-! (14) choice of lower boundary conditions for thermodynamics
+! (15) choice of lower boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! zeroFlux  ! zero flux
 ! -----------------------------------------------------------------------------------------------
-! (15) choice of upper boundary conditions for soil hydrology
+! (16) choice of upper boundary conditions for soil hydrology
 ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 ! liq_flux  ! liquid water flux
 ! -----------------------------------------------------------------------------------------------
-! (16) choice of lower boundary conditions for soil hydrology
+! (17) choice of lower boundary conditions for soil hydrology
 ! drainage  ! free draining
 ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
 ! bottmPsi  ! function of matric head in the lower-most layer
 ! zeroFlux  ! zero flux
 ! -----------------------------------------------------------------------------------------------
-! (17) choice of parameterization for vegetation roughness length and displacement height
+! (18) choice of parameterization for vegetation roughness length and displacement height
 ! Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
 ! CM_QJRMS1998     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
 ! vegTypeTable     ! constant parameters dependent on the vegetation type
 ! -----------------------------------------------------------------------------------------------
-! (18) choice of parameterization for canopy emissivity
+! (19) choice of parameterization for canopy emissivity
 ! simplExp  ! simple exponential function
 ! difTrans  ! parameterized as a function of diffuse transmissivity
 ! -----------------------------------------------------------------------------------------------
-! (19) choice of parameterization for snow interception
+! (20) choice of parameterization for snow interception
 ! stickySnow  ! maximum interception capacity an increasing function of temerature
 ! lightSnow   ! maximum interception capacity an inverse function of new snow density
 ! -----------------------------------------------------------------------------------------------
-! (20) choice of wind profile
+! (21) choice of wind profile
 ! exponential ! exponential wind profile extends to the surface
 ! logBelowCanopy ! logarithmic profile below the vegetation canopy
 ! -----------------------------------------------------------------------------------------------
-! (21) choice of stability function
+! (22) choice of stability function
 ! standard    ! standard MO similarity, a la Anderson (1979)
 ! louisinv    ! Louis (1979) inverse power function
 ! mahrtexp    ! Mahrt (1987) exponential function
 ! -----------------------------------------------------------------------------------------------
-! (22) choice of canopy shortwave radiation method
+! (23) choice of canopy shortwave radiation method
 ! noah_mp     ! full Noah-MP implementation (including albedo)
 ! CLM_2stream ! CLM 2-stream model (see CLM documentation)
 ! UEB_2stream ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
 ! NL_scatter  ! Simplified method Nijssen and Lettenmaier (JGR 1999)
 ! BeersLaw    ! Beer's Law (as implemented in VIC)
 ! -----------------------------------------------------------------------------------------------
-! (23) choice of albedo representation
+! (24) choice of snow albedo representation
 ! conDecay  ! constant decay rate (e.g., VIC, CLASS)
 ! varDecay  ! variable decay rate (e.g., BATS approach, with destructive metamorphism + soot content)
 ! -----------------------------------------------------------------------------------------------
-! (24) choice of compaction routine
+! (25) choice of snow compaction routine
 ! consettl  ! constant settlement rate
 ! anderson  ! semi-empirical method of Anderson (1976)
 ! -----------------------------------------------------------------------------------------------
-! (25) choice of method to combine and sub-divide snow layers
+! (26) choice of method to combine and sub-divide snow layers
 ! CLM_2010  ! CLM option: combination/sub-dividion rules depend on layer index
 ! jrdn1991  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
 ! -----------------------------------------------------------------------------------------------
-! (26) choice of thermal conductivity representation for snow
+! (27) choice of thermal conductivity representation for snow
 ! tyen1965  ! Yen (1965)
 ! melr1977  ! Mellor (1977)
 ! jrdn1991  ! Jordan (1991)
 ! smnv2000  ! Smirnova et al. (2000)
 ! -----------------------------------------------------------------------------------------------
-! (27) choice of thermal conductivity representation for soil
+! (28) choice of thermal conductivity representation for soil
 ! funcSoilWet ! function of soil wetness
 ! mixConstit  ! mixture of constituents
 ! hanssonVZJ  ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
 ! -----------------------------------------------------------------------------------------------
-! (28) choice of method for the spatial representation of groundwater
+! (29) choice of method for the spatial representation of groundwater
 ! localColumn  ! separate groundwater representation in each local soil column
 ! singleBasin  ! single groundwater store over the entire basin
 ! -----------------------------------------------------------------------------------------------
-! (29) choice of method for sub-grid routing
+! (30) choice of method for sub-grid routing
 ! timeDlay  ! time-delay histogram
 ! qInstant  ! instantaneous routing
 ! ***********************************************************************************************
