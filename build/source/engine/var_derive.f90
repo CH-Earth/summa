@@ -110,6 +110,10 @@ contains
  ! model decision structures
  USE data_struc,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ ! look-up values for the choice of the rooting profile
+ USE mDecisions_module,only: &
+ powerLaw,                   & ! simple power-law rooting profile
+ doubleExp                     ! the double exponential function of Xeng et al. (JHM 2001)
  ! look-up values for the choice of groundwater parameterization
  USE mDecisions_module,only: &
  bigBucket,                  & ! a big bucket (lumped aquifer model)
@@ -134,7 +138,12 @@ contains
  ! associate the model index structures
  nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! number of layers
  layerType             =>indx_data%var(iLookINDEX%layerType)%dat,               & ! layer type (ix_soil or ix_snow)
+ ! associate the model decisions
+ ixRootProfile         =>model_decisions(iLookDECISIONS%rootProfil)%iDecision,  & ! choice of the rooting profile
+ ixGroundwater         =>model_decisions(iLookDECISIONS%groundwatr)%iDecision,  & ! choice of groundwater parameterization
  ! associate the values in the model parameter structures
+ rootScaleFactor1      =>mpar_data%var(iLookPARAM%rootScaleFactor1),            & ! 1st scaling factor (m-1)
+ rootScaleFactor2      =>mpar_data%var(iLookPARAM%rootScaleFactor2),            & ! 2nd scaling factor (m-1)
  rootingDepth          =>mpar_data%var(iLookPARAM%rootingDepth),                & ! rooting depth (m)
  rootDistExp           =>mpar_data%var(iLookPARAM%rootDistExp),                 & ! root distribution exponent (-)
  ! associate the values in the model variable structures
@@ -144,51 +153,66 @@ contains
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
- ! check that the rooting depth is less than the soil depth
- if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
-  if(rootingDepth>iLayerHeight(nLayers))then; err=10; message=trim(message)//'rooting depth can ONLY exceed soil depth for the big bucket gw parameterization'; return; endif
- endif
-
  ! compute the fraction of roots in each soil layer
  do iLayer=nSnow+1,nLayers
-  if(iLayerHeight(iLayer-1)<rootingDepth)then
-   ! compute the fraction of the rooting depth at the lower and upper interfaces
-   fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
-   fracRootUpper = iLayerHeight(iLayer)/rootingDepth
-   if(fracRootUpper>1._dp) fracRootUpper=1._dp
-   ! compute the root density
-   mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
-  else
-   mLayerRootDensity(iLayer-nSnow) = 0._dp
-  endif
-  !print*, 'iLayerHeight(iLayer-1:iLayer) = ', iLayerHeight(iLayer-1:iLayer)
-  !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp = ', &
-  !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower, fracRootUpper**rootDistExp, fracRootLower**rootDistExp
+
+  ! different options for the rooting profile
+  select case(ixRootProfile)
+
+   ! ** option 1: simple power-law profile
+   case(powerLaw)
+    if(iLayerHeight(iLayer-1)<rootingDepth)then
+     ! compute the fraction of the rooting depth at the lower and upper interfaces
+     fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
+     fracRootUpper = iLayerHeight(iLayer)/rootingDepth
+     if(fracRootUpper>1._dp) fracRootUpper=1._dp
+     ! compute the root density
+     mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
+   else
+    mLayerRootDensity(iLayer-nSnow) = 0._dp
+   endif
+
+   ! ** option 2: double expoential profile of Zeng et al. (JHM 2001)
+   case(doubleExp)
+    ! compute the cumulative fraction of roots at the top and bottom of the layer
+    fracRootLower = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer-1)*rootScaleFactor1) + exp(-iLayerHeight(iLayer-1)*rootScaleFactor2) )
+    fracRootUpper = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
+    ! compute the root density
+    mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
+    write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
+                                 mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
+
+   ! ** check
+   case default; err=20; message=trim(message)//'unable to identify option for rooting profile'; return
+
+  end select
+
  end do  ! (looping thru layers)
- !pause
 
- ! compute fraction of roots in the aquifer
- if(rootingDepth > iLayerHeight(nLayers))then
-  scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity(1:nSoil))
-  checkCalcs = 1._dp - ( min(iLayerHeight(nLayers),rootingDepth) / rootingDepth)**rootDistExp
-  if(abs(checkCalcs - scalarAquiferRootFrac) > epsilon(checkCalcs))then
-   err=20; message=trim(message)//'problem with the aquifer root density calculations'; return
-  endif
-
- ! set fraction of aquifer roots to zero, and check everything is OK
- else
-  scalarAquiferRootFrac = 0._dp
-  if(abs(sum(mLayerRootDensity) - 1._dp) > epsilon(rootingDepth))then
-   print*, 'sum of root density = ', sum(mLayerRootDensity)
-   print*, 'rootingDepth = ', rootingDepth
-   message=trim(message)//'root density does not sum to one when rooting depth is within the soil profile'
-   err=20; return
-  endif
+ ! check that root density is less than one
+ if(sum(mLayerRootDensity) > 1._dp + epsilon(rootingDepth))then
+  message=trim(message)//'problem with the root density calaculation'
+  err=20; return
  endif
 
- !print*, 'iLookMVAR%scalarAquiferRootFrac = ', iLookMVAR%scalarAquiferRootFrac
- !print*, 'iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac = ', iLayerHeight(nLayers), rootingDepth, scalarAquiferRootFrac
- !pause
+ ! compute fraction of roots in the aquifer
+ if(sum(mLayerRootDensity) < 1._dp)then
+  scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
+ else
+  scalarAquiferRootFrac = 0._dp
+ endif
+ 
+ ! check that roots in the aquifer are appropriate
+ if(scalarAquiferRootFrac > epsilon(rootingDepth))then
+  if(ixGroundwater /= bigBucket)then
+   select case(ixRootProfile)
+    case(powerLaw);  message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: check that rooting depth < soil depth'
+    case(doubleExp); message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: increase soil depth to alow for exponential roots'
+   end select
+   err=10; return
+  endif  ! if not the big bucket
+ endif  ! if roots in the aquifer
+
  end associate
 
  end subroutine rootDensty

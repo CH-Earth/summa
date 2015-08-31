@@ -41,26 +41,28 @@ MODULE var_lookup
   integer(i4b)    :: num_method       = 7  ! choice of numerical method
   integer(i4b)    :: fDerivMeth       = 8  ! method used to calculate flux derivatives
   integer(i4b)    :: LAI_method       = 9  ! method used to determine LAI and SAI
-  integer(i4b)    :: f_Richards       = 10 ! form of richards' equation
-  integer(i4b)    :: groundwatr       = 11 ! choice of groundwater parameterization
-  integer(i4b)    :: hc_profile       = 12 ! choice of hydraulic conductivity profile
-  integer(i4b)    :: bcUpprTdyn       = 13 ! type of upper boundary condition for thermodynamics
-  integer(i4b)    :: bcLowrTdyn       = 14 ! type of lower boundary condition for thermodynamics
-  integer(i4b)    :: bcUpprSoiH       = 15 ! type of upper boundary condition for soil hydrology
-  integer(i4b)    :: bcLowrSoiH       = 16 ! type of lower boundary condition for soil hydrology
-  integer(i4b)    :: veg_traits       = 17 ! choice of parameterization for vegetation roughness length and displacement height
-  integer(i4b)    :: canopyEmis       = 18 ! choice of parameterization for canopy emissivity
-  integer(i4b)    :: snowIncept       = 19 ! choice of parameterization for snow interception
-  integer(i4b)    :: windPrfile       = 20 ! choice of canopy wind profile
-  integer(i4b)    :: astability       = 21 ! choice of stability function
-  integer(i4b)    :: canopySrad       = 22 ! choice of method for canopy shortwave radiation
-  integer(i4b)    :: alb_method       = 23 ! choice of albedo representation
-  integer(i4b)    :: snowLayers       = 24 ! choice of method to combine and sub-divide snow layers
-  integer(i4b)    :: compaction       = 25 ! choice of compaction routine
-  integer(i4b)    :: thCondSnow       = 26 ! choice of thermal conductivity representation for snow
-  integer(i4b)    :: thCondSoil       = 27 ! choice of thermal conductivity representation for soil
-  integer(i4b)    :: spatial_gw       = 28 ! choice of method for spatial representation of groundwater
-  integer(i4b)    :: subRouting       = 29 ! choice of method for sub-grid routing
+  integer(i4b)    :: cIntercept       = 10 ! choice of parameterization for canopy interception
+  integer(i4b)    :: f_Richards       = 11 ! form of richards' equation
+  integer(i4b)    :: groundwatr       = 12 ! choice of groundwater parameterization
+  integer(i4b)    :: hc_profile       = 13 ! choice of hydraulic conductivity profile
+  integer(i4b)    :: bcUpprTdyn       = 14 ! type of upper boundary condition for thermodynamics
+  integer(i4b)    :: bcLowrTdyn       = 15 ! type of lower boundary condition for thermodynamics
+  integer(i4b)    :: bcUpprSoiH       = 16 ! type of upper boundary condition for soil hydrology
+  integer(i4b)    :: bcLowrSoiH       = 17 ! type of lower boundary condition for soil hydrology
+  integer(i4b)    :: veg_traits       = 18 ! choice of parameterization for vegetation roughness length and displacement height
+  integer(i4b)    :: rootProfil       = 19 ! choice of parameterization for the rooting profile
+  integer(i4b)    :: canopyEmis       = 20 ! choice of parameterization for canopy emissivity
+  integer(i4b)    :: snowIncept       = 21 ! choice of parameterization for snow interception
+  integer(i4b)    :: windPrfile       = 22 ! choice of canopy wind profile
+  integer(i4b)    :: astability       = 23 ! choice of stability function
+  integer(i4b)    :: canopySrad       = 24 ! choice of method for canopy shortwave radiation
+  integer(i4b)    :: alb_method       = 25 ! choice of albedo representation
+  integer(i4b)    :: snowLayers       = 26 ! choice of method to combine and sub-divide snow layers
+  integer(i4b)    :: compaction       = 27 ! choice of compaction routine
+  integer(i4b)    :: thCondSnow       = 28 ! choice of thermal conductivity representation for snow
+  integer(i4b)    :: thCondSoil       = 29 ! choice of thermal conductivity representation for soil
+  integer(i4b)    :: spatial_gw       = 30 ! choice of method for spatial representation of groundwater
+  integer(i4b)    :: subRouting       = 31 ! choice of method for sub-grid routing
  endtype iLook_decision
  ! ***********************************************************************************************************
  ! (1) define model time
@@ -169,6 +171,7 @@ MODULE var_lookup
   ! vegetation properties
   integer(i4b)    :: winterSAI                 = 47  ! stem area index prior to the start of the growing season (m2 m-2)
   integer(i4b)    :: summerLAI                 = 48  ! maximum leaf area index at the peak of the growing season (m2 m-2)
+<<<<<<< HEAD
   integer(i4b)    :: rootingDepth              = 49  ! rooting depth (m)
   integer(i4b)    :: rootDistExp               = 50  ! exponent controlling the vertical distribution of root density (-)
   integer(i4b)    :: plantWiltPsi              = 51  ! matric head at wilting point (m)
@@ -245,6 +248,88 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer2_upper          = 120 ! maximum layer depth for the 2nd layer when > 2 layers (m)
   integer(i4b)    :: zmaxLayer3_upper          = 121 ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper          = 122 ! maximum layer depth for the 4th layer when > 4 layers (m)
+=======
+  integer(i4b)    :: rootScaleFactor1          = 49  ! 1st scaling factor (a) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )  (m-1)
+  integer(i4b)    :: rootScaleFactor2          = 50  ! 2nd scaling factor (b) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )  (m-1)
+  integer(i4b)    :: rootingDepth              = 51  ! rooting depth (m)
+  integer(i4b)    :: rootDistExp               = 52  ! exponent controlling the vertical distribution of root density (-)
+  integer(i4b)    :: plantWiltPsi              = 53  ! matric head at wilting point (m)
+  integer(i4b)    :: soilStressParam           = 54  ! parameter in the exponential soil stress function
+  integer(i4b)    :: critSoilWilting           = 55  ! critical vol. liq. water content when plants are wilting (-)
+  integer(i4b)    :: critSoilTranspire         = 56  ! critical vol. liq. water content when transpiration is limited (-)
+  integer(i4b)    :: critAquiferTranspire      = 57  ! critical aquifer storage value when transpiration is limited (m)
+  integer(i4b)    :: minStomatalResistance     = 58  ! minimum canopy resistance (s m-1)
+  integer(i4b)    :: leafDimension             = 59  ! characteristic leaf dimension (m)
+  integer(i4b)    :: heightCanopyTop           = 60  ! height of top of the vegetation canopy above ground surface (m)
+  integer(i4b)    :: heightCanopyBottom        = 61  ! height of bottom of the vegetation canopy above ground surface (m)
+  integer(i4b)    :: specificHeatVeg           = 62  ! specific heat of vegetation (J kg-1 K-1)
+  integer(i4b)    :: maxMassVegetation         = 63  ! maximum mass of vegetation (full foliage) (kg m-2)
+  integer(i4b)    :: throughfallScaleSnow      = 64  ! scaling factor for throughfall (snow) (-)
+  integer(i4b)    :: throughfallScaleRain      = 65  ! scaling factor for throughfall (rain) (-)
+  integer(i4b)    :: refInterceptCapSnow       = 66  ! reference canopy interception capacity per unit leaf area (snow) (kg m-2)
+  integer(i4b)    :: refInterceptCapRain       = 67  ! canopy interception capacity per unit leaf area (rain) (kg m-2)
+  integer(i4b)    :: snowUnloadingCoeff        = 68  ! time constant for unloading of snow from the forest canopy (s-1)
+  integer(i4b)    :: canopyDrainageCoeff       = 69  ! time constant for drainage of liquid water from the forest canopy (s-1)
+  integer(i4b)    :: ratioDrip2Unloading       = 70  ! ratio of canopy drip to unloading of snow from the forest canopy (-)
+  integer(i4b)    :: canopyWettingFactor       = 71  ! maximum wetted fraction of the canopy (-)
+  integer(i4b)    :: canopyWettingExp          = 72  ! exponent in canopy wetting function (-)
+  ! soil properties
+  integer(i4b)    :: soil_dens_intr            = 73  ! intrinsic soil density (kg m-3)
+  integer(i4b)    :: thCond_soil               = 74  ! thermal conductivity of soil (W m-1 K-1)
+  integer(i4b)    :: frac_sand                 = 75  ! fraction of sand (-)
+  integer(i4b)    :: frac_silt                 = 76  ! fraction of silt (-)
+  integer(i4b)    :: frac_clay                 = 77  ! fraction of clay (-)
+  integer(i4b)    :: fieldCapacity             = 78  ! field capacity (-)
+  integer(i4b)    :: wettingFrontSuction       = 79  ! Green-Ampt wetting front suction (m)
+  integer(i4b)    :: theta_mp                  = 80  ! volumetric liquid water content when macropore flow begins (-)
+  integer(i4b)    :: theta_sat                 = 81  ! porosity (-)
+  integer(i4b)    :: theta_res                 = 82  ! volumetric residual water content (-)
+  integer(i4b)    :: vGn_alpha                 = 83  ! van Genuchten "alpha" parameter (m-1)
+  integer(i4b)    :: vGn_n                     = 84  ! van Genuchten "n" parameter (-)
+  integer(i4b)    :: mpExp                     = 85  ! empirical exponent in macropore flow equation (-)
+  integer(i4b)    :: k_soil                    = 86  ! hydraulic conductivity of soil (m s-1)
+  integer(i4b)    :: k_macropore               = 87  ! saturated hydraulic conductivity for macropores (m s-1)
+  integer(i4b)    :: kAnisotropic              = 88  ! anisotropy factor for lateral hydraulic conductivity (-)
+  integer(i4b)    :: zScale_TOPMODEL           = 89  ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
+  integer(i4b)    :: compactedDepth            = 90  ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: aquiferScaleFactor        = 91  ! scaling factor for aquifer storage in the big bucket (m)
+  integer(i4b)    :: aquiferBaseflowExp        = 92  ! baseflow exponent (-)
+  integer(i4b)    :: qSurfScale                = 93  ! scaling factor in the surface runoff parameterization (-)
+  integer(i4b)    :: specificYield             = 94  ! specific yield (-)
+  integer(i4b)    :: specificStorage           = 95  ! specific storage coefficient (m-1)
+  integer(i4b)    :: f_impede                  = 96  ! ice impedence factor (-)
+  integer(i4b)    :: soilIceScale              = 97  ! scaling factor for depth of soil ice, used to get frozen fraction (m)
+  integer(i4b)    :: soilIceCV                 = 98  ! CV of depth of soil ice, used to get frozen fraction (-)
+  ! algorithmic control parameters
+  integer(i4b)    :: minwind                   = 99  ! minimum wind speed (m s-1)
+  integer(i4b)    :: minstep                   = 100 ! minimum length of the time step
+  integer(i4b)    :: maxstep                   = 101 ! maximum length of the time step
+  integer(i4b)    :: wimplicit                 = 102 ! weight assigned to the start-of-step fluxes
+  integer(i4b)    :: maxiter                   = 103 ! maximum number of iteration
+  integer(i4b)    :: relConvTol_liquid         = 104 ! relative convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: absConvTol_liquid         = 105 ! absolute convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: relConvTol_matric         = 106 ! relative convergence tolerance for matric head (-)
+  integer(i4b)    :: absConvTol_matric         = 107 ! absolute convergence tolerance for matric head (m)
+  integer(i4b)    :: relConvTol_energy         = 108 ! relative convergence tolerance for energy (-)
+  integer(i4b)    :: absConvTol_energy         = 109 ! absolute convergence tolerance for energy (J m-3)
+  integer(i4b)    :: relConvTol_aquifr         = 110 ! relative convergence tolerance for aquifer storage (-)
+  integer(i4b)    :: absConvTol_aquifr         = 111 ! absolute convergence tolerance for aquifer storage (J m-3)
+  integer(i4b)    :: zmin                      = 112 ! minimum layer depth (m)
+  integer(i4b)    :: zmax                      = 113 ! maximum layer depth (m)
+  integer(i4b)    :: zminLayer1                = 114 ! minimum layer depth for the 1st (top) layer (m)
+  integer(i4b)    :: zminLayer2                = 115 ! minimum layer depth for the 2nd layer (m)
+  integer(i4b)    :: zminLayer3                = 116 ! minimum layer depth for the 3rd layer (m)
+  integer(i4b)    :: zminLayer4                = 117 ! minimum layer depth for the 4th layer (m)
+  integer(i4b)    :: zminLayer5                = 118 ! minimum layer depth for the 5th (bottom) layer (m)
+  integer(i4b)    :: zmaxLayer1_lower          = 119 ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
+  integer(i4b)    :: zmaxLayer2_lower          = 120 ! maximum layer depth for the 2nd layer when only 2 layers (m)
+  integer(i4b)    :: zmaxLayer3_lower          = 121 ! maximum layer depth for the 3rd layer when only 3 layers (m)
+  integer(i4b)    :: zmaxLayer4_lower          = 122 ! maximum layer depth for the 4th layer when only 4 layers (m)
+  integer(i4b)    :: zmaxLayer1_upper          = 123 ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
+  integer(i4b)    :: zmaxLayer2_upper          = 124 ! maximum layer depth for the 2nd layer when > 2 layers (m)
+  integer(i4b)    :: zmaxLayer3_upper          = 125 ! maximum layer depth for the 3rd layer when > 3 layers (m)
+  integer(i4b)    :: zmaxLayer4_upper          = 126 ! maximum layer depth for the 4th layer when > 4 layers (m)
+>>>>>>> 4b3ba08... implement double exponential option for root density
  endtype ilook_param
  ! ***********************************************************************************************************
  ! (6) define model variables
@@ -531,7 +616,12 @@ MODULE var_lookup
  ! define look-up structures
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
+<<<<<<< HEAD
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29)
+=======
+                                                                         21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
+                                                                         31)
+>>>>>>> 4b3ba08... implement double exponential option for root density
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5)
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   (  1,  2,  3,  4,  5,  6,  7,  8)
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
@@ -548,7 +638,11 @@ MODULE var_lookup
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
                                                                         111,112,113,114,115,116,117,118,119,120,&
+<<<<<<< HEAD
                                                                         121,122)
+=======
+                                                                        121,122,123,124,125,126)
+>>>>>>> 4b3ba08... implement double exponential option for root density
  type(iLook_mvar),    public,parameter :: iLookMVAR     =ilook_mvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
@@ -575,12 +669,20 @@ MODULE var_lookup
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11)
  ! define maximum number of variables of each type
+<<<<<<< HEAD
  integer(i4b),parameter,public :: maxvarDecisions= 29
+=======
+ integer(i4b),parameter,public :: maxvarDecisions= 31
+>>>>>>> 4b3ba08... implement double exponential option for root density
  integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarAttr     = 7
  integer(i4b),parameter,public :: maxvarType     = 5
+<<<<<<< HEAD
  integer(i4b),parameter,public :: maxvarMpar     = 122
+=======
+ integer(i4b),parameter,public :: maxvarMpar     = 126
+>>>>>>> 4b3ba08... implement double exponential option for root density
  integer(i4b),parameter,public :: maxvarMvar     = 207
  integer(i4b),parameter,public :: maxvarIndx     = 10
  integer(i4b),parameter,public :: maxvarBpar     = 5

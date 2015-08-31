@@ -60,26 +60,28 @@ contains
   case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! ( 7) choice of numerical method
   case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! ( 8) choice of method to calculate flux derivatives
   case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! ( 9) choice of method to determine LAI and SAI
-  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! (10) form of Richards' equation
-  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! (11) choice of groundwater parameterization
-  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! (12) choice of hydraulic conductivity profile
-  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! (13) type of upper boundary condition for thermodynamics
-  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! (14) type of lower boundary condition for thermodynamics
-  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (15) type of upper boundary condition for soil hydrology
-  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (16) type of lower boundary condition for soil hydrology
-  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (17) choice of parameterization for vegetation roughness length and displacement height
-  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (18) choice of parameterization for canopy emissivity
-  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (19) choice of parameterization for snow interception
-  case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! (20) choice of canopy wind profile
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (21) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (22) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (23) choice of method to combine and sub-divide snow layers
-  case('thCondSnow'      ); get_ixdecisions=iLookDECISIONS%thCondSnow  ! (24) choice of thermal conductivity representation for snow
-  case('thCondSoil'      ); get_ixdecisions=iLookDECISIONS%thCondSoil  ! (25) choice of thermal conductivity representation for soil
-  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (26) choice of method for canopy shortwave radiation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (27) choice of albedo representation
-  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (28) choice of method for spatial representation of groundwater
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (29) choice of method for sub-grid routing
+  case('cIntercept'      ); get_ixdecisions=iLookDECISIONS%cIntercept  ! (10) choice of parameterization for canopy interception
+  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! (11) form of Richards' equation
+  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! (12) choice of groundwater parameterization
+  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! (13) choice of hydraulic conductivity profile
+  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! (14) type of upper boundary condition for thermodynamics
+  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! (15) type of lower boundary condition for thermodynamics
+  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (16) type of upper boundary condition for soil hydrology
+  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (17) type of lower boundary condition for soil hydrology
+  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (18) choice of parameterization for vegetation roughness length and displacement height
+  case('rootProfil'      ); get_ixdecisions=iLookDECISIONS%rootProfil  ! (19) choice of parameterization for the rooting profile
+  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (20) choice of parameterization for canopy emissivity
+  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (21) choice of parameterization for snow interception
+  case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! (22) choice of canopy wind profile
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (23) choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (24) choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (25) choice of method to combine and sub-divide snow layers
+  case('thCondSnow'      ); get_ixdecisions=iLookDECISIONS%thCondSnow  ! (26) choice of thermal conductivity representation for snow
+  case('thCondSoil'      ); get_ixdecisions=iLookDECISIONS%thCondSoil  ! (27) choice of thermal conductivity representation for soil
+  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (28) choice of method for canopy shortwave radiation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (29) choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (30) choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (31) choice of method for sub-grid routing
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -263,6 +265,8 @@ contains
   ! vegetation properties
   case('winterSAI'                ); get_ixparam = iLookPARAM%winterSAI              ! stem area index prior to the start of the growing season (m2 m-2)
   case('summerLAI'                ); get_ixparam = iLookPARAM%summerLAI              ! maximum leaf area index at the peak of the growing season (m2 m-2)
+  case('rootScaleFactor1'         ); get_ixparam = iLookPARAM%rootScaleFactor1       ! 1st scaling factor (a) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )   (m-1)
+  case('rootScaleFactor2'         ); get_ixparam = iLookPARAM%rootScaleFactor2       ! 2nd scaling factor (b) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )   (m-1)
   case('rootingDepth'             ); get_ixparam = iLookPARAM%rootingDepth           ! rooting depth (m)
   case('rootDistExp'              ); get_ixparam = iLookPARAM%rootDistExp            ! exponent for the vertical distriution of root density (-)
   case('plantWiltPsi'             ); get_ixparam = iLookPARAM%plantWiltPsi           ! matric head at wilting point (m)
