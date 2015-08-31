@@ -165,7 +165,7 @@ scalarSnowSublimation               | snow sublimation/frost (below canopy or no
 ! *************************************************************************************************************************************
 ! NOAH-MP vegetation variables (transpiration)
 ! *************************************************************************************************************************************
-scalarTranspireLim                  | aggregate soil moisture and aquifer control on transpiration      | -               | scalarv | F
+scalarTranspireLim                  | aggregate soil moisture and aquifer control on transpiration      | -               | scalarv | T
 scalarTranspireLimAqfr              | aquifer storage control on transpiration                          | -               | scalarv | F
 scalarFoliageNitrogenFactor         | foliage nitrogen concentration (1=saturated)                      | -               | scalarv | F
 scalarStomResistSunlit              | stomatal resistance for sunlit leaves                             | s m-1           | scalarv | F
@@ -221,10 +221,10 @@ mLayerRootDensity                   | fraction of roots in each soil layer      
 ! *************************************************************************************************************************************
 ! variables at the mid-point of each layer coupled energy and mass
 ! *************************************************************************************************************************************
-mLayerTemp                          | temperature of each layer                                         | K               | midToto | F
+mLayerTemp                          | temperature of each layer                                         | K               | midToto | T
 mLayerVolFracAir                    | volumetric fraction of air in each layer                          | -               | midToto | F
 mLayerVolFracIce                    | volumetric fraction of ice in each layer                          | -               | midToto | F
-mLayerVolFracLiq                    | volumetric fraction of liquid water in each layer                 | -               | midToto | F
+mLayerVolFracLiq                    | volumetric fraction of liquid water in each layer                 | -               | midToto | T
 mLayerVolHtCapBulk                  | volumetric heat capacity in each layer                            | J m-3 K-1       | midToto | F
 mLayerTcrit                         | critical soil temperature above which all water is unfrozen       | K               | midSoil | F
 mLayerdTheta_dTk                    | derivative in volumetric liquid water content wrt temperature     | K-1             | midToto | F

@@ -27,7 +27,7 @@ nSoil                | number of soil layers                                    
 nLayers              | total number of layers                                       | -          | scalarv | T
 midSnowStartIndex    | start index of the midSnow vector for a given timestep       | -          | scalarv | F
 midSoilStartIndex    | start index of the midSoil vector for a given timestep       | -          | scalarv | F
-midTotoStartIndex    | start index of the midToto vector for a given timestep       | -          | scalarv | F
+midTotoStartIndex    | start index of the midToto vector for a given timestep       | -          | scalarv | T
 ifcSnowStartIndex    | start index of the ifcSnow vector for a given timestep       | -          | scalarv | F
 ifcSoilStartIndex    | start index of the ifcSoil vector for a given timestep       | -          | scalarv | F
 ifcTotoStartIndex    | start index of the ifcToto vector for a given timestep       | -          | scalarv | T
