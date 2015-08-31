@@ -36,7 +36,7 @@ model_names = ['CABLE.2.0',                  $
                'Noah.3.2',                   $
                'NOAH.3.3',                   $
                'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0'                   ]
+               'SUMMA.1.0.exp.01.test'       ]
 
 ; define the site names
 site_names = ['Amplero',     $
@@ -233,7 +233,7 @@ for iSite=0,nSites-1 do begin
   ncdf_close, nc_file 
 
   ; change sign for CHTESSEL and SUMMA
-  if(model_names[imodel] eq 'CHTESSEL' or model_names[imodel] eq 'SUMMA.1.0')then begin
+  if(model_names[imodel] eq 'CHTESSEL' or strmid(model_names[imodel],0,5) eq 'SUMMA')then begin
    Qh_mod  = -Qh_mod
    Qle_mod = -Qle_mod
   endif
@@ -252,7 +252,7 @@ for iSite=0,nSites-1 do begin
   modQle[48] = modQle[0]  ; zee wrap-around
 
   ; plot model simulations
-  if(model_names[imodel] eq 'SUMMA.1.0')then begin
+  if(strmid(model_names[imodel],0,5) eq 'SUMMA')then begin
    oplot, xtime, modQh,  color=250, thick=2
    oplot, xtime, -modQle, color=60, thick=2
   endif else begin

@@ -23,19 +23,25 @@ LHvap=2501000.d   ; J kg-1
 secprday=86400.d
 
 ; define file paths
-file_path = '/Volumes/d1/mclark/PLUMBER_data/model_output/'
+file_path = '/d1/mclark/PLUMBER_data/model_output/'
 
 ; define named variables to switch between canopy evaporation and canopy storage
-ixStor=1      ; canopy storage
-ixEvap=2      ; canopy evaporation
-ixLatHeat=3   ; latent heat flux
-ixSoilMoist=4 ; root zone soil moisture
+ixStor=1       ; canopy storage
+ixEvap=2       ; canopy evaporation
+ixSWnet=3      ; net shortwave radiation
+ixLWnet=4      ; net shortwave radiation
+ixLatHeat=5    ; latent heat flux
+ixSenHeat=6    ; latent heat flux
+ixSoilMoist=7  ; root zone soil moisture
+ixSoilStress=8 ; soil stress factor
 
 ; define desired variable
-ixVar=ixSoilMoist
+ixVar=ixLWnet
 
 ; define variables
 case ixVar of
+
+ ; =========================================================================================
 
  ; *** canopy storage
  ixStor: begin
@@ -51,6 +57,8 @@ case ixVar of
   xMult=[1.d,1.d,1.d,1.d,1.d,1.d]
 
  end  ; canopy storage
+
+ ; =========================================================================================
 
  ; *** canopy evaporation
  ixEvap: begin
@@ -68,6 +76,42 @@ case ixVar of
 
  end  ; canopy evaporation
 
+ ; =========================================================================================
+
+ ; *** net shortwave radiation
+ ixSWnet: begin
+
+  ; define variable range
+  ymin=0
+  ymax=1000
+
+  ; define net sw radiation
+  cVarNames=['SWnet','SWnet','SWnet','SWnet','SWnet','SWnet']
+
+  ; define multiplier
+  xMult=[1.d,1.d,1.d,1.d,1.d,1.d]
+
+ end  ; net sw radiation
+
+ ; =========================================================================================
+
+ ; *** net longwave radiation
+ ixLWnet: begin
+
+  ; define variable range
+  ymin=-200
+  ymax=0
+
+  ; define net sw radiation
+  cVarNames=['LWnet','LWnet','LWnet','LWnet','LWnet','LWnet']
+
+  ; define multiplier
+  xMult=[1.d,1.d,1.d,1.d,1.d,1.d]
+
+ end  ; net lw radiation
+
+ ; =========================================================================================
+
  ; latent heat flux
  ixLatHeat: begin
 
@@ -83,6 +127,25 @@ case ixVar of
 
  end
 
+ ; =========================================================================================
+
+ ; sensible heat flux
+ ixSenHeat: begin
+
+  ; define variable range
+  ymin=0
+  ymax=500
+
+  ; define latent heat flux
+  cVarNames=['Qh','Qh','Qh','Qh','Qh','Qh']
+
+  ; define multiplier
+  xMult=[1.d,1.d,-1.d,1.d,1.d,-1.d]
+
+ end
+
+ ; =========================================================================================
+
  ; root zone soil moisture
  ixSoilMoist: begin
 
@@ -90,7 +153,7 @@ case ixVar of
   ymin=0
   ymax=10000000
 
-  ; define latent heat flux
+  ; define root zone soil moisture
   cVarNames=['Qle','Qle','RootMoist','RootMoist','SoilMoist_tot','Qle']
 
   ; define multiplier
@@ -98,6 +161,24 @@ case ixVar of
 
  end
 
+ ; =========================================================================================
+
+ ; soil stress
+ ixSoilStress: begin
+
+  ; define variable range
+  ymin=0
+  ymax=1
+
+  ; define root zone soil moisture
+  cVarNames=['Qle','Qle','Qle','Qle','fsmc_pft','scalarTranspireLim']
+
+  ; define multiplier
+  xMult=[1.d,1.d,-1.d,1.d,1.d,1.d]
+
+ end
+
+ ; =========================================================================================
 
  else: stop, 'cannot find desired variable'
 
@@ -169,8 +250,7 @@ nModels = n_elements(model_names)
 nSites  = n_elements(site_names)
 
 ; loop through sites
-;for iSite=0,nSites-1 do begin
-for iSite=0,0 do begin
+for iSite=0,nSites-1 do begin
 
  ; loop through models
  for iModel=nModels-1,0,-1 do begin
@@ -212,6 +292,10 @@ for iSite=0,0 do begin
    ; modify the variable
    xVar=reform(xVar)*xMult[iModel]
 
+   if(cVarName eq 'fsmc_pft')then begin
+    xVar = reform(xVar[4,*])
+   endif
+
   ; close the netcdf file
   ncdf_close, ncFileID
 
@@ -230,6 +314,7 @@ for iSite=0,0 do begin
  write_png, 'figures/hovmuller_'+cVarName+'_'+site_names[iSite]+'.png', tvrd(true=1)
 
  stop
+
 endfor  ; looping through sites
 
 stop

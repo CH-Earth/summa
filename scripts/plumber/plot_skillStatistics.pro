@@ -36,7 +36,12 @@ model_names = ['CABLE.2.0',                  $
                'Noah.3.2',                   $
                'NOAH.3.3',                   $
                ;'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0'                   ]
+               'SUMMA.1.0.exp.01.000',       $
+               'SUMMA.1.0.exp.01.001',       $
+               'SUMMA.1.0.exp.01.002',       $
+               'SUMMA.1.0.exp.01.003',       $
+               'SUMMA.1.0.exp.01.004',       $
+               'SUMMA.1.0.exp.01.test'       ]
 
 ; define the benchmark names
 sb_names = ['1lin','2lin','3km27']  ; statistical benchmarks
@@ -79,7 +84,7 @@ Qh_stats = dblarr(nSites,nBench+nModels,nStats)
 Qle_stats = dblarr(nSites,nBench+nModels,nStats)
 
 ; skip computations (done already)
-goto, got_stats
+;goto, got_stats
 
 ; loop through sites
 for iSite=0,nSites-1 do begin
@@ -236,7 +241,7 @@ for iSite=0,nSites-1 do begin
   ncdf_close, nc_file 
 
   ; change sign for CHTESSEL and SUMMA
-  if(model_names[imodel] eq 'CHTESSEL' or model_names[imodel] eq 'SUMMA.1.0')then begin
+  if(model_names[imodel] eq 'CHTESSEL' or strmid(model_names[imodel],0,5) eq 'SUMMA')then begin
    Qh_model[imodel,*]  = -Qh_model[imodel,*]
    Qle_model[imodel,*] = -Qle_model[imodel,*]
   endif
@@ -394,8 +399,8 @@ for iModel=0,nModels-1 do begin
 
  ; print results
  print, '**'
- print, model_names[iModel], Qh_rank[*,iModel], format='(a20,1x,6(f9.3,1x))'
- print, model_names[iModel], Qle_rank[*,iModel], format='(a20,1x,6(f9.3,1x))'
+ print, model_names[iModel], Qh_rank[*,iModel], format='(a25,1x,6(f9.3,1x))'
+ print, model_names[iModel], Qle_rank[*,iModel], format='(a25,1x,6(f9.3,1x))'
 
 
 endfor  ; (loop through models)

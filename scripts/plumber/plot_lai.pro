@@ -1,4 +1,4 @@
-pro plot_xVar
+pro plot_lai
 
 ; define plotting parameters
 window, 0, xs=2000, ys=1400, retain=2
@@ -80,7 +80,7 @@ model_names = ['CABLE.2.0',                  $
                ;'Noah.3.2',                   $
                ;'NOAH.3.3',                   $
                ;'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0']
+               'SUMMA.1.0.exp.01.test']
 
 ; define colors
 iColor=[80,140,210,250]
@@ -94,6 +94,30 @@ file_path = '/d1/mclark/PLUMBER_data/model_output/'
 
 ; loop through sites
 for iSite=0,nSites-1 do begin
+
+  ; define the tick names
+  xtick_labels = [' ', strtrim(indgen(12)+1,2), ' ']
+
+  ; make a base plot
+  plot, indgen(5), xrange=[0,13], yrange=[vmin,vmax], xstyle=1, ystyle=1, xticklen=(-0.02),$
+   xticks=13, ytitle = cVarName, title=site_names[iSite]+'!C('+site_pfts[iSite]+')', $
+   ymargin=[4,4], xtickname=xtick_labels, /nodata
+
+ ; get the filename for the Noah LAI
+ lai_file = '/home/mclark/summa/settings/plumber/LAI_tables/time_parms_' + strtrim(iSite+1,2) + '.txt'
+
+ ; define vectors for LAI and SAI
+ xLAI = fltarr(12)
+ xSAI = fltarr(12)
+
+ ; read the LAI for the Noah simulations
+ openr, lai_unit, lai_file, /get_lun
+  readf, lai_unit, xLAI
+  readf, lai_unit, xSAI
+ free_lun, lai_unit
+ 
+ ; plot it up
+ oplot, indgen(12)+1, xLAI+xSAI, color=40, thick=3
 
  ; loop through the desired PLUMBER models
  for iModel=0,nModels-1 do begin
@@ -133,32 +157,31 @@ for iSite=0,nSites-1 do begin
   ; close the netcdf file
   ncdf_close, ncFileID
 
-  ; define the simulation time
-  time0 = djulian_mod[0]
-  time1 = djulian_mod[ntime_mod-1]
+  ; get the time of the year
+  caldat, djulian_mod, im, id, iyyy
 
-  ; make a base plot
-  if(iModel eq 0)then begin
-   plot, indgen(5), xrange=[time0,time1], yrange=[vmin,vmax], xstyle=9, ystyle=1, xticklen=(-0.02),$
-    xtickformat=['label_date'], xticks=3, ytitle = cVarName, title=site_names[iSite]+'!C('+site_pfts[iSite]+')', $
-    ymargin=[4,4], /nodata
-   plots, [time0,time1], [vmax,vmax]
-  endif
+  ; average the lai
+  xLAI = fltarr(12)
+  for imonth=1,12 do begin
+   iMatch = where(im eq imonth, nMatch)
+   if(nMatch gt 0)then xLAI[imonth-1] = mean(xVar[iMatch])
+  endfor
 
   ; plot the data
-  oplot, djulian_mod, xVar, color=icolor[iModel]
+  oplot, indgen(12)+1, xLAI, color=icolor[iModel]
 
   ; plot a legend
   if(iSite eq 0)then begin
-   x0 = 0.05*(time1 - time0) + time0
-   x1 = 0.40*(time1 - time0) + time0
+   x0 = 0.5
+   x1 = 4.0
    y0 = 0.70*(vmax - vmin) + vmin + 0.1*(vmax - vmin)*iModel
    y1 = y0 - 0.025*(vmax - vmin)
    plots, [x0,x1], [y0,y0], color=icolor[iModel]
-   xyouts, x1 + 0.05*(time1 - time0), y1, model_names[iModel], charsize=2
+   xyouts, x1 + 0.55, y1, model_names[iModel], charsize=2
   endif
 
  endfor  ; looping through models
+
 
 endfor  ; looping through sites
 
