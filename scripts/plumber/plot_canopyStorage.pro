@@ -32,11 +32,12 @@ ixSWnet=3      ; net shortwave radiation
 ixLWnet=4      ; net shortwave radiation
 ixLatHeat=5    ; latent heat flux
 ixSenHeat=6    ; latent heat flux
-ixSoilMoist=7  ; root zone soil moisture
-ixSoilStress=8 ; soil stress factor
+ixVegTemp=7    ; vegetation temperature
+ixSoilMoist=8  ; root zone soil moisture
+ixSoilStress=9 ; soil stress factor
 
 ; define desired variable
-ixVar=ixLWnet
+ixVar=ixVegTemp
 
 ; define variables
 case ixVar of
@@ -141,6 +142,23 @@ case ixVar of
 
   ; define multiplier
   xMult=[1.d,1.d,-1.d,1.d,1.d,-1.d]
+
+ end
+
+ ; =========================================================================================
+
+ ; vegetation temperature
+ ixVegTemp: begin
+
+  ; define variable range
+  ymin=260
+  ymax=320
+
+  ; define latent heat flux
+  cVarNames=['VegT','VegT','VegT','VegT','RadT','scalarCanopyTemp']
+
+  ; define multiplier
+  xMult=[1.d,1.d,1.d,1.d,1.d,1.d]
 
  end
 
@@ -307,13 +325,12 @@ for iSite=0,nSites-1 do begin
 
   ; make a hovmuller plot
   make_hovmuller, djulian_mod, xVar, cVarName, ymin, ymax, plotTitle
+  stop
 
  endfor  ; looping through models
 
  ; write figure
  write_png, 'figures/hovmuller_'+cVarName+'_'+site_names[iSite]+'.png', tvrd(true=1)
-
- stop
 
 endfor  ; looping through sites
 
