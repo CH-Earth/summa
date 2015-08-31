@@ -85,8 +85,8 @@ for plumberSite in $( ls ${plumberPath}${plumberModel}/* ); do
  sed -i 's/XX_hvb_XX/'${canopyBottom}'/g' $paramFilenm
 
  # compute the critical point of plant wilting and plant transpiration
- fracWilting=0.1
- fracTranspr=0.9
+ fracWilting=0.05
+ fracTranspr=0.50
  soilStorage=$(echo "$fieldCapacity - $thetaRes" | bc -l)
  critWilting=$(echo "$thetaRes + $fracWilting*$soilStorage" | bc -l)
  critTranspr=$(echo "$thetaRes + $fracTranspr*$soilStorage" | bc -l)

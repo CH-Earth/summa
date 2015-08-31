@@ -1,9 +1,9 @@
 SUMMA_FILE_MANAGER_V1.0
 ! Comment line:
 ! *** paths (must be in single quotes)
-'/Users/mclark/summa/settings/plumber/'          ! SETNGS_PATH
-'/Users/mclark/summa/input/plumber/'             ! INPUT_PATH
-'/Users/mclark/summa/output/plumber/orig/'       ! OUTPUT_PATH
+'/home/mclark/summa/settings/plumber/'          ! SETNGS_PATH
+'/home/mclark/summa/input/plumber/'             ! INPUT_PATH
+'/home/mclark/summa/output/plumber/orig/'       ! OUTPUT_PATH
 ! *** control files (must be in single quotes)
 'decisions/summa_zDecisions_XX_siteName_XX.txt'                               ! M_DECISIONS      = definition of model decisions
 'meta/summa_zTimeMeta.txt'                                                    ! META_TIME        = metadata for time
@@ -19,6 +19,6 @@ SUMMA_FILE_MANAGER_V1.0
 'summa_zLocalParamInfo.txt'                                                   ! LOCALPARAM_INFO  = default values and constraints for local model parameters
 'summa_zBasinParamInfo.txt'                                                   ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
 'forcingList/summa_zForcingFileList_XX_siteName_XX.txt'                       ! FORCING_FILELIST = list of files used in each HRU
-'summa_zInitialCond.txt'                                                      ! MODEL_INITCOND   = model initial conditions
+'initialCond/summa_zInitialCond_XX_siteName_XX.txt'                           ! MODEL_INITCOND   = model initial conditions
 'localParamTrial/summa_zLocalParamTrial_XX_siteName_XX.txt'                   ! PARAMETER_TRIAL  = trial values for model parameters
 'XX_siteName_XX'                                                              ! OUTPUT_PREFIX    = prefix for the output file

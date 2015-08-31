@@ -1,9 +1,9 @@
-#!/opt/local/bin/bash
+#!/bin/bash
 #
 # used to run SUMMA for all the PLUMBER sites
 
 # define the SUMMA directory
-summaDir=/Users/mclark/summa
+summaDir=/home/mclark/summa
 
 # Define the SUMMA executable
 summaEXE=${summaDir}/bin/summa.exe
@@ -29,6 +29,6 @@ for managerFile in $( ls  ${managerPath}/* ); do
 
  # run the model for a given site
  echo $summaEXE $expName $managerFile $logName
- #$summaEXE $expName $managerFile > ${logName}
+ $summaEXE $expName $managerFile > ${logName} &
 
 done

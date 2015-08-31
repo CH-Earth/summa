@@ -1,4 +1,4 @@
-#!/opt/local/bin/bash
+#!/bin/bash
 #
 # used to convert the summa output files to the plumber format
 #
@@ -10,20 +10,23 @@ ixSort=2
 # define the desired option to extract the ground heat flux
 ixExtract=$ixSort
 
+# define the experiment name
+expName=initialPlumberTest
+
 # define the path for the input data
-inputPath=/Volumes/d1/mclark/PLUMBER_data/site_data/met/
+inputPath=/d1/mclark/PLUMBER_data/site_data/met/
 
 # define the output path
-outputPath=/Users/mclark/summa/output/plumber/
+outputPath=/home/mclark/summa/output/plumber/
 
 # define the new output path
-newOutputPath=/Volumes/d1/mclark/PLUMBER_data/model_output/
+newOutputPath=/d1/mclark/PLUMBER_data/model_output/
 
 # define the model name
 modelName=SUMMA.1.0.exp.01.test
 
 # loop through files in the local attributes folder
-for outputFile in $( ls  ${outputPath}orig/Amplero*spinup* ); do
+for outputFile in $( ls  ${outputPath}orig/*spinup*${expName}.nc ); do
 
  # split the string using slashes
  IFS='/' read -a strTemp0 <<< "${outputFile}"
@@ -32,10 +35,10 @@ for outputFile in $( ls  ${outputPath}orig/Amplero*spinup* ); do
  echo -- $siteName
 
  # start afresh
- cp ${outputPath}orig/${siteName}*.nc ${outputPath}temp/
+ cp ${outputPath}orig/${siteName}*${expName}.nc ${outputPath}temp/
 
  # loop through desired NetCDF files in the output directory
- for fileName in $( ls  ${outputPath}temp/${siteName}_*initialPlumberTest.nc ); do
+ for fileName in $( ls  ${outputPath}temp/${siteName}_*${expName}.nc ); do
 
   # ****************************************************************
   # * extract the ground heat flux
@@ -71,7 +74,7 @@ for outputFile in $( ls  ${outputPath}orig/Amplero*spinup* ); do
   ncatted -O -a units,Qg,o,c,'W m-2' $fileName $fileName
 
   # remove undesired variables
-  ncks -a -O -x -v nSnow,iLayerHeight,iLayerNrgFlux,ifcTotoStartIndex,ifc_qFlux,srt_map1 $fileName $fileName
+  ncks -a -O -x -v nSnow,nLayers,iLayerHeight,iLayerNrgFlux,mLayerTemp,mLayerVolFracLiq,ifcTotoStartIndex,midTotoStartIndex,ifc_qFlux,srt_map1 $fileName $fileName
 
   # ****************************************************************
   # * compute LAI
@@ -95,11 +98,17 @@ for outputFile in $( ls  ${outputPath}orig/Amplero*spinup* ); do
   # * compute net radiation
   # ****************************************************************
 
+  # compute the net shortwave and the net longwave radiation
+  ncap2 -A -s 'SWnet=scalarCanopyAbsorbedSolar+scalarGroundAbsorbedSolar' $fileName $fileName
+  ncap2 -A -s 'LWnet=scalarLWNetCanopy+scalarLWNetGround' $fileName $fileName
+
   # compute the net radiation
   ncap2 -A -s 'Rnet=scalarCanopyAbsorbedSolar+scalarGroundAbsorbedSolar+scalarLWNetCanopy+scalarLWNetGround' $fileName $fileName
 
-  # modify the long name
+  # modify the long names
   ncatted -O -a long_name,Rnet,o,c,'Net radiation absorbed within model domain' $fileName $fileName
+  ncatted -O -a long_name,SWnet,o,c,'SW radiation absorbed within model domain' $fileName $fileName
+  ncatted -O -a long_name,LWnet,o,c,'LW radiation absorbed within model domain' $fileName $fileName
 
  done
 

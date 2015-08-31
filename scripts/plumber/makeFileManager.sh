@@ -1,13 +1,13 @@
-#!/opt/local/bin/bash
+#!/bin/bash
 #
 # used to make a list of forcing files for each GRU
 # (based on the localAttributes files)
 
 # define file path for the vegetation data
-dataPath=/Users/mclark/summa/input/plumber/
+dataPath=/home/mclark/summa/input/plumber/
 
 # define the path to the file manager
-managerPath=/Users/mclark/summa/settings/plumber/fileManager/
+managerPath=/home/mclark/summa/settings/plumber/fileManager/
 
 # define pattern to replace with actual data file
 cPattern='XX_siteName_XX'
@@ -31,7 +31,7 @@ for dataFile in $( ls  ${dataPath} ); do
  cp templates/summa_fileManager_template.txt ${managerFile}
 
  # replace the search string with the file suffix
- gsed -i 's/'${cPattern}'/'${siteName}'/g' ${managerFile}
+ sed -i 's/'${cPattern}'/'${siteName}'/g' ${managerFile}
 
  # print progress
  echo $managerFile
