@@ -8,7 +8,7 @@ LOADCT, 39
 !P.CHARSIZE=3
 !P.COLOR=0
 erase, color=255
-!P.MULTI=[0,5,4,0,0]
+!P.MULTI=[0,4,5,0,1]
 
 ; define the date format
 dummy = label_date(date_format=['%D-%M!C%Y'])

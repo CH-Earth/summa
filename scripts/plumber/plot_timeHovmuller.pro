@@ -1,4 +1,4 @@
-pro plot_soilMoisture
+pro plot_timeHovmuller
 
 ; define plotting parameters
 window, 0, xs=1400, ys=1000, retain=2
@@ -13,19 +13,6 @@ erase, color=255
 ; define the date format
 dummy = label_date(date_format=['%D-%M!C%Y'])
 
-; refine colors
-tvlct, r, g, b, /get
-r = reverse(r)
-g = reverse(g)
-b = reverse(b)
-r[0] = 0
-g[0] = 0
-b[0] = 0
-r[255] = 255
-g[255] = 255
-b[255] = 255
-tvlct, r, g, b
-
 ; define the HRU
 iHRU=0
 
@@ -35,6 +22,65 @@ file_path = '/d1/mclark/PLUMBER_data/model_output/'
 ; define the model names
 cable_name = 'CABLE_2.0_SLI.vxh599_r553'
 summa_name = 'SUMMA.1.0.exp.01.test'
+
+; define named variables for model options
+ixSoilTemp=0
+ixSoilMoist=1
+
+; select options
+ixVarSelect=ixSoilMoist
+
+; define specific options
+case ixVarSelect of
+
+ ; ===================================================
+
+ ; ** soil moisture
+ ixSoilTemp: begin
+
+  ; define variable names
+  cableVarName='SoilTemp'
+  summaVarName='mLayerTemp'
+
+  ; define the plot range
+  vmin = 260
+  vmax = 310
+
+  LOADCT, 39
+
+ end
+
+ ; ===================================================
+
+ ; ** soil moisture
+ ixSoilMoist: begin
+
+  ; define variable names
+  cableVarName='SoilMoist'
+  summaVarName='mLayerVolFracLiq'
+
+  ; define the plot range
+  vmin = 0.0
+  vmax = 0.5
+
+  ; refine colors
+  tvlct, r, g, b, /get
+  r = reverse(r)
+  g = reverse(g)
+  b = reverse(b)
+  r[0] = 0
+  g[0] = 0
+  b[0] = 0
+  r[255] = 255
+  g[255] = 255
+  b[255] = 255
+  tvlct, r, g, b
+
+ end
+
+ ; ===================================================
+
+endcase
 
 ; define the site names
 site_names = ['Amplero',     $
@@ -114,10 +160,10 @@ for iSite=0,nSites-1 do begin
   ncdf_varget, ncFileID, ivar_id, atime
   djulian_cable = bjulian + atime*aoff
 
-  ; get the soil moisture
-  ivar_id = ncdf_varid(ncFileID,'SoilMoist')
+  ; get the desired variable
+  ivar_id = ncdf_varid(ncFileID,cableVarName)
   ncdf_varget, ncFileID, ivar_id, xVar
-  soilMoist=reform(xVar)
+  cableVar=reform(xVar)
 
   ; get the depth of each soil layer
   ivar_id = ncdf_varid(ncFileID,'zse')
@@ -149,12 +195,8 @@ for iSite=0,nSites-1 do begin
   title=plotTitle, /nodata
  plots, [time1,time1], [5,0]
 
- ; define the plot range
- vmin = 0.0
- vmax = 0.5
-
  ; make a hovmuller plot
- time_hovmuller, djulian_cable, soilHeight, soilMoist, vmin, vmax, plotTitle
+ time_hovmuller, djulian_cable, soilHeight, cableVar, vmin, vmax, plotTitle
 
  ; ***********
  ; ** SUMMA...
@@ -223,8 +265,8 @@ for iSite=0,nSites-1 do begin
    nSoil = min(nLayers) - min(nSnow)
    nTime = n_elements(djulian_summa)
 
-   ; get the matrix of soil moisture
-   soilMoist = fltarr(nSoil,nTime)
+   ; get the matrix for the desired variable
+   summaVar = fltarr(nSoil,nTime)
 
    ; loop through time
    for iTime=0,nTime-1 do begin
@@ -236,20 +278,20 @@ for iSite=0,nSites-1 do begin
      soilHeight = reform(xVar)
     endif
 
-    ; get the soil moisture
-    ivar_id = ncdf_varid(ncFileID,'mLayerVolFracLiq')
+    ; get the desired variable
+    ivar_id = ncdf_varid(ncFileID,summaVarName)
     ncdf_varget, ncFileID, ivar_id, xVar, offset=[iHRU,midTotoStartIndex[itime]+nSnow[iTime]-1], count=[1,nSoil]
-    soilMoist[*,iTime] = xVar[0,*]
+    summaVar[*,iTime] = xVar[0,*]
 
    endfor  ; looping through time
 
    ; make a hovmuller plot
-   time_hovmuller, djulian_summa, soilHeight, soilMoist, vmin, vmax, plotTitle
+   time_hovmuller, djulian_summa, soilHeight, summaVar, vmin, vmax, plotTitle
 
  endfor   ; looping through files
 
  ; write figure
- write_png, 'figures/soilMoist_'+site_names[iSite]+'.png', tvrd(true=1)
+ write_png, 'figures/'+summaVarName+'_'+site_names[iSite]+'.png', tvrd(true=1)
  stop
 
 endfor  ; looping through sites
@@ -262,7 +304,7 @@ end
 ; make a hovmuller diagram for the day-time...
 ; ********************************************
 
-pro time_hovmuller, dTime, soilHeight, soilMoist, vmin, vmax, plotTitle
+pro time_hovmuller, dTime, soilHeight, soilVar, vmin, vmax, plotTitle
 
 ; get the dates
 xSmall = 1.d-6
@@ -278,11 +320,11 @@ for iTime=0,n_elements(dTime)-1 do begin
  for iDepth=0,n_elements(soilHeight)-2 do begin  ; -2 because height is at the interface
 
   ; identify the color
-  if(soilMoist[iDepth,iTime] gt -9998.)then begin
-   icolor = ( (soilMoist[iDepth,iTime] - vmin) / (vmax - vmin) )*200.d + 50.d
-   if(soilMoist[iDepth,iTime] lt vmin)then icolor=50
-   if(soilMoist[iDepth,iTime] gt vmax)then icolor=250
-   ;if(soilMoist[iDepth,iTime] lt 0.27)then icolor=255
+  if(soilVar[iDepth,iTime] gt -9998.)then begin
+   icolor = ( (soilVar[iDepth,iTime] - vmin) / (vmax - vmin) )*200.d + 50.d
+   if(soilVar[iDepth,iTime] lt vmin)then icolor=50
+   if(soilVar[iDepth,iTime] gt vmax)then icolor=250
+   ;if(soilVar[iDepth,iTime] lt 0.27)then icolor=255
   endif else begin
    icolor = 255
   endelse

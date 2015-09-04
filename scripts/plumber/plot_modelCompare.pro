@@ -1,4 +1,4 @@
-pro plot_canopyStorage
+pro plot_modelCompare
 
 ; define plotting parameters
 window, 0, xs=1400, ys=1000, retain=2
@@ -26,18 +26,20 @@ secprday=86400.d
 file_path = '/d1/mclark/PLUMBER_data/model_output/'
 
 ; define named variables to switch between canopy evaporation and canopy storage
-ixStor=1       ; canopy storage
-ixEvap=2       ; canopy evaporation
-ixSWnet=3      ; net shortwave radiation
-ixLWnet=4      ; net shortwave radiation
-ixLatHeat=5    ; latent heat flux
-ixSenHeat=6    ; latent heat flux
-ixVegTemp=7    ; vegetation temperature
-ixSoilMoist=8  ; root zone soil moisture
-ixSoilStress=9 ; soil stress factor
+ixStor=1            ; canopy storage
+ixEvap=2            ; canopy evaporation
+ixSWnet=3           ; net shortwave radiation
+ixLWnet=4           ; net shortwave radiation
+ixLatHeat=5         ; latent heat flux
+ixSenHeat=6         ; latent heat flux
+ixVegTemp=7         ; vegetation temperature
+ixSoilMoist=8       ; root zone soil moisture
+ixSoilStress=9      ; soil stress factor
+ixStomatalResist=10 ; stomatal resistance 
 
 ; define desired variable
-ixVar=ixVegTemp
+;ixVar=ixLatHeat
+ixVar=ixStomatalResist
 
 ; define variables
 case ixVar of
@@ -198,6 +200,25 @@ case ixVar of
 
  ; =========================================================================================
 
+ ; stomatal resistance
+ ixStomatalResist: begin
+
+  ; define variable range
+  ymin=0.d
+  ymax=0.005
+
+  ; define latent heat flux
+  cVarNames=['Qle','Qle','Qle','Qle','Qle','scalarStomResistSunlit']
+  ;cVarNames=['Qle','Qle','Qle','Qle','Qle','scalarStomResistShaded']
+  ;cVarNames=['Qle','Qle','Qle','Qle','Qle','scalarVPair']
+
+  ; define multiplier
+  xMult=[1.d,1.d,-1.d,1.d,1.d,1.d]
+
+ end
+
+ ; =========================================================================================
+
  else: stop, 'cannot find desired variable'
 
 endcase
@@ -270,67 +291,88 @@ nSites  = n_elements(site_names)
 ; loop through sites
 for iSite=0,nSites-1 do begin
 
- ; loop through models
- for iModel=nModels-1,0,-1 do begin
+ ; loop through the years
+ for iYear=1994,2006 do begin
 
-  ; define the variable name
-  cVarName = cVarNames[iModel]
+  ; define if we have done a plot
+  done_plot=0
 
-  ; define the file name
-  file_name = model_names[iModel] + '/' + model_names[iModel] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
+  ; loop through models
+  for iModel=nModels-1,0,-1 do begin
 
-  ; open files
-  ncFileID = ncdf_open(file_path+file_name, /nowrite)
+   ; define the variable name
+   cVarName = cVarNames[iModel]
 
-   ; get time units
-   ivar_id = ncdf_varid(ncFileID,'time')
-   ncdf_attget, ncFileID, ivar_id, 'units', bunits
-   cunits = string(bunits)
+   ; define the file name
+   file_name = model_names[iModel] + '/' + model_names[iModel] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
 
-   ; extract the units "words"
-   tunit_words = strsplit(string(cunits),' ',/extract)
-   tunit_idate = fix(strsplit(tunit_words[2],'-',/extract))
-   tunit_ihour = fix(strsplit(tunit_words[3],':',/extract))
-   bjulian     = julday(tunit_idate[1],tunit_idate[2],tunit_idate[0],tunit_ihour[0],tunit_ihour[1],tunit_ihour[2])
+   ; open files
+   ncFileID = ncdf_open(file_path+file_name, /nowrite)
 
-   ; get the offset in days
-   if(strtrim(tunit_words[0],2) eq 'seconds') then aoff=1.d/86400.d else stop, 'unknown time units'
+    ; get time units
+    ivar_id = ncdf_varid(ncFileID,'time')
+    ncdf_attget, ncFileID, ivar_id, 'units', bunits
+    cunits = string(bunits)
 
-   ; extract the time vector
-   ncdf_varget, ncFileID, ivar_id, atime
-   djulian_mod = bjulian + atime*aoff
+    ; extract the units "words"
+    tunit_words = strsplit(string(cunits),' ',/extract)
+    tunit_idate = fix(strsplit(tunit_words[2],'-',/extract))
+    tunit_ihour = fix(strsplit(tunit_words[3],':',/extract))
+    bjulian     = julday(tunit_idate[1],tunit_idate[2],tunit_idate[0],tunit_ihour[0],tunit_ihour[1],tunit_ihour[2])
 
-   ; get the number of time elements
-   ntime_mod = n_elements(djulian_mod)
+    ; get the offset in days
+    if(strtrim(tunit_words[0],2) eq 'seconds') then aoff=1.d/86400.d else stop, 'unknown time units'
 
-   ; get the desired variable
-   ivar_id = ncdf_varid(ncFileID,cVarName)
-   ncdf_varget, ncFileID, ivar_id, xVar
+    ; extract the time vector
+    ncdf_varget, ncFileID, ivar_id, atime
+    djulian_mod = bjulian + atime*aoff
 
-   ; modify the variable
-   xVar=reform(xVar)*xMult[iModel]
+    ; get the number of time elements
+    ntime_mod = n_elements(djulian_mod)
 
-   if(cVarName eq 'fsmc_pft')then begin
-    xVar = reform(xVar[4,*])
-   endif
+    ; get the desired variable
+    ivar_id = ncdf_varid(ncFileID,cVarName)
+    ncdf_varget, ncFileID, ivar_id, xVar
 
-  ; close the netcdf file
-  ncdf_close, ncFileID
+    ; modify the variable
+    xVar=reform(xVar)*xMult[iModel]
 
-  ; define the year
-  caldat, djulian_mod[1], jm, jd, jyyy
+    if(cVarName eq 'fsmc_pft')then begin
+     xMax = max(mean(xvar, dimension=2), iPFT)
+     xVar = reform(xVar[iPFT,*])
+    endif
 
-  ; define the title
-  plotTitle=model_names[iModel] + '!C' + site_names[iSite] + ' (' + strtrim(jyyy,2) + ')'
+    if(cVarName eq 'scalarStomResistSunlit' or cVarName eq 'scalarStomResistShaded' or cVarName eq 'scalarVPair')then begin
+     xVar = 1./xVar
+     ;stop
+    endif
 
-  ; make a hovmuller plot
-  make_hovmuller, djulian_mod, xVar, cVarName, ymin, ymax, plotTitle
-  stop
+   ; close the netcdf file
+   ncdf_close, ncFileID
 
- endfor  ; looping through models
+   ; check if within the date range
+   caldat, djulian_mod[1], jm, jd, jyear_start
+   caldat, djulian_mod[ntime_mod-2], jm, jd, jyear_end
+   if(iYear lt jyear_start or iYear gt jyear_end)then continue
 
- ; write figure
- write_png, 'figures/hovmuller_'+cVarName+'_'+site_names[iSite]+'.png', tvrd(true=1)
+   ; define the title
+   plotTitle=model_names[iModel] + '!C' + site_names[iSite] + ' (' + strtrim(iYear,2) + ')'
+
+   ; make a hovmuller plot
+   make_hovmuller, iYear, djulian_mod, xVar, cVarName, ymin, ymax, plotTitle
+
+   ; define if we have done a plot
+   done_plot=1
+
+  endfor  ; looping through models
+
+  ; write figure
+  if(done_plot eq 1)then begin
+   write_png, 'figures/hovmuller_'+cVarNames[5]+'_'+site_names[iSite]+'_'+strtrim(iYear,2)+'.png', tvrd(true=1)
+   stop
+  endif
+
+ endfor ; looping through years
 
 endfor  ; looping through sites
 
@@ -342,14 +384,16 @@ end
 ; make a hovmuller diagram for the day-time...
 ; ********************************************
 
-pro make_hovmuller, dtime, varPlot, cVarName, vmin, vmax, plotTitle
+pro make_hovmuller, iyear_desire, dtime, varPlot, cVarName, vmin, vmax, plotTitle
 
 ; get the dates
 xSmall = 1.d-6
 caldat, dTime-xSmall, im, id, iyyy, ih, imin, asec
 
 ; identify the first year
-iSubset=where(iyyy eq iyyy[1], nSubset)
+iSubset=where(iyyy eq iyear_desire, nSubset)
+;iSubset=where(iyyy eq iyear_desire and (im ge 1 and im le 4), nSubset)
+;iSubset=where(iyyy eq iyear_desire and (im eq 3 or im eq 3) and (id ge 17 and id le 27), nSubset)
 
 ; define the simulation time
 time0 = dTime[iSubset[0]]
@@ -357,7 +401,6 @@ time1 = dTime[iSubset[nSubset-1]]
 
 ; define the x-tick labels
 xTickLabels = [' ',[strtrim(indgen(7)*3+3,2)],' ']
-
 
 ; make a base plot
 plot, indgen(24)+1, xrange=[0,24], yrange=[time0,time1], xstyle=9, ystyle=1, $
