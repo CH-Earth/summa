@@ -26,7 +26,7 @@ lowerBoundHead            | matric head at the lower boundary                   
 upperBoundTheta           | volumetric liquid water content at the upper boundary             | -          | scalarv | F
 lowerBoundTheta           | volumetric liquid water content at the lower boundary             | -          | scalarv | F
 upperBoundTemp            | temperature of the upper boundary                                 | K          | scalarv | F
-lowerBoundTemp            | temperature of the lower boundary                                 | K          | scalarv | F
+lowerBoundTemp            | temperature of the lower boundary                                 | K          | scalarv | T
 ! **********************************************************************************************************************
 ! precipitation partitioning
 ! **********************************************************************************************************************
@@ -107,8 +107,8 @@ minStomatalResistance     | minimum stomatal resistance                         
 leafDimension             | characteristic leaf dimension                                     | m          | scalarv | F
 heightCanopyTop           | height of top of the vegetation canopy above ground surface       | m          | scalarv | T
 heightCanopyBottom        | height of bottom of the vegetation canopy above ground surface    | m          | scalarv | T
-specificHeatVeg           | specific heat of vegetation                                       | J kg-1 K-1 | scalarv | F
-maxMassVegetation         | maximum mass of vegetation (full foliage)                         | kg m-2     | scalarv | F
+specificHeatVeg           | specific heat of vegetation                                       | J kg-1 K-1 | scalarv | T
+maxMassVegetation         | maximum mass of vegetation (full foliage)                         | kg m-2     | scalarv | T
 throughfallScaleSnow      | scaling factor for throughfall (snow)                             | -          | scalarv | F
 throughfallScaleRain      | fraction of rain that hits the ground without touching the canopy | -          | scalarv | F
 refInterceptCapSnow       | reference canopy interception capacity per unit leaf area (snow)  | kg m-2     | scalarv | F

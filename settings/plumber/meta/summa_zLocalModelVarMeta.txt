@@ -54,7 +54,7 @@ scalarCosZenith                     | cosine of the solar zenith angle          
 scalarFractionDirect                | fraction of direct radiation (0-1)                                | -               | scalarv | F
 spectralIncomingDirect              | incoming direct solar radiation in each wave band                 | W m-2           | wLength | F
 spectralIncomingDiffuse             | incoming diffuse solar radiation in each wave band                | W m-2           | wLength | F
-scalarVPair                         | vapor pressure of the air above the vegetation canopy             | Pa              | scalarv | F
+scalarVPair                         | vapor pressure of the air above the vegetation canopy             | Pa              | scalarv | T
 scalarTwetbulb                      | wet bulb temperature                                              | K               | scalarv | F
 scalarRainfall                      | computed rainfall rate                                            | kg m-2 s-1      | scalarv | F
 scalarSnowfall                      | computed snowfall rate                                            | kg m-2 s-1      | scalarv | F
@@ -90,7 +90,7 @@ scalarExposedLAI                    | exposed leaf area index (after burial by s
 scalarExposedSAI                    | exposed stem area index (after burial by snow)                    | m2 m-2          | scalarv | F
 scalarCanopyIceMax                  | maximum interception storage capacity for ice                     | kg m-2          | scalarv | F
 scalarCanopyLiqMax                  | maximum interception storage capacity for liquid water            | kg m-2          | scalarv | F
-scalarGrowingSeasonIndex            | growing season index (0=off, 1=on)                                | -               | scalarv | F
+scalarGrowingSeasonIndex            | growing season index (0=off, 1=on)                                | -               | scalarv | T
 scalarVP_CanopyAir                  | vapor pressure of the canopy air space                            | Pa              | scalarv | F
 ! *************************************************************************************************************************************
 ! NOAH-MP vegetation variables (shortwave radiation)
@@ -168,8 +168,8 @@ scalarSnowSublimation               | snow sublimation/frost (below canopy or no
 scalarTranspireLim                  | aggregate soil moisture and aquifer control on transpiration      | -               | scalarv | T
 scalarTranspireLimAqfr              | aquifer storage control on transpiration                          | -               | scalarv | F
 scalarFoliageNitrogenFactor         | foliage nitrogen concentration (1=saturated)                      | -               | scalarv | F
-scalarStomResistSunlit              | stomatal resistance for sunlit leaves                             | s m-1           | scalarv | F
-scalarStomResistShaded              | stomatal resistance for shaded leaves                             | s m-1           | scalarv | F
+scalarStomResistSunlit              | stomatal resistance for sunlit leaves                             | s m-1           | scalarv | T
+scalarStomResistShaded              | stomatal resistance for shaded leaves                             | s m-1           | scalarv | T
 scalarPhotosynthesisSunlit          | sunlit photosynthesis                                             | umolco2 m-2 s-1 | scalarv | F
 scalarPhotosynthesisShaded          | shaded photosynthesis                                             | umolco2 m-2 s-1 | scalarv | F
 ! *************************************************************************************************************************************
