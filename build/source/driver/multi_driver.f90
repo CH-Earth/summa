@@ -494,7 +494,6 @@ do istep=1,numtim
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
   end select
-  !printRestart = .true.
 
   ! run the model for a single parameter set and time step
   call coupled_em(printRestart,                    & ! flag to print a re-start file

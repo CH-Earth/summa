@@ -5394,7 +5394,7 @@ contains
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
-         !print*,'BTRAN, VCMX = ', BTRAN, VCMX
+         !write(*,'(a,1x,10(f20.10,1x))') 'BTRAN, VCMX, VCMX25(VEGTYP), O2, KC, KO = ', BTRAN, VCMX, VCMX25(VEGTYP), O2, KC, KO
 
 ! first guess ci
 
@@ -5411,6 +5411,7 @@ contains
 ! ci iteration
 !jref: C3PSN is equal to 1 for all veg types.
        DO ITER = 1, NITER
+
             WJ = MAX(CI-CP,0.)*J/(CI+2.*CP)*C3PSN(VEGTYP)  + J*(1.-C3PSN(VEGTYP))
             WC = MAX(CI-CP,0.)*VCMX/(CI+AWC)*C3PSN(VEGTYP) + VCMX*(1.-C3PSN(VEGTYP))
             WE = 0.5*VCMX*C3PSN(VEGTYP) + 4000.*VCMX*CI/SFCPRS*(1.-C3PSN(VEGTYP))
@@ -5419,7 +5420,7 @@ contains
 
             CS = MAX( CO2-1.37*RLB*SFCPRS*PSN, MPE )
             A = MP(VEGTYP)*PSN*SFCPRS*CEA / (CS*EI) + BTRAN*BP(VEGTYP)      ! MPC change: include BTRAN multiplier for 2nd term
-            B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term om brackets
+            B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term in brackets
             C = -RLB
             IF (B .GE. 0.) THEN
                Q = -0.5*( B + SQRT(B*B-4.*A*C) )
@@ -5435,7 +5436,7 @@ contains
 ! rs, rb:  s m**2 / umol -> s/m
 
          RS = RS*CF
-         !print*, 'RS = ', RS
+         !write(*,'(a,1x,10(f20.10,1x))') 'RS, G, CEA, EA, EI = ', RS, 1./RS, CEA, EA, EI
 
   END SUBROUTINE STOMATA
 ! ==================================================================================================

@@ -165,6 +165,9 @@ contains
                  scalarExposedSAI,            & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
                  scalarGrowingSeasonIndex     ) ! intent(out): growing season index (0=off, 1=on)
 
+  ! NOTE: temporary fix
+  scalarGrowingSeasonIndex = 1._dp
+
   ! determine additional phenological variables
   exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
   canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
