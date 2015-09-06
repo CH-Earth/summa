@@ -110,6 +110,22 @@ for outputFile in $( ls  ${outputPath}orig/*spinup*${expName}.nc ); do
   ncatted -O -a long_name,SWnet,o,c,'SW radiation absorbed within model domain' $fileName $fileName
   ncatted -O -a long_name,LWnet,o,c,'LW radiation absorbed within model domain' $fileName $fileName
 
+  # ****************************************************************
+  # compute stomatal conductance
+  # ****************************************************************
+
+  # compute stomatal conductance for sunlit and shaded leaves
+  ncap2 -A -s 'stomatalConductanceSunlit=scalarCanopySunlitLAI/(scalarLeafResistance + scalarStomResistSunlit)' $fileName $fileName
+  ncap2 -A -s 'stomatalConductanceShaded=scalarCanopyShadedLAI/(scalarLeafResistance + scalarStomResistShaded)' $fileName $fileName
+
+  # compute total stomatal conductance
+  ncap2 -A -s 'stomatalConductance=stomatalConductanceSunlit+stomatalConductanceShaded' $fileName $fileName
+  
+  # modify the long names
+  ncatted -O -a long_name,stomatalConductanceSunlit,o,c,'Stomatal conductance for the sunlit canopy area' $fileName $fileName
+  ncatted -O -a long_name,stomatalConductanceShaded,o,c,'Stomatal conductance for the shaded canopy area' $fileName $fileName
+  ncatted -O -a long_name,stomatalConductance,o,c,'Total stomatal conductance' $fileName $fileName
+
  done
 
  # ****************************************************************
