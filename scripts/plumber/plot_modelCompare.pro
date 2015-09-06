@@ -35,11 +35,12 @@ ixSenHeat=6         ; latent heat flux
 ixVegTemp=7         ; vegetation temperature
 ixSoilMoist=8       ; root zone soil moisture
 ixSoilStress=9      ; soil stress factor
-ixStomatalResist=10 ; stomatal resistance 
+ixStomatalConduct=10 ; stomatal resistance 
 
 ; define desired variable
 ;ixVar=ixLatHeat
-ixVar=ixStomatalResist
+ixVar=ixStomatalConduct
+;ixVar=ixSWnet
 
 ; define variables
 case ixVar of
@@ -201,16 +202,14 @@ case ixVar of
  ; =========================================================================================
 
  ; stomatal resistance
- ixStomatalResist: begin
+ ixStomatalConduct: begin
 
   ; define variable range
   ymin=0.d
   ymax=0.005
 
   ; define latent heat flux
-  cVarNames=['Qle','Qle','Qle','Qle','Qle','scalarStomResistSunlit']
-  ;cVarNames=['Qle','Qle','Qle','Qle','Qle','scalarStomResistShaded']
-  ;cVarNames=['Qle','Qle','Qle','Qle','Qle','scalarVPair']
+  cVarNames=['Qle','Qle','Qle','Qle','Qle','stomatalConductance']
 
   ; define multiplier
   xMult=[1.d,1.d,-1.d,1.d,1.d,1.d]
