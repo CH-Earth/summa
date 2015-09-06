@@ -20,6 +20,10 @@
 
 module vegLiqFlux_module
 USE nrtype
+! look-up values for the choice of throughfall method
+USE mDecisions_module,only:         &
+                      sparseCanopy, & ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
+                      storageFunc     ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
 implicit none
 private
 public::vegLiqFlux

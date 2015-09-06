@@ -260,6 +260,17 @@ contains
   case('Mahrt87_eScale'           ); get_ixparam = iLookPARAM%Mahrt87_eScale         ! exponential scaling factor in the Mahrt (1987) stability function (-)
   case('leafExchangeCoeff'        ); get_ixparam = iLookPARAM%leafExchangeCoeff      ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
   case('windReductionParam'       ); get_ixparam = iLookPARAM%windReductionParam     ! canopy wind reduction parameter (-)
+  ! stomatal conductance
+  case('Kc25'                     ); get_ixparam = iLookPARAM%Kc25                   ! Michaelis-Menten constant for CO2 at 25 degrees C (Pa)
+  case('Ko25'                     ); get_ixparam = iLookPARAM%Ko25                   ! Michaelis-Menten constant for O2 at 25 degrees C (Pa)
+  case('vcmax25'                  ); get_ixparam = iLookPARAM%vcmax25                ! potential carboxylation rate at 25 degrees C (umol co2 m-2 s-1)
+  case('Kc_fac'                   ); get_ixparam = iLookPARAM%Kc_fac                 ! factor in the q10 function defining temperature controls on Kc (-)
+  case('Ko_fac'                   ); get_ixparam = iLookPARAM%Ko_fac                 ! factor in the q10 function defining temperature controls on Ko (-)
+  case('vcmax_fac'                ); get_ixparam = iLookPARAM%vcmax_fac              ! factor in the q10 function defining temperature controls on vcmax (-)
+  case('hightemp_delS'            ); get_ixparam = iLookPARAM%hightemp_delS          ! entropy term in high temp inhibition function for vcmax (J K-1 mol-1)
+  case('hightemp_delH'            ); get_ixparam = iLookPARAM%hightemp_delH          ! deactivation energy in high temp inhibition function for vcmax (J mol-1)
+  case('cond2photo_slope'         ); get_ixparam = iLookPARAM%cond2photo_slope       ! slope of conductance-photosynthesis relationship (-)
+  case('minStomatalConductance'   ); get_ixparam = iLookPARAM%minStomatalConductance ! minimum stomatal conductance (umol H2O m-2 s-1)
   ! vegetation properties
   case('winterSAI'                ); get_ixparam = iLookPARAM%winterSAI              ! stem area index prior to the start of the growing season (m2 m-2)
   case('summerLAI'                ); get_ixparam = iLookPARAM%summerLAI              ! maximum leaf area index at the peak of the growing season (m2 m-2)

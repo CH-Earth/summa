@@ -5394,7 +5394,6 @@ contains
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
-         !write(*,'(a,1x,10(f20.10,1x))') 'BTRAN, VCMX, VCMX25(VEGTYP), O2, KC, KO = ', BTRAN, VCMX, VCMX25(VEGTYP), O2, KC, KO
 
 ! first guess ci
 
@@ -5408,6 +5407,9 @@ contains
 
          CEA = MAX(0.25*EI*C3PSN(VEGTYP)+0.40*EI*(1.-C3PSN(VEGTYP)), MIN(EA,EI) )
 
+         !write(*,'(a,1x,20(f14.8,1x))') 'BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS = ', &
+         !                                BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS
+
 ! ci iteration
 !jref: C3PSN is equal to 1 for all veg types.
        DO ITER = 1, NITER
@@ -5416,12 +5418,15 @@ contains
             WC = MAX(CI-CP,0.)*VCMX/(CI+AWC)*C3PSN(VEGTYP) + VCMX*(1.-C3PSN(VEGTYP))
             WE = 0.5*VCMX*C3PSN(VEGTYP) + 4000.*VCMX*CI/SFCPRS*(1.-C3PSN(VEGTYP))
             PSN = MIN(WJ,WC,WE) * IGS
-            !write(*,'(a,1x,10(e20.10,1x))') 'WJ, WC, WE, PSN, BP(VEGTYP) = ', WJ, WC, WE, PSN, BP(VEGTYP)
 
             CS = MAX( CO2-1.37*RLB*SFCPRS*PSN, MPE )
             A = MP(VEGTYP)*PSN*SFCPRS*CEA / (CS*EI) + BTRAN*BP(VEGTYP)      ! MPC change: include BTRAN multiplier for 2nd term
             B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term in brackets
             C = -RLB
+
+            !write(*,'(a,1x,L1,1x,10(e14.8,1x))') '(WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*PSN*SFCPRS*CEA/(CS*EI) = ', &
+            !                                      (WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*PSN*SFCPRS*CEA/(CS*EI)
+
             IF (B .GE. 0.) THEN
                Q = -0.5*( B + SQRT(B*B-4.*A*C) )
             ELSE

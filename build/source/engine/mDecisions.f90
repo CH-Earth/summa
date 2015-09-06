@@ -34,6 +34,7 @@ integer(i4b),parameter,public :: SiB_Type          = 3    ! exponential of the l
 integer(i4b),parameter,public :: BallBerry         = 1    ! Ball-Berry
 integer(i4b),parameter,public :: Jarvis            = 2    ! Jarvis
 integer(i4b),parameter,public :: simpleResistance  = 3    ! simple resistance formulation
+integer(i4b),parameter,public :: BallBerryFlex     = 4    ! flexible Ball-Berry scheme
 ! -----------------------------------------------------------------------------------------------------------
 ! ***** define look-up values for different SUMMA model decisions *****
 ! -----------------------------------------------------------------------------------------------------------
@@ -240,6 +241,7 @@ contains
   case('BallBerry'          ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerry           ! Ball-Berry
   case('Jarvis'             ); model_decisions(iLookDECISIONS%stomResist)%iDecision = Jarvis              ! Jarvis
   case('simpleResistance'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = simpleResistance    ! simple resistance formulation
+  case('BallBerryFlex'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryFlex       ! flexible Ball-Berry scheme
   case default
    err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
  end select
