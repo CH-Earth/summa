@@ -41,6 +41,7 @@ contains
  USE NOAHMP_VEG_PARAMETERS, only: HVT       ! Noah-MP: height at top of canopy (m)
  USE NOAHMP_VEG_PARAMETERS, only: HVB       ! Noah-MP: height at bottom of canopy (m)
  USE NOAHMP_VEG_PARAMETERS, only: DLEAF     ! Noah-MP: characteristic leaf dimension (m)
+ USE NOAHMP_VEG_PARAMETERS, only: VCMX25    ! Noah-MP  maximum Rubisco carboxylation rate (umol m-2 s-1)
  ! Noah soil tables
  USE module_sf_noahlsm, only: theta_res, theta_sat, vGn_alpha, vGn_n, k_soil  ! van Genutchen soil parameters
  USE module_sf_noahlsm, only: REFSMC        ! Noah-MP: reference volumetric soil moisture content (-)
@@ -76,6 +77,7 @@ contains
  localParFallback(iLookPARAM%heightCanopyBottom)%default_val  = HVB(ixVeg)          ! Noah-MP: height at bottom of canopy (m)
  localParFallback(iLookPARAM%z0Canopy)%default_val            = Z0MVT(ixVeg)        ! Noah-MP: momentum roughness length (m)
  localParFallback(iLookPARAM%leafDimension)%default_val       = DLEAF(ixVeg)        ! Noah-MP: characteristic leaf dimension (m)
+ localParFallback(iLookPARAM%vcmax25)%default_val             = VCMX25(ixVeg)       ! Noah-MP: maximum Rubisco carboxylation rate (umol m-2 s-1)
 
  ! include parameters from the soil tables
  localParFallback(iLookPARAM%k_soil)%default_val              = k_soil(ixSoil)      ! hydraulic conductivity (m s-1)

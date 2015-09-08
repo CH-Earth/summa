@@ -5394,6 +5394,7 @@ contains
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
+         !write(*,'(a,1x,20(f14.8,1x))') 'F1, F2, VCMX25(VEGTYP) = ', F1(AVCMX(VEGTYP),TC), F2(TC), VCMX25(VEGTYP)
 
 ! first guess ci
 
@@ -5424,8 +5425,8 @@ contains
             B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term in brackets
             C = -RLB
 
-            !write(*,'(a,1x,L1,1x,10(e14.8,1x))') '(WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*PSN*SFCPRS*CEA/(CS*EI) = ', &
-            !                                      (WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*PSN*SFCPRS*CEA/(CS*EI)
+            !write(*,'(a,1x,L1,1x,10(f14.5,1x))') '(WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*SFCPRS*CEA/(CS*EI) = ', &
+            !                                      (WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*SFCPRS*CEA/(CS*EI)
 
             IF (B .GE. 0.) THEN
                Q = -0.5*( B + SQRT(B*B-4.*A*C) )
@@ -5437,6 +5438,7 @@ contains
             RS = MAX(R1,R2)
             CI = MAX( CS-PSN*SFCPRS*1.65*RS, 0. )
        END DO 
+       !pause
 
 ! rs, rb:  s m**2 / umol -> s/m
 
