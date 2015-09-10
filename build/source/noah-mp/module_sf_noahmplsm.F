@@ -5382,6 +5382,7 @@ contains
          CF = SFCPRS/(8.314*SFCTMP)*1.e06
          RS = 1./(BP(VEGTYP)*BTRAN) * CF    ! MPC change: include BTRAN multiplier
          PSN = 0.
+         write(*,'(a,1x,20(f16.6,1x))') 'TV-TFRZ, RS, CF = ', TV-TFRZ, RS, CF
 
          IF (APAR .LE. 0.) RETURN
 
@@ -5394,7 +5395,7 @@ contains
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
-         !write(*,'(a,1x,20(f14.8,1x))') 'F1, F2, VCMX25(VEGTYP) = ', F1(AVCMX(VEGTYP),TC), F2(TC), VCMX25(VEGTYP)
+         write(*,'(a,1x,20(f14.8,1x))') 'F1, F2, VCMX25(VEGTYP), AVCMX(VEGTYP), TC = ', F1(AVCMX(VEGTYP),TC), F2(TC), VCMX25(VEGTYP), AVCMX(VEGTYP), TC
 
 ! first guess ci
 
@@ -5408,8 +5409,8 @@ contains
 
          CEA = MAX(0.25*EI*C3PSN(VEGTYP)+0.40*EI*(1.-C3PSN(VEGTYP)), MIN(EA,EI) )
 
-         !write(*,'(a,1x,20(f14.8,1x))') 'BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS = ', &
-         !                                BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS
+         write(*,'(a,1x,20(f14.8,1x))') 'BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS = ', &
+                                         BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS
 
 ! ci iteration
 !jref: C3PSN is equal to 1 for all veg types.
@@ -5421,24 +5422,27 @@ contains
             PSN = MIN(WJ,WC,WE) * IGS
 
             CS = MAX( CO2-1.37*RLB*SFCPRS*PSN, MPE )
+
             A = MP(VEGTYP)*PSN*SFCPRS*CEA / (CS*EI) + BTRAN*BP(VEGTYP)      ! MPC change: include BTRAN multiplier for 2nd term
             B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term in brackets
             C = -RLB
-
-            !write(*,'(a,1x,L1,1x,10(f14.5,1x))') '(WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*SFCPRS*CEA/(CS*EI) = ', &
-            !                                      (WC>WJ), WJ, WC, WE, PSN, CI, CP, CS, A, MP(VEGTYP)*SFCPRS*CEA/(CS*EI)
-
             IF (B .GE. 0.) THEN
                Q = -0.5*( B + SQRT(B*B-4.*A*C) )
             ELSE
                Q = -0.5*( B - SQRT(B*B-4.*A*C) )
             END IF
+
+
+            write(*,'(a,1x,L1,1x,10(f16.8,1x))') '(WC>WJ), WJ, WC, WE, PSN, CI, A, B, C, Q, X2, X3 = ', &
+                                                  (WC>WJ), WJ, WC, WE, PSN, CI, A, B, C, Q, MP(VEGTYP)*SFCPRS, MP(VEGTYP)*PSN*SFCPRS/CS
+
+
             R1 = Q/A
             R2 = C/Q
             RS = MAX(R1,R2)
             CI = MAX( CS-PSN*SFCPRS*1.65*RS, 0. )
        END DO 
-       !pause
+       pause
 
 ! rs, rb:  s m**2 / umol -> s/m
 
