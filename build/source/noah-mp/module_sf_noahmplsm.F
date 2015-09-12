@@ -5382,7 +5382,7 @@ contains
          CF = SFCPRS/(8.314*SFCTMP)*1.e06
          RS = 1./(BP(VEGTYP)*BTRAN) * CF    ! MPC change: include BTRAN multiplier
          PSN = 0.
-         write(*,'(a,1x,20(f16.6,1x))') 'TV-TFRZ, RS, CF = ', TV-TFRZ, RS, CF
+         !write(*,'(a,1x,20(f16.6,1x))') 'TV-TFRZ, RS, CF = ', TV-TFRZ, RS, CF
 
          IF (APAR .LE. 0.) RETURN
 
@@ -5395,7 +5395,7 @@ contains
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
-         write(*,'(a,1x,20(f14.8,1x))') 'F1, F2, VCMX25(VEGTYP), AVCMX(VEGTYP), TC = ', F1(AVCMX(VEGTYP),TC), F2(TC), VCMX25(VEGTYP), AVCMX(VEGTYP), TC
+         !write(*,'(a,1x,20(f14.8,1x))') 'F1, F2, VCMX25(VEGTYP), AVCMX(VEGTYP), TC = ', F1(AVCMX(VEGTYP),TC), F2(TC), VCMX25(VEGTYP), AVCMX(VEGTYP), TC
 
 ! first guess ci
 
@@ -5442,7 +5442,7 @@ contains
             RS = MAX(R1,R2)
             CI = MAX( CS-PSN*SFCPRS*1.65*RS, 0. )
        END DO 
-       pause
+       !pause
 
 ! rs, rb:  s m**2 / umol -> s/m
 

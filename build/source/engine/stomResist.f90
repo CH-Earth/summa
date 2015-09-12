@@ -310,6 +310,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! fixed parameters
  integer(i4b),parameter          :: maxiter=10                 ! maximum number of iterations
+ integer(i4b),parameter          :: maxiter_noahMP=3           ! maximum number of iterations for Noah-MP
  real(dp),parameter              :: convToler=0.0001_dp        ! convergence tolerance (Pa)
  real(dp),parameter              :: umol_per_mol=1.e+6_dp      ! factor to relate umol to mol
  real(dp),parameter              :: o2scaleFactor=0.105_dp     ! scaling factor used to compute co2 compesation point (0.21/2)
@@ -350,7 +351,12 @@ contains
  real(dp)                        :: rs                         ! stomatal resistance (umol-1 m2 s)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! iterative solution
+ integer(i4b),parameter          :: ixSumma=1001               ! named variable for the Noah-MP solution (fixed point iteration, max 3 iterations)
+ integer(i4b),parameter          :: ixNoahMP=1002              ! named variable for the Noah-MP solution (fixed point iteration, max 3 iterations)
+ integer(i4b)                    :: ixSolution=ixSumma         ! define solution method
  real(dp)                        :: func1,func2                ! functions for numerical derivative calculation
+ real(dp)                        :: cMin,cMax                  ! solution brackets
+ real(dp)                        :: ciDer                      ! derivative in ci difference (normally 1, but zero if constraints imposed)
  real(dp)                        :: dA_dc                      ! derivative in photosynthesis w.r.t. intercellular co2 concentration 
  real(dp)                        :: dxx_dc                     ! common deriavative for the "q" term in the quadratic equation
  real(dp)                        :: dXt_dc                     ! derivative in xTemp w.r.t. intercellular co2 concentration
@@ -392,6 +398,8 @@ contains
  ! initialize error control
  err=0; message="stomResist_flex/"
 
+ !print*, '**'
+
  ! define unit conversion (m s-1 --> mol m-2 s-1)
  ! NOTE: R_gas   = J K-1 Mol-1 (J = kg m2 s-2); airtemp = K; airpres = Pa (kg m-1 s-2)
  unitConv = airpres/(R_gas*airtemp)  ! mol m-3
@@ -400,8 +408,6 @@ contains
  if(absorbedPAR < tiny(absorbedPAR) .or. scalarGrowingSeasonIndex < tiny(absorbedPAR))then
   scalarStomResist     = unitConv*umol_per_mol/(scalarTranspireLim*minStomatalConductance)
   scalarPhotosynthesis = 0._dp
-  write(*,'(a,1x,20(f18.6,1x))') 'scalarVegetationTemp-273.16_dp, scalarStomResist, unitConv*umol_per_mol = ', &
-                                  scalarVegetationTemp-273.16_dp, scalarStomResist, unitConv*umol_per_mol
   return
  endif
 
@@ -427,8 +433,8 @@ contains
  x0 = q10(vcmax_fac,scalarVegetationTemp)  ! temperature function
  x1 = fHigh(hightemp_delS,hightemp_delH,scalarVegetationTemp) ! high temperature inhibition function
  vcmax = vcmax25*fnf*scalarTranspireLim*x0/x1
- write(*,'(a,1x,20(f16.8,1x))') 'x0, x1, vcmax, vcmax25, vcmax_fac, airpres, scalarVegetationTemp = ', &
-                                 x0, x1, vcmax, vcmax25, vcmax_fac, airpres, scalarVegetationTemp-273.16_dp
+ !write(*,'(a,1x,20(f16.8,1x))') 'x0, x1, vcmax, vcmax25, vcmax_fac, airpres, scalarVegetationTemp = ', &
+ !                                x0, x1, vcmax, vcmax25, vcmax_fac, airpres, scalarVegetationTemp-273.16_dp
 
  ! compute the electron transport rate (umol CO2 m-2 s-1)
  J = quantumYield*joule2umolConv*absorbedPAR  
@@ -445,13 +451,20 @@ contains
  ! define trial value of intercellular co2 (Pa)
  ci = 0.7_dp*scalarCO2air
 
+ ! initialize brackets for the solution
+ cMin = 0._dp
+ cMax = scalarCO2air
+
  ! print progress
- !write(*,'(a,1x,20(f16.8,1x))') 'airpres, 1._dp/leafConductance, scalarTranspireLim, fHum, vcmax, J = ', &
- !                                airpres, 1._dp/leafConductance, scalarTranspireLim, fHum, vcmax, J
+ !write(*,'(a,1x,20(f16.8,1x))') 'airpres, 1._dp/leafConductance, scalarTranspireLim, fHum, vcmax, J, awb = ', &
+ !                                airpres, 1._dp/leafConductance, scalarTranspireLim, fHum, vcmax, J, awb
 
  ! ***
  ! iterate
  do iter=1,maxiter
+
+  ! define new iteration
+  !print*, '** new iteration...'
 
   ! reset ci
   ci_old = ci
@@ -463,7 +476,15 @@ contains
   ! this method follows Farquar (Planta, 1980), as implemented in CLM4 and Noah-MP
 
   ! compute the difference between intercellular co2 concentraion and the compensation point
-  ciDiff = max(ci - co2compPt, 0.00001_dp)  ! small value to ensure convergence
+  ciDiff = ci - co2compPt
+
+  ! impose constraints (NOTE: derivative is zero if constraints are imposed)
+  if(ciDiff < 0._dp)then
+   ciDiff = 0._dp
+   ciDer  = 0._dp
+  else
+   ciDer  = 1._dp
+  endif
 
   ! compute light-limited assimilation
   xFac(ixLight) = J/(ci + cp2)         ! umol co2 m-2 s-1 Pa-1
@@ -527,8 +548,8 @@ contains
   bSign = abs(bQuad)/bQuad
   xTemp = bQuad*bQuad - 4._dp *aQuad*cQuad
   qQuad = -0.5_dp * (bQuad + bSign*sqrt(xTemp))
-  write(*,'(a,1x,20(f16.8,1x))') 'cs, psn, fHum, x2, x3, aQuad, bQuad, cQuad, qQuad, xTemp = ', &
-                                  cs, psn, fHum, x2, x3, aQuad, bQuad, cQuad, qQuad, xTemp
+  !write(*,'(a,1x,20(f16.8,1x))') 'cs, psn, fHum, x2, x3, aQuad, bQuad, cQuad, qQuad, xTemp = ', &
+  !                                cs, psn, fHum, x2, x3, aQuad, bQuad, cQuad, qQuad, xTemp
 
   ! compute root of the quadratic (stomatal resistance is the maximum root)
   root1 = qQuad / aQuad
@@ -537,7 +558,7 @@ contains
 
   ! compute intercellular co2 partial pressues (Pa)
   x4 = h2o_co2__stomPores * airpres  ! Pa
-  ci = cs - x4*psn*rs  ! Pa
+  ci = max(cs - x4*psn*rs, 0._dp)    ! Pa
 
   ! *****
   ! * iterative solution...
@@ -545,6 +566,19 @@ contains
 
   ! CLM4 and Noah-MP use fixed point iteration, continuing the next iteration from this point
   ! here we try and improve matters by calculating the derivatives
+
+  ! update the brackets for the solution
+  if(ci_old > ci)then
+   cMax = ci_old
+  else
+   cMin = ci_old
+  endif
+
+  ! case for Noah-MP (use fixed point iteration)
+  if(ixSolution==ixNoahMP)then
+   if(iter==maxiter_NoahMP) exit ! exit after a specified number of iterations (normally 3)
+   cycle  ! fixed-point iteration
+  endif
 
   ! case of export limited photosynthesis: does not depend on intercellular co2 concentration
   if(ixLimit == ixExp)then
@@ -555,8 +589,8 @@ contains
   ! define derivative in photosynthesis w.r.t. intercellular co2 concentration
   ! NOTE: export-limited photosynthesis handled above, and included here for completeness (no extra cost)
   select case(ixLimit)
-   case(ixLight); dA_dc = x0*x0*(co2compPt + cp2)/J
-   case(ixRubi);  dA_dc = x0*x0*(co2compPt + awb)/vcmax
+   case(ixLight); dA_dc = x0*ciDer - ciDiff*x0*x0/J      ! don't simplify since ciDiff can be constant at zero
+   case(ixRubi);  dA_dc = x0*ciDer - ciDiff*x0*x0/vcmax  ! don't simplify since ciDiff can be constant at zero
    case(ixExp);   dA_dc = 0._dp
    case default; message=trim(message)//'unable to identify limiting factor for photosynthesis'; err=20; return
   end select
@@ -579,19 +613,24 @@ contains
   ! test derivatives
   !func1 = xFunc(ci_old,    cond2photo_slope, airpres, scalarCO2air)
   !func2 = xFunc(ci_old+dx, cond2photo_slope, airpres, scalarCO2air)
-  !write(*,'(a,1x,20(e20.10,1x))') '(func2 - func1)/dx, dci_dc = ', &
-  !                                 (func2 - func1)/dx, dci_dc
+  !write(*,'(a,1x,20(e20.10,1x))') '(func2 - func1)/dx, dA_dc = ', &
+  !                                 (func2 - func1)/dx, dA_dc
   !pause
 
   ! compute iteration increment (Pa)
   xInc = (ci - ci_old)/(1._dp - dci_dc)
 
   ! update
-  ci = ci_old + xInc
+  ci = max(ci_old + xInc, 0._dp)
+
+  ! ensure that we stay within brackets
+  if(ci > cMax .or. ci < cMin)then
+   ci = 0.5_dp * (cMin + cMax)
+  endif
 
   ! print progress
-  !write(*,'(a,1x,2(i4,1x),20(f12.7,1x))') 'iter, ixLimit, xPSN, ci_old, ci, co2compPt, cs, rs, xInc = ', &
-  !                                         iter, ixLimit, xPSN, ci_old, ci, co2compPt, cs, rs, xInc
+  !write(*,'(a,1x,2(i4,1x),20(f12.7,1x))') 'iter, ixLimit, cMin, cMax, xPSN, ci_old, ci, rs, xInc = ', &
+  !                                         iter, ixLimit, cMin, cMax, xPSN, ci_old, ci, rs, xInc
 
   ! check for convergence
   if(abs(xInc) < convToler) exit
@@ -601,7 +640,7 @@ contains
   endif
 
  end do  ! iterating
- pause 'iterating'
+ !pause 'iterating'
 
  ! assign output variables
  scalarStomResist     = unitConv*umol_per_mol*rs  ! umol m-2 s-1 --> s/m
@@ -647,7 +686,7 @@ contains
   real(dp)            :: xFunc
 
   ! compute the difference between intercellular co2 concentraion and the compensation point
-  ciDiff = max(ci - co2compPt, 0.00001_dp)  ! small value to ensure convergence
+  ciDiff = max(ci - co2compPt, 0._dp)  ! small value to ensure convergence
 
   ! compute light-limited assimilation
   xFac(ixLight) = J/(ci + cp2)         ! umol co2 m-2 s-1 Pa-1
@@ -684,8 +723,8 @@ contains
   bSign = abs(bQuad)/bQuad
   xTemp = bQuad*bQuad - 4._dp *aQuad*cQuad
   qQuad = -0.5_dp * (bQuad + bSign*sqrt(xTemp))
-  write(*,'(a,1x,20(f16.8,1x))') 'cs, psn, aQuad, bQuad, cQuad, qQuad, xTemp = ', &
-                                  cs, psn, aQuad, bQuad, cQuad, qQuad, xTemp
+  !write(*,'(a,1x,20(f16.8,1x))') 'cs, psn, aQuad, bQuad, cQuad, qQuad, xTemp = ', &
+  !                                cs, psn, aQuad, bQuad, cQuad, qQuad, xTemp
 
   ! compute root of the quadratic (stomatal resistance is the maximum root)
   root1 = qQuad / aQuad
@@ -697,7 +736,7 @@ contains
   xFunc = cs - x4*psn*rs  ! Pa
 
   ! return something else
-  !xFunc = rs
+  xFunc = psn
 
   end function xFunc
 
