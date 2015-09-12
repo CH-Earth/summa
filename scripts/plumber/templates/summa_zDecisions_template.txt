@@ -13,7 +13,7 @@ simulFinsh              'XX_endYear_XX-12-31 23:00'      ! (02) simulation end t
 soilCatTbl                      ROSETTA         ! (03) soil-category dateset
 vegeParTbl                      USGS            ! (04) vegetation category dataset
 soilStress                      NoahType        ! (05) choice of function for the soil moisture control on stomatal resistance
-stomResist                      BallBerry       ! (06) choice of function for stomatal resistance
+stomResist                      BallBerryFlex       ! (06) choice of function for stomatal resistance
 ! ***********************************************************************************************************************
 num_method                      itertive        ! (07) choice of numerical method
 fDerivMeth                      analytic        ! (08) method used to calculate flux derivatives

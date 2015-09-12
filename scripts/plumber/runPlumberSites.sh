@@ -18,14 +18,14 @@ settingsPath=${summaDir}/settings/plumber
 managerPath=${settingsPath}/fileManager
 
 # define the experiment name
-expName=_initialPlumberTest
+expName=_flexBallBerrySumma
 
 # run summa for each site
 for managerFile in $( ls  ${managerPath}/* ); do
 
  # get the logfile name
  IFS='_' read -a strarr <<< "${managerFile}"
- logName=${logPath}/summaLog_${strarr[-1]}
+ logName=${logPath}/summaLog_${expName}_${strarr[-1]}
 
  # run the model for a given site
  echo $summaEXE $expName $managerFile $logName

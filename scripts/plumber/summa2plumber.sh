@@ -2,6 +2,9 @@
 #
 # used to convert the summa output files to the plumber format
 #
+#
+# set the temp directory
+export TMPDIR=/home/mclark/tmp/
 
 # define named variables to switch between options
 ixLoop=1
@@ -11,7 +14,8 @@ ixSort=2
 ixExtract=$ixSort
 
 # define the experiment name
-expName=initialPlumberTest
+#expName=initialPlumberTest
+expName=origBallBerryNoahMP
 
 # define the path for the input data
 inputPath=/d1/mclark/PLUMBER_data/site_data/met/
@@ -132,7 +136,22 @@ for outputFile in $( ls  ${outputPath}orig/*spinup*${expName}.nc ); do
  # * concatanate the files
  # ****************************************************************
 
+
+ # define the output name
+ outputName=${newOutputPath}${modelName}/${modelName}_${expName}_${siteName}Fluxnet.1.4.nc
+
  # concatanate
- ncrcat -O ${outputPath}temp/${siteName}_*spinup*.nc ${outputPath}temp/${siteName}_*-*.nc ${outputPath}SUMMA.1.0_${siteName}Fluxnet.1.4.nc
+ ncrcat -O ${outputPath}temp/${siteName}_*spinup*${expName}.nc ${outputPath}temp/${siteName}_*-*${expName}.nc ${outputName}
+
+ # get information about the time dimension
+ timeInfo=`ncks -C -v time -m $outputName | grep "size =" | grep dimension`
+
+ # get the number of time steps in the output datafile
+ IFS='=' read -a strarr0 <<< "${timeInfo}"
+ IFS=' ' read -a strarr1 <<< "${strarr0[-1]}"
+ numberOutputSteps=${strarr1[0]}
+
+ # check the number of output steps
+ echo '** check steps: ' $numberInputSteps $numberOutputSteps
 
 done
