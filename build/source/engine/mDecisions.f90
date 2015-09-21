@@ -23,21 +23,28 @@ USE nrtype
 implicit none
 private
 public::mDecisions
-! -----------------------------------------------------------------------------------------------------------
-! ***** define look-up values for different Noah-MP decisions *****
-! -----------------------------------------------------------------------------------------------------------
 ! look-up values for the choice of function for the soil moisture control on stomatal resistance
-integer(i4b),parameter,public :: NoahType          = 1    ! thresholded linear function of volumetric liquid water content
-integer(i4b),parameter,public :: CLM_Type          = 2    ! thresholded linear function of matric head
-integer(i4b),parameter,public :: SiB_Type          = 3    ! exponential of the log of matric head
+integer(i4b),parameter,public :: NoahType             =   1    ! thresholded linear function of volumetric liquid water content
+integer(i4b),parameter,public :: CLM_Type             =   2    ! thresholded linear function of matric head
+integer(i4b),parameter,public :: SiB_Type             =   3    ! exponential of the log of matric head
 ! look-up values for the choice of stomatal resistance formulation
-integer(i4b),parameter,public :: BallBerry         = 1    ! Ball-Berry
-integer(i4b),parameter,public :: Jarvis            = 2    ! Jarvis
-integer(i4b),parameter,public :: simpleResistance  = 3    ! simple resistance formulation
-integer(i4b),parameter,public :: BallBerryFlex     = 4    ! flexible Ball-Berry scheme
-! -----------------------------------------------------------------------------------------------------------
-! ***** define look-up values for different SUMMA model decisions *****
-! -----------------------------------------------------------------------------------------------------------
+integer(i4b),parameter,public :: BallBerry            =   1    ! Ball-Berry
+integer(i4b),parameter,public :: Jarvis               =   2    ! Jarvis
+integer(i4b),parameter,public :: simpleResistance     =   3    ! simple resistance formulation
+integer(i4b),parameter,public :: BallBerryFlex        =   4    ! flexible Ball-Berry scheme
+! look-up values to define leaf temperature controls on photosynthesis + stomatal resistance
+integer(i4b),parameter,public :: q10Func              =   1    ! the q10 function used in CLM4 and Noah-MP 
+integer(i4b),parameter,public :: Arrhenius            =   2    ! the Arrhenious functions used in CLM5 and Cable
+! look-up values to define humidity controls on stomatal resistance
+integer(i4b),parameter,public :: humidLeafSurface     =   1    ! humidity at the leaf surface [Bonan et al., 2011]
+integer(i4b),parameter,public :: scaledHyperbolic     =   2    ! scaled hyperbolic function [Leuning et al., 1995]
+! look-up values to define the electron transport function (dependence of photosynthesis on PAR)
+integer(i4b),parameter,public :: linear               =   1    ! linear function used in CLM4 and Noah-MP
+integer(i4b),parameter,public :: linearJmax           =   2    ! linear jmax function used in Cable [Wang et al., Ag Forest Met 1998, eq D5]
+integer(i4b),parameter,public :: quadraticJmax        =   3    ! the quadratic Jmax function, used in SSiB and CLM5
+! look up values to define the use of CO2 compensation point to calculate stomatal resistance
+integer(i4b),parameter,public :: origBWB              =   1    ! the original BWB approach
+integer(i4b),parameter,public :: Leuning              =   2    ! the Leuning approach
 ! look-up values for the choice of numerical method
 integer(i4b),parameter,public :: iterative            =  11    ! iterative
 integer(i4b),parameter,public :: nonIterative         =  12    ! non-iterative
@@ -233,7 +240,7 @@ contains
   case('CLM_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = CLM_Type             ! thresholded linear function of matric head
   case('SiB_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = SiB_Type             ! exponential of the log of matric head
   case default
-   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%soilStress)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown soil moisture function [option="//trim(model_decisions(iLookDECISIONS%soilStress)%cDecision)//"]"; return
  end select
 
  ! identify the choice of function for stomatal resistance
@@ -243,10 +250,41 @@ contains
   case('simpleResistance'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = simpleResistance    ! simple resistance formulation
   case('BallBerryFlex'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryFlex       ! flexible Ball-Berry scheme
   case default
-   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown stomatal resistance function [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
  end select
 
- ! -------------------------------------------------------------------------------------------------
+ ! identify the leaf temperature controls on photosynthesis + stomatal resistance
+ select case(trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision))
+  case('q10Func'            ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = q10Func
+  case('Arrhenius'          ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = Arrhenius
+  case default
+   err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision)//"]"; return
+ end select
+
+ ! identify the humidity controls on stomatal resistance
+ select case(trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision))
+  case('humidLeafSurface'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = humidLeafSurface
+  case('scaledHyperbolic'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = scaledHyperbolic
+  case default
+   err=10; message=trim(message)//"unknown humidity function [option="//trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision)//"]"; return
+ end select
+
+ ! identify functions for electron transport function (dependence of photosynthesis on PAR)
+ select case(trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision))
+  case('linear'             ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linear
+  case('linearJmax'         ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linearJmax
+  case('quadraticJmax'      ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = quadraticJmax
+  case default
+   err=10; message=trim(message)//"unknown electron transport function [option="//trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision)//"]"; return
+ end select
+
+ ! identify the leaf temperature controls on photosynthesis + stomatal resistance
+ select case(trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision))
+  case('origBWB'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = origBWB
+  case('Leuning'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = Leuning
+  case default
+   err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
+ end select
 
  ! identify the numerical method
  select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
@@ -254,7 +292,7 @@ contains
   case('non_iter'); model_decisions(iLookDECISIONS%num_method)%iDecision = nonIterative        ! non-iterative
   case('itersurf'); model_decisions(iLookDECISIONS%num_method)%iDecision = iterSurfEnergyBal   ! iterate only on the surface energy balance
   case default
-   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown numerical method[option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
  end select
 
  ! identify the method used to calculate flux derivatives

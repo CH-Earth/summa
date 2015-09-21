@@ -29,14 +29,13 @@ MODULE var_lookup
  ! (0) define model decisions
  ! ***********************************************************************************************************
  type, public  ::  iLook_decision
-  ! simulation options
   integer(i4b)    :: simulStart       = 1  ! simulation start time
   integer(i4b)    :: simulFinsh       = 2  ! simulation end time
-  ! Noah-MP options
   integer(i4b)    :: soilCatTbl       = 3  ! soil-category dateset
   integer(i4b)    :: vegeParTbl       = 4  ! vegetation category dataset
   integer(i4b)    :: soilStress       = 5  ! choice of function for the soil moisture control on stomatal resistance
   integer(i4b)    :: stomResist       = 6  ! choice of function for stomatal resistance
+<<<<<<< HEAD
   ! other options
   integer(i4b)    :: num_method       = 7  ! choice of numerical method
   integer(i4b)    :: fDerivMeth       = 8  ! method used to calculate flux derivatives
@@ -61,6 +60,37 @@ MODULE var_lookup
   integer(i4b)    :: thCondSoil       = 27 ! choice of thermal conductivity representation for soil
   integer(i4b)    :: spatial_gw       = 28 ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting       = 29 ! choice of method for sub-grid routing
+=======
+  integer(i4b)    :: bbTempFunc       = 7  ! Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
+  integer(i4b)    :: bbHumdFunc       = 8  ! Ball-Berry: humidity controls on stomatal resistance
+  integer(i4b)    :: bbElecFunc       = 9  ! Ball-Berry: dependence of photosynthesis on PAR
+  integer(i4b)    :: bbCO2point       = 10 ! Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
+  integer(i4b)    :: num_method       = 11 ! choice of numerical method
+  integer(i4b)    :: fDerivMeth       = 12 ! method used to calculate flux derivatives
+  integer(i4b)    :: LAI_method       = 13 ! method used to determine LAI and SAI
+  integer(i4b)    :: cIntercept       = 14 ! choice of parameterization for canopy interception
+  integer(i4b)    :: f_Richards       = 15 ! form of richards' equation
+  integer(i4b)    :: groundwatr       = 16 ! choice of groundwater parameterization
+  integer(i4b)    :: hc_profile       = 17 ! choice of hydraulic conductivity profile
+  integer(i4b)    :: bcUpprTdyn       = 18 ! type of upper boundary condition for thermodynamics
+  integer(i4b)    :: bcLowrTdyn       = 19 ! type of lower boundary condition for thermodynamics
+  integer(i4b)    :: bcUpprSoiH       = 20 ! type of upper boundary condition for soil hydrology
+  integer(i4b)    :: bcLowrSoiH       = 21 ! type of lower boundary condition for soil hydrology
+  integer(i4b)    :: veg_traits       = 22 ! choice of parameterization for vegetation roughness length and displacement height
+  integer(i4b)    :: rootProfil       = 23 ! choice of parameterization for the rooting profile
+  integer(i4b)    :: canopyEmis       = 24 ! choice of parameterization for canopy emissivity
+  integer(i4b)    :: snowIncept       = 25 ! choice of parameterization for snow interception
+  integer(i4b)    :: windPrfile       = 26 ! choice of canopy wind profile
+  integer(i4b)    :: astability       = 27 ! choice of stability function
+  integer(i4b)    :: canopySrad       = 28 ! choice of method for canopy shortwave radiation
+  integer(i4b)    :: alb_method       = 29 ! choice of albedo representation
+  integer(i4b)    :: snowLayers       = 30 ! choice of method to combine and sub-divide snow layers
+  integer(i4b)    :: compaction       = 31 ! choice of compaction routine
+  integer(i4b)    :: thCondSnow       = 32 ! choice of thermal conductivity representation for snow
+  integer(i4b)    :: thCondSoil       = 33 ! choice of thermal conductivity representation for soil
+  integer(i4b)    :: spatial_gw       = 34 ! choice of method for spatial representation of groundwater
+  integer(i4b)    :: subRouting       = 35 ! choice of method for sub-grid routing
+>>>>>>> e00f677... initial mods to code to incorporate more options for stomatal resistance
  endtype iLook_decision
  ! ***********************************************************************************************************
  ! (1) define model time
@@ -627,7 +657,8 @@ MODULE var_lookup
  ! define look-up structures
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24, 25, 26, 27, 28, 29)
+                                                                         21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
+                                                                         31, 32, 33, 34, 35)
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5)
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   (  1,  2,  3,  4,  5,  6,  7,  8)
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
@@ -672,7 +703,7 @@ MODULE var_lookup
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11)
  ! define maximum number of variables of each type
- integer(i4b),parameter,public :: maxvarDecisions= 29
+ integer(i4b),parameter,public :: maxvarDecisions= 35
  integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarAttr     = 7

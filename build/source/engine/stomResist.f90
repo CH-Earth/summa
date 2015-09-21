@@ -28,7 +28,23 @@ USE mDecisions_module,only:  &
  BallBerryFlex,              & ! flexible Ball-Berry scheme           
  BallBerry,                  & ! Ball-Berry (from Noah-MP)
  Jarvis                        ! Jarvis (from Noah-MP)
-
+! look-up values for the leaf temperature controls on photosynthesis + stomatal resistance
+USE mDecisions_module,only:  &
+ q10Func,                    & ! the q10 function used in CLM4 and Noah-MP
+ Arrhenius                     ! the Arrhenius functions used in CLM5 and Cable 
+! look-up values for the humidity controls on stomatal resistance
+USE mDecisions_module,only:  &
+ humidLeafSurface,           & ! humidity at the leaf surface [Bonan et al., 2011]
+ scaledHyperbolic              ! scaled hyperbolic function [Leuning et al., 1995]
+! look-up values for the electron transport function, dependence of photosynthesis on PAR
+USE mDecisions_module,only:  &
+ linear,                     & ! linear function used in CLM4 and Noah-MP
+ linearJmax,                 & ! linear jmax function used in Cable [Wang et al., Ag Forest Met 1998, eq D5]
+ quadraticJmax                 ! the quadratic Jmax function, used in SSiB and CLM5
+! look-up values for the CO2 compensation point to calculate stomatal resistance
+USE mDecisions_module,only:  &
+ origBWB,                    & ! the original BWB function
+ Leuning                       ! the Leuning function
 implicit none
 private
 public::stomResist
@@ -369,6 +385,12 @@ contains
  ! associate variables in the data structure
  associate(&
 
+ ! input: model decisions
+ ix_bbTempFunc                   => model_decisions(iLookDECISIONS%bbTempFunc)%iDecision,           & ! intent(in): [i4b] leaf temperature controls on photosynthesis + stomatal resistance
+ ix_bbHumdFunc                   => model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision,           & ! intent(in): [i4b] humidity controls on stomatal resistance 
+ ix_bbElecFunc                   => model_decisions(iLookDECISIONS%bbElecFunc)%iDecision,           & ! intent(in): [i4b] dependence of photosynthesis on PAR
+ ix_bbCO2point                   => model_decisions(iLookDECISIONS%bbCO2point)%iDecision,           & ! intent(in): [i4b] use of CO2 compensation point to calculate stomatal resistance
+
  ! input: model parameters
  Kc25                            => mpar_data%var(iLookPARAM%Kc25),                                 & ! intent(in): [dp] Michaelis-Menten constant for CO2 at 25 degrees C (Pa)
  Ko25                            => mpar_data%var(iLookPARAM%Ko25),                                 & ! intent(in): [dp] Michaelis-Menten constant for O2 at 25 degrees C (Pa)
@@ -426,8 +448,23 @@ contains
  leafConductance = umol_per_mol*unitConv/scalarLeafResistance  ! s m-1 --> umol m-2 s-1
 
  ! compute the Michaelis-Menten constants (Pa)
- Kc = Kc25*q10(Kc_fac,scalarVegetationTemp)
- Ko = Ko25*q10(Ko_fac,scalarVegetationTemp)
+ select case(ix_bbTempFunc)
+
+  ! q10 function used in CLM4 and Noah-MP
+  case(q10Func) 
+   Kc = Kc25*q10(Kc_fac,scalarVegetationTemp)
+   Ko = Ko25*q10(Ko_fac,scalarVegetationTemp)
+
+  ! Arrhenius function used in CLM5 and Cable
+  case(Arrhenius)
+   pause 'check Arrhenius'
+
+  ! check found an appropriate option
+  case default; err=20; message=trim(message)//'unable to find option for leaf temperature controls on stomatal conductance'
+
+ end select
+
+
 
  ! compute maximum Rubisco carboxylation rate (umol co2 m-2 s-1)
  x0 = q10(vcmax_fac,scalarVegetationTemp)  ! temperature function
