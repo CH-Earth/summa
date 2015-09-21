@@ -5530,6 +5530,11 @@ contains
     RC  = RSMIN / (RCS * RCT * RCQ * RCSOIL)
     PSN = -999.99       ! PSN not applied for dynamic carbon
 
+    write(*,'(a,1x,10(f12.4,1x))') 'sfctmp, sfcprs, eah = ', sfctmp-273.16, sfcprs, eah
+
+    write(*,'(a,1x,10(f12.4,1x))') 'hs, q2, q2sat, rcq = ', hs, q2, q2sat, rcq
+    stop 'in noahMP/canres'
+
   END SUBROUTINE CANRES
 ! ==================================================================================================
         SUBROUTINE CALHUM(SFCTMP, SFCPRS, Q2SAT, DQSDT2)
