@@ -1,7 +1,7 @@
 pro computeAssimilation
 
 ; define plotting parameters
-window, 0, xs=1400, ys=1200, retain=2
+window, 0, xs=1200, ys=1000, retain=2
 device, decomposed=0
 LOADCT, 39
 !P.BACKGROUND=255
@@ -93,42 +93,48 @@ esVec = dblarr(nTrial)
 eAirVec = dblarr(nTrial)
 eSatVec = dblarr(nTrial)
 
-; define desired variable
-ixHum     = 0
-ixTemp    = 1
-ixVapPres = 2
+; define the carbon concentrations
+ciVec = dblarr(nTrial)
+csVec = dblarr(nTrial)
 
-; loop through variables
-for ivar=0,1 do begin
+; define desired variable for the x-axis
+ixHum     = 1
+ixTemp    = 0
+nx        = 2
 
- ; loop through plot types
- for iplot=0,1 do begin
+; define desired variable for the y-axis
+iyStCond  = 0
+iyCarbon  = 1
+iyVapPres = 2
+ny        = 3
 
-  ; define desired variable
-  iVarDesire = ivar
+; loop through the x variables
+for iyVar=0,ny-1 do begin
 
-  ; define plot range
-  if(iVarDesire eq ixHum)  then xlimits = [0,1]
-  if(iVarDesire eq ixTemp) then xlimits = [0,40]
+ ; loop through the y variables
+ for ixVar=0,nx-1 do begin
+
+  ; define x-axis range
+  if(ixVar eq ixHum)  then xlimits = [0,1]
+  if(ixVar eq ixTemp) then xlimits = [0,40]
 
   ; define y-axis range
-  if(iplot eq 0)then ylimits=[0,300]
-  if(iplot eq 1)then ylimits=[0,5000]
+  if(iyVar eq iyStCond) then ylimits=[0,   0.3]
+  if(iyVar eq iyCarbon) then ylimits=[0,  50]
+  if(iyVar eq iyVapPres)then ylimits=[0,5000]
+
+  ; define x title
+  if(ixVar eq ixHum)  then xVarTitle = 'Humidity (fraction)'
+  if(ixVar eq ixTemp) then xVarTitle = 'Temperature (!eo!nC)'
 
   ; define y title
-  if(iplot eq 0)then yvarTitle='Stomatal condutance / 1000!C(umol m!e-2!n s!e-1!n)'
-  if(iplot eq 1)then yvarTitle='Vapor pressure (Pa)' 
+  if(iyVar eq iyStCond) then yvarTitle='Stomatal condutance!C(mol m!e-2!n s!e-1!n)'
+  if(iyVar eq iyCarbon) then yvarTitle='Partial pressure of carbon (Pa)'
+  if(iyVar eq iyVapPres)then yvarTitle='Vapor pressure (Pa)' 
 
   ; make a base plot
-  if(iVarDesire eq ixTemp)then begin
-   plot, TcVec, gsVec, xrange=xlimits, yrange=ylimits, xstyle=1, ystyle=1, $
-    xtitle='Temperature (!eo!nC)', ytitle=yvarTitle, $
-    /nodata 
-  endif else begin
-   plot, hsVec, gsVec, xrange=xlimits, yrange=ylimits, xstyle=1, ystyle=1, $
-    xtitle='Humidity (fraction)', ytitle=yvarTitle, $
-    /nodata
-  endelse
+  plot, indgen(5), xrange=xlimits, yrange=ylimits, xstyle=1, ystyle=1, $
+   xtitle=xVarTitle, ytitle=yvarTitle, /nodata 
 
   ; define the axis range
   xr = xlimits[1] - xlimits[0]
@@ -150,14 +156,14 @@ for ivar=0,1 do begin
    for iTrial=0,nTrial-1 do begin
 
     ; define humidity
-    if(iVarDesire eq ixHum or iVarDesire eq ixVapPres)then begin
+    if(ixVar eq ixHum)then begin
      Tc = 20.d
      hs = hsVec[iTrial]
     endif
 
     ; define temperature
-    if(iVarDesire eq ixTemp)then begin
-     hs = 0.7d
+    if(ixVar eq ixTemp)then begin
+     hs = 0.3d
      Tc = TcVec[iTrial]
     endif
 
@@ -319,6 +325,10 @@ for ivar=0,1 do begin
      ; update
      ci = ci_old + xInc
 
+     ; save carbon concentration
+     ciVec[iTrial] = ci
+     csVec[iTrial] = cs
+
      print, 'iter, Tc, assim, cs, gsVec[iTrial], ci_old, ci, xInc = ', $
              iter, Tc, assim, cs, gsVec[iTrial], ci_old, ci, xInc, format='(a,1x,i4,1x,20(f16.8,1x))'
  
@@ -332,28 +342,30 @@ for ivar=0,1 do begin
 
    endfor  ; loop through trial values
 
+   ; save x var
+   if(ixVar eq ixHum)  then xVar=hsVec
+   if(ixVar eq ixTemp) then xVar=TcVec
+
+   ; save yvar
+   if(iyVar eq iyStCond)  then yVar=gsVec/1000000.d  ; convert umol --> mol
+   if(iyVar eq iyCarbon)  then yVar=ciVec
+   if(iyVar eq iyVapPres) then yVar=esVec
+
    ; plot results
-   if(iplot eq 0)then begin
-    if(iVarDesire eq ixHum)then oplot, hsVec, gsVec/1000.d, color=ixColor[ChoiceModel], thick=2
-    if(iVarDesire eq ixTemp)then oplot, TcVec, gsVec/1000.d, color=ixColor[ChoiceModel], thick=2
-   endif else begin
-    if(iVarDesire eq ixHum)then oplot, hsVec, esVec, color=ixColor[ChoiceModel], thick=2
-    if(iVarDesire eq ixTemp)then oplot, TcVec, esVec, color=ixColor[ChoiceModel], thick=2
-   endelse
+   oplot, xVar, yVar, color=ixColor[choiceModel], thick=2
 
   endfor  ; looping through models
 
-  ; plot up the vapor pressure
-  if(iplot eq 1)then begin
-   if(iVarDesire eq ixHum)then oplot, hsVec, eAirVec, color=160, thick=2
-   if(iVarDesire eq ixHum)then oplot, hsVec, eSatVec, color=210, thick=2
-   if(iVarDesire eq ixTemp)then oplot, TcVec, eAirVec, color=160, thick=2
-   if(iVarDesire eq ixTemp)then oplot, TcVec, eSatVec, color=210, thick=2
-  endif
+  ; plot up carbon at the leaf surface
+  if(iyVar eq iyCarbon)then oplot, xVar, csVec, color=160, thick=2
 
- endfor  ; looping through the plots
+  ; plot up the vapor pressure of the canopy air space and the leaf interior
+  if(iyVar eq iyVapPres)then oplot, xVar, eAirVec, color=160, thick=2
+  if(iyVar eq iyVapPres)then oplot, xVar, eSatVec, color=210, thick=2
 
-endfor  ; looping through variables
+ endfor  ; looping through the y variables
+
+endfor  ; looping through the x variables
 
 
 stop
