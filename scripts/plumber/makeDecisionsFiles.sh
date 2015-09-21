@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/opt/local/bin/bash
 #
 # used to make a list of forcing files for each GRU
 # (based on the localAttributes files)
 
 # define the summa root
-summaRoot=/home/mclark/summa
+summaRoot=/Users/mclark/summa
 
 # define file path for the vegetation data
 dataPath=${summaRoot}/input/plumber/
@@ -43,8 +43,8 @@ for dataFile in $( ls  ${dataPath} ); do
  cp templates/summa_zDecisions_template.txt $decisionsPath$decisionsFilenm
 
  # replace the search string with the start and end year
- sed -i 's/'${cPatternStart}'/'${startYear}'/g' $decisionsPath$decisionsFilenm
- sed -i 's/'${cPatternEnd}'/'${endYear}'/g' $decisionsPath$decisionsFilenm
+ gsed -i 's/'${cPatternStart}'/'${startYear}'/g' $decisionsPath$decisionsFilenm
+ gsed -i 's/'${cPatternEnd}'/'${endYear}'/g' $decisionsPath$decisionsFilenm
 
  # print progress
  echo $dataFile $startYear $endYear

@@ -1,13 +1,16 @@
-#!/bin/bash
+#!/opt/local/bin/bash
 #
 # used to extract site variables from the PLUMBER NetCDF output files
 #  and place them in the local model parameter files
 
 # Define the path to the local parameter files
-localParamPath=/home/mclark/summa/settings/plumber/localParamTrial/
+localParamPath=/Users/mclark/summa/settings/plumber/localParamTrial/
 
 # Define path to the PLUMBER model output
-plumberPath=/d1/mclark/PLUMBER_data/model_output/
+plumberPath=/Volumes/d1/mclark/PLUMBER_data/model_output/
+
+# Define the path to the PLUMBER data
+plumberData=/Volumes/d1/mclark/PLUMBER_data/site_data/met/
 
 # Define desired model
 plumberModel=CABLE.2.0
@@ -56,7 +59,7 @@ for plumberSite in $( ls ${plumberPath}${plumberModel}/* ); do
   searchString=XX_${plumberSiteVar}_XX
 
   # replace the search string with the info name 
-  sed -i 's/'${searchString}'/'${siteVarValue}'/g' $paramFilenm
+  gsed -i 's/'${searchString}'/'${siteVarValue}'/g' $paramFilenm
 
   # save the canopy height
   if [ ${plumberSiteVar} == 'hc' ]; then
@@ -87,7 +90,7 @@ for plumberSite in $( ls ${plumberPath}${plumberModel}/* ); do
  canopyDivisor=10.0
  canopyBottom=$(echo "$canopyHeight/$canopyDivisor" | bc -l)
  canopyBottom=$(printf "%010.4f" $canopyBottom)
- sed -i 's/XX_hvb_XX/'${canopyBottom}'/g' $paramFilenm
+ gsed -i 's/XX_hvb_XX/'${canopyBottom}'/g' $paramFilenm
 
  # compute the critical point of plant wilting and plant transpiration
  fracWilting=0.05
@@ -97,8 +100,8 @@ for plumberSite in $( ls ${plumberPath}${plumberModel}/* ); do
  critTranspr=$(echo "$thetaRes + $fracTranspr*$soilStorage" | bc -l)
  critWilting=$(printf "%010.4f" $critWilting)
  critTranspr=$(printf "%010.4f" $critTranspr)
- sed -i 's/XX_critWilt_XX/'${critWilting}'/g' $paramFilenm
- sed -i 's/XX_critTrans_XX/'${critTranspr}'/g' $paramFilenm
+ gsed -i 's/XX_critWilt_XX/'${critWilting}'/g' $paramFilenm
+ gsed -i 's/XX_critTrans_XX/'${critTranspr}'/g' $paramFilenm
 
  # compute vcmax (convert mol --> umol)
  vcmax=`perl -e 'printf "%.8f\n", '$vcmax_mol' * 1000000'`
@@ -122,7 +125,7 @@ for plumberSite in $( ls ${plumberPath}${plumberModel}/* ); do
 
  # add the temperature to the file
  lowerBoundTemp=$(printf "%07.3f" $siteVarValue)
- sed -i 's/XX_lbt_XX/'${lowerBoundTemp}'/g' $paramFilenm
+ gsed -i 's/XX_lbt_XX/'${lowerBoundTemp}'/g' $paramFilenm
 
  # remove the temporary file
  rm temp.nc
