@@ -1,0 +1,24 @@
+SUMMA_FILE_MANAGER_V1.0
+! Comment line:
+! *** paths (must be in single quotes)
+'/home/mclark/summa/settings/plumber/'                         ! SETNGS_PATH
+'/home/mclark/summa/input/plumber/'                            ! INPUT_PATH
+'/home/mclark/summa/output/plumber/stomatalResistance/'        ! OUTPUT_PATH
+! *** control files (must be in single quotes)
+'testStomatalResistance/summa_zDecisions_CLM5.txt'             ! M_DECISIONS      = definition of model decisions
+'meta/summa_zTimeMeta.txt'                                     ! META_TIME        = metadata for time
+'meta/summa_zLocalAttributeMeta.txt'                           ! META_ATTR        = metadata for local attributes
+'meta/summa_zCategoryMeta.txt'                                 ! META_TYPE        = metadata for local classification of veg, soil, etc.
+'meta/summa_zForceMeta.txt'                                    ! META_FORCE       = metadata for model forcing variables
+'meta/summa_zLocalParamMeta.txt'                               ! META_LOCALPARAM  = metadata for local model parameters
+'meta/summa_zLocalModelVarMeta.txt'                            ! META_LOCALMVAR   = metadata for local model variables
+'meta/summa_zLocalModelIndexMeta.txt'                          ! META_INDEX       = metadata for model indices
+'meta/summa_zBasinParamMeta.txt'                               ! META_BASINPARAM  = metadata for basin-average model parameters
+'meta/summa_zBasinModelVarMeta.txt'                            ! META_BASINMVAR   = metadata for basin-average model variables
+'attributes/summa_zLocalAttributes_Amplero.txt'                ! LOCAL_ATTRIBUTES = local attributes
+'testStomatalResistance/summa_zLocalParamInfo_CLM5.txt'        ! LOCALPARAM_INFO  = default values and constraints for local model parameters
+'summa_zBasinParamInfo.txt'                                    ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
+'forcingList/summa_zForcingFileList_Amplero.txt'               ! FORCING_FILELIST = list of files used in each HRU
+'initialCond/summa_zInitialCond_Amplero.txt'                   ! MODEL_INITCOND   = model initial conditions
+'localParamTrial/summa_zLocalParamTrial_Amplero.txt'           ! PARAMETER_TRIAL  = trial values for model parameters
+'CLM5'                                                         ! OUTPUT_PREFIX    = prefix for the output file
