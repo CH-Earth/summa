@@ -35,32 +35,6 @@ MODULE var_lookup
   integer(i4b)    :: vegeParTbl       = 4  ! vegetation category dataset
   integer(i4b)    :: soilStress       = 5  ! choice of function for the soil moisture control on stomatal resistance
   integer(i4b)    :: stomResist       = 6  ! choice of function for stomatal resistance
-<<<<<<< HEAD
-  ! other options
-  integer(i4b)    :: num_method       = 7  ! choice of numerical method
-  integer(i4b)    :: fDerivMeth       = 8  ! method used to calculate flux derivatives
-  integer(i4b)    :: LAI_method       = 9  ! method used to determine LAI and SAI
-  integer(i4b)    :: f_Richards       = 10 ! form of richards' equation
-  integer(i4b)    :: groundwatr       = 11 ! choice of groundwater parameterization
-  integer(i4b)    :: hc_profile       = 12 ! choice of hydraulic conductivity profile
-  integer(i4b)    :: bcUpprTdyn       = 13 ! type of upper boundary condition for thermodynamics
-  integer(i4b)    :: bcLowrTdyn       = 14 ! type of lower boundary condition for thermodynamics
-  integer(i4b)    :: bcUpprSoiH       = 15 ! type of upper boundary condition for soil hydrology
-  integer(i4b)    :: bcLowrSoiH       = 16 ! type of lower boundary condition for soil hydrology
-  integer(i4b)    :: veg_traits       = 17 ! choice of parameterization for vegetation roughness length and displacement height
-  integer(i4b)    :: canopyEmis       = 18 ! choice of parameterization for canopy emissivity
-  integer(i4b)    :: snowIncept       = 19 ! choice of parameterization for snow interception
-  integer(i4b)    :: windPrfile       = 20 ! choice of canopy wind profile
-  integer(i4b)    :: astability       = 21 ! choice of stability function
-  integer(i4b)    :: canopySrad       = 22 ! choice of method for canopy shortwave radiation
-  integer(i4b)    :: alb_method       = 23 ! choice of albedo representation
-  integer(i4b)    :: snowLayers       = 24 ! choice of method to combine and sub-divide snow layers
-  integer(i4b)    :: compaction       = 25 ! choice of compaction routine
-  integer(i4b)    :: thCondSnow       = 26 ! choice of thermal conductivity representation for snow
-  integer(i4b)    :: thCondSoil       = 27 ! choice of thermal conductivity representation for soil
-  integer(i4b)    :: spatial_gw       = 28 ! choice of method for spatial representation of groundwater
-  integer(i4b)    :: subRouting       = 29 ! choice of method for sub-grid routing
-=======
   integer(i4b)    :: bbTempFunc       = 7  ! Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
   integer(i4b)    :: bbHumdFunc       = 8  ! Ball-Berry: humidity controls on stomatal resistance
   integer(i4b)    :: bbElecFunc       = 9  ! Ball-Berry: dependence of photosynthesis on PAR
@@ -90,7 +64,6 @@ MODULE var_lookup
   integer(i4b)    :: thCondSoil       = 33 ! choice of thermal conductivity representation for soil
   integer(i4b)    :: spatial_gw       = 34 ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting       = 35 ! choice of method for sub-grid routing
->>>>>>> e00f677... initial mods to code to incorporate more options for stomatal resistance
  endtype iLook_decision
  ! ***********************************************************************************************************
  ! (1) define model time
@@ -197,180 +170,109 @@ MODULE var_lookup
   integer(i4b)    :: leafExchangeCoeff         = 45  ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
   integer(i4b)    :: windReductionParam        = 46  ! canopy wind reduction parameter (-)
   ! stomatal conductance
-  integer(i4b)    :: Kc25                      = 47  ! Michaelis-Menten constant for CO2 at 25 degrees C (Pa)
-  integer(i4b)    :: Ko25                      = 48  ! Michaelis-Menten constant for O2 at 25 degrees C (Pa)
-  integer(i4b)    :: vcmax25                   = 49  ! potential carboxylation rate at 25 degrees C (umol co2 m-2 s-1)
-  integer(i4b)    :: Kc_fac                    = 50  ! factor in the q10 function defining temperature controls on Kc (-)
-  integer(i4b)    :: Ko_fac                    = 51  ! factor in the q10 function defining temperature controls on Ko (-)
-  integer(i4b)    :: vcmax_fac                 = 52  ! factor in the q10 function defining temperature controls on vcmax (-)
-  integer(i4b)    :: hightemp_delS             = 53  ! entropy term in high temp inhibition function for vcmax (J K-1 mol-1)
-  integer(i4b)    :: hightemp_delH             = 54  ! deactivation energy in high temp inhibition function for vcmax (J mol-1)
-  integer(i4b)    :: cond2photo_slope          = 55  ! slope of conductance-photosynthesis relationship (-)
-  integer(i4b)    :: minStomatalConductance    = 56  ! minimum stomatal conductance (umol H2O m-2 s-1)
+  integer(i4b)    :: Kc25                      = 47  ! Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
+  integer(i4b)    :: Ko25                      = 48  ! Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
+  integer(i4b)    :: Kc_qFac                   = 49  ! factor in the q10 function defining temperature controls on Kc (-)
+  integer(i4b)    :: Ko_qFac                   = 50  ! factor in the q10 function defining temperature controls on Ko (-)
+  integer(i4b)    :: kc_Ha                     = 51  ! activation energy for the Michaelis-Menten constant for CO2 (J mol-1)
+  integer(i4b)    :: ko_Ha                     = 52  ! activation energy for the Michaelis-Menten constant for O2 (J mol-1)
+  integer(i4b)    :: vcmax25                   = 53  ! potential carboxylation rate at 25 degrees C (umol co2 m-2 s-1)
+  integer(i4b)    :: vcmax_qFac                = 54  ! factor in the q10 function defining temperature controls on vcmax (-)
+  integer(i4b)    :: vcmax_Ha                  = 55  ! activation energy in the vcmax function (J mol-1)
+  integer(i4b)    :: vcmax_Hd                  = 56  ! deactivation energy in the vcmax function (J mol-1)
+  integer(i4b)    :: vcmax_Sv                  = 57  ! entropy term in the vcmax function (J mol-1 K-1)
+  integer(i4b)    :: jmax25_scale              = 58  ! scaling factor to relate jmax25 to vcmax25 (-)
+  integer(i4b)    :: jmax_Ha                   = 59  ! activation energy in the jmax function (J mol-1)
+  integer(i4b)    :: jmax_Hd                   = 60  ! deactivation energy in the jmax function (J mol-1)
+  integer(i4b)    :: jmax_Sv                   = 61  ! entropy term in the jmax function (J mol-1 K-1)
+  integer(i4b)    :: fractionJ                 = 62  ! fraction of light lost by other than the chloroplast lamellae (-)
+  integer(i4b)    :: quantamYield              = 63  ! quantam yield (mol e mol-1 q)
+  integer(i4b)    :: vpScaleFactor             = 64  ! vapor pressure scaling factor in stomatal conductance function (Pa)
+  integer(i4b)    :: cond2photo_slope          = 65  ! slope of conductance-photosynthesis relationship (-)
+  integer(i4b)    :: minStomatalConductance    = 66  ! minimum stomatal conductance (umol H2O m-2 s-1)
   ! vegetation properties
-<<<<<<< HEAD
-  integer(i4b)    :: winterSAI                 = 47  ! stem area index prior to the start of the growing season (m2 m-2)
-  integer(i4b)    :: summerLAI                 = 48  ! maximum leaf area index at the peak of the growing season (m2 m-2)
-  integer(i4b)    :: rootingDepth              = 49  ! rooting depth (m)
-  integer(i4b)    :: rootDistExp               = 50  ! exponent controlling the vertical distribution of root density (-)
-  integer(i4b)    :: plantWiltPsi              = 51  ! matric head at wilting point (m)
-  integer(i4b)    :: soilStressParam           = 52  ! parameter in the exponential soil stress function
-  integer(i4b)    :: critSoilWilting           = 53  ! critical vol. liq. water content when plants are wilting (-)
-  integer(i4b)    :: critSoilTranspire         = 54  ! critical vol. liq. water content when transpiration is limited (-)
-  integer(i4b)    :: critAquiferTranspire      = 55  ! critical aquifer storage value when transpiration is limited (m)
-  integer(i4b)    :: minStomatalResistance     = 56  ! minimum canopy resistance (s m-1)
-  integer(i4b)    :: leafDimension             = 57  ! characteristic leaf dimension (m)
-  integer(i4b)    :: heightCanopyTop           = 58  ! height of top of the vegetation canopy above ground surface (m)
-  integer(i4b)    :: heightCanopyBottom        = 59  ! height of bottom of the vegetation canopy above ground surface (m)
-  integer(i4b)    :: specificHeatVeg           = 60  ! specific heat of vegetation (J kg-1 K-1)
-  integer(i4b)    :: maxMassVegetation         = 61  ! maximum mass of vegetation (full foliage) (kg m-2)
-  integer(i4b)    :: throughfallScaleSnow      = 62  ! scaling factor for throughfall (snow) (-)
-  integer(i4b)    :: throughfallScaleRain      = 63  ! scaling factor for throughfall (rain) (-)
-  integer(i4b)    :: refInterceptCapSnow       = 64  ! reference canopy interception capacity per unit leaf area (snow) (kg m-2)
-  integer(i4b)    :: refInterceptCapRain       = 65  ! canopy interception capacity per unit leaf area (rain) (kg m-2)
-  integer(i4b)    :: snowUnloadingCoeff        = 66  ! time constant for unloading of snow from the forest canopy (s-1)
-  integer(i4b)    :: canopyDrainageCoeff       = 67  ! time constant for drainage of liquid water from the forest canopy (s-1)
-  integer(i4b)    :: ratioDrip2Unloading       = 68  ! ratio of canopy drip to unloading of snow from the forest canopy (-)
+  integer(i4b)    :: winterSAI                 = 67  ! stem area index prior to the start of the growing season (m2 m-2)
+  integer(i4b)    :: summerLAI                 = 68  ! maximum leaf area index at the peak of the growing season (m2 m-2)
+  integer(i4b)    :: rootScaleFactor1          = 69  ! 1st scaling factor (a) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )  (m-1)
+  integer(i4b)    :: rootScaleFactor2          = 70  ! 2nd scaling factor (b) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )  (m-1)
+  integer(i4b)    :: rootingDepth              = 71  ! rooting depth (m)
+  integer(i4b)    :: rootDistExp               = 72  ! exponent controlling the vertical distribution of root density (-)
+  integer(i4b)    :: plantWiltPsi              = 73  ! matric head at wilting point (m)
+  integer(i4b)    :: soilStressParam           = 74  ! parameter in the exponential soil stress function
+  integer(i4b)    :: critSoilWilting           = 75  ! critical vol. liq. water content when plants are wilting (-)
+  integer(i4b)    :: critSoilTranspire         = 76  ! critical vol. liq. water content when transpiration is limited (-)
+  integer(i4b)    :: critAquiferTranspire      = 77  ! critical aquifer storage value when transpiration is limited (m)
+  integer(i4b)    :: minStomatalResistance     = 78  ! minimum canopy resistance (s m-1)
+  integer(i4b)    :: leafDimension             = 79  ! characteristic leaf dimension (m)
+  integer(i4b)    :: heightCanopyTop           = 80  ! height of top of the vegetation canopy above ground surface (m)
+  integer(i4b)    :: heightCanopyBottom        = 81  ! height of bottom of the vegetation canopy above ground surface (m)
+  integer(i4b)    :: specificHeatVeg           = 82  ! specific heat of vegetation (J kg-1 K-1)
+  integer(i4b)    :: maxMassVegetation         = 83  ! maximum mass of vegetation (full foliage) (kg m-2)
+  integer(i4b)    :: throughfallScaleSnow      = 84  ! scaling factor for throughfall (snow) (-)
+  integer(i4b)    :: throughfallScaleRain      = 85  ! scaling factor for throughfall (rain) (-)
+  integer(i4b)    :: refInterceptCapSnow       = 86  ! reference canopy interception capacity per unit leaf area (snow) (kg m-2)
+  integer(i4b)    :: refInterceptCapRain       = 87  ! canopy interception capacity per unit leaf area (rain) (kg m-2)
+  integer(i4b)    :: snowUnloadingCoeff        = 88  ! time constant for unloading of snow from the forest canopy (s-1)
+  integer(i4b)    :: canopyDrainageCoeff       = 89  ! time constant for drainage of liquid water from the forest canopy (s-1)
+  integer(i4b)    :: ratioDrip2Unloading       = 90  ! ratio of canopy drip to unloading of snow from the forest canopy (-)
+  integer(i4b)    :: canopyWettingFactor       = 91  ! maximum wetted fraction of the canopy (-)
+  integer(i4b)    :: canopyWettingExp          = 92  ! exponent in canopy wetting function (-)
   ! soil properties
-  integer(i4b)    :: soil_dens_intr            = 69  ! intrinsic soil density (kg m-3)
-  integer(i4b)    :: thCond_soil               = 70  ! thermal conductivity of soil (W m-1 K-1)
-  integer(i4b)    :: frac_sand                 = 71  ! fraction of sand (-)
-  integer(i4b)    :: frac_silt                 = 72  ! fraction of silt (-)
-  integer(i4b)    :: frac_clay                 = 73  ! fraction of clay (-)
-  integer(i4b)    :: fieldCapacity             = 74  ! field capacity (-)
-  integer(i4b)    :: wettingFrontSuction       = 75  ! Green-Ampt wetting front suction (m)
-  integer(i4b)    :: theta_mp                  = 76  ! volumetric liquid water content when macropore flow begins (-)
-  integer(i4b)    :: theta_sat                 = 77  ! porosity (-)
-  integer(i4b)    :: theta_res                 = 78  ! volumetric residual water content (-)
-  integer(i4b)    :: vGn_alpha                 = 79  ! van Genuchten "alpha" parameter (m-1)
-  integer(i4b)    :: vGn_n                     = 80  ! van Genuchten "n" parameter (-)
-  integer(i4b)    :: mpExp                     = 81  ! empirical exponent in macropore flow equation (-)
-  integer(i4b)    :: k_soil                    = 82  ! hydraulic conductivity of soil (m s-1)
-  integer(i4b)    :: k_macropore               = 83  ! saturated hydraulic conductivity for macropores (m s-1)
-  integer(i4b)    :: kAnisotropic              = 84  ! anisotropy factor for lateral hydraulic conductivity (-)
-  integer(i4b)    :: zScale_TOPMODEL           = 85  ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
-  integer(i4b)    :: compactedDepth            = 86  ! depth where k_soil reaches the compacted value given by CH78 (m)
-  integer(i4b)    :: aquiferScaleFactor        = 87  ! scaling factor for aquifer storage in the big bucket (m)
-  integer(i4b)    :: aquiferBaseflowExp        = 88  ! baseflow exponent (-)
-  integer(i4b)    :: qSurfScale                = 89  ! scaling factor in the surface runoff parameterization (-)
-  integer(i4b)    :: specificYield             = 90  ! specific yield (-)
-  integer(i4b)    :: specificStorage           = 91  ! specific storage coefficient (m-1)
-  integer(i4b)    :: f_impede                  = 92  ! ice impedence factor (-)
-  integer(i4b)    :: soilIceScale              = 93  ! scaling factor for depth of soil ice, used to get frozen fraction (m)
-  integer(i4b)    :: soilIceCV                 = 94  ! CV of depth of soil ice, used to get frozen fraction (-)
+  integer(i4b)    :: soil_dens_intr            = 93  ! intrinsic soil density (kg m-3)
+  integer(i4b)    :: thCond_soil               = 94  ! thermal conductivity of soil (W m-1 K-1)
+  integer(i4b)    :: frac_sand                 = 95  ! fraction of sand (-)
+  integer(i4b)    :: frac_silt                 = 96  ! fraction of silt (-)
+  integer(i4b)    :: frac_clay                 = 97  ! fraction of clay (-)
+  integer(i4b)    :: fieldCapacity             = 98  ! field capacity (-)
+  integer(i4b)    :: wettingFrontSuction       = 99  ! Green-Ampt wetting front suction (m)
+  integer(i4b)    :: theta_mp                  = 100 ! volumetric liquid water content when macropore flow begins (-)
+  integer(i4b)    :: theta_sat                 = 101 ! porosity (-)
+  integer(i4b)    :: theta_res                 = 102 ! volumetric residual water content (-)
+  integer(i4b)    :: vGn_alpha                 = 103 ! van Genuchten "alpha" parameter (m-1)
+  integer(i4b)    :: vGn_n                     = 104 ! van Genuchten "n" parameter (-)
+  integer(i4b)    :: mpExp                     = 105 ! empirical exponent in macropore flow equation (-)
+  integer(i4b)    :: k_soil                    = 106 ! hydraulic conductivity of soil (m s-1)
+  integer(i4b)    :: k_macropore               = 107 ! saturated hydraulic conductivity for macropores (m s-1)
+  integer(i4b)    :: kAnisotropic              = 108 ! anisotropy factor for lateral hydraulic conductivity (-)
+  integer(i4b)    :: zScale_TOPMODEL           = 109 ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
+  integer(i4b)    :: compactedDepth            = 110 ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: aquiferScaleFactor        = 111 ! scaling factor for aquifer storage in the big bucket (m)
+  integer(i4b)    :: aquiferBaseflowExp        = 112 ! baseflow exponent (-)
+  integer(i4b)    :: qSurfScale                = 113 ! scaling factor in the surface runoff parameterization (-)
+  integer(i4b)    :: specificYield             = 114 ! specific yield (-)
+  integer(i4b)    :: specificStorage           = 115 ! specific storage coefficient (m-1)
+  integer(i4b)    :: f_impede                  = 116 ! ice impedence factor (-)
+  integer(i4b)    :: soilIceScale              = 117 ! scaling factor for depth of soil ice, used to get frozen fraction (m)
+  integer(i4b)    :: soilIceCV                 = 118 ! CV of depth of soil ice, used to get frozen fraction (-)
   ! algorithmic control parameters
-  integer(i4b)    :: minwind                   = 95  ! minimum wind speed (m s-1)
-  integer(i4b)    :: minstep                   = 96  ! minimum length of the time step
-  integer(i4b)    :: maxstep                   = 97  ! maximum length of the time step
-  integer(i4b)    :: wimplicit                 = 98  ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter                   = 99  ! maximum number of iteration
-  integer(i4b)    :: relConvTol_liquid         = 100 ! relative convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: absConvTol_liquid         = 101 ! absolute convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: relConvTol_matric         = 102 ! relative convergence tolerance for matric head (-)
-  integer(i4b)    :: absConvTol_matric         = 103 ! absolute convergence tolerance for matric head (m)
-  integer(i4b)    :: relConvTol_energy         = 104 ! relative convergence tolerance for energy (-)
-  integer(i4b)    :: absConvTol_energy         = 105 ! absolute convergence tolerance for energy (J m-3)
-  integer(i4b)    :: relConvTol_aquifr         = 106 ! relative convergence tolerance for aquifer storage (-)
-  integer(i4b)    :: absConvTol_aquifr         = 107 ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: zmin                      = 108 ! minimum layer depth (m)
-  integer(i4b)    :: zmax                      = 109 ! maximum layer depth (m)
-  integer(i4b)    :: zminLayer1                = 110 ! minimum layer depth for the 1st (top) layer (m)
-  integer(i4b)    :: zminLayer2                = 111 ! minimum layer depth for the 2nd layer (m)
-  integer(i4b)    :: zminLayer3                = 112 ! minimum layer depth for the 3rd layer (m)
-  integer(i4b)    :: zminLayer4                = 113 ! minimum layer depth for the 4th layer (m)
-  integer(i4b)    :: zminLayer5                = 114 ! minimum layer depth for the 5th (bottom) layer (m)
-  integer(i4b)    :: zmaxLayer1_lower          = 115 ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
-  integer(i4b)    :: zmaxLayer2_lower          = 116 ! maximum layer depth for the 2nd layer when only 2 layers (m)
-  integer(i4b)    :: zmaxLayer3_lower          = 117 ! maximum layer depth for the 3rd layer when only 3 layers (m)
-  integer(i4b)    :: zmaxLayer4_lower          = 118 ! maximum layer depth for the 4th layer when only 4 layers (m)
-  integer(i4b)    :: zmaxLayer1_upper          = 119 ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
-  integer(i4b)    :: zmaxLayer2_upper          = 120 ! maximum layer depth for the 2nd layer when > 2 layers (m)
-  integer(i4b)    :: zmaxLayer3_upper          = 121 ! maximum layer depth for the 3rd layer when > 3 layers (m)
-  integer(i4b)    :: zmaxLayer4_upper          = 122 ! maximum layer depth for the 4th layer when > 4 layers (m)
-=======
-  integer(i4b)    :: winterSAI                 = 57  ! stem area index prior to the start of the growing season (m2 m-2)
-  integer(i4b)    :: summerLAI                 = 58  ! maximum leaf area index at the peak of the growing season (m2 m-2)
-  integer(i4b)    :: rootScaleFactor1          = 59  ! 1st scaling factor (a) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )  (m-1)
-  integer(i4b)    :: rootScaleFactor2          = 60  ! 2nd scaling factor (b) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )  (m-1)
-  integer(i4b)    :: rootingDepth              = 61  ! rooting depth (m)
-  integer(i4b)    :: rootDistExp               = 62  ! exponent controlling the vertical distribution of root density (-)
-  integer(i4b)    :: plantWiltPsi              = 63  ! matric head at wilting point (m)
-  integer(i4b)    :: soilStressParam           = 64  ! parameter in the exponential soil stress function
-  integer(i4b)    :: critSoilWilting           = 65  ! critical vol. liq. water content when plants are wilting (-)
-  integer(i4b)    :: critSoilTranspire         = 66  ! critical vol. liq. water content when transpiration is limited (-)
-  integer(i4b)    :: critAquiferTranspire      = 67  ! critical aquifer storage value when transpiration is limited (m)
-  integer(i4b)    :: minStomatalResistance     = 68  ! minimum canopy resistance (s m-1)
-  integer(i4b)    :: leafDimension             = 69  ! characteristic leaf dimension (m)
-  integer(i4b)    :: heightCanopyTop           = 70  ! height of top of the vegetation canopy above ground surface (m)
-  integer(i4b)    :: heightCanopyBottom        = 71  ! height of bottom of the vegetation canopy above ground surface (m)
-  integer(i4b)    :: specificHeatVeg           = 72  ! specific heat of vegetation (J kg-1 K-1)
-  integer(i4b)    :: maxMassVegetation         = 73  ! maximum mass of vegetation (full foliage) (kg m-2)
-  integer(i4b)    :: throughfallScaleSnow      = 74  ! scaling factor for throughfall (snow) (-)
-  integer(i4b)    :: throughfallScaleRain      = 75  ! scaling factor for throughfall (rain) (-)
-  integer(i4b)    :: refInterceptCapSnow       = 76  ! reference canopy interception capacity per unit leaf area (snow) (kg m-2)
-  integer(i4b)    :: refInterceptCapRain       = 77  ! canopy interception capacity per unit leaf area (rain) (kg m-2)
-  integer(i4b)    :: snowUnloadingCoeff        = 78  ! time constant for unloading of snow from the forest canopy (s-1)
-  integer(i4b)    :: canopyDrainageCoeff       = 79  ! time constant for drainage of liquid water from the forest canopy (s-1)
-  integer(i4b)    :: ratioDrip2Unloading       = 80  ! ratio of canopy drip to unloading of snow from the forest canopy (-)
-  integer(i4b)    :: canopyWettingFactor       = 81  ! maximum wetted fraction of the canopy (-)
-  integer(i4b)    :: canopyWettingExp          = 82  ! exponent in canopy wetting function (-)
-  ! soil properties
-  integer(i4b)    :: soil_dens_intr            = 83  ! intrinsic soil density (kg m-3)
-  integer(i4b)    :: thCond_soil               = 84  ! thermal conductivity of soil (W m-1 K-1)
-  integer(i4b)    :: frac_sand                 = 85  ! fraction of sand (-)
-  integer(i4b)    :: frac_silt                 = 86  ! fraction of silt (-)
-  integer(i4b)    :: frac_clay                 = 87  ! fraction of clay (-)
-  integer(i4b)    :: fieldCapacity             = 88  ! field capacity (-)
-  integer(i4b)    :: wettingFrontSuction       = 89  ! Green-Ampt wetting front suction (m)
-  integer(i4b)    :: theta_mp                  = 90  ! volumetric liquid water content when macropore flow begins (-)
-  integer(i4b)    :: theta_sat                 = 91  ! porosity (-)
-  integer(i4b)    :: theta_res                 = 92  ! volumetric residual water content (-)
-  integer(i4b)    :: vGn_alpha                 = 93  ! van Genuchten "alpha" parameter (m-1)
-  integer(i4b)    :: vGn_n                     = 94  ! van Genuchten "n" parameter (-)
-  integer(i4b)    :: mpExp                     = 95  ! empirical exponent in macropore flow equation (-)
-  integer(i4b)    :: k_soil                    = 96  ! hydraulic conductivity of soil (m s-1)
-  integer(i4b)    :: k_macropore               = 97  ! saturated hydraulic conductivity for macropores (m s-1)
-  integer(i4b)    :: kAnisotropic              = 98  ! anisotropy factor for lateral hydraulic conductivity (-)
-  integer(i4b)    :: zScale_TOPMODEL           = 99  ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
-  integer(i4b)    :: compactedDepth            = 100 ! depth where k_soil reaches the compacted value given by CH78 (m)
-  integer(i4b)    :: aquiferScaleFactor        = 101 ! scaling factor for aquifer storage in the big bucket (m)
-  integer(i4b)    :: aquiferBaseflowExp        = 102 ! baseflow exponent (-)
-  integer(i4b)    :: qSurfScale                = 103 ! scaling factor in the surface runoff parameterization (-)
-  integer(i4b)    :: specificYield             = 104 ! specific yield (-)
-  integer(i4b)    :: specificStorage           = 105 ! specific storage coefficient (m-1)
-  integer(i4b)    :: f_impede                  = 106 ! ice impedence factor (-)
-  integer(i4b)    :: soilIceScale              = 107 ! scaling factor for depth of soil ice, used to get frozen fraction (m)
-  integer(i4b)    :: soilIceCV                 = 108 ! CV of depth of soil ice, used to get frozen fraction (-)
-  ! algorithmic control parameters
-  integer(i4b)    :: minwind                   = 109 ! minimum wind speed (m s-1)
-  integer(i4b)    :: minstep                   = 110 ! minimum length of the time step
-  integer(i4b)    :: maxstep                   = 111 ! maximum length of the time step
-  integer(i4b)    :: wimplicit                 = 112 ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter                   = 113 ! maximum number of iteration
-  integer(i4b)    :: relConvTol_liquid         = 114 ! relative convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: absConvTol_liquid         = 115 ! absolute convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: relConvTol_matric         = 116 ! relative convergence tolerance for matric head (-)
-  integer(i4b)    :: absConvTol_matric         = 117 ! absolute convergence tolerance for matric head (m)
-  integer(i4b)    :: relConvTol_energy         = 118 ! relative convergence tolerance for energy (-)
-  integer(i4b)    :: absConvTol_energy         = 119 ! absolute convergence tolerance for energy (J m-3)
-  integer(i4b)    :: relConvTol_aquifr         = 120 ! relative convergence tolerance for aquifer storage (-)
-  integer(i4b)    :: absConvTol_aquifr         = 121 ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: zmin                      = 122 ! minimum layer depth (m)
-  integer(i4b)    :: zmax                      = 123 ! maximum layer depth (m)
-  integer(i4b)    :: zminLayer1                = 124 ! minimum layer depth for the 1st (top) layer (m)
-  integer(i4b)    :: zminLayer2                = 125 ! minimum layer depth for the 2nd layer (m)
-  integer(i4b)    :: zminLayer3                = 126 ! minimum layer depth for the 3rd layer (m)
-  integer(i4b)    :: zminLayer4                = 127 ! minimum layer depth for the 4th layer (m)
-  integer(i4b)    :: zminLayer5                = 128 ! minimum layer depth for the 5th (bottom) layer (m)
-  integer(i4b)    :: zmaxLayer1_lower          = 129 ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
-  integer(i4b)    :: zmaxLayer2_lower          = 130 ! maximum layer depth for the 2nd layer when only 2 layers (m)
-  integer(i4b)    :: zmaxLayer3_lower          = 131 ! maximum layer depth for the 3rd layer when only 3 layers (m)
-  integer(i4b)    :: zmaxLayer4_lower          = 132 ! maximum layer depth for the 4th layer when only 4 layers (m)
-  integer(i4b)    :: zmaxLayer1_upper          = 133 ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
-  integer(i4b)    :: zmaxLayer2_upper          = 134 ! maximum layer depth for the 2nd layer when > 2 layers (m)
-  integer(i4b)    :: zmaxLayer3_upper          = 135 ! maximum layer depth for the 3rd layer when > 3 layers (m)
-  integer(i4b)    :: zmaxLayer4_upper          = 136 ! maximum layer depth for the 4th layer when > 4 layers (m)
->>>>>>> 304a1a9... initial implementation of flexible stomatal resistance routines
+  integer(i4b)    :: minwind                   = 119 ! minimum wind speed (m s-1)
+  integer(i4b)    :: minstep                   = 120 ! minimum length of the time step
+  integer(i4b)    :: maxstep                   = 121 ! maximum length of the time step
+  integer(i4b)    :: wimplicit                 = 122 ! weight assigned to the start-of-step fluxes
+  integer(i4b)    :: maxiter                   = 123 ! maximum number of iteration
+  integer(i4b)    :: relConvTol_liquid         = 124 ! relative convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: absConvTol_liquid         = 125 ! absolute convergence tolerance for vol frac liq water (-)
+  integer(i4b)    :: relConvTol_matric         = 126 ! relative convergence tolerance for matric head (-)
+  integer(i4b)    :: absConvTol_matric         = 127 ! absolute convergence tolerance for matric head (m)
+  integer(i4b)    :: relConvTol_energy         = 128 ! relative convergence tolerance for energy (-)
+  integer(i4b)    :: absConvTol_energy         = 129 ! absolute convergence tolerance for energy (J m-3)
+  integer(i4b)    :: relConvTol_aquifr         = 130 ! relative convergence tolerance for aquifer storage (-)
+  integer(i4b)    :: absConvTol_aquifr         = 131 ! absolute convergence tolerance for aquifer storage (J m-3)
+  integer(i4b)    :: zmin                      = 132 ! minimum layer depth (m)
+  integer(i4b)    :: zmax                      = 133 ! maximum layer depth (m)
+  integer(i4b)    :: zminLayer1                = 134 ! minimum layer depth for the 1st (top) layer (m)
+  integer(i4b)    :: zminLayer2                = 135 ! minimum layer depth for the 2nd layer (m)
+  integer(i4b)    :: zminLayer3                = 136 ! minimum layer depth for the 3rd layer (m)
+  integer(i4b)    :: zminLayer4                = 137 ! minimum layer depth for the 4th layer (m)
+  integer(i4b)    :: zminLayer5                = 138 ! minimum layer depth for the 5th (bottom) layer (m)
+  integer(i4b)    :: zmaxLayer1_lower          = 139 ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
+  integer(i4b)    :: zmaxLayer2_lower          = 140 ! maximum layer depth for the 2nd layer when only 2 layers (m)
+  integer(i4b)    :: zmaxLayer3_lower          = 141 ! maximum layer depth for the 3rd layer when only 3 layers (m)
+  integer(i4b)    :: zmaxLayer4_lower          = 142 ! maximum layer depth for the 4th layer when only 4 layers (m)
+  integer(i4b)    :: zmaxLayer1_upper          = 143 ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
+  integer(i4b)    :: zmaxLayer2_upper          = 144 ! maximum layer depth for the 2nd layer when > 2 layers (m)
+  integer(i4b)    :: zmaxLayer3_upper          = 145 ! maximum layer depth for the 3rd layer when > 3 layers (m)
+  integer(i4b)    :: zmaxLayer4_upper          = 146 ! maximum layer depth for the 4th layer when > 4 layers (m)
  endtype ilook_param
  ! ***********************************************************************************************************
  ! (6) define model variables
@@ -676,7 +578,8 @@ MODULE var_lookup
                                                                         101,102,103,104,105,106,107,108,109,110,&
                                                                         111,112,113,114,115,116,117,118,119,120,&
                                                                         121,122,123,124,125,126,127,128,129,130,&
-                                                                        131,132,133,134,135,136)
+                                                                        131,132,133,134,135,136,137,138,139,140,&
+                                                                        141,142,143,144,145,146)
  type(iLook_mvar),    public,parameter :: iLookMVAR     =ilook_mvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
@@ -708,7 +611,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarAttr     = 7
  integer(i4b),parameter,public :: maxvarType     = 5
- integer(i4b),parameter,public :: maxvarMpar     = 136
+ integer(i4b),parameter,public :: maxvarMpar     = 146
  integer(i4b),parameter,public :: maxvarMvar     = 207
  integer(i4b),parameter,public :: maxvarIndx     = 10
  integer(i4b),parameter,public :: maxvarBpar     = 5
