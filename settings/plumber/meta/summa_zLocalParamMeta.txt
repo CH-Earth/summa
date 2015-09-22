@@ -80,18 +80,41 @@ k_snow                    | hydraulic conductivity of snow                      
 mw_exp                    | exponent for meltwater flow                                       | -          | scalarv | F
 ! **********************************************************************************************************************
 ! turbulent heat fluxes
-! **********************************************************************************************************************
-z0Snow                    | roughness length of snow                                          | m          | scalarv | F
-z0Soil                    | roughness length of bare soil below the canopy                    | m          | scalarv | F
-z0Canopy                  | roughness length of the canopy                                    | m          | scalarv | F
-zpdFraction               | zero plane displacement / canopy height                           | -          | scalarv | F
-critRichNumber            | critical value for the bulk Richardson number                     | -          | scalarv | F
-Louis79_bparam            | parameter in Louis (1979) stability function                      | -          | scalarv | F
-Louis79_cStar             | parameter in Louis (1979) stability function                      | -          | scalarv | F
-Mahrt87_eScale            | exponential scaling factor in the Mahrt (1987) stability function | -          | scalarv | F
-leafExchangeCoeff         | turbulent exchange coeff between canopy surface and canopy air    | m s-(1/2)  | scalarv | F
-windReductionParam        | canopy wind reduction parameter                                   | -          | scalarv | F
-! **********************************************************************************************************************
+! ****************************************************************************************************************************
+z0Snow                    | roughness length of snow                                          | m                | scalarv | F
+z0Soil                    | roughness length of bare soil below the canopy                    | m                | scalarv | F
+z0Canopy                  | roughness length of the canopy                                    | m                | scalarv | F
+zpdFraction               | zero plane displacement / canopy height                           | -                | scalarv | F
+critRichNumber            | critical value for the bulk Richardson number                     | -                | scalarv | F
+Louis79_bparam            | parameter in Louis (1979) stability function                      | -                | scalarv | F
+Louis79_cStar             | parameter in Louis (1979) stability function                      | -                | scalarv | F
+Mahrt87_eScale            | exponential scaling factor in the Mahrt (1987) stability function | -                | scalarv | F
+leafExchangeCoeff         | turbulent exchange coeff between canopy surface and canopy air    | m s-(1/2)        | scalarv | F
+windReductionParam        | canopy wind reduction parameter                                   | -                | scalarv | F
+! ****************************************************************************************************************************
+! stomatal conductance
+! ****************************************************************************************************************************
+Kc25                      | Michaelis-Menten constant for CO2 at 25 degrees C                 | umol mol-1       | scalarv | T
+Ko25                      | Michaelis-Menten constant for O2 at 25 degrees C                  | mol mol-1        | scalarv | T
+Kc_qFac                   | factor in the q10 function defining temperature controls on Kc    | -                | scalarv | T
+Ko_qFac                   | factor in the q10 function defining temperature controls on Ko    | -                | scalarv | T
+kc_Ha                     | activation energy for the Michaelis-Menten constant for CO2       | J mol-1          | scalarv | T
+ko_Ha                     | activation energy for the Michaelis-Menten constant for O2        | J mol-1          | scalarv | T
+vcmax25                   | potential carboxylation rate at 25 degrees C                      | umol co2 m-2 s-1 | scalarv | T
+vcmax_qFac                | factor in the q10 function defining temperature controls on vcmax | -                | scalarv | T
+vcmax_Ha                  | activation energy in the vcmax function                           | J mol-1          | scalarv | T
+vcmax_Hd                  | deactivation energy in the vcmax function                         | J mol-1          | scalarv | T
+vcmax_Sv                  | entropy term in the vcmax function                                | J mol-1 K-1      | scalarv | T
+jmax25_scale              | scaling factor to relate jmax25 to vcmax25                        | -                | scalarv | T
+jmax_Ha                   | activation energy in the jmax function                            | J mol-1          | scalarv | T
+jmax_Hd                   | deactivation energy in the jmax function                          | J mol-1          | scalarv | T
+jmax_Sv                   | entropy term in the jmax function                                 | J mol-1 K-1      | scalarv | T
+fractionJ                 | fraction of light lost by other than the chloroplast lamellae     | -                | scalarv | T
+quantamYield              | quantam yield                                                     | mol e mol-1 q    | scalarv | T
+vpScaleFactor             | vapor pressure scaling factor in stomatal conductance function    | Pa               | scalarv | T
+cond2photo_slope          | slope of conductance-photosynthesis relationship                  | -                | scalarv | T
+minStomatalConductance    | minimum stomatal conductance                                      | umol H2O m-2 s-1 | scalarv | T
+! ****************************************************************************************************************************
 ! vegetation properties
 ! **********************************************************************************************************************
 winterSAI                 | stem area index prior to the start of the growing season          | m2 m-2     | scalarv | F

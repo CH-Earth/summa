@@ -4,7 +4,7 @@
 # (based on the localAttributes files)
 
 # define the summa root
-summaRoot=/Users/mclark/summa
+summaRoot=/home/mclark/summa
 
 # define file path for the vegetation data
 dataPath=${summaRoot}/input/plumber/

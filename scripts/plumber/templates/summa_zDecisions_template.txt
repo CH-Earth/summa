@@ -10,35 +10,39 @@
 simulStart              'XX_startYear_XX-01-01 00:30'      ! (01) simulation start time -- must be in single quotes
 simulFinsh              'XX_endYear_XX-12-31 23:00'      ! (02) simulation end time -- must be in single quotes
 ! ***********************************************************************************************************************
-soilCatTbl                      ROSETTA         ! (03) soil-category dateset
-vegeParTbl                      USGS            ! (04) vegetation category dataset
-soilStress                      NoahType        ! (05) choice of function for the soil moisture control on stomatal resistance
-stomResist                      BallBerryFlex       ! (06) choice of function for stomatal resistance
-! ***********************************************************************************************************************
-num_method                      itertive        ! (07) choice of numerical method
-fDerivMeth                      analytic        ! (08) method used to calculate flux derivatives
-LAI_method                      monTable        ! (09) method used to determine LAI and SAI
-cIntercept                      storageFunc     ! (10) choice of parameterization for canopy interception
-f_Richards                      mixdform        ! (11) form of Richard's equation
-groundwatr                      noXplict        ! (12) choice of groundwater parameterization
-hc_profile                      constant        ! (13) choice of hydraulic conductivity profile
-bcUpprTdyn                      nrg_flux        ! (14) type of upper boundary condition for thermodynamics
-bcLowrTdyn                      zeroFlux        ! (15) type of lower boundary condition for thermodynamics
-bcUpprSoiH                      liq_flux        ! (16) type of upper boundary condition for soil hydrology
-bcLowrSoiH                      drainage        ! (17) type of lower boundary condition for soil hydrology
-veg_traits                      CM_QJRMS1998    ! (18) choice of parameterization for vegetation roughness length and displacement height
-canopyEmis                      difTrans        ! (19) choice of parameterization for canopy emissivity
-snowIncept                      lightSnow       ! (20) choice of parameterization for snow interception
-windPrfile                      logBelowCanopy  ! (21) choice of wind profile through the canopy
-astability                      louisinv        ! (22) choice of stability function
-canopySrad                      BeersLaw        ! (23) choice of canopy shortwave radiation method
-alb_method                      varDecay        ! (24) choice of albedo representation
-compaction                      anderson        ! (25) choice of compaction routine
-snowLayers                      CLM_2010        ! (26) choice of method to combine and sub-divide snow layers
-thCondSnow                      jrdn1991        ! (27) choice of thermal conductivity representation for snow
-thCondSoil                      funcSoilWet     ! (28) choice of thermal conductivity representation for soil
-spatial_gw                      localColumn     ! (29) choice of method for the spatial representation of groundwater
-subRouting                      timeDlay        ! (30) choice of method for sub-grid routing
+soilCatTbl                      ROSETTA           ! (03) soil-category dateset
+vegeParTbl                      USGS              ! (04) vegetation category dataset
+soilStress                      NoahType          ! (05) choice of function for the soil moisture control on stomatal resistance
+stomResist                      BallBerryTest     ! (06) choice of function for stomatal resistance
+bbTempFunc                      Arrhenius         ! (07) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
+bbHumdFunc                      humidLeafSurface  ! (08) Ball-Berry: humidity controls on stomatal resistance 
+bbElecFunc                      quadraticJmax     ! (09) Ball-Berry: dependence of photosynthesis on PAR
+bbCO2point                      Leuning           ! (10) Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
+num_method                      itertive          ! (11) choice of numerical method
+fDerivMeth                      analytic          ! (12) method used to calculate flux derivatives
+LAI_method                      monTable          ! (13) method used to determine LAI and SAI
+cIntercept                      storageFunc       ! (14) choice of parameterization for canopy interception
+f_Richards                      mixdform          ! (15) form of Richard's equation
+groundwatr                      bigBuckt          ! (16) choice of groundwater parameterization
+hc_profile                      constant          ! (17) choice of hydraulic conductivity profile
+bcUpprTdyn                      nrg_flux          ! (18) type of upper boundary condition for thermodynamics
+bcLowrTdyn                      presTemp          ! (19) type of lower boundary condition for thermodynamics
+bcUpprSoiH                      liq_flux          ! (20) type of upper boundary condition for soil hydrology
+bcLowrSoiH                      drainage          ! (21) type of lower boundary condition for soil hydrology
+veg_traits                      CM_QJRMS1998      ! (22) choice of parameterization for vegetation roughness length and displacement height
+rootProfil                      doubleExp         ! (23) choice of parameterization for the rooting profile
+canopyEmis                      difTrans          ! (24) choice of parameterization for canopy emissivity
+snowIncept                      lightSnow         ! (25) choice of parameterization for snow interception
+windPrfile                      logBelowCanopy    ! (26) choice of wind profile through the canopy
+astability                      louisinv          ! (27) choice of stability function
+canopySrad                      CLM_2stream       ! (28) choice of canopy shortwave radiation method
+alb_method                      varDecay          ! (29) choice of albedo representation
+compaction                      anderson          ! (30) choice of compaction routine
+snowLayers                      CLM_2010          ! (31) choice of method to combine and sub-divide snow layers
+thCondSnow                      jrdn1991          ! (32) choice of thermal conductivity representation for snow
+thCondSoil                      funcSoilWet       ! (33) choice of thermal conductivity representation for soil
+spatial_gw                      localColumn       ! (34) choice of method for the spatial representation of groundwater
+subRouting                      timeDlay          ! (35) choice of method for sub-grid routing
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -61,8 +65,16 @@ subRouting                      timeDlay        ! (30) choice of method for sub-
 ! SiB_Type  ! exponential of the log of matric head
 ! -----------------------------------------------------------------------------------------------
 ! (06) choice of function for stomatal resistance
+<<<<<<< HEAD
 ! BallBerry ! Ball-Berry
 ! Jarvis    ! Jarvis
+=======
+! simpleResistance    ! simple resistance formulation
+! BallBerryFlex       ! flexible Ball-Berry scheme
+! BallBerryTest       ! flexible Ball-Berry scheme (testing)
+! BallBerry           ! Ball-Berry
+! Jarvis              ! Jarvis
+>>>>>>> bbb520e... modify scripts and settings files to increase flexibility in stomatal resistance calculations
 ! -----------------------------------------------------------------------------------------------
 ! (07) choice of numerical method
 ! itertive  ! iterative
