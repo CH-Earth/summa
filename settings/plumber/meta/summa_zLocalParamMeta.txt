@@ -100,11 +100,12 @@ Kc_qFac                   | factor in the q10 function defining temperature cont
 Ko_qFac                   | factor in the q10 function defining temperature controls on Ko    | -                | scalarv | T
 kc_Ha                     | activation energy for the Michaelis-Menten constant for CO2       | J mol-1          | scalarv | T
 ko_Ha                     | activation energy for the Michaelis-Menten constant for O2        | J mol-1          | scalarv | T
-vcmax25                   | potential carboxylation rate at 25 degrees C                      | umol co2 m-2 s-1 | scalarv | T
+vcmax25_canopyTop         | potential carboxylation rate at 25 degrees C at the canopy top    | umol co2 m-2 s-1 | scalarv | T
 vcmax_qFac                | factor in the q10 function defining temperature controls on vcmax | -                | scalarv | T
 vcmax_Ha                  | activation energy in the vcmax function                           | J mol-1          | scalarv | T
 vcmax_Hd                  | deactivation energy in the vcmax function                         | J mol-1          | scalarv | T
 vcmax_Sv                  | entropy term in the vcmax function                                | J mol-1 K-1      | scalarv | T
+vcmax_Kn                  | foliage nitrogen decay coefficient                                | -                | scalarv | T 
 jmax25_scale              | scaling factor to relate jmax25 to vcmax25                        | -                | scalarv | T
 jmax_Ha                   | activation energy in the jmax function                            | J mol-1          | scalarv | T
 jmax_Hd                   | deactivation energy in the jmax function                          | J mol-1          | scalarv | T

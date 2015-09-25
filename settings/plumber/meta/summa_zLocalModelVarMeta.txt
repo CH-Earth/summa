@@ -170,8 +170,10 @@ scalarTranspireLimAqfr              | aquifer storage control on transpiration  
 scalarFoliageNitrogenFactor         | foliage nitrogen concentration (1=saturated)                      | -               | scalarv | F
 scalarStomResistSunlit              | stomatal resistance for sunlit leaves                             | s m-1           | scalarv | T
 scalarStomResistShaded              | stomatal resistance for shaded leaves                             | s m-1           | scalarv | T
-scalarPhotosynthesisSunlit          | sunlit photosynthesis                                             | umolco2 m-2 s-1 | scalarv | F
-scalarPhotosynthesisShaded          | shaded photosynthesis                                             | umolco2 m-2 s-1 | scalarv | F
+scalarPhotosynthesisSunlit          | sunlit photosynthesis                                             | umolco2 m-2 s-1 | scalarv | T
+scalarPhotosynthesisShaded          | shaded photosynthesis                                             | umolco2 m-2 s-1 | scalarv | T
+scalarIntercellularCO2Sunlit        | carbon dioxide partial pressure of leaf interior (sunlit leaves)  | Pa              | scalarv | T
+scalarIntercellularCO2Shaded        | carbon dioxide partial pressure of leaf interior (shaded leaves)  | Pa              | scalarv | T
 ! *************************************************************************************************************************************
 ! vegetation variables (canopy water)
 ! *************************************************************************************************************************************
