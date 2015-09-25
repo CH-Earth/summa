@@ -80,7 +80,7 @@ model_names = ['CABLE.2.0',                  $
                ;'Noah.3.2',                   $
                ;'NOAH.3.3',                   $
                ;'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0.exp.01.test']
+               'SUMMA.1.0.exp.02.000']
 
 ; define colors
 iColor=[80,140,210,250]

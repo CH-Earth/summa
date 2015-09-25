@@ -11,7 +11,7 @@ erase, color=255
 !P.MULTI=[0,1,2,0,0]
 
 ; define file path
-fPath = '/d1/mclark/PLUMBER_data/model_output/SUMMA.1.0.exp.01.test/'
+fPath = '/d1/mclark/PLUMBER_data/model_output/'
 
 ; define the site names
 site_names = ['Amplero',     $
@@ -38,26 +38,28 @@ site_names = ['Amplero',     $
 ; define the number of sites
 nSites  = n_elements(site_names)
 
+; define models
+models = ['SUMMA.1.0.exp.02.011', $
+          'SUMMA.1.0.exp.02.014' ]
+
 ; loop through sites
 for iSite=0,nSites-1 do begin
+;for iSite=1,1 do begin
 
  ; set plot window
- window, 3, xs=700, ys=600, retain=2
+ window, 1, xs=1400, ys=1200, retain=2
  device, decomposed=0
  LOADCT, 39
- !P.MULTI=1
-
- ; define files to check
- file01 = 'SUMMA.1.0.exp.01.test_origBallBerryNoahMP_'+site_names[iSite]+'Fluxnet.1.4.nc'
- ;file02 = 'SUMMA.1.0.exp.01.test_flexBallBerryNoahMP_'+site_names[iSite]+'Fluxnet.1.4.nc'
- file02 = 'SUMMA.1.0.exp.01.test_flexBallBerrySumma_'+site_names[iSite]+'Fluxnet.1.4.nc'
+ !P.MULTI=[0,2,2,0,0]
 
  ; read in data
- for ifile=1,2 do begin
+ for ifile=0,1 do begin
+
+  ; define file
+  filename = fPath + models[ifile] + '/' + models[ifile] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
 
   ; open file
-  if(ifile eq 1)then nc_file = ncdf_open(fPath+file01, /nowrite)
-  if(ifile eq 2)then nc_file = ncdf_open(fPath+file02, /nowrite)
+  nc_file = ncdf_open(filename, /nowrite)
 
   ; get time units
   ivar_id = ncdf_varid(nc_file,'time')
@@ -80,20 +82,106 @@ for iSite=0,nSites-1 do begin
   ; get the number of time elements
   ntime = n_elements(djulian)-1
 
-  ; read data
+  ; read the intercellular co2 concentration for sunlit leaves
+  ;ivar_id = ncdf_varid(nc_file,'scalarIntercellularCO2Sunlit')
+  ;ncdf_varget, nc_file, ivar_id, sunlitIntercellularCO2
+
+  ; read the intercellular co2 concentration for shaded leaves
+  ;ivar_id = ncdf_varid(nc_file,'scalarIntercellularCO2Shaded')
+  ;ncdf_varget, nc_file, ivar_id, shadedIntercellularCO2
+
+  ; read photosynthesis for sunlit leaves
+  ivar_id = ncdf_varid(nc_file,'scalarPhotosynthesisSunlit')
+  ncdf_varget, nc_file, ivar_id, sunlitPhotosynthesis
+
+  ; read photosynthesis for shaded leaves
+  ivar_id = ncdf_varid(nc_file,'scalarPhotosynthesisShaded')
+  ncdf_varget, nc_file, ivar_id, shadedPhotosynthesis
+
+  ; read stomatal conductance for sunlit leaves
+  ivar_id = ncdf_varid(nc_file,'stomatalConductanceSunlit')
+  ncdf_varget, nc_file, ivar_id, sunlitStomatalConductance
+
+  ; read stomatal conductance for shaded leaves
+  ivar_id = ncdf_varid(nc_file,'stomatalConductanceShaded')
+  ncdf_varget, nc_file, ivar_id, shadedStomatalConductance
+
+  ; read total stomatal conductance
   ivar_id = ncdf_varid(nc_file,'stomatalConductance')
-  ncdf_varget, nc_file, ivar_id, stomatalConductance
+  ncdf_varget, nc_file, ivar_id, totalStomatalConductance
+
+  ; read leaf temperature
+  ivar_id = ncdf_varid(nc_file,'scalarCanopyTemp')
+  ncdf_varget, nc_file, ivar_id, scalarCanopyTemp
+
+  ; read absorbed solar
+  ivar_id = ncdf_varid(nc_file,'scalarCanopyAbsorbedSolar')
+  ncdf_varget, nc_file, ivar_id, scalarCanopyAbsorbedSolar
 
   ; save data
-  if(ifile eq 1)then g01 = reform(stomatalConductance)
-  if(ifile eq 2)then g02 = reform(stomatalConductance)
+  if(ifile eq 0)then begin
+   sunlit_psn01 = reform(sunlitPhotosynthesis)
+   shaded_psn01 = reform(shadedPhotosynthesis)
+   ;sunlit_c01   = reform(sunlitIntercellularCO2)
+   ;shaded_c01   = reform(shadedIntercellularCO2)
+   sunlit_g01   = reform(sunlitStomatalConductance)
+   shaded_g01   = reform(shadedStomatalConductance)
+   total_g01    = reform(totalStomatalConductance)
+   swnet_01     = reform(scalarCanopyAbsorbedSolar)
+   temp_01      = reform(scalarCanopyTemp)
+  endif else begin
+   sunlit_psn02 = reform(sunlitPhotosynthesis)
+   shaded_psn02 = reform(shadedPhotosynthesis)
+   ;sunlit_c02   = reform(sunlitIntercellularCO2)
+   ;shaded_c02   = reform(shadedIntercellularCO2)
+   sunlit_g02   = reform(sunlitStomatalConductance)
+   shaded_g02   = reform(shadedStomatalConductance)
+   total_g02    = reform(totalStomatalConductance)
+   swnet_02     = reform(scalarCanopyAbsorbedSolar)
+   temp_02      = reform(scalarCanopyTemp)
+  endelse
 
  endfor  ; looping through files
 
- ; make initial scatter plot
- plot, g01,g02, psym=sym(6), xrange=[0,0.02], yrange=[0,0.02], xstyle=1, ystyle=1, $
+ ; define the number of elements to plot
+ nplot=ntime
+ ;nplot=1000
+
+ ; define yymax
+ yymax = 0.01
+
+ ; plot difference in total conductance
+ ;plot, total_g01[0:nplot-1], total_g02[0:nplot-1], psym=sym(6), xrange=[0,yymax], yrange=[0,yymax], xstyle=1, ystyle=1, $
+ ; xtitle='orig', ytitle='flex'
+ ;plots, [0,yymax], [0,yymax], color=80
+
+ ; plot difference in sunlit conductance
+ plot, sunlit_g01[0:nplot-1], sunlit_g02[0:nplot-1], psym=sym(6), xrange=[0,yymax], yrange=[0,yymax], xstyle=1, ystyle=1, $
   xtitle='orig', ytitle='flex'
- plots, [0,0.02], [0,0.02], color=80
+ plots, [0,yymax], [0,yymax], color=80
+
+ ; plot difference in shaded conductance
+ plot, shaded_g01[0:nplot-1], shaded_g02[0:nplot-1], psym=sym(6), xrange=[0,yymax], yrange=[0,yymax], xstyle=1, ystyle=1, $
+  xtitle='orig', ytitle='flex'
+ plots, [0,yymax], [0,yymax], color=80
+
+ ; plot difference in sunlit photosynthesis
+ plot, sunlit_g01[0:nplot-1] - sunlit_g02[0:nplot-1], temp_02[0:nplot-1] - 273.16, psym=sym(6), yrange=[0,50], ystyle=1, $ ; xrange=[0,yymax], yrange=[0,yymax], xstyle=1, ystyle=1, $
+  xtitle='orig', ytitle='flex'
+ plots, [0,0], [0,50], color=80
+
+ ; plot difference in sunlit photosynthesis
+ plot, sunlit_g01[0:nplot-1] - sunlit_g02[0:nplot-1], swnet_02[0:nplot-1], psym=sym(6), yrange=[0,1000], ystyle=1, $ ; xrange=[0,yymax], yrange=[0,yymax], xstyle=1, ystyle=1, $
+  xtitle='orig', ytitle='flex'
+ plots, [0,0], [0,1000], color=80
+
+
+ ; plot relationship between photosynthesis and conductance
+ ;plot, sunlit_psn01[0:nplot-1], sunlit_psn02[0:nplot-1], psym=sym(6), $ ; xrange=[0,yymax], yrange=[0,yymax], xstyle=1, ystyle=1, $
+ ; xtitle='orig', ytitle='flex'
+ ;plots, [0,0], [0,35], color=80
+
+
 
  ; get dates
  caldat, djulian, im, id, iy, ih, imi, asec
@@ -108,7 +196,7 @@ for iSite=0,nSites-1 do begin
  ymin = 0.00
  ymax = 0.01
 
- window, 1, xs=1200, ys=1000, retain=2
+ window, 0, xs=1200, ys=1000, retain=2
  device, decomposed=0
  LOADCT, 39
  !P.MULTI=[0,3,4,0,0]
@@ -140,9 +228,10 @@ for iSite=0,nSites-1 do begin
   ; compute the mean diurnal cycle
   for jhour=0,47 do begin
    ;imatch = where(obsTime eq jhour*50 and im eq imonth and iy eq 2000 and id le 1, nmatch)
+   ;imatch = where(obsTime eq jhour*50 and im eq imonth and iy eq 2000, nmatch)
    imatch = where(obsTime eq jhour*50 and im eq imonth, nmatch)
-   diurnal_orig[jhour] = total(g01[imatch])/float(nmatch)
-   diurnal_new[jhour]  = total(g02[imatch])/float(nmatch)
+   diurnal_orig[jhour] = total(total_g01[imatch])/float(nmatch)
+   diurnal_new[jhour]  = total(total_g02[imatch])/float(nmatch)
   endfor  ; (looping through hours)
 
   ; wrap-around

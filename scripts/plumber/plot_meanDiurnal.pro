@@ -1,4 +1,4 @@
-pro plot_plumber
+pro plot_meanDiurnal
 
 ; define plotting parameters
 window, 0, xs=2000, ys=1400, retain=2
@@ -22,9 +22,6 @@ site_path =  plumber_path + 'site_data/flux/'
 ; define the benchmark path
 benchmark_path = plumber_path + 'benchmark_data/'
 
-; define experiment
-expName='exp.02.008'
-
 ; define the model names
 model_names = ['CABLE.2.0',                  $
                'CABLE_2.0_SLI.vxh599_r553',  $
@@ -39,7 +36,21 @@ model_names = ['CABLE.2.0',                  $
                'Noah.3.2',                   $
                'NOAH.3.3',                   $
                'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0.'+expName         ]
+               'SUMMA.1.0.exp.02.001',       $
+               'SUMMA.1.0.exp.02.002',       $
+               'SUMMA.1.0.exp.02.003',       $
+               'SUMMA.1.0.exp.02.004',       $
+               'SUMMA.1.0.exp.02.005',       $
+               'SUMMA.1.0.exp.02.006',       $
+               'SUMMA.1.0.exp.02.007',       $
+               'SUMMA.1.0.exp.02.008',       $
+               'SUMMA.1.0.exp.02.009',       $
+               'SUMMA.1.0.exp.02.010',       $
+               'SUMMA.1.0.exp.02.011',       $
+               'SUMMA.1.0.exp.02.012',       $
+               'SUMMA.1.0.exp.02.013',       $
+               'SUMMA.1.0.exp.02.014',       $
+               'SUMMA.1.0.exp.02.000'         ]
 
 ; define the site names
 site_names = ['Amplero',     $
@@ -276,7 +287,7 @@ for iSite=0,nSites-1 do begin
 endfor  ; (looping through sites)
 
 ; write figure
-write_png, 'figures/plumberResults_'+expName+'.png', tvrd(true=1)
+write_png, 'figures/plumber_meanDiurnal.png', tvrd(true=1)
 
 
 
