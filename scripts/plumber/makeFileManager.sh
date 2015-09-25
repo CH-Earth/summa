@@ -1,39 +1,60 @@
-#!/opt/local/bin/bash
+#!/bin/bash
 #
 # used to make a list of forcing files for each GRU
 # (based on the localAttributes files)
 
+# define the decisions template
+template=summa_fileManager_template.txt
+
 # define file path for the vegetation data
-dataPath=/Users/mclark/summa/input/plumber/
+dataPath=/home/mclark/summa/input/plumber
 
 # define the path to the file manager
-managerPath=/Users/mclark/summa/settings/plumber/fileManager/
+managerPath=/home/mclark/summa/settings/plumber/fileManager
 
-# define pattern to replace with actual data file
-cPattern='XX_siteName_XX'
+# define pattern to replace with experiment name
+cPatternExp='XX_expName_XX'
 
-# loop through files in the local attributes folder
-for dataFile in $( ls  ${dataPath} ); do
+# define pattern to replace with site name
+cPatternSite='XX_siteName_XX'
 
- # split the string using underscores
- IFS='_' read -a strTemp0 <<< "${dataFile}"
+# loop through experiments
+for ix in $( seq -f "%03g" 0 20 ); do
 
- # split the string using periods
- IFS='.' read -a strTemp1 <<< "${strTemp0[-1]}"
+ # define experiment name
+ expName=exp.02.${ix}
+ echo $expName
 
- # define file suffix
- siteName=${strTemp1[0]}
+ # loop through files in the local attributes folder
+ for dataFile in $( ls  ${dataPath}/* ); do
 
- # define the manager file
- managerFile=${managerPath}summa_fileManager_${siteName}.txt
+  # remove the directory
+  IFS='/' read -a strarr <<< "${dataFile}"
+  fileName=${strarr[-1]}
 
- # make the file manager file
- cp templates/summa_fileManager_template.txt ${managerFile}
+  # split the string using underscores
+  IFS='_' read -a strTemp0 <<< "${fileName}"
 
- # replace the search string with the file suffix
- gsed -i 's/'${cPattern}'/'${siteName}'/g' ${managerFile}
+  # split the string using periods
+  IFS='.' read -a strTemp1 <<< "${strTemp0[-1]}"
 
- # print progress
- echo $managerFile
- 
+  # define file suffix
+  siteName=${strTemp1[0]}
+
+  # define the manager file
+  managerFile=${managerPath}/${expName}/summa_fileManager_${siteName}.txt
+
+  # make the file manager file
+  cp templates/${template} ${managerFile}
+
+  # replace the search string with the experiment name
+  sed -i 's/'${cPatternExp}'/'${expName}'/g' ${managerFile}
+
+  # replace the search string with the site name
+  sed -i 's/'${cPatternSite}'/'${siteName}'/g' ${managerFile}
+
+  # print progress
+  echo $managerFile
+
+ done
 done

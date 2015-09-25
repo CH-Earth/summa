@@ -13,11 +13,11 @@ simulFinsh              'XX_endYear_XX-12-31 23:00'      ! (02) simulation end t
 soilCatTbl                      ROSETTA           ! (03) soil-category dateset
 vegeParTbl                      USGS              ! (04) vegetation category dataset
 soilStress                      NoahType          ! (05) choice of function for the soil moisture control on stomatal resistance
-stomResist                      BallBerryTest     ! (06) choice of function for stomatal resistance
-bbTempFunc                      Arrhenius         ! (07) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
+stomResist                      BallBerryFlex     ! (06) choice of function for stomatal resistance
+bbTempFunc                      q10Func           ! (07) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
 bbHumdFunc                      humidLeafSurface  ! (08) Ball-Berry: humidity controls on stomatal resistance 
-bbElecFunc                      quadraticJmax     ! (09) Ball-Berry: dependence of photosynthesis on PAR
-bbCO2point                      Leuning           ! (10) Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
+bbElecFunc                      linear            ! (09) Ball-Berry: dependence of photosynthesis on PAR
+bbCO2point                      origBWB           ! (10) Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
 num_method                      itertive          ! (11) choice of numerical method
 fDerivMeth                      analytic          ! (12) method used to calculate flux derivatives
 LAI_method                      monTable          ! (13) method used to determine LAI and SAI

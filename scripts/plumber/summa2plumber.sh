@@ -15,7 +15,10 @@ ixExtract=$ixSort
 
 # define the experiment name
 #expName=initialPlumberTest
-expName=origBallBerryNoahMP
+expName=testRevisedSumma
+
+# define the experiment ID
+expID=exp.02.016
 
 # define the path for the input data
 inputPath=/d1/mclark/PLUMBER_data/site_data/met/
@@ -27,10 +30,11 @@ outputPath=/home/mclark/summa/output/plumber/
 newOutputPath=/d1/mclark/PLUMBER_data/model_output/
 
 # define the model name
-modelName=SUMMA.1.0.exp.01.test
+modelName=SUMMA.1.0.${expID}
 
 # loop through files in the local attributes folder
-for outputFile in $( ls  ${outputPath}orig/*spinup*${expName}.nc ); do
+#for outputFile in $( ls  ${outputPath}${expID}/Blo*${expID}*spinup*${expName}.nc ); do
+for outputFile in $( ls  ${outputPath}${expID}/*${expID}*spinup*${expName}.nc ); do
 
  # split the string using slashes
  IFS='/' read -a strTemp0 <<< "${outputFile}"
@@ -39,10 +43,10 @@ for outputFile in $( ls  ${outputPath}orig/*spinup*${expName}.nc ); do
  echo -- $siteName
 
  # start afresh
- cp ${outputPath}orig/${siteName}*${expName}.nc ${outputPath}temp/
+ cp ${outputPath}${expID}/${siteName}*${expID}*${expName}.nc ${outputPath}temp/
 
  # loop through desired NetCDF files in the output directory
- for fileName in $( ls  ${outputPath}temp/${siteName}_*${expName}.nc ); do
+ for fileName in $( ls  ${outputPath}temp/${siteName}_${expID}*${expName}.nc ); do
 
   # ****************************************************************
   # * extract the ground heat flux
@@ -138,10 +142,10 @@ for outputFile in $( ls  ${outputPath}orig/*spinup*${expName}.nc ); do
 
 
  # define the output name
- outputName=${newOutputPath}${modelName}/${modelName}_${expName}_${siteName}Fluxnet.1.4.nc
+ outputName=${newOutputPath}${modelName}/${modelName}_${siteName}Fluxnet.1.4.nc
 
  # concatanate
- ncrcat -O ${outputPath}temp/${siteName}_*spinup*${expName}.nc ${outputPath}temp/${siteName}_*-*${expName}.nc ${outputName}
+ ncrcat -O ${outputPath}temp/${siteName}_${expID}_*spinup*${expName}.nc ${outputPath}temp/${siteName}_${expID}_*-*${expName}.nc ${outputName}
 
  # get information about the time dimension
  timeInfo=`ncks -C -v time -m $outputName | grep "size =" | grep dimension`
@@ -150,6 +154,9 @@ for outputFile in $( ls  ${outputPath}orig/*spinup*${expName}.nc ); do
  IFS='=' read -a strarr0 <<< "${timeInfo}"
  IFS=' ' read -a strarr1 <<< "${strarr0[-1]}"
  numberOutputSteps=${strarr1[0]}
+
+ # remove files from the temp directory
+ rm ${outputPath}temp/${siteName}_${expID}*${expName}.nc
 
  # check the number of output steps
  echo '** check steps: ' $numberInputSteps $numberOutputSteps

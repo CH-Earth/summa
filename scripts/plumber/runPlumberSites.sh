@@ -2,6 +2,13 @@
 #
 # used to run SUMMA for all the PLUMBER sites
 
+# define the experiment name
+expName=_testRevisedSumma
+
+# define the experiment ID
+expID=exp.02.020
+
+# run summa for each site
 # define the SUMMA directory
 summaDir=/home/mclark/summa
 
@@ -15,17 +22,13 @@ logPath=${summaDir}/output/plumber/log
 settingsPath=${summaDir}/settings/plumber
 
 # Define the manager path
-managerPath=${settingsPath}/fileManager
+managerPath=${settingsPath}/fileManager/${expID}
 
-# define the experiment name
-expName=_flexBallBerrySumma
-
-# run summa for each site
 for managerFile in $( ls  ${managerPath}/* ); do
 
  # get the logfile name
  IFS='_' read -a strarr <<< "${managerFile}"
- logName=${logPath}/summaLog_${expName}_${strarr[-1]}
+ logName=${logPath}/summaLog_${expID}_${strarr[-1]}
 
  # run the model for a given site
  echo $summaEXE $expName $managerFile $logName
