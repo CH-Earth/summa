@@ -78,7 +78,7 @@ contains
  localParFallback(iLookPARAM%heightCanopyBottom)%default_val  = HVB(ixVeg)          ! Noah-MP: height at bottom of canopy (m)
  localParFallback(iLookPARAM%z0Canopy)%default_val            = Z0MVT(ixVeg)        ! Noah-MP: momentum roughness length (m)
  localParFallback(iLookPARAM%leafDimension)%default_val       = DLEAF(ixVeg)        ! Noah-MP: characteristic leaf dimension (m)
- localParFallback(iLookPARAM%vcmax25)%default_val             = VCMX25(ixVeg)       ! Noah-MP: maximum Rubisco carboxylation rate (umol m-2 s-1)
+ localParFallback(iLookPARAM%vcmax25_canopyTop)%default_val   = VCMX25(ixVeg)       ! Noah-MP: maximum Rubisco carboxylation rate (umol m-2 s-1)
  localParFallback(iLookPARAM%cond2photo_slope)%default_val    = MP(ixVeg)           ! Noah-MP: slope of conductance-photosynthesis relationship (-)
 
  ! include parameters from the soil tables

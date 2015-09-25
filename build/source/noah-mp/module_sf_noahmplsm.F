@@ -5390,6 +5390,7 @@ contains
          TC  = TV-TFRZ
          PPF = 4.6*APAR
          J   = PPF*QE25(VEGTYP)
+         !write(*,'(a,1x,10(f20.10,1x))') 'J, APAR, QE25(VEGTYP) = ', J, APAR, QE25(VEGTYP)
          KC  = KC25(VEGTYP) * F1(AKC(VEGTYP),TC)
          KO  = KO25(VEGTYP) * F1(AKO(VEGTYP),TC)
          AWC = KC * (1.+O2/KO)
@@ -5401,6 +5402,9 @@ contains
 
          CI = 0.7*CO2*C3PSN(VEGTYP) + 0.4*CO2*(1.-C3PSN(VEGTYP))
 
+         !write(*,'(a,1x,10(f20.10,1x))') 'KC25(VEGTYP), AKC(VEGTYP), KO25(VEGTYP), AKO(VEGTYP) = ', KC25(VEGTYP), AKC(VEGTYP), KO25(VEGTYP), AKO(VEGTYP)
+         !write(*,'(a,1x,10(f20.10,1x))') 'CO2, CI, CP, KC, KO = ', CO2, CI, CP, KC, KO
+
 ! rb: s/m -> s m**2 / umol
 
          RLB = RB/CF
@@ -5409,8 +5413,9 @@ contains
 
          CEA = MAX(0.25*EI*C3PSN(VEGTYP)+0.40*EI*(1.-C3PSN(VEGTYP)), MIN(EA,EI) )
 
-         write(*,'(a,1x,20(f14.8,1x))') 'BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS = ', &
-                                         BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS
+         !print*, '**'
+         !write(*,'(a,1x,20(f14.8,1x))') 'BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS = ', &
+         !                                BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS
 
 ! ci iteration
 !jref: C3PSN is equal to 1 for all veg types.
@@ -5431,16 +5436,14 @@ contains
             ELSE
                Q = -0.5*( B - SQRT(B*B-4.*A*C) )
             END IF
-
-
-            write(*,'(a,1x,L1,1x,10(f16.8,1x))') '(WC>WJ), WJ, WC, WE, PSN, CI, A, B, C, Q, X2, X3 = ', &
-                                                  (WC>WJ), WJ, WC, WE, PSN, CI, A, B, C, Q, MP(VEGTYP)*SFCPRS, MP(VEGTYP)*PSN*SFCPRS/CS
-
-
             R1 = Q/A
             R2 = C/Q
             RS = MAX(R1,R2)
             CI = MAX( CS-PSN*SFCPRS*1.65*RS, 0. )
+
+            !write(*,'(a,1x10(f14.10,1x))') 'WJ, WC, WE, PSN, CI, CS, RS, TV, VCMX, J = ', &
+            !                                WJ, WC, WE, PSN, CI, CS, RS, TV, VCMX, J
+
        END DO 
        !pause
 
@@ -5529,11 +5532,6 @@ contains
 
     RC  = RSMIN / (RCS * RCT * RCQ * RCSOIL)
     PSN = -999.99       ! PSN not applied for dynamic carbon
-
-    write(*,'(a,1x,10(f12.4,1x))') 'sfctmp, sfcprs, eah = ', sfctmp-273.16, sfcprs, eah
-
-    write(*,'(a,1x,10(f12.4,1x))') 'hs, q2, q2sat, rcq = ', hs, q2, q2sat, rcq
-    stop 'in noahMP/canres'
 
   END SUBROUTINE CANRES
 ! ==================================================================================================

@@ -23,6 +23,7 @@ USE nrtype
 ! physical constants
 USE multiconst, only: Rgas     ! universal gas constant (J mol-1 K-1)
 USE multiconst, only: Tfreeze  ! freezing point of pure water (K)
+USE multiconst, only: ave_slp  ! standard pressure (Pa)
 ! conversion functions
 USE conv_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
 ! look-up values for the stomatal resistance formulation
@@ -49,6 +50,18 @@ USE mDecisions_module,only:  &
 USE mDecisions_module,only:  &
  origBWB,                    & ! the original BWB function
  Leuning                       ! the Leuning function
+! look up values to define the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
+USE mDecisions_module,only:  &
+ NoahMPsolution,             & ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
+ newtonRaphson                 ! full Newton-Raphson iterative solution to convergence
+! look up values to define the controls on carbon assimilation
+USE mDecisions_module,only:  &
+ colimitation,               & ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
+ minFunc                       ! do not enable colimitation: use minimum of the three controls on carbon assimilation
+! look up values to define the scaling of photosynthesis from the leaf to the canopy
+USE mDecisions_module,only:  &
+ constantScaling,            & ! constant scaling factor
+ laiScaling                    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
 implicit none
 private
 public::stomResist
@@ -121,6 +134,7 @@ contains
  real(dp)                        :: absorbedPAR               ! absorbed PAR (W m-2)
  real(dp)                        :: scalarStomResist          ! stomatal resistance (s m-1)
  real(dp)                        :: scalarPhotosynthesis      ! photosynthesis (umol CO2 m-2 s-1)
+ real(dp)                        :: ci                        ! intercellular co2 partial pressure (Pa)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables for testing
  integer(i4b),parameter          :: ixUnit=66                 ! file unit
@@ -154,7 +168,7 @@ contains
  ! input: physical attributes
  vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                          & ! intent(in): [i4b] vegetation type index
  minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance),                & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
- vcmax25                         => mpar_data%var(iLookPARAM%vcmax25),                              & ! intent(in): [dp] potential carboxylation rate at 25 degrees C (umol co2 m-2 s-1)
+ vcmax25_canopyTop               => mpar_data%var(iLookPARAM%vcmax25_canopyTop),                    & ! intent(in): [dp] potential carboxylation rate at 25 degrees C at the canopy top (umol co2 m-2 s-1)
 
  ! input: forcing at the upper boundary
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
@@ -174,7 +188,12 @@ contains
  scalarStomResistSunlit          => mvar_data%var(iLookMVAR%scalarStomResistSunlit)%dat(1),         & ! intent(out): [dp] stomatal resistance for sunlit leaves (s m-1)
  scalarStomResistShaded          => mvar_data%var(iLookMVAR%scalarStomResistShaded)%dat(1),         & ! intent(out): [dp] stomatal resistance for shaded leaves (s m-1)
  scalarPhotosynthesisSunlit      => mvar_data%var(iLookMVAR%scalarPhotosynthesisSunlit)%dat(1),     & ! intent(out): [dp] sunlit photosynthesis (umolco2 m-2 s-1)
- scalarPhotosynthesisShaded      => mvar_data%var(iLookMVAR%scalarPhotosynthesisShaded)%dat(1)      & ! intent(out): [dp] shaded photosynthesis (umolco2 m-2 s-1)
+ scalarPhotosynthesisShaded      => mvar_data%var(iLookMVAR%scalarPhotosynthesisShaded)%dat(1),     & ! intent(out): [dp] shaded photosynthesis (umolco2 m-2 s-1)
+
+ ! output: carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
+ scalarIntercellularCO2Sunlit    => mvar_data%var(iLookMVAR%scalarIntercellularCO2Sunlit)%dat(1),   & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
+ scalarIntercellularCO2Shaded    => mvar_data%var(iLookMVAR%scalarIntercellularCO2Shaded)%dat(1)    & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (shaded leaves) (Pa)
+
  )
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -204,10 +223,17 @@ contains
    ! loop through sunlit and shaded leaves
    do iSunShade=1,2
 
-    ! get appropriate value for PAR
+    ! get appropriate input values
     select case(iSunShade)
-     case(ixSunlit); absorbedPAR = scalarCanopySunlitPAR       ! average absorbed par for sunlit leaves (w m-2)
-     case(ixShaded); absorbedPAR = scalarCanopyShadedPAR       ! average absorbed par for shaded leaves (w m-2)
+     ! sunlit leaves
+     case(ixSunlit)
+      absorbedPAR = scalarCanopySunlitPAR         ! average absorbed par for sunlit leaves (w m-2)
+      ci          = scalarIntercellularCO2Sunlit  ! co2 of the leaf interior for sunlit leaves (Pa) 
+     ! shaded leaves
+     case(ixShaded)
+      absorbedPAR = scalarCanopyShadedPAR         ! average absorbed par for shaded leaves (w m-2)
+      ci          = scalarIntercellularCO2Shaded  ! co2 of the leaf interior for shaded leaves (Pa) 
+     ! check
      case default; err=20; message=trim(message)//'unable to identify case for sunlit/shaded leaves'; return
     end select
 
@@ -223,6 +249,8 @@ contains
                          mpar_data,                           & ! intent(in): model parameters
                          mvar_data,                           & ! intent(in): model variables for a local HRU
                          model_decisions,                     & ! intent(in): model decisions
+                         ! input-output
+                         ci,                                  & ! intent(inout): co2 of the leaf interior (Pa)
                          ! output:
                          scalarStomResist,                    & ! intent(out): stomatal resistance (s m-1)
                          scalarPhotosynthesis,                & ! intent(out): photosynthesis (umol CO2 m-2 s-1)
@@ -233,13 +261,18 @@ contains
     ! assign output variables
     select case(iSunShade)
      case(ixSunlit)
-      scalarStomResistSunlit     = scalarStomResist 
-      scalarPhotosynthesisSunlit = scalarPhotosynthesis
+      scalarStomResistSunlit       = scalarStomResist 
+      scalarPhotosynthesisSunlit   = scalarPhotosynthesis
+      scalarIntercellularCO2Sunlit = ci
      case(ixShaded)
-      scalarStomResistShaded     = scalarStomResist
-      scalarPhotosynthesisShaded = scalarPhotosynthesis
+      scalarStomResistShaded       = scalarStomResist
+      scalarPhotosynthesisShaded   = scalarPhotosynthesis
+      scalarIntercellularCO2Shaded = ci
      case default; err=20; message=trim(message)//'unable to identify case for sunlit/shaded leaves'; return
     end select
+
+    ! print progress
+    !write(*,'(a,1x,20(f12.5,1x))') 'leafTemp, par, psn, rs = ', scalarVegetationTemp, absorbedPAR, scalarPhotosynthesis, scalarStomResist
 
    end do  ! looping through sunlit and shaded leaves
 
@@ -249,7 +282,7 @@ contains
    ! synthetic test to explore basic parameter sensitivity
 
    ! set vcmax25 to 40
-   vcmax25 = 40._dp
+   vcmax25_canopyTop = 40._dp
 
    ! set air pressure to the standard atmosphere
    airpres = 101325._dp
@@ -323,6 +356,7 @@ contains
                           mvar_data,                           & ! intent(in): model variables for a local HRU
                           model_decisions,                     & ! intent(in): model decisions
                           ! output:
+                          ci,                                  & ! intent(out): co2 of the leaf interior (Pa)
                           scalarStomResist,                    & ! intent(out): stomatal resistance (s m-1)
                           scalarPhotosynthesis,                & ! intent(out): photosynthesis (umol CO2 m-2 s-1)
                           ! output: error control
@@ -416,6 +450,7 @@ contains
                             mvar_data,                           & ! intent(in): model variables for a local HRU
                             model_decisions,                     & ! intent(in): model decisions
                             ! output: stomatal resistance and photosynthesis
+                            ci,                                  & ! intent(out): co2 of the leaf interior (Pa)
                             scalarStomResist,                    & ! intent(out): stomatal resistance (s m-1)
                             scalarPhotosynthesis,                & ! intent(out): photosynthesis (umol CO2 m-2 s-1)
                             ! output: error control
@@ -442,6 +477,7 @@ contains
  type(var_dlength),intent(in)    :: mvar_data                  ! model variables for a local HRU
  type(model_options),intent(in)  :: model_decisions(:)         ! model decisions
  ! output: stomatal resistance and photosynthesis
+ real(dp),intent(inout)          :: ci                         ! intercellular co2 partial pressure (Pa)
  real(dp),intent(out)            :: scalarStomResist           ! stomatal resistance (s m-1)
  real(dp),intent(out)            :: scalarPhotosynthesis       ! photosynthesis (umol CO2 m-2 s-1)
  ! output: error control
@@ -458,7 +494,7 @@ contains
  real(dp)                        :: fHum                       ! humidity function, fraction [0,1] 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! fixed parameters
- integer(i4b),parameter          :: maxiter=10                 ! maximum number of iterations
+ integer(i4b),parameter          :: maxiter=20                 ! maximum number of iterations
  integer(i4b),parameter          :: maxiter_noahMP=3           ! maximum number of iterations for Noah-MP
  real(dp),parameter              :: convToler=0.0001_dp        ! convergence tolerance (Pa)
  real(dp),parameter              :: umol_per_mol=1.e+6_dp      ! factor to relate umol to mol
@@ -468,11 +504,13 @@ contains
  real(dp),parameter              :: Tref=298.16_dp             ! reference temperature (25 deg C)
  real(dp),parameter              :: Tscale=10._dp              ! scaling factor in q10 function (K)
  real(dp),parameter              :: c_ps2=0.7_dp               ! curvature factor for electron transport (-)
+ real(dp),parameter              :: fnf=0.6666666667_dp        ! foliage nitrogen factor (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! photosynthesis
  real(dp)                        :: Kc,Ko                      ! Michaelis-Menten constants for co2 and o2 (Pa)
- real(dp)                        :: vcmax                      ! maximum Rubisco carboxylation rate (umol m-2 s-1)
+ real(dp)                        :: vcmax25                    ! maximum Rubisco carboxylation rate at 25 deg C (umol m-2 s-1)
  real(dp)                        :: jmax25                     ! maximum electron transport rate at 25 deg C (umol m-2 s-1)
+ real(dp)                        :: vcmax                      ! maximum Rubisco carboxylation rate (umol m-2 s-1)
  real(dp)                        :: jmax                       ! maximum electron transport rate (umol m-2 s-1)
  real(dp)                        :: aQuad                      ! the quadratic coefficient in the quadratic equation 
  real(dp)                        :: bQuad                      ! the linear coefficient in the quadratic equation
@@ -493,16 +531,13 @@ contains
  real(dp)                        :: cs                         ! co2 partial pressure at leaf surface (Pa)
  real(dp)                        :: csx                        ! control of co2 partial pressure at leaf surface on stomatal conductance (Pa)
  real(dp)                        :: g0                         ! stomatal conductance in the absence of humidity controls (umol m-2 s-1)
- real(dp)                        :: ci,ci_old                  ! intercellular co2 partial pressure (Pa)
+ real(dp)                        :: ci_old                     ! intercellular co2 partial pressure (Pa)
  real(dp)                        :: rs                         ! stomatal resistance (umol-1 m2 s)
  real(dp)                        :: dg0_dc                     ! derivative in g0 w.r.t intercellular co2 concentration (umol m-2 s-1 Pa-1)
  real(dp)                        :: drs_dc                     ! derivative in stomatal resistance w.r.t. intercellular co2 concentration
  real(dp)                        :: dci_dc                     ! final derivative (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! iterative solution
- integer(i4b),parameter          :: ixSumma=1001               ! named variable for the Noah-MP solution (fixed point iteration, max 3 iterations)
- integer(i4b),parameter          :: ixNoahMP=1002              ! named variable for the Noah-MP solution (fixed point iteration, max 3 iterations)
- integer(i4b)                    :: ixSolution=ixSumma         ! define solution method
  real(dp)                        :: func1,func2                ! functions for numerical derivative calculation
  real(dp)                        :: cMin,cMax                  ! solution brackets
  real(dp)                        :: xInc                       ! iteration increment (Pa)
@@ -516,6 +551,9 @@ contains
  ix_bbHumdFunc                   => model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision,           & ! intent(in): [i4b] humidity controls on stomatal resistance 
  ix_bbElecFunc                   => model_decisions(iLookDECISIONS%bbElecFunc)%iDecision,           & ! intent(in): [i4b] dependence of photosynthesis on PAR
  ix_bbCO2point                   => model_decisions(iLookDECISIONS%bbCO2point)%iDecision,           & ! intent(in): [i4b] use of CO2 compensation point to calculate stomatal resistance
+ ix_bbNumerics                   => model_decisions(iLookDECISIONS%bbNumerics)%iDecision,           & ! intent(in): [i4b] iterative numerical solution method used in the Ball-Berry parameterization 
+ ix_bbAssimFnc                   => model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision,           & ! intent(in): [i4b] controls on carbon assimilation (min function, or colimitation)
+ ix_bbCanIntg8                   => model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision,           & ! intent(in): [i4b] scaling of photosynthesis from the leaf to the canopy 
 
  ! input: model parameters
  Kc25                            => mpar_data%var(iLookPARAM%Kc25),                                 & ! intent(in): [dp] Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
@@ -524,11 +562,12 @@ contains
  Ko_qFac                         => mpar_data%var(iLookPARAM%Ko_qFac),                              & ! intent(in): [dp] factor in the q10 function defining temperature controls on Ko (-)
  kc_Ha                           => mpar_data%var(iLookPARAM%kc_Ha),                                & ! intent(in): [dp] activation energy for the Michaelis-Menten constant for CO2 (J mol-1)
  ko_Ha                           => mpar_data%var(iLookPARAM%ko_Ha),                                & ! intent(in): [dp] activation energy for the Michaelis-Menten constant for O2 (J mol-1)
- vcmax25                         => mpar_data%var(iLookPARAM%vcmax25),                              & ! intent(in): [dp] potential carboxylation rate at 25 degrees C (umol co2 m-2 s-1)
+ vcmax25_canopyTop               => mpar_data%var(iLookPARAM%vcmax25_canopyTop),                    & ! intent(in): [dp] potential carboxylation rate at 25 degrees C at the canopy top (umol co2 m-2 s-1)
  vcmax_qFac                      => mpar_data%var(iLookPARAM%vcmax_qFac),                           & ! intent(in): [dp] factor in the q10 function defining temperature controls on vcmax (-)
  vcmax_Ha                        => mpar_data%var(iLookPARAM%vcmax_Ha),                             & ! intent(in): [dp] activation energy in the vcmax function (J mol-1)
  vcmax_Hd                        => mpar_data%var(iLookPARAM%vcmax_Hd),                             & ! intent(in): [dp] deactivation energy in the vcmax function (J mol-1)
  vcmax_Sv                        => mpar_data%var(iLookPARAM%vcmax_Sv),                             & ! intent(in): [dp] entropy term in the vcmax function (J mol-1 K-1)
+ vcmax_Kn                        => mpar_data%var(iLookPARAM%vcmax_Kn),                             & ! intent(in): [dp] foliage nitrogen decay coefficient (-) 
  jmax25_scale                    => mpar_data%var(iLookPARAM%jmax25_scale),                         & ! intent(in): [dp] scaling factor to relate jmax25 to vcmax25 (-)
  jmax_Ha                         => mpar_data%var(iLookPARAM%jmax_Ha),                              & ! intent(in): [dp] activation energy in the jmax function (J mol-1)
  jmax_Hd                         => mpar_data%var(iLookPARAM%jmax_Hd),                              & ! intent(in): [dp] deactivation energy in the jmax function (J mol-1)
@@ -546,6 +585,7 @@ contains
  scalarCO2air                    => mvar_data%var(iLookMVAR%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
 
  ! input: state and diagnostic variables
+ scalarExposedLAI                => mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),               & ! intent(in): [dp] exposed LAI (m2 m-2)
  scalarGrowingSeasonIndex        => mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1),       & ! intent(in): [dp] growing season index (0=off, 1=on)
  scalarFoliageNitrogenFactor     => mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
  scalarTranspireLim              => mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),             & ! intent(in): [dp] weighted average of the transpiration limiting factor (-)
@@ -570,17 +610,26 @@ contains
  if(absorbedPAR < tiny(absorbedPAR) .or. scalarGrowingSeasonIndex < tiny(absorbedPAR))then
   scalarStomResist     = unitConv*umol_per_mol/(scalarTranspireLim*minStomatalConductance)
   scalarPhotosynthesis = 0._dp
-  return
+  ci                   = 0._dp 
+ return
  endif
+
+ ! scale vcmax from the leaves to the canopy
+ ! exponential function of LAI is described in Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9]
+ select case(ix_bbCanIntg8)
+  case(constantScaling); vcmax25 = vcmax25_canopyTop*fnf
+  case(laiScaling);      vcmax25 = vcmax25_canopyTop*exp(-vcmax_Kn*scalarExposedLAI)
+  case default; err=20; message=trim(message)//'unable to identify option to scale lai from the leaves to the canopy'; return
+ end select
+
+ ! compute the maximum electron transport rate at 25 deg C (umol m-2 s-1)
+ jmax25 = jmax25_scale * vcmax25
 
  ! define the scaled minimum conductance
  gMin = scalarTranspireLim*minStomatalConductance
 
  ! compute the leaf conductance (umol m-2 s-1)
  rlb = scalarLeafResistance/(umol_per_mol*unitConv)  ! s m-1 --> umol-1 m2 s
-
- ! compute the maximum electron transport rate at 25 deg C (umol m-2 s-1)
- jmax25 = jmax25_scale * vcmax25
 
  ! *****
  ! * compute temperature controls on stomatal conductance...
@@ -592,12 +641,12 @@ contains
   ! q10 function used in CLM4 and Noah-MP
   case(q10Func)
    ! compute the Michaelis-Menten constants (Pa)
-   Kc = airpres*(Kc25/umol_per_mol)*q10(Kc_qFac,scalarVegetationTemp,Tref,Tscale)  ! umol mol-1 --> mol mol-1 --> Pa
-   Ko = airpres*Ko25*q10(Ko_qFac,scalarVegetationTemp,Tref,Tscale)  ! mol mol-1 --> Pa
+   Kc = ave_slp*(Kc25/umol_per_mol)*q10(Kc_qFac,scalarVegetationTemp,Tref,Tscale)  ! umol mol-1 --> mol mol-1 --> Pa
+   Ko = ave_slp*Ko25*q10(Ko_qFac,scalarVegetationTemp,Tref,Tscale)  ! mol mol-1 --> Pa
    ! compute maximum Rubisco carboxylation rate (umol co2 m-2 s-1)
    x0 = q10(vcmax_qFac,scalarVegetationTemp,Tref,Tscale)  ! temperature function
    x1 = fHigh(vcmax_Hd,vcmax_Sv,scalarVegetationTemp) ! high temperature inhibition function
-   vcmax = vcmax25*x0/x1
+   vcmax = scalarTranspireLim*vcmax25*x0/x1
 
   ! Arrhenius function used in CLM5 and Cable
   case(Arrhenius)
@@ -607,7 +656,7 @@ contains
    ! compute maximum Rubisco carboxylation rate (umol co2 m-2 s-1)
    x0 = fT(vcmax_Ha,scalarVegetationTemp,Tref)
    x1 = fhigh(vcmax_Hd,vcmax_Sv,Tref) / fhigh(vcmax_Hd,vcmax_Sv,scalarVegetationTemp)
-   vcmax = vcmax25*x0*x1
+   vcmax = scalarTranspireLim*vcmax25*x0*x1
    ! compute the maximum electron transport rate (umol electron m-2 s-1)
    x0 = fT(jmax_Ha,scalarVegetationTemp,Tref)
    x1 = fhigh(jmax_Hd,jmax_Sv,Tref) / fhigh(jmax_Hd,jmax_Sv,scalarVegetationTemp)
@@ -626,10 +675,12 @@ contains
  select case(ix_bbElecFunc)
 
   ! linear model, as used in CLM4 and Noah-MP
-  case(linear); Js = quantamYield*joule2umolConv*absorbedPAR
+  case(linear)
+   Js = quantamYield*joule2umolConv*absorbedPAR
+   !write(*,'(a,1x,10(f20.10,1x))') 'quantamYield, joule2umolConv, absorbedPAR = ', quantamYield, joule2umolConv, absorbedPAR
 
   ! linear function of qmax, as used in Cable [Wang et al., Ag Forest Met 1998, eq D5]
-  case(linearJmax);
+  case(linearJmax)
    x0 = quantamYield*joule2umolConv*absorbedPAR
    x1 = x0*jmax / (x0 + 2.1_dp*jmax)
    Js = x1/4._dp ! scaled electron transport
@@ -679,7 +730,14 @@ contains
  cp2 = co2compPt*2._dp
 
  ! define trial value of intercellular co2 (Pa)
- ci = 0.7_dp*scalarCO2air
+ ! NOTE: only initialize if less than the co2 compensation point; otherwise, initialize with previous value
+ if(ix_bbNumerics==newtonRaphson)then
+  if(ci < co2compPt) ci = 0.7_dp*scalarCO2air
+ else
+  ci = 0.7_dp*scalarCO2air  ! always initialize if not NR
+ endif
+ !write(*,'(a,1x,10(f20.10,1x))') 'Kc25, Kc_qFac, Ko25, Ko_qFac = ', Kc25, Kc_qFac, Ko25, Ko_qFac
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCO2air, ci, co2compPt, Kc, Ko = ', scalarCO2air, ci, co2compPt, Kc, Ko
 
  ! initialize brackets for the solution
  cMin = 0._dp
@@ -707,7 +765,7 @@ contains
   ! ***************************************************
 
   ! compute gross photosynthesis [follow Farquar (Planta, 1980), as implemented in CLM4 and Noah-MP]
-  call photosynthesis(.true., ci, co2compPt, awb, cp2, vcmax, Js, psn, dA_dc)
+  call photosynthesis(.true., ix_bbAssimFnc, ci, co2compPt, awb, cp2, vcmax, Js, psn, dA_dc)
 
   ! compute co2 concentration at leaf surface (Pa)
   x1 = h2o_co2__leafbl * airpres * rlb  ! Pa / (umol co2 m-2 s-1)
@@ -731,13 +789,23 @@ contains
   x2 = h2o_co2__stomPores * airpres  ! Pa
   ci = max(cs - x2*psn*rs, 0._dp)    ! Pa
 
+  ! print progress
+  !if(ix_bbNumerics==NoahMPsolution)then
+  ! write(*,'(a,1x,10(f20.10,1x))') 'psn, rs, ci, cs, scalarVegetationTemp, vcmax, Js = ', &
+  !                                  psn, rs, ci, cs, scalarVegetationTemp, vcmax, Js
+  !endif
+
   ! final derivative
-  dci_dc = -x1*dA_dc - x2*(psn*drs_dc + rs*dA_dc)
+  if(ci > tiny(ci))then
+   dci_dc = -x1*dA_dc - x2*(psn*drs_dc + rs*dA_dc)
+  else
+   dci_dc = 0._dp
+  endif
 
   ! test derivatives
   if(testDerivs)then
-   func1 = testFunc(ci_old,    cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point)
-   func2 = testFunc(ci_old+dx, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point)
+   func1 = testFunc(ci_old,    cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
+   func2 = testFunc(ci_old+dx, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
    write(*,'(a,1x,20(e20.10,1x))') '(func2 - func1)/dx, dci_dc = ', &
                                     (func2 - func1)/dx, dci_dc
   endif  ! if testing the derivatives
@@ -746,20 +814,20 @@ contains
   ! * iterative solution...
   ! ***********************
 
+  ! case for Noah-MP (use fixed point iteration)
+  if(ix_bbNumerics==NoahMPsolution)then
+   if(iter==maxiter_NoahMP) exit ! exit after a specified number of iterations (normally 3)
+   cycle  ! fixed-point iteration
+  endif
+
   ! CLM4 and Noah-MP use fixed point iteration, continuing the next iteration from this point
-  ! here we try and improve matters by calculating the derivatives
+  ! here we try and improve matters by using the derivatives
 
   ! update the brackets for the solution
   if(ci_old > ci)then
    cMax = ci_old
   else
    cMin = ci_old
-  endif
-
-  ! case for Noah-MP (use fixed point iteration)
-  if(ixSolution==ixNoahMP)then
-   if(iter==maxiter_NoahMP) exit ! exit after a specified number of iterations (normally 3)
-   cycle  ! fixed-point iteration
   endif
 
   ! compute iteration increment (Pa)
@@ -774,8 +842,8 @@ contains
   endif
 
   ! print progress
-  !write(*,'(a,1x,i4,1x,20(f12.7,1x))') 'iter, cMin, cMax, psn, ci_old, ci, scalarCO2air, rs, xInc = ', &
-  !                                      iter, cMin, cMax, psn, ci_old, ci, scalarCO2air, rs, xInc
+  !write(*,'(a,1x,i4,1x,20(f12.7,1x))') 'iter, psn, rs, ci, cs, cMin, cMax, co2compPt, scalarCO2air, xInc = ', &
+  !                                      iter, psn, rs, ci, cs, cMin, cMax, co2compPt, scalarCO2air, xInc
 
   ! check for convergence
   if(abs(xInc) < convToler) exit
@@ -788,7 +856,7 @@ contains
  !pause 'iterating'
 
  ! assign output variables
- scalarStomResist     = unitConv*umol_per_mol*rs  ! umol m-2 s-1 --> s/m
+ scalarStomResist     = unitConv*umol_per_mol*rs  ! umol-1 m2 s --> s/m
  scalarPhotosynthesis = psn
 
  end associate
@@ -799,29 +867,32 @@ contains
   ! ******************************************************
 
   ! internal function used to test derivatives
-  function testFunc(ci, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point)
+  function testFunc(ci, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
   real(dp),intent(in)     :: ci, cond2photo_slope, airpres, scalarCO2air
-  integer(i4b),intent(in) :: ix_bbHumdFunc, ix_bbCO2point
+  integer(i4b),intent(in) :: ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc
   real(dp)                :: testFunc
-  real(dp)                :: unUsed
+  real(dp),parameter      :: unUsedInput=0._dp
+  real(dp)                :: unUsedOutput
 
   ! compute gross photosynthesis [follow Farquar (Planta, 1980), as implemented in CLM4 and Noah-MP]
-  call photosynthesis(.false., ci, co2compPt, awb, cp2, vcmax, Js, psn, unUsed)
+  call photosynthesis(.false., ix_bbAssimFnc, ci, co2compPt, awb, cp2, vcmax, Js, psn, unUsedOutput)
 
   ! compute co2 concentration at leaf surface (Pa)
   x1 = h2o_co2__leafbl * airpres * rlb  ! Pa / (umol co2 m-2 s-1)
+  cs = max(scalarCO2air - (x1 * psn), mpe)   ! Pa (avoid divide by zero)
+
+  ! compute control of the compensation point on stomatal conductance
   if(ix_bbCO2point == origBWB)then
-   cs = max(scalarCO2air - (x1 * psn), mpe)   ! Pa (avoid divide by zero)
+   csx = cs
   else
-   cs = max(scalarCO2air - (x1 * psn), mpe) - co2compPt
+   csx = cs - co2compPt
   endif
 
   ! compute conductance in the absence of humidity
-  g0     = cond2photo_slope*airpres*psn/cs
-  dg0_dc = 0._dp 
+  g0 = cond2photo_slope*airpres*psn/csx
 
   ! use quadratic function to compute stomatal resistance
-  call quadResist(.false.,ix_bbHumdFunc,rlb,fHum,gMin,g0,dg0_dc,rs,unUsed)
+  call quadResist(.false.,ix_bbHumdFunc,rlb,fHum,gMin,g0,unUsedInput,rs,unUsedOutput)
 
   ! compute intercellular co2 partial pressues (Pa)
   x2 = h2o_co2__stomPores * airpres  ! Pa
@@ -834,10 +905,11 @@ contains
  ! *******************************************************************************************************
  ! private subroutine photosynthesis: compute gross photosynthesis
  ! *******************************************************************************************************
- subroutine photosynthesis(desireDeriv, ci, co2compPt, awb, cp2, vcmax, Js, psn, dA_dc)
+ subroutine photosynthesis(desireDeriv, ix_bbAssimFnc, ci, co2compPt, awb, cp2, vcmax, Js, psn, dA_dc)
  implicit none
  ! dummy variables
  logical(lgt),intent(in) :: desireDeriv   ! .true. if the derivative is desired
+ integer(i4b),intent(in) :: ix_bbAssimFnc ! model option for the function used for co2 assimilation (min func, or colimtation)
  real(dp),intent(in)     :: ci            ! intercellular co2 concentration (Pa)
  real(dp),intent(in)     :: co2compPt     ! co2 compensation point (Pa)
  real(dp),intent(in)     :: awb           ! Michaelis-Menten control (Pa)
@@ -847,7 +919,6 @@ contains
  real(dp),intent(out)    :: psn           ! leaf gross photosynthesis rate (umol co2 m-2 s-1)
  real(dp),intent(out)    :: dA_dc         ! derivative in photosynthesis w.r.t. intercellular co2 concentration (umol co2 m-2 s-1 Pa-1)
  ! local variables
- logical(lgt),parameter          :: colimitation=.true.         ! colimitation, as described by Collatz et al. 1991, Sellers et al., 1996, and Bonan et al., 2011
  integer(i4b),parameter          :: nFactors=3                  ! number of limiting factors for assimilation (light, Rubisco, and export)
  integer(i4b),parameter          :: ixRubi=1                    ! named variable for Rubisco-limited assimilation
  integer(i4b),parameter          :: ixLight=2                   ! named variable for light-limited assimilation
@@ -883,55 +954,67 @@ contains
  xFac(ixExport) = 0.5_dp
  xPSN(ixExport) = xFac(ixExport)*vcmax   ! umol co2 m-2 s-1
 
- !write(*,'(a,1x,10(f12.5,1x))') 'xPSN, vcmax, ciDiff, ci, awb = ', xPSN, vcmax, ciDiff, ci, awb 
+ ! print progress
+ !write(*,'(a,1x,10(f20.10,1x))') 'xPSN, vcmax, Js = ', xPSN, vcmax, Js
 
- ! if not colimitation (standard CLM4 and NoahMP) 
- if(.not.colimitation)then
+ ! select function used for carbon assimilation
+ select case(ix_bbAssimFnc)
 
-  ! identify limiting factor
-  ixLimitVec = minloc(xPSN)
-  ixLimit = ixLimitVec(1)
+  ! minimum function, as used in NoahMP (from CLM4)
+  case(minFunc)
 
-  ! define photosynthesis
-  x0  = xFac(ixLimit)
-  psn = xPSN(ixLimit)
+   ! identify limiting factor
+   ixLimitVec = minloc(xPSN)
+   ixLimit = ixLimitVec(1)
 
-  ! if derivatives are desired
-  if(desireDeriv)then
+   ! define photosynthesis
+   x0  = xFac(ixLimit)
+   psn = xPSN(ixLimit)
 
-   ! compute derivatives in assimilation (no colimitation)
-   select case(ixLimit)
-    case(ixRubi);   dA_dc = x0*ciDer - ciDiff*x0*x0/vcmax  ! Rubisco-limited assimilation
-    case(ixLight);  dA_dc = x0*ciDer - ciDiff*x0*x0/Js     ! light-limited assimilation
-    case(ixExport); dA_dc = 0._dp                          ! export-limited assimilation
-   endselect
+   ! if derivatives are desired
+   if(desireDeriv)then
 
-  ! derivatives are not desired
-  else
-   dA_dc = 0._dp
-  endif
+    ! compute derivatives in assimilation (no colimitation)
+    select case(ixLimit)
+     case(ixRubi);   dA_dc = x0*ciDer - ciDiff*x0*x0/vcmax  ! Rubisco-limited assimilation
+     case(ixLight);  dA_dc = x0*ciDer - ciDiff*x0*x0/Js     ! light-limited assimilation
+     case(ixExport); dA_dc = 0._dp                          ! export-limited assimilation
+    endselect
 
- ! * colimitation (Collatz et al., 1991; Sellers et al., 1996; Bonan et al., 2011)
- else
+   ! derivatives are not desired
+   else
+    dA_dc = 0._dp
+   endif
 
-  ! compute derivatives for individual terms
-  if(desireDeriv)then
-   dAc_dc = xFac(ixRubi)*ciDer - ciDiff*xFac(ixRubi)*xFac(ixRubi)/vcmax
-   dAj_dc = xFac(ixLight)*ciDer - ciDiff*xFac(ixLight)*xFac(ixLight)/Js
-   dAe_dc = 0._dp
-  else
-   dAc_dc = 0._dp
-   dAj_dc = 0._dp
-   dAe_dc = 0._dp
-  endif
+  ! colimitation (Collatz et al., 1991; Sellers et al., 1996; Bonan et al., 2011)
+  case(colimitation)
 
-  ! smooth Rubisco-limitation and light limitation
-  call quadSmooth(desireDeriv, xPSN(ixRubi), xPSN(ixLight), theta_cj, dAc_dc, dAj_dc, xsPSN, dAi_dc)
+   ! compute derivatives for individual terms
+   if(desireDeriv)then
+    dAc_dc = xFac(ixRubi)*ciDer - ciDiff*xFac(ixRubi)*xFac(ixRubi)/vcmax
+    dAj_dc = xFac(ixLight)*ciDer - ciDiff*xFac(ixLight)*xFac(ixLight)/Js
+    dAe_dc = 0._dp
+   else
+    dAc_dc = 0._dp
+    dAj_dc = 0._dp
+    dAe_dc = 0._dp
+   endif
+ 
+   ! smooth Rubisco-limitation and light limitation
+   if(ciDiff > tiny(ciDiff))then
+    call quadSmooth(desireDeriv, xPSN(ixRubi), xPSN(ixLight), theta_cj, dAc_dc, dAj_dc, xsPSN, dAi_dc)
+   else
+    xsPSN  = 0._dp
+    dAi_dc = 0._dp
+   endif
 
-  ! smooth intermediate-limitation and export limitation
-  call quadSmooth(desireDeriv, xsPSN, xPSN(ixExport), theta_ie, dAi_dc, dAe_dc, psn, dA_dc)
+   ! smooth intermediate-limitation and export limitation
+   call quadSmooth(desireDeriv, xsPSN, xPSN(ixExport), theta_ie, dAi_dc, dAe_dc, psn, dA_dc)
 
- endif  ! colimitation
+  ! check case is identified
+  case default; stop 'unknown option for carbon assimilation' ! abrupt stop: need to fix later
+
+ endselect  ! option for carbon assimilation
 
  end subroutine photosynthesis
 
@@ -958,7 +1041,10 @@ contains
  !     es = (ea*rs + ei*rb) / (rb + rs)
  ! more details are in Appendix C of Sellers et al. (J. Climate 1996) and Oleson et al. (NCAR Tech. Note, 2010)
 
- ! stomatal resistance is the larger of two roots in the quadratic equation defined in Oleson et al. (2010)
+ ! substituting the expression for es in the eqn for stomatal conductance provides the quadratic function,
+ ! as described by Oleson et al. (2010)
+
+ ! stomatal resistance is the larger of two roots in the quadratic equation
 
  ! -----------------------------------------------------------------------------------------------------------------
  subroutine quadResist(desireDeriv,ix_bbHumdFunc,rlb,fHum,gMin,g0,dg0_dc,rs,drs_dc)
@@ -1005,6 +1091,11 @@ contains
  root1 = qQuad / aQuad
  root2 = cQuad / qQuad
  rs = max(root1,root2)
+
+ ! check
+ !write(*,'(a,1x,10(f20.5,1x))') 'root1, root2, rs = ', root1, root2, rs
+ !write(*,'(a,1x,10(f20.5,1x))') 'g0, fHum, aquad, bquad, cquad, qquad = ', &
+ !                                g0, fHum, aquad, bquad, cquad, qquad
 
  ! compute derivatives
  if(desireDeriv)then
