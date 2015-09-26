@@ -83,7 +83,7 @@ USE data_struc,only:urbanVegCategory                        ! vegetation categor
 USE data_struc,only:globalPrintFlag                         ! global print flag
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
-USE NOAHMP_VEG_PARAMETERS,only:RSMIN                        ! minimum stomatal resistance (vegType)
+USE noahmp_globals,only:RSMIN                               ! minimum stomatal resistance (vegType)
 ! named variables for elements of model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
@@ -233,8 +233,11 @@ call read_mp_veg_parameters(trim(SETNGS_PATH)//'MPTABLE.TBL',                   
                             trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision)) ! classification system used for vegetation
 ! define urban vegetation category
 select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
- case('USGS');                     urbanVegCategory=1
- case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory=13
+ case('USGS');                     urbanVegCategory =    1
+ case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory =   13
+ case('plumberCABLE');             urbanVegCategory = -999
+ case('plumberCHTESSEL');          urbanVegCategory = -999
+ case('plumberSUMMA');             urbanVegCategory = -999
  case default; call handle_err(30,'unable to identify vegetation category')
 end select
 

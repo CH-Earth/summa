@@ -324,6 +324,27 @@ CONTAINS
          LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
          SAIM,  LAIM,  SLAREA, EPS
 
+    ! MPC change: enable use of alternative veg tables
+    !  - in this case, tables using attributes from other models used in the PLUMBER experiment
+
+    NAMELIST / noah_mp_plumberCABLE_veg_categories / VEG_DATASET_DESCRIPTION, NVEG
+    NAMELIST / noah_mp_plumberCABLE_parameters / ISURBAN, ISWATER, ISBARREN, ISSNOW, EBLFOREST, &
+         CH2OP, DLEAF, Z0MVT, HVT, HVB, DEN, RC, RHOL,  RHOS, TAUL, TAUS, XL, CWPVT, C3PSN, KC25, AKC, KO25, AKO, AVCMX, AQE, &
+         LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
+         SAIM,  LAIM,  SLAREA, EPS
+
+    NAMELIST / noah_mp_plumberCHTESSEL_veg_categories / VEG_DATASET_DESCRIPTION, NVEG
+    NAMELIST / noah_mp_plumberCHTESSEL_parameters / ISURBAN, ISWATER, ISBARREN, ISSNOW, EBLFOREST, &
+         CH2OP, DLEAF, Z0MVT, HVT, HVB, DEN, RC, RHOL,  RHOS, TAUL, TAUS, XL, CWPVT, C3PSN, KC25, AKC, KO25, AKO, AVCMX, AQE, &
+         LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
+         SAIM,  LAIM,  SLAREA, EPS
+
+    NAMELIST / noah_mp_plumberSUMMA_veg_categories / VEG_DATASET_DESCRIPTION, NVEG
+    NAMELIST / noah_mp_plumberSUMMA_parameters / ISURBAN, ISWATER, ISBARREN, ISSNOW, EBLFOREST, &
+         CH2OP, DLEAF, Z0MVT, HVT, HVB, DEN, RC, RHOL,  RHOS, TAUL, TAUS, XL, CWPVT, C3PSN, KC25, AKC, KO25, AKO, AVCMX, AQE, &
+         LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
+         SAIM,  LAIM,  SLAREA, EPS
+
     ! Initialize our variables to bad values, so that if the namelist read fails, we come to a screeching halt as soon as we try to use anything.
     CH2OP  = -1.E36
     DLEAF  = -1.E36
@@ -384,6 +405,15 @@ CONTAINS
     else if ( trim(DATASET_IDENTIFIER) == "MODIFIED_IGBP_MODIS_NOAH" ) then
        read(15,noah_mp_modis_veg_categories)
        read(15,noah_mp_modis_parameters)
+    else if ( trim(DATASET_IDENTIFIER) == "plumberCABLE" ) then
+       read(15,noah_mp_plumberCABLE_veg_categories)
+       read(15,noah_mp_plumberCABLE_parameters)
+    else if ( trim(DATASET_IDENTIFIER) == "plumberCHTESSEL" ) then
+       read(15,noah_mp_plumberCHTESSEL_veg_categories)
+       read(15,noah_mp_plumberCHTESSEL_parameters)
+    else if ( trim(DATASET_IDENTIFIER) == "plumberSUMMA" ) then
+       read(15,noah_mp_plumberSUMMA_veg_categories)
+       read(15,noah_mp_plumberSUMMA_parameters)
     else
        write(*,'("Unrecognized DATASET_IDENTIFIER in subroutine READ_MP_VEG_PARAMETERS")')
        write(*,'("DATASET_IDENTIFIER = ''", A, "''")') trim(DATASET_IDENTIFIER)
