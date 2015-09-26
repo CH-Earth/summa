@@ -6,7 +6,7 @@
 expName=_testRevisedSumma
 
 # define the experiment ID
-expID=exp.02.020
+expID=exp.02.032
 
 # run summa for each site
 # define the SUMMA directory

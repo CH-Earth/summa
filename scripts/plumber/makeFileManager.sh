@@ -19,7 +19,7 @@ cPatternExp='XX_expName_XX'
 cPatternSite='XX_siteName_XX'
 
 # loop through experiments
-for ix in $( seq -f "%03g" 0 20 ); do
+for ix in $( seq -f "%03g" 0 40 ); do
 
  # define experiment name
  expName=exp.02.${ix}

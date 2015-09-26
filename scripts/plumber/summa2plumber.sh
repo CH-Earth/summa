@@ -18,7 +18,7 @@ ixExtract=$ixSort
 expName=testRevisedSumma
 
 # define the experiment ID
-expID=exp.02.016
+expID=exp.02.026
 
 # define the path for the input data
 inputPath=/d1/mclark/PLUMBER_data/site_data/met/
