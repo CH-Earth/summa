@@ -36,7 +36,6 @@ model_names = ['CABLE.2.0',                  $
                'Noah.3.2',                   $
                'NOAH.3.3',                   $
                ;'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0.exp.02.000',       $
                'SUMMA.1.0.exp.02.001',       $
                'SUMMA.1.0.exp.02.002',       $
                'SUMMA.1.0.exp.02.003',       $
@@ -48,7 +47,16 @@ model_names = ['CABLE.2.0',                  $
                'SUMMA.1.0.exp.02.009',       $
                'SUMMA.1.0.exp.02.010',       $
                'SUMMA.1.0.exp.02.011',       $
-               'SUMMA.1.0.exp.02.012'       ]
+               'SUMMA.1.0.exp.02.012',       $
+               'SUMMA.1.0.exp.02.013',       $
+               'SUMMA.1.0.exp.02.014',       $
+               'SUMMA.1.0.exp.02.015',       $
+               'SUMMA.1.0.exp.02.016',       $
+               'SUMMA.1.0.exp.02.017',       $
+               'SUMMA.1.0.exp.02.018',       $
+               'SUMMA.1.0.exp.02.019',       $
+               'SUMMA.1.0.exp.02.020',       $
+               'SUMMA.1.0.exp.02.000'       ]
 
 ; define the benchmark names
 sb_names = ['1lin','2lin','3km27']  ; statistical benchmarks

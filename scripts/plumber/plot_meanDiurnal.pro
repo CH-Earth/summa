@@ -50,6 +50,8 @@ model_names = ['CABLE.2.0',                  $
                'SUMMA.1.0.exp.02.012',       $
                'SUMMA.1.0.exp.02.013',       $
                'SUMMA.1.0.exp.02.014',       $
+               'SUMMA.1.0.exp.02.015',       $
+               'SUMMA.1.0.exp.02.016',       $
                'SUMMA.1.0.exp.02.000'         ]
 
 ; define the site names

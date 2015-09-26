@@ -39,8 +39,8 @@ site_names = ['Amplero',     $
 nSites  = n_elements(site_names)
 
 ; define models
-models = ['SUMMA.1.0.exp.02.011', $
-          'SUMMA.1.0.exp.02.014' ]
+models = ['SUMMA.1.0.exp.02.017', $
+          'SUMMA.1.0.exp.02.019' ]
 
 ; loop through sites
 for iSite=0,nSites-1 do begin
