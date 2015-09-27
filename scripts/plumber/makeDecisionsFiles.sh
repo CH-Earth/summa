@@ -4,7 +4,7 @@
 # (based on the localAttributes files)
 
 # define experiment
-exp=exp.02.032
+exp=exp.02.026
 
 # define the decisions template
 template=summa_zDecisions_${exp}_template.txt
