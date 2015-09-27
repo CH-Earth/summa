@@ -24,7 +24,7 @@ bbCanIntg8                      laiScaling        ! (13) Ball-Berry: scaling of 
 num_method                      itertive          ! (14) choice of numerical method
 fDerivMeth                      analytic          ! (15) method used to calculate flux derivatives
 LAI_method                      monTable          ! (16) method used to determine LAI and SAI
-cIntercept                      sparseCanopy      ! (17) choice of parameterization for canopy interception
+cIntercept                      storageFunc       ! (17) choice of parameterization for canopy interception
 f_Richards                      mixdform          ! (18) form of Richard's equation
 groundwatr                      bigBuckt          ! (19) choice of groundwater parameterization
 hc_profile                      constant          ! (20) choice of hydraulic conductivity profile
