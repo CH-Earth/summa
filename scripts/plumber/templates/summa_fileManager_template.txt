@@ -15,7 +15,7 @@ SUMMA_FILE_MANAGER_V1.0
 'meta/summa_zLocalModelIndexMeta.txt'                                         ! META_INDEX       = metadata for model indices
 'meta/summa_zBasinParamMeta.txt'                                              ! META_BASINPARAM  = metadata for basin-average model parameters
 'meta/summa_zBasinModelVarMeta.txt'                                           ! META_BASINMVAR   = metadata for basin-average model variables
-'attributes/summa_zLocalAttributes_XX_siteName_XX.txt'                        ! LOCAL_ATTRIBUTES = local attributes
+'attributes_siteSpecific/summa_zLocalAttributes_XX_siteName_XX.txt'           ! LOCAL_ATTRIBUTES = local attributes
 'localParamInfo/summa_zLocalParamInfo_XX_expName_XX.txt'                          ! LOCALPARAM_INFO  = default values and constraints for local model parameters
 'summa_zBasinParamInfo.txt'                                                   ! BASINPARAM_INFO  = default values and constraints for basin-average model parameters
 'forcingList/summa_zForcingFileList_XX_siteName_XX.txt'                       ! FORCING_FILELIST = list of files used in each HRU
