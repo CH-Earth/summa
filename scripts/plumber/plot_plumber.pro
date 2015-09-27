@@ -23,7 +23,7 @@ site_path =  plumber_path + 'site_data/flux/'
 benchmark_path = plumber_path + 'benchmark_data/'
 
 ; define experiment
-expName='exp.02.008'
+expName='exp.02.030'
 
 ; define the model names
 model_names = ['CABLE.2.0',                  $

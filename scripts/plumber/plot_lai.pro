@@ -68,8 +68,10 @@ site_pfts = ['Grassland',          $        ; 'Amplero',
 
 ; define the model names
 model_names = ['CABLE.2.0',                  $
+               'SUMMA.1.0.exp.02.030',       $
                ;'CABLE_2.0_SLI.vxh599_r553',  $
                'CHTESSEL',                   $
+               'SUMMA.1.0.exp.02.031',       $
                ;'COLASSiB.2.0',               $
                ;'ISBA_SURFEX_3l.SURFEX7.3',   $
                ;'ISBA_SURFEX_dif.SURFEX7.3',  $
@@ -80,10 +82,12 @@ model_names = ['CABLE.2.0',                  $
                ;'Noah.3.2',                   $
                ;'NOAH.3.3',                   $
                ;'ORCHIDEE.trunk_r1401',       $
+               'SUMMA.1.0.exp.02.032',       $
                'SUMMA.1.0.exp.02.000']
 
 ; define colors
-iColor=[80,140,210,250]
+iColor=[40,80,120,160,210,250]
+;iColor=[40,120,210]
 
 ; define the number of models and sites
 nModels = n_elements(model_names)
@@ -104,20 +108,20 @@ for iSite=0,nSites-1 do begin
    ymargin=[4,4], xtickname=xtick_labels, /nodata
 
  ; get the filename for the Noah LAI
- lai_file = '/home/mclark/summa/settings/plumber/LAI_tables/time_parms_' + strtrim(iSite+1,2) + '.txt'
+ ;lai_file = '/home/mclark/summa/settings/plumber/LAI_tables/time_parms_' + strtrim(iSite+1,2) + '.txt'
 
  ; define vectors for LAI and SAI
- xLAI = fltarr(12)
- xSAI = fltarr(12)
+ ;xLAI = fltarr(12)
+ ;xSAI = fltarr(12)
 
  ; read the LAI for the Noah simulations
- openr, lai_unit, lai_file, /get_lun
-  readf, lai_unit, xLAI
-  readf, lai_unit, xSAI
- free_lun, lai_unit
+ ;openr, lai_unit, lai_file, /get_lun
+ ; readf, lai_unit, xLAI
+ ; readf, lai_unit, xSAI
+ ;free_lun, lai_unit
  
  ; plot it up
- oplot, indgen(12)+1, xLAI+xSAI, color=40, thick=3
+ ;oplot, indgen(12)+1, xLAI+xSAI, color=40, thick=3
 
  ; loop through the desired PLUMBER models
  for iModel=0,nModels-1 do begin
@@ -182,11 +186,12 @@ for iSite=0,nSites-1 do begin
 
  endfor  ; looping through models
 
+ stop
 
 endfor  ; looping through sites
 
 ; write figure
-write_png, 'figures/plumber_'+cVarName+'.png', tvrd(true=1)
+write_png, 'figures/plumber_'+cVarName+'-test.png', tvrd(true=1)
 
 stop
 end

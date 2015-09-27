@@ -56,6 +56,11 @@ model_names = ['CABLE.2.0',                  $
                'SUMMA.1.0.exp.02.018',       $
                'SUMMA.1.0.exp.02.019',       $
                'SUMMA.1.0.exp.02.020',       $
+               'SUMMA.1.0.exp.02.021',       $
+               'SUMMA.1.0.exp.02.022',       $
+               'SUMMA.1.0.exp.02.030',       $
+               'SUMMA.1.0.exp.02.031',       $
+               'SUMMA.1.0.exp.02.032',       $
                'SUMMA.1.0.exp.02.000'       ]
 
 ; define the benchmark names
