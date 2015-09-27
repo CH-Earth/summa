@@ -135,16 +135,19 @@ for iSite=0,nSites-1 do begin
  inputData_filename = inputData_path + 'inputData_' + site_names[iSite] + '.txt'
 
  ; define filename for the attributes
- attr_filename = settings_path + 'attributes/summa_zLocalAttributes_' + site_names[iSite] + '.txt'
+ attr_filename1 = settings_path + 'attributes/summa_zLocalAttributes_' + site_names[iSite] + '.txt'
+ attr_filename2 = settings_path + 'attributes_siteSpecific/summa_zLocalAttributes_' + site_names[iSite] + '.txt'
 
  ; open up the input data file
  openw, outunit_data, inputData_filename, /get_lun
 
- ; open up the attributes file
- openw, outunit_att, attr_filename, /get_lun
+ ; open up the attributes files
+ openw, outunit_att1, attr_filename1, /get_lun
+ openw, outunit_att2, attr_filename2, /get_lun
 
  ; write the header for the local attributes file
- printf, outunit_att, cHead_attr
+ printf, outunit_att1, cHead_attr
+ printf, outunit_att2, cHead_attr
 
  ; define filename
  site_filename = site_path + site_names[iSite] + 'Fluxnet.1.4_met.nc'
@@ -180,9 +183,13 @@ for iSite=0,nSites-1 do begin
    xAttributes[iAtt] = reform(xAtt)
   endfor  ; attributes
 
-  ; print the attributes
-  printf, outunit_att, ixHRU, HRUarea, xAttributes[0:2], tan_slope, contourLength, xAttributes[3], $
+  ; print the attributes using the USGS tables
+  printf, outunit_att1, ixHRU, HRUarea, xAttributes[0:2], tan_slope, contourLength, xAttributes[3], $
            site_pfts[iSite], soilTypeIndex, slopeTypeIndex, downHRUindex, format='(i8,1x,4(f10.3,1x),f10.5,1x,f14.5,1x,f8.2,1x,4(i14,1x))'
+
+  ; print the attributes using the site-specific tables
+  printf, outunit_att2, ixHRU, HRUarea, xAttributes[0:2], tan_slope, contourLength, xAttributes[3], $
+           iSite+1, soilTypeIndex, slopeTypeIndex, downHRUindex, format='(i8,1x,4(f10.3,1x),f10.5,1x,f14.5,1x,f8.2,1x,4(i14,1x))'
 
   ; loop through time
   for itime=0,ntime-1 do begin
@@ -207,7 +214,8 @@ for iSite=0,nSites-1 do begin
  ncdf_close, nc_file
 
  ; free up logical units for the output files
- free_lun, outunit_att
+ free_lun, outunit_att1
+ free_lun, outunit_att2
  free_lun, outunit_data
 
 endfor  ; looping through the sites
