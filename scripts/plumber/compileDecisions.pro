@@ -3,7 +3,7 @@ pro compileDecisions
 ; used to compile a table of decisions from all of the PLUMBER experiments
 
 ; define the file path
-file_path = '/Volumes/d1/mclark/PLUMBER_data/model_output/'
+file_path = '/d1/mclark/PLUMBER_data/model_output/'
 
 ; define the file prefix
 file_pref = 'SUMMA.1.0.exp.02.'

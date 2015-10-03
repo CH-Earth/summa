@@ -12,7 +12,7 @@ erase, color=255
 !P.MULTI=1
 
 ; define the path to the plumber data
-plumber_path = '/Volumes/d1/mclark/PLUMBER_data/'
+plumber_path = '/d1/mclark/PLUMBER_data/'
 
 ; define the path to the model output
 model_path = plumber_path + 'model_output/'
@@ -122,7 +122,7 @@ for iModel=0,nModels-1 do model_labels[iModel] = model_names[iModel] + '(' + str
 for iSite=0,nSites-1 do begin
 
  ; skip computations (done already)
- goto, got_stats
+ ;goto, got_stats
 
  ; *****
  ; * READ IN THE SITE OBS...

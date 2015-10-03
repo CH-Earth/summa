@@ -17,7 +17,7 @@ dummy = label_date(date_format=['%D-%M!C%Y'])
 iHRU=0
 
 ; define variable
-cVarNames=['LAI','lai','LAI']
+cVarNames=['LAI','LAI','LAI']
 
 ; define variable range
 vmin=0
@@ -97,7 +97,7 @@ nModels = n_elements(model_names)
 nSites  = n_elements(site_names)
 
 ; define file paths
-file_path = '/Volumes/d1/mclark/PLUMBER_data/model_output/'
+file_path = '/d1/mclark/PLUMBER_data/model_output/'
 
 ; set counter for the site
 iSite=0

@@ -39,8 +39,8 @@ site_names = ['Amplero',     $
 nSites  = n_elements(site_names)
 
 ; define models
-models = ['SUMMA.1.0.exp.02.017', $
-          'SUMMA.1.0.exp.02.032' ]
+models = ['002', $
+          '003' ]
 
 ; loop through sites
 for iSite=0,nSites-1 do begin
@@ -55,8 +55,11 @@ for iSite=0,nSites-1 do begin
  ; read in data
  for ifile=0,1 do begin
 
+  ; define model
+  cModel = 'SUMMA.1.0.exp.02.' + models[ifile]
+
   ; define file
-  filename = fPath + models[ifile] + '/' + models[ifile] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
+  filename = fPath + cModel + '/' + cModel + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
 
   ; open file
   nc_file = ncdf_open(filename, /nowrite)
@@ -182,6 +185,9 @@ for iSite=0,nSites-1 do begin
  ;plots, [0,0], [0,35], color=80
 
 
+ ; write a .png
+ write_png, 'figures/stomatalConductance/scatter_' + models[0] + '_' + models[1] + '_' + site_names[iSite] +'.png', tvrd(true=1)
+
 
  ; get dates
  caldat, djulian, im, id, iy, ih, imi, asec
@@ -242,8 +248,22 @@ for iSite=0,nSites-1 do begin
   oplot, xtime, diurnal_orig,  color=250, thick=3
   oplot, xtime, diurnal_new,  color=80, thick=2, linestyle=4
 
+  ; make a legend
+  if(imonth eq 1)then begin
+   ytop = 0.9*ymax
+   for ifile=0,1 do begin
+    ypos = ytop - float(ifile)*ymax*0.1
+    if(ifile eq 0)then plots, [1,5], [ypos,ypos], color=250, thick=3
+    if(ifile eq 1)then plots, [1,5], [ypos,ypos], color=80, thick=2, linestyle=4
+    xyouts, 6, ypos-ymax*0.025, models[ifile]
+   endfor
+  endif
+
  endfor
- stop
+
+ ; write a .png
+ write_png, 'figures/stomatalConductance/diurnal_' + models[0] + '_' + models[1] + '_' + site_names[iSite] +'.png', tvrd(true=1)
+
 endfor  
 
 stop

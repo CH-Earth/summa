@@ -12,7 +12,7 @@ erase, color=255
 !P.MULTI=1
 
 ; define the path to the plumber data
-plumber_path = '/Volumes/d1/mclark/PLUMBER_data/'
+plumber_path = '/d1/mclark/PLUMBER_data/'
 
 ; define the path to the model output
 model_path = plumber_path + 'model_output/'
@@ -407,6 +407,9 @@ for jplot=0,1 do begin
 
 endfor ; looping through plot types
 
+; write figure
+write_png, 'figures/plumberEvapFraction.png', tvrd(true=1)
+
 ; *****
 ; * MAKE BUDYKO BENCHMARK...
 ; **************************
@@ -422,24 +425,6 @@ rmsePenman[nReal-1] = sqrt(mean((budykoPred[*] - eOverP_save[nReal-1,*])^2.d))
 for iReal=0,nReal-2 do begin
  rmsePenman[iReal] = sqrt(mean((eOverP_save[iReal,*] - eOverP_save[nReal-1,*])^2.d))
 endfor
-
-; re-sample
-nTrial=1000
-rmseResample = dblarr(nReal,nTrial)
-for iTrial=0,nTrial-1 do begin
- ; get a random selection of sites
- jxSites = floor(randomu(seed,nSites) * float(nSites))
- ; compute the rmse using the random selection of sites
- for iReal=0,nReal-2 do begin
-  rmseResample[iReal,iTrial] = sqrt(mean((eOverP_save[iReal,jxSites] - eOverP_save[nReal-1,jxSites])^2.d))
- endfor
- rmseResample[nReal-1,iTrial] = sqrt(mean((budykoPred[jxSites] - eOverP_save[nReal-1,jxSites])^2.d))
- ; get the resampled cdf
- ;yy = (dindgen(nReal-nPhys)+1.d)/double(nReal-nPhys)
- ;xx = [rmseResample[0:nModels-1],rmseResample[nModels+nPhys:nModels+nPhys+nStat-1],rmseResample[nReal-1]]
- ;ix = sort(xx)
- ;cdfResample[ix,iTrial] = yy
-endfor  ; looping through trials
 
 ; get a delimiter
 delim = replicate('-----', nReal)
@@ -457,8 +442,27 @@ print, '----------', delim, format='(a10,1x,25(a5,1x))'
 print, 'rmsePenman', rmsePenman, format='(a10,1x,25(f5.3,1x))'
 
 ; make a base plot
-plot, rmsePenman, xrange=[0,0.6], yrange=[0,1.05], xtitle='RMSE Evaporative fraction', ytitle='Cumulative probability', $
+plot, rmsePenman, xrange=[0,1], yrange=[0,1.1], xtitle='RMSE Evaporative fraction', ytitle='Cumulative probability', $
  xstyle=1, ystyle=1, /nodata
+
+; re-sample
+nTrial=1000
+rmseTrial    = dblarr(nReal)
+rmseResample = dblarr(nReal-nPhys,nTrial)
+for iTrial=0,nTrial-1 do begin
+ ; get a random selection of sites
+ jxSites = floor(randomu(seed,nSites) * float(nSites))
+ ; compute the rmse using the random selection of sites
+ for iReal=0,nReal-2 do begin
+  rmseTrial[iReal] = sqrt(mean((eOverP_save[iReal,jxSites] - eOverP_save[nReal-1,jxSites])^2.d))
+ endfor
+ rmseTrial[nReal-1] = sqrt(mean((budykoPred[jxSites] - eOverP_save[nReal-1,jxSites])^2.d))
+ ; save the trial in the big vector
+ xx = [rmseTrial[0:nModels-1],rmseTrial[nModels+nPhys:nModels+nPhys+nStat-1],rmseTrial[nReal-1]]
+ rmseResample[*,iTrial] = xx[*]
+ ;print, 'rmseTrial', rmseTrial, format='(a10,1x,25(f5.3,1x))'
+ ;print, 'xx'       , xx, format='(a10,1x,25(f5.3,1x))'
+endfor  ; looping through trials
 
 ; define the legend text
 legendText = [model_legend,benchmark_legend[nPhys:nPhys+nStat-1],'Budyko']
@@ -469,9 +473,6 @@ xx = [rmsePenman[0:nModels-1],rmsePenman[nModels+nPhys:nModels+nPhys+nStat-1],rm
 ix = sort(xx)
 xx = xx[ix]
 yy = (dindgen(nReal-nPhys)+1.d)/double(nReal-nPhys)
-
-; plot the cumulative probability
-oplot, xx, yy, color = 80
 
 jReal=0
 ; plot additinal information
@@ -485,14 +486,27 @@ for iReal=0,nReal-1 do begin
   cdf = reform(rmseResample[ix[jReal],*])
   cdf = cdf[sort(cdf)]
   p05 = cdf[floor(0.05d*double(nTrial))]
+  p25 = cdf[floor(0.25d*double(nTrial))]
+  p50 = cdf[floor(0.50d*double(nTrial))]
+  p75 = cdf[floor(0.75d*double(nTrial))]
   p95 = cdf[floor(0.95d*double(nTrial))]
-  plots, [p05,p95], [yy[jReal], yy[jReal]]
+  ybox = 0.02
+  plots, [p05,p25], [yy[jReal], yy[jReal]], thick=2, color=jxColor
+  plots, [p25,p25], [yy[jReal]-ybox, yy[jReal]+ybox], thick=2, color=jxColor
+  plots, [p50,p50], [yy[jReal]-ybox, yy[jReal]+ybox], thick=2, color=jxColor
+  plots, [p75,p75], [yy[jReal]-ybox, yy[jReal]+ybox], thick=2, color=jxColor
+  plots, [p25,p75], [yy[jReal]+ybox, yy[jReal]+ybox], thick=2, color=jxColor
+  plots, [p25,p75], [yy[jReal]-ybox, yy[jReal]-ybox], thick=2, color=jxColor
+  plots, [p75,p95], [yy[jReal], yy[jReal]], thick=2, color=jxColor
   ; plot legend
-  xyouts, xx[jReal]-0.01, yy[jReal]-0.005, legendText[ix[jReal]], alignment=1, color=jxColor
+  xyouts, p95 + 0.01, yy[jReal]-0.005, legendText[ix[jReal]], color=jxColor
   print, legendText[ix[jReal]], xx[jReal], yy[jReal], jxType[ix[jReal]]
   jReal = jReal+1
  endif
 endfor
+
+; write figure
+write_png, 'figures/plumberBudykoBenchmark.png', tvrd(true=1)
 
 stop
 end

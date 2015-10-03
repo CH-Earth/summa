@@ -11,7 +11,7 @@ erase, color=255
 !P.MULTI=[0,2,2,0,0]
 
 ; define the path to the plumber data
-plumber_path = '/Volumes/d1/mclark/PLUMBER_data/'
+plumber_path = '/d1/mclark/PLUMBER_data/'
 
 ; define the path to the model output
 model_path = plumber_path + 'model_output/'
