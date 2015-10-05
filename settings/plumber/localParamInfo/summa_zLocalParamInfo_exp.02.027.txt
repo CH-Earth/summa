@@ -126,7 +126,7 @@ summerLAI                 |       3.0000 |       0.0100 |      10.0000
 rootScaleFactor1          |       2.0000 |       1.0000 |      10.0000
 rootScaleFactor2          |       5.0000 |       1.0000 |      10.0000
 rootingDepth              |       2.0000 |       0.0100 |      10.0000
-rootDistExp               |       0.2500 |       0.0100 |       1.0000
+rootDistExp               |       1.0000 |       0.0100 |       1.0000
 plantWiltPsi              |    -150.0000 |    -500.0000 |       0.0000 
 soilStressParam           |       5.8000 |       4.3600 |       6.3700
 critSoilWilting           |       0.0750 |       0.0000 |       1.0000

@@ -1,0 +1,34 @@
+ix        vegeParTbl        soilStress        stomResist        bbTempFunc        bbHumdFunc        bbElecFunc        bbAssimFnc        bbCanIntg8        rootProfil
+-- ----------------- ----------------- ----------------- ----------------- ----------------- ----------------- ----------------- ----------------- -----------------
+ 0              USGS          NoahType         BallBerry           q10Func  humidLeafSurface            linear           minFunc   constantScaling         doubleExp
+ 1              USGS          NoahType     BallBerryFlex           q10Func  humidLeafSurface            linear           minFunc   constantScaling         doubleExp
+ 2              USGS          NoahType     BallBerryFlex           q10Func  humidLeafSurface            linear           minFunc   constantScaling         doubleExp
+ 3              USGS          NoahType     BallBerryFlex           q10Func  scaledHyperbolic            linear           minFunc   constantScaling         doubleExp
+ 4              USGS          NoahType     BallBerryFlex         Arrhenius  humidLeafSurface            linear           minFunc   constantScaling         doubleExp
+ 5              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic            linear           minFunc   constantScaling         doubleExp
+ 6              USGS          NoahType     BallBerryFlex         Arrhenius  humidLeafSurface            linear      colimitation   constantScaling         doubleExp
+ 7              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic            linear      colimitation   constantScaling         doubleExp
+ 8              USGS          NoahType     BallBerryFlex         Arrhenius  humidLeafSurface     quadraticJmax      colimitation   constantScaling         doubleExp
+ 9              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation   constantScaling         doubleExp
+10              USGS          NoahType     BallBerryFlex         Arrhenius  humidLeafSurface     quadraticJmax      colimitation        laiScaling         doubleExp
+11              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+12              USGS          NoahType            Jarvis         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+13              USGS          NoahType     BallBerryFlex         Arrhenius  humidLeafSurface     quadraticJmax      colimitation        laiScaling          powerLaw
+14              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling          powerLaw
+15              USGS          NoahType     BallBerryFlex         Arrhenius  humidLeafSurface     quadraticJmax      colimitation        laiScaling          powerLaw
+16              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling          powerLaw
+17              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+18              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation   constantScaling         doubleExp
+19              USGS          SiB_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+21              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+22              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+24              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+25              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+26              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+27              USGS          NoahType            Jarvis         Arrhenius  humidLeafSurface     quadraticJmax      colimitation        laiScaling          powerLaw
+28              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+29              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+30      plumberCABLE          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+31   plumberCHTESSEL          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+32      plumberSUMMA          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+33              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling          powerLaw

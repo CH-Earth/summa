@@ -12,7 +12,7 @@ simulFinsh              'XX_endYear_XX-01-01 00:00'      ! (02) simulation end t
 ! ***********************************************************************************************************************
 soilCatTbl                      ROSETTA           ! (03) soil-category dateset
 vegeParTbl                      USGS              ! (04) vegetation category dataset
-soilStress                      CLM_Type          ! (05) choice of function for the soil moisture control on stomatal resistance
+soilStress                      NoahType          ! (05) choice of function for the soil moisture control on stomatal resistance
 stomResist                      BallBerryFlex     ! (06) choice of function for stomatal resistance
 bbTempFunc                      Arrhenius         ! (07) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
 bbHumdFunc                      scaledHyperbolic  ! (08) Ball-Berry: humidity controls on stomatal resistance 
@@ -33,7 +33,7 @@ bcLowrTdyn                      presTemp          ! (22) type of lower boundary 
 bcUpprSoiH                      liq_flux          ! (23) type of upper boundary condition for soil hydrology
 bcLowrSoiH                      drainage          ! (24) type of lower boundary condition for soil hydrology
 veg_traits                      CM_QJRMS1998      ! (25) choice of parameterization for vegetation roughness length and displacement height
-rootProfil                      doubleExp         ! (26) choice of parameterization for the rooting profile
+rootProfil                      powerLaw          ! (26) choice of parameterization for the rooting profile
 canopyEmis                      difTrans          ! (27) choice of parameterization for canopy emissivity
 snowIncept                      lightSnow         ! (28) choice of parameterization for snow interception
 windPrfile                      logBelowCanopy    ! (29) choice of wind profile through the canopy

@@ -141,12 +141,12 @@ maxMassVegetation         |       1.0000 |       1.0000 |      50.0000
 throughfallScaleSnow      |       0.5000 |       0.1000 |       0.9000
 throughfallScaleRain      |       1.0000 |       0.1000 |       0.9000
 refInterceptCapSnow       |       6.6000 |       1.0000 |      10.0000
-refInterceptCapRain       |       0.1000 |       0.0100 |       1.0000
+refInterceptCapRain       |       1.0000 |       0.0100 |       1.0000
 snowUnloadingCoeff        |       0.0000 |       0.0000 |       1.5d-6
 canopyDrainageCoeff       |       0.0100 |       0.0010 |       0.0100
 ratioDrip2Unloading       |       0.4000 |       0.0000 |       1.0000
-canopyWettingFactor       |       0.7000 |       0.0000 |       1.0000
-canopyWettingExp          |       1.0000 |       0.0000 |       1.0000
+canopyWettingFactor       |       1.0000 |       0.0000 |       1.0000
+canopyWettingExp          |       0.6667 |       0.0000 |       1.0000
 ! ********************************************************************
 ! soil properties
 ! ********************************************************************
