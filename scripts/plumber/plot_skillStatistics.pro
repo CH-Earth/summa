@@ -1,14 +1,14 @@
 pro plot_skillStatistics
 
 ; define plotting parameters
-window, 0, xs=2000, ys=1400, retain=2
+window, 0, xs=1050, ys=1000, retain=2
 device, decomposed=0
 LOADCT, 39
 !P.BACKGROUND=255
 !P.CHARSIZE=3
 !P.COLOR=0
 erase, color=255
-!P.MULTI=[0,3,3,0,0]
+!P.MULTI=1
 
 ; define the path to the plumber data
 plumber_path = '/d1/mclark/PLUMBER_data/'
@@ -58,9 +58,16 @@ model_names = ['CABLE.2.0',                  $
                'SUMMA.1.0.exp.02.020',       $
                'SUMMA.1.0.exp.02.021',       $
                'SUMMA.1.0.exp.02.022',       $
+               'SUMMA.1.0.exp.02.024',       $
+               'SUMMA.1.0.exp.02.025',       $
+               'SUMMA.1.0.exp.02.026',       $
+               'SUMMA.1.0.exp.02.027',       $
+               'SUMMA.1.0.exp.02.028',       $
+               'SUMMA.1.0.exp.02.029',       $
                'SUMMA.1.0.exp.02.030',       $
                'SUMMA.1.0.exp.02.031',       $
                'SUMMA.1.0.exp.02.032',       $
+               'SUMMA.1.0.exp.02.033',       $
                'SUMMA.1.0.exp.02.000'       ]
 
 ; define the benchmark names
@@ -104,7 +111,7 @@ Qh_stats = dblarr(nSites,nBench+nModels,nStats)
 Qle_stats = dblarr(nSites,nBench+nModels,nStats)
 
 ; skip computations (done already)
-;goto, got_stats
+goto, got_stats
 
 ; loop through sites
 for iSite=0,nSites-1 do begin
@@ -292,78 +299,8 @@ got_stats:
 restore, 'xIDLsave/skillStatistics.sav'
 
 ; *****
-; * PLOT THE STATISTICS...
-; ************************
-
-; skip the plot
-;goto, got_plot
-
-; define statistics
-statName = ['Absolute bias', $
-            'Variance ratio', $
-            '1 - Correlation',    $
-            'Normalized mean absolute error', $
-            'Differnce in 5th percentile', $
-            'Differnce in 95th percentile', $
-            'Absolute difference in Skewness', $
-            'Absolute difference in Kurtosis', $
-            '1 - (Overlap statistic)']
-
-; define plot range for each statistic
-vmin = [ 0, 0, 0, 0,  0,   0,  0,   0, 0]
-vmax = [50, 2, 1, 2, 75, 300, 10, 150, 1]
-
-; loop through the statistics
-for iStat=0,nStats-1 do begin
-
- ; make a base plot (for a given site)
- plot, indgen(nSites+2), xrange=[0,nSites+1], yrange=[vmin[iStat],vmax[iStat]], xstyle=9, ystyle=1, xticklen=(-0.02),$
-  xtickname=[' ',strtrim(indgen(nSites)+1,2),' '], xticks=nSites+1, ytitle=statName[iStat], $
-  /nodata
- plots, [0,nSites+1], [vmax[iStat],vmax[iStat]]
-
- ; loop through sites
- for iSite=0,nSites-1 do begin
-
-  ; plot the model simulations
-  for iModel=0,nModels-1 do begin
-   plots, float(iSite+1)-0.25,  Qh_stats[iSite,nBench+iModel,iStat], psym=sym(1), color=250
-   plots, float(iSite+1)+0.25,  Qle_stats[iSite,nBench+iModel,iStat], psym=sym(1), color=80
-  endfor
-
-  ; plot the benchmarks
-  for iBench=0,nBench-1 do begin
-   plots, float(iSite+1)-0.25,  Qh_stats[iSite,iBench,iStat], psym=sym(iBench+6), color=250, symsize=2
-   plots, float(iSite+1)+0.25,  Qle_stats[iSite,iBench,iStat], psym=sym(iBench+6), color=80, symsize=2
-  endfor
-
-  ; print out results for Loobos
-  if(site_names[iSite] eq 'Loobos')then begin
-   print, 'SUMMA: ', statName[iStat], Qh_stats[iSite,nBench+nModels-1,iStat], Qle_stats[iSite,nBench+nModels-1,iStat], $
-    format='(a10,1x,a35,1x,2(f15.10,1x))'
-   print, '1lin: ', statName[iStat], Qh_stats[iSite,0,iStat], Qle_stats[iSite,0,iStat], $
-    format='(a10,1x,a35,1x,2(f15.10,1x))'
-   print, '2lin: ', statName[iStat], Qh_stats[iSite,1,iStat], Qle_stats[iSite,1,iStat], $
-    format='(a10,1x,a35,1x,2(f15.10,1x))'
-   print, '3km27: ', statName[iStat], Qh_stats[iSite,2,iStat], Qle_stats[iSite,2,iStat], $
-    format='(a10,1x,a35,1x,2(f15.10,1x))'
-   print, 'MANABE: ', statName[iStat], Qh_stats[iSite,3,iStat], Qle_stats[iSite,3,iStat], $
-    format='(a10,1x,a35,1x,2(f15.10,1x))'
-  endif
-
- endfor  ; looping through the sites
-
-endfor  ; looping through the statistics
-
-; write figure
-write_png, 'figures/plumber_skill.png', tvrd(true=1)
-
-; jump point
-got_plot:
-
-; *****
-; * PLOT THE RANKING...
-; *********************
+; * GET THE RANKING...
+; ********************
 
 ; define the ranking
 Qh_rank = dblarr(nBench+1,nModels)
@@ -424,6 +361,150 @@ for iModel=0,nModels-1 do begin
 
 
 endfor  ; (loop through models)
+
+; *****
+; * PLOT THE RANKING...
+; *********************
+
+; define plumber vectors
+Qh_plumber = fltarr(13)
+Qle_plumber = fltarr(13)
+
+; define desired PLUMBER models
+ixPlumber = indgen(11) ; CH-TESSEL and ORCHIDEE are missing
+jxPlumber = [0,1,3,4,5,6,7,8,9,10,11]
+Qh_plumber[jxPlumber] = reform(Qh_rank[5,ixPlumber])
+Qle_plumber[jxPlumber] = reform(Qle_rank[5,ixPlumber])
+
+; add in missing models (read off plot in Best et al.)
+Qh_plumber[2]   = 4.0   ; CH-TESSEL
+Qle_plumber[2]  = 3.0   ; CH-TESSEL
+Qh_plumber[12]  = 3.6   ; ORCHIDEE
+Qle_plumber[12] = 3.05  ; ORCHIDEE
+
+; define desired SUMMA models
+ixSUMMA = [2,3,4,5,7,9,11,12,14,16,17,19,22,23,24,25,26,27,28,29,30] + 11 - 1  ; plus 11 plumber models and minus 1 for zero-based indexing
+nSUMMA  = n_elements(ixSUMMA)
+
+; save SUMMA models
+Qh_summa = reform(Qh_rank[5,ixSUMMA]) 
+Qle_summa = reform(Qle_rank[5,ixSUMMA]) 
+
+; define a site (doesn't matter which, since decisions the same for all sites
+iSite=0
+
+; define desired attributes
+model_attr = ['vegeParTbl', $
+              'soilStress', $
+              'stomResist', $
+              'bbTempFunc', $
+              'bbHumdFunc', $
+              'bbElecFunc', $
+              'bbAssimFnc', $
+              'bbCanIntg8', $
+              'rootProfil'  ]
+
+; get the number of model attributes
+nAtt = n_elements(model_attr)
+
+; get an array holding decisions
+cDecisions = strarr(nAtt,nSUMMA)
+
+; define a delimiter
+cDelim = '--------------------'
+cBreak = replicate(cDelim,nAtt)
+
+; open file for writing
+fileout = 'tableDesiredExperiments.txt'
+openw, outUnit, fileout, /get_lun
+
+ ; print decision names
+ printf, outUnit, 'ix', 'model name', model_attr, format='(a2,1x,a23,1x,20(a17,1x))'
+ printf, outUnit, '--', '-----------------------', cBreak, format='(a2,1x,20(a17,1x))'
+
+ ; loop through experiments
+ for iExp=0,nSUMMA-1 do begin
+
+  ; define the experiment
+  jExp = ixSUMMA[iExp]
+
+  ; define the file name
+  file_name = model_path + model_names[jExp] + '/' + model_names[jExp] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
+  print, file_name
+
+  ; open the file for reading
+  nc_file = ncdf_open(file_name, /nowrite)
+
+   ; loop through model attributes
+   for iAttr=0,nAtt-1 do begin
+
+    ; get the model attributes
+    ncdf_attget, nc_file, model_attr[iAttr], attVal, /global
+    cDecisions[iAttr,iExp] = string(attVal)
+
+   endfor  ; looping through model attributes
+
+  ; close file
+  ncdf_close, nc_file
+
+  ; print the table
+  printf, outUnit, jExp, model_names[jExp], cDecisions[*,iExp], format='(i2,1x,a23,1x,20(a17,1x))'
+
+ endfor  ; looping through experiments
+
+; free up the file unit
+free_lun, outUnit
+
+spawn, 'cat ' + fileout
+
+; define range
+xmin = 3.0
+xmax = 4.5
+
+; define y range
+ymin = 2.5
+ymax = 4.0
+
+; make a base plot
+plot, indgen(5), xrange=[xmin,xmax], yrange=[ymin,ymax], xstyle=1, ystyle=1, $
+ xtitle = 'average Qh rank across sites', ytitle = 'average Qle rank across sites', $
+ xticks=3, yticks=3, /nodata
+plots, [xmin,ymax], [xmin,ymax]
+
+; plot PLUMBER
+for iModel=0,12 do begin
+ plots, Qh_plumber[iModel], Qle_plumber[iModel], psym=sym(1), color=250, symsize=5
+ plots, Qh_plumber[iModel], Qle_plumber[iModel], psym=sym(6), color=0, symsize=5
+endfor
+
+; plot SUMMA
+for iModel=0,nSUMMA-1 do begin
+ plots, Qh_SUMMA[iModel], Qle_SUMMA[iModel], psym=sym(1), color=80, symsize=5
+ plots, Qh_SUMMA[iModel], Qle_SUMMA[iModel], psym=sym(6), color=0, symsize=5
+endfor
+
+print, nSumma
+
+; define a legend
+legendText = ['Plumber models','SUMMA models']
+
+; define color
+ixColor = [250,80]
+
+; plot a legend
+xpos = 0.05*(xmax - xmin) + xmin
+xInc = 0.025*(xmax - xmin)
+ytop = 0.9*(ymax - ymin) + ymin
+yInc = 0.075*(ymax - ymin)
+for jLegend=0,n_elements(legendText)-1 do begin
+ ypos = ytop - jLegend*yInc
+ plots, xpos, ypos, psym=sym(1), color=ixColor[jLegend], symsize=5, thick=2
+ plots, xpos, ypos, psym=sym(6), color=0, symsize=5, thick=2
+ xyouts,xpos+xinc, ypos-0.15*yInc, legendText[jLegend]
+endfor
+
+; write figure
+write_png, 'figures/summaBenchmarkSkill.png', tvrd(true=1)
 
 
 stop
