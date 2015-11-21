@@ -55,10 +55,6 @@ EVALUATION...
 8) read_groundHeatFlux.pro
    IDL script to check that we read the ground heat flux correctly
 
-<<<<<<< HEAD
-9) plot_plumber.pro
-   IDL script to plot up the PLUMBER results
-=======
  9) plot_plumber.pro
     IDL script to plot up the PLUMBER results
 
@@ -73,7 +69,3 @@ EVALUATION...
 
 13) sym.pro
     external procedure to plot symbols
-<<<<<<< HEAD
->>>>>>> 9406ef8... updated README file
-=======
->>>>>>> 9406ef8... updated README file
