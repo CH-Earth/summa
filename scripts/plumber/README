@@ -1,0 +1,16 @@
+This directory holds routines to prepare plumber experiments for SUMMA
+
+1) processPlumberInputData.pro
+   IDL script to read the site netCDF files and output
+    a) input data files for each site
+    b) attribute files for each site
+
+2) makeForcingFileInfo.sh
+   script to define forcing data files, creating
+    a) list of forcing info files used for each site
+    b) information on the forcing data file for each site
+
+
+
+
+
