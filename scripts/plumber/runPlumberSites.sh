@@ -3,10 +3,10 @@
 # used to run SUMMA for all the PLUMBER sites
 
 # define the experiment name
-expName=_testRevisedSumma
+expName=_plumberExperiments
 
 # define the experiment ID
-expID=exp.02.021
+expID=exp.03.001
 
 # run summa for each site
 # define the SUMMA directory

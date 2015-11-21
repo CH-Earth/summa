@@ -19,10 +19,10 @@ cPatternExp='XX_expName_XX'
 cPatternSite='XX_siteName_XX'
 
 # loop through experiments
-for ix in $( seq -f "%03g" 30 32 ); do
+for ix in $( seq -f "%03g" 01 09 ); do
 
  # define experiment name
- expName=exp.02.${ix}
+ expName=exp.03.${ix}
  echo $expName
 
  # loop through files in the local attributes folder
