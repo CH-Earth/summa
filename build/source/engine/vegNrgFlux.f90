@@ -713,7 +713,7 @@ contains
     dCanopyWetFraction_dWat = 0._dp  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
     dCanopyWetFraction_dT   = 0._dp  ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
    endif
-   !print*, 'scalarCanopyWetFraction = ', scalarCanopyWetFraction
+   write(*,'(a,1x,L1,1x,f20.10,1x))') 'computeVegFlux, scalarCanopyWetFraction = ', computeVegFlux, scalarCanopyWetFraction
    !print*, 'dCanopyWetFraction_dWat = ', dCanopyWetFraction_dWat
    !print*, 'dCanopyWetFraction_dT   = ', dCanopyWetFraction_dT
    !print*, 'canopyLiqTrial = ', canopyLiqTrial
@@ -1565,7 +1565,7 @@ contains
 
  ! compute relative canopy water
  relativeCanopyWater = canopyLiq/canopyMax
- !write(*,'(a,1x,3(f20.10,1x))') 'relativeCanopyWater, canopyLiq, canopyMax = ', relativeCanopyWater, canopyLiq, canopyMax
+ !write(*,'(a,1x,e20.10,1x,2(f20.10,1x))') 'relativeCanopyWater, canopyLiq, canopyMax = ', relativeCanopyWater, canopyLiq, canopyMax
 
  ! compute an initial value of the canopy wet fraction
  ! - canopy below value where canopy is 100% wet
@@ -1577,9 +1577,9 @@ contains
    rawWetFractionDeriv = 0._dp
   endif
 
- ! - canopy is 100% wet
+ ! - canopy is at capacity (canopyWettingFactor)
  else
-  rawCanopyWetFraction = 1._dp
+  rawCanopyWetFraction = canopyWettingFactor
   rawWetFractionDeriv  = 0._dp
  endif
 
@@ -3120,6 +3120,7 @@ contains
  turbFluxCanair = senHeatTotal - senHeatCanopy - senHeatGround            ! net turbulent flux at the canopy air space (W m-2)
  turbFluxCanopy = senHeatCanopy + latHeatCanopyEvap + latHeatCanopyTrans  ! net turbulent flux at the canopy (W m-2)
  turbFluxGround = senHeatGround + latHeatGround                           ! net turbulent flux at the ground surface (W m-2)
+ !write(*,'(a,1x,3(f20.10,1x))') 'senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans = ', senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans
 
   ! * compute derivatives
  if(ixDerivMethod == analytical)then
