@@ -1,17 +1,17 @@
 pro plot_meanDiurnal
 
 ; define plotting parameters
-window, 0, xs=2000, ys=1400, retain=2
+window, 0, xs=1200, ys=1000, retain=2
 device, decomposed=0
 LOADCT, 39
 !P.BACKGROUND=255
-!P.CHARSIZE=2
+!P.CHARSIZE=1.5
 !P.COLOR=0
 erase, color=255
-!P.MULTI=[0,4,5,0,1]
+!P.MULTI=[0,2,2,0,0]
 
 ; define the path to the plumber data
-plumber_path = '/d1/mclark/PLUMBER_data/'
+plumber_path = '/Volumes/d1/mclark/PLUMBER_data/'
 
 ; define the path to the model output
 model_path = plumber_path + 'model_output/'
@@ -36,52 +36,73 @@ model_names = ['CABLE.2.0',                  $
                'Noah.3.2',                   $
                'NOAH.3.3',                   $
                'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0.exp.02.001',       $
-               'SUMMA.1.0.exp.02.002',       $
-               'SUMMA.1.0.exp.02.003',       $
-               'SUMMA.1.0.exp.02.004',       $
-               'SUMMA.1.0.exp.02.005',       $
-               'SUMMA.1.0.exp.02.006',       $
-               'SUMMA.1.0.exp.02.007',       $
-               'SUMMA.1.0.exp.02.008',       $
-               'SUMMA.1.0.exp.02.009',       $
-               'SUMMA.1.0.exp.02.010',       $
-               'SUMMA.1.0.exp.02.011',       $
-               'SUMMA.1.0.exp.02.012',       $
-               'SUMMA.1.0.exp.02.013',       $
-               'SUMMA.1.0.exp.02.014',       $
-               'SUMMA.1.0.exp.02.015',       $
-               'SUMMA.1.0.exp.02.016',       $
-               'SUMMA.1.0.exp.02.000'         ]
+               'SUMMA.1.0.exp.02.030',       $
+               'SUMMA.1.0.exp.02.031',       $
+               'SUMMA.1.0.exp.02.032'         ]
 
 ; define the site names
 site_names = ['Amplero',     $
               'Blodgett',    $
-              'Bugac',       $
-              'ElSaler2',    $
-              'ElSaler',     $
-              'Espirra',     $
-              'FortPeck',    $
-              'Harvard',     $
-              'Hesse',       $
-              'Howard',      $
-              'Howlandm',    $
-              'Hyytiala',    $
-              'Kruger',      $
+;              'Bugac',       $
+;              'ElSaler2',    $
+;              'ElSaler',     $
+;              'Espirra',     $
+;              'FortPeck',    $
+;              'Harvard',     $
+;              'Hesse',       $
+;              'Howard',      $
+;              'Howlandm',    $
+;              'Hyytiala',    $
+;              'Kruger',      $
               'Loobos',      $
-              'Merbleue',    $
-              'Mopane',      $
-              'Palang',      $
-              'Sylvania',    $
-              'Tumba',       $
+;              'Merbleue',    $
+;              'Mopane',      $
+;              'Palang',      $
+;              'Sylvania',    $
+;              'Tumba',       $
               'UniMich'      ]
 
 ; define the number of models and sites
 nModels = n_elements(model_names)
 nSites  = n_elements(site_names)
 
+; initialize site
+iSite=0
+
+; define the x margin
+xmar1 = [15,12]
+xmar2 = [-2, 1]
+
+; define the y margin
+ymar1 = [3,6]
+ymar2 = [3,0]
+
 ; loop through sites
-for iSite=0,nSites-1 do begin
+for jplot=0,1 do begin
+for iplot=0,1 do begin
+
+ ; define x and y margin
+ xmar = [xmar1[iplot],xmar2[iplot]]
+ ymar = [ymar1[jplot],ymar2[jplot]]
+
+ ; define x and y title
+ if(jplot eq 1)then xtitle='Time of day' else xtitle=' '
+ if(iplot eq 0)then ytitle=' heat flux (W m!e-2!n)' else ytitle=' '
+
+ ; get the xticks
+ if(jplot eq 1)then xticks = [' ',[strtrim(indgen(7)*3+3,2)],' '] else xticks = replicate(' ', 9)
+
+ ; define ymax
+ ymin = -250
+ ymax =  300
+
+ ; make the base plot
+ plot, indgen(24)+1, xrange=[0,24], yrange=[ymin,ymax], xstyle=9, ystyle=1, $
+   xmargin = xmar, ymargin=ymar, xticks=8, xtickname=xticks, xtitle=xtitle, ytitle=ytitle, $
+   xcharsize=1.5, ycharsize=1.5, xticklen=(-0.02), title=site_names[iSite], $
+   /nodata
+ plots, [0,24], [0,0]
+ plots, [0,24], [ymax,ymax]
 
  ; *****
  ; * READ IN THE SITE OBS...
@@ -169,21 +190,6 @@ for iSite=0,nSites-1 do begin
 
  ; get observation times
  obsTime = ceil(ih*100+imi*1.66666666d)
-
- ; get the xticks
- xticks = [' ',[strtrim(indgen(7)*3+3,2)],' ']
-
- ; define ymax
- ymin = -350
- ymax =  350
-
- ; make the base plot
- plot, indgen(24)+1, xrange=[0,24], yrange=[ymin,ymax], xstyle=9, ystyle=1, $
-   xmargin = [15,2], xticks=8, xtickname=xticks, ytitle='heat flux', $
-   xcharsize=1.5, ycharsize=1.5, xticklen=(-0.02), title=site_names[iSite], $
-   /nodata
- plots, [0,24], [0,0]
- plots, [0,24], [ymax,ymax]
 
  ; *****
  ; * GET THE MEAN DIURNAL CYCLES...
@@ -279,13 +285,17 @@ for iSite=0,nSites-1 do begin
  endfor  ; (looping through models)
 
  ; plot observations
- oplot, xtime, datQh,  color=250, thick=4
- oplot, xtime, -datQle, color=60, thick=4
+ oplot, xtime, datQh,  color=250, psym=sym(1), symsize=1.5
+ oplot, xtime, -datQle, color=60, psym=sym(1), symsize=1.5
 
  ; plot the linear regression
  ;oplot, xtime, linQh,  color=250, thick=2
  ;oplot, xtime, -linQle, color=60, thick=2
 
+ ; increment site index
+ iSite = iSite+1
+
+endfor  ; (looping through sites)
 endfor  ; (looping through sites)
 
 ; write figure

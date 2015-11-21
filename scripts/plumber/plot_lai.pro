@@ -1,14 +1,14 @@
 pro plot_lai
 
 ; define plotting parameters
-window, 0, xs=2000, ys=1400, retain=2
+window, 0, xs=1200, ys=1000, retain=2
 device, decomposed=0
 LOADCT, 39
 !P.BACKGROUND=255
 !P.CHARSIZE=3
 !P.COLOR=0
 erase, color=255
-!P.MULTI=[0,4,5,0,1]
+!P.MULTI=[0,4,5,0,0]
 
 ; define the date format
 dummy = label_date(date_format=['%D-%M!C%Y'])
@@ -17,7 +17,7 @@ dummy = label_date(date_format=['%D-%M!C%Y'])
 iHRU=0
 
 ; define variable
-cVarName='LAI'
+cVarNames=['LAI','lai','LAI']
 
 ; define variable range
 vmin=0
@@ -68,10 +68,10 @@ site_pfts = ['Grassland',          $        ; 'Amplero',
 
 ; define the model names
 model_names = ['CABLE.2.0',                  $
-               'SUMMA.1.0.exp.02.030',       $
+               ;'SUMMA.1.0.exp.02.030',       $
                ;'CABLE_2.0_SLI.vxh599_r553',  $
                'CHTESSEL',                   $
-               'SUMMA.1.0.exp.02.031',       $
+               ;'SUMMA.1.0.exp.02.031',       $
                ;'COLASSiB.2.0',               $
                ;'ISBA_SURFEX_3l.SURFEX7.3',   $
                ;'ISBA_SURFEX_dif.SURFEX7.3',  $
@@ -82,55 +82,84 @@ model_names = ['CABLE.2.0',                  $
                ;'Noah.3.2',                   $
                ;'NOAH.3.3',                   $
                ;'ORCHIDEE.trunk_r1401',       $
-               'SUMMA.1.0.exp.02.032',       $
+               ;'SUMMA.1.0.exp.02.032',       $
                'SUMMA.1.0.exp.02.000']
 
+; define model labels
+model_labels = ['CABLE','CHTESSEL','Noah']
+
 ; define colors
-iColor=[40,80,120,160,210,250]
-;iColor=[40,120,210]
+;iColor=[40,80,120,160,210,250]
+iColor=[40,120,210]
 
 ; define the number of models and sites
 nModels = n_elements(model_names)
 nSites  = n_elements(site_names)
 
 ; define file paths
-file_path = '/d1/mclark/PLUMBER_data/model_output/'
+file_path = '/Volumes/d1/mclark/PLUMBER_data/model_output/'
+
+; set counter for the site
+iSite=0
+
+; define x margin
+xmar1 = [6,5,4,3]
+xmar2 = [0,1,2,3]
+
+; define y margin
+ymar1 = [0,1,2,3,4]
+ymar2 = [5,4,3,2,1]
 
 ; loop through sites
-for iSite=0,nSites-1 do begin
+for jplot=0,4 do begin
 
-  ; define the tick names
+ ; define the tick names
+ if(jplot eq 4)then begin
   xtick_labels = [' ', strtrim(indgen(12)+1,2), ' ']
+ endif else begin
+  xtick_labels = replicate(' ',14)
+ endelse
+
+ ; define the y margin
+ ymar=[ymar1[jplot],ymar2[jplot]]
+
+ for iplot=0,3 do begin
+
+  ; define the x margin
+  xmar = [xmar1[iplot],xmar2[iplot]]
+
+  ; define the x title
+  if(iplot eq 0)then ytitle='LAI' else ytitle=' '
 
   ; make a base plot
   plot, indgen(5), xrange=[0,13], yrange=[vmin,vmax], xstyle=1, ystyle=1, xticklen=(-0.02),$
-   xticks=13, ytitle = cVarName, title=site_names[iSite]+'!C('+site_pfts[iSite]+')', $
-   ymargin=[4,4], xtickname=xtick_labels, /nodata
+   xticks=13, ytitle = ytitle, title=site_names[iSite]+'!C('+site_pfts[iSite]+')', $
+   xmargin=xmar, ymargin=ymar, xtickname=xtick_labels, /nodata
 
- ; get the filename for the Noah LAI
- ;lai_file = '/home/mclark/summa/settings/plumber/LAI_tables/time_parms_' + strtrim(iSite+1,2) + '.txt'
-
- ; define vectors for LAI and SAI
- ;xLAI = fltarr(12)
- ;xSAI = fltarr(12)
-
- ; read the LAI for the Noah simulations
- ;openr, lai_unit, lai_file, /get_lun
- ; readf, lai_unit, xLAI
- ; readf, lai_unit, xSAI
- ;free_lun, lai_unit
+  ; get the filename for the Noah LAI
+  ;lai_file = '/home/mclark/summa/settings/plumber/LAI_tables/time_parms_' + strtrim(iSite+1,2) + '.txt'
  
- ; plot it up
- ;oplot, indgen(12)+1, xLAI+xSAI, color=40, thick=3
+  ; define vectors for LAI and SAI
+  ;xLAI = fltarr(12)
+  ;xSAI = fltarr(12)
+ 
+  ; read the LAI for the Noah simulations
+  ;openr, lai_unit, lai_file, /get_lun
+  ; readf, lai_unit, xLAI
+  ; readf, lai_unit, xSAI
+  ;free_lun, lai_unit
+ 
+  ; plot it up
+  ;oplot, indgen(12)+1, xLAI+xSAI, color=40, thick=3
 
- ; loop through the desired PLUMBER models
- for iModel=0,nModels-1 do begin
+  ; loop through the desired PLUMBER models
+  for iModel=0,nModels-1 do begin
 
-  ; define the file name
-  file_name = model_names[iModel] + '/' + model_names[iModel] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
+   ; define the file name
+   file_name = model_names[iModel] + '/' + model_names[iModel] + '_' + site_names[iSite] + 'Fluxnet.1.4.nc'
 
-  ; open files
-  ncFileID = ncdf_open(file_path+file_name, /nowrite)
+   ; open files
+   ncFileID = ncdf_open(file_path+file_name, /nowrite)
 
    ; get time units
    ivar_id = ncdf_varid(ncFileID,'time')
@@ -154,44 +183,45 @@ for iSite=0,nSites-1 do begin
    ntime_mod = n_elements(djulian_mod)
 
    ; get the desired variable
-   ivar_id = ncdf_varid(ncFileID,cVarName)
+   ivar_id = ncdf_varid(ncFileID,cVarNames[iModel])
    ncdf_varget, ncFileID, ivar_id, xVar
    xVar=reform(xVar)
 
-  ; close the netcdf file
-  ncdf_close, ncFileID
+   ; close the netcdf file
+   ncdf_close, ncFileID
 
-  ; get the time of the year
-  caldat, djulian_mod, im, id, iyyy
+   ; get the time of the year
+   caldat, djulian_mod, im, id, iyyy
 
-  ; average the lai
-  xLAI = fltarr(12)
-  for imonth=1,12 do begin
-   iMatch = where(im eq imonth, nMatch)
-   if(nMatch gt 0)then xLAI[imonth-1] = mean(xVar[iMatch])
-  endfor
+   ; average the lai
+   xLAI = fltarr(12)
+   for imonth=1,12 do begin
+    iMatch = where(im eq imonth, nMatch)
+    if(nMatch gt 0)then xLAI[imonth-1] = mean(xVar[iMatch])
+   endfor
 
-  ; plot the data
-  oplot, indgen(12)+1, xLAI, color=icolor[iModel]
+   ; plot the data
+   oplot, indgen(12)+1, xLAI, color=icolor[iModel], thick=3
 
-  ; plot a legend
-  if(iSite eq 0)then begin
-   x0 = 0.5
-   x1 = 4.0
-   y0 = 0.70*(vmax - vmin) + vmin + 0.1*(vmax - vmin)*iModel
-   y1 = y0 - 0.025*(vmax - vmin)
-   plots, [x0,x1], [y0,y0], color=icolor[iModel]
-   xyouts, x1 + 0.55, y1, model_names[iModel], charsize=2
-  endif
+   ; plot a legend
+   if(iSite eq 0)then begin
+    x0 = 0.5
+    x1 = 4.0
+    y0 = 0.65*(vmax - vmin) + vmin + 0.125*(vmax - vmin)*iModel
+    y1 = y0 - 0.05*(vmax - vmin)
+    plots, [x0,x1], [y0,y0], color=icolor[iModel], thick=3
+    xyouts, x1 + 0.55, y1, model_labels[iModel], charsize=1.5
+   endif
 
- endfor  ; looping through models
+  endfor  ; looping through models
 
- stop
+  iSite=iSite+1
 
+ endfor
 endfor  ; looping through sites
 
 ; write figure
-write_png, 'figures/plumber_'+cVarName+'-test.png', tvrd(true=1)
+write_png, 'figures/plumber_LAI.png', tvrd(true=1)
 
 stop
 end

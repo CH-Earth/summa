@@ -135,9 +135,9 @@ qYield_Cable  =      0.20d  ; quantam yield (mol e mol-1 quanta)  [Table 3, Leun
 
 ; define miscellaneous parameters
 mp     =      9.d           ; slope parameter
-fnf    =      0.666667d     ; foliage nitrogen factor
+fnf    =      1.d     ; foliage nitrogen factor
 gMin   =   2000.d           ; minimum stomatal conductance
-e0     =   1500.d           ; scaling factor for humidity function
+e0     =   3500.d           ; scaling factor for humidity function
 fJ     =      0.15d         ; parameter to estimate the parameter in the jmax quadratic
 Tscale =     10.d           ; scaling factor for q10 temperature function
 c_ps2  =      0.7d          ; curvature factor for electron transport (-)
@@ -298,7 +298,7 @@ for ixVar=0,nx-1 do begin
 
    ; define Tref
    if(choiceModel eq Cable)then begin
-    Tref   =    298.20d ; 20 deg C = reference temperature used in the temperature functions for photosynthesis (K)
+    Tref   =    298.16d ; 25 deg C = reference temperature used in the temperature functions for photosynthesis (K)
    endif else begin
     Tref   =    298.16d ; 25 deg C = reference temperature used in the temperature functions for photosynthesis (K)
    endelse
@@ -316,14 +316,14 @@ for ixVar=0,nx-1 do begin
     ; define vapor pressure deficit
     if(ixVar eq ixVPD)then begin
      Tc  =   25.d
-     par = 1000.d
+     par = 2000.d / joule2umolConv
      vpd = vpdVec[iTrial]
     endif
 
     ; define temperature
     if(ixVar eq ixTemp)then begin
      hs  =    1.d
-     par = 1000.d
+     par = 2000.d / joule2umolConv
      Tc  = TcVec[iTrial]
     endif
 
@@ -443,6 +443,8 @@ for ixVar=0,nx-1 do begin
       fH_Tref = call_function('fH_T', Tref, Hd_vcmaxCable, Sv_vcmaxCable, Rgas)
       ;vcMax   = vcMax25*f_Tk/fH_Tk           ; Leuning et al., 1995
       vcMax   = vcMax25*f_Tk*fH_Tref/fH_Tk   ; Leuning et al., 2002
+      print, 'vcMax, f_Tk, fH_Tref/fH_Tk, Ha_vcmaxCable, Hd_vcmaxCable, Sv_vcmaxCable = ', $
+              vcMax, f_Tk, fH_Tref/fH_Tk, Ha_vcmaxCable, Hd_vcmaxCable, Sv_vcmaxCable, format='(a,1x,10(f12.5,1x))'
      end
 
      Jarvis: vcMax = -999.  ; not used
@@ -521,10 +523,11 @@ for ixVar=0,nx-1 do begin
 
     ; compute the co2 compensation point (pa)
     if(choiceModel eq Cable)then begin
-     gamma0 = 34.6d-6 * sfcprs     ; mol mol-1 -> Pa
-     gamma1 =  0.0451d
-     gamma2 =  0.000347d
-     cp = gamma0 * (1.d + gamma1*(Tk - Tref) + gamma2*(Tk - Tref)^2.d ) 
+     ;gamma0 = 34.6d-6 * sfcprs     ; mol mol-1 -> Pa
+     ;gamma1 =  0.0451d
+     ;gamma2 =  0.000347d
+     ;cp = gamma0 * (1.d + gamma1*(Tk - Tref) + gamma2*(Tk - Tref)^2.d ) 
+     cp = 0.5d*(Kc/Ko)*o2*0.21d
     endif else begin
      cp = 0.5d*(Kc/Ko)*o2*0.21d
     endelse
@@ -538,6 +541,7 @@ for ixVar=0,nx-1 do begin
 
     ; print a marker
     print, '**'
+    print, 'vcmax, jmax = ', vcmax, jmax
 
     ; iterate
     for iter=1,maxiter do begin
@@ -601,7 +605,7 @@ for ixVar=0,nx-1 do begin
       quad_smooth, xAssim[ixRubi], xAssim[ixLight], theta_cj, dAc_dc, dAj_dc, xsAssim, dAi_dc, yes
   
       ; smooth intermediate-limitation and export limitation
-      quad_smooth, xsAssim, xAssim[ixExport], theta_cj, dAi_dc, dAe_dc, assim, dA_dc, yes
+      quad_smooth, xsAssim, xAssim[ixExport], theta_ie, dAi_dc, dAe_dc, assim, dA_dc, yes
  
       ; check
       ;plot_quadratic, aQuad, bQuad, cQuad, Aroot1, Aroot2
@@ -685,10 +689,10 @@ for ixVar=0,nx-1 do begin
      dci_dc = -dA_dc*(x1 + rs*x3) - x3*assim*drs_dc
 
      ; check derivatives
-     func0 = call_function('func_quad', ci_old+0.d, cp, co2, Js, vcMax, theta_cj, awb, rlb, mp, sfcprs, hs, btran, gMin, eair, esat, e0, choiceModel, ixVar)
-     func1 = call_function('func_quad', ci_old+ dx, cp, co2, Js, vcMax, theta_cj, awb, rlb, mp, sfcprs, hs, btran, gMin, eair, esat, e0, choiceModel, ixVar)
-     zDeriv = (func1 - func0)/dx
-     print, 'check derivatives = ', zDeriv, dci_dc
+     ;func0 = call_function('func_quad', ci_old+0.d, cp, co2, Js, vcMax, theta_cj, awb, rlb, mp, sfcprs, hs, btran, gMin, eair, esat, e0, choiceModel, ixVar)
+     ;func1 = call_function('func_quad', ci_old+ dx, cp, co2, Js, vcMax, theta_cj, awb, rlb, mp, sfcprs, hs, btran, gMin, eair, esat, e0, choiceModel, ixVar)
+     ;zDeriv = (func1 - func0)/dx
+     ;print, 'check derivatives = ', zDeriv, dci_dc
      ;print, 'check derivatives = ', zDeriv, dc_dc
 
      ; visualize roots
@@ -721,13 +725,15 @@ for ixVar=0,nx-1 do begin
      ciVec[iTrial] = ci
      csVec[iTrial] = cs
 
-     print, 'iter, ixControl, Tc, xAssim, xInc = ', $
-             iter, ixControl, Tc, xAssim, xInc, format='(a,1x,2(i4,1x),20(f14.8,1x))'
+     print, 'iter, ixControl, Tc, xAssim, assim, ci_old, co2, ciDiff, xInc = ', $
+             iter, ixControl, Tc, xAssim, assim, ci_old, co2, ciDiff, xInc, format='(a,1x,2(i4,1x),20(f14.8,1x))'
  
      ; exit iteration loop
      if(abs(xInc) lt 0.001d)then break
 
     endfor  ; iterating
+
+    print, 'Tc, assim, gs = ', Tc, assim, gs/1000000.d, format='(a,1x,20(f14.8,1x))'
 
     ; save assimilation
     asVec[iTrial] = assim
@@ -757,7 +763,6 @@ for ixVar=0,nx-1 do begin
 
    ; plot results
    oplot, xVar, yVar, color=ixColor[choiceModel], linestyle=ixLines[choiceModel], thick=2, min_value=ylimits[0]
-   ;if(ixVar eq ixVPD)then stop
 
   endfor  ; looping through models
   ;if(ixVar eq ixVPD and iyVar gt 0)then stop
