@@ -2,7 +2,7 @@
 
 ## Introduction
 
-SUMMA configuration is  performed via a large number of configuration files. The format of these files is likely to change (and simplified) as we build out SUMMA's infrastructure. The following may be somewhat difficult to follow without a working example. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa/datasets.php) to help you get started.
+SUMMA configuration is  performed via a large number of configuration files. The format of these files is likely to change (and simplified) as we build out SUMMA's infrastructure. The following may be somewhat difficult to follow without a working example. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa) to help you get started.
 
 In the following we will assume that your SUMMA source installation is in the directory `<localInstallation>` on your  machine (this is not actually the name of the directory, but can be whatever you call) and that the test applications are installed in the directory `<localApplications>`. Note that these two directories can be the same, in which case everything would be in the same directory tree.
 
