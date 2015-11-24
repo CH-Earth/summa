@@ -84,7 +84,7 @@ then you are not in a Git repository (note that the top level directory in a Git
 
 Assign the truth repo to a remote tracking branch called `upstream`, which will allow you easily pull in changes that are made in the truth repo and keep your clone in-sync with that version. Once you get more familiar with Git, you will be able to control which updates to include:
 
-    git remote add -track upstream https://github.com/NCAR/summa.git
+    git remote add upstream https://github.com/NCAR/summa.git
 
 #### Step 4. Sync your clone with the truth repo
 
