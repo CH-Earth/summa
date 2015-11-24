@@ -255,7 +255,7 @@ contains
  !print*, 'minstep, maxstep = ', minstep, maxstep
 
  ! define maximum number of iterations
- maxiter = mpar_data%var(iLookPARAM%maxiter)
+ maxiter = nint(mpar_data%var(iLookPARAM%maxiter))
 
  ! get the length of the time step (seconds)
  dt = data_step
