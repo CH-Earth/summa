@@ -6,6 +6,10 @@
 # summa executable and bin directory
 bin
 summa.exe
+# Makefile
+build/Makefile-local
+# test cases
+summaTestCases
 # temporary files
 *~
 *.swp
