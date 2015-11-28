@@ -181,9 +181,6 @@ doJacobian=.false.
 call init_metad(err,message); call handle_err(err,message)
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
-! read default values and constraints for model parameters (local column, and basin-average)
-call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,message); call handle_err(err,message)
-call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures
@@ -216,7 +213,14 @@ call ffile_info(nHRU,err,message); call handle_err(err,message)
 call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (5a) read Noah vegetation and soil tables
+! (5a) read default model parameters
+! *****************************************************************************
+! read default values and constraints for model parameters (local column, and basin-average)
+call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,message); call handle_err(err,message)
+call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,message); call handle_err(err,message)
+
+! *****************************************************************************
+! (5b) read Noah vegetation and soil tables
 ! *****************************************************************************
 ! define monthly fraction of green vegetation
 !                           J        F        M        A        M        J        J        A        S        O        N        D
@@ -238,7 +242,7 @@ select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
 end select
 
 ! *****************************************************************************
-! (5b) read trial model parameter values for each HRU, and populate initial data structures
+! (5c) read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
 call read_param(nHRU,err,message); call handle_err(err,message)
 bpar_data%var(:) = basinParFallback(:)%default_val
