@@ -22,6 +22,7 @@ module vegLiqFlux_module
 USE nrtype
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:         &
+                      unDefined,    & ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
                       sparseCanopy, & ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
                       storageFunc     ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
 implicit none
@@ -141,6 +142,12 @@ contains
 
  ! compute throughfall
  select case(ixCanopyInterception)
+
+  ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
+  ! NOTE: this could be done with scalarThroughfallScaleRain=0, though requires setting scalarThroughfallScaleRain in all test cases
+  case(unDefined)
+   scalarThroughfallRain      = 0._dp
+   scalarThroughfallRainDeriv = 0._dp
 
   ! fraction of rainfall hits the ground without ever touching the canopy
   case(sparseCanopy)

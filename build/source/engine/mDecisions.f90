@@ -51,6 +51,7 @@ integer(i4b),parameter,public :: specified            =  32    ! LAI/SAI compute
 ! look-up values for the choice of the canopy interception parameterization
 integer(i4b),parameter,public :: sparseCanopy         =  41    ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
 integer(i4b),parameter,public :: storageFunc          =  42    ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
+integer(i4b),parameter,public :: unDefined            =  43    ! option is undefined (backwards compatibility)
 ! look-up values for the form of Richards' equation
 integer(i4b),parameter,public :: moisture             =  51    ! moisture-based form of Richards' equation
 integer(i4b),parameter,public :: mixdform             =  52    ! mixed form of Richards' equation
@@ -277,8 +278,9 @@ contains
 
  ! identify the canopy interception parameterization
  select case(trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision))
-  case('sparseCanopy'); model_decisions(iLookDECISIONS%cIntercept)%iDecision = sparseCanopy
-  case('storageFunc');  model_decisions(iLookDECISIONS%cIntercept)%iDecision = storageFunc
+  case('notPopulatedYet'); model_decisions(iLookDECISIONS%cIntercept)%iDecision = unDefined
+  case('sparseCanopy');    model_decisions(iLookDECISIONS%cIntercept)%iDecision = sparseCanopy
+  case('storageFunc');     model_decisions(iLookDECISIONS%cIntercept)%iDecision = storageFunc
   case default
    err=10; message=trim(message)//"unknown canopy interception parameterization [option="//trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision)//"]"; return
  end select
