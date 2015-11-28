@@ -51,6 +51,6 @@ MODULE multiconst
  REAL(DP), PARAMETER         :: secprday     =   86400._dp       ! number of seconds in a day
  REAL(DP), PARAMETER         :: secprhour    =    3600._dp       ! number of seconds in an hour
  REAL(DP), PARAMETER         :: secprmin     =      60._dp       ! number of seconds in a minute
-
+ integer(i4b),parameter      :: integerMissing = -9999           ! value for mising integer
 
 END MODULE multiconst

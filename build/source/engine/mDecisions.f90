@@ -20,6 +20,7 @@
 
 module mDecisions_module
 USE nrtype
+USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
@@ -352,6 +353,15 @@ contains
    err=10; message=trim(message)//"unknown method to determine LAI and SAI [option="//trim(model_decisions(iLookDECISIONS%LAI_method)%cDecision)//"]"; return
  end select
 
+ ! identify the canopy interception parameterization
+ select case(trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision))
+  case('notPopulatedYet'); model_decisions(iLookDECISIONS%cIntercept)%iDecision = unDefined
+  case('sparseCanopy');    model_decisions(iLookDECISIONS%cIntercept)%iDecision = sparseCanopy
+  case('storageFunc');     model_decisions(iLookDECISIONS%cIntercept)%iDecision = storageFunc
+  case default
+   err=10; message=trim(message)//"unknown canopy interception parameterization [option="//trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision)//"]"; return
+ end select
+
  ! identify the form of Richards' equation
  select case(trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision))
   case('moisture'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = moisture            ! moisture-based form
@@ -627,7 +637,7 @@ contains
  nDecisions = size(charline)
  ! allocate space for the model decisions
  if(associated(model_decisions)) deallocate(model_decisions)
- allocate(model_decisions(nDecisions),stat=err)
+ allocate(model_decisions(maxvarDecisions),stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateModelDecisions"; return; endif
  ! populate the model decisions structure
  do iDecision=1,nDecisions

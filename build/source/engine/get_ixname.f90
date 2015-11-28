@@ -312,6 +312,8 @@ contains
   case('snowUnloadingCoeff'       ); get_ixparam = iLookPARAM%snowUnloadingCoeff     ! time constant for unloading of snow from the forest canopy (s-1)
   case('canopyDrainageCoeff'      ); get_ixparam = iLookPARAM%canopyDrainageCoeff    ! time constant for drainage of liquid water from the forest canopy (s-1)
   case('ratioDrip2Unloading'      ); get_ixparam = iLookPARAM%ratioDrip2Unloading    ! ratio of canopy drip to unloading of snow from the forest canopy (-)
+  case('canopyWettingFactor'      ); get_ixparam = iLookPARAM%canopyWettingFactor    ! maximum wetted fraction of the canopy (-)
+  case('canopyWettingExp'         ); get_ixparam = iLookPARAM%canopyWettingExp       ! exponent in canopy wetting function (-)
   ! soil properties
   case('soil_dens_intr'           ); get_ixparam = iLookPARAM%soil_dens_intr         ! intrinsic soil density (kg m-3)
   case('thCond_soil'              ); get_ixparam = iLookPARAM%thCond_soil            ! thermal conductivity of soil (W m-1 K-1)
