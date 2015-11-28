@@ -844,7 +844,7 @@ contains
   !print*, 'in substep loop: dt_sub = ', dt_sub
 
  end do  ! (sub-step loop)
- !stop 'completed time step'
+ !pause 'completed time step'
 
  ! ---
  ! (14) balance checks...

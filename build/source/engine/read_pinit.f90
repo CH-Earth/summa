@@ -149,8 +149,8 @@ contains
  else ! (need backwards compatibility)
   if(isLocal)then
    if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
-    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._dp              ! maximum wetted fraction of the canopy (-)
-    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.6666666667_dp    ! exponent in canopy wetting function (-)
+    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._dp             ! maximum wetted fraction of the canopy (-)
+    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_dp    ! exponent in canopy wetting function (-)
    endif
   endif
  endif

@@ -181,6 +181,8 @@ contains
   scalarCanopyLiqDrainageDeriv  = 0._dp
  endif
 
+ !write(*,'(a,1x,f25.15)') 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
+
  end subroutine vegLiqFlux_muster
 
 

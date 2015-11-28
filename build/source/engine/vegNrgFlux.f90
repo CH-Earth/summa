@@ -713,7 +713,7 @@ contains
     dCanopyWetFraction_dWat = 0._dp  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
     dCanopyWetFraction_dT   = 0._dp  ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
    endif
-   write(*,'(a,1x,L1,1x,f20.10,1x))') 'computeVegFlux, scalarCanopyWetFraction = ', computeVegFlux, scalarCanopyWetFraction
+   !write(*,'(a,1x,L1,1x,f25.15,1x))') 'computeVegFlux, scalarCanopyWetFraction = ', computeVegFlux, scalarCanopyWetFraction
    !print*, 'dCanopyWetFraction_dWat = ', dCanopyWetFraction_dWat
    !print*, 'dCanopyWetFraction_dT   = ', dCanopyWetFraction_dT
    !print*, 'canopyLiqTrial = ', canopyLiqTrial
@@ -1219,10 +1219,10 @@ contains
                     err,cmessage                          ) ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    !print*, 'scalarSenHeatTotal = ', scalarSenHeatTotal
-    !print*, 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
-    !print*, 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
-    !print*, 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
+    !write(*,'(a,f25.15)') 'scalarSenHeatTotal = ', scalarSenHeatTotal
+    !write(*,'(a,f25.15)') 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
+    !write(*,'(a,f25.15)') 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
+    !write(*,'(a,f25.15)') 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
 
     !print*, 'scalarSenHeatGround = ', scalarSenHeatGround
     !print*, 'scalarLatHeatGround = ', scalarLatHeatGround
