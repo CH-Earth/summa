@@ -20,6 +20,10 @@
 
 module read_pinit_module
 USE nrtype
+! check for when model decisions are undefined
+USE mDecisions_module,only: unDefined
+USE data_struc,only:model_decisions
+USE var_lookup,only:iLookDECISIONS,iLookPARAM
 implicit none
 private
 public::read_pinit
@@ -140,6 +144,14 @@ contains
      err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
     endif
    end do
+  endif
+ ! populate parameters that were not included in the original control files
+ else ! (need backwards compatibility)
+  if(isLocal)then
+   if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
+    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._dp              ! maximum wetted fraction of the canopy (-)
+    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.6666666667_dp    ! exponent in canopy wetting function (-)
+   endif
   endif
  endif
  ! close file unit
