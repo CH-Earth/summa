@@ -20,6 +20,7 @@
 
 module mDecisions_module
 USE nrtype
+USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
@@ -557,7 +558,7 @@ contains
  nDecisions = size(charline)
  ! allocate space for the model decisions
  if(associated(model_decisions)) deallocate(model_decisions)
- allocate(model_decisions(nDecisions),stat=err)
+ allocate(model_decisions(maxvarDecisions),stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateModelDecisions"; return; endif
  ! populate the model decisions structure
  do iDecision=1,nDecisions
