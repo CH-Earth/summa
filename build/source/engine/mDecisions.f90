@@ -69,6 +69,7 @@ integer(i4b),parameter,public :: specified            = 102    ! LAI/SAI compute
 ! look-up values for the choice of the canopy interception parameterization
 integer(i4b),parameter,public :: sparseCanopy         = 111    ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
 integer(i4b),parameter,public :: storageFunc          = 112    ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
+integer(i4b),parameter,public :: unDefined            = 113    ! option is undefined (backwards compatibility)
 ! look-up values for the form of Richards' equation
 integer(i4b),parameter,public :: moisture             = 121    ! moisture-based form of Richards' equation
 integer(i4b),parameter,public :: mixdform             = 122    ! mixed form of Richards' equation
@@ -270,63 +271,78 @@ contains
   case default
    err=10; message=trim(message)//"unknown stomatal resistance function [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
  end select
+ print*, 'model_decisions(iLookDECISIONS%stomResist)%iDecision = ', model_decisions(iLookDECISIONS%stomResist)%iDecision
 
  ! identify the leaf temperature controls on photosynthesis + stomatal resistance
- select case(trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision))
-  case('q10Func'            ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = q10Func
-  case('Arrhenius'          ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = Arrhenius
-  case default
-   err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision)//"]"; return
- end select
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision))
+   case('q10Func'            ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = q10Func
+   case('Arrhenius'          ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = Arrhenius
+   case default
+    err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision)//"]"; return
+  end select
+ endif
 
  ! identify the humidity controls on stomatal resistance
- select case(trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision))
-  case('humidLeafSurface'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = humidLeafSurface
-  case('scaledHyperbolic'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = scaledHyperbolic
-  case default
-   err=10; message=trim(message)//"unknown humidity function [option="//trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision)//"]"; return
- end select
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision))
+   case('humidLeafSurface'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = humidLeafSurface
+   case('scaledHyperbolic'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = scaledHyperbolic
+   case default
+    err=10; message=trim(message)//"unknown humidity function [option="//trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision)//"]"; return
+  end select
+ endif
 
  ! identify functions for electron transport function (dependence of photosynthesis on PAR)
- select case(trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision))
-  case('linear'             ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linear
-  case('linearJmax'         ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linearJmax
-  case('quadraticJmax'      ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = quadraticJmax
-  case default
-   err=10; message=trim(message)//"unknown electron transport function [option="//trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision)//"]"; return
- end select
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision))
+   case('linear'             ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linear
+   case('linearJmax'         ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linearJmax
+   case('quadraticJmax'      ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = quadraticJmax
+   case default
+    err=10; message=trim(message)//"unknown electron transport function [option="//trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision)//"]"; return
+  end select
+ endif
 
  ! identify the use of the co2 compensation point in the stomatal conductance calaculations
- select case(trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision))
-  case('origBWB'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = origBWB
-  case('Leuning'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = Leuning
-  case default
-   err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
- end select
-
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision))
+   case('origBWB'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = origBWB
+   case('Leuning'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = Leuning
+   case default
+    err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
+  end select
+ endif
+ 
  ! identify the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
- select case(trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision))
-  case('NoahMPsolution'     ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = NoahMPsolution  ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
-  case('newtonRaphson'      ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = newtonRaphson   ! full Newton-Raphson iterative solution to convergence
-  case default
-   err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
- end select
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision))
+   case('NoahMPsolution'     ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = NoahMPsolution  ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
+   case('newtonRaphson'      ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = newtonRaphson   ! full Newton-Raphson iterative solution to convergence
+   case default
+    err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
+  end select
+ endif
 
  ! identify the controls on carbon assimilation
- select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
-  case('colimitation'       ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = colimitation    ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
-  case('minFunc'            ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = minFunc         ! do not enable colimitation: use minimum of the three controls on carbon assimilation
-  case default
-   err=10; message=trim(message)//"unknown option for the controls on carbon assimilation [option="//trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision)//"]"; return
- end select
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
+   case('colimitation'       ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = colimitation    ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
+   case('minFunc'            ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = minFunc         ! do not enable colimitation: use minimum of the three controls on carbon assimilation
+   case default
+    err=10; message=trim(message)//"unknown option for the controls on carbon assimilation [option="//trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision)//"]"; return
+  end select
+ endif
 
  ! identify the scaling of photosynthesis from the leaf to the canopy
- select case(trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision))
-  case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor 
-  case('laiScaling'         ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = laiScaling      ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
-  case default
-   err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
- end select
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision))
+   case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor 
+   case('laiScaling'         ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = laiScaling      ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
+   case default
+    err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
+  end select
+ endif
 
  ! identify the numerical method
  select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
@@ -334,7 +350,7 @@ contains
   case('non_iter'); model_decisions(iLookDECISIONS%num_method)%iDecision = nonIterative        ! non-iterative
   case('itersurf'); model_decisions(iLookDECISIONS%num_method)%iDecision = iterSurfEnergyBal   ! iterate only on the surface energy balance
   case default
-   err=10; message=trim(message)//"unknown numerical method[option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
  end select
 
  ! identify the method used to calculate flux derivatives
