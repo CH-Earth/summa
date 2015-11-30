@@ -353,7 +353,7 @@ contains
   case('non_iter'); model_decisions(iLookDECISIONS%num_method)%iDecision = nonIterative        ! non-iterative
   case('itersurf'); model_decisions(iLookDECISIONS%num_method)%iDecision = iterSurfEnergyBal   ! iterate only on the surface energy balance
   case default
-   err=10; message=trim(message)//"unknown numerical method[option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
  end select
 
  ! identify the method used to calculate flux derivatives
