@@ -38,7 +38,7 @@ USE allocspace_module,only:alloc_indx                       ! module to allocate
 USE allocspace_module,only:alloc_bpar                       ! module to allocate space for basin-average model parameter structures
 USE allocspace_module,only:alloc_bvar                       ! module to allocate space for basin-average model variable structures
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
-USE read_metad_module,only:read_metad                       ! module to populate metadata structures
+USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
 USE def_output_module,only:def_output                       ! module to define model output
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
 USE read_attrb_module,only:read_attrb                       ! module to read local attributes
@@ -83,6 +83,7 @@ USE data_struc,only:urbanVegCategory                        ! vegetation categor
 USE data_struc,only:globalPrintFlag                         ! global print flag
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
+USE noahmp_globals,only:RSMIN                               ! minimum stomatal resistance (vegType)
 ! named variables for elements of model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
@@ -118,7 +119,7 @@ logical(lgt)              :: printRestart                   ! flag to print a re
 integer(i4b),parameter    :: ixRestart_im=1001              ! named variable to print a re-start file once per month
 integer(i4b),parameter    :: ixRestart_id=1002              ! named variable to print a re-start file once per day
 integer(i4b),parameter    :: ixRestart_never=1003           ! named variable to print a re-start file never
-integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency to write restart files
+integer(i4b)              :: ixRestart=ixRestart_im         ! define frequency to write restart files
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
@@ -179,11 +180,8 @@ doJacobian=.false.
 ! *****************************************************************************
 ! initialize model metadata structures
 call init_metad(err,message); call handle_err(err,message)
-! read metadata on all model variables
-call read_metad(err,message); call handle_err(err,message)
-! read default values and constraints for model parameters (local column, and basin-average)
-call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,message); call handle_err(err,message)
-call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,message); call handle_err(err,message)
+! populate metadata for all model variables
+call popMetadat(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures
@@ -216,7 +214,14 @@ call ffile_info(nHRU,err,message); call handle_err(err,message)
 call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (5a) read Noah vegetation and soil tables
+! (5a) read default model parameters
+! *****************************************************************************
+! read default values and constraints for model parameters (local column, and basin-average)
+call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,message); call handle_err(err,message)
+call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,message); call handle_err(err,message)
+
+! *****************************************************************************
+! (5b) read Noah vegetation and soil tables
 ! *****************************************************************************
 ! define monthly fraction of green vegetation
 !                           J        F        M        A        M        J        J        A        S        O        N        D
@@ -232,13 +237,16 @@ call read_mp_veg_parameters(trim(SETNGS_PATH)//'MPTABLE.TBL',                   
                             trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision)) ! classification system used for vegetation
 ! define urban vegetation category
 select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
- case('USGS');                     urbanVegCategory=1
- case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory=13
+ case('USGS');                     urbanVegCategory =    1
+ case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory =   13
+ case('plumberCABLE');             urbanVegCategory = -999
+ case('plumberCHTESSEL');          urbanVegCategory = -999
+ case('plumberSUMMA');             urbanVegCategory = -999
  case default; call handle_err(30,'unable to identify vegetation category')
 end select
 
 ! *****************************************************************************
-! (5b) read trial model parameter values for each HRU, and populate initial data structures
+! (5c) read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
 call read_param(nHRU,err,message); call handle_err(err,message)
 bpar_data%var(:) = basinParFallback(:)%default_val
@@ -468,6 +476,9 @@ do istep=1,numtim
               nSoil,                                                           & ! number of soil layers
               urbanVegCategory)                                                  ! vegetation category for urban areas
 
+  ! overwrite the minimum resistance
+  !RSMIN = mpar_data%var(iLookPARAM%minStomatalResistance)
+
   ! overwrite the vegetation height
   HVT(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyTop)
   HVB(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyBottom)
@@ -494,7 +505,6 @@ do istep=1,numtim
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
   end select
-  !printRestart = .true.
 
   ! run the model for a single parameter set and time step
   call coupled_em(printRestart,                    & ! flag to print a re-start file
@@ -591,6 +601,7 @@ do istep=1,numtim
  ! increment the time index
  jstep = jstep+1
 
+ !pause 'in driver: testing differences'
  !stop 'end of time step'
 
 end do  ! (looping through time)

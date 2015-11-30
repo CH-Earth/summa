@@ -4,14 +4,84 @@
 #
 # To troubleshoot your paths and setup, type 'make check'
 #
+# At a minimum you will need to set F_MASTER and FC. You will probably
+# also have to specify the location of your netcdf and lapack libraries
 
 #========================================================================
-# PART 0: Define directory paths
+# PART 0: User-configurable part
 #========================================================================
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
 F_MASTER =
+
+# Define the Fortran Compiler. If you are using gfortran, then this needs
+# to be version 4.8 or higher
+FC =
+
+# Define the NetCDF and LAPACK libraries and path to include files. Note
+# that the default paths defined are those that work for our compilers
+# and settings. If none of this makes sense, please talk to your system
+# administrator.
+
+# Eventually we plan move to a real configure script, but for now we like
+# to keep track of successful compilations of SUMMA on different platforms
+# and with different compilers. If you are successful compiling SUMMA,
+# please add your configuration (operating system and compiler plus
+# part 0 of the Makefile) to the SUMMA wiki on github.
+
+# gfortran compiler on OS X tested with 4.8 and higher
+# (works on Mac OS X with Macports)
+ifeq "$(FC)" "gfortran-mp-4.8"
+ NCDF_PATH = /opt/local
+ LAPK_PATH = /opt/local
+ # define the lapack libraries - on OS X you need atlas and
+ # blas as well
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
+endif
+
+# Ubuntu gfortran compiler tested with 4.6 and higher
+# also used for the travis build
+ifeq "$(FC)" "gfortran"
+ NCDF_PATH = /usr
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+endif
+
+# Intel fortran compiler
+ifeq "$(FC)" "ifort"
+ NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+endif
+
+LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+INCNETCDF = -I$(NCDF_PATH)/include
+
+# Define compiler flags. If you use a different compiler,
+# you will need to figure out what the equivalent flags are
+# and may need to update this section
+ifeq "$(FC)" "gfortran-mp-4.8"
+ FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+endif
+ifeq "$(FC)" "gfortran"
+ FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+endif
+ifeq "$(FC)" "ifort"
+ FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
+ FLAGS_COMM = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_SUMMA = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+endif
+
+#========================================================================
+# PART 1: Define directory paths
+#========================================================================
 
 # Core directory that contains source code
 F_KORE_DIR = $(F_MASTER)/build/source
@@ -23,7 +93,7 @@ MOD_PATH = $(F_MASTER)/build
 EXE_PATH = $(F_MASTER)/bin
 
 #========================================================================
-# PART 1: Assemble all of the SUMMA sub-routines
+# PART 2: Assemble all of the SUMMA sub-routines
 #========================================================================
 
 # Define directories
@@ -34,8 +104,8 @@ DSHARE_DIR = $(F_KORE_DIR)/dshare
 NUMREC_DIR = $(F_KORE_DIR)/numrec
 NOAHMP_DIR = $(F_KORE_DIR)/noah-mp
 ENGINE_DIR = $(F_KORE_DIR)/engine
-#
-# Numerical Recipes utilities
+
+#  utilities
 SUMMA_NRUTIL= \
         nrtype.f90 \
 		nr_utility.f90
@@ -54,12 +124,12 @@ SUMMA_HOOKUP= \
         summaFileManager.f90
 HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
-
 # Data modules
 SUMMA_DATAMS= \
+		multiconst.f90 \
 		var_lookup.f90 \
 		data_struc.f90 \
-		multiconst.f90
+		popMetadat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
 # utility modules
@@ -75,6 +145,7 @@ MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
 SUMMA_SOLVER= \
 		vegPhenlgy.f90 \
 		diagn_evar.f90 \
+        stomResist.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
@@ -98,7 +169,6 @@ SUMMA_PRELIM= \
 		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
-		read_metad.f90 \
 		ffile_info.f90 \
 		read_attrb.f90 \
 		read_pinit.f90 \
@@ -147,41 +217,6 @@ COMM_ALL = $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) $(UTILMS)
 # ... stitch together SUMMA programs
 SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
 
-#========================================================================
-# PART 2: Define the libraries, driver programs, and executables
-#========================================================================
-
-# Define the Fortran Compiler
-FC  = gfortran-mp-4.8
-
-# Define the NetCDF libraries and path to include files
-ifeq "$(FC)" "gfortran"
- NCDF_PATH = /usr/local/netcdf-4.3.0/gcc-4.7.2
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
-endif
-ifeq "$(FC)" "gfortran-mp-4.8"
- NCDF_PATH = /opt/local
- LAPK_PATH = /opt/local
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
-endif
-ifeq "$(FC)" "ifort"
- NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
-endif
-ifeq "$(FC)" "pgf90"
- NCDF_PATH = /usr/local/netcdf-4.3.0/pgi-13.8
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
-endif
-LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
-INCNETCDF = -I$(NCDF_PATH)/include
-
 # Define the driver routine
 SUMMA_DRIVER= \
 	multi_driver.f90
@@ -191,36 +226,8 @@ DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 DRIVER__EX = summa.exe
 
 #========================================================================
-# PART 3: Compile the puppy
-#========================================================================
-
-# Define flags
-ifeq "$(FC)" "gfortran"
- FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace
- FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace
- FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace
-endif
-ifeq "$(FC)" "gfortran-mp-4.8"
- FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace
- FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace
- FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace
-endif
-ifeq "$(FC)" "ifort"
- FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
- FLAGS_COMM = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
- FLAGS_SUMMA = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
-endif
-ifeq "$(FC)" "pgf90"
- FLAGS1 = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
- FLAGS_NOAH = -g -Mr8 -Mfree
- FLAGS_COMM = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=fp -traceback
- FLAGS_SUMMA = -Mbackslash -g -Mbounds -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv,ovf -traceback
-endif
-
-#FLAGS = -O3 -W -v
-
-#.SUFFIXES: .f .o .f90
-
+# PART 3: Checks
+#======================================================================
 # make sure that the paths are defined. These are just some high level checks
 ifndef F_MASTER
  $(error F_MASTER is undefined)
@@ -234,6 +241,10 @@ endif
 ifndef NCDF_PATH
  $(error NCDF_PATH is undefined)
 endif
+
+#========================================================================
+# PART 4: compilation
+#======================================================================
 
 # Compile
 all: compile_noah compile_comm compile_summa link clean install

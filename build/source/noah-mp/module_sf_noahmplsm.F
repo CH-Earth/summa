@@ -324,6 +324,27 @@ CONTAINS
          LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
          SAIM,  LAIM,  SLAREA, EPS
 
+    ! MPC change: enable use of alternative veg tables
+    !  - in this case, tables using attributes from other models used in the PLUMBER experiment
+
+    NAMELIST / noah_mp_plumberCABLE_veg_categories / VEG_DATASET_DESCRIPTION, NVEG
+    NAMELIST / noah_mp_plumberCABLE_parameters / ISURBAN, ISWATER, ISBARREN, ISSNOW, EBLFOREST, &
+         CH2OP, DLEAF, Z0MVT, HVT, HVB, DEN, RC, RHOL,  RHOS, TAUL, TAUS, XL, CWPVT, C3PSN, KC25, AKC, KO25, AKO, AVCMX, AQE, &
+         LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
+         SAIM,  LAIM,  SLAREA, EPS
+
+    NAMELIST / noah_mp_plumberCHTESSEL_veg_categories / VEG_DATASET_DESCRIPTION, NVEG
+    NAMELIST / noah_mp_plumberCHTESSEL_parameters / ISURBAN, ISWATER, ISBARREN, ISSNOW, EBLFOREST, &
+         CH2OP, DLEAF, Z0MVT, HVT, HVB, DEN, RC, RHOL,  RHOS, TAUL, TAUS, XL, CWPVT, C3PSN, KC25, AKC, KO25, AKO, AVCMX, AQE, &
+         LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
+         SAIM,  LAIM,  SLAREA, EPS
+
+    NAMELIST / noah_mp_plumberSUMMA_veg_categories / VEG_DATASET_DESCRIPTION, NVEG
+    NAMELIST / noah_mp_plumberSUMMA_parameters / ISURBAN, ISWATER, ISBARREN, ISSNOW, EBLFOREST, &
+         CH2OP, DLEAF, Z0MVT, HVT, HVB, DEN, RC, RHOL,  RHOS, TAUL, TAUS, XL, CWPVT, C3PSN, KC25, AKC, KO25, AKO, AVCMX, AQE, &
+         LTOVRC,  DILEFC,  DILEFW,  RMF25 ,  SLA   ,  FRAGR ,  TMIN  ,  VCMX25,  TDLEF ,  BP, MP, QE25, RMS25, RMR25, ARM, FOLNMX, WDPOOL, WRRAT, MRP,   &
+         SAIM,  LAIM,  SLAREA, EPS
+
     ! Initialize our variables to bad values, so that if the namelist read fails, we come to a screeching halt as soon as we try to use anything.
     CH2OP  = -1.E36
     DLEAF  = -1.E36
@@ -384,6 +405,15 @@ CONTAINS
     else if ( trim(DATASET_IDENTIFIER) == "MODIFIED_IGBP_MODIS_NOAH" ) then
        read(15,noah_mp_modis_veg_categories)
        read(15,noah_mp_modis_parameters)
+    else if ( trim(DATASET_IDENTIFIER) == "plumberCABLE" ) then
+       read(15,noah_mp_plumberCABLE_veg_categories)
+       read(15,noah_mp_plumberCABLE_parameters)
+    else if ( trim(DATASET_IDENTIFIER) == "plumberCHTESSEL" ) then
+       read(15,noah_mp_plumberCHTESSEL_veg_categories)
+       read(15,noah_mp_plumberCHTESSEL_parameters)
+    else if ( trim(DATASET_IDENTIFIER) == "plumberSUMMA" ) then
+       read(15,noah_mp_plumberSUMMA_veg_categories)
+       read(15,noah_mp_plumberSUMMA_parameters)
     else
        write(*,'("Unrecognized DATASET_IDENTIFIER in subroutine READ_MP_VEG_PARAMETERS")')
        write(*,'("DATASET_IDENTIFIER = ''", A, "''")') trim(DATASET_IDENTIFIER)
@@ -5382,6 +5412,7 @@ contains
          CF = SFCPRS/(8.314*SFCTMP)*1.e06
          RS = 1./(BP(VEGTYP)*BTRAN) * CF    ! MPC change: include BTRAN multiplier
          PSN = 0.
+         !write(*,'(a,1x,20(f16.6,1x))') 'TV-TFRZ, RS, CF = ', TV-TFRZ, RS, CF
 
          IF (APAR .LE. 0.) RETURN
 
@@ -5389,16 +5420,20 @@ contains
          TC  = TV-TFRZ
          PPF = 4.6*APAR
          J   = PPF*QE25(VEGTYP)
+         !write(*,'(a,1x,10(f20.10,1x))') 'J, APAR, QE25(VEGTYP) = ', J, APAR, QE25(VEGTYP)
          KC  = KC25(VEGTYP) * F1(AKC(VEGTYP),TC)
          KO  = KO25(VEGTYP) * F1(AKO(VEGTYP),TC)
          AWC = KC * (1.+O2/KO)
          CP  = 0.5*KC/KO*O2*0.21
          VCMX = VCMX25(VEGTYP) / F2(TC) * FNF * BTRAN * F1(AVCMX(VEGTYP),TC)
-         !print*,'BTRAN, VCMX = ', BTRAN, VCMX
+         !write(*,'(a,1x,20(f14.8,1x))') 'F1, F2, VCMX25(VEGTYP), AVCMX(VEGTYP), TC = ', F1(AVCMX(VEGTYP),TC), F2(TC), VCMX25(VEGTYP), AVCMX(VEGTYP), TC
 
 ! first guess ci
 
          CI = 0.7*CO2*C3PSN(VEGTYP) + 0.4*CO2*(1.-C3PSN(VEGTYP))
+
+         !write(*,'(a,1x,10(f20.10,1x))') 'KC25(VEGTYP), AKC(VEGTYP), KO25(VEGTYP), AKO(VEGTYP) = ', KC25(VEGTYP), AKC(VEGTYP), KO25(VEGTYP), AKO(VEGTYP)
+         !write(*,'(a,1x,10(f20.10,1x))') 'CO2, CI, CP, KC, KO = ', CO2, CI, CP, KC, KO
 
 ! rb: s/m -> s m**2 / umol
 
@@ -5408,18 +5443,23 @@ contains
 
          CEA = MAX(0.25*EI*C3PSN(VEGTYP)+0.40*EI*(1.-C3PSN(VEGTYP)), MIN(EA,EI) )
 
+         !print*, '**'
+         !write(*,'(a,1x,20(f14.8,1x))') 'BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS = ', &
+         !                                BTRAN, VCMX, MP(VEGTYP), EA, EI, CEA/EI, O2, CO2, KC, KO, J, TC, RLB, SFCPRS
+
 ! ci iteration
 !jref: C3PSN is equal to 1 for all veg types.
        DO ITER = 1, NITER
+
             WJ = MAX(CI-CP,0.)*J/(CI+2.*CP)*C3PSN(VEGTYP)  + J*(1.-C3PSN(VEGTYP))
             WC = MAX(CI-CP,0.)*VCMX/(CI+AWC)*C3PSN(VEGTYP) + VCMX*(1.-C3PSN(VEGTYP))
             WE = 0.5*VCMX*C3PSN(VEGTYP) + 4000.*VCMX*CI/SFCPRS*(1.-C3PSN(VEGTYP))
             PSN = MIN(WJ,WC,WE) * IGS
-            !write(*,'(a,1x,10(e20.10,1x))') 'WJ, WC, WE, PSN, BP(VEGTYP) = ', WJ, WC, WE, PSN, BP(VEGTYP)
 
             CS = MAX( CO2-1.37*RLB*SFCPRS*PSN, MPE )
+
             A = MP(VEGTYP)*PSN*SFCPRS*CEA / (CS*EI) + BTRAN*BP(VEGTYP)      ! MPC change: include BTRAN multiplier for 2nd term
-            B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term om brackets
+            B = ( MP(VEGTYP)*PSN*SFCPRS/CS + BTRAN*BP(VEGTYP) ) * RLB - 1.  ! MPC change: include BTRAN multiplier for 2nd term in brackets
             C = -RLB
             IF (B .GE. 0.) THEN
                Q = -0.5*( B + SQRT(B*B-4.*A*C) )
@@ -5430,12 +5470,17 @@ contains
             R2 = C/Q
             RS = MAX(R1,R2)
             CI = MAX( CS-PSN*SFCPRS*1.65*RS, 0. )
+
+            !write(*,'(a,1x10(f14.10,1x))') 'WJ, WC, WE, PSN, CI, CS, RS, TV, VCMX, J = ', &
+            !                                WJ, WC, WE, PSN, CI, CS, RS, TV, VCMX, J
+
        END DO 
+       !pause
 
 ! rs, rb:  s m**2 / umol -> s/m
 
          RS = RS*CF
-         !print*, 'RS = ', RS
+         !write(*,'(a,1x,10(f20.10,1x))') 'RS, G, CEA, EA, EI = ', RS, 1./RS, CEA, EA, EI
 
   END SUBROUTINE STOMATA
 ! ==================================================================================================

@@ -529,6 +529,12 @@ contains
  ! define the pethod to compute derivatives
  !print*, 'numerical derivatives = ', (ixDerivMethod==numerical)
 
+ ! numerical derivatives are not implemented yet
+ if(ixDerivMethod==numerical)then
+  message=trim(message)//'numerical derivates do not account for the cross derivatives between hydrology and thermodynamics'
+  err=20; return
+ endif
+
  ! check the need to compute analytical derivatives
  if(deriv_desired .and. ixDerivMethod==analytical)then
   desireAnal = .true.
@@ -1855,7 +1861,7 @@ contains
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
     ! energy derivatives
-    err=20; message=trim(message)//"not yet implemented energy derivatives"; return
+    dq_dNrgStateUnsat = -(dHydCond_dTemp/2._dp)*(lowerBoundHead  - nodeMatricHead)/(nodeDepth*0.5_dp) + dHydCond_dTemp/2._dp
    else     ! (do not desire derivatives)
     dq_dHydStateUnsat = valueMissing
     dq_dNrgStateUnsat = valueMissing

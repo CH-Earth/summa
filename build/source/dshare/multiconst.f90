@@ -27,6 +27,9 @@ MODULE multiconst
  REAL(DP), PARAMETER         :: w_ratio      =       0.622_dp    ! molecular ratio water to dry air     (-)
  REAL(DP), PARAMETER         :: R_da         =     287.053_dp    ! gas constant for dry air             (Pa K-1 m3 kg-1; J kg-1 K-1)
  REAL(DP), PARAMETER         :: R_wv         =     461.285_dp    ! gas constant for water vapor         (Pa K-1 m3 kg-1; J kg-1 K-1)
+ !REAL(DP), PARAMETER         :: Rgas         =       8.314462_dp ! universal gas constant               (J mol-1 K-1)
+ ! use same digits as Noah-MP -- chasing the difference
+ REAL(DP), PARAMETER         :: Rgas         =       8.314_dp ! universal gas constant               (J mol-1 K-1)
  REAL(DP), PARAMETER         :: gravity      =       9.80616_dp  ! acceleration of gravity              (m s-2)
  REAL(DP), PARAMETER         :: Cp_air       =    1005._dp       ! specific heat of air                 (J kg-1 K-1)
  REAL(DP), PARAMETER         :: Cp_ice       =    2114._dp       ! specific heat of ice                 (J kg-1 K-1)
@@ -48,6 +51,6 @@ MODULE multiconst
  REAL(DP), PARAMETER         :: secprday     =   86400._dp       ! number of seconds in a day
  REAL(DP), PARAMETER         :: secprhour    =    3600._dp       ! number of seconds in an hour
  REAL(DP), PARAMETER         :: secprmin     =      60._dp       ! number of seconds in a minute
-
+ integer(i4b),parameter      :: integerMissing = -9999           ! value for mising integer
 
 END MODULE multiconst
