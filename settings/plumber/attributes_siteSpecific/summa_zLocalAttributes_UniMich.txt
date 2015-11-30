@@ -1,0 +1,2 @@
+hruIndex    HRUarea   latitude  longitude  elevation  tan_slope  contourLength  mHeight   vegTypeIndex  soilTypeIndex slopeTypeIndex   downHRUindex
+    1001      1.000     45.560    -84.714    234.000    0.20000      100.00000    46.00             20              8              1              0

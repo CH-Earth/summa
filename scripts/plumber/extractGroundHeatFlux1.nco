@@ -1,0 +1,25 @@
+// Purpose: extract the ground heat flux from layer variable
+
+/* The approach here uses a while loop, which is slow. An alternative is to use the
+    NCO sort routines (and remap routines), though this approach is convoluted. This
+    script provides the "while loop" solution, and the "sort" solution is provided
+    in the script extractGroundHeatFlux2.nco */
+
+// Get the length of the dimensions
+*time_sz = $time.size;
+
+// Make the ground heat flux variable
+*Qg[$time,$hru]=-9999.;
+
+// Loop through arrays
+*idx=0;
+*ihru=0;
+while(idx<time_sz){
+  *jdx=ifcTotoStartIndex(idx)-1;
+  //*jdx=sort_map(idx);
+  Qg(idx,ihru)=iLayerNrgFlux(jdx,ihru);
+  idx++;
+}  // end the while statement
+
+// write the ground heat flux to the file
+ram_write(Qg);

@@ -1,0 +1,45 @@
+// Purpose: extract the ground heat flux from layer variable
+
+/* The approach here uses the NCO sort routines, which are convoluted. An alternative is
+    to use a while loop, provided in extractGroundHeatFlux1.nco */
+
+// Define the HRU
+*iHRU=0;
+
+// Get the length of the dimensions
+*ragged_sz = $ifcTotoAndTime.size;
+*time_sz = $time.size;
+
+// Define a new coordinate variable
+*ragged_indx=array(1,1,$ifcTotoAndTime);
+
+// Make a mask vector of length ifcTotoAndTime
+*layer_mask[$ifcTotoAndTime]=0;
+
+// Set the sort map to an internal variable
+*srt_map0=layer_mask;
+
+// Set the flag variable to 1 where the height of the layer interface is zero
+where(iLayerHeight > -0.00001 && iLayerHeight < 0.00001) layer_mask=1;
+
+// Sort the flags: ascending order
+layer_mask=sort(layer_mask,&srt_map0);
+
+// Sort the coordinate variable w.r.t the mask
+ragged_indx=remap(ragged_indx,srt_map0);
+
+// Sort the data vector w.r.t the mask
+ifc_qFlux=remap(iLayerNrgFlux,srt_map0);
+
+// Extract the index variables
+*ix[$time]=ragged_indx((ragged_sz-time_sz):(ragged_sz-1));
+
+// Extract the data variables
+Qg[$time,$hru]=ifc_qFlux((ragged_sz-time_sz):(ragged_sz-1),iHRU);
+
+// Sort the ragged array indices
+ix=sort(ix,&srt_map1);
+
+// And remap the data
+// for some reason this command does not work within the script
+//Qg=remap(Qg,srt_map1);

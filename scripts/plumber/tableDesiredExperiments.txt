@@ -1,0 +1,23 @@
+ix              model name        vegeParTbl        soilStress        stomResist        bbTempFunc        bbHumdFunc        bbElecFunc        bbAssimFnc        bbCanIntg8        rootProfil
+-- ----------------- ----------------- ----------------- ----------------- ----------------- ----------------- ----------------- ----------------- ----------------- -----------------
+12    SUMMA.1.0.exp.02.002              USGS          NoahType     BallBerryFlex           q10Func  humidLeafSurface            linear           minFunc   constantScaling         doubleExp
+13    SUMMA.1.0.exp.02.003              USGS          NoahType     BallBerryFlex           q10Func  scaledHyperbolic            linear           minFunc   constantScaling         doubleExp
+14    SUMMA.1.0.exp.02.004              USGS          NoahType     BallBerryFlex         Arrhenius  humidLeafSurface            linear           minFunc   constantScaling         doubleExp
+15    SUMMA.1.0.exp.02.005              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic            linear           minFunc   constantScaling         doubleExp
+17    SUMMA.1.0.exp.02.007              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic            linear      colimitation   constantScaling         doubleExp
+19    SUMMA.1.0.exp.02.009              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation   constantScaling         doubleExp
+21    SUMMA.1.0.exp.02.011              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+22    SUMMA.1.0.exp.02.012              USGS          NoahType            Jarvis         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+24    SUMMA.1.0.exp.02.014              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling          powerLaw
+26    SUMMA.1.0.exp.02.016              USGS          NoahType     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling          powerLaw
+27    SUMMA.1.0.exp.02.017              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+29    SUMMA.1.0.exp.02.019              USGS          SiB_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+32    SUMMA.1.0.exp.02.022              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+33    SUMMA.1.0.exp.02.024              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+34    SUMMA.1.0.exp.02.025              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+35    SUMMA.1.0.exp.02.026              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+36    SUMMA.1.0.exp.02.027              USGS          NoahType            Jarvis         Arrhenius  humidLeafSurface     quadraticJmax      colimitation        laiScaling          powerLaw
+37    SUMMA.1.0.exp.02.028              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+38    SUMMA.1.0.exp.02.029              USGS          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+39    SUMMA.1.0.exp.02.030      plumberCABLE          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
+40    SUMMA.1.0.exp.02.031   plumberCHTESSEL          CLM_Type     BallBerryFlex         Arrhenius  scaledHyperbolic     quadraticJmax      colimitation        laiScaling         doubleExp
