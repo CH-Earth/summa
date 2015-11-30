@@ -239,6 +239,10 @@ contains
                  err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ ! check start and finish time
+ write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
+ write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var
+
  ! check that simulation end time is > start time
  if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; endif
 
@@ -271,7 +275,6 @@ contains
   case default
    err=10; message=trim(message)//"unknown stomatal resistance function [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
  end select
- print*, 'model_decisions(iLookDECISIONS%stomResist)%iDecision = ', model_decisions(iLookDECISIONS%stomResist)%iDecision
 
  ! identify the leaf temperature controls on photosynthesis + stomatal resistance
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -323,7 +326,7 @@ contains
     err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
   end select
  endif
-
+ 
  ! identify the controls on carbon assimilation
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
@@ -350,7 +353,7 @@ contains
   case('non_iter'); model_decisions(iLookDECISIONS%num_method)%iDecision = nonIterative        ! non-iterative
   case('itersurf'); model_decisions(iLookDECISIONS%num_method)%iDecision = iterSurfEnergyBal   ! iterate only on the surface energy balance
   case default
-   err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown numerical method[option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
  end select
 
  ! identify the method used to calculate flux derivatives
@@ -448,9 +451,10 @@ contains
  end select
 
  ! identify the choice of parameterization for the rooting profile
+ ! NOTE: for backwards compatibility select powerLaw if rooting profile is undefined
  select case(trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision))
-  case('powerLaw');  model_decisions(iLookDECISIONS%rootProfil)%iDecision = powerLaw      ! simple power-law rooting profile
-  case('doubleExp'); model_decisions(iLookDECISIONS%rootProfil)%iDecision = doubleExp     ! the double exponential function of Xeng et al. (JHM 2001)
+  case('powerLaw','notPopulatedYet');  model_decisions(iLookDECISIONS%rootProfil)%iDecision = powerLaw      ! simple power-law rooting profile
+  case('doubleExp');                   model_decisions(iLookDECISIONS%rootProfil)%iDecision = doubleExp     ! the double exponential function of Xeng et al. (JHM 2001)
   case default
    err=10; message=trim(message)//"unknown parameterization for rooting profile [option="//trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision)//"]"; return
  end select
