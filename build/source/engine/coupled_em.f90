@@ -773,7 +773,7 @@ contains
 
    ! adjust length of the sub-step (make sure that we don't exceed the step)
    dt_temp = min(dt_sub - dt_solv, dt_temp)
-   print*, 'dt_temp, dt_sub = ', dt_temp, dt_sub
+   !print*, 'dt_temp, dt_sub = ', dt_temp, dt_sub
 
   end do  ! (multiple attempts for non-convergence)
   !print*, 'after do loop: dt_sub = ', dt_sub
