@@ -36,9 +36,9 @@ Although anyone could create these branches, they are designed for the preparati
  * Feature branch – feature/{feature_name}
  * Hotfix branch – hotfix/{hotfix_name}
  * Release branch – release/{release_name}
- * Support branch – support/VIC.{base_release_number}.{feature_branch_name}
- * Release name – VIC.{major.minor.patch}
- * Support release name - VIC.{base_release_number}.{feature_branch_name}.{##}
+ * Support branch – support/SUMMA.{base_release_number}.{feature_branch_name}
+ * Release name – SUMMA.{major.minor.patch}
+ * Support release name - SUMMA.{base_release_number}.{feature_branch_name}.{##}
 
 ## User Permissions
 Using Github to host the central or truth repository of our models allows us to easily control contributor permissions. Currently we split permission levels into 3 levels, Owners, Model Admins, and Developers.
@@ -47,7 +47,7 @@ Using Github to host the central or truth repository of our models allows us to 
 
  2. Model Admins have full access to specific repositories. They may push, pull, or make administrative changes to those repositories associated with their model. However, they should generally not push to the truth repo directly. Instead, they should fork, clone, edit locally, update their fork and then issue a pull request. This pull request should preferably be reviewed by someone else before it is merged.
 
- 3. Developers have read-only access (pull, clone, fork) to any of the publically listed repositories under the UW-hydro name. If a developer would like a feature branch merged into the main repository, a pull request must be submitted and a Model Admin may merge it in.
+ 3. Developers have read-only access (pull, clone, fork) to any of the publically listed repositories under the NCAR name. If a developer would like a feature branch merged into the main repository, a pull request must be submitted and a Model Admin may merge it in.
 
 ## Workflow examples
 
