@@ -189,7 +189,7 @@ The SUMMA administrator and other developers will review your pull request and d
 
 ### Git workflow
 
-For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found [here](https://github.com/NCAR/summa/docs/summa_git_workflow.md).
+For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found [here](https://github.com/NCAR/summa/blob/master/docs/howto/summa_git_workflow.md).
 
 
 
