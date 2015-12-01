@@ -67,7 +67,7 @@ The process would be as follows:
 
  * Add the main SUMMA repo as the upstream remote, so you can easily merge changes that are made in the main SUMMA repo into your own local repo
 
-        git add remote upstream git@github.com:NCAR/summa.git
+        git remote add upstream git@github.com:NCAR/summa.git
 
  * Checkout the `develop` branch
 
