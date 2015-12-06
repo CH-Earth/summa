@@ -18,7 +18,7 @@ In general, if you plan to apply the model rather than work directly on the sour
 If you plan on contributing to model development or would like a systematic way to incorporate updates to the SUMMA source code, we encourage you to use Git. The following sections are designed to get you started using Git and working with the SUMMA source code repository.
 
 ### Git resources
-If you are SUMMA familiar with Git yet, we encourage you to spend a few minutes getting antiquated with the system before you starting working with the SUMMA source code and Git. It's not difficult to use and a few minutes of learning about Git will go along way in helping you manage your code development.
+If you are not familiar with Git yet, we encourage you to spend a few minutes getting acquainted with the system before you starting working with the SUMMA source code and Git. It's not difficult to use and a few minutes of learning about Git will go along way in helping you manage your code development.
 
 There are a number of good Git learning resources that will provide a basic introduction to the version control system.
 * http://git-scm.com/about
@@ -84,7 +84,7 @@ then you are not in a Git repository (note that the top level directory in a Git
 
 Assign the truth repo to a remote tracking branch called `upstream`, which will allow you easily pull in changes that are made in the truth repo and keep your clone in-sync with that version. Once you get more familiar with Git, you will be able to control which updates to include:
 
-    git remote add --tracking upstream https://github.com/NCAR/summa.git
+    git remote add upstream https://github.com/NCAR/summa.git
 
 #### Step 4. Sync your clone with the truth repo
 
@@ -189,7 +189,7 @@ The SUMMA administrator and other developers will review your pull request and d
 
 ### Git workflow
 
-For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found [here](https://github.com/NCAR/summa/docs/summa_git_workflow.md).
+For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found [here](https://github.com/NCAR/summa/blob/master/docs/howto/summa_git_workflow.md).
 
 
 
