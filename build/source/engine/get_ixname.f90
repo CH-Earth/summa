@@ -105,6 +105,7 @@ contains
   case('id'              ); get_ixtime = iLookTIME%id               ! day
   case('ih'              ); get_ixtime = iLookTIME%ih               ! hour
   case('imin'            ); get_ixtime = iLookTIME%imin             ! minute
+  case('isec'            ); get_ixtime = iLookTIME%isec             ! second
   ! get to here if cannot find the variable
   case default
    get_ixtime = imiss

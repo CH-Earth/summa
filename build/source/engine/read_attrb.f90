@@ -28,7 +28,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(nHRU,err,message)
+ subroutine read_attrb(err,message)
  ! provide access to subroutines
  USE ascii_util_module,only:file_open              ! open ascii file
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
@@ -38,13 +38,15 @@ contains
  ! provide access to data
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
+ USE data_struc,only: gru_struc,nGRU,nHRU          ! gru-hru structure
+ USE data_struc,only:index_map                     ! index mapping 
  USE data_struc,only:attr_meta,type_meta           ! metadata structures
- USE data_struc,only:attr_hru,type_hru             ! data structures
+ USE data_struc,only:attr_gru,type_gru             ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE           ! named variables for elements of the data structures
  USE get_ixname_module,only:get_ixAttr,get_ixType  ! access function to find index of elements in structure
+ 
  implicit none
  ! define output
- integer(i4b),intent(out)             :: nHRU        ! number of hydrologic response units
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! define general variables
@@ -68,11 +70,24 @@ contains
  integer(i4b),allocatable             :: varIndx(:)      ! index of variable within its data structure
  integer(i4b)                         :: iAtt            ! index of an attribute name
  integer(i4b)                         :: iHRU            ! index of an HRU
+ integer(i4b)                         :: iGRU            ! index of an GRU
+ integer(i4b)                         :: iVar            ! index of an HRU
  integer(i4b)                         :: nAtt            ! number of model attributes
  integer(i4b)                         :: nVar_attr       ! number of variables in the model attribute structure
  integer(i4b)                         :: nVar_type       ! number of variables in the model category structure
  logical(lgt),allocatable             :: checkType(:)    ! vector to check if we have all desired categorical values
  logical(lgt),allocatable             :: checkAttr(:)    ! vector to check if we have all desired local attributes
+ integer(i4b)                         :: jVar, jStruct      ! index for variables and structures
+ integer(i4b)                         :: hruCount           ! number of hrus in a gru
+ integer(i4b)                         :: hru_ix             ! hru index; it is sequential over entire domain,but not necessary within a gru
+
+ ! define indicators for different data structures
+ integer(i4b),parameter               :: ixType=1           ! indicator for type_gru structure
+ integer(i4b),parameter               :: ixAttr=2           ! indicator for attr_gru structure 
+ integer(i4b)                         :: hit                ! number of variables with same name across all data structures 
+ character(len=64)                    :: varname=''         ! variable name
+ integer(i4b), parameter              :: imiss = -999       ! missing value for variable id
+
  ! Start procedure here
  err=0; message="read_attrb/"
 
@@ -177,31 +192,38 @@ contains
  call get_vlines(unt,dataLines,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! get the number of HRUs
- nHRU = size(dataLines)
+ !nHRU = size(dataLines)
+
+
  ! allocate space
- call alloc_attr(nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- call alloc_type(nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call alloc_attr(nGRU,nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call alloc_type(nGRU,nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
 
  ! **********************************************************************************************
  ! (4) put data in the structures
  ! **********************************************************************************************
- ! loop through HRUs
- do iHRU=1,nHRU
-  ! split the line into an array of words
-  call split_line(dataLines(iHRU),attData,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  if(size(attData) /= nAtt)then; err=20; message=trim(message)//'number of attributes does not match expected number of attributes'; return; endif
-  ! put attributes in the appropriate structures
-  do iAtt=1,nAtt
-   select case(varType(iAtt))
-    case(numerical);   read(attData(iAtt),*,iostat=err) attr_hru(iHRU)%var(varIndx(iAtt))
-    case(categorical); read(attData(iAtt),*,iostat=err) type_hru(iHRU)%var(varIndx(iAtt))
-    case default; err=20; message=trim(message)//'unable to find type of attribute (categorical or numerical)'; return
-   end select
-   if(err/=0)then; err=20; message=trim(message)//'problem with internal read of attribute data'; return; endif
-  end do  ! (looping through model attributes)
- end do  ! (looping through HRUs)
+ ! loop through GRUs
+ do iGRU=1,nGRU
+ hruCount=gru_struc(iGRU)%hruCount
+! hruCount = nHRU !ajn change when GRUs are better defined
+  ! loop through HRUs
+  do iHRU=1,hruCount
+   ! split the line into an array of words
+   call split_line(dataLines(iHRU),attData,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if(size(attData) /= nAtt)then; err=20; message=trim(message)//'number of attributes does not match expected number of attributes'; return; endif
+   ! put attributes in the appropriate structures
+   do iAtt=1,nAtt
+    select case(varType(iAtt))
+     case(numerical);   read(attData(iAtt),*,iostat=err) attr_gru(iGRU)%hru(iHRU)%var(varIndx(iAtt))
+     case(categorical); read(attData(iAtt),*,iostat=err) type_gru(iGRU)%hru(iHRU)%var(varIndx(iAtt))
+     case default; err=20; message=trim(message)//'unable to find type of attribute (categorical or numerical)'; return
+    end select
+    if(err/=0)then; err=20; message=trim(message)//'problem with internal read of attribute data'; return; endif
+   end do  ! (looping through model attributes)
+  end do   ! (looping through HRUs)
+ end do    ! (looping through GRUs)
 
  ! **********************************************************************************************
  ! (5) deallocate space

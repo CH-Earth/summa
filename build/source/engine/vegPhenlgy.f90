@@ -125,6 +125,8 @@ contains
 
  ) ! associate variables in data structure
  ! ----------------------------------------------------------------------------------------------------------------------------------
+print*, 'scalarLAI=', scalarLAI, ' scalarSAI=', scalarSAI, ' scalarExposedLAI=', scalarExposedLAI, ' scalarExposedSAI=', scalarExposedSAI, &
+        'veg type=',vegTypeIndex
 
  ! check if we have isolated the snow-soil domain (used in test cases)
  if(ix_bcUpprTdyn == prescribedTemp .or. ix_bcUpprTdyn == zeroFlux .or. ix_bcUpprSoiH == prescribedHead)then
@@ -165,6 +167,7 @@ contains
                  scalarExposedSAI,            & ! intent(out): exposed stem area index after burial by snow (m2 m-2)
                  scalarGrowingSeasonIndex     ) ! intent(out): growing season index (0=off, 1=on)
 
+  print*, 'dt_done= ....', ' scalarExposedLAI=',scalarExposedLAI,'scalarLAI',scalarLAI
   ! determine additional phenological variables
   exposedVAI      = scalarExposedLAI + scalarExposedSAI   ! exposed vegetation area index (m2 m-2)
   canopyDepth     = heightCanopyTop - heightCanopyBottom  ! canopy depth (m)
