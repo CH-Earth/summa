@@ -345,6 +345,8 @@ contains
                    mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
                    mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
                    mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
+                   mpar_data%var(iLookPARAM%canopyWettingFactor),                & ! maximum wetted fraction of the canopy (-)
+                   mpar_data%var(iLookPARAM%canopyWettingExp),                   & ! exponent in canopy wetting function (-)
                    ! output
                    mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
                    dCanopyWetFraction_dWat,                                      & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
@@ -842,7 +844,7 @@ contains
   !print*, 'in substep loop: dt_sub = ', dt_sub
 
  end do  ! (sub-step loop)
- !stop 'completed time step'
+ !pause 'completed time step'
 
  ! ---
  ! (14) balance checks...

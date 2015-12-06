@@ -20,6 +20,7 @@
 
 module mDecisions_module
 USE nrtype
+USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
@@ -47,72 +48,76 @@ integer(i4b),parameter,public :: analytical           =  22    ! analytical solu
 ! look-up values for method used to determine LAI and SAI
 integer(i4b),parameter,public :: monthlyTable         =  31    ! LAI/SAI taken directly from a monthly table for different vegetation classes
 integer(i4b),parameter,public :: specified            =  32    ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+! look-up values for the choice of the canopy interception parameterization
+integer(i4b),parameter,public :: sparseCanopy         =  41    ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
+integer(i4b),parameter,public :: storageFunc          =  42    ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
+integer(i4b),parameter,public :: unDefined            =  43    ! option is undefined (backwards compatibility)
 ! look-up values for the form of Richards' equation
-integer(i4b),parameter,public :: moisture             =  41    ! moisture-based form of Richards' equation
-integer(i4b),parameter,public :: mixdform             =  42    ! mixed form of Richards' equation
+integer(i4b),parameter,public :: moisture             =  51    ! moisture-based form of Richards' equation
+integer(i4b),parameter,public :: mixdform             =  52    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
-integer(i4b),parameter,public :: qbaseTopmodel        =  51    ! TOPMODEL-ish baseflow parameterization
-integer(i4b),parameter,public :: bigBucket            =  52    ! a big bucket (lumped aquifer model)
-integer(i4b),parameter,public :: noExplicit           =  53    ! no explicit groundwater parameterization
+integer(i4b),parameter,public :: qbaseTopmodel        =  61    ! TOPMODEL-ish baseflow parameterization
+integer(i4b),parameter,public :: bigBucket            =  62    ! a big bucket (lumped aquifer model)
+integer(i4b),parameter,public :: noExplicit           =  63    ! no explicit groundwater parameterization
 ! look-up values for the choice of hydraulic conductivity profile
-integer(i4b),parameter,public :: constant             =  61    ! constant hydraulic conductivity with depth
-integer(i4b),parameter,public :: powerLaw_profile     =  62    ! power-law profile
+integer(i4b),parameter,public :: constant             =  71    ! constant hydraulic conductivity with depth
+integer(i4b),parameter,public :: powerLaw_profile     =  72    ! power-law profile
 ! look-up values for the choice of boundary conditions for thermodynamics
-integer(i4b),parameter,public :: prescribedTemp       =  71    ! prescribed temperature
-integer(i4b),parameter,public :: energyFlux           =  72    ! energy flux
-integer(i4b),parameter,public :: zeroFlux             =  73    ! zero flux
+integer(i4b),parameter,public :: prescribedTemp       =  81    ! prescribed temperature
+integer(i4b),parameter,public :: energyFlux           =  82    ! energy flux
+integer(i4b),parameter,public :: zeroFlux             =  83    ! zero flux
 ! look-up values for the choice of boundary conditions for hydrology
-integer(i4b),parameter,public :: liquidFlux           =  81    ! liquid water flux
-integer(i4b),parameter,public :: prescribedHead       =  82    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-integer(i4b),parameter,public :: funcBottomHead       =  83    ! function of matric head in the lower-most layer
-integer(i4b),parameter,public :: freeDrainage         =  84    ! free drainage
+integer(i4b),parameter,public :: liquidFlux           =  91    ! liquid water flux
+integer(i4b),parameter,public :: prescribedHead       =  92    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+integer(i4b),parameter,public :: funcBottomHead       =  93    ! function of matric head in the lower-most layer
+integer(i4b),parameter,public :: freeDrainage         =  94    ! free drainage
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
-integer(i4b),parameter,public :: Raupach_BLM1994      =  91    ! Raupach (BLM 1994) "Simplified expressions..."
-integer(i4b),parameter,public :: CM_QJRMS1998         =  92    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
-integer(i4b),parameter,public :: vegTypeTable         =  93    ! constant parameters dependent on the vegetation type
+integer(i4b),parameter,public :: Raupach_BLM1994      = 101    ! Raupach (BLM 1994) "Simplified expressions..."
+integer(i4b),parameter,public :: CM_QJRMS1998         = 102    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+integer(i4b),parameter,public :: vegTypeTable         = 103    ! constant parameters dependent on the vegetation type
 ! look-up values for the choice of parameterization for canopy emissivity
-integer(i4b),parameter,public :: simplExp             = 101    ! simple exponential function
-integer(i4b),parameter,public :: difTrans             = 102    ! parameterized as a function of diffuse transmissivity
+integer(i4b),parameter,public :: simplExp             = 111    ! simple exponential function
+integer(i4b),parameter,public :: difTrans             = 112    ! parameterized as a function of diffuse transmissivity
 ! look-up values for the choice of parameterization for snow interception
-integer(i4b),parameter,public :: stickySnow           = 111    ! maximum interception capacity an increasing function of temerature
-integer(i4b),parameter,public :: lightSnow            = 112    ! maximum interception capacity an inverse function of new snow densit
+integer(i4b),parameter,public :: stickySnow           = 121    ! maximum interception capacity an increasing function of temerature
+integer(i4b),parameter,public :: lightSnow            = 122    ! maximum interception capacity an inverse function of new snow densit
 ! look-up values for the choice of wind profile
-integer(i4b),parameter,public :: exponential          = 121    ! exponential wind profile extends to the surface
-integer(i4b),parameter,public :: logBelowCanopy       = 122    ! logarithmic profile below the vegetation canopy
+integer(i4b),parameter,public :: exponential          = 131    ! exponential wind profile extends to the surface
+integer(i4b),parameter,public :: logBelowCanopy       = 132    ! logarithmic profile below the vegetation canopy
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard             = 131    ! standard MO similarity, a la Anderson (1976)
-integer(i4b),parameter,public :: louisInversePower    = 132    ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential     = 133    ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard             = 141    ! standard MO similarity, a la Anderson (1976)
+integer(i4b),parameter,public :: louisInversePower    = 142    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential     = 143    ! Mahrt (1987) exponential
 ! look-up values for the choice of canopy shortwave radiation method
-integer(i4b),parameter,public :: noah_mp              = 141    ! full Noah-MP implementation (including albedo)
-integer(i4b),parameter,public :: CLM_2stream          = 142    ! CLM 2-stream model (see CLM documentation)
-integer(i4b),parameter,public :: UEB_2stream          = 143    ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
-integer(i4b),parameter,public :: NL_scatter           = 144    ! Simplified method Nijssen and Lettenmaier (JGR 1999)
-integer(i4b),parameter,public :: BeersLaw             = 145    ! Beer's Law (as implemented in VIC)
+integer(i4b),parameter,public :: noah_mp              = 151    ! full Noah-MP implementation (including albedo)
+integer(i4b),parameter,public :: CLM_2stream          = 152    ! CLM 2-stream model (see CLM documentation)
+integer(i4b),parameter,public :: UEB_2stream          = 153    ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+integer(i4b),parameter,public :: NL_scatter           = 154    ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+integer(i4b),parameter,public :: BeersLaw             = 155    ! Beer's Law (as implemented in VIC)
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: constantDecay        = 151    ! constant decay (e.g., VIC, CLASS)
-integer(i4b),parameter,public :: variableDecay        = 152    ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
+integer(i4b),parameter,public :: constantDecay        = 161    ! constant decay (e.g., VIC, CLASS)
+integer(i4b),parameter,public :: variableDecay        = 162    ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement   = 161    ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical    = 162    ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement   = 171    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical    = 172    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
-integer(i4b),parameter,public :: sameRulesAllLayers   = 171    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 172    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: sameRulesAllLayers   = 181    ! same combination/sub-division rules applied to all layers
+integer(i4b),parameter,public :: rulesDependLayerIndex= 182    ! combination/sub-dividion rules depend on layer index
 ! look-up values for the choice of thermal conductivity representation for snow
-integer(i4b),parameter,public :: Yen1965              = 181    ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977           = 182    ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991           = 183    ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000         = 184    ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965              = 191    ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977           = 192    ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991           = 193    ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000         = 194    ! Smirnova et al. (2000)
 ! look-up values for the choice of thermal conductivityi representation for soil
-integer(i4b),parameter,public :: funcSoilWet          = 191    ! function of soil wetness
-integer(i4b),parameter,public :: mixConstit           = 192    ! mixture of constituents
-integer(i4b),parameter,public :: hanssonVZJ           = 193    ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
+integer(i4b),parameter,public :: funcSoilWet          = 201    ! function of soil wetness
+integer(i4b),parameter,public :: mixConstit           = 202    ! mixture of constituents
+integer(i4b),parameter,public :: hanssonVZJ           = 203    ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
 ! look-up values for the choice of method for the spatial representation of groundwater
-integer(i4b),parameter,public :: localColumn          = 201    ! separate groundwater representation in each local soil column
-integer(i4b),parameter,public :: singleBasin          = 202    ! single groundwater store over the entire basin
+integer(i4b),parameter,public :: localColumn          = 211    ! separate groundwater representation in each local soil column
+integer(i4b),parameter,public :: singleBasin          = 212    ! single groundwater store over the entire basin
 ! look-up values for the choice of sub-grid routing method
-integer(i4b),parameter,public :: timeDelay            = 211    ! time-delay histogram
-integer(i4b),parameter,public :: qInstant             = 212    ! instantaneous routing
+integer(i4b),parameter,public :: timeDelay            = 221    ! time-delay histogram
+integer(i4b),parameter,public :: qInstant             = 222    ! instantaneous routing
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -273,6 +278,15 @@ contains
   case('specified'); model_decisions(iLookDECISIONS%LAI_method)%iDecision = specified          ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
   case default
    err=10; message=trim(message)//"unknown method to determine LAI and SAI [option="//trim(model_decisions(iLookDECISIONS%LAI_method)%cDecision)//"]"; return
+ end select
+
+ ! identify the canopy interception parameterization
+ select case(trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision))
+  case('notPopulatedYet'); model_decisions(iLookDECISIONS%cIntercept)%iDecision = unDefined
+  case('sparseCanopy');    model_decisions(iLookDECISIONS%cIntercept)%iDecision = sparseCanopy
+  case('storageFunc');     model_decisions(iLookDECISIONS%cIntercept)%iDecision = storageFunc
+  case default
+   err=10; message=trim(message)//"unknown canopy interception parameterization [option="//trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision)//"]"; return
  end select
 
  ! identify the form of Richards' equation
@@ -550,7 +564,7 @@ contains
  nDecisions = size(charline)
  ! allocate space for the model decisions
  if(associated(model_decisions)) deallocate(model_decisions)
- allocate(model_decisions(nDecisions),stat=err)
+ allocate(model_decisions(maxvarDecisions),stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateModelDecisions"; return; endif
  ! populate the model decisions structure
  do iDecision=1,nDecisions
