@@ -307,7 +307,6 @@ contains
  real(dp)                        :: dCanopyEvaporation_dCanLiq   ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
  ! energy fluxes and derivatives for the snow and soil domains
  real(dp),dimension(nLayers)     :: ssdNetNrgFlux                ! net energy flux for each layer (J m-3 s-1)
- real(dp),dimension(0:nLayers)   :: iLayerNrgFlux                ! energy flux at the layer interfaces (W m-2)
  real(dp),dimension(0:nLayers)   :: dNrgFlux_dTempAbove          ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
  real(dp),dimension(0:nLayers)   :: dNrgFlux_dTempBelow          ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
  ! liquid water fluxes and derivatives for the vegetation domain
@@ -1714,6 +1713,7 @@ contains
   mLayerColumnOutflow     => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat       ,&  ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
 
   ! soil fluxes
+  iLayerNrgFlux           => mvar_data%var(iLookMVAR%iLayerNrgFlux)%dat             ,&  ! intent(out): [dp(0:)] vertical energy flux at the interface of snow and soil layers
   iLayerLiqFluxSnow       => mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
   iLayerLiqFluxSoil       => mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
   mLayerBaseflow          => mvar_data%var(iLookMVAR%mLayerBaseflow)%dat            ,&  ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)

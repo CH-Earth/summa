@@ -115,10 +115,11 @@ integer(i4b)              :: iStep=0                        ! index of model tim
 integer(i4b)              :: jStep=0                        ! index of model output
 ! define the re-start file
 logical(lgt)              :: printRestart                   ! flag to print a re-start file
+integer(i4b),parameter    :: ixRestart_iy=1000              ! named variable to print a re-start file once per year
 integer(i4b),parameter    :: ixRestart_im=1001              ! named variable to print a re-start file once per month
 integer(i4b),parameter    :: ixRestart_id=1002              ! named variable to print a re-start file once per day
 integer(i4b),parameter    :: ixRestart_never=1003           ! named variable to print a re-start file never
-integer(i4b)              :: ixRestart=ixRestart_never      ! define frequency to write restart files
+integer(i4b)              :: ixRestart=ixRestart_iy         ! define frequency to write restart files
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
@@ -370,8 +371,6 @@ do istep=1,numtim
   ! read forcing data
   call read_force(istep,iHRU,err,message); call handle_err(err,message)
  end do  ! (end looping through HRUs)
- print*, time_data%var
-
 
  ! *****************************************************************************
  ! (7) create a new NetCDF output file, and write parameters and forcing data
@@ -489,12 +488,14 @@ do istep=1,numtim
   ! ****************************************************************************
   ! define the need to calculate the re-start file
   select case(ixRestart)
-   case(ixRestart_im);    printRestart = (time_data%var(iLookTIME%id) == 1 .and. time_data%var(iLookTIME%ih) == 1  .and. time_data%var(iLookTIME%imin) == 0)
-   case(ixRestart_id);    printRestart = (time_data%var(iLookTIME%ih) == 1 .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_iy);    printRestart = (time_data%var(iLookTIME%im) == 1 .and. time_data%var(iLookTIME%id) == 1 .and. time_data%var(iLookTIME%ih) == 0  .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_im);    printRestart = (time_data%var(iLookTIME%id) == 1 .and. time_data%var(iLookTIME%ih) == 0 .and. time_data%var(iLookTIME%imin) == 0)
+   case(ixRestart_id);    printRestart = (time_data%var(iLookTIME%ih) == 0 .and. time_data%var(iLookTIME%imin) == 0)
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
   end select
   !printRestart = .true.
+  if(time_data%var(iLookTIME%ih) == 0 .and. time_data%var(iLookTIME%imin) == 0) print*, time_data%var, printRestart
 
   ! run the model for a single parameter set and time step
   call coupled_em(printRestart,                    & ! flag to print a re-start file
