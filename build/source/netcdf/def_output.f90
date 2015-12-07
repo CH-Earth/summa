@@ -203,7 +203,7 @@ contains
  ! identify length of the variable vector
  maxStepsPerFile = min(numtim, nint(366._dp * secprday/data_step) )
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
-  case(sameRulesAllLayers);    meanSnowLayersPerStep = 100
+  case(sameRulesAllLayers);    meanSnowLayersPerStep = 1000
   case(rulesDependLayerIndex); meanSnowLayersPerStep = 5
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)

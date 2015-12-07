@@ -256,18 +256,18 @@ contains
   select case(model_decisions(iLookDECISIONS%snowDenNew)%iDecision)
    ! Hedstrom and Pomeroy 1998
    case(hedAndPom) 
-    newSnowDensity = newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal)  ! new snow density (kg m-3)
+    newSnowDensity = min(150._dp,newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal))  ! new snow density (kg m-3)
    ! Pahaut 1976 (Boone et al. 2002)
    case(pahaut_76)
-    newSnowDensity = a_sn + (b_sn * (airtemp-Tfreeze))+(c_sn*((windspd)**0.5)); ! new snow density (kg m-3)
+    newSnowDensity = max(50._dp,a_sn + (b_sn * (airtemp-Tfreeze))+(c_sn*((windspd)**0.5_dp))); ! new snow density (kg m-3)
    ! Anderson 1976 
    case(anderson) 
-    if(airtemp>(Tfreeze+2))then
-     newSnowDensity = newSnowDenMin + d_sn*(e_sn)**(3/2) ! new snow density (kg m-3)
-    elseif(airtemp<=(Tfreeze-15))then
+    if(airtemp>(Tfreeze+2._dp))then
+     newSnowDensity = newSnowDenMin + d_sn*(e_sn)**(3._dp/2._dp) ! new snow density (kg m-3)
+    elseif(airtemp<=(Tfreeze-15._dp))then
      newSnowDensity = newSnowDenMin ! new snow density (kg m-3)
     else
-     newSnowDensity = newSnowDenMin + d_sn*(airtemp-Tfreeze+e_sn)**(3/2) ! new snow density (kg m-3)
+     newSnowDensity = newSnowDenMin + d_sn*(airtemp-Tfreeze+e_sn)**(3._dp/2._dp) ! new snow density (kg m-3)
     endif
    ! Constant new snow density
    case(constDens) 
