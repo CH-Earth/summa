@@ -17,7 +17,6 @@ F_MASTER =
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 4.8 or higher
-
 FC =
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
@@ -127,9 +126,10 @@ HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
 # Data modules
 SUMMA_DATAMS= \
+		multiconst.f90 \
 		var_lookup.f90 \
 		data_struc.f90 \
-		multiconst.f90
+		popMetadat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
 # utility modules
@@ -168,7 +168,6 @@ SUMMA_PRELIM= \
 		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
-		read_metad.f90 \
 		ffile_info.f90 \
 		read_attrb.f90 \
 		read_pinit.f90 \

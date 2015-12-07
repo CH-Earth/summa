@@ -38,7 +38,7 @@ USE allocspace_module,only:alloc_indx                       ! module to allocate
 USE allocspace_module,only:alloc_bpar                       ! module to allocate space for basin-average model parameter structures
 USE allocspace_module,only:alloc_bvar                       ! module to allocate space for basin-average model variable structures
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
-USE read_metad_module,only:read_metad                       ! module to populate metadata structures
+USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
 USE def_output_module,only:def_output                       ! module to define model output
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
 USE read_attrb_module,only:read_attrb                       ! module to read local attributes
@@ -179,8 +179,8 @@ doJacobian=.false.
 ! *****************************************************************************
 ! initialize model metadata structures
 call init_metad(err,message); call handle_err(err,message)
-! read metadata on all model variables
-call read_metad(err,message); call handle_err(err,message)
+! populate metadata for all model variables
+call popMetadat(err,message); call handle_err(err,message)
 ! read default values and constraints for model parameters (local column, and basin-average)
 call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,message); call handle_err(err,message)
 call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,message); call handle_err(err,message)

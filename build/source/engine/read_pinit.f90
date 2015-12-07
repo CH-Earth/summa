@@ -48,6 +48,7 @@ contains
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
  ! define general variables
+ logical(lgt),parameter               :: backwardsCompatible=.true. ! .true. if skip check that all parameters are populated
  real(dp),parameter                   :: amiss=1.d+30   ! missing data
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
@@ -131,12 +132,15 @@ contains
   endif
  end do  ! (looping through lines in the file)
  ! check we have populated all variables
- if(any(parFallback(:)%default_val > 0.99_dp*amiss))then
-  do ivar=1,size(parFallback)
-   if(parFallback(ivar)%default_val > 0.99_dp*amiss)then
-    err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
-   endif
-  end do
+ ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
+ if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file 
+  if(any(parFallback(:)%default_val > 0.99_dp*amiss))then
+   do ivar=1,size(parFallback)
+    if(parFallback(ivar)%default_val > 0.99_dp*amiss)then
+     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
+    endif
+   end do
+  endif
  endif
  ! close file unit
  close(unt)
