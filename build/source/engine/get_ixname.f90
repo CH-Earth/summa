@@ -48,7 +48,6 @@ contains
  integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
-  ! simulation options
   case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! ( 1) simulation start time
   case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! ( 2) simulation end time
   case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! ( 3) soil-category dateset
@@ -292,6 +291,8 @@ contains
   ! vegetation properties
   case('winterSAI'                ); get_ixparam = iLookPARAM%winterSAI              ! stem area index prior to the start of the growing season (m2 m-2)
   case('summerLAI'                ); get_ixparam = iLookPARAM%summerLAI              ! maximum leaf area index at the peak of the growing season (m2 m-2)
+  case('rootScaleFactor1'         ); get_ixparam = iLookPARAM%rootScaleFactor1       ! 1st scaling factor (a) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )   (m-1)
+  case('rootScaleFactor2'         ); get_ixparam = iLookPARAM%rootScaleFactor2       ! 2nd scaling factor (b) in Y = 1 - 0.5*( exp(-aZ) + exp(-bZ) )   (m-1)
   case('rootingDepth'             ); get_ixparam = iLookPARAM%rootingDepth           ! rooting depth (m)
   case('rootDistExp'              ); get_ixparam = iLookPARAM%rootDistExp            ! exponent for the vertical distriution of root density (-)
   case('plantWiltPsi'             ); get_ixparam = iLookPARAM%plantWiltPsi           ! matric head at wilting point (m)

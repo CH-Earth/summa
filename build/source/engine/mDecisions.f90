@@ -275,7 +275,6 @@ contains
   case default
    err=10; message=trim(message)//"unknown stomatal resistance function [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
  end select
- print*, 'model_decisions(iLookDECISIONS%stomResist)%iDecision = ', model_decisions(iLookDECISIONS%stomResist)%iDecision
 
  ! identify the leaf temperature controls on photosynthesis + stomatal resistance
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -327,7 +326,7 @@ contains
     err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
   end select
  endif
-
+ 
  ! identify the controls on carbon assimilation
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
@@ -449,6 +448,15 @@ contains
   case('vegTypeTable'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = vegTypeTable     ! constant parameters dependent on the vegetation type
   case default
    err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height [option="//trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision)//"]"; return
+ end select
+
+ ! identify the choice of parameterization for the rooting profile
+ ! NOTE: for backwards compatibility select powerLaw if rooting profile is undefined
+ select case(trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision))
+  case('powerLaw','notPopulatedYet');  model_decisions(iLookDECISIONS%rootProfil)%iDecision = powerLaw      ! simple power-law rooting profile
+  case('doubleExp');                   model_decisions(iLookDECISIONS%rootProfil)%iDecision = doubleExp     ! the double exponential function of Xeng et al. (JHM 2001)
+  case default
+   err=10; message=trim(message)//"unknown parameterization for rooting profile [option="//trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision)//"]"; return
  end select
 
  ! identify the choice of parameterization for canopy emissivity
