@@ -178,7 +178,7 @@ contains
  endif
 
  ! check for low/high snow density
- if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice < 1._dp) .or. &
+ if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice < 40._dp) .or. &
     any(mLayerVolFracIceNew(1:nSnow)*iden_ice > 917._dp))then
   do iSnow=1,nSnow
    write(*,'(a,1x,i4,1x,f9.3)') 'iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
