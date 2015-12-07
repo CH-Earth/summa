@@ -157,7 +157,7 @@ MODULE var_lookup
   integer(i4b)    :: grainGrowthRate           = 36  ! rate of grain growth (s-1)
   integer(i4b)    :: densScalOvrbdn            = 37  ! density scaling factor for overburden pressure (kg-1 m3)
   integer(i4b)    :: tempScalOvrbdn            = 38  ! temperature scaling factor for overburden pressure (K-1)
-  integer(i4b)    :: base_visc                 = 39  ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
+  integer(i4b)    :: baseViscosity             = 39  ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
   ! water flow within snow
   integer(i4b)    :: Fcapil                    = 40  ! capillary retention as a fraction of the total pore volume (-)
   integer(i4b)    :: k_snow                    = 41  ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB

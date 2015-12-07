@@ -71,7 +71,7 @@ contains
  real(dp),intent(in)                 :: grainGrowthRate          ! rate of grain growth (s-1)
  real(dp),intent(in)                 :: densScalOvrbdn           ! density scaling factor for overburden pressure (kg-1 m3)
  real(dp),intent(in)                 :: tempScalOvrbdn           ! temperature scaling factor for overburden pressure (K-1)
- real(dp),intent(in)                 :: base_visc                ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+ real(dp),intent(in)                 :: baseViscosity            ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
  ! intent(inout): state variables
  real(dp),intent(inout)              :: mLayerDepth(:)           ! depth of each layer (m)
  real(dp),intent(inout)              :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
