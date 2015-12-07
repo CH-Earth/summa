@@ -29,7 +29,6 @@ USE conv_funcs_module,only:satVapPress   ! function to compute the saturated vap
 ! look-up values for the stomatal resistance formulation
 USE mDecisions_module,only:  &
  simpleResistance,           & ! simple resistance formulation
- BallBerryTest,              & ! flexible Ball-Berry scheme (testing)           
  BallBerryFlex,              & ! flexible Ball-Berry scheme           
  BallBerry,                  & ! Ball-Berry (from Noah-MP)
  Jarvis                        ! Jarvis (from Noah-MP)
@@ -276,105 +275,6 @@ contains
 
    end do  ! looping through sunlit and shaded leaves
 
-
-  ! *******************************************************************************************************************************************
-  case(BallBerryTest)
-   ! synthetic test to explore basic parameter sensitivity
-
-   ! set vcmax25 to 40
-   vcmax25_canopyTop = 40._dp
-
-   ! set air pressure to the standard atmosphere
-   airpres = 101325._dp
-
-   ! define partial pressure of o2 and co2
-   scalarO2air  = 0.209_dp    * airpres ! from Bonan et al. JGR 2011
-   scalarCO2air = 0.000379_dp * airpres ! from Bonan et al. JGR 2011
-
-   ! set the growing season index to 1
-   scalarGrowingSeasonIndex = 1._dp
-
-   ! set the leaf boundary layer conductance to 0.05 m s-1
-   scalarLeafResistance = 1._dp / 0.05_dp  
-
-   ! set the soil moisture control
-   scalarTranspireLim = 1._dp
-
-   ! define unit conversion (m s-1 --> mol m-2 s-1)
-   ! NOTE: Rgas   = J K-1 Mol-1 (J = kg m2 s-2); airtemp = K; airpres = Pa (kg m-1 s-2)
-   unitConv = airpres/(Rgas*airtemp)  ! mol m-3
-
-   ! loop through experiments
-   do iExp=1,nExp
-
-    ! define default values
-    leafTemp =   25._dp + Tfreeze
-    vpd      =    0._dp
-    par      = 2000._dp / joule2umolConv 
-
-    ! define output file
-    select case(iExp)
-     case(ixTemp); filename=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_stomatalResistance.'//trim(cTemp)//'.txt'
-     case(ixVPD);  filename=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_stomatalResistance.'//trim(cVPD)//'.txt'
-     case(ixPAR);  filename=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_stomatalResistance.'//trim(cPAR)//'.txt'
-     case default; err=20; message=trim(message)//'unable to identify case for forcing variable'; return
-    end select
-
-    ! open up output file
-    open(unit=ixUnit,file=trim(filename))
-
-    ! loop through trial values
-    do iTrial=1,nTrial
-
-     ! define a number between zero and one
-     xTrial = real(iTrial-1, kind(1._dp)) / real(nTrial-1, kind(1._dp))
-
-     ! get forcing variables for a given experiment
-     select case(iExp)
-      case(ixTemp); leafTemp = xTrial*39._dp + 0.5_dp + Tfreeze
-      case(ixVPD);  vpd      = xTrial*3000._dp
-      case(ixPAR);  par      = xTrial*500._dp
-      case default; err=20; message=trim(message)//'unable to identify case for forcing variable'; return
-     end select
-
-     ! compute saturated vapor pressure at the leaf temperature
-     call satVapPress(leafTemp-Tfreeze, SatVP_leafTemp, derivNotUsed)
-
-     ! compute the vapor pressure of the canopy air space
-     vpCanair = SatVP_leafTemp - vpd
-
-     ! compute photosynthesis and stomatal resistance
-     call stomResist_flex(&
-                          ! input: state and diagnostic variables
-                          leafTemp,                            & ! intent(in): vegetation temperature (K)
-                          SatVP_leafTemp,                      & ! intent(in): saturation vapor pressure at vegetation temperature (Pa)
-                          vpCanair,                            & ! intent(in): canopy air vapor pressure (Pa)
-                          par,                                 & ! intent(in): absorbed PAR (W m-2)
-                          ! input: data structures
-                          forc_data,                           & ! intent(in): model forcing data
-                          mpar_data,                           & ! intent(in): model parameters
-                          mvar_data,                           & ! intent(in): model variables for a local HRU
-                          model_decisions,                     & ! intent(in): model decisions
-                          ! output:
-                          ci,                                  & ! intent(out): co2 of the leaf interior (Pa)
-                          scalarStomResist,                    & ! intent(out): stomatal resistance (s m-1)
-                          scalarPhotosynthesis,                & ! intent(out): photosynthesis (umol CO2 m-2 s-1)
-                          ! output: error control
-                          err,cmessage)                          ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     ! print progress
-     !write(*,'(10(f12.5,1x))') leafTemp-Tfreeze, vpd, par, unitConv/scalarStomResist, scalarPhotosynthesis
-     write(ixUnit,'(10(f12.5,1x))') leafTemp-Tfreeze, vpd, par, unitConv/scalarStomResist, scalarPhotosynthesis
-
-    end do  ! looping through trial values
-
-    ! close file unit
-    close(ixUnit)
-
-   end do  ! looping through experiments
-
-   stop 'completed test simulation'
 
   ! *******************************************************************************************************************************************
   ! compute stomatal resistance (wrapper around the Noah-MP routines)
