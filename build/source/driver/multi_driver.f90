@@ -83,6 +83,7 @@ USE data_struc,only:urbanVegCategory                        ! vegetation categor
 USE data_struc,only:globalPrintFlag                         ! global print flag
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
+USE noahmp_globals,only:RSMIN                               ! minimum stomatal resistance (vegType)
 ! named variables for elements of model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
@@ -119,7 +120,7 @@ integer(i4b),parameter    :: ixRestart_iy=1000              ! named variable to 
 integer(i4b),parameter    :: ixRestart_im=1001              ! named variable to print a re-start file once per month
 integer(i4b),parameter    :: ixRestart_id=1002              ! named variable to print a re-start file once per day
 integer(i4b),parameter    :: ixRestart_never=1003           ! named variable to print a re-start file never
-integer(i4b)              :: ixRestart=ixRestart_iy         ! define frequency to write restart files
+integer(i4b)              :: ixRestart=ixRestart_im         ! define frequency to write restart files
 ! define output file
 character(len=8)          :: cdate1=''                      ! initial date
 character(len=10)         :: ctime1=''                      ! initial time
@@ -237,8 +238,11 @@ call read_mp_veg_parameters(trim(SETNGS_PATH)//'MPTABLE.TBL',                   
                             trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision)) ! classification system used for vegetation
 ! define urban vegetation category
 select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
- case('USGS');                     urbanVegCategory=1
- case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory=13
+ case('USGS');                     urbanVegCategory =    1
+ case('MODIFIED_IGBP_MODIS_NOAH'); urbanVegCategory =   13
+ case('plumberCABLE');             urbanVegCategory = -999
+ case('plumberCHTESSEL');          urbanVegCategory = -999
+ case('plumberSUMMA');             urbanVegCategory = -999
  case default; call handle_err(30,'unable to identify vegetation category')
 end select
 
@@ -471,6 +475,9 @@ do istep=1,numtim
               nSoil,                                                           & ! number of soil layers
               urbanVegCategory)                                                  ! vegetation category for urban areas
 
+  ! overwrite the minimum resistance
+  !RSMIN = mpar_data%var(iLookPARAM%minStomatalResistance)
+
   ! overwrite the vegetation height
   HVT(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyTop)
   HVB(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyBottom)
@@ -498,8 +505,6 @@ do istep=1,numtim
    case(ixRestart_never); printRestart = .false.
    case default; call handle_err(20,'unable to identify option for the restart file')
   end select
-  !printRestart = .true.
-  if(time_data%var(iLookTIME%ih) == 0 .and. time_data%var(iLookTIME%imin) == 0) print*, time_data%var, printRestart
 
   ! run the model for a single parameter set and time step
   call coupled_em(printRestart,                    & ! flag to print a re-start file
@@ -596,6 +601,7 @@ do istep=1,numtim
  ! increment the time index
  jstep = jstep+1
 
+ !pause 'in driver: testing differences'
  !stop 'end of time step'
 
 end do  ! (looping through time)
