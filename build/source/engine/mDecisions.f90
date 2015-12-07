@@ -218,6 +218,10 @@ contains
                  err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ ! check start and finish time
+ write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
+ write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var
+
  ! check that simulation end time is > start time
  if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; endif
 
