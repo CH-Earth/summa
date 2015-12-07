@@ -145,6 +145,7 @@ MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
 SUMMA_SOLVER= \
 		vegPhenlgy.f90 \
 		diagn_evar.f90 \
+        stomResist.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
