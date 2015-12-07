@@ -77,11 +77,11 @@ contains
  real(dp),pointer              :: newSnowDenMult             ! multiplier for new snow density (kg m-3)
  real(dp),pointer              :: newSnowDenScal             ! scaling factor for new snow density (K)
  real(dp),pointer              :: constSnowDen               ! Constant new snow density (kg m-3)
- real(dp),pointer              :: a_sn                       ! Pahaut 1976 param (kg m-3)
- real(dp),pointer              :: b_sn                       ! Pahaut 1976 param (kg m-3 K-1)
- real(dp),pointer              :: c_sn                       ! Pahaut 1976 param (kg m-7/2 s-1/2)
- real(dp),pointer              :: d_sn                       ! Oleson et al. 2002 param (K-1)
- real(dp),pointer              :: e_sn                       ! Oleson et al. 2002 param (K)
+ real(dp),pointer              :: newSnowDenAdd              ! Pahaut 1976, additive factor for new snow density (kg m-3)
+ real(dp),pointer              :: newSnowDenMultTemp         ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
+ real(dp),pointer              :: newSnowDenMultWind         ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
+ real(dp),pointer              :: newSnowDenMultAnd          ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
+ real(dp),pointer              :: newSnowDenBase             ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! local pointers to model forcing data
  real(dp),pointer              :: SWRadAtm                   ! downward shortwave radiation (W m-2)
  real(dp),pointer              :: airtemp                    ! air temperature at 2 meter height (K)
@@ -259,15 +259,15 @@ contains
     newSnowDensity = min(150._dp,newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal))  ! new snow density (kg m-3)
    ! Pahaut 1976 (Boone et al. 2002)
    case(pahaut_76)
-    newSnowDensity = max(50._dp,a_sn + (b_sn * (airtemp-Tfreeze))+(c_sn*((windspd)**0.5_dp))); ! new snow density (kg m-3)
+    newSnowDensity = max(newSnowDenMin,newSnowDenAdd + (newSnowDenMultTemp * (airtemp-Tfreeze))+(newSnowDenMultWind*((windspd)**0.5_dp))); ! new snow density (kg m-3)
    ! Anderson 1976 
    case(anderson) 
     if(airtemp>(Tfreeze+2._dp))then
-     newSnowDensity = newSnowDenMin + d_sn*(e_sn)**(3._dp/2._dp) ! new snow density (kg m-3)
+     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(newSnowDenBase)**(3._dp/2._dp) ! new snow density (kg m-3)
     elseif(airtemp<=(Tfreeze-15._dp))then
      newSnowDensity = newSnowDenMin ! new snow density (kg m-3)
     else
-     newSnowDensity = newSnowDenMin + d_sn*(airtemp-Tfreeze+e_sn)**(3._dp/2._dp) ! new snow density (kg m-3)
+     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(airtemp-Tfreeze+newSnowDenBase)**(3._dp/2._dp) ! new snow density (kg m-3)
     endif
    ! Constant new snow density
    case(constDens) 
