@@ -47,6 +47,7 @@ contains
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta  ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta            ! metadata structures
  USE data_struc,only:model_decisions
+ USE multiconst,only:integerMissing
  ! declare dummy variables
  integer(i4b), intent(in)    :: nHRU                         ! number of HRUs
  character(*), intent(in)    :: infile                       ! file suffix
@@ -66,8 +67,10 @@ contains
  ! ***** define model decisions
  ! **********************************************************************************************************
  do ivar=1,size(model_decisions)
-  call put_attrib(trim(infile),model_decisions(ivar)%cOption,model_decisions(ivar)%cDecision,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(model_decisions(ivar)%iDecision /= integerMissing)then
+   call put_attrib(trim(infile),model_decisions(ivar)%cOption,model_decisions(ivar)%cDecision,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
  end do
  ! **********************************************************************************************************
  ! ***** define model forcing data
