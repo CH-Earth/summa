@@ -130,11 +130,11 @@ contains
  newSnowDenMult     => mpar_data%var(iLookPARAM%newSnowDenMult)     ! multiplier for new snow density (kg m-3)
  newSnowDenScal     => mpar_data%var(iLookPARAM%newSnowDenScal)     ! scaling factor for new snow density (K)
  constSnowDen       => mpar_data%var(iLookPARAM%constSnowDen)       ! Constant new snow density (kg m-3)
- a_sn               => mpar_data%var(iLookPARAM%a_sn)               ! Pahaut 1976 param (kg m-3)
- b_sn               => mpar_data%var(iLookPARAM%b_sn)               ! Pahaut 1976 param (kg m-3)
- c_sn               => mpar_data%var(iLookPARAM%c_sn)               ! Pahaut 1976 param (kg m-3)
- d_sn               => mpar_data%var(iLookPARAM%d_sn)               ! Oleson et al. 2002 param (K-1)
- e_sn               => mpar_data%var(iLookPARAM%e_sn)               ! Oleson et al. 2002 param (K)
+ newSnowDenAdd      => mpar_data%var(iLookPARAM%newSnowDenAdd)      ! Pahaut 1976, additive factor for new snow density (kg m-3)
+ newSnowDenMultTemp => mpar_data%var(iLookPARAM%newSnowDenMultTemp) ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
+ newSnowDenMultWind => mpar_data%var(iLookPARAM%newSnowDenMultWind) ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
+ newSnowDenMultAnd  => mpar_data%var(iLookPARAM%newSnowDenMultAnd)  ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
+ newSnowDenBase     => mpar_data%var(iLookPARAM%newSnowDenBase)     ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
