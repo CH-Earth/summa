@@ -65,11 +65,6 @@ USE mDecisions_module,only:  &
 USE mDecisions_module,only:  &
  exponential,                & ! exponential wind profile extends to the surface
  logBelowCanopy                ! logarithmic profile below the vegetation canopy
-! look-up values for the stomatal resistance formulation
-USE mDecisions_module,only:  &
- BallBerry,                  & ! Ball-Berry
- Jarvis,                     & ! Jarvis
- simpleResistance              ! simple resistance formulation
 ! look-up values for choice of stability function
 USE mDecisions_module,only:  &
  standard,                   & ! standard MO similarity, a la Anderson (1976)
@@ -181,6 +176,8 @@ contains
  ! conversion functions
  USE conv_funcs_module,only:satVapPress                           ! function to compute the saturated vapor pressure (Pa)
  USE conv_funcs_module,only:getLatentHeatValue                    ! function to identify latent heat of vaporization/sublimation (J kg-1)
+ ! stomatal resistance
+ USE stomResist_module,only:stomResist                            ! subroutine to calculate stomatal resistance
  ! compute energy and mass fluxes for vegetation
  implicit none
  ! ---------------------------------------------------------------------------------------
@@ -273,8 +270,8 @@ contains
  real(dp)                       :: scaleLAI                         ! scaled LAI (computing diffuse transmissivity)
  real(dp)                       :: diffuseTrans                     ! diffuse transmissivity (-)
  real(dp)                       :: groundEmissivity                 ! emissivity of the ground surface (-)
- real(dp),parameter             :: vegEmissivity=0.98_dp            ! emissivity of vegetation (-)
- real(dp),parameter             :: soilEmissivity=0.98_dp           ! emmisivity of the soil (-)
+ real(dp),parameter             :: vegEmissivity=0.98_dp            ! emissivity of vegetation (0.9665 in JULES) (-)
+ real(dp),parameter             :: soilEmissivity=0.98_dp           ! emmisivity of the soil (0.9665 in JULES) (-)
  real(dp),parameter             :: snowEmissivity=0.99_dp           ! emissivity of snow (-)
  real(dp)                       :: dLWNetCanopy_dTCanopy            ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
  real(dp)                       :: dLWNetGround_dTGround            ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
@@ -388,6 +385,8 @@ contains
  ! input: vegetation parameters
  heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop),                      & ! intent(in): [dp] height at the top of the vegetation canopy (m)
  heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom),                   & ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
+ canopyWettingFactor             => mpar_data%var(iLookPARAM%canopyWettingFactor),                  & ! intent(in): [dp] maximum wetted fraction of the canopy (-)
+ canopyWettingExp                => mpar_data%var(iLookPARAM%canopyWettingExp),                     & ! intent(in): [dp] exponent in canopy wetting function (-)
  scalarCanopyIceMax              => mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1),             & ! intent(in): [dp] maximum interception storage capacity for ice (kg m-2)
  scalarCanopyLiqMax              => mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),             & ! intent(in): [dp] maximum interception storage capacity for liquid water (kg m-2)
 
@@ -697,6 +696,8 @@ contains
                     canopyIceTrial,                                 & ! canopy ice (kg m-2)
                     scalarCanopyLiqMax,                             & ! maximum canopy liquid water (kg m-2)
                     scalarCanopyIceMax,                             & ! maximum canopy ice content (kg m-2)
+                    canopyWettingFactor,                            & ! maximum wetted fraction of the canopy (-)
+                    canopyWettingExp,                               & ! exponent in canopy wetting function (-)
                     ! output
                     scalarCanopyWetFraction,                        & ! canopy wetted fraction (-)
                     dCanopyWetFraction_dWat,                        & ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -709,7 +710,7 @@ contains
     dCanopyWetFraction_dWat = 0._dp  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
     dCanopyWetFraction_dT   = 0._dp  ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
    endif
-   !print*, 'scalarCanopyWetFraction = ', scalarCanopyWetFraction
+   !write(*,'(a,1x,L1,1x,f25.15,1x))') 'computeVegFlux, scalarCanopyWetFraction = ', computeVegFlux, scalarCanopyWetFraction
    !print*, 'dCanopyWetFraction_dWat = ', dCanopyWetFraction_dWat
    !print*, 'dCanopyWetFraction_dT   = ', dCanopyWetFraction_dT
    !print*, 'canopyLiqTrial = ', canopyLiqTrial
@@ -836,54 +837,22 @@ contains
     !                                 canopyTempTrial, scalarSatVP_CanopyTemp, scalarVP_CanopyAir
 
     ! compute stomatal resistance
-    select case(ix_stomResist)
-
-     case(simpleResistance)
-      ! check that we don't divide by zero -- should be set to minimum of tiny in runroutine soilResist
-      if(scalarTranspireLim < tiny(plantWiltPsi))then; err=20; message=trim(message)//'soil moisture stress factor is < tiny -- this will cause problems'; return; endif
-      ! compute stomatal resistance (assume equal for sunlit and shaded leaves)
-      scalarStomResistSunlit = minStomatalResistance/scalarTranspireLim
-      scalarStomResistShaded = scalarStomResistSunlit
-      ! set photosynthesis to missing (not computed)
-      scalarPhotosynthesisSunlit = missingValue
-      scalarPhotosynthesisShaded = missingValue
-
-     ! compute stomatal resistance (wrapper around the Noah-MP routines)
-     ! NOTE: canopy air vapor pressure is from the previous time step
-     case(BallBerry,Jarvis)
-      call stomResist(&
-                      ! input (model decisions)
-                      ix_stomResist,                     & ! intent(in): choice of function for stomatal resistance
-                      ! input (local attributes)
-                      vegTypeIndex,                      & ! intent(in): vegetation type index
-                      iLoc, jLoc,                        & ! intent(in): spatial location indices
-                      ! input (forcing)
-                      airtemp,                           & ! intent(in): air temperature at some height above the surface (K)
-                      airpres,                           & ! intent(in): air pressure at some height above the surface (Pa)
-                      scalarO2air,                       & ! intent(in): atmospheric o2 concentration (Pa)
-                      scalarCO2air,                      & ! intent(in): atmospheric co2 concentration (Pa)
-                      scalarCanopySunlitPAR,             & ! intent(in): average absorbed par for sunlit leaves (w m-2)
-                      scalarCanopyShadedPAR,             & ! intent(in): average absorbed par for shaded leaves (w m-2)
-                      ! input (state and diagnostic variables)
-                      scalarGrowingSeasonIndex,          & ! intent(in): growing season index (0=off, 1=on)
-                      scalarFoliageNitrogenFactor,       & ! intent(in): foliage nitrogen concentration (1=saturated)
-                      scalarTranspireLim,                & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
-                      scalarLeafResistance,              & ! intent(in): leaf boundary layer resistance (s m-1)
-                      canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
-                      scalarSatVP_CanopyTemp,            & ! intent(in): saturation vapor pressure at the temperature of the veg canopy (Pa)
-                      scalarVP_CanopyAir,                & ! intent(in): canopy air vapor pressure (Pa)
-                      ! output
-                      scalarStomResistSunlit,            & ! intent(out): stomatal resistance for sunlit leaves (s m-1)
-                      scalarStomResistShaded,            & ! intent(out): stomatal resistance for shaded leaves (s m-1)
-                      scalarPhotosynthesisSunlit,        & ! intent(out): sunlit photosynthesis (umolco2 m-2 s-1)
-                      scalarPhotosynthesisShaded,        & ! intent(out): shaded photosynthesis (umolco2 m-2 s-1)
-                      err,cmessage                       ) ! intent(out): error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     ! error check
-     case default; err=20; message=trim(message)//'unable to identify option for stomatal resistance'; return
-
-    endselect  ! (identifying option for stomatal resistance)
+    call stomResist(&
+                    ! input (state and diagnostic variables)
+                    canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
+                    scalarSatVP_CanopyTemp,            & ! intent(in): saturation vapor pressure at the temperature of the veg canopy (Pa)
+                    scalarVP_CanopyAir,                & ! intent(in): canopy air vapor pressure (Pa)
+                    ! input: data structures
+                    type_data,                         & ! intent(in):    type of vegetation and soil
+                    attr_data,                         & ! intent(in):    spatial attributes
+                    forc_data,                         & ! intent(in):    model forcing data
+                    mpar_data,                         & ! intent(in):    model parameters
+                    model_decisions,                   & ! intent(in):    model decisions
+                    ! input-output: data structures
+                    mvar_data,                         & ! intent(inout): model variables for a local HRU
+                    ! output: error control
+                    err,cmessage                       ) ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    endif  ! (if the first flux call in a given sub-step)
 
@@ -1005,6 +974,8 @@ contains
                        canopyIceTrial,                                 & ! canopy ice (kg m-2)
                        scalarCanopyLiqMax,                             & ! maximum canopy liquid water (kg m-2)
                        scalarCanopyIceMax,                             & ! maximum canopy ice content (kg m-2)
+                       canopyWettingFactor,                            & ! maximum wetted fraction of the canopy (-)
+                       canopyWettingExp,                               & ! exponent in canopy wetting function (-)
                        ! output
                        canopyWetFraction,                              & ! canopy wetted fraction (-)
                        dCanopyWetFraction_dWat,                        & ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
@@ -1213,10 +1184,10 @@ contains
                     err,cmessage                          ) ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    !print*, 'scalarSenHeatTotal = ', scalarSenHeatTotal
-    !print*, 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
-    !print*, 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
-    !print*, 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
+    !write(*,'(a,f25.15)') 'scalarSenHeatTotal = ', scalarSenHeatTotal
+    !write(*,'(a,f25.15)') 'scalarSenHeatCanopy = ', scalarSenHeatCanopy
+    !write(*,'(a,f25.15)') 'scalarLatHeatCanopyEvap = ', scalarLatHeatCanopyEvap
+    !write(*,'(a,f25.15)') 'scalarLatHeatCanopyTrans = ', scalarLatHeatCanopyTrans
 
     !print*, 'scalarSenHeatGround = ', scalarSenHeatGround
     !print*, 'scalarLatHeatGround = ', scalarLatHeatGround
@@ -1458,6 +1429,8 @@ contains
                        canopyIce,              & ! canopy ice (kg m-2)
                        canopyLiqMax,           & ! maximum canopy liquid water (kg m-2)
                        canopyIceMax,           & ! maximum canopy ice content (kg m-2)
+                       canopyWettingFactor,    & ! maximum wetted fraction of the canopy (-)
+                       canopyWettingExp,       & ! exponent in canopy wetting function (-)
                        ! output
                        canopyWetFraction,      & ! canopy wetted fraction (-)
                        dCanopyWetFraction_dWat,& ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -1474,6 +1447,8 @@ contains
  real(dp),intent(in)           :: canopyIce               ! canopy ice (kg m-2)
  real(dp),intent(in)           :: canopyLiqMax            ! maximum canopy liquid water (kg m-2)
  real(dp),intent(in)           :: canopyIceMax            ! maximum canopy ice content (kg m-2)
+ real(dp),intent(in)           :: canopyWettingFactor     ! maximum wetted fraction of the canopy (-)
+ real(dp),intent(in)           :: canopyWettingExp        ! exponent in canopy wetting function (-)
  ! output
  real(dp),intent(out)          :: canopyWetFraction       ! canopy wetted fraction (-)
  real(dp),intent(out)          :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -1486,7 +1461,6 @@ contains
  logical(lgt),parameter        :: smoothing=.true.        ! flag to denote that smoothing is required
  logical(lgt),parameter        :: noSmoothing=.false.     ! flag to denote that no smoothing is required
  real(dp)                      :: canopyWetFractionPert   ! canopy wetted fraction after state perturbations (-)
- real(dp),parameter            :: maxScaleFactor=1._dp    ! temporary fix: since canopyLiqMax is not really max (it is the point when drainage begins), add scale factor for the wetted fraction (-)
  real(dp)                      :: canopyWetFractionDeriv  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -1495,10 +1469,10 @@ contains
  ! compute case where the canopy is frozen
  if(frozen)then
   ! compute fraction of liquid water on the canopy
-  call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce,canopyIceMax*maxScaleFactor,canopyWetFraction,canopyWetFractionDeriv)
+  call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce,canopyIceMax,canopyWettingFactor,canopyWettingExp,canopyWetFraction,canopyWetFractionDeriv)
   ! compute numerical derivative, if derivative is desired
   if(deriv.and.derNum)then
-   call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce+dx,canopyIceMax*maxScaleFactor,canopyWetFractionPert,canopyWetFractionDeriv)
+   call wetFraction((deriv .and. .not.derNum),smoothing,canopyIce+dx,canopyIceMax,canopyWettingFactor,canopyWettingExp,canopyWetFractionPert,canopyWetFractionDeriv)
    canopyWetFractionDeriv = (canopyWetFractionPert - canopyWetFraction)/dx
   endif
   ! scale derivative by the fraction of water
@@ -1510,11 +1484,11 @@ contains
 
  ! compute fraction of liquid water on the canopy
  ! NOTE: if(.not.deriv) canopyWetFractionDeriv = 0._dp
- call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq,canopyLiqMax*maxScaleFactor,canopyWetFraction,canopyWetFractionDeriv)
+ call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq,canopyLiqMax,canopyWettingFactor,canopyWettingExp,canopyWetFraction,canopyWetFractionDeriv)
 
  ! compute numerical derivative
  if(deriv.and.derNum)then
-  call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq+dx,canopyLiqMax*maxScaleFactor,canopyWetFractionPert,canopyWetFractionDeriv)
+  call wetFraction((deriv .and. .not.derNum),smoothing,canopyLiq+dx,canopyLiqMax,canopyWettingFactor,canopyWettingExp,canopyWetFractionPert,canopyWetFractionDeriv)
   canopyWetFractionDeriv = (canopyWetFractionPert - canopyWetFraction)/dx
  endif
 
@@ -1533,18 +1507,20 @@ contains
  ! *******************************************************************************************************
  ! private subroutine wetFraction: compute fraction of canopy covered with liquid water
  ! *******************************************************************************************************
- subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWetFraction,canopyWetFractionDeriv)
+ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFactor,canopyWettingExp,canopyWetFraction,canopyWetFractionDeriv)
  implicit none
  ! dummy variables
  logical(lgt),intent(in) :: derDesire              ! flag to denote if analytical derivatives are desired
  logical(lgt),intent(in) :: smoothing              ! flag to denote if smoothing is required
  real(dp),intent(in)     :: canopyLiq              ! liquid water content (kg m-2)
  real(dp),intent(in)     :: canopyMax              ! liquid water content (kg m-2)
+ real(dp),intent(in)     :: canopyWettingFactor    ! maximum wetted fraction of the canopy (-)
+ real(dp),intent(in)     :: canopyWettingExp       ! exponent in canopy wetting function (-)
+
  real(dp),intent(out)    :: canopyWetFraction      ! canopy wetted fraction (-)
  real(dp),intent(out)    :: canopyWetFractionDeriv ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  ! local variables
  real(dp)                :: relativeCanopyWater    ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
- real(dp),parameter      :: wetExp=0.666666667_dp  ! exponent in wetted area function
  real(dp)                :: rawCanopyWetFraction   ! initial value of the canopy wet fraction (before smoothing)
  real(dp)                :: rawWetFractionDeriv    ! derivative in canopy wet fraction w.r.t. storage (kg-1 m2)
  real(dp)                :: smoothFunc             ! smoothing function used to improve numerical stability at times with limited water storage (-)
@@ -1554,21 +1530,21 @@ contains
 
  ! compute relative canopy water
  relativeCanopyWater = canopyLiq/canopyMax
- !write(*,'(a,1x,3(f20.10,1x))') 'relativeCanopyWater, canopyLiq, canopyMax = ', relativeCanopyWater, canopyLiq, canopyMax
+ !write(*,'(a,1x,e20.10,1x,2(f20.10,1x))') 'relativeCanopyWater, canopyLiq, canopyMax = ', relativeCanopyWater, canopyLiq, canopyMax
 
  ! compute an initial value of the canopy wet fraction
  ! - canopy below value where canopy is 100% wet
  if(relativeCanopyWater < 1._dp)then
-  rawCanopyWetFraction = relativeCanopyWater**wetExp
+  rawCanopyWetFraction = canopyWettingFactor*(relativeCanopyWater**canopyWettingExp)
   if(derDesire .and. relativeCanopyWater>verySmall)then
-   rawWetFractionDeriv = (wetExp/canopyMax)*relativeCanopyWater**(wetExp - 1._dp)
+   rawWetFractionDeriv = (canopyWettingFactor*canopyWettingExp/canopyMax)*relativeCanopyWater**(canopyWettingExp - 1._dp)
   else
    rawWetFractionDeriv = 0._dp
   endif
 
- ! - canopy is 100% wet
+ ! - canopy is at capacity (canopyWettingFactor)
  else
-  rawCanopyWetFraction = 1._dp
+  rawCanopyWetFraction = canopyWettingFactor
   rawWetFractionDeriv  = 0._dp
  endif
 
@@ -2456,155 +2432,6 @@ contains
  end subroutine soilResist
 
 
- ! *******************************************************************************************************
- ! private subroutine stomResist: compute stomatal resistance
- ! *******************************************************************************************************
- subroutine stomResist(&
-                       ! input (model decisions)
-                       ixStomResist,                        & ! intent(in): choice of function for stomatal resistance
-                       ! input (local attributes)
-                       vegTypeIndex,                        & ! intent(in): vegetation type index
-                       iLoc, jLoc,                          & ! intent(in): spatial location indices
-                       ! input (forcing)
-                       airtemp,                             & ! intent(in): air temperature at some height above the surface (K)
-                       airpres,                             & ! intent(in): air pressure at some height above the surface (Pa)
-                       scalarO2air,                         & ! intent(in): atmospheric o2 concentration (Pa)
-                       scalarCO2air,                        & ! intent(in): atmospheric co2 concentration (Pa)
-                       scalarCanopySunlitPAR,               & ! intent(in): average absorbed par for sunlit leaves (w m-2)
-                       scalarCanopyShadedPAR,               & ! intent(in): average absorbed par for shaded leaves (w m-2)
-                       ! input (state and diagnostic variables)
-                       scalarGrowingSeasonIndex,            & ! intent(in): growing season index (0=off, 1=on)
-                       scalarFoliageNitrogenFactor,         & ! intent(in): foliage nitrogen concentration (1=saturated)
-                       scalarTranspireLim,                  & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
-                       scalarLeafResistance,                & ! intent(in): leaf boundary layer resistance (s m-1)
-                       scalarVegetationTemp,                & ! intent(in): vegetation temperature (K)
-                       scalarSatVP_VegTemp,                 & ! intent(in): saturation vapor pressure at vegetation temperature (Pa)
-                       scalarVP_CanopyAir,                  & ! intent(in): canopy air vapor pressure (Pa)
-                       ! output
-                       scalarStomResistSunlit,              & ! intent(out): stomatal resistance for sunlit leaves (s m-1)
-                       scalarStomResistShaded,              & ! intent(out): stomatal resistance for shaded leaves (s m-1)
-                       scalarPhotosynthesisSunlit,          & ! intent(out): sunlit photosynthesis (umolco2 m-2 s-1)
-                       scalarPhotosynthesisShaded,          & ! intent(out): shaded photosynthesis (umolco2 m-2 s-1)
-                       err,message                          ) ! intent(out): error control
- ! -----------------------------------------------------------------------------------------------------------------------------------------
- ! Modified from Noah-MP
- ! Compute stomatal resistance and photosynthesis using either
- !  1) Ball-Berry
- !  2) Jarvis
- ! See Niu et al. JGR 2011 for more details
- USE mDecisions_module, only: BallBerry,Jarvis                ! options for the choice of function for stomatal resistance
- USE NOAHMP_ROUTINES,only:stomata                             ! compute canopy resistance based on Ball-Berry
- USE NOAHMP_ROUTINES,only:canres                              ! compute canopy resistance based Jarvis
- implicit none
- ! input (model decisions)
- integer(i4b),intent(in)       :: ixStomResist                ! choice of function for stomatal resistance
- ! input (local attributes)
- integer(i4b),intent(in)       :: vegTypeIndex                ! vegetation type index
- integer(i4b),intent(in)       :: iLoc, jLoc                  ! spatial location indices
- ! input (forcing)
- real(dp),intent(in)           :: airtemp                     ! measured air temperature at some height above the surface (K)
- real(dp),intent(in)           :: airpres                     ! measured air pressure at some height above the surface (Pa)
- real(dp),intent(in)           :: scalarO2air                 ! atmospheric o2 concentration (Pa)
- real(dp),intent(in)           :: scalarCO2air                ! atmospheric co2 concentration (Pa)
- real(dp),intent(in),target    :: scalarCanopySunlitPAR       ! average absorbed par for sunlit leaves (w m-2)
- real(dp),intent(in),target    :: scalarCanopyShadedPAR       ! average absorbed par for shaded leaves (w m-2)
- ! input (state and diagnostic variables)
- real(dp),intent(in)           :: scalarGrowingSeasonIndex    ! growing season index (0=off, 1=on)
- real(dp),intent(in)           :: scalarFoliageNitrogenFactor ! foliage nitrogen concentration (1=saturated)
- real(dp),intent(in)           :: scalarTranspireLim          ! weighted average of the soil moiture factor controlling stomatal resistance (-)
- real(dp),intent(in)           :: scalarLeafResistance        ! leaf boundary layer resistance (s m-1)
- real(dp),intent(in)           :: scalarVegetationTemp        ! vegetation temperature (K)
- real(dp),intent(in)           :: scalarSatVP_VegTemp         ! saturation vapor pressure at vegetation temperature (Pa)
- real(dp),intent(in)           :: scalarVP_CanopyAir          ! canopy air vapor pressure (Pa)
- ! output
- real(dp),intent(out)          :: scalarStomResistSunlit      ! stomatal resistance for sunlit leaves (s m-1)
- real(dp),intent(out)          :: scalarStomResistShaded      ! stomatal resistance for shaded leaves (s m-1)
- real(dp),intent(out)          :: scalarPhotosynthesisSunlit  ! sunlit photosynthesis (umolco2 m-2 s-1)
- real(dp),intent(out)          :: scalarPhotosynthesisShaded  ! sunlit photosynthesis (umolco2 m-2 s-1)
- integer(i4b),intent(out)      :: err                         ! error code
- character(*),intent(out)      :: message                     ! error message
- ! local variables
- integer(i4b),parameter        :: ixSunlit=1                  ! named variable for sunlit leaves
- integer(i4b),parameter        :: ixShaded=2                  ! named variable for shaded leaves
- integer(i4b)                  :: iSunShade                   ! index for sunlit/shaded leaves
- real(dp),pointer              :: PAR                         ! average absorbed PAR for sunlit/shaded leaves (w m-2)
- real(dp)                      :: scalarStomResist            ! stomatal resistance for sunlit/shaded leaves (s m-1)
- real(dp)                      :: scalarPhotosynthesis        ! photosynthesis for sunlit/shaded leaves (umolco2 m-2 s-1)
- ! initialize error control
- err=0; message='stomResist/'
-
- ! loop through sunlit and shaded leaves
- do iSunShade=1,2
-
-  ! get appropriate value for PAR
-  select case(iSunShade)
-   case(ixSunlit); PAR => scalarCanopySunlitPAR               ! average absorbed par for sunlit leaves (w m-2)
-   case(ixShaded); PAR => scalarCanopyShadedPAR               ! average absorbed par for shaded leaves (w m-2)
-   case default; err=20; message=trim(message)//'unable to identify case for sunlit/shaded leaves'; return
-  end select
-
-  ! identify option for stomatal resistance
-  select case(ixStomResist)
-
-   ! Ball-Berry
-   case(BallBerry)
-   call stomata(&
-                ! input
-                vegTypeIndex,                       & ! intent(in): vegetation type index
-                mpe,                                & ! intent(in): prevents overflow error if division by zero
-                PAR,                                & ! intent(in): average absorbed par (w m-2)
-                scalarFoliageNitrogenFactor,        & ! intent(in): foliage nitrogen concentration (1=saturated)
-                iLoc, jLoc,                         & ! intent(in): spatial location indices
-                scalarVegetationTemp,               & ! intent(in): vegetation temperature (K)
-                scalarSatVP_VegTemp,                & ! intent(in): saturation vapor pressure at vegetation temperature (Pa)
-                scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
-                airtemp,                            & ! intent(in): air temperature at some height above the surface (K)
-                airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
-                scalarO2air,                        & ! intent(in): atmospheric o2 concentration (Pa)
-                scalarCO2air,                       & ! intent(in): atmospheric co2 concentration (Pa)
-                scalarGrowingSeasonIndex,           & ! intent(in): growing season index (0=off, 1=on)
-                scalarTranspireLim,                 & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
-                scalarLeafResistance,               & ! intent(in): leaf boundary layer resistance (s m-1)
-                ! output
-                scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
-                scalarPhotosynthesis                ) ! intent(out): photosynthesis (umolco2 m-2 s-1)
-
-   ! Jarvis
-   case(Jarvis)
-   call canres(&
-                ! input
-                PAR,                                & ! intent(in): average absorbed par (w m-2)
-                scalarVegetationTemp,               & ! intent(in): vegetation temperature (K)
-                scalarTranspireLim,                 & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
-                scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
-                airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
-                ! output
-                scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
-                scalarPhotosynthesis,               & ! intent(out): photosynthesis (umolco2 m-2 s-1)
-                ! location indices (input)
-                iLoc, jLoc                          ) ! intent(in): spatial location indices
-
-   ! check identified an option
-   case default; err=20; message=trim(message)//'unable to identify case for stomatal resistance'; return
-
-  end select  ! (selecting option for stomatal resistance)
-
-  ! assign output variables
-  select case(iSunShade)
-   case(ixSunlit)
-    scalarStomResistSunlit     = scalarStomResist
-    scalarPhotosynthesisSunlit = scalarPhotosynthesis
-   case(ixShaded)
-    scalarStomResistShaded     = scalarStomResist
-    scalarPhotosynthesisShaded = scalarPhotosynthesis
-   case default; err=20; message=trim(message)//'unable to identify case for sunlit/shaded leaves'; return
-  end select
-
- end do  ! (looping through sunlit and shaded leaves)
-
- end subroutine stomResist
-
-
  ! ********************************************************************************
  ! private subroutine turbFluxes: compute turbulent heat fluxes
  ! ********************************************************************************
@@ -3109,6 +2936,7 @@ contains
  turbFluxCanair = senHeatTotal - senHeatCanopy - senHeatGround            ! net turbulent flux at the canopy air space (W m-2)
  turbFluxCanopy = senHeatCanopy + latHeatCanopyEvap + latHeatCanopyTrans  ! net turbulent flux at the canopy (W m-2)
  turbFluxGround = senHeatGround + latHeatGround                           ! net turbulent flux at the ground surface (W m-2)
+ !write(*,'(a,1x,3(f20.10,1x))') 'senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans = ', senHeatCanopy, latHeatCanopyEvap, latHeatCanopyTrans
 
   ! * compute derivatives
  if(ixDerivMethod == analytical)then

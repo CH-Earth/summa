@@ -38,6 +38,7 @@ contains
  subroutine derivforce(err,message)
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
  USE multiconst,only:secprhour                               ! number of seconds in an hour
+ USE multiconst,only:minprhour                               ! number of minutes in an hour
  USE data_struc,only:data_step                               ! length of the data step (s)
  USE data_struc,only:time_data,forc_data                     ! forcing data structures
  USE data_struc,only:attr_data,mpar_data,mvar_data           ! model data structures
@@ -57,6 +58,8 @@ contains
  ! variables for cosine of the solar zenith angle
  integer(i4b),pointer          :: im                         ! month
  integer(i4b),pointer          :: id                         ! day
+ integer(i4b),pointer          :: ih                         ! hour
+ integer(i4b),pointer          :: imin                       ! minute
  real(dp)                      :: ahour                      ! hour at start of time step
  real(dp)                      :: dataStep                   ! data step (hours)
  real(dp),parameter            :: slope=0._dp                ! terrain slope (assume flat)
@@ -135,8 +138,8 @@ contains
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
- dataStep   = data_step/secprhour                                   ! time step (hours)
- ahour      = real(time_data%var(iLookTIME%ih),kind(dp)) - dataStep ! hour at start of time step
+ ih        => time_data%var(iLookTIME%ih)                           ! hour
+ imin      => time_data%var(iLookTIME%imin)                         ! minute
  latitude  => attr_data%var(iLookATTR%latitude)                     ! latitude (degrees north
  cosZenith => mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1)       ! average cosine of the zenith angle over time step DT
  ! assign pointers to model forcing data
@@ -168,18 +171,24 @@ contains
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
  scalarO2air  = o2Factor * airpres   ! atmospheric o2 concentration (Pa)
 
+ ! compute the decimal hour at the start of the time step
+ dataStep = data_step/secprhour  ! time step (hours)
+ ahour    = real(ih,kind(dp)) + real(imin,kind(dp))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
+
  ! compute the cosine of the solar zenith angle
  call clrsky_rad(im,id,ahour,dataStep,   &  ! intent(in): time variables
                  slope,azimuth,latitude, &  ! intent(in): location variables
                  hri,cosZenith)             ! intent(out): cosine of the solar zenith angle
+ !write(*,'(a,1x,4(i2,1x),3(f9.3,1x))') 'im,id,ih,imin,ahour,dataStep,cosZenith = ', &
+ !                                       im,id,ih,imin,ahour,dataStep,cosZenith
  ! check that we don't have considerable shortwave when the zenith angle is low
  ! NOTE: this is likely because the data are not in local time
- if(cosZenith < epsilon(cosZenith) .and. SWRadAtm > 100._dp)then
-  message=trim(message)//'SWRadAtm > 100 W m-2 when cos zenith angle is zero -- check that forcing data are in local time, '//&
-                         'that the time stamp in forcing data is at the end of the data interval, and that the lat-lon '//&
-                         'in the site characteristix file is correct'
-  err=20; return
- endif
+ !if(cosZenith < epsilon(cosZenith) .and. SWRadAtm > 200._dp)then
+ ! message=trim(message)//'SWRadAtm > 200 W m-2 when cos zenith angle is zero -- check that forcing data are in local time, '//&
+ !                        'that the time stamp in forcing data is at the end of the data interval, and that the lat-lon '//&
+ !                        'in the site characteristix file is correct'
+ ! err=20; return
+ !endif
  ! ensure solar radiation is zero between sunset and sunrise
  ! NOTE: also ensure that sw radiation is positive
  if(cosZenith <= 0._dp .or. SWRadAtm < 0._dp) SWRadAtm = 0._dp
