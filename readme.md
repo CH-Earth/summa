@@ -1,16 +1,16 @@
-[![Build Status](https://travis-ci.org/UCAR/summa.svg)](https://travis-ci.org/UCAR/summa)
+[![Build Status](https://travis-ci.org/NCAR/summa.svg)](https://travis-ci.org/NCAR/summa)
 #SUMMA
 
 This is the source code repository for the **Structure for Unifying Multiple Modeling Alternatives** or **SUMMA**. More information about SUMMA, including publications, test data sets, and sample applications can be found on the [SUMMA web site](http://www.ral.ucar.edu/projects/summa) at NCAR.
 
 ##Description
-SUMMA is a hydrologic modeling aproach that is built on a common set of governing equations and a common numerical solver, which together constitute the  “structural core” of the model. Different modeling approaches can then be implemented within the structural core, enabling a controlled and systematic analysis of alternative modeling options, and providing insight for future model development.
+SUMMA is a hydrologic modeling aproach that is built on a common set of conservation equations and a common numerical solver, which together constitute the  “structural core” of the model. Different modeling approaches can then be implemented within the structural core, enabling a controlled and systematic analysis of alternative modeling options, and providing insight for future model development.
 
 The important modeling features are:
 
- 1. The formulation of the governing model equations is cleanly separated from their numerical solution;
+ 1. The formulation of the conservation model equations is cleanly separated from their numerical solution;
 
- 1. Different model representations of physical processes (in particular, different flux parameterizations) can be used within a common set of governing equations; and
+ 1. Different model representations of physical processes (in particular, different flux parameterizations) can be used within a common set of conservation equations; and
 
  1. The physical processes can be organized in different spatial configurations, including model elements of different shape and connectivity (e.g., nested multi-scale grids and HRUs).
 
@@ -43,7 +43,9 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
  * the LAPACK — Linear Algebra PACKage library. [LAPACK](http://www.netlib.org/lapack/) provides a series of routines for linear algebra operations, including matrix solvers. How to install the library depends on your *nix variant and is not covered here. For example, on OS X you will get all the necessary LAPACK routines by installing the ATLAS software (again, this is easiest using a package manager; note that ATLAS can take many hours to build the first time when you install it).
 
- * a copy of the SUMMA source code from [this repo](https://github.com/UCAR/summa). You have a number of options:
+ * The [ATLAS](http://math-atlas.sourceforge.net/) (Automatically Tuned Linear Algebra Software) library. Note that this is required on OS X using the gfortran compiler to be able to use LAPACK. It's not clear that this is used on other *nix machines.
+
+ * a copy of the SUMMA source code from [this repo](https://github.com/NCAR/summa). You have a number of options:
 
     * If you just want to use the latest stable release of SUMMA, then simply look for the most recent tag;
     * If you want the latest and greatest (and potentially erroneous), download a copy of the master branch (or clone it);
@@ -51,10 +53,10 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
     Note that you will not be able to contribute to the main SUMMA repo directly. If you are seriously interested in contributing, spend a little time learning git. It will be useful anyway. For more information about working with the SUMMA code, please see the following documents:
 
-    * [SUMMA and Git](https://github.com/UCAR/summa/blob/master/docs/howto/summa_and_git_howto.md)
-    * [Git workflow for SUMMA](https://github.com/UCAR/summa/blob/master/docs/howto/summa_git_workflow.md)
-    * [Git commands](https://github.com/UCAR/summa/blob/master/docs/howto/git_howto.md)
-    * [SUMMA coding conventions](https://github.com/UCAR/summa/blob/master/docs/howto/summa_coding_conventions.md)
+    * [SUMMA and Git](https://github.com/NCAR/summa/blob/master/docs/howto/summa_and_git_howto.md)
+    * [Git workflow for SUMMA](https://github.com/NCAR/summa/blob/master/docs/howto/summa_git_workflow.md)
+    * [Git commands](https://github.com/NCAR/summa/blob/master/docs/howto/git_howto.md)
+    * [SUMMA coding conventions](https://github.com/NCAR/summa/blob/master/docs/howto/summa_coding_conventions.md)
 
 Once you have all the above, you can compile SUMMA using the following steps:
 
@@ -75,9 +77,8 @@ Once you have all the above, you can compile SUMMA using the following steps:
 
 If you get this far then SUMMA is installed correctly and functional.
 
-Continue reading [SUMMA configuration](https://github.com/UCAR/summa/blob/master/docs/howto/summa_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa) to help you get started.
+Continue reading [SUMMA configuration](https://github.com/NCAR/summa/blob/master/docs/howto/summa_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa) to help you get started.
 
 ## License
 
 SUMMA is distributed under the GNU Public License Version 3. For details see the file `COPYING` in the SUMMA root directory or visit the [online version](http://www.gnu.org/licenses/gpl-3.0.html).
-
