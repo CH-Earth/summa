@@ -48,7 +48,7 @@ contains
                        grainGrowthRate,                & ! intent(in): rate of grain growth (s-1)
                        densScalOvrbdn,                 & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
                        tempScalOvrbdn,                 & ! intent(in): temperature scaling factor for overburden pressure (K-1)
-                       base_visc,                      & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                       baseViscosity,                      & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
 
                        ! intent(inout): state variables
                        mLayerDepth,                    & ! intent(inout): depth of each layer (m)
@@ -133,7 +133,7 @@ contains
   ! compute the increase in compaction under low density snow (-)
   chi5 = exp(-densScalOvrbdn*mLayerVolFracIceNew(iSnow)*iden_ice)
   ! compute the compaction associated with over-burden pressure (s-1)
-  CR_ovrvdnPress = (weightSnow/base_visc)*chi4*chi5
+  CR_ovrvdnPress = (weightSnow/baseViscosity)*chi4*chi5
   ! update the snow weight with the halfWeight not yet used
   weightSnow = weightSnow + halfweight          ! add half of the weight from the current layer
   ! *** compute the compaction rate associated with snow melt (s-1)
