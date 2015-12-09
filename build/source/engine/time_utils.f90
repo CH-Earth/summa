@@ -73,7 +73,6 @@ contains
  if (istart+(iend-2)==n) then
   ih=0; imin=0; isec=0; return
  endif
- print*, 'iyyy, im, id = ', iyyy, im, id
 
  ! get the hour (":" at end of hour)
  istart = istart+iend
@@ -97,7 +96,7 @@ contains
  if(isec <  0)then; err=20; message=trim(message)//'second < 0'; return; endif
  if(isec > 60)then; err=20; message=trim(message)//'second > 60'; return; endif
  read(refdate(istart:n),*) isec
-!print *,'refdate string ',refdate(istart:n),istart,iend,n
+ write(*,'(a,i4,1x,5(i2,1x))') 'refdate: iyyy, im, id, ih, imin, isec = ', iyyy, im, id, ih, imin, isec
 
  contains
 

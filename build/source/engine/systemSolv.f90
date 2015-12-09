@@ -307,13 +307,14 @@ contains
  real(dp)                        :: dCanopyEvaporation_dCanLiq   ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
  ! energy fluxes and derivatives for the snow and soil domains
  real(dp),dimension(nLayers)     :: ssdNetNrgFlux                ! net energy flux for each layer (J m-3 s-1)
- real(dp),dimension(0:nLayers)   :: iLayerNrgFlux                ! energy flux at the layer interfaces (W m-2)
  real(dp),dimension(0:nLayers)   :: dNrgFlux_dTempAbove          ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
  real(dp),dimension(0:nLayers)   :: dNrgFlux_dTempBelow          ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
  ! liquid water fluxes and derivatives for the vegetation domain
  real(dp)                        :: canopyNetLiqFlux             ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
  real(dp)                        :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
  real(dp)                        :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+ real(dp)                        :: scalarCanopyLiqDeriv         ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
+ real(dp)                        :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
  real(dp)                        :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
  real(dp)                        :: dCanopyEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
  real(dp)                        :: dCanopyEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
@@ -1714,6 +1715,7 @@ contains
   mLayerColumnOutflow     => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat       ,&  ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
 
   ! soil fluxes
+  iLayerNrgFlux           => mvar_data%var(iLookMVAR%iLayerNrgFlux)%dat             ,&  ! intent(out): [dp(0:)] vertical energy flux at the interface of snow and soil layers
   iLayerLiqFluxSnow       => mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
   iLayerLiqFluxSoil       => mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
   mLayerBaseflow          => mvar_data%var(iLookMVAR%mLayerBaseflow)%dat            ,&  ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
@@ -1932,11 +1934,14 @@ contains
                   ! output
                   scalarThroughfallRain,                  & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
                   scalarCanopyLiqDrainage,                & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+                  scalarThroughfallRainDeriv,             & ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
                   scalarCanopyLiqDrainageDeriv,           & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! calculate the net liquid water flux for the vegetation canopy
   canopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+  ! calculate the total derivative in the downward liquid flux
+  scalarCanopyLiqDeriv = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
   ! test
   if(printFlag)then
    print*, 'scalarRainfall = ', scalarRainfall
@@ -2178,19 +2183,19 @@ contains
   if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
 
    ! liquid water fluxes for vegetation canopy (-)
-   aJac(ixDiag,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDrainageDeriv)*dt + 1._dp     ! ixVegWat: CORRECT
+   aJac(ixDiag,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp     ! ixVegWat: CORRECT
 
    ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
    aJac(ixSub2,ixCasNrg) = -dCanopyEvaporation_dTCanair*dt                                                        ! ixCasNrg: CORRECT
-   aJac(ixSub1,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy     ! ixVegNrg: CORRECT
+   aJac(ixSub1,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy     ! ixVegNrg: CORRECT
    aJac(ixSup1,ixTopNrg) = -dCanopyEvaporation_dTGround*dt                                                        ! ixTopNrg: CORRECT
 
    ! cross-derivative terms w.r.t. canopy water (kg-1 m2)
-   aJac(ixSub2,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDrainageDeriv)/iden_water  ! ixVegWat: CORRECT
+   aJac(ixSub2,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDeriv)/iden_water  ! ixVegWat: CORRECT
 
    ! cross-derivative terms w.r.t. canopy temperature (K-1)
-   aJac(ixSub3,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy)/iden_water    ! ixVegNrg: CORRECT
-   !print*, 'soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy
+   aJac(ixSub3,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDeriv*dCanLiq_dTcanopy)/iden_water    ! ixVegNrg: CORRECT
+   !print*, 'soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy
 
    ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
    ! NOTE: dIce/dLiq = (1 - fracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
@@ -2326,19 +2331,19 @@ contains
   if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
 
    ! liquid water fluxes for vegetation canopy (-)
-   aJac(ixVegWat,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDrainageDeriv)*dt + 1._dp
+   aJac(ixVegWat,ixVegWat) = -fracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp
 
    ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
    aJac(ixVegWat,ixCasNrg) = -dCanopyEvaporation_dTCanair*dt
-   aJac(ixVegWat,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy
+   aJac(ixVegWat,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy
    aJac(ixVegWat,ixTopNrg) = -dCanopyEvaporation_dTGround*dt
 
    ! cross-derivative terms w.r.t. canopy water (kg-1 m2)
-   aJac(ixTopLiq,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDrainageDeriv)/iden_water
+   aJac(ixTopLiq,ixVegWat) = (dt/mLayerDepth(1))*(-soilControl*fracLiqVeg*scalarCanopyLiqDeriv)/iden_water
 
    ! cross-derivative terms w.r.t. canopy temperature (K-1)
-   aJac(ixTopLiq,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDrainageDeriv*dCanLiq_dTcanopy)/iden_water
-   !print*, 'soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDrainageDeriv, dCanLiq_dTcanopy
+   aJac(ixTopLiq,ixVegNrg) = (dt/mLayerDepth(1))*(-soilControl*scalarCanopyLiqDeriv*dCanLiq_dTcanopy)/iden_water
+   !print*, 'soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy = ', soilControl, scalarCanopyLiqDeriv, dCanLiq_dTcanopy
 
    ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
    ! NOTE: dIce/dLiq = (1 - fracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2

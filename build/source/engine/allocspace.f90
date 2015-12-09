@@ -207,7 +207,7 @@ contains
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! initialize errors
- err=0; message="f-init_model/"
+ err=0; message="init_model/"
  ! ensure metadata structures are deallocated
  if (associated(time_meta)) deallocate(time_meta)
  if (associated(forc_meta)) deallocate(forc_meta)
@@ -366,7 +366,7 @@ contains
  integer(i4b)                         :: nVar        ! number of variables
  integer(i4b)                         :: hruCount    ! number of HRUs within a GRU
  ! initialize errors
- err=0; message="f-alloc_attr/"
+ err=0; message="alloc_attr/"
  ! check that the metadata structure is allocated
  if(.not.associated(attr_meta))then
   err=10; message=trim(message)//"metadataNotInitialized"; return
@@ -506,7 +506,7 @@ contains
  integer(i4b)                         :: nVar        ! number of variables
  integer(i4b)                         :: hruCount    ! number of HRUs within a GRU
  ! initialize errors
- err=0; message="f-alloc_mvar/"
+ err=0; message="alloc_mvar/"
  ! check that the metadata structure is allocated
  if(.not.associated(mvar_meta))then
   err=10; message=trim(message)//"metadataNotInitialized"; return
@@ -550,7 +550,7 @@ contains
  integer(i4b)                         :: nVar        ! number of variables
  integer(i4b)                         :: hruCount    ! number of HRUs within a GRU
  ! initialize errors
- err=0; message="f-alloc_indx/"
+ err=0; message="alloc_indx/"
  ! check that the metadata structure is allocated
  if(.not.associated(indx_meta))then
   err=10; message=trim(message)//"metadataNotInitialized"; return

@@ -21,6 +21,7 @@
 MODULE data_struc
  ! used to define model data structures
  USE nrtype
+ USE multiconst,only:integerMissing
  implicit none
  private
  ! ***********************************************************************************************************
@@ -28,9 +29,9 @@ MODULE data_struc
  ! ***********************************************************************************************************
  ! the model decision structure
  type,public  :: model_options
-  character(len=64)                      :: cOption
-  character(len=64)                      :: cDecision
-  integer(i4b)                           :: iDecision
+  character(len=64)                      :: cOption='notPopulatedYet'
+  character(len=64)                      :: cDecision='notPopulatedYet'
+  integer(i4b)                           :: iDecision=integerMissing
  end type model_options
  type(model_options),pointer,save,public :: model_decisions(:)      ! the decision structure
  ! ***********************************************************************************************************
