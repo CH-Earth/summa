@@ -347,7 +347,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine alloc_attr: initialize data structures for local attributes
  ! ************************************************************************************************
- subroutine alloc_attr(nGRU, nHRU,err,message)
+ subroutine alloc_attr(nGRU,nHRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:attr_meta,attr_gru   ! data structures
  USE data_struc,only:gru_struc            ! data structures
