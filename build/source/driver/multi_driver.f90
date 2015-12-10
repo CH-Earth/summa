@@ -115,8 +115,6 @@ implicit none
 ! define counters
 integer(i4b)              :: iGRU                           ! index of grouped response units
 integer(i4b)              :: iHRU,jHRU,kHRU                 ! index of the hydrologic response unit
-!integer(i4b)              :: nGRU                           ! number of grouped response units
-!integer(i4b)              :: nHRU                           ! number of hydrologic response units
 integer(i4b)              :: iStep=0                        ! index of model time step
 integer(i4b)              :: jStep=0                        ! index of model output
 ! define the re-start file
@@ -219,7 +217,7 @@ allocate(upArea(nGRU),stat=err); call handle_err(err,'problem allocating space f
 ! allocate space for the time step (recycled for each GRU/HRU for subsequent calls to coupled_em)
 allocate(dt_init(nGRU),stat=err); call handle_err(err,'problem allocating space for dt_init')
 
-do iGRU=1, nGRU
+do iGRU=1,nGRU
  hruCount = gru_struc(iGRU)%hruCount
  allocate(upArea(iGRU)%var(hruCount),dt_init(iGRU)%var(hruCount),stat=err);
  call handle_err(err,'problem allocating space for upArea and dt_init')
@@ -281,7 +279,7 @@ bpar_data%var(:) = basinParFallback(:)%default_val
 call fracFuture(err,message); call handle_err(err,message) ! calculate the fraction of runoff in future time steps
 
 !loop through GRUs
-do iGRU=1, nGRU
+do iGRU=1,nGRU
 
  ! loop through HRUs
  do iHRU=1,nHRU
@@ -349,7 +347,7 @@ do iGRU=1, nGRU
 end do  ! (looping through GRUs)
 
 ! compute total area of the upstream HRUS that flow into each GRU
-do iGRU=1, nGRU ! looping on GRUs
+do iGRU=1,nGRU ! looping on GRUs
  hruCount = gru_struc(iGRU)%hruCount
  do iHRU=1,hruCount
   upArea(iGRU)%var(iHRU) = 0._dp
@@ -381,7 +379,7 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
 endselect
 
 ! initialize time step length for each HRU
-do iGRU=1, nGRU
+do iGRU=1,nGRU
  hruCount = gru_struc(iGRU)%hruCount
  do iHRU=1,hruCount
   dt_init(iGRU)%var(iHRU) = mvar_gru(iGRU)%hru(iHRU)%var(iLookMVAR%dt_init)%dat(1) ! seconds
@@ -429,7 +427,7 @@ do istep=1,numtim
   ! define the file
   call def_output(nHRU,fileout,err,message); call handle_err(err,message)
   ! write parameters for each HRU, and re-set indices
-  do iGRU=1, nGRU
+  do iGRU=1,nGRU
    hruCount=gru_struc(iGRU)%hruCount
    do iHRU=1,hruCount
     attr_data => attr_gru(iGRU)%hru(iHRU)
@@ -465,7 +463,7 @@ do istep=1,numtim
 
  ! initialize total inflow for each layer in a soil column
  ! initialize total inflow for each layer in a soil column
- do iGRU=1, nGRU
+ do iGRU=1,nGRU
   hruCount = gru_struc(iGRU)%hruCount
   do iHRU=1,hruCount
    mvar_gru(iGRU)%hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
@@ -476,7 +474,7 @@ do istep=1,numtim
  ! ****************************************************************************
  ! (8) loop through GRUs and HRUs
  ! ****************************************************************************
-do iGRU=1, nGRU ! MAIN LOOP LEVEL 2 ON GRUS
+do iGRU=1,nGRU ! MAIN LOOP LEVEL 2 ON GRUS
  hruCount = gru_struc(iGRU)%hruCount
  
  ! get the basin (GRU) area
@@ -665,7 +663,7 @@ end do   ! (looping through GRUs)
 end do  ! (looping through time)
 
 ! deallocate space for dt_init and upArea
-do iGRU=1, nGRU
+do iGRU=1,nGRU
  deallocate(dt_init(iGRU)%var,upArea(iGRU)%var,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
 end do
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')

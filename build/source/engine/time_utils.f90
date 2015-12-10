@@ -30,12 +30,12 @@ contains
  ! ******************************************************************************************
  ! public subroutine extractTime: extract year/month/day/hour/minute/second from units string
  ! ******************************************************************************************
- subroutine extractTime(refdate,iyyy,im,id,ih,imin,isec,err,message)
+ subroutine extractTime(refdate,iyyy,im,id,ih,imin,dsec,err,message)
  implicit none
  ! dummy variables
  character(*),intent(in)    :: refdate             ! units string (time since...)
  integer(i4b),intent(out)   :: iyyy,im,id,ih,imin  ! time (year/month/day/hour/minute)
- integer(i4b),intent(out)   :: isec                ! seconds
+ real(dp),intent(out)       :: dsec                ! seconds
  integer(i4b),intent(out)   :: err                 ! error code
  character(*),intent(out)   :: message             ! error message
  ! local variables
@@ -71,7 +71,7 @@ contains
  if(id > 31)then; err=20; message=trim(message)//'day > 31'; return; endif
  ! check if we are at the end of the string
  if (istart+(iend-2)==n) then
-  ih=0; imin=0; isec=0; return
+  ih=0; imin=0; dsec=0._dp; return
  endif
 
  ! get the hour (":" at end of hour)
@@ -86,17 +86,12 @@ contains
  call extract(refdate(istart:n),":",iend,imin,err,message); if (err/=0) return
  if(imin <  0)then; err=20; message=trim(message)//'minute < 0'; return; endif
  if(imin > 60)then; err=20; message=trim(message)//'minute > 60'; return; endif
-
  ! get the second
- ! generally not specified in mDecisions file, so set to zero to start
- isec = 0
  istart = istart+iend
- if(istart > len_trim(refdate)) isec = 0;return
- call extract(refdate(istart:n),":",iend,imin,err,message); if (err/=0) return
- if(isec <  0)then; err=20; message=trim(message)//'second < 0'; return; endif
- if(isec > 60)then; err=20; message=trim(message)//'second > 60'; return; endif
- read(refdate(istart:n),*) isec
- write(*,'(a,i4,1x,5(i2,1x))') 'refdate: iyyy, im, id, ih, imin, isec = ', iyyy, im, id, ih, imin, isec
+ if(istart > len_trim(refdate)) return
+ iend   = index(refdate(istart:n)," ")
+ read(refdate(istart:n),*) dsec
+ write(*,'(a,i4,1x,4(i2,1x))') 'refdate: iyyy, im, id, ih, imin = ', iyyy, im, id, ih, imin
 
  contains
 
@@ -134,14 +129,14 @@ contains
  ! ***************************************************************************************
  ! public subroutine compjulday: convert date to julian day (units of days)
  ! ***************************************************************************************
- subroutine compjulday(iyyy,mm,id,ih,imin,isec,&  ! input
+ subroutine compjulday(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)      ! output
  USE multiconst,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)
  implicit none
  ! input variables
  integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
  integer(i4b),intent(in)   :: ih,imin      ! hour, minute
- integer(i4b),intent(in)   :: isec         ! seconds
+ real(dp),intent(in)       :: dsec         ! seconds
  ! output
  real(dp),intent(out)      :: juldayss
   integer(i4b),intent(out) :: err          ! error code
@@ -172,7 +167,7 @@ contains
  endif
 
  ! compute fraction of the day
- jfrac = (real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + isec) / secprday
+ jfrac = (real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
 
  ! and return the julian day, expressed in fraction of a day
  juldayss = real(julday,kind(dp)) + jfrac

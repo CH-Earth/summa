@@ -131,7 +131,7 @@ contains
  call check(nf90_get_var(ncid, varid1, buf_int_1, start = start1, count = count1),message)
  
  ! populate number of hrus within each gru and allocate space for hrus accordingly
- do iGRU=1, nGRU
+ do iGRU=1,nGRU
   gru_struc(iGRU)%hruCount = buf_int_1(iGRU)
   hruCount = gru_struc(iGRU)%hruCount  
   allocate(gru_struc(iGRU)%hru(hruCount), stat=err)
@@ -139,8 +139,6 @@ contains
  enddo
 
  ! get maxHRU dimension length
-! call check(nf90_inq_dimid(ncid, "maxHRU", hruDimID),message)
-! call check(nf90_inquire_dimension(ncid, hruDimID, len = maxHRU),message)
  maxHRU = maxval(gru_struc(:)%hruCount)
 
 
@@ -151,7 +149,7 @@ contains
  call check(nf90_inq_varid(ncid, "hru_ix", varid1),message)
  call check(nf90_inq_varid(ncid, "hru_id", varid2),message)
  
- do iGRU=1, nGRU ! iGRU loop
+ do iGRU=1,nGRU ! iGRU loop
   hruCount = gru_struc(iGRU)%hruCount
   start2 = (/ 1, iGRU /)
   count2 = (/ hruCount, 1 /)
@@ -285,7 +283,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
  
  nVar = size(time_meta)
- do iGRU=1, nGRU 
+ do iGRU=1,nGRU 
   hruCount = gru_struc(iGRU)%hruCount
   allocate(time_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
@@ -332,7 +330,6 @@ contains
  nVar = size(forc_meta)
  do iGRU=1,nGRU
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(forc_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
   
@@ -379,7 +376,6 @@ contains
  nVar = size(attr_meta)
  do iGRU=1,nGRU
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(attr_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
 
@@ -424,9 +420,8 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
  
  nVar = size(type_meta)
- do iGRU=1, nGRU 
+ do iGRU=1,nGRU 
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(type_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
   
@@ -471,9 +466,8 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
  
  nPar = size(mpar_meta)
- do iGRU=1, nGRU 
+ do iGRU=1,nGRU 
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(mpar_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
   
@@ -518,7 +512,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
  
  nVar = size(mvar_meta)
- do iGRU=1, nGRU 
+ do iGRU=1,nGRU 
   hruCount = gru_struc(iGRU)%hruCount
   allocate(mvar_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
@@ -562,7 +556,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
  
  nVar = size(indx_meta)
- do iGRU=1, nGRU 
+ do iGRU=1,nGRU 
   hruCount = gru_struc(iGRU)%hruCount
   allocate(indx_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif

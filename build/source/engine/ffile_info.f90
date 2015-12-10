@@ -167,7 +167,7 @@ contains
       endif
      endif
     ! ***** identify the index of the time data variable
-    case('iyyy','im','id','ih','imin','isec')
+    case('iyyy','im','id','ih','imin')
      ivar = get_ixtime(trim(varname))
      if(ivar < 0)then; err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return; endif
      if(ivar>size(forcFileInfo(iHRU)%time_ix))then
