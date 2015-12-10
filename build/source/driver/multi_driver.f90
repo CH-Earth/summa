@@ -693,7 +693,7 @@ contains
  endif
  ! dump variables
  print*, 'error, variable dump:'
- if(allocated(dt_init)) print*, 'dt = ', dt_init
+ if(allocated(dt_init)) print*, 'dt = ', dt_init(1)%var(1)
  print*, 'istep = ', istep
  if(associated(type_data))then
   print*, 'HRU index = ', type_data%var(iLookTYPE%hruIndex)
