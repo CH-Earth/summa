@@ -29,7 +29,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(nHRU,err,message)
+ subroutine read_param(err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
@@ -38,13 +38,14 @@ contains
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
  USE get_ixname_module,only:get_ixparam              ! access function to find index of elements in structure
  USE pOverwrite_module,only:pOverwrite               ! module to overwrite default parameter values with info from the Noah tables
- USE data_struc,only:mpar_data,mpar_hru              ! data for local column model parameter sets
+ USE data_struc,only: nGRU, nHRU                     ! global variables for GRU/HRU mask file
+ USE data_struc,only:index_map                       ! index mapping
+ USE data_struc,only:mpar_data,mpar_gru              ! data for local column model parameter sets
  USE data_struc,only:localParFallback                ! default values and constraints for local column model parameters
- USE data_struc,only:type_hru                        ! data structure for categorical data
+ USE data_struc,only:type_gru                        ! data structure for categorical data
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define output
- integer(i4b),intent(in)         :: nHRU              ! number of HRUs
  integer(i4b),intent(out)        :: err               ! error code
  character(*),intent(out)        :: message           ! error message
  ! define local variables
@@ -61,7 +62,8 @@ contains
  character(LEN=64),allocatable   :: chardata(:)       ! vector of character data
  logical(lgt)                    :: checkHRU(nHRU)    ! vector of flags to check that an HRU will be populated with parameter data
  integer(i4b)                    :: hruIndex          ! HRU identifier
- integer(i4b)                    :: iHRU,jHRU,kHRU    ! index of HRU within data vector
+ integer(i4b)                    :: iHRU,jHRU,jGRU    ! index of HRU within data vector
+ integer(i4b)                    :: kHRU,kGRU         ! index of GRU and HRU for an identified HRU given its HRU id
  integer(i4b)                    :: ipar,jpar         ! index of model parameter
  integer(i4b)                    :: nPars             ! number of model parameters
  ! Start procedure here
@@ -128,23 +130,27 @@ contains
   ! get the HRU index
   read(chardata(1),*,iostat=err) hruIndex
   if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(1))//"']"; return; endif
-  ! identify the HRU index
-  do jHRU=1,nHRU
-   if(hruIndex == type_hru(jHRU)%var(iLookTYPE%hruIndex))then
-    kHRU=jHRU
-    checkHRU(jHRU) = .true.
-    exit
+  ! identify the HRU index to assign the parameters to mpar_gru
+  do jHRU=1,nHRU ! jHRU loop
+   kGRU=index_map(jHRU)%gru_ix
+   kHRU=index_map(jHRU)%ihru   
+   if(hruIndex == type_gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex))then
+     kGRU=kGRU
+     kHRU=kHRU
+     checkHRU(jHRU) = .true.
+     exit
    endif
    if(jHRU == nHRU)then ! we get to here if we have tested the last HRU and have not exited the loop
     write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',hruIndex,'; file='//trim(infile)//']'
     err=20; return
    endif
-  end do
+  enddo ! end of jHRU loop
+
   ! assign mpar_data to the given parameter set
-  mpar_data => mpar_hru(kHRU)
+  mpar_data => mpar_gru(kGRU)%hru(kHRU)
   ! ***** overwrite default model parameters with information from the Noah-MP tables
-  call pOverwrite(type_hru(kHRU)%var(iLookTYPE%vegTypeIndex),  &  ! vegetation category
-                  type_hru(kHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category
+  call pOverwrite(type_gru(kGRU)%hru(kHRU)%var(iLookTYPE%vegTypeIndex),  &  ! vegetation category
+                  type_gru(kGRU)%hru(kHRU)%var(iLookTYPE%soilTypeIndex), &  ! soil category
                   err,cmessage)                                   ! error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
   ! ***** populate parameter set with default model parameters *****
@@ -166,8 +172,10 @@ contains
  ! check that all HRUs are populated
  if(count(checkHRU) /= nHRU)then
   do iHRU=1,nHRU
-   if(.not.checkHRU(iHRU))then
-    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',type_hru(iHRU)%var(iLookTYPE%hruIndex),'; file='//trim(infile)//']'
+   if(.not.checkHRU(iHRU))then;
+    kGRU=index_map(iHRU)%gru_ix;
+    kHRU=index_map(iHRU)%ihru;
+    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',type_gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex),'; file='//trim(infile)//']'
     err=20; return
    endif
   end do  ! looping through HRUs

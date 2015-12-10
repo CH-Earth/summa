@@ -89,6 +89,26 @@ MODULE data_struc
  integer(i4b),parameter,public      :: ix_soil=1001             ! named variable to denote a soil layer
  integer(i4b),parameter,public      :: ix_snow=1002             ! named variable to denote a snow layer
  integer(i4b),parameter,public      :: ix_mixd=1003             ! named variable to denote a mixed layer
+
+ ! gru data structure
+ type, public :: gru
+  integer(i4b)                      :: gru_ix                   ! index of the gru
+  integer(i4b)                      :: hruCount                 ! total number of hrus in the gru
+  type(hru), pointer                :: hru(:)                   ! hrus within the gru
+ endtype gru
+ 
+ ! hru data structure
+ type, public :: hru
+  integer(i4b)                      :: hru_ix                   ! index of the hru in the entire domain
+  integer(i4b)                      :: hru_id                   ! id (non-sequential number) of the hru
+ endtype hru
+
+ ! used to relate sequencial index and ids and others
+ type, public :: mapping
+  integer(i4b)                      :: gru_ix                   ! index of gru which the hru belongs to 
+  integer(i4b)                      :: ihru                     ! index of a hru within a gru
+ endtype mapping
+
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
@@ -117,15 +137,38 @@ MODULE data_struc
  type, public :: var_i
   integer(i4b),pointer                   :: var(:) => null()
  endtype var_i
+
+! **hru with double precision type of variable length
+ type, public :: hru_dlength
+  type(var_dlength),pointer              :: hru(:) => null()
+ endtype hru_dlength
+
+ ! **hru with integer type of variable length
+ type, public :: hru_ilength
+  type(var_ilength),pointer              :: hru(:) => null()
+ endtype hru_ilength
+
+ ! **hru with double precision type of fixed length
+ type, public :: hru_d
+  type(var_d),pointer                    :: hru(:) => null()
+ endtype hru_d
+
+ ! ** hru with integer type of variable length
+ type, public :: hru_i
+  type(var_i),pointer                 :: hru(:) => null()
+ endtype hru_i
+
  ! define top-level derived types
  ! NOTE: either allocate directly, or use to point to higher dimensional structures
- type(var_i),pointer,save,public         :: time_hru(:) => null()    ! model time data
- type(var_d),pointer,save,public         :: forc_hru(:) => null()    ! model forcing data
- type(var_d),pointer,save,public         :: attr_hru(:) => null()    ! local attributes for each HRU
- type(var_i),pointer,save,public         :: type_hru(:) => null()    ! local classification of soil veg etc. for each HRU
- type(var_d),pointer,save,public         :: mpar_hru(:) => null()    ! model parameters
- type(var_dlength),pointer,save,public   :: mvar_hru(:) => null()    ! model variables
- type(var_ilength),pointer,save,public   :: indx_hru(:) => null()    ! model indices
+ type(gru), pointer, save, public        :: gru_struc(:) => null()  ! gru-hru map     
+ type(mapping),pointer,save,public       :: index_map(:) => null()   ! relating indexing
+ type(hru_i),pointer,save,public         :: time_gru(:) => null()    ! model time data
+ type(hru_d),pointer,save,public         :: forc_gru(:) => null()    ! model forcing data
+ type(hru_d),pointer,save,public         :: attr_gru(:) => null()    ! local attributes for each GRU & HRU
+ type(hru_i),pointer,save,public         :: type_gru(:) => null()    ! local classification of soil veg etc. for each GRU & HRU
+ type(hru_d),pointer,save,public         :: mpar_gru(:) => null()    ! model parameters
+ type(hru_dlength),pointer,save,public   :: mvar_gru(:) => null()    ! model variables
+ type(hru_ilength),pointer,save,public   :: indx_gru(:) => null()    ! model indices
  ! define data types for individual HRUs, and for basin-average quantities
  type(var_i),pointer,save,public         :: time_data => null()      ! model time data
  type(var_d),pointer,save,public         :: forc_data => null()      ! model forcing data
@@ -139,6 +182,8 @@ MODULE data_struc
  ! ***********************************************************************************************************
  ! Define common variables
  ! ***********************************************************************************************************
+ integer(i4b),save,public                :: nGRU                     ! number of total grus (set to 1 initially)
+ integer(i4b),save,public                :: nHRU                     ! number of total hrus in entire domain
  integer(i4b),save,public                :: nSnow                    ! number of snow layers
  integer(i4b),save,public                :: nSoil                    ! number of soil layers
  integer(i4b),save,public                :: nLayers                  ! total number of layers in the snow-soil system
