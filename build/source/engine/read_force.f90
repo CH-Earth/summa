@@ -118,8 +118,7 @@ contains
                    refTime%var(iLookTIME%im),             & ! output = month
                    refTime%var(iLookTIME%id),             & ! output = day
                    refTime%var(iLookTIME%ih),             & ! output = hour
-                   refTime%var(iLookTIME%imin),           & ! output = minute
-		   refTime%var(iLookTIME%isec),           & ! output = second
+                   refTime%var(iLookTIME%imin),dsec       & ! output = minute/second
                    err,cmessage)                            ! output = error code and error message
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! convert the reference time to days since the beginning of time
@@ -127,8 +126,7 @@ contains
                   refTime%var(iLookTIME%im),              & ! input  = month
                   refTime%var(iLookTIME%id),              & ! input  = day
                   refTime%var(iLookTIME%ih),              & ! input  = hour
-                  refTime%var(iLookTIME%imin),            & ! output = minute
-	          refTime%var(iLookTIME%isec),            & ! output = second
+                  refTime%var(iLookTIME%imin),dsec        & ! output = minute/second
                   refJulday,err,cmessage)                   ! output = julian day (fraction of day) + error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! identify the start index
@@ -148,8 +146,7 @@ contains
                   time_data%var(iLookTIME%im),              & ! input  = month
                   time_data%var(iLookTIME%id),              & ! input  = day
                   time_data%var(iLookTIME%ih),              & ! input  = hour
-                  time_data%var(iLookTIME%imin),              & ! output = minute
-		  time_data%var(iLookTIME%isec),              & ! output = second
+                  time_data%var(iLookTIME%imin),dsec        & ! output = minute/second
                   juldayFirst,err,cmessage)                   ! output = julian day (fraction of day) + error control
   write(*,'(a,i4,1x,4(i2,1x))') 'firstTime: iyyy, im, id, ih, imin = ', time_data%var
   ! compute the start index
@@ -161,12 +158,6 @@ contains
    err=20; return
   endif
   ! read until just before start index
-  print *,'derp',iStart,juldayFirst,dJulianStart,time_data%var(iLookTIME%iyyy),            & ! input  = year
-                  time_data%var(iLookTIME%im),              & ! input  = month
-                  time_data%var(iLookTIME%id),              & ! input  = day
-                  time_data%var(iLookTIME%ih),              & ! input  = hour
-                  time_data%var(iLookTIME%imin),              & ! output = minute
-		  time_data%var(iLookTIME%isec)
   if(iStart /= 0)then
    do iline=1,iStart-1
     read(unt,'(a)',iostat=err)
@@ -179,7 +170,7 @@ contains
   endif
   ! handle situation where istep>1
   if (istep>1) then
-   ! read until just before the derp step index
+   ! read until just before the time step index
    do iline=1,istep-1; read(unt,'(a)'); end do
    ! set a warning message
    err=-20; message="w-"//trim(message)//"UnexpectedFileOpen"
@@ -222,7 +213,7 @@ contains
  end do
  ! compute the julian day at the start of the year
  call compjulday(time_data%var(iLookTIME%iyyy),          & ! input  = year
-                 1, 1, 1, 1, 0,                          & ! input  = month, day, hour, minute, second
+                 1, 1, 1, 1, 0._dp,                      & ! input  = month, day, hour, minute, second
                  startJulDay,err,cmessage)                 ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! compute the fractional julian day for the current time step
@@ -230,7 +221,7 @@ contains
                  time_data%var(iLookTIME%im),             & ! input  = month
                  time_data%var(iLookTIME%id),             & ! input  = day
                  time_data%var(iLookTIME%ih),             & ! input  = hour
-                 time_data%var(iLookTIME%imin), 0,        & ! input  = minute/second
+                 time_data%var(iLookTIME%imin), 0._dp,    & ! input  = minute/second
                  currentJulday,err,cmessage)                ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! compute the time since the start of the year (in fractional days)

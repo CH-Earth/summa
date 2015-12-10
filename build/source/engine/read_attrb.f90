@@ -44,7 +44,6 @@ contains
  USE data_struc,only:attr_gru,type_gru             ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE           ! named variables for elements of the data structures
  USE get_ixname_module,only:get_ixAttr,get_ixType  ! access function to find index of elements in structure
- 
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err         ! error code
@@ -191,9 +190,6 @@ contains
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,dataLines,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- ! get the number of HRUs
- !nHRU = size(dataLines)
-
 
  ! allocate space
  call alloc_attr(nGRU,nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -206,7 +202,6 @@ contains
  ! loop through GRUs
  do iGRU=1,nGRU
  hruCount=gru_struc(iGRU)%hruCount
-! hruCount = nHRU !ajn change when GRUs are better defined
   ! loop through HRUs
   do iHRU=1,hruCount
    ! split the line into an array of words

@@ -182,7 +182,7 @@ MODULE data_struc
  ! ***********************************************************************************************************
  ! Define common variables
  ! ***********************************************************************************************************
- integer(i4b),save,public                :: nGRU = 1                    ! number of total grus (set to 1 initially)
+ integer(i4b),save,public                :: nGRU                     ! number of total grus (set to 1 initially)
  integer(i4b),save,public                :: nHRU                     ! number of total hrus in entire domain
  integer(i4b),save,public                :: nSnow                    ! number of snow layers
  integer(i4b),save,public                :: nSoil                    ! number of soil layers

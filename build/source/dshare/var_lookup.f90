@@ -77,7 +77,6 @@ MODULE var_lookup
   integer(i4b)    :: id               = 3  ! day
   integer(i4b)    :: ih               = 4  ! hour
   integer(i4b)    :: imin             = 5  ! minute
-  integer(i4b)    :: isec             = 6  ! second
  endtype iLook_time
  ! ***********************************************************************************************************
  ! (2) define model forcing data
@@ -568,7 +567,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38)
- type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6)
+ type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5)
  type(iLook_force),   public,parameter :: iLookFORCE    =iLook_force   (  1,  2,  3,  4,  5,  6,  7,  8)
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
  type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4,  5)
@@ -614,7 +613,7 @@ MODULE var_lookup
                                                                          11)
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions= 38
- integer(i4b),parameter,public :: maxvarTime     = 6
+ integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarAttr     = 7
  integer(i4b),parameter,public :: maxvarType     = 5

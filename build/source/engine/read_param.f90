@@ -107,7 +107,6 @@ contains
  call get_vlines(unt,charline,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  if(size(charline) /= nHRU)then
-print *,'nHRU: ',nHRU
   message=trim(message)//'incorrect number of HRUs in parameter file [file = '//trim(infile)//']'
   err=20; return
  endif
@@ -132,7 +131,7 @@ print *,'nHRU: ',nHRU
   read(chardata(1),*,iostat=err) hruIndex
   if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(1))//"']"; return; endif
   ! identify the HRU index to assign the parameters to mpar_gru
-  do jHRU=1, nHRU ! jHRU loop
+  do jHRU=1,nHRU ! jHRU loop
    kGRU=index_map(jHRU)%gru_ix
    kHRU=index_map(jHRU)%ihru   
    if(hruIndex == type_gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex))then
