@@ -29,21 +29,20 @@ contains
  ! ************************************************************************************************
  ! public subroutine ffile_info: read information on model forcing files
  ! ************************************************************************************************
- subroutine ffile_info(nGRU,nHRU,err,message)
+ subroutine ffile_info(nHRU,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
  USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE data_struc,only:time_meta,forc_meta     ! model forcing metadata
  USE data_struc,only:forcFileInfo,data_step  ! info on model forcing file
- USE data_struc,only:type_gru                ! data structure for categorical data
+ USE data_struc,only:type_hru                ! data structure for categorical data
  USE var_lookup,only:iLookTYPE               ! named variables to index elements of the data vectors
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line      ! split a line into words
  implicit none
  ! define output
- integer(i4b),intent(in)              :: nGRU           ! number of grouped response units
  integer(i4b),intent(in)              :: nHRU           ! number of hydrologic response units
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
@@ -64,7 +63,6 @@ contains
  character(len=2)                     :: dLim           ! column delimiter
  integer(i4b)                         :: ivar           ! index of model variable
  integer(i4b)                         :: iHRU,jHRU,kHRU ! index of HRUs (position in vector)
- integer(i4b)                         :: gruIndex       ! identifier of each GRU
  integer(i4b)                         :: hruIndex       ! identifier of each HRU
  real(dp)                             :: dataStep_iHRU  ! data step for a given forcing data file
  ! Start procedure here
@@ -88,12 +86,12 @@ contains
  if(size(dataLines) /= nHRU)then; err=20; message=trim(message)//'incorrect number of HRUs in file ['//trim(infile)//']'; return; endif
  ! loop through list of forcing descriptor files and put in the appropriate place in the data structure
  do iHRU=1,nHRU
-  ! split the line into "words" (expect three words: the GRU index,the HRU index, and the file describing forcing data for that index)
-  read(dataLines(iHRU),*,iostat=err) gruIndex, hruIndex, filenameDesc
+  ! split the line into "words" (expect two words: the HRU index, and the file describing forcing data for that index)
+  read(dataLines(iHRU),*,iostat=err) hruIndex, filenameDesc
   if(err/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; endif
   ! identify the HRU index
   do jHRU=1,nHRU
-   if(hruIndex == type_gru(gruIndex)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+   if(hruIndex == type_hru(jHRU)%var(iLookTYPE%hruIndex))then
     kHRU=jHRU
     exit
    endif

@@ -8,7 +8,7 @@ bin
 summa.exe
 # temporary files
 *~
-*swp
+*.swp
 # any 'junk' files or directories
 *junk*/
 *junk*

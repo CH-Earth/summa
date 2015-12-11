@@ -40,8 +40,8 @@ contains
  USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
  USE data_struc,only:yearLength                        ! number of days in the current year
  USE data_struc,only:time_meta,forc_meta               ! metadata structures
- USE data_struc,only:time_data,time_gru                ! time information
- USE data_struc,only:forc_data,forc_gru                ! forcing data
+ USE data_struc,only:time_data,time_hru                ! time information
+ USE data_struc,only:forc_data,forc_hru                ! forcing data
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  implicit none
  ! define dummy variables
@@ -77,8 +77,8 @@ contains
  ! early return: check if we have the data already
  ! NOTE: scalar data structures are pointing to the HRU data structures
  if(forcFileInfo(iHRU)%ixFirstHRU > 0)then
-  time_data = time_gru(1)%hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information
-  forc_data = forc_gru(1)%hru(forcFileInfo(iHRU)%ixFirstHRU)  ! forcing data
+  time_data = time_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information
+  forc_data = forc_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! forcing data
   return
  endif
  ! **********************************************************************************************
