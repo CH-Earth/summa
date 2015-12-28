@@ -81,16 +81,6 @@ contains
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! model decisions
- integer(i4b)                    :: ix_snowLayers       ! decision for snow combination
- ! model parameters (control on the depth of snow layers)
- real(dp)                        :: zmin                ! minimum layer depth (m)
- real(dp)                        :: zminLayer1          ! minimum layer depth for the 1st (top) layer(m)
- real(dp)                        :: zminLayer2          ! minimum layer depth for the 2nd layer(m)
- real(dp)                        :: zminLayer3          ! minimum layer depth for the 3rd layer(m)
- real(dp)                        :: zminLayer4          ! minimum layer depth for the 4th layer(m)
- real(dp)                        :: zminLayer5          ! minimum layer depth for the 5th (bottom) layer(m)
  ! model index variables
  ! NOTE: use pointers because the dimension length changes
  integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
@@ -99,9 +89,6 @@ contains
  real(dp),pointer                :: mLayerDepth(:)      ! depth of each layer (m)
  real(dp),pointer                :: mLayerVolFracIce(:) ! volumetric fraction of ice in each layer (-)
  real(dp),pointer                :: mLayerVolFracLiq(:) ! volumetric fraction of liquid water in each layer (-)
- ! diagnostic scalar variables
- real(dp)                        :: scalarSnowDepth     ! total snow depth (m)
- real(dp)                        :: scalarSWE           ! SWE (kg m-2)
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
@@ -165,7 +152,6 @@ contains
     case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iSnow) < zminLayer(iSnow))
     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
    end select ! (option to combine/sub-divide snow layers)
-   !print*, 'in layerMerge: iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer = ', iSnow, mLayerDepth(iSnow), zminLayer(iSnow), removeLayer
 
    ! check if need to remove a layer
    if(removeLayer)then
@@ -290,9 +276,6 @@ contains
  integer(i4b),intent(out)        :: err       ! error code
  character(*),intent(out)        :: message   ! error message
  ! ------------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! model parameters
- real(dp)                        :: snowfrz_scale            ! scaling parameter for the freezing curve for snow (K-1)
  ! model state variables
  ! NOTE: these are defined as pointers because the length of the data dimension changes
  real(dp),pointer                :: mLayerTemp(:)            ! temperature of each layer (K)
@@ -322,40 +305,27 @@ contains
  snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)      & ! scaling parameter for the freezing curve for snow (K-1)
  ) ! end associate block
 
- print*, '***** removing layer', iSnow
-
  ! ***** compute combined model state variables
  ! assign pointers to model state variables
  mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
  mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
  mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer  (-)
  mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
- !write(*,'(a,1x,6(i12,1x))')   'layer_combine, before merge: indx_data%var(iLookINDEX%layerType)%dat(1:6) = ', &
- !                                                            indx_data%var(iLookINDEX%layerType)%dat(1:6)
- !write(*,'(a,1x,6(f12.3,1x))') 'layer_combine, before merge: mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6) = ', &
- !                                                            mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6)
 
  ! compute combined depth
  cDepth       = mLayerDepth(isnow) + mLayerDepth(isnow+1)
- !write(*,'(a,10(f12.4,1x))') 'cDepth = ', cDepth
 
  ! compute mass of each layer (kg m-2)
  massIce(1:2) = iden_ice*mLayerVolFracIce(iSnow:iSnow+1)*mLayerDepth(iSnow:iSnow+1)
  massLiq(1:2) = iden_water*mLayerVolFracLiq(iSnow:iSnow+1)*mLayerDepth(iSnow:iSnow+1)
- !write(*,'(a,10(f12.4,1x))') 'massIce = ', massIce
- !write(*,'(a,10(f12.4,1x))') 'massLiq = ', massLiq
 
  ! compute bulk density of water (kg m-3)
  bulkDenWat(1:2) = (massIce(1:2) + massLiq(1:2))/mLayerDepth(iSnow:iSnow+1)
  cBulkDenWat     = (mLayerDepth(isnow)*bulkDenWat(1) + mLayerDepth(isnow+1)*bulkDenWat(2))/cDepth
- !write(*,'(a,10(f12.4,1x))') 'bulkDenWat  = ', bulkDenWat
- !write(*,'(a,10(f12.4,1x))') 'cBulkDenWat = ', cBulkDenWat
 
  ! compute enthalpy for each layer (J m-3)
  l1Enthalpy  = temp2ethpy(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
  l2Enthalpy  = temp2ethpy(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
- !write(*,'(a,10(e20.9,1x))') 'l1Enthalpy = ', l1Enthalpy
- !write(*,'(a,10(e20.9,1x))') 'l2Enthalpy = ', l2Enthalpy
 
  ! compute combined enthalpy (J m-3)
  cEnthalpy   = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
@@ -381,8 +351,6 @@ contains
  ! compute volumetric fraction of ice and liquid water
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water
  cVolFracIce = (1._dp - fLiq)*cBulkDenWat/iden_ice
- !cVolFracIce = (massIce(1) + massIce(2))/(cDepth*iden_ice)
- !cVolFracLiq = (massLiq(1) + massLiq(2))/(cDepth*iden_water)
 
  ! remove a model layer from all model variable vectors
  call rmLyAllVars(mvar_data,indx_data,iSnow,err,cmessage)
@@ -390,6 +358,7 @@ contains
 
  ! define the combined layer as snow
  indx_data%var(iLookINDEX%layerType)%dat(iSnow) = ix_snow
+
  ! update the total number of layers
  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
@@ -414,10 +383,6 @@ contains
                  ! output: error control
                  err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
- !write(*,'(a,1x,6(i12,1x))')   'layer_combine, after merge:  indx_data%var(iLookINDEX%layerType)%dat(1:6) = ', &
- !                                                            indx_data%var(iLookINDEX%layerType)%dat(1:6)
- !write(*,'(a,1x,6(f12.3,1x))') 'layer_combine, after merge:  mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6) = ', &
- !                                                            mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:6)
 
  ! end association to data structures
  end associate

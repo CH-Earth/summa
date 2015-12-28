@@ -844,7 +844,6 @@ contains
                     scalarVP_CanopyAir,                & ! intent(in): canopy air vapor pressure (Pa)
                     ! input: data structures
                     type_data,                         & ! intent(in):    type of vegetation and soil
-                    attr_data,                         & ! intent(in):    spatial attributes
                     forc_data,                         & ! intent(in):    model forcing data
                     mpar_data,                         & ! intent(in):    model parameters
                     model_decisions,                   & ! intent(in):    model decisions
