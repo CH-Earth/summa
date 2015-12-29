@@ -197,7 +197,7 @@ contains
  integer(i4b),parameter          :: nVarSnowSoil=2               ! number of state variables in the snow and soil domain (energy and liquid water/matric head)
  integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter          :: ku=3                         ! number of super-diagonal bands
- integer(i4b),parameter          :: kl=3                         ! number of sub-diagonal bands
+ integer(i4b),parameter          :: kl=4                         ! number of sub-diagonal bands
  integer(i4b),parameter          :: ixSup3=kl+1                  ! index for the 3rd super-diagonal band
  integer(i4b),parameter          :: ixSup2=kl+2                  ! index for the 2nd super-diagonal band
  integer(i4b),parameter          :: ixSup1=kl+3                  ! index for the 1st super-diagonal band
@@ -205,7 +205,8 @@ contains
  integer(i4b),parameter          :: ixSub1=kl+5                  ! index for the 1st sub-diagonal band
  integer(i4b),parameter          :: ixSub2=kl+6                  ! index for the 2nd sub-diagonal band
  integer(i4b),parameter          :: ixSub3=kl+7                  ! index for the 3rd sub-diagonal band
- integer(i4b),parameter          :: nBands=2*kl+ku+1             ! length of tyhe leading dimension of the band diagonal matrix
+ integer(i4b),parameter          :: ixSub4=kl+8                  ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter          :: nBands=2*kl+ku+1             ! length of the leading dimension of the band diagonal matrix
  integer(i4b),parameter          :: ixFullMatrix=1001            ! named variable for the full Jacobian matrix
  integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
  integer(i4b)                    :: ixSolve                      ! the type of matrix used to solve the linear system A.X=B
@@ -249,6 +250,7 @@ contains
  real(dp)                        :: scalarCanopyEvaporation      ! canopy evaporation/condensation (kg m-2 s-1)
  real(dp)                        :: scalarGroundEvaporation      ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
  real(dp)                        :: dCanopyEvaporation_dCanLiq   ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+ real(dp)                        :: dGroundEvaporation_dCanLiq   ! derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
  ! energy fluxes and derivatives for the snow and soil domains
  real(dp),dimension(nLayers)     :: ssdNetNrgFlux                ! net energy flux for each layer (J m-3 s-1)
  real(dp),dimension(0:nLayers)   :: dNrgFlux_dTempAbove          ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
@@ -261,6 +263,9 @@ contains
  real(dp)                        :: dCanopyEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
  real(dp)                        :: dCanopyEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
  real(dp)                        :: dCanopyEvaporation_dTGround  ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+ real(dp)                        :: dGroundEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+ real(dp)                        :: dGroundEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+ real(dp)                        :: dGroundEvaporation_dTGround  ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
  ! liquid water fluxes and derivatives for the snow domain
  real(dp),dimension(0:nSnow)     :: iLayerLiqFluxSnowDeriv       ! derivative in vertical liquid water flux at layer interfaces (m s-1)
  ! liquid water fluxes and derivatives for the soil domain
@@ -1578,11 +1583,16 @@ contains
                   dGroundNetFlux_dCanairTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
                   dGroundNetFlux_dCanopyTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                   dGroundNetFlux_dGroundTemp,             & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-                  ! output: liquid water flux derivarives
+                  ! output: liquid water flux derivarives (canopy evap)
                   dCanopyEvaporation_dCanLiq,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
                   dCanopyEvaporation_dTCanair,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                   dCanopyEvaporation_dTCanopy,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                   dCanopyEvaporation_dTGround,            & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+                  ! output: liquid water flux derivarives (ground evap)
+                  dGroundEvaporation_dCanLiq,             & ! intent(out): derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
+                  dGroundEvaporation_dTCanair,            & ! intent(out): derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                  dGroundEvaporation_dTCanopy,            & ! intent(out): derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                  dGroundEvaporation_dTGround,            & ! intent(out): derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
                   ! output: cross derivative terms
                   dCanopyNetFlux_dCanLiq,                 & ! intent(out): derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
                   dGroundNetFlux_dCanLiq,                 & ! intent(out): derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
@@ -1933,12 +1943,24 @@ contains
   ! * derivative in liquid water fluxes w.r.t. temperature for the soil domain...
   ! -----------------------------------------------------------------------------
   do iLayer=1,nSoil    ! loop through layers in the soil domain
+
    ! - define layer indices
    kLayer = iLayer+nSnow                ! layer index within the full snow-soil vector
    jLayer = ixSoilOnlyMat(iLayer)       ! hydrology layer index within the full state vector
    mLayer = ixSnowSoilNrg(kLayer)       ! thermodynamics layer index within the full state vector
+
    ! - compute the Jacobian for the layer itself
    aJac(ixSub1,mLayer) = (dt/mLayerDepth(kLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
+
+   ! - include derivatives w.r.t. ground evaporation
+   if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
+    aJac(ixSub4,ixCasNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
+    aJac(ixSub3,ixVegNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
+    aJac(ixSub2,ixVegWat)   = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
+    aJac(ixSub1,ixTopNrg)   = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixSub1,ixTopNrg) ! dVol/dT (K-1)
+   endif
+
+   ! melt-freeze: compute derivative in energy with respect to mass
    if(mLayerVolFracIceTrial(kLayer) > tiny(dt))then
     aJac(ixSup1,jLayer) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water    ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
    else
@@ -2081,12 +2103,24 @@ contains
   ! * derivative in liquid water fluxes w.r.t. temperature for the soil domain...
   ! -----------------------------------------------------------------------------
   do iLayer=1,nSoil    ! loop through layers in the soil domain
+
    ! - define layer indices
    kLayer = iLayer+nSnow                ! layer index within the full snow-soil vector
    jLayer = ixSoilOnlyMat(iLayer)       ! hydrology layer index within the full state vector
    mLayer = ixSnowSoilNrg(kLayer)       ! thermodynamics layer index within the full state vector
+
    ! - compute the Jacobian for the layer itself
    aJac(jLayer,mLayer) = (dt/mLayerDepth(kLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
+
+   ! - include derivatives w.r.t. ground evaporation
+   if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
+    aJac(jLayer,ixVegWat) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
+    aJac(jLayer,ixCasNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
+    aJac(jLayer,ixVegNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
+    aJac(jLayer,ixTopNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(jLayer,ixTopNrg) ! dVol/dT (K-1)
+   endif
+
+   ! melt-freeze: compute derivative in energy with respect to mass
    if(mLayerVolFracIceTrial(iLayer+nSnow) > tiny(dt))then
     aJac(mLayer,jLayer) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water    ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
    else
@@ -2598,14 +2632,15 @@ contains
   ! locals
   real(dp),dimension(nSoil) :: psiScale        ! scaling factor for matric head
   real(dp),parameter        :: xSmall=1.e-0_dp ! a small offset
-  logical(lgt)              :: watbalConv      ! flag for total water balance convergence
+  logical(lgt)              :: canopyConv      ! flag for canopy water balance convergence
+  logical(lgt)              :: watbalConv      ! flag for soil water balance convergence
   logical(lgt)              :: liquidConv      ! flag for residual convergence
   logical(lgt)              :: matricConv      ! flag for matric head convergence
   logical(lgt)              :: energyConv      ! flag for energy convergence
 
   ! check convergence based on the residuals for energy (J m-3)
   if(computeVegFlux)then
-   canopy_max = real(abs(rVec(ixVegWat)),sp)
+   canopy_max = real(abs(rVec(ixVegWat)), dp)*iden_water
    energy_max = real(maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) ), dp)
    energy_loc =      maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
   else
@@ -2624,6 +2659,7 @@ contains
   matric_loc = maxloc(abs( xInc(ixSoilOnlyMat)/psiScale ) )
 
   ! convergence check
+  canopyConv = (canopy_max    < absConvTol_watbal)  ! absolute error in canopy water balance (m)
   watbalConv = (soilWatbalErr < absConvTol_watbal)  ! absolute error in total soil water balance (m)
   matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
   liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
@@ -2637,7 +2673,7 @@ contains
   endif
 
   ! final convergence check
-  checkConv = (matricConv .and. liquidConv .and. energyConv)
+  checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv)
 
   end function checkConv
 
