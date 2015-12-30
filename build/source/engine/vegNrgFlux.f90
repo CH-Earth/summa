@@ -587,6 +587,16 @@ contains
    dCanopyNetFlux_dGroundTemp = 0._dp   ! derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
    dGroundNetFlux_dCanairTemp = 0._dp   ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
    dGroundNetFlux_dCanopyTemp = 0._dp   ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+   ! set liquid flux derivatives to zero (canopy evap)
+   dCanopyEvaporation_dCanLiq = 0._dp    ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+   dCanopyEvaporation_dTCanair= 0._dp    ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dCanopyEvaporation_dTCanopy= 0._dp    ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dCanopyEvaporation_dTGround= 0._dp    ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+   ! set liquid flux derivatives to zero (ground evap)
+   dGroundEvaporation_dCanLiq = 0._dp    ! derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
+   dGroundEvaporation_dTCanair= 0._dp    ! derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dGroundEvaporation_dTCanopy= 0._dp    ! derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dGroundEvaporation_dTGround= 0._dp    ! derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
 
    ! compute fluxes and derivatives -- separate approach for prescribed temperature and zero flux
    if(ix_bcUpprTdyn == prescribedTemp)then
