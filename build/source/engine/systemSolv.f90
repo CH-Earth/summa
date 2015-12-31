@@ -322,7 +322,7 @@ contains
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
  integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
  integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
- integer(i4b)                    :: nrgFormulation=ix_temperature   ! decision for the energy formulation (enthalpy or temperature)
+ integer(i4b)                    :: nrgFormulation=ix_enthalpy   ! decision for the energy formulation (enthalpy or temperature)
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
@@ -880,8 +880,10 @@ contains
 
   ! if enthalpy, then need to convert the iteration increment to temperature
   if(nrgFormulation==ix_enthalpy)then
-   xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
-   xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
+   if(computeVegFlux)then
+    xInc(ixCasNrg)      = xInc(ixCasNrg)/dMat(ixCasNrg)
+    xInc(ixVegNrg)      = xInc(ixVegNrg)/dMat(ixVegNrg)
+   endif
    xInc(ixSnowSoilNrg) = xInc(ixSnowSoilNrg)/dMat(ixSnowSoilNrg)
   endif
 
