@@ -176,8 +176,6 @@ contains
  spectralIncomingDiffuse(1) = SWRadAtm*(1._dp - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
  spectralIncomingDiffuse(2) = SWRadAtm*(1._dp - scalarFractionDirect)*(1._dp - Frad_vis)    ! (diffuse nir)
 
- print*, 'derivforce: cosZenith=', cosZenith, ' scalarFractionDirect=',scalarFractionDirect, ' Frad_vis=', Frad_vis
-
  ! ensure wind speed is above a prescribed minimum value
  if(windspd < minwind) windspd=minwind
 

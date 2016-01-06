@@ -844,7 +844,6 @@ contains
     scalarGroundAbsorbedSolar = scalarGroundAbsorbedSolar + spectralGroundAbsorbedSolar(iBand)
     scalarCanopyAbsorbedSolar = scalarCanopyAbsorbedSolar + spectralCanopyAbsorbedSolar(iBand)
 
-    print*, 'iBand=', iBand, ' scalarBelowCanopySolar=',scalarBelowCanopySolar
    end do  ! (looping through wave bands)
 
 

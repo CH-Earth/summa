@@ -107,7 +107,7 @@ contains
  call get_vlines(unt,charline,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  if(size(charline) /= nHRU)then
-print *,'nHRU: ',nHRU
+  print *,'nHRU: ',nHRU
   message=trim(message)//'incorrect number of HRUs in parameter file [file = '//trim(infile)//']'
   err=20; return
  endif
@@ -123,7 +123,7 @@ print *,'nHRU: ',nHRU
  ! allocate space for the character data
  allocate(chardata(nPars),stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateChardata"; return; endif
- ! loop through parameter sets
+ ! loop through the HRUs
  do iHRU=1,nHRU
   ! get the vector of parameters for a given layer, and the HRU index
   read(charline(iHRU),*,iostat=err) chardata

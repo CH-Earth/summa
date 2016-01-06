@@ -147,6 +147,7 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  integer(i4b)                         :: nAtt           ! number of attributes in the time structures
+ real(dp)                             :: dsec           ! second
  ! initialize error control
  err=0; message='mDecisions/'
 
@@ -173,7 +174,7 @@ contains
                   startTime%var(iLookTIME%id),                           & ! day
                   startTime%var(iLookTIME%ih),                           & ! hour
                   startTime%var(iLookTIME%imin),                         & ! minute
-                  startTime%var(iLookTIME%isec),                         & ! second
+                  dsec,                                                  & ! second
                   err,cmessage)                                            ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
@@ -184,7 +185,7 @@ contains
                   finshTime%var(iLookTIME%id),                           & ! day
                   finshTime%var(iLookTIME%ih),                           & ! hour
                   finshTime%var(iLookTIME%imin),                         & ! minute
-                  finshTime%var(iLookTIME%isec),                         & ! second
+                  dsec,                                                  & ! second
                   err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
@@ -195,7 +196,7 @@ contains
                  startTime%var(iLookTIME%id),                           & ! day
                  startTime%var(iLookTIME%ih),                           & ! hour
                  startTime%var(iLookTIME%imin),                         & ! minute
-                 startTime%var(iLookTIME%isec),                         & ! second
+                 0.0_dp,                                                & ! second
                  dJulianStart,                                          & ! julian date for the start of the simulation
                  err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -207,7 +208,7 @@ contains
                  finshTime%var(iLookTIME%id),                           & ! day
                  finshTime%var(iLookTIME%ih),                           & ! hour
                  finshTime%var(iLookTIME%imin),                         & ! minute
-                 finshTime%var(iLookTIME%isec),                         & ! second
+                 0.0_dp,                                                & ! second
                  dJulianFinsh,                                          & ! julian date for the end of the simulation
                  err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif

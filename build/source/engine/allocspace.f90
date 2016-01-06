@@ -22,7 +22,7 @@ module allocspace_module
 USE nrtype
 implicit none
 private
-public::read_allocate_gru_struc
+public::allocate_gru_struc
 public::init_metad
 public::alloc_stim
 public::alloc_time
@@ -43,12 +43,11 @@ contains
 ! ************************************************************************************************
  ! public subroutine read_gru_map: read in gru_hru spatial domain mask
  ! ************************************************************************************************
- subroutine read_allocate_gru_struc(nGRU,nHRU,err,message)
+ subroutine allocate_gru_struc(nGRU,nHRU,err,message)
  USE netcdf
-
+ USE nr_utility_module,only:arth
  ! provide access to subroutines
- USE netcdf_util_module,only:file_open             ! open netCDF file
- USE netcdf_util_module, only: check
+ USE netcdf_util_module,only:nc_file_open             ! open netCDF file
  ! provide access to data
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
@@ -68,25 +67,19 @@ contains
  ! define variables for NetCDF file operation
  integer(i4b)                         :: mode               ! netCDF file open mode
  integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
- integer(i4b)                         :: hruDimID, varid1   ! integer variables for NetCDF IDs
- integer(i4b)                         :: gruDimID, varid2   ! integer variables for NetCDF IDs
- integer(i4b), allocatable            :: start1(:), count1(:) ! specification for data reading          
- integer(i4b), allocatable            :: start2(:), count2(:) ! specification for data reading          
+ integer(i4b)                         :: varid              ! variable id from netcdf file
+ integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
+ integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
+ integer(i4b),allocatable             :: hru_id(:)          ! unique id of hru over entire domain
+ integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs
+ integer(i4b),allocatable             :: hru2gru_id(:)      ! unique GRU ids at each HRU
+      
  ! define local variables
- integer(i4b)                         :: hru_ix             ! sequential index of hru over entire domain
- integer(i4b)                         :: min_ix, max_ix     ! index range of hru over entire domain
  integer(i4b)                         :: hruCount           ! number of hrus in a gru
- integer(i4b)                         :: maxHRU             ! maximum number of hrus in a gru
- integer(i4b)                         :: varIndx            ! index of variable within its data structure
- integer(i4b)                         :: iGRU, iHRU         ! index of a GRU and HRU
- integer(i4b),allocatable             :: buf_int_1(:)       ! temporal buffer for reading data
- integer(i4b),allocatable             :: buf_int_2(:)       ! temporal buffer for reading data
- integer(i4b),allocatable             :: buf_int_3(:)       ! temporal buffer for reading data
+ integer(i4b)                         :: iGRU               ! index of a GRU and HRU
 
  ! Start procedure here
- err=0; message="gruhru_map/"
- min_ix=99999
- max_ix=-99999
+ err=0; message="allocate_gru_hru_map/"
 
  ! check that gru_struc structure is initialized
  if(associated(gru_struc))then; deallocate(gru_struc); endif
@@ -95,100 +88,52 @@ contains
  ! (1) open hru_attributes file and allocate memory for data structure according to data file
  ! **********************************************************************************************
  ! build filename
- !infile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
- infile = './test_gru_mapping.nc'
+ infile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
  ! open file
  mode=nf90_NoWrite
- call file_open(trim(infile), mode, ncid, err, cmessage)
+ call nc_file_open(trim(infile), mode, ncid, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! get gru_ix dimension length
- call check(nf90_inq_dimid(ncid, "gru_ix", gruDimID),message)
- call check(nf90_inquire_dimension(ncid, gruDimID, len = nGRU),message)
+ err = nf90_inq_dimid(ncid, "ngru", gruDimID)
+ err = nf90_inquire_dimension(ncid, gruDimID, len = nGRU)
+ if(err/=0)then; message=trim(message)//'problem reading ngru'; return; endif
 
- ! get hru_dim dimension length (ie., the sequential hru index over entire domain)
- call check(nf90_inq_dimid(ncid, "hru_dim", hruDimID),message)
- call check(nf90_inquire_dimension(ncid, hruDimID, len = nHRU),message)
+ ! get hru_dim dimension length (ie., the number of hrus in entire domain)
+ err = nf90_inq_dimid(ncid, "nhru", hruDimID)
+ err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU)
+ if(err/=0)then; message=trim(message)//'problem reading nhru'; return; endif
  
- allocate(gru_struc(nGRU), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for gru_struc'; return; endif
+ allocate(gru_struc(nGRU), index_map(nHRU), stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for mapping structures'; return; endif
  
- !allocating for index mapping for elementories from  vectors and arrays of hierachical GRU/HRU struct
- allocate(index_map(nHRU), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for index mapping'; return; endif
- 
- allocate(buf_int_1(nGRU), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for buffer reading'; return; endif
+ allocate(gru_id(nGRU),hru_id(nHRU),hru2gru_id(nHRU),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
 
- allocate ( start1(1), count1(1),start2(2),count2(2), stat=err )
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for netcdf reading specification'; return; endif
+ ! read gru_id from netcdf file
+ err = nf90_inq_varid(ncid, "gru_id", varid)
+ err = nf90_get_var(ncid,varid,gru_id)
 
- ! get hruCount- the number of hrus in each gru
- call check(nf90_inq_varid(ncid, "hruCount", varid1),message)
+ ! read the HRU to GRU mapping
+ ! (get the variable id)
+ err = nf90_inq_varid(ncid, "hru2gru_id", varid)
+ if(err/=0)then; message=trim(message)//'problem inquiring hru2gru_id'; return; endif
+ ! (read the data)
+ err = nf90_get_var(ncid,varid,hru2gru_id)
+ if(err/=0)then; message=trim(message)//'problem reading hru2gru_id'; return; endif
 
- start1 = (/ 1 /)
- count1 = (/ nGRU /)
- call check(nf90_get_var(ncid, varid1, buf_int_1, start = start1, count = count1),message)
- 
- ! populate number of hrus within each gru and allocate space for hrus accordingly
- do iGRU=1, nGRU
-  gru_struc(iGRU)%hruCount = buf_int_1(iGRU)
-  hruCount = gru_struc(iGRU)%hruCount  
-  allocate(gru_struc(iGRU)%hru(hruCount), stat=err)
+ ! allocate mapping array
+ do iGRU=1,nGRU
+  hruCount = count(hru2gru_id==gru_id(iGRU))
+  gru_struc(iGRU)%hruCount = hruCount
+  allocate(gru_struc(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; endif
  enddo
 
- ! get maxHRU dimension length
-! call check(nf90_inq_dimid(ncid, "maxHRU", hruDimID),message)
-! call check(nf90_inquire_dimension(ncid, hruDimID, len = maxHRU),message)
- maxHRU = maxval(gru_struc(:)%hruCount)
-
-
- allocate(buf_int_2(maxHRU), buf_int_3(maxHRU), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru reading'; return; endif
-
- ! get hru_ix and hru_id-- the index and id of hrus respectively 
- call check(nf90_inq_varid(ncid, "hru_ix", varid1),message)
- call check(nf90_inq_varid(ncid, "hru_id", varid2),message)
- 
- do iGRU=1, nGRU ! iGRU loop
-  hruCount = gru_struc(iGRU)%hruCount
-  start2 = (/ 1, iGRU /)
-  count2 = (/ hruCount, 1 /)
-  call check(nf90_get_var(ncid, varid1, buf_int_2, start = start2, count = count2),message)
-  call check(nf90_get_var(ncid, varid2, buf_int_3, start = start2, count = count2),message)
-  do iHRU=1, hruCount
-   gru_struc(iGRU)%hru(iHRU)%hru_ix = buf_int_2(iHRU)
-   gru_struc(iGRU)%hru(iHRU)%hru_id = buf_int_3(iHRU)
-
-   ! populating the index relation
-   ! gru_stuc(iGRU)%hru(iHRU)%hru_ix stores the sequential hru index over entire domain
-   hru_ix=gru_struc(iGRU)%hru(iHRU)%hru_ix
-   index_map(hru_ix)%gru_ix = iGRU     ! the index of a gru that contains the hru
-   index_map(hru_ix)%ihru   = iHRU     ! the index within a gru that contains the hru
-  
-   ! check the range of the hru_ix, which is expected to be 1-nHRU over the entire domain.
-   ! hru_ix is used for subscripting hrus in some cases, particularly in reading data, although
-   ! model data structures are mostly based on GRU/HRU hierachical indexing.
-   ! (each hru_ix has to be unique, not checked)
-   if(hru_ix<min_ix)then; min_ix=hru_ix; endif
-   if(hru_ix>max_ix)then; max_ix=hru_ix; endif
-  enddo 
-
- enddo ! end of iGRU loop
-
- !verification of the hru_ix within the correct range, i.e., 1-nHRU, defined by "hru_dim" dimenstion in inputfile 
- if(min_ix/=1 .or. max_ix/=nHRU)then; err=20; message=trim(message)//'hru_ix in GRU/HRU mask has to be set in the correct range.'; &
-   return; endif
-
  ! close the HRU_ATTRIBUTES netCDF file
- call check(nf90_close(ncid), message)
-
- ! deallocate space
- deallocate(buf_int_1, buf_int_2,buf_int_3,start1,count1,start2,count2, stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem deallocating space'; return; endif
-
- end subroutine read_allocate_gru_struc
+ err = nf90_close(ncid)
+ if(err/=0)then; err=20; message=trim(message)//'error closing zLocalAttributes file'; return; endif
+ end subroutine allocate_gru_struc
 
 
  ! ************************************************************************************************
@@ -257,14 +202,13 @@ contains
  ! ************************************************************************************************
  ! public subroutine alloc_time: initialize data structures for time structures
  ! ************************************************************************************************
- subroutine alloc_time(nGRU,nHRU,err,message)
+ subroutine alloc_time(nGRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:time_gru,time_meta              ! data structures
  USE data_struc,only:gru_struc            ! data structures
  implicit none
  ! dummy variables
  integer(i4b),intent(in)              :: nGRU        ! number of GRUs
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables
@@ -303,14 +247,13 @@ contains
  ! ************************************************************************************************
  ! public subroutine alloc_forc: initialize data structures for model forcing data
  ! ************************************************************************************************
- subroutine alloc_forc(nGRU,nHRU,err,message)
+ subroutine alloc_forc(nGRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:forc_gru,forc_meta             ! data structures
  USE data_struc,only:gru_struc            ! data structures
  implicit none
  ! dummy variables
- integer(i4b),intent(in)	      :: nGRU	     ! number of GRUs
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
+ integer(i4b),intent(in)              :: nGRU        ! number of GRUs
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables
@@ -332,7 +275,6 @@ contains
  nVar = size(forc_meta)
  do iGRU=1,nGRU
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(forc_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
   
@@ -350,14 +292,13 @@ contains
  ! ************************************************************************************************
  ! public subroutine alloc_attr: initialize data structures for local attributes
  ! ************************************************************************************************
- subroutine alloc_attr(nGRU, nHRU,err,message)
+ subroutine alloc_attr(nGRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:attr_meta,attr_gru   ! data structures
  USE data_struc,only:gru_struc            ! data structures
  implicit none
  ! dummy variables
  integer(i4b),intent(in)              :: nGRU        ! number of GRUs
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables
@@ -379,7 +320,6 @@ contains
  nVar = size(attr_meta)
  do iGRU=1,nGRU
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(attr_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
 
@@ -396,14 +336,13 @@ contains
  ! *************************************************************************************************
  ! public subroutine alloc_type: initialize data structures for local classification of veg, soil, etc.
  ! *************************************************************************************************
- subroutine alloc_type(nGRU,nHRU,err,message)
+ subroutine alloc_type(nGRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:type_gru,type_meta             ! data structures
  USE data_struc,only:gru_struc                      ! data structures
  implicit none
  ! dummy variables
  integer(i4b),intent(in)              :: nGRU        ! number of GRUs
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables
@@ -426,7 +365,6 @@ contains
  nVar = size(type_meta)
  do iGRU=1, nGRU 
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(type_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
   
@@ -443,14 +381,13 @@ contains
  ! *************************************************************************************************
  ! public subroutine alloc_mpar: initialize data structures for model parameters
  ! *************************************************************************************************
- subroutine alloc_mpar(nGRU,nHRU,err,message)
+ subroutine alloc_mpar(nGRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:mpar_gru,mpar_meta             ! data structures
  USE data_struc,only:gru_struc                      ! data structures
  implicit none
  ! dummy variables
  integer(i4b),intent(in)              :: nGRU        ! number of GRUs
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables
@@ -473,7 +410,6 @@ contains
  nPar = size(mpar_meta)
  do iGRU=1, nGRU 
   hruCount = gru_struc(iGRU)%hruCount
-!  hruCount = nHRU   !ajn need to change when GRU structure becomes better defined
   allocate(mpar_gru(iGRU)%hru(hruCount),stat=err)
   if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
   
@@ -490,14 +426,13 @@ contains
  ! *************************************************************************************************
  ! public subroutine alloc_mvar: initialize data structures for model variables
  ! *************************************************************************************************
- subroutine alloc_mvar(nGRU,nHRU,err,message)
+ subroutine alloc_mvar(nGRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:mvar_gru,mvar_meta             ! data structures
  USE data_struc,only:gru_struc                      ! data structures
  implicit none
  ! dummy variables
  integer(i4b),intent(in)              :: nGRU        ! number of GRUs
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables
@@ -534,14 +469,13 @@ contains
  ! *************************************************************************************************
  ! public subroutine alloc_indx: initialize structure components for model indices
  ! *************************************************************************************************
- subroutine alloc_indx(nGRU,nHRU,err,message)
+ subroutine alloc_indx(nGRU,err,message)
  ! used to initialize structure components for model variables
  USE data_struc,only:indx_gru,indx_meta             ! data structures
  USE data_struc,only:gru_struc                      ! data structures
  implicit none
  ! dummy variables
  integer(i4b),intent(in)              :: nGRU        ! number of GRUs
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! local variables

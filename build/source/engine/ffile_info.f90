@@ -42,7 +42,7 @@ contains
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line      ! split a line into words
  implicit none
- ! define output
+ ! define input & output
  integer(i4b),intent(in)              :: nGRU           ! number of grouped response units
  integer(i4b),intent(in)              :: nHRU           ! number of hydrologic response units
  integer(i4b),intent(out)             :: err            ! error code
@@ -64,7 +64,7 @@ contains
  character(len=2)                     :: dLim           ! column delimiter
  integer(i4b)                         :: ivar           ! index of model variable
  integer(i4b)                         :: iHRU,jHRU,kHRU ! index of HRUs (position in vector)
- integer(i4b)                         :: gruIndex       ! identifier of each GRU
+ integer(i4b)                         :: iGRU           ! index of GRUs
  integer(i4b)                         :: hruIndex       ! identifier of each HRU
  real(dp)                             :: dataStep_iHRU  ! data step for a given forcing data file
  ! Start procedure here
@@ -89,18 +89,20 @@ contains
  ! loop through list of forcing descriptor files and put in the appropriate place in the data structure
  do iHRU=1,nHRU
   ! split the line into "words" (expect three words: the GRU index,the HRU index, and the file describing forcing data for that index)
-  read(dataLines(iHRU),*,iostat=err) gruIndex, hruIndex, filenameDesc
+  read(dataLines(iHRU),*,iostat=err) hruIndex, filenameDesc
   if(err/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; endif
   ! identify the HRU index
-  do jHRU=1,nHRU
-   if(hruIndex == type_gru(gruIndex)%hru(jHRU)%var(iLookTYPE%hruIndex))then
-    kHRU=jHRU
-    exit
-   endif
-   if(jHRU == nHRU)then ! we get to here if we have tested the last HRU and have not exited the loop
-    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in forcing file description [index = ',hruIndex,'; file='//trim(infile)//']'
-    err=20; return
-   endif
+  do iGRU=1,nGRU
+   do jHRU=1,nHRU
+    if(hruIndex == type_gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+     kHRU=jHRU
+     exit
+    endif
+    if(jHRU == nHRU .and. iGRU == nGRU)then ! we get to here if we have tested the last HRU and have not exited the loop
+     write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in forcing file description [index = ',hruIndex,'; file='//trim(infile)//']'
+     err=20; return
+    endif
+   end do
   end do
   ! put the filename in the structure
   forcFileInfo(kHRU)%filenmDesc = trim(filenameDesc)
@@ -167,7 +169,7 @@ contains
       endif
      endif
     ! ***** identify the index of the time data variable
-    case('iyyy','im','id','ih','imin','isec')
+    case('iyyy','im','id','ih','imin')
      ivar = get_ixtime(trim(varname))
      if(ivar < 0)then; err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return; endif
      if(ivar>size(forcFileInfo(iHRU)%time_ix))then

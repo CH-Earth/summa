@@ -28,7 +28,7 @@ USE nrtype                                                  ! variable types, et
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
-USE allocspace_module,only:read_allocate_gru_struc         ! read/allocate space for gru-hru mask structures
+USE allocspace_module,only:allocate_gru_struc               ! read/allocate space for gru-hru mask structures
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
 USE allocspace_module,only:alloc_stim                       ! module to allocate space for scalar time structures
 USE allocspace_module,only:alloc_time                       ! module to allocate space for model time structures
@@ -189,7 +189,7 @@ doJacobian=.false.
 ! nGRU-is the total number of GRUs of the simulation domain
 ! nHRU-is the total number of HRUs of the simulation domain
 ! hruCount-is a local variable for the total number of HRUs in a GRU
-call read_allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
+call allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
 ! initialize model metadata structures
 call init_metad(err,message); call handle_err(err,message)
 ! read metadata on all model variables
@@ -199,21 +199,21 @@ call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,message);
 call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (3) read information for each GRU & HRU and allocate space for data structures
+! (3) read information for all HRUs and allocate space for data structures
 ! *****************************************************************************
-! read local attributes for each HRU
+! read local attributes for all HRUs
 call read_attrb(err,message); call handle_err(err,message)
 ! allocate space for HRU data structures
 ! NOTE: attr_hru and type_hru are defined in read_attrb
-call alloc_mpar(nGRU,nHRU,err,message); call handle_err(err,message)
-call alloc_mvar(nGRU,nHRU,err,message); call handle_err(err,message)
-call alloc_indx(nGRU,nHRU,err,message); call handle_err(err,message)
+call alloc_mpar(nGRU,err,message); call handle_err(err,message)
+call alloc_mvar(nGRU,err,message); call handle_err(err,message)
+call alloc_indx(nGRU,err,message); call handle_err(err,message)
 ! allocate space for basin data structures
 call alloc_bpar(err,message); call handle_err(err,message)
 call alloc_bvar(err,message); call handle_err(err,message)
 ! allocate space for the forcing and time structures
-call alloc_forc(nGRU,nHRU,err,message); call handle_err(err,message)
-call alloc_time(nGRU,nHRU,err,message); call handle_err(err,message)
+call alloc_forc(nGRU,err,message); call handle_err(err,message)
+call alloc_time(nGRU,err,message); call handle_err(err,message)
 call alloc_stim(refTime,err,message); call handle_err(err,message)
 
 allocate(upArea(nGRU),stat=err); call handle_err(err,'problem allocating space for upArea')
@@ -554,8 +554,6 @@ do iGRU=1, nGRU ! MAIN LOOP LEVEL 2 ON GRUS
                   dt_init(iGRU)%var(iHRU),         & ! initial time step
                   err,message)                       ! error control
   call handle_err(err,message)
-
-  print*, 'Tstep=',istep, 'iGRU=', iGRU, ' iHRU=', iHRU, 'summerLAI=', mpar_data%var(48), ' scalarBelowCanopySolar=', mvar_gru(iGRU)%hru(iHRU)%var(64)%dat
 
   kHRU = 0
   ! identify the downslope HRU

@@ -385,8 +385,6 @@ contains
                   err,cmessage)                   ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-  print*, 'dt_done=', dt_done, 'summerLAI=', mpar_data%var(48), ' scalarBelowCanopySolar=', mvar_data%var(64)%dat
-
   ! (5) compute canopy throughfall and unloading...
   ! -----------------------------------------------
   ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation (and throughfall/unloading)
