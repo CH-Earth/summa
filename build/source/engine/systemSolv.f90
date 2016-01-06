@@ -165,7 +165,7 @@ contains
  real(dp)                        :: canopyDepth                  ! depth of the vegetation canopy (m)
  integer(i4b)                    :: iter                         ! iteration index
  integer(i4b)                    :: iJac                         ! index of element in the Jacobian matrix
- integer(i4b)                    :: iState,kState                ! index of model state variable
+ integer(i4b)                    :: iState,jState,kState         ! index of model state variable
  integer(i4b)                    :: iLayer                       ! index of model layer
  integer(i4b)                    :: jLayer                       ! index of model layer within the full state vector (hydrology)
  integer(i4b)                    :: kLayer                       ! index of model layer within the snow-soil domain
@@ -310,19 +310,20 @@ contains
  real(dp),allocatable            :: fScale(:)                    ! characteristic scale of the function evaluations (mixed units)
  real(dp),allocatable            :: xScale(:)                    ! characteristic scale of the state vector (mixed units)
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
- real(dp),allocatable            :: aJac(:,:)                    ! analytical Jacobian matrix
+ real(dp),allocatable            :: aJac(:,:),aJacScaled(:,:)    ! analytical Jacobian matrix
  real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
  real(dp),allocatable            :: dMat(:)                      ! diagonal matrix (excludes flux derivatives)
  real(qp),allocatable            :: sMul(:)    ! NOTE: qp        ! multiplier for state vector for the residual calculations
  real(qp),allocatable            :: rAdd(:)    ! NOTE: qp        ! additional terms in the residual vector
  real(qp),allocatable            :: rVec(:)    ! NOTE: qp        ! residual vector
+ real(dp),allocatable            :: rVecScaled(:)                ! scaled residual vector (NOTE: dp)
  real(dp),allocatable            :: xInc(:)                      ! iteration increment
- real(dp),allocatable            :: grad(:)                      ! gradient of the function vector = matmul(rVec,aJac)
+ real(dp),allocatable            :: grad(:),gradScaled(:)        ! gradient of the function vector = matmul(rVec,aJac)
  real(dp),allocatable            :: rhs(:,:)                     ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
  integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
  integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
- integer(i4b)                    :: nrgFormulation=ix_enthalpy   ! decision for the energy formulation (enthalpy or temperature)
+ integer(i4b)                    :: nrgFormulation=ix_temperature   ! decision for the energy formulation (enthalpy or temperature)
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
@@ -350,7 +351,7 @@ contains
  real(dp),dimension(nSnow)       :: mLayerTempCheck              ! updated temperatures (K) -- used to check iteration increment for snow
  real(dp),dimension(nSnow)       :: mLayerVolFracLiqCheck        ! updated volumetric liquid water content (-) -- used to check iteration increment for snow
  real(dp)                        :: cInc                         ! constrained temperature increment (K) -- simplified bi-section
- real(dp)                        :: xIncScale                    ! scaling factor for the iteration increment (-)
+ real(dp)                        :: xIncFactor                   ! scaling factor for the iteration increment (-)
  integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
  logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
  logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
@@ -405,6 +406,9 @@ contains
  ! vegetation parameters
  heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)              ,&  ! intent(in): [dp] height of the top of the vegetation canopy (m)
  heightCanopyBottom      => mpar_data%var(iLookPARAM%heightCanopyBottom)           ,&  ! intent(in): [dp] height of the bottom of the vegetation canopy (m)
+
+ ! snow parameters
+ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
 
  ! soil parameters
  vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)                    ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
@@ -529,8 +533,8 @@ contains
 
  ! allocate space for the Jacobian matrix
  select case(ixSolve)
-  case(ixFullMatrix); allocate(aJac(nState,nState),stat=err)
-  case(ixBandMatrix); allocate(aJac(nBands,nState),stat=err)
+  case(ixFullMatrix); allocate(aJac(nState,nState),aJacScaled(nState,nState),stat=err)
+  case(ixBandMatrix); allocate(aJac(nBands,nState),aJacScaled(nBands,nState),stat=err)
   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
  end select
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the Jacobian matrix'; return; endif
@@ -542,7 +546,7 @@ contains
  endif
 
  ! allocate space for the scaling vectors and the state type
- allocate(fScale(nState),xScale(nState),ixStateType(nState),stat=err)
+ allocate(fScale(nState),xScale(nState),gradScaled(nState),rVecScaled(nState),ixStateType(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
  ! allocate space for the flux vectors and Jacobian matrix
@@ -694,8 +698,32 @@ contains
   if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
  endif
 
- ! initialize the function variable
- fOld=veryBig  ! initialize to a very big number
+ ! compute the fractional liquid water on vegetation
+ fracLiqVeg    = fracliquid(stateVecTrial(ixVegNrg),snowfrz_scale)  ! fraction of liquid water (-)
+
+ ! initialize trial vectors
+ scalarCanopyLiqTrial  = scalarCanopyLiq
+ scalarCanopyIceTrial  = scalarCanopyIce
+ mLayerVolFracLiqTrial = mLayerVolFracLiq
+ mLayerVolFracIceTrial = mLayerVolFracIce
+
+ ! -----
+ ! * compute the residual vector...
+ ! --------------------------------
+
+ ! compute flux vector and residual
+ call xFluxResid(&
+                 ! input
+                 stateVecTrial,         & ! intent(in): full state vector (mixed units)
+                 scalarCanopyLiqTrial,  & ! intent(in): trial value for the liquid water on the vegetation canopy (kg m-2)
+                 scalarCanopyIceTrial,  & ! intent(in): trial value for the ice on the vegetation canopy (kg m-2)
+                 mLayerVolFracLiqTrial, & ! intent(in): trial value for the volumetric liquid water content in each snow and soil layer (-)
+                 mLayerVolFracIceTrial, & ! intent(in): trial value for the volumetric ice in each snow and soil layer (-)
+                 ! output
+                 fluxVec0,              & ! intent(out): flux vector (mixed units)
+                 rVec,                  & ! intent(out): residual vector (mixed units)
+                 err,cmessage)            ! intent(out): error code and error message
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
@@ -716,52 +744,6 @@ contains
    print*, '***'
    write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
   endif
-
-  ! -----
-  ! * compute model fluxes and residual
-  !    NOTE: refine residual with line search...
-  ! --------------------------------------------
-  call lineSearch(&
-                  ! input
-                  (iter>1),                & ! intent(in): flag to denote the need to perform line search
-                  stateVecTrial,           & ! intent(in): initial state vector
-                  fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                  grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                  xInc,                    & ! intent(in): iteration increment (mixed units)
-                  ! output
-                  stateVecNew,             & ! intent(out): new state vector (m)
-                  fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                  rVec,                    & ! intent(out): new residual vector (mixed units)
-                  fNew,                    & ! intent(out): new function value (mixed units)
-                  converged,               & ! intent(out): convergence flag
-                  err,cmessage)              ! intent(out): error control
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! use full iteration increment if converged all the way to the original value
-  if(err<0)then
-   call lineSearch(&
-                   ! input
-                   .false.,                 & ! intent(in): flag to denote the need to perform line search
-                   stateVecTrial,           & ! intent(in): initial state vector
-                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                   xInc,                    & ! intent(in): iteration increment (mixed units)
-                   ! output
-                   stateVecNew,             & ! intent(out): new state vector (m)
-                   fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                   rVec,                    & ! intent(out): new residual vector (mixed units)
-                   fNew,                    & ! intent(out): new function value (mixed units)
-                   converged,               & ! intent(out): convergence flag
-                   err,cmessage)              ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  endif
-
-  ! update function evaluation and states
-  fOld          = fNew
-  stateVecTrial = stateVecNew
-
-  ! exit iteration loop if converged
-  if(converged) exit
 
   ! -----
   ! * compute Jacobian...
@@ -871,11 +853,104 @@ contains
   endif  ! if statement for matrix structure
 
   ! -----
+  ! * scale the matrices...
+  ! -----------------------
+
+  ! NOTE: numerical results for a wide range of test problems indicate that automatic function scaling works well, but
+  !  automatic variable scaling does not. We hence implement user-defined scaling for the independent variables.
+
+  ! References:
+
+  ! Hiebert, KL 1980: A comparison of software which solves systems of nonlinear
+  !  equations. Sandia Tech Report, SAND-80-0181, Sandia Labs., Albuquerque, NM
+
+  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for
+  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
+  !  5 (3), 143-150.
+
+  ! define function scaling factors as the absolute value of the diagonal
+  do iJac=1,nState
+   ! get index of the diagonal
+   select case(ixSolve)
+    case(ixFullMatrix); iState=iJac
+    case(ixBandMatrix); iState=ixDiag
+   end select
+   ! get scaling factor
+   fScale(iJac) = 1._dp / (max(abs(aJac(iState,iJac)), verySmall) * xScale(iJac) )
+  end do
+
+  ! initialize the scaled Jacobian
+  aJacScaled(:,:) = 0._dp
+
+  ! select the option used to solve the linear system A.X=B
+  select case(ixSolve)
+
+   ! * full matrix
+   case(ixFullMatrix)
+
+    ! scale the rows by the function scaling factor
+    do iJac=1,nState
+     aJacScaled(iJac,1:nState) = aJac(iJac,1:nState)*fscale(iJac)
+    end do
+
+    ! print the Jacobian
+    if(printFlag)then
+     print*, '** analytical Jacobian:'
+     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJacScaled(iJac1:iJac2,iLayer); end do
+    endif
+    !pause 'testing analytical jacobian'
+
+    ! ** test band diagonal matrix
+    if(testBandDiagonal)then
+
+     aJac_test(:,:)=0._dp
+     ! form band-diagonal matrix
+     do iState=1,nState
+      do jState=max(1,iState-ku),min(nState,iState+kl)
+       aJac_test(kl + ku + 1 + jState - iState, iState) = aJacScaled(jState,iState)
+      end do
+     end do
+     print*, '** test banded analytical Jacobian:'
+     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
+     !print*, 'press any key to continue'; read(*,*)
+
+    endif  ! (if desire to test band-diagonal matric
+
+   ! * band-diagonal matrix
+   case(ixBandMatrix)
+
+    ! scale the rows by the function scaling factor
+    do iJac=1,nState       ! (loop through model state variables)
+     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+      kState = iState + iJac - kl - ku - 1
+      if(kState<1 .or. kState>nState)cycle
+      aJacScaled(iState,iJac) = aJac(iState,iJac)*fScale(kState)
+     end do
+    end do  ! looping through state variables
+
+    ! check
+    if(printFlag)then
+     print*, '** banded analytical Jacobian:'
+     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,iJac),iJac=iJac1,iJac2); end do
+    endif
+
+  end select  ! (option to solve the linear system A.X=B)
+
+  ! compute the function evaluation
+  if(iter==1)then
+   rVecScaled(1:nState) = real(rVec(1:nState), dp)*fScale(1:nState)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+   fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
+  endif
+
+  ! -----
   ! * solve linear system...
   ! ------------------------
 
   ! use the lapack routines to solve the linear system A.X=B
-  call lapackSolv(aJac,rVec,grad,xInc,err,cmessage)
+  call lapackSolv(aJacScaled,-rVecScaled,xInc,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! if enthalpy, then need to convert the iteration increment to temperature
@@ -893,6 +968,111 @@ contains
 
   ! impose solution constraints
   call imposeConstraints()
+
+  ! -----
+  ! * compute the SCALED gradient of the function vector...
+  ! -------------------------------------------------------
+
+  ! check if full Jacobian or band-diagonal matrix
+  select case(ixSolve)
+
+   ! full Jacobian matrix
+   case(ixFullMatrix)
+  
+    ! scale the columns by the variable scaling factors
+    do iJac=1,nState
+     aJacScaled(1:nState,iJac) = aJacScaled(1:nState,iJac)*xscale(iJac)
+    end do
+
+    ! compute the scaled gradient
+    gradScaled = matmul(rVecScaled,aJacScaled)         ! gradient
+
+   ! band-diagonal matrix
+   case(ixBandMatrix)
+
+    ! scale the columns by the variable scaling factor
+    do iJac=1,nState       ! (loop through model state variables)
+     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+      kState = iState + iJac - 2*kl - 1
+      jState = ixDiag - kState + iJac
+      if(kState<1 .or. jState<kl+1 .or. kState>nState)cycle
+      !write(*,'(a,1x,10(i4,1x))') 'iJac, iState, jState, kState = ', iJac, iState, jState, kState
+      aJacScaled(jState,kState) = aJacScaled(jState,kState)*xScale(kState)
+     end do
+    end do  ! looping through state variables
+
+    ! compute the scaled gradient
+    do iJac=1,nState  ! (loop through state variables)
+
+     gradScaled(iJac) = 0._dp
+     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+
+      ! identify indices in the band-diagonal matrix
+      kState = iJac + iState-2*kl
+      if(kState < 1 .or. kState > nState)cycle
+      !write(*,'(a,1x,3(i4,1x))') 'iJac, iState, kState = ', iJac, iState, kState
+
+      ! calculate gradient (long-hand matrix multiplication)
+      gradScaled(iJac) = gradScaled(iJac) + aJacScaled(iState,iJac)*rVecScaled(kState)
+
+     end do  ! looping through elements of the band-diagonal matric
+    end do  ! looping through state variables
+
+  end select  ! (option to solve the linear system A.X=B)
+
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.10,1x))') 'gradScaled = ', gradScaled(iJac1:iJac2)
+  endif
+
+  ! re-scale
+  grad(:) = gradScaled(:)/xScale(:)
+
+  ! -----
+  ! * compute model fluxes and residual
+  !    NOTE: refine residual with line search...
+  ! --------------------------------------------
+  call lineSearch(&
+                  ! input
+                  .true.,                  & ! intent(in): flag to denote the need to perform line search
+                  stateVecTrial,           & ! intent(in): initial state vector
+                  fOld,                    & ! intent(in): function value for trial state vector (mixed units)
+                  grad,                    & ! intent(in): gradient of the function vector (mixed units)
+                  xInc,                    & ! intent(in): iteration increment (mixed units)
+                  ! output
+                  stateVecNew,             & ! intent(out): new state vector (m)
+                  fluxVec0,                & ! intent(out): new flux vector (mixed units)
+                  rVec,                    & ! intent(out): new residual vector (mixed units)
+                  fNew,                    & ! intent(out): new function value (mixed units)
+                  converged,               & ! intent(out): convergence flag
+                  err,cmessage)              ! intent(out): error control
+  if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+
+  ! use full iteration increment if converged all the way to the original value
+  if(err<0)then
+   call lineSearch(&
+                   ! input
+                   .false.,                 & ! intent(in): flag to denote the need to perform line search
+                   stateVecTrial,           & ! intent(in): initial state vector
+                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
+                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
+                   xInc,                    & ! intent(in): iteration increment (mixed units)
+                   ! output
+                   stateVecNew,             & ! intent(out): new state vector (m)
+                   fluxVec0,                & ! intent(out): new flux vector (mixed units)
+                   rVec,                    & ! intent(out): new residual vector (mixed units)
+                   fNew,                    & ! intent(out): new function value (mixed units)
+                   converged,               & ! intent(out): convergence flag
+                   err,cmessage)              ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  endif
+
+  ! update function evaluation and states
+  fOld          = fNew
+  stateVecTrial = stateVecNew
+
+  ! exit iteration loop if converged
+  if(converged) exit
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
@@ -993,8 +1173,12 @@ contains
  ! ==========================================================================================================================================
 
  ! deallocate space for the state vectors etc.
- deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,xScale,fluxVec0,aJac,grad,rVec,rhs,iPiv,xInc,stat=err)
+ deallocate(ixStateType,stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fluxVec0,aJac,grad,rVec,rhs,iPiv,xInc,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
+
+ ! deallocate space for the scaled vectors and matrices
+ deallocate(fScale,xScale,aJacScaled,rVecScaled,gradScaled,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for scaled vectors and matrices'; return; endif
 
  ! deallocate space for the baseflow derivatives
  if(ixGroundwater==qbaseTopmodel)then
@@ -1367,9 +1551,9 @@ contains
   endif
 
   if(printFlag)then
-   write(*,'(a,1x,f20.15)') 'scalarCanairTempTrial = ', scalarCanairTempTrial
-   write(*,'(a,1x,f20.15)') 'scalarCanopyTempTrial = ', scalarCanopyTempTrial
-   write(*,'(a,1x,f20.15)') 'scalarCanopyWatTrial  = ', scalarCanopyWatTrial
+   write(*,'(a,1x,f17.12)') 'scalarCanairTempTrial = ', scalarCanairTempTrial
+   write(*,'(a,1x,f17.12)') 'scalarCanopyTempTrial = ', scalarCanopyTempTrial
+   write(*,'(a,1x,f17.12)') 'scalarCanopyWatTrial  = ', scalarCanopyWatTrial
    print*, 'stateVec(ixCasNrg) = ', stateVec(ixCasNrg)
    print*, 'check'
   endif
@@ -1796,7 +1980,7 @@ contains
    ! compute liquid fluxes
    call snowLiqFlx(&
                    ! input: model control
-                   iter,                                  & ! intent(in): iteration index
+                   firstFluxCall,                         & ! intent(in): flag indicating first call
                    ! input: forcing for the snow domain
                    scalarThroughfallRain,                 & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                    scalarCanopyLiqDrainage,               & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
@@ -2063,6 +2247,7 @@ contains
                         aJac(ixDiag,jLayer) = (dt/mLayerDepth(kLayer))  *(-dq_dHydStateBelow(iLayer-1) + dq_dHydStateAbove(iLayer)) !+ dMat(jLayer)
    if(kLayer < nLayers) aJac(ixSub2,jLayer) = (dt/mLayerDepth(kLayer+1))*(-dq_dHydStateAbove(iLayer))
   end do  ! (looping through soil layers)
+
 
   ! -----
   ! * derivative in liquid water fluxes w.r.t. temperature for the soil domain...
@@ -2425,18 +2610,14 @@ contains
   ! *********************************************************************************************************
   ! internal subroutine lapackSolv: use the lapack routines to solve the linear system A.X=B
   ! *********************************************************************************************************
-  subroutine lapackSolv(aJac,rVec,grad,xInc,err,message)
+  subroutine lapackSolv(aJac,rVec,xInc,err,message)
   implicit none
   ! dummy
   real(dp),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
-  real(qp),intent(in)            :: rVec(:)       ! the residual vector B
-  real(dp),intent(out)           :: grad(:)       ! gradient of the function vector
+  real(dp),intent(in)            :: rVec(:)       ! the residual vector B
   real(dp),intent(out)           :: xInc(:)       ! the solution vector X
   integer(i4b),intent(out)       :: err           ! error code
   character(*),intent(out)       :: message       ! error message
-  ! local
-  integer(i4b)                   :: iJac                    ! index of row of the Jacobian matrix
-  integer(i4b)                   :: iState,jState,kState    ! indices of state variables
   ! initialize error control
   select case(ixSolve)
    case(ixFullMatrix); message='lapackSolv/dgesv/'
@@ -2444,101 +2625,9 @@ contains
    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
   end select
 
-  ! --------------------------------------------------------------
-  ! * scale variables
-  ! --------------------------------------------------------------
-
-  ! select the option used to solve the linear system A.X=B
-  select case(ixSolve)
-
-   ! * full Jacobian matrix
-   case(ixFullMatrix)
-    do iJac=1,nState
-     aJac(iJac,1:nState) = aJac(iJac,1:nState)/fscale(iJac)
-    end do
-
-    ! print the Jacobian
-    if(printFlag)then
-     print*, '** analytical Jacobian:'
-     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
-    endif
-    !pause 'testing analytical jacobian'
-
-    ! ** test band diagonal matrix
-    if(testBandDiagonal)then
-
-     aJac_test(:,:)=0._dp
-     ! form band-diagonal matrix
-     do iState=1,nState
-      do jState=max(1,iState-ku),min(nState,iState+kl)
-       aJac_test(kl + ku + 1 + jState - iState, iState) = aJac(jState,iState)
-      end do
-     end do
-     print*, '** test banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
-     !print*, 'press any key to continue'; read(*,*)
-
-    endif  ! (if desire to test band-diagonal matric
-
-   ! * band-diagonal matrix
-   case(ixBandMatrix)
-    do iJac=1,nState   ! (loop through state variables)
-     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-      kState = iState + iJac - kl - ku - 1
-      if(kState<1 .or. kState>nState)cycle
-      aJac(iState,iJac) = aJac(iState,iJac)/fscale(kState)
-     end do  ! looping through elements of the band-diagonal matric
-    end do  ! looping through state variables
-
-    ! check
-    if(printFlag)then
-     print*, '** banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,iJac),iJac=iJac1,iJac2); end do
-    endif
-
-  end select  ! (option to solve the linear system A.X=B)
-
-
   ! form the rhs matrix
-  ! NOTE: scale the residual vector
-  rhs(1:nState,1) = -real(rVec(1:nState), dp)/fScale(1:nState)
-
-  ! --------------------------------------------------------------
-  ! * compute the gradient of the function vector
-  ! --------------------------------------------------------------
-
-  ! compute the gradient of the function vector
-  select case(ixSolve)
-
-   ! full Jacobian matrix
-   case(ixFullMatrix)
-   grad = matmul(-rhs(1:nState,1),aJac)
-
-   ! band-diagonal matrix
-   case(ixBandMatrix)
-   do iJac=1,nState  ! (loop through state variables)
-
-    grad(iJac) = 0._dp
-    do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-
-     ! identify indices in the band-diagonal matrix
-     kState = iJac + iState-2*kl
-     if(kState < 1 .or. kState > nState)cycle
-
-     ! calculate gradient (long-hand matrix multiplication)
-     grad(iJac) = grad(iJac) - aJac(iState,iJac)*rhs(kState,1)
-
-    end do  ! looping through elements of the band-diagonal matric
-   end do  ! looping through state variables
-
-  end select  ! (option to solve the linear system A.X=B)
-
-  ! --------------------------------------------------------------
-  ! * solve the linear system A.X=B
-  ! --------------------------------------------------------------
+  ! NOTE: copy the vector here to ensure that the residual vector is not overwritten
+  rhs(:,1) = rVec(:)
 
   ! identify option to solve the linear system A.X=B
   select case(ixSolve)
@@ -2571,10 +2660,6 @@ contains
    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
 
   end select  ! (option to solve the linear system A.X=B)
-
-  ! --------------------------------------------------------------
-  ! * wrap-up
-  ! --------------------------------------------------------------
 
   ! identify any errors
   if(err/=0)then
@@ -2665,10 +2750,10 @@ contains
    ! check
    if(printFlag)then
     print*, '***'
-    write(*,'(a,1x,100(e14.5,1x))')  trim(message)//': alam, fOld, f       = ', alam, fOld, f
-    write(*,'(a,1x,100(f20.8,1x))')  trim(message)//': xOld(iJac1:iJac2)   = ', xOld(iJac1:iJac2)
-    write(*,'(a,1x,100(f20.8,1x))')  trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
-    write(*,'(a,1x,100(f20.12,1x))') trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
+    write(*,'(a,1x,i4,1x,2(e17.8,1x))')  trim(message)//': iterLS, alam, fOld  = ', iterLS, alam, fOld
+    write(*,'(a,1x,100(f17.8,1x))')      trim(message)//': xOld(iJac1:iJac2)   = ', xOld(iJac1:iJac2)
+    write(*,'(a,1x,100(f17.8,1x))')      trim(message)//': x(iJac1:iJac2)      = ', x(iJac1:iJac2)
+    write(*,'(a,1x,100(f17.12,1x))')     trim(message)//': p(iJac1:iJac2)      = ', p(iJac1:iJac2)
    endif
 
    ! use constitutive functions to compute unknown terms removed from the state equations...
@@ -2695,12 +2780,19 @@ contains
                    err,cmessage)            ! intent(out): error code and error message
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+   ! scale the residual vector
+   ! NOTE: the residual vector is in quadruple precision
+   rVecScaled(1:nState) = real(rVec(1:nState), dp)*fScale(1:nState)   ! NOTE: residual vector is in quadruple precision
+
    ! compute the function evaluation
-   f=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
+   f=0.5_dp*dot_product(rVecScaled, rVecScaled)
 
    ! check
    if(printFlag)then
-    write(*,'(a,1x,100(e20.5,1x))')  trim(message)//': rVec(iJac1:iJac2)   = ', rVec(iJac1:iJac2)
+    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': f = ', f
+    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': fScale(iJac1:iJac2)       = ', fScale(iJac1:iJac2) 
+    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVec(iJac1:iJac2)         = ', rVec(iJac1:iJac2)
+    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVecScaled(iJac1:iJac2)   = ', rVecScaled(iJac1:iJac2)
    endif
 
    ! return if not doing the line search
@@ -2803,7 +2895,7 @@ contains
 
   ! print progress towards solution
   if(printFlag)then
-   print*, 'iter, dt = ', iter, dt
+   print*, 'checking convergence: iter, dt = ', iter, dt
    write(*,'(a,1x,4(e15.5,1x),3(i4,1x),3(L1,1x))') 'fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv = ', &
                                                     fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv
   endif
