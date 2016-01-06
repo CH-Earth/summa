@@ -23,15 +23,14 @@ USE nrtype
 USE netcdf
 implicit none
 private
-public::check
-public::file_open
+public::nc_file_open
 contains
 
 
  ! *********************************************************************************************************
  ! public subroutine file_open: open file
  ! *********************************************************************************************************
- subroutine file_open(infile,mode,ncid,err,message)
+ subroutine nc_file_open(infile,mode,ncid,err,message)
  implicit none
  ! declare dummy variables
  character(*),intent(in)              :: infile      ! filename
@@ -43,7 +42,7 @@ contains
  logical(lgt)                         :: xist        ! .TRUE. if the file exists
 
  ! initialize errors
- err=0; message="f-file_open/"
+ err=0; message="netcdf-file_open/"
 
  ! check if the file exists
  inquire(file=trim(infile),exist=xist) ! Check for existence of file
@@ -59,21 +58,24 @@ contains
    err=20; return
  endif
 
- end subroutine file_open
+ end subroutine nc_file_open
 
 
 ! ***********************************************************************************************
 ! check the status of netCDF file operation and return error message 
 ! ***********************************************************************************************
- subroutine check(status,message)
-   integer, intent ( in)       :: status
-   character(*),intent(out)    :: message     ! error message
-   
-   if(status /= nf90_noerr) then 
-     message = trim(message)//'netCDF operation error:'//trim(nf90_strerror(status))
-     print *, message
-     stop "Stopped"
-   end if
- end subroutine check
+ subroutine netcdf_err(err,message)
+  ! used to handle errors for NetCDF calls
+  use netcdf
+  implicit none
+  ! declare dummies
+  integer(i4b), intent(inout)   :: err
+  character(*), intent(inout)   :: message
+  ! start procedure here
+  if (err/=nf90_noerr) then
+   message=trim(message)//"["//trim(nf90_strerror(err))//"]"
+   err=200
+  endif
+ end subroutine netcdf_err
 
 end module netcdf_util_module
