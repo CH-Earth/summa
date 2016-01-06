@@ -612,11 +612,7 @@ MODULE var_lookup
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11)
  ! define maximum number of variables of each type
-<<<<<<< HEAD
  integer(i4b),parameter,public :: maxvarDecisions= 38
-=======
- integer(i4b),parameter,public :: maxvarDecisions= 29
->>>>>>> feature/add_gru
  integer(i4b),parameter,public :: maxvarTime     = 5
  integer(i4b),parameter,public :: maxvarForc     = 8
  integer(i4b),parameter,public :: maxvarAttr     = 7
