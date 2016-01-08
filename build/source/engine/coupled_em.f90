@@ -612,6 +612,7 @@ contains
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    !print*, 'after solv: mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt = ', mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt
+   !write(*,'(a,1x,f12.5,1x,i5)') 'dt_temp, niter = ', dt_temp, niter
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then

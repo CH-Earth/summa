@@ -233,9 +233,10 @@ contains
  real(dp)                        :: dTheta_dTkCanopy             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
  real(dp)                        :: dCanLiq_dTcanopy             ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
  ! volumetric liquid water content (need to keep track of this, but not part of the state vector for snow and soil)
- real(dp),dimension(nSnow)       :: mLayerVolFracWat             ! initial value of mass fraction of total water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial value for volumetric fraction of ice (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial        ! trial value for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial        ! trial value for volumetric fraction of total water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatInit         ! initial value for volumetric fraction of total water (-)
  ! energy fluxes and derivatives for the vegetation domain
  real(dp)                        :: canairNetNrgFlux             ! net energy flux for the canopy air space (W m-2)
  real(dp)                        :: canopyNetNrgFlux             ! net energy flux for the vegetation canopy (W m-2)
@@ -301,6 +302,7 @@ contains
  logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
+ logical(lgt),parameter          :: desireGradient=.true.        ! flag to denote our desire for the gradient of the function
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  real(dp),allocatable            :: stateVecInit(:)              ! initial state vector (mixed units)
  real(dp),allocatable            :: stateVecTrial(:)             ! trial state vector (mixed units)
@@ -323,7 +325,11 @@ contains
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
  integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
  integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
- integer(i4b)                    :: nrgFormulation=ix_temperature   ! decision for the energy formulation (enthalpy or temperature)
+ integer(i4b),parameter          :: nrgFormulation=ix_temperature   ! decision for the energy formulation (enthalpy or temperature)
+ integer(i4b),parameter          :: ix_userDefined=1001          ! function scaling = user defined
+ integer(i4b),parameter          :: ix_diagonal=1002             ! function scaling = diagonal
+ integer(i4b),parameter          :: ix_maxval=1003               ! function scaling = maximum value for Jacobian row
+ integer(i4b),parameter          :: funcScaling=ix_userDefined   ! decision for the function scaling
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
@@ -638,16 +644,21 @@ contains
  ! * define scaling vectors...
  ! ---------------------------
 
- ! define the scaling for the function evaluation -- vegetation
- if(computeVegFlux)then
-  fScale(ixCasNrg) = fScaleNrg   ! (J m-3)
-  fScale(ixVegNrg) = fScaleNrg   ! (J m-3)
-  fScale(ixVegWat) = fScaleLiq*canopyDepth*iden_water  ! (kg m-2)
- endif
+ ! define user-defined function scaling (constant)
+ if(funcScaling==ix_userDefined)then
 
- ! define the scaling for the function evaluation -- snow and soil
- fScale(ixSnowSoilNrg) = fScaleNrg  ! (J m-3)
- fScale(ixSnowSoilWat) = fScaleLiq  ! (-)
+  ! define the scaling for the function evaluation -- vegetation
+  if(computeVegFlux)then
+   fScale(ixCasNrg) = 1._dp / fScaleNrg   ! (J m-3)-1
+   fScale(ixVegNrg) = 1._dp / fScaleNrg   ! (J m-3)-1
+   fScale(ixVegWat) = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! (kg m-2)-1
+  endif
+
+  ! define the scaling for the function evaluation -- snow and soil
+  fScale(ixSnowSoilNrg) = 1._dp / fScaleNrg  ! (J m-3)-1
+  fScale(ixSnowSoilWat) = 1._dp / fScaleLiq  ! (-)
+
+ endif  ! user-defined function scaling (constant)
 
  ! define scaling for the state vector -- vegetation
  if(computeVegFlux)then
@@ -658,7 +669,7 @@ contains
 
  ! define the scaling for the function evaluation -- snow and soil
  xScale(ixSnowSoilNrg) = xScaleTemp  ! (K)
- xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
+ if(nSnow>0) xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
  xScale(ixSoilOnlyMat) = xScaleMat   ! (m)
 
  ! -----
@@ -675,7 +686,7 @@ contains
 
  ! compute the total water in snow
  if(nSnow>0)&
-  mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
+  mLayerVolFracWatInit(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
 
  ! build the state vector for the vegetation canopy
  if(computeVegFlux)then
@@ -688,7 +699,7 @@ contains
  stateVecInit(ixSnowSoilNrg) = mLayerTemp(1:nLayers)
  stateVecInit(ixSoilOnlyMat) = mLayerMatricHead(1:nSoil)
  if(nSnow>0)&
- stateVecInit(ixSnowOnlyWat) = mLayerVolFracWat(1:nSnow)
+ stateVecInit(ixSnowOnlyWat) = mLayerVolFracWatInit(1:nSnow)
 
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
@@ -737,7 +748,7 @@ contains
  do iter=1,maxiter
 
   ! keep track of the number of iterations
-  niter = iter
+  niter = iter+1  ! +1 to account for the flux evaluation earlier
 
   ! test
   if(printFlag)then
@@ -749,197 +760,19 @@ contains
   ! * compute Jacobian...
   ! ---------------------
 
-  ! compute terms in the Jacobian for vegetation (excluding fluxes)
-  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
-  if(computeVegFlux)then
-   dMat(ixVegNrg) = scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy       ! volumetric heat capacity of the vegetation (J m-3 K-1)
-  endif
-
-  ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
-  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
-  dMat(ixSnowSoilNrg) = mLayerVolHtCapBulk(1:nLayers) + LH_fus*iden_water*mLayerdTheta_dTk(1:nLayers)
-
-  ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
-  if(ixRichards==moisture)then; err=20; message=trim(message)//'have not implemented the moisture-based form of RE yet'; return; endif
-  dMat(ixSoilOnlyMat) = dVolTot_dPsi0(1:nSoil) + dCompress_dPsi(1:nSoil)
-
-  ! compute the analytical Jacobian matrix
-  select case(ixSolve)
-   case(ixFullMatrix); call analJacob(err,cmessage)
-   case(ixBandMatrix); call cpactBand(err,cmessage)
-   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
-  end select
+  ! compute the Jacobian matrix
+  call computeJacobian(err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! *** testing: compute the numerical approximation of the Jacobian matrix
-  if(numericalJacobian)then
-   printFlag=.false.
-   call numlJacob(stateVecTrial,fluxVec0,rVec,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-   printFlag=printFlagInit
-  endif  ! if computing the numerical Jacobian matrix
-
-  ! ** add the LHS derivatives
-
-  ! * full Jacobian matrix
-  if(ixSolve==ixFullMatrix)then
-
-   ! if enthalpy, formulate derivatives w.r.t. entalpy [J m-3 (J m-3)-1]
-   if(nrgFormulation==ix_enthalpy)then
-    do iJac=1,nState       ! (loop through model state variables)
-     if(ixStateType(iJac)==ixNrgState)then
-      aJac(1:nState,iJac) = aJac(1:nState,iJac)/dMat(iJac)
-      aJac(iJac,iJac)     = aJac(iJac,iJac) + 1._dp
-     endif
-    end do
-
-   ! if temperature, add derivatives to the diagonal
-   elseif(nrgFormulation==ix_temperature)then
-    do iJac=1,nState       ! (loop through model state variables)
-     if(ixStateType(iJac)==ixNrgState)then
-      aJac(iJac,iJac)     = aJac(iJac,iJac) + dMat(iJac)
-     endif
-    end do
-
-   ! check that we prescribed the decision correctly
-   else
-    message=trim(message)//'unknown formulation of energy'
-    err=20; return
-   endif
-
-   ! add mass derivatives to the diagonal
-   if(computeVegFlux) aJac(ixVegWat,ixVegWat) = aJac(ixVegWat,ixVegWat) + dMat(ixVegWat)
-   do iLayer=1,nLayers
-    iState = ixSnowSoilWat(iLayer)
-    aJac(iState,iState) = aJac(iState,iState) + dMat(iState)
-   end do
-
-  ! * band Jacobian matrix
-  elseif(ixSolve==ixBandMatrix)then
-
-   ! if enthalpy, formulate derivatives w.r.t. entalpy [J m-3 (J m-3)-1]
-   if(nrgFormulation==ix_enthalpy)then
-    do iJac=1,nState       ! (loop through model state variables)
-     if(ixStateType(iJac)==ixNrgState)then
-      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-       aJac(iState,iJac) = aJac(iState,iJac)/dMat(iJac)  ! divide by the apparent heat capacity
-      end do
-      aJac(ixDiag,iJac) = aJac(ixDiag,iJac) + 1._dp      ! add one to the diagonal
-     endif   ! if an energy state
-    end do  ! looping through state variables
-
-   ! if temperature, add derivatives to the diagonal
-   elseif(nrgFormulation==ix_temperature)then
-    if(computeVegFlux)then
-     aJac(ixDiag,ixCasNrg) = aJac(ixDiag,ixCasNrg) + dMat(ixCasNrg)
-     aJac(ixDiag,ixVegNrg) = aJac(ixDiag,ixVegNrg) + dMat(ixVegNrg)
-    endif
-    aJac(ixDiag,ixSnowSoilNrg) = aJac(ixDiag,ixSnowSoilNrg) + dMat(ixSnowSoilNrg)
-
-   ! check that we prescribed the energy formulation correctly
-   else
-    message=trim(message)//'unknown formulation of energy'
-    err=20; return
-   endif
-
-   ! add diagonal elements for mass
-   if(computeVegFlux) aJac(ixDiag,ixVegWat) = aJac(ixDiag,ixVegWat) + dMat(ixVegWat)
-   aJac(ixDiag,ixSnowSoilWat) = aJac(ixDiag,ixSnowSoilWat) + dMat(ixSnowSoilWat)
-
-  ! check identified the matrix structure correctly
-  else
-   message=trim(message)//'unknown matrix structure'
-   err=20; return
-  endif  ! if statement for matrix structure
 
   ! -----
   ! * scale the matrices...
   ! -----------------------
 
-  ! NOTE: numerical results for a wide range of test problems indicate that automatic function scaling works well, but
-  !  automatic variable scaling does not. We hence implement user-defined scaling for the independent variables.
+  ! scale the matrices
+  call scaleMatrices(err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  ! References:
-
-  ! Hiebert, KL 1980: A comparison of software which solves systems of nonlinear
-  !  equations. Sandia Tech Report, SAND-80-0181, Sandia Labs., Albuquerque, NM
-
-  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for
-  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
-  !  5 (3), 143-150.
-
-  ! define function scaling factors as the absolute value of the diagonal
-  do iJac=1,nState
-   ! get index of the diagonal
-   select case(ixSolve)
-    case(ixFullMatrix); iState=iJac
-    case(ixBandMatrix); iState=ixDiag
-   end select
-   ! get scaling factor
-   fScale(iJac) = 1._dp / (max(abs(aJac(iState,iJac)), verySmall) * xScale(iJac) )
-  end do
-
-  ! initialize the scaled Jacobian
-  aJacScaled(:,:) = 0._dp
-
-  ! select the option used to solve the linear system A.X=B
-  select case(ixSolve)
-
-   ! * full matrix
-   case(ixFullMatrix)
-
-    ! scale the rows by the function scaling factor
-    do iJac=1,nState
-     aJacScaled(iJac,1:nState) = aJac(iJac,1:nState)*fscale(iJac)
-    end do
-
-    ! print the Jacobian
-    if(printFlag)then
-     print*, '** analytical Jacobian:'
-     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJacScaled(iJac1:iJac2,iLayer); end do
-    endif
-    !pause 'testing analytical jacobian'
-
-    ! ** test band diagonal matrix
-    if(testBandDiagonal)then
-
-     aJac_test(:,:)=0._dp
-     ! form band-diagonal matrix
-     do iState=1,nState
-      do jState=max(1,iState-ku),min(nState,iState+kl)
-       aJac_test(kl + ku + 1 + jState - iState, iState) = aJacScaled(jState,iState)
-      end do
-     end do
-     print*, '** test banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
-     !print*, 'press any key to continue'; read(*,*)
-
-    endif  ! (if desire to test band-diagonal matric
-
-   ! * band-diagonal matrix
-   case(ixBandMatrix)
-
-    ! scale the rows by the function scaling factor
-    do iJac=1,nState       ! (loop through model state variables)
-     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-      kState = iState + iJac - kl - ku - 1
-      if(kState<1 .or. kState>nState)cycle
-      aJacScaled(iState,iJac) = aJac(iState,iJac)*fScale(kState)
-     end do
-    end do  ! looping through state variables
-
-    ! check
-    if(printFlag)then
-     print*, '** banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,iJac),iJac=iJac1,iJac2); end do
-    endif
-
-  end select  ! (option to solve the linear system A.X=B)
-
-  ! compute the function evaluation
+  ! compute the function evaluation for the scaled matrices
   if(iter==1)then
    rVecScaled(1:nState) = real(rVec(1:nState), dp)*fScale(1:nState)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
    fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
@@ -970,62 +803,12 @@ contains
   call imposeConstraints()
 
   ! -----
-  ! * compute the SCALED gradient of the function vector...
-  ! -------------------------------------------------------
+  ! * compute the gradient of the function vector...
+  ! ------------------------------------------------
 
-  ! check if full Jacobian or band-diagonal matrix
-  select case(ixSolve)
-
-   ! full Jacobian matrix
-   case(ixFullMatrix)
-  
-    ! scale the columns by the variable scaling factors
-    do iJac=1,nState
-     aJacScaled(1:nState,iJac) = aJacScaled(1:nState,iJac)*xscale(iJac)
-    end do
-
-    ! compute the scaled gradient
-    gradScaled = matmul(rVecScaled,aJacScaled)         ! gradient
-
-   ! band-diagonal matrix
-   case(ixBandMatrix)
-
-    ! scale the columns by the variable scaling factor
-    do iJac=1,nState       ! (loop through model state variables)
-     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-      kState = iState + iJac - 2*kl - 1
-      jState = ixDiag - kState + iJac
-      if(kState<1 .or. jState<kl+1 .or. kState>nState)cycle
-      !write(*,'(a,1x,10(i4,1x))') 'iJac, iState, jState, kState = ', iJac, iState, jState, kState
-      aJacScaled(jState,kState) = aJacScaled(jState,kState)*xScale(kState)
-     end do
-    end do  ! looping through state variables
-
-    ! compute the scaled gradient
-    do iJac=1,nState  ! (loop through state variables)
-
-     gradScaled(iJac) = 0._dp
-     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-
-      ! identify indices in the band-diagonal matrix
-      kState = iJac + iState-2*kl
-      if(kState < 1 .or. kState > nState)cycle
-      !write(*,'(a,1x,3(i4,1x))') 'iJac, iState, kState = ', iJac, iState, kState
-
-      ! calculate gradient (long-hand matrix multiplication)
-      gradScaled(iJac) = gradScaled(iJac) + aJacScaled(iState,iJac)*rVecScaled(kState)
-
-     end do  ! looping through elements of the band-diagonal matric
-    end do  ! looping through state variables
-
-  end select  ! (option to solve the linear system A.X=B)
-
-  if(printFlag)then
-   write(*,'(a,1x,10(e17.10,1x))') 'gradScaled = ', gradScaled(iJac1:iJac2)
-  endif
-
-  ! re-scale
-  grad(:) = gradScaled(:)/xScale(:)
+  ! compute the gradient of the function vector
+  call computeGradient(err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! -----
   ! * compute model fluxes and residual
@@ -1033,7 +816,7 @@ contains
   ! --------------------------------------------
   call lineSearch(&
                   ! input
-                  .true.,                  & ! intent(in): flag to denote the need to perform line search
+                  (iter>1),                & ! intent(in): flag to denote the need to perform line search
                   stateVecTrial,           & ! intent(in): initial state vector
                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
@@ -1046,7 +829,6 @@ contains
                   converged,               & ! intent(out): convergence flag
                   err,cmessage)              ! intent(out): error control
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
 
   ! use full iteration increment if converged all the way to the original value
   if(err<0)then
@@ -1101,6 +883,7 @@ contains
                  stateVecTrial,         & ! intent(in): full state vector (mixed units)
                  mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
                  mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
+                 mLayerVolFracWatTrial, & ! intent(out): volumetric fraction of total water (-)
                  scalarCanopyLiqTrial,  & ! intent(out): mass of canopy liquid (kg m-2)
                  scalarCanopyIceTrial,  & ! intent(out): mass of canopy ice (kg m-2)
                  err,cmessage)            ! intent(out): error code and error message
@@ -1207,6 +990,23 @@ contains
   ! internal subroutine imposeConstraints: impose solution constraints
   ! *********************************************************************************************************
   subroutine imposeConstraints()
+
+  ! ** limit temperature increment to 1K
+
+  ! vegetation
+  if(computeVegFlux)then
+   if(abs(xInc(ixVegNrg)) > 1._dp)then
+    xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc             ! scale iteration increments
+   endif
+  endif
+
+  ! snow and soil
+  if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
+   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
+   xIncFactor = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
+   xInc       = xIncFactor*xInc
+  endif
 
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
@@ -1326,6 +1126,12 @@ contains
 
    endif  ! (switch between initially frozen and initially unfrozen)
 
+   ! place constraint for matric head
+   if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
+    xInc(ixLiq) = 1._dp
+    pauseProgress=.true.
+   endif  ! if constraining matric head
+
   end do  ! (loop through soil layers)
 
   end subroutine imposeConstraints
@@ -1338,6 +1144,7 @@ contains
                         stateVecTrial,         & ! intent(in):  full state vector (mixed units)
                         mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
                         mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
+                        mLayerVolFracWatTrial, & ! intent(out): volumetric fraction of total water (-)
                         scalarCanopyLiqTrial,  & ! intent(out): liquid water storage in the canopy (kg m-2)
                         scalarCanopyIceTrial,  & ! intent(out): ice storage in the canopy (kg m-2)
                         err,message)             ! intent(out): error code and error message
@@ -1347,6 +1154,7 @@ contains
   real(dp),intent(in)            :: stateVecTrial(:)          ! full model state vector (mixed units)
   real(dp),intent(out)           :: mLayerVolFracLiqTrial(:)  ! volumetric fraction of liquid water (-)
   real(dp),intent(out)           :: mLayerVolFracIceTrial(:)  ! volumetric fraction of ice (-)
+  real(dp),intent(out)           :: mLayerVolFracWatTrial(:)  ! volumetric fraction of total water (-)
   real(dp),intent(out)           :: scalarCanopyLiqTrial      ! liquid water storage in the canopy (kg m-2)
   real(dp),intent(out)           :: scalarCanopyIceTrial      ! ice storage in the canopy (kg m-2)
   ! output
@@ -1410,6 +1218,7 @@ contains
                      ! output
                      mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
                      mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
+                     mLayerVolFracWatTrial(iLayer),             & ! intent(out): volumetric fraction of total water (-)
                      fracLiqSnow(iLayer),                       & ! intent(out): fraction of liquid water in each snow layer (-)
                      err,cmessage)                                ! intent(out): error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
@@ -1426,6 +1235,7 @@ contains
                      mLayerPsiLiq(iLayer-nSnow),                & ! intent(out): liquid water matric potential
                      mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
                      mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
+                     mLayerVolFracWatTrial(iLayer),             & ! intent(out): volumetric fraction of total water (-)
                      err,cmessage)                                ! intent(out): error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
@@ -1647,7 +1457,7 @@ contains
 
   ! compute the residual vector for the **snow** sub-domain for liquid water
   if(nSnow>0)&
-  rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(1:nSnow) - ( (mLayerVolFracWat(1:nSnow)  + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
+  rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(1:nSnow) - ( (mLayerVolFracWatInit(1:nSnow)  + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
 
   ! compute the residual vector for the **soil** sub-domain for liquid water
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
@@ -2144,6 +1954,134 @@ contains
 
 
   ! *********************************************************************************************************
+  ! internal subroutine computeJacobian: compute the Jacobian matrix
+  ! *********************************************************************************************************
+  subroutine computeJacobian(err,message)
+  ! dummy variables
+  integer(i4b),intent(out)       :: err                     ! error code
+  character(*),intent(out)       :: message                 ! error message
+  ! --------------------------------------------------------------
+  ! local variables
+  character(LEN=256)              :: cmessage                     ! error message of downwind routine 
+  ! initialize error control
+  err=0; message='computeJacobian/'
+
+  ! point to variables in the data structures
+  associate(&
+  ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision   ,&  ! intent(in): [i4b] index of the form of Richards' equation
+  scalarBulkVolHeatCapVeg => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),&  ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
+  mLayerVolHtCapBulk      => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat        )   ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
+
+  ! compute terms in the Jacobian for vegetation (excluding fluxes)
+  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
+  if(computeVegFlux)then
+   dMat(ixVegNrg) = scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy       ! volumetric heat capacity of the vegetation (J m-3 K-1)
+  endif
+
+  ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
+  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
+  dMat(ixSnowSoilNrg) = mLayerVolHtCapBulk(1:nLayers) + LH_fus*iden_water*mLayerdTheta_dTk(1:nLayers)
+
+  ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
+  if(ixRichards==moisture)then; err=20; message=trim(message)//'have not implemented the moisture-based form of RE yet'; return; endif
+  dMat(ixSoilOnlyMat) = dVolTot_dPsi0(1:nSoil) + dCompress_dPsi(1:nSoil)
+
+  ! compute the analytical Jacobian matrix
+  select case(ixSolve)
+   case(ixFullMatrix); call analJacob(err,cmessage)
+   case(ixBandMatrix); call cpactBand(err,cmessage)
+   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+  end select
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! *** testing: compute the numerical approximation of the Jacobian matrix
+  if(numericalJacobian)then
+   printFlag=.false.
+   call numlJacob(stateVecTrial,fluxVec0,rVec,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   printFlag=printFlagInit
+  endif  ! if computing the numerical Jacobian matrix
+
+  ! ** add the LHS derivatives
+
+  ! * full Jacobian matrix
+  if(ixSolve==ixFullMatrix)then
+
+   ! if enthalpy, formulate derivatives w.r.t. entalpy [J m-3 (J m-3)-1]
+   if(nrgFormulation==ix_enthalpy)then
+    do iJac=1,nState       ! (loop through model state variables)
+     if(ixStateType(iJac)==ixNrgState)then
+      aJac(1:nState,iJac) = aJac(1:nState,iJac)/dMat(iJac)
+      aJac(iJac,iJac)     = aJac(iJac,iJac) + 1._dp
+     endif
+    end do
+
+   ! if temperature, add derivatives to the diagonal
+   elseif(nrgFormulation==ix_temperature)then
+    do iJac=1,nState       ! (loop through model state variables)
+     if(ixStateType(iJac)==ixNrgState)then
+      aJac(iJac,iJac)     = aJac(iJac,iJac) + dMat(iJac)
+     endif
+    end do
+
+   ! check that we prescribed the decision correctly
+   else
+    message=trim(message)//'unknown formulation of energy'
+    err=20; return
+   endif
+
+   ! add mass derivatives to the diagonal
+   if(computeVegFlux) aJac(ixVegWat,ixVegWat) = aJac(ixVegWat,ixVegWat) + dMat(ixVegWat)
+   do iLayer=1,nLayers
+    iState = ixSnowSoilWat(iLayer)
+    aJac(iState,iState) = aJac(iState,iState) + dMat(iState)
+   end do
+
+  ! * band Jacobian matrix
+  elseif(ixSolve==ixBandMatrix)then
+
+   ! if enthalpy, formulate derivatives w.r.t. entalpy [J m-3 (J m-3)-1]
+   if(nrgFormulation==ix_enthalpy)then
+    do iJac=1,nState       ! (loop through model state variables)
+     if(ixStateType(iJac)==ixNrgState)then
+      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+       aJac(iState,iJac) = aJac(iState,iJac)/dMat(iJac)  ! divide by the apparent heat capacity
+      end do
+      aJac(ixDiag,iJac) = aJac(ixDiag,iJac) + 1._dp      ! add one to the diagonal
+     endif   ! if an energy state
+    end do  ! looping through state variables
+
+   ! if temperature, add derivatives to the diagonal
+   elseif(nrgFormulation==ix_temperature)then
+    if(computeVegFlux)then
+     aJac(ixDiag,ixCasNrg) = aJac(ixDiag,ixCasNrg) + dMat(ixCasNrg)
+     aJac(ixDiag,ixVegNrg) = aJac(ixDiag,ixVegNrg) + dMat(ixVegNrg)
+    endif
+    aJac(ixDiag,ixSnowSoilNrg) = aJac(ixDiag,ixSnowSoilNrg) + dMat(ixSnowSoilNrg)
+
+   ! check that we prescribed the energy formulation correctly
+   else
+    message=trim(message)//'unknown formulation of energy'
+    err=20; return
+   endif
+
+   ! add diagonal elements for mass
+   if(computeVegFlux) aJac(ixDiag,ixVegWat) = aJac(ixDiag,ixVegWat) + dMat(ixVegWat)
+   aJac(ixDiag,ixSnowSoilWat) = aJac(ixDiag,ixSnowSoilWat) + dMat(ixSnowSoilWat)
+
+  ! check identified the matrix structure correctly
+  else
+   message=trim(message)//'unknown matrix structure'
+   err=20; return
+  endif  ! if statement for matrix structure
+
+  end associate
+
+  end subroutine computeJacobian
+
+
+
+  ! *********************************************************************************************************
   ! internal subroutine cpactBand: compute the compact band-diagonal matric
   ! *********************************************************************************************************
   subroutine cpactBand(err,message)
@@ -2482,6 +2420,7 @@ contains
   real(dp),dimension(nLayers)    :: mLayerTempLocal         ! trial value for temperature of each snow/soil layer (K)
   real(dp),dimension(nLayers)    :: mLayerVolFracLiqLocal   ! trial value for volumetric fraction of liquid water (-)
   real(dp),dimension(nLayers)    :: mLayerVolFracIceLocal   ! trial value for volumetric fraction of ice (-)
+  real(dp),dimension(nLayers)    :: mLayerVolFracWatLocal   ! trial value for volumetric fraction of total water (-)
   real(dp),dimension(nSoil)      :: mLayerMatricHeadLocal   ! trial value for matric head (m)
   ! model control -- swith between flux-based form and residual-based form of the numerical Jacobian
   integer(i4b),parameter         :: ixNumFlux=1001          ! named variable for the flux-based form of the numerical Jacobian
@@ -2517,6 +2456,7 @@ contains
                    stateVecPerturbed,     & ! intent(in):  full state vector (mixed units)
                    mLayerVolFracLiqLocal, & ! intent(out): volumetric fraction of liquid water (-)
                    mLayerVolFracIceLocal, & ! intent(out): volumetric fraction of ice (-)
+                   mLayerVolFracWatLocal, & ! intent(out): volumetric fraction of total water (-)
                    scalarCanopyLiqLocal,  & ! intent(out): mass of canopy liquid (kg m-2)
                    scalarCanopyIceLocal,  & ! intent(out): mass of canopy ice (kg m-2)
                    err,cmessage)            ! intent(out): error code and error message
@@ -2606,6 +2546,186 @@ contains
 
   end subroutine numlJacob
 
+
+  ! *********************************************************************************************************
+  ! internal subroutine scaleMatrices: scale the matrices
+  ! *********************************************************************************************************
+  subroutine scaleMatrices(err,message)
+  implicit none
+  ! dummy
+  integer(i4b),intent(out)       :: err           ! error code
+  character(*),intent(out)       :: message       ! error message
+  ! local
+  character(len=256)             :: cmessage                ! error message of downwind routine
+  ! initialize error control
+  message='scaleMatrices/'
+
+  ! NOTE: numerical results for a wide range of test problems indicate that automatic function scaling works well, but
+  !  automatic variable scaling does not. We hence implement user-defined scaling for the independent variables.
+
+  ! References:
+
+  ! Hiebert, KL 1980: A comparison of software which solves systems of nonlinear
+  !  equations. Sandia Tech Report, SAND-80-0181, Sandia Labs., Albuquerque, NM
+
+  ! Chen, H-S and MA Stadtherr, 1981: A modification of Powell's dogleg method for
+  !  solving systems of nonlinear equations. Computers and Chemical Engineering,
+  !  5 (3), 143-150.
+
+  ! define function scaling factors as the absolute value of the diagonal
+  if(funcScaling==ix_diagonal)then
+   do iJac=1,nState
+    ! get index of the diagonal
+    select case(ixSolve)
+     case(ixFullMatrix); iState=iJac
+     case(ixBandMatrix); iState=ixDiag
+    end select
+    ! get scaling factor
+    fScale(iJac) = 1._dp / max(abs(aJac(iState,iJac)), verySmall)
+   end do
+  endif
+
+  ! initialize the scaled Jacobian
+  aJacScaled(:,:) = 0._dp
+
+  ! select the option used to solve the linear system A.X=B
+  select case(ixSolve)
+
+   ! * full matrix
+   case(ixFullMatrix)
+
+    ! scale the rows by the function scaling factor
+    do iJac=1,nState
+     aJacScaled(iJac,1:nState) = aJac(iJac,1:nState)*fscale(iJac)
+    end do
+
+    ! print the Jacobian
+    if(printFlag)then
+     print*, '** analytical Jacobian:'
+     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJacScaled(iJac1:iJac2,iLayer); end do
+    endif
+    !pause 'testing analytical jacobian'
+
+    ! ** test band diagonal matrix
+    if(testBandDiagonal)then
+
+     aJac_test(:,:)=0._dp
+     ! form band-diagonal matrix
+     do iState=1,nState
+      do jState=max(1,iState-ku),min(nState,iState+kl)
+       aJac_test(kl + ku + 1 + jState - iState, iState) = aJacScaled(jState,iState)
+      end do
+     end do
+     print*, '** test banded analytical Jacobian:'
+     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
+     !print*, 'press any key to continue'; read(*,*)
+
+    endif  ! (if desire to test band-diagonal matric
+
+   ! * band-diagonal matrix
+   case(ixBandMatrix)
+
+    ! scale the rows by the function scaling factor
+    do iJac=1,nState       ! (loop through model state variables)
+     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+      kState = iState + iJac - kl - ku - 1
+      if(kState<1 .or. kState>nState)cycle
+      aJacScaled(iState,iJac) = aJac(iState,iJac)*fScale(kState)
+     end do
+    end do  ! looping through state variables
+
+    ! check
+    if(printFlag)then
+     print*, '** banded analytical Jacobian:'
+     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,iJac),iJac=iJac1,iJac2); end do
+    endif
+
+   ! check that we found a valid option (should not get here because of the check above; included for completeness)
+   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+
+  end select  ! (option to solve the linear system A.X=B)
+
+  end subroutine scaleMatrices
+
+  ! *********************************************************************************************************
+  ! internal subroutine compute gradient: compute the gradient of the function
+  ! *********************************************************************************************************
+  subroutine computeGradient(err,message)
+  implicit none
+  ! dummy
+  integer(i4b),intent(out)       :: err           ! error code
+  character(*),intent(out)       :: message       ! error message
+  ! local
+  character(len=256)             :: cmessage                ! error message of downwind routine
+  ! initialize error control
+  message='computeGradient/'
+
+  ! check if we need the gradient
+  if(desireGradient)then
+
+   ! check if full Jacobian or band-diagonal matrix
+   select case(ixSolve)
+
+    ! full Jacobian matrix
+    case(ixFullMatrix)
+  
+     ! scale the columns by the variable scaling factors
+     do iJac=1,nState
+      aJacScaled(1:nState,iJac) = aJacScaled(1:nState,iJac)*xscale(iJac)
+     end do
+
+     ! compute the scaled gradient
+     gradScaled = matmul(rVecScaled,aJacScaled)         ! gradient
+
+    ! band-diagonal matrix
+    case(ixBandMatrix)
+
+     ! scale the columns by the variable scaling factor
+     do iJac=1,nState       ! (loop through model state variables)
+      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+       kState = iState + iJac - 2*kl - 1
+       jState = ixDiag - kState + iJac
+       if(kState<1 .or. jState<kl+1 .or. kState>nState)cycle
+       !write(*,'(a,1x,10(i4,1x))') 'iJac, iState, jState, kState = ', iJac, iState, jState, kState
+       aJacScaled(jState,kState) = aJacScaled(jState,kState)*xScale(kState)
+      end do
+     end do  ! looping through state variables
+
+     ! compute the scaled gradient
+     do iJac=1,nState  ! (loop through state variables)
+
+      gradScaled(iJac) = 0._dp
+      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+
+       ! identify indices in the band-diagonal matrix
+       kState = iJac + iState-2*kl
+       if(kState < 1 .or. kState > nState)cycle
+       !write(*,'(a,1x,3(i4,1x))') 'iJac, iState, kState = ', iJac, iState, kState
+
+       ! calculate gradient (long-hand matrix multiplication)
+       gradScaled(iJac) = gradScaled(iJac) + aJacScaled(iState,iJac)*rVecScaled(kState)
+
+      end do  ! looping through elements of the band-diagonal matric
+     end do  ! looping through state variables
+
+    ! check that we found a valid option
+    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+
+   end select  ! (option to solve the linear system A.X=B)
+
+   if(printFlag)then
+    write(*,'(a,1x,10(e17.10,1x))') 'gradScaled = ', gradScaled(iJac1:iJac2)
+   endif
+
+   ! re-scale
+   grad(:) = gradScaled(:)/xScale(:)
+
+  endif  ! if we want to compute the gradient
+
+  end subroutine computeGradient
 
   ! *********************************************************************************************************
   ! internal subroutine lapackSolv: use the lapack routines to solve the linear system A.X=B
@@ -2761,6 +2881,7 @@ contains
                    x,                     & ! intent(in): full state vector (mixed units)
                    mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
                    mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
+                   mLayerVolFracWatTrial, & ! intent(out): volumetric fraction of total water (-)
                    scalarCanopyLiqTrial,  & ! intent(out): mass of canopy liquid (kg m-2)
                    scalarCanopyIceTrial,  & ! intent(out): mass of canopy ice (kg m-2)
                    err,cmessage)            ! intent(out): error code and error message
