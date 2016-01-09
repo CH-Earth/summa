@@ -310,12 +310,7 @@ contains
  real(dp),allocatable            :: fluxVec0(:)                  ! flux vector (mixed units)
  real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
  real(dp),allocatable            :: xScale(:)                    ! characteristic scale of the state vector (mixed units)
- real(dp),allocatable            :: rowScale(:)                  ! maximum value of the rows (mixed units)
- real(dp),allocatable            :: colScale(:)                  ! maximum value of the columns (mixed units)
- real(dp)                        :: rowCond,colCond              ! row and column condition number (ratio of the smallest to largest value)
- real(dp)                        :: maxElement                   ! maximum value of the Jacobian
- character(len=1)                :: cEquil                       ! type of matrix scaling performed (R=row, C=column, B=both)
- logical(lgt)                    :: rowEquil,colEquil            ! flags to denote if the rows and columns were equilibrated
+ real(dp),allocatable            :: fScale(:)                    ! characteristic scale of the function (mixed units)
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:),aJacScaled(:,:)    ! analytical Jacobian matrix
  real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
@@ -333,7 +328,6 @@ contains
  integer(i4b),parameter          :: nrgFormulation=ix_temperature   ! decision for the energy formulation (enthalpy or temperature)
  integer(i4b),parameter          :: ix_userDefined=1001          ! function scaling = user defined
  integer(i4b),parameter          :: ix_diagonal=1002             ! function scaling = diagonal
- integer(i4b),parameter          :: ix_maxval=1003               ! function scaling = maximum value for Jacobian row
  integer(i4b),parameter          :: funcScaling=ix_userDefined   ! decision for the function scaling
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
@@ -349,11 +343,12 @@ contains
  real(dp),parameter              :: absConvTol_watbal=1.e-8_dp   ! convergence tolerance for soil water balance (m)
  real(dp),parameter              :: stepMax=1._dp                ! maximum step size (K, m, -)
  real(dp)                        :: stpmax                       ! scaled maximum step size
+ real(dp),parameter              :: fScaleCanopyMass=100._dp     ! func eval: characteristic scale for canopy mass (kg m-2)
  real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: fScaleMat=10._dp             ! func eval: characteristic scale for matric head (m)
  real(dp),parameter              :: fScaleNrg=1000000._dp        ! func eval: characteristic scale for energy (J m-3)
+ real(dp),parameter              :: xScaleCanopyMass=1._dp       ! state var: characteristic scale for canopy mass (kg m-2)
  real(dp),parameter              :: xScaleLiq=0.01_dp            ! state var: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: xScaleMat=10._dp             ! state var: characteristic scale for matric head (m)
+ real(dp),parameter              :: xScaleMat=1._dp              ! state var: characteristic scale for matric head (m)
  real(dp),parameter              :: xScaleTemp=1._dp             ! state var: characteristic scale for temperature (K)
  logical(lgt)                    :: converged                    ! convergence flag
  ! ------------------------------------------------------------------------------------------------------
@@ -557,7 +552,7 @@ contains
  endif
 
  ! allocate space for the scaling vectors and the state type
- allocate(xScale(nState),rowScale(nState),colScale(nState),gradScaled(nState),rVecScaled(nState),ixStateType(nState),stat=err)
+ allocate(fScale(nState),xScale(nState),gradScaled(nState),rVecScaled(nState),ixStateType(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
  ! allocate space for the flux vectors and Jacobian matrix
@@ -646,41 +641,6 @@ contains
  dMat(ixSnowOnlyWat) = 1._dp
 
  ! -----
- ! * define scaling vectors...
- ! ---------------------------
-
- ! define scaling for the state vector -- vegetation
- if(computeVegFlux)then
-  xScale(ixCasNrg) = xScaleTemp   ! (K)
-  xScale(ixVegNrg) = xScaleTemp   ! (K)
-  xScale(ixVegWat) = xScaleLiq*canopyDepth*iden_water  ! (kg m-2)
- endif
-
- ! define the scaling for the function evaluation -- snow and soil
- xScale(ixSnowSoilNrg) = xScaleTemp  ! (K)
- if(nSnow>0) xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
- xScale(ixSoilOnlyMat) = xScaleMat   ! (m)
-
- ! define user-defined scaling (constant)
- if(funcScaling==ix_userDefined)then
-
-  ! define the row scaling -- vegetation
-  if(computeVegFlux)then
-   rowScale(ixCasNrg) = xScale(ixCasNrg) / fScaleNrg   ! (J m-3 K-1)-1
-   rowScale(ixVegNrg) = xScale(ixVegNrg) / fScaleNrg   ! (J m-3 K-1)-1
-   rowScale(ixVegWat) = xScale(ixVegWat) / (fScaleLiq*canopyDepth*iden_water)  ! (dimensionless)
-  endif
-
-  ! define the row scaling -- snow and soil
-  rowScale(ixSnowSoilNrg) = xScale(ixSnowSoilNrg) / fScaleNrg  ! (J m-3 K-1)-1
-  rowScale(ixSnowSoilWat) = xScale(ixSnowSoilWat) / fScaleLiq  ! (dimensionless [snow] or m [soil])
-
- endif  ! user-defined function scaling (constant)
-
- ! set column scaling to one
- if(funcScaling/=ix_maxval) colScale(:) = 1._dp
-
- ! -----
  ! * initialize state vectors...
  ! -----------------------------
 
@@ -725,6 +685,41 @@ contains
  scalarCanopyIceTrial  = scalarCanopyIce
  mLayerVolFracLiqTrial = mLayerVolFracLiq
  mLayerVolFracIceTrial = mLayerVolFracIce
+
+ ! -----
+ ! * define scaling vectors...
+ ! ---------------------------
+
+ ! define scaling for the state vector -- vegetation
+ if(computeVegFlux)then
+  xScale(ixCasNrg) = xScaleTemp   ! (K)
+  xScale(ixVegNrg) = xScaleTemp   ! (K)
+  xScale(ixVegWat) = xScaleCanopyMass  ! (kg m-2)
+ endif
+
+ ! define the scaling for the function evaluation -- snow and soil
+ xScale(ixSnowSoilNrg) = xScaleTemp  ! (K)
+ if(nSnow>0) xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
+ xScale(ixSoilOnlyMat) = xScaleMat   ! (m)
+
+ ! define user-defined scaling (constant)
+ if(funcScaling==ix_userDefined)then
+
+  ! define the row scaling -- vegetation
+  if(computeVegFlux)then
+   fScale(ixCasNrg) = 1._dp / fScaleNrg   ! (J m-3)-1
+   fScale(ixVegNrg) = 1._dp / fScaleNrg   ! (J m-3)-1
+   fScale(ixVegWat) = 1._dp / fScaleCanopyMass  ! (kg m-2)-1
+  endif
+
+  ! define the row scaling -- snow and soil
+  fScale(ixSnowSoilNrg) = 1._dp / fScaleNrg  ! (J m-3)-1
+  fScale(ixSnowSoilWat) = 1._dp / fScaleLiq  ! (dimensionless)
+
+ endif  ! user-defined function scaling (constant)
+
+ !print*, 'fScale*xScale = ', fScale*xScale
+ !pause
 
  ! -----
  ! * compute the residual vector...
@@ -782,8 +777,11 @@ contains
 
   ! compute the function evaluation for the scaled matrices
   if(iter==1)then
-   if(rowEquil) rVecScaled(1:nState) = real(rVec(1:nState), dp)*rowScale(1:nState)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+   rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
    fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
+   if(printFlag) write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': fOld  = ', fOld
+   if(printFlag) write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVec(iJac1:iJac2)       = ', rVec(iJac1:iJac2)
+   if(printFlag) write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVecScaled(iJac1:iJac2) = ', rVecScaled(iJac1:iJac2)
   endif
 
   ! -----
@@ -801,11 +799,9 @@ contains
   ! ------------------------
 
   ! use the lapack routines to solve the linear system A.X=B
-  call lapackSolv(aJacScaled,-rVecScaled,xInc,err,cmessage)
+  ! NOTE: use the units of the state variable
+  call lapackSolv(aJacScaled,-rVecScaled*xScale,xInc,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! transform the solution to the original system
-  if(colEquil) xInc(:) = xInc(:)*colScale(:)
 
   ! if enthalpy, then need to convert the iteration increment to temperature
   if(nrgFormulation==ix_enthalpy)then
@@ -975,7 +971,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the scaled vectors and matrices
- deallocate(xScale,rowScale,colScale,aJacScaled,rVecScaled,gradScaled,stat=err)
+ deallocate(fScale,xScale,aJacScaled,rVecScaled,gradScaled,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for scaled vectors and matrices'; return; endif
 
  ! deallocate space for the baseflow derivatives
@@ -1375,14 +1371,6 @@ contains
    scalarCanopyWatTrial  = scalarCanopyIce + scalarCanopyLiq
   endif
 
-  if(printFlag)then
-   write(*,'(a,1x,f17.12)') 'scalarCanairTempTrial = ', scalarCanairTempTrial
-   write(*,'(a,1x,f17.12)') 'scalarCanopyTempTrial = ', scalarCanopyTempTrial
-   write(*,'(a,1x,f17.12)') 'scalarCanopyWatTrial  = ', scalarCanopyWatTrial
-   print*, 'stateVec(ixCasNrg) = ', stateVec(ixCasNrg)
-   print*, 'check'
-  endif
-
   ! extract state variables for the snow and soil domain
   mLayerTempTrial(1:nLayers)     = stateVec(ixSnowSoilNrg)
   mLayerMatricHeadTrial(1:nSoil) = stateVec(ixSoilOnlyMat)
@@ -1478,6 +1466,7 @@ contains
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
   vThetaTrial(1:nSoil) = mLayerVolFracLiqLocal(nSnow+1:nLayers) + mLayerVolFracIceLocal(nSnow+1:nLayers) ! liquid equivalent of total water at the current iteration
   rVec(ixSoilOnlyMat)  = vThetaTrial(1:nSoil) - ( (vThetaInit(1:nSoil) + fVec(ixSoilOnlyMat)*dt) + rAdd(ixSoilOnlyMat) )
+  if(printFlag) write(*,'(a,1x,10(e17.8,1x))') 'fVec(ixSoilOnlyMat) = ', (fVec(ixSoilOnlyMat(iLayer)),iLayer=1,nSoil)
 
   ! compute the soil water balance error (m)
   ! NOTE: declared in the main routine so accessible in all internal routines
@@ -2603,102 +2592,47 @@ contains
    endif
   endif
 
-  ! define the choice of scaling
-  select case(funcScaling)
-
-   ! -----
-   ! * scale by the maximum value of the columns and rows...
-   ! -------------------------------------------------------
-   case(ix_maxval)
-
-    ! * get scaling factors
+  ! * define function scaling factors as the absolute value of the diagonal
+  if(funcScaling==ix_diagonal)then
+   do iJac=1,nState
+    ! get index of the diagonal
     select case(ixSolve)
-     case(ixFullMatrix); call dgeequ(nState,nState,aJac,nState,rowScale,colScale,rowCond,colCond,maxElement,err)
-     case(ixBandMatrix); call dgbequ(nState,nState,kl,ku,aJac,nBands,rowScale,colScale,rowCond,colCond,maxElement,err)
-     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+     case(ixFullMatrix); iState=iJac
+     case(ixBandMatrix); iState=ixDiag
     end select
-    ! process errors
-    if(err/=0)then
-     select case(err)
-      case( : -1);  write(message,'(a,i0,a)') trim(message)//'the ',-err,'-th argument had an illegal value'
-      case default; if(err<nState)then; write(message,'(a,i0,a)') trim(message)//'the ', err,'-th row of aJac is exactly zero'
-                                  else; write(message,'(a,i0,a)') trim(message)//'the ', err-nState,'-th column of aJac is exactly zero'
-                    endif
-     end select
-     err=20; return
-    endif   ! processing errors
+    ! get function scaling factor
+    fScale(iJac) = 1._dp / max(abs(aJac(iState,iJac))*xScale(iJac), verySmall)
+   end do
+  endif
 
-    ! * scale matrices
-    select case(ixSolve)
-     case(ixFullMatrix); call dlaqge(nState,nState,aJac,nState,rowScale,colScale,rowCond,colCond,maxElement,cEquil)
-     case(ixBandMatrix); call dlaqgb(nState,nState,kl,ku,aJac,nBands,rowScale,colScale,rowCond,colCond,maxElement,cEquil)
-     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
-    end select
-    rowEquil = (cEquil=='R' .or. cEquil=='B')
-    colEquil = (cEquil=='C' .or. cEquil=='B')
-    if(.not.rowEquil) rowScale(:) = 1._dp
-    if(.not.colEquil) colScale(:) = 1._dp
+  ! * scale matrices
+  select case(ixSolve)
 
-    ! * copy information to the scaled matrices
-    select case(ixSolve)
-     case(ixFullMatrix); aJacScaled = aJac
-     case(ixBandMatrix); aJacScaled(kl+1:nBands+kl,1:nState) = aJac(1:nBands,1:nState) ! include space for the lu decomposition
-     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
-    end select
- 
-   ! -----
-   ! * scale by the diagonal of the Jacobian, or by user-defined scaling factors...
-   ! ------------------------------------------------------------------------------
-   case(ix_diagonal,ix_userDefined) 
+   ! full matrix
+   case(ixFullMatrix)
 
-    ! define flags for the scaling
-    rowEquil=.true.   ! always perform the row scaling
-    colEquil=.false.  ! never perform the column scaling
-
-    ! * define function scaling factors as the absolute value of the diagonal
-    if(funcScaling==ix_diagonal)then
-     do iJac=1,nState
-      ! get index of the diagonal
-      select case(ixSolve)
-       case(ixFullMatrix); iState=iJac
-       case(ixBandMatrix); iState=ixDiag
-      end select
-      ! get scaling factor
-      rowScale(iJac) = 1._dp / max(abs(aJac(iState,iJac)), verySmall)
+    ! scale the by both the function and variable scaling factors
+    do iState=1,nState
+     do jState=1,nState
+      aJacScaled(iState,jState) = fScale(iState)*aJac(iState,jState)*xScale(jState)
      end do
-    endif
+    end do
 
-    ! * scale matrices
-    select case(ixSolve)
+   ! * band-diagonal matrix
+   case(ixBandMatrix)
 
-     ! full matrix
-     case(ixFullMatrix)
+    ! scale the rows by the function scaling factor
+    do iJac=1,nState       ! (loop through model state variables)
+     do iState=max(1,iJac-ku),min(nState,iJac+kl)
+      kState = ku+1+iState-iJac
+      aJacScaled(kState+kl,iJac) = fScale(iState)*aJac(kState,iJac)*xScale(iJac)
+     end do
+    end do  ! looping through state variables
 
-      ! scale the rows by the function scaling factor
-      do iJac=1,nState
-       aJacScaled(iJac,1:nState) = rowScale(iJac)*aJac(iJac,1:nState)
-      end do
+   ! check that we found a valid option (should not get here because of the check above; included for completeness)
+   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
 
-     ! * band-diagonal matrix
-     case(ixBandMatrix)
-
-      ! scale the rows by the function scaling factor
-      do iJac=1,nState       ! (loop through model state variables)
-       do iState=max(1,iJac-ku),min(nState,iJac+kl)
-        kState = ku+1+iState-iJac
-        aJacScaled(kState+kl,iJac) = rowScale(iState)*aJac(kState,iJac)
-       end do
-      end do  ! looping through state variables
-
-     ! check that we found a valid option (should not get here because of the check above; included for completeness)
-     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
-
-    end select  ! (option to solve the linear system A.X=B)
-
-   ! check found a valid scaling option
-   case default; err=20; message=trim(message)//'unable to identify option for the type scaling'
-
-  end select  ! (option for type of scaling)
+  end select  ! (option to solve the linear system A.X=B)
 
   ! -----
   ! * testing... 
@@ -2717,12 +2651,6 @@ contains
    endif
   endif
 
-  ! print the scaling factors
-  if(printFlag)then
-   write(*,'(a,1x,10(e17.5,1x))') 'rowScale = ', rowScale(iJac1:iJac2)
-   write(*,'(a,1x,10(e17.5,1x))') 'colScale = ', colScale(iJac1:iJac2)
-  endif
-
   ! * test band diagonal matrix
   if(testBandDiagonal)then
    aJac_test(:,:)=0._dp
@@ -2737,9 +2665,6 @@ contains
    do iLayer=kl+1,nBands+kl; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
   endif  ! if testing the band diagonal matrix
   !print*, 'PAUSE: test scaling'; read(*,*)
-
-  ! check
-  if(.not.rowEquil) stop 'expect to equilibrate the rows'
 
   end subroutine scaleMatrices
 
@@ -2768,27 +2693,18 @@ contains
     case(ixFullMatrix)
   
      ! compute the scaled gradient
-     gradScaled = matmul(rVecScaled/xScale, aJacScaled)         ! gradient
+     gradScaled = matmul(rVecScaled,aJacScaled)         ! gradient
 
     ! band-diagonal matrix
     case(ixBandMatrix)
 
      ! compute the scaled gradient
      gradScaled(:) = 0._dp
-     if(colEquil)then
-      do iJac=1,nState  ! (loop through state variables)
-       cScale=one/colScale(iJac)  ! remove column scaling
-       do iState=max(1,iJac-ku),min(nState,iJac+kl)
-        gradScaled(iJac) = gradScaled(iJac) + cScale*aJacScaled(kl+ku+1+iState-iJac,iJac)*rVecScaled(iState)/xScale(iState)
-       end do
+     do iJac=1,nState  ! (loop through state variables)
+      do iState=max(1,iJac-ku),min(nState,iJac+kl)
+       gradScaled(iJac) = gradScaled(iJac) + aJacScaled(kl+ku+1+iState-iJac,iJac)*rVecScaled(iState)
       end do
-     else
-      do iJac=1,nState  ! (loop through state variables)
-       do iState=max(1,iJac-ku),min(nState,iJac+kl)
-        gradScaled(iJac) = gradScaled(iJac) + aJacScaled(kl+ku+1+iState-iJac,iJac)*rVecScaled(iState)/xScale(iState)
-       end do
-      end do
-     endif
+     end do
 
     ! check that we found a valid option
     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
@@ -2983,7 +2899,7 @@ contains
 
    ! scale the residual vector
    ! NOTE: the residual vector is in quadruple precision
-   if(rowEquil) rVecScaled(1:nState) = real(rVec(1:nState), dp)*rowScale(1:nState)   ! NOTE: residual vector is in quadruple precision
+   rVecScaled(1:nState) = fScale(1:nState)*real(rVec(1:nState), dp)   ! NOTE: residual vector is in quadruple precision
 
    ! compute the function evaluation
    f=0.5_dp*dot_product(rVecScaled, rVecScaled)
@@ -2991,9 +2907,10 @@ contains
    ! check
    if(printFlag)then
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': f = ', f
-    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rowScale(iJac1:iJac2)     = ', rowScale(iJac1:iJac2) 
+    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': xScale(iJac1:iJac2)       = ', xScale(iJac1:iJac2) 
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVec(iJac1:iJac2)         = ', rVec(iJac1:iJac2)
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVecScaled(iJac1:iJac2)   = ', rVecScaled(iJac1:iJac2)
+    print*, 'PAUSE: in line search'; read(*,*)
    endif
 
    ! return if not doing the line search
