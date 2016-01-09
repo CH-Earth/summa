@@ -204,15 +204,15 @@ contains
  integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter          :: ku=3                         ! number of super-diagonal bands
  integer(i4b),parameter          :: kl=4                         ! number of sub-diagonal bands
- integer(i4b),parameter          :: ixSup3=kl+1                  ! index for the 3rd super-diagonal band
- integer(i4b),parameter          :: ixSup2=kl+2                  ! index for the 2nd super-diagonal band
- integer(i4b),parameter          :: ixSup1=kl+3                  ! index for the 1st super-diagonal band
- integer(i4b),parameter          :: ixDiag=kl+4                  ! index for the diagonal band
- integer(i4b),parameter          :: ixSub1=kl+5                  ! index for the 1st sub-diagonal band
- integer(i4b),parameter          :: ixSub2=kl+6                  ! index for the 2nd sub-diagonal band
- integer(i4b),parameter          :: ixSub3=kl+7                  ! index for the 3rd sub-diagonal band
- integer(i4b),parameter          :: ixSub4=kl+8                  ! index for the 3rd sub-diagonal band
- integer(i4b),parameter          :: nBands=2*kl+ku+1             ! length of the leading dimension of the band diagonal matrix
+ integer(i4b),parameter          :: ixSup3=1                     ! index for the 3rd super-diagonal band
+ integer(i4b),parameter          :: ixSup2=2                     ! index for the 2nd super-diagonal band
+ integer(i4b),parameter          :: ixSup1=3                     ! index for the 1st super-diagonal band
+ integer(i4b),parameter          :: ixDiag=4                     ! index for the diagonal band
+ integer(i4b),parameter          :: ixSub1=5                     ! index for the 1st sub-diagonal band
+ integer(i4b),parameter          :: ixSub2=6                     ! index for the 2nd sub-diagonal band
+ integer(i4b),parameter          :: ixSub3=7                     ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter          :: ixSub4=8                     ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter          :: nBands=kl+ku+1               ! length of the leading dimension of the band diagonal matrix
  integer(i4b),parameter          :: ixFullMatrix=1001            ! named variable for the full Jacobian matrix
  integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
  integer(i4b)                    :: ixSolve                      ! the type of matrix used to solve the linear system A.X=B
@@ -309,8 +309,13 @@ contains
  real(dp),allocatable            :: stateVecNew(:)               ! new state vector (mixed units)
  real(dp),allocatable            :: fluxVec0(:)                  ! flux vector (mixed units)
  real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
- real(dp),allocatable            :: fScale(:)                    ! characteristic scale of the function evaluations (mixed units)
  real(dp),allocatable            :: xScale(:)                    ! characteristic scale of the state vector (mixed units)
+ real(dp),allocatable            :: rowScale(:)                  ! maximum value of the rows (mixed units)
+ real(dp),allocatable            :: colScale(:)                  ! maximum value of the columns (mixed units)
+ real(dp)                        :: rowCond,colCond              ! row and column condition number (ratio of the smallest to largest value)
+ real(dp)                        :: maxElement                   ! maximum value of the Jacobian
+ character(len=1)                :: cEquil                       ! type of matrix scaling performed (R=row, C=column, B=both)
+ logical(lgt)                    :: rowEquil,colEquil            ! flags to denote if the rows and columns were equilibrated
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:),aJacScaled(:,:)    ! analytical Jacobian matrix
  real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
@@ -346,8 +351,8 @@ contains
  real(dp)                        :: stpmax                       ! scaled maximum step size
  real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
  real(dp),parameter              :: fScaleMat=10._dp             ! func eval: characteristic scale for matric head (m)
- real(dp),parameter              :: fScaleNrg=1000000._dp          ! func eval: characteristic scale for energy (J m-3)
- real(dp),parameter              :: xScaleLiq=0.1_dp             ! state var: characteristic scale for volumetric liquid water content (-)
+ real(dp),parameter              :: fScaleNrg=1000000._dp        ! func eval: characteristic scale for energy (J m-3)
+ real(dp),parameter              :: xScaleLiq=0.01_dp            ! state var: characteristic scale for volumetric liquid water content (-)
  real(dp),parameter              :: xScaleMat=10._dp             ! state var: characteristic scale for matric head (m)
  real(dp),parameter              :: xScaleTemp=1._dp             ! state var: characteristic scale for temperature (K)
  logical(lgt)                    :: converged                    ! convergence flag
@@ -540,19 +545,19 @@ contains
  ! allocate space for the Jacobian matrix
  select case(ixSolve)
   case(ixFullMatrix); allocate(aJac(nState,nState),aJacScaled(nState,nState),stat=err)
-  case(ixBandMatrix); allocate(aJac(nBands,nState),aJacScaled(nBands,nState),stat=err)
+  case(ixBandMatrix); allocate(aJac(nBands,nState),aJacScaled(nBands+kl,nState),stat=err)  ! +kl for scaled Jacobian to create space for the band-diagonal solver
   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
  end select
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the Jacobian matrix'; return; endif
 
  ! allocate space for the band-diagonal matrix that is constructed from the full Jacobian matrix
  if(testBandDiagonal)then
-  allocate(aJac_test(nBands,nState),stat=err)
+  allocate(aJac_test(nBands+kl,nState),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
  endif
 
  ! allocate space for the scaling vectors and the state type
- allocate(fScale(nState),xScale(nState),gradScaled(nState),rVecScaled(nState),ixStateType(nState),stat=err)
+ allocate(xScale(nState),rowScale(nState),colScale(nState),gradScaled(nState),rVecScaled(nState),ixStateType(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
 
  ! allocate space for the flux vectors and Jacobian matrix
@@ -644,22 +649,6 @@ contains
  ! * define scaling vectors...
  ! ---------------------------
 
- ! define user-defined function scaling (constant)
- if(funcScaling==ix_userDefined)then
-
-  ! define the scaling for the function evaluation -- vegetation
-  if(computeVegFlux)then
-   fScale(ixCasNrg) = 1._dp / fScaleNrg   ! (J m-3)-1
-   fScale(ixVegNrg) = 1._dp / fScaleNrg   ! (J m-3)-1
-   fScale(ixVegWat) = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! (kg m-2)-1
-  endif
-
-  ! define the scaling for the function evaluation -- snow and soil
-  fScale(ixSnowSoilNrg) = 1._dp / fScaleNrg  ! (J m-3)-1
-  fScale(ixSnowSoilWat) = 1._dp / fScaleLiq  ! (-)
-
- endif  ! user-defined function scaling (constant)
-
  ! define scaling for the state vector -- vegetation
  if(computeVegFlux)then
   xScale(ixCasNrg) = xScaleTemp   ! (K)
@@ -671,6 +660,25 @@ contains
  xScale(ixSnowSoilNrg) = xScaleTemp  ! (K)
  if(nSnow>0) xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
  xScale(ixSoilOnlyMat) = xScaleMat   ! (m)
+
+ ! define user-defined scaling (constant)
+ if(funcScaling==ix_userDefined)then
+
+  ! define the row scaling -- vegetation
+  if(computeVegFlux)then
+   rowScale(ixCasNrg) = xScale(ixCasNrg) / fScaleNrg   ! (J m-3 K-1)-1
+   rowScale(ixVegNrg) = xScale(ixVegNrg) / fScaleNrg   ! (J m-3 K-1)-1
+   rowScale(ixVegWat) = xScale(ixVegWat) / (fScaleLiq*canopyDepth*iden_water)  ! (dimensionless)
+  endif
+
+  ! define the row scaling -- snow and soil
+  rowScale(ixSnowSoilNrg) = xScale(ixSnowSoilNrg) / fScaleNrg  ! (J m-3 K-1)-1
+  rowScale(ixSnowSoilWat) = xScale(ixSnowSoilWat) / fScaleLiq  ! (dimensionless [snow] or m [soil])
+
+ endif  ! user-defined function scaling (constant)
+
+ ! set column scaling to one
+ if(funcScaling/=ix_maxval) colScale(:) = 1._dp
 
  ! -----
  ! * initialize state vectors...
@@ -774,9 +782,19 @@ contains
 
   ! compute the function evaluation for the scaled matrices
   if(iter==1)then
-   rVecScaled(1:nState) = real(rVec(1:nState), dp)*fScale(1:nState)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+   if(rowEquil) rVecScaled(1:nState) = real(rVec(1:nState), dp)*rowScale(1:nState)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
    fOld = 0.5_dp*dot_product(rVecScaled, rVecScaled)
   endif
+
+  ! -----
+  ! * compute the gradient of the function vector...
+  ! ------------------------------------------------
+
+  ! NOTE: This must be done before lapack solve since lapack solve returns decomposed matrices
+
+  ! compute the gradient of the function vector
+  call computeGradient(err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! -----
   ! * solve linear system...
@@ -785,6 +803,9 @@ contains
   ! use the lapack routines to solve the linear system A.X=B
   call lapackSolv(aJacScaled,-rVecScaled,xInc,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! transform the solution to the original system
+  if(colEquil) xInc(:) = xInc(:)*colScale(:)
 
   ! if enthalpy, then need to convert the iteration increment to temperature
   if(nrgFormulation==ix_enthalpy)then
@@ -797,18 +818,12 @@ contains
 
   if(printFlag)then
    write(*,'(a,1x,10(e17.10,1x))') 'xInc = ', xInc(iJac1:iJac2)
+   !print*, 'PAUSE: test iteration increment'; read(*,*)
   endif
+
 
   ! impose solution constraints
   call imposeConstraints()
-
-  ! -----
-  ! * compute the gradient of the function vector...
-  ! ------------------------------------------------
-
-  ! compute the gradient of the function vector
-  call computeGradient(err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! -----
   ! * compute model fluxes and residual
@@ -960,7 +975,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
 
  ! deallocate space for the scaled vectors and matrices
- deallocate(fScale,xScale,aJacScaled,rVecScaled,gradScaled,stat=err)
+ deallocate(xScale,rowScale,colScale,aJacScaled,rVecScaled,gradScaled,stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for scaled vectors and matrices'; return; endif
 
  ! deallocate space for the baseflow derivatives
@@ -2044,7 +2059,7 @@ contains
    if(nrgFormulation==ix_enthalpy)then
     do iJac=1,nState       ! (loop through model state variables)
      if(ixStateType(iJac)==ixNrgState)then
-      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
+      do iState=1,nBands  ! (loop through elements of the band-diagonal matrix)
        aJac(iState,iJac) = aJac(iState,iJac)/dMat(iJac)  ! divide by the apparent heat capacity
       end do
       aJac(ixDiag,iJac) = aJac(ixDiag,iJac) + 1._dp      ! add one to the diagonal
@@ -2572,81 +2587,159 @@ contains
   !  solving systems of nonlinear equations. Computers and Chemical Engineering,
   !  5 (3), 143-150.
 
-  ! define function scaling factors as the absolute value of the diagonal
-  if(funcScaling==ix_diagonal)then
-   do iJac=1,nState
-    ! get index of the diagonal
-    select case(ixSolve)
-     case(ixFullMatrix); iState=iJac
-     case(ixBandMatrix); iState=ixDiag
-    end select
-    ! get scaling factor
-    fScale(iJac) = 1._dp / max(abs(aJac(iState,iJac)), verySmall)
-   end do
-  endif
-
   ! initialize the scaled Jacobian
   aJacScaled(:,:) = 0._dp
 
-  ! select the option used to solve the linear system A.X=B
-  select case(ixSolve)
+  ! print the Jacobian
+  if(printFlag)then
+   if(ixSolve==ixFullMatrix)then
+    print*, '** analytical Jacobian:'
+    write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+    do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+   else
+    print*, '** banded analytical Jacobian:'
+    write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+    do iLayer=1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,iJac),iJac=iJac1,iJac2); end do
+   endif
+  endif
 
-   ! * full matrix
-   case(ixFullMatrix)
+  ! define the choice of scaling
+  select case(funcScaling)
 
-    ! scale the rows by the function scaling factor
-    do iJac=1,nState
-     aJacScaled(iJac,1:nState) = aJac(iJac,1:nState)*fscale(iJac)
-    end do
+   ! -----
+   ! * scale by the maximum value of the columns and rows...
+   ! -------------------------------------------------------
+   case(ix_maxval)
 
-    ! print the Jacobian
-    if(printFlag)then
-     print*, '** analytical Jacobian:'
-     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJacScaled(iJac1:iJac2,iLayer); end do
+    ! * get scaling factors
+    select case(ixSolve)
+     case(ixFullMatrix); call dgeequ(nState,nState,aJac,nState,rowScale,colScale,rowCond,colCond,maxElement,err)
+     case(ixBandMatrix); call dgbequ(nState,nState,kl,ku,aJac,nBands,rowScale,colScale,rowCond,colCond,maxElement,err)
+     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+    end select
+    ! process errors
+    if(err/=0)then
+     select case(err)
+      case( : -1);  write(message,'(a,i0,a)') trim(message)//'the ',-err,'-th argument had an illegal value'
+      case default; if(err<nState)then; write(message,'(a,i0,a)') trim(message)//'the ', err,'-th row of aJac is exactly zero'
+                                  else; write(message,'(a,i0,a)') trim(message)//'the ', err-nState,'-th column of aJac is exactly zero'
+                    endif
+     end select
+     err=20; return
+    endif   ! processing errors
+
+    ! * scale matrices
+    select case(ixSolve)
+     case(ixFullMatrix); call dlaqge(nState,nState,aJac,nState,rowScale,colScale,rowCond,colCond,maxElement,cEquil)
+     case(ixBandMatrix); call dlaqgb(nState,nState,kl,ku,aJac,nBands,rowScale,colScale,rowCond,colCond,maxElement,cEquil)
+     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+    end select
+    rowEquil = (cEquil=='R' .or. cEquil=='B')
+    colEquil = (cEquil=='C' .or. cEquil=='B')
+    if(.not.rowEquil) rowScale(:) = 1._dp
+    if(.not.colEquil) colScale(:) = 1._dp
+
+    ! * copy information to the scaled matrices
+    select case(ixSolve)
+     case(ixFullMatrix); aJacScaled = aJac
+     case(ixBandMatrix); aJacScaled(kl+1:nBands+kl,1:nState) = aJac(1:nBands,1:nState) ! include space for the lu decomposition
+     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+    end select
+ 
+   ! -----
+   ! * scale by the diagonal of the Jacobian, or by user-defined scaling factors...
+   ! ------------------------------------------------------------------------------
+   case(ix_diagonal,ix_userDefined) 
+
+    ! define flags for the scaling
+    rowEquil=.true.   ! always perform the row scaling
+    colEquil=.false.  ! never perform the column scaling
+
+    ! * define function scaling factors as the absolute value of the diagonal
+    if(funcScaling==ix_diagonal)then
+     do iJac=1,nState
+      ! get index of the diagonal
+      select case(ixSolve)
+       case(ixFullMatrix); iState=iJac
+       case(ixBandMatrix); iState=ixDiag
+      end select
+      ! get scaling factor
+      rowScale(iJac) = 1._dp / max(abs(aJac(iState,iJac)), verySmall)
+     end do
     endif
-    !pause 'testing analytical jacobian'
 
-    ! ** test band diagonal matrix
-    if(testBandDiagonal)then
+    ! * scale matrices
+    select case(ixSolve)
 
-     aJac_test(:,:)=0._dp
-     ! form band-diagonal matrix
-     do iState=1,nState
-      do jState=max(1,iState-ku),min(nState,iState+kl)
-       aJac_test(kl + ku + 1 + jState - iState, iState) = aJacScaled(jState,iState)
+     ! full matrix
+     case(ixFullMatrix)
+
+      ! scale the rows by the function scaling factor
+      do iJac=1,nState
+       aJacScaled(iJac,1:nState) = rowScale(iJac)*aJac(iJac,1:nState)
       end do
-     end do
-     print*, '** test banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
-     !print*, 'press any key to continue'; read(*,*)
 
-    endif  ! (if desire to test band-diagonal matric
+     ! * band-diagonal matrix
+     case(ixBandMatrix)
 
-   ! * band-diagonal matrix
-   case(ixBandMatrix)
+      ! scale the rows by the function scaling factor
+      do iJac=1,nState       ! (loop through model state variables)
+       do iState=max(1,iJac-ku),min(nState,iJac+kl)
+        kState = ku+1+iState-iJac
+        aJacScaled(kState+kl,iJac) = rowScale(iState)*aJac(kState,iJac)
+       end do
+      end do  ! looping through state variables
 
-    ! scale the rows by the function scaling factor
-    do iJac=1,nState       ! (loop through model state variables)
-     do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-      kState = iState + iJac - kl - ku - 1
-      if(kState<1 .or. kState>nState)cycle
-      aJacScaled(iState,iJac) = aJac(iState,iJac)*fScale(kState)
-     end do
-    end do  ! looping through state variables
+     ! check that we found a valid option (should not get here because of the check above; included for completeness)
+     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
 
-    ! check
-    if(printFlag)then
-     print*, '** banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,iJac),iJac=iJac1,iJac2); end do
-    endif
+    end select  ! (option to solve the linear system A.X=B)
 
-   ! check that we found a valid option (should not get here because of the check above; included for completeness)
-   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+   ! check found a valid scaling option
+   case default; err=20; message=trim(message)//'unable to identify option for the type scaling'
 
-  end select  ! (option to solve the linear system A.X=B)
+  end select  ! (option for type of scaling)
+
+  ! -----
+  ! * testing... 
+  ! ------------
+
+  ! print the Jacobian
+  if(printFlag)then
+   if(ixSolve==ixFullMatrix)then
+    print*, '** analytical Jacobian (scaled):'
+    write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+    do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJacScaled(iJac1:iJac2,iLayer); end do
+   else
+    print*, '** banded analytical Jacobian (scaled):'
+    write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+    do iLayer=kl+1,nBands+kl; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,iJac),iJac=iJac1,iJac2); end do
+   endif
+  endif
+
+  ! print the scaling factors
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.5,1x))') 'rowScale = ', rowScale(iJac1:iJac2)
+   write(*,'(a,1x,10(e17.5,1x))') 'colScale = ', colScale(iJac1:iJac2)
+  endif
+
+  ! * test band diagonal matrix
+  if(testBandDiagonal)then
+   aJac_test(:,:)=0._dp
+   ! form band-diagonal matrix
+   do iState=1,nState
+    do jState=max(1,iState-ku),min(nState,iState+kl)
+     aJac_test(kl + ku + 1 + jState - iState, iState) = aJacScaled(jState,iState)
+    end do
+   end do
+   print*, '** test banded analytical Jacobian:'
+   write(*,'(a4,1x,100(i11,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   do iLayer=kl+1,nBands+kl; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
+  endif  ! if testing the band diagonal matrix
+  !print*, 'PAUSE: test scaling'; read(*,*)
+
+  ! check
+  if(.not.rowEquil) stop 'expect to equilibrate the rows'
 
   end subroutine scaleMatrices
 
@@ -2660,6 +2753,8 @@ contains
   character(*),intent(out)       :: message       ! error message
   ! local
   character(len=256)             :: cmessage                ! error message of downwind routine
+  real(dp),parameter             :: one=1._dp
+  real(dp)                       :: cScale
   ! initialize error control
   message='computeGradient/'
 
@@ -2672,44 +2767,28 @@ contains
     ! full Jacobian matrix
     case(ixFullMatrix)
   
-     ! scale the columns by the variable scaling factors
-     do iJac=1,nState
-      aJacScaled(1:nState,iJac) = aJacScaled(1:nState,iJac)*xscale(iJac)
-     end do
-
      ! compute the scaled gradient
-     gradScaled = matmul(rVecScaled,aJacScaled)         ! gradient
+     gradScaled = matmul(rVecScaled/xScale, aJacScaled)         ! gradient
 
     ! band-diagonal matrix
     case(ixBandMatrix)
 
-     ! scale the columns by the variable scaling factor
-     do iJac=1,nState       ! (loop through model state variables)
-      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-       kState = iState + iJac - 2*kl - 1
-       jState = ixDiag - kState + iJac
-       if(kState<1 .or. jState<kl+1 .or. kState>nState)cycle
-       !write(*,'(a,1x,10(i4,1x))') 'iJac, iState, jState, kState = ', iJac, iState, jState, kState
-       aJacScaled(jState,kState) = aJacScaled(jState,kState)*xScale(kState)
-      end do
-     end do  ! looping through state variables
-
      ! compute the scaled gradient
-     do iJac=1,nState  ! (loop through state variables)
-
-      gradScaled(iJac) = 0._dp
-      do iState=kl+1,nBands  ! (loop through elements of the band-diagonal matrix)
-
-       ! identify indices in the band-diagonal matrix
-       kState = iJac + iState-2*kl
-       if(kState < 1 .or. kState > nState)cycle
-       !write(*,'(a,1x,3(i4,1x))') 'iJac, iState, kState = ', iJac, iState, kState
-
-       ! calculate gradient (long-hand matrix multiplication)
-       gradScaled(iJac) = gradScaled(iJac) + aJacScaled(iState,iJac)*rVecScaled(kState)
-
-      end do  ! looping through elements of the band-diagonal matric
-     end do  ! looping through state variables
+     gradScaled(:) = 0._dp
+     if(colEquil)then
+      do iJac=1,nState  ! (loop through state variables)
+       cScale=one/colScale(iJac)  ! remove column scaling
+       do iState=max(1,iJac-ku),min(nState,iJac+kl)
+        gradScaled(iJac) = gradScaled(iJac) + cScale*aJacScaled(kl+ku+1+iState-iJac,iJac)*rVecScaled(iState)/xScale(iState)
+       end do
+      end do
+     else
+      do iJac=1,nState  ! (loop through state variables)
+       do iState=max(1,iJac-ku),min(nState,iJac+kl)
+        gradScaled(iJac) = gradScaled(iJac) + aJacScaled(kl+ku+1+iState-iJac,iJac)*rVecScaled(iState)/xScale(iState)
+       end do
+      end do
+     endif
 
     ! check that we found a valid option
     case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
@@ -2717,7 +2796,8 @@ contains
    end select  ! (option to solve the linear system A.X=B)
 
    if(printFlag)then
-    write(*,'(a,1x,10(e17.10,1x))') 'gradScaled = ', gradScaled(iJac1:iJac2)
+    write(*,'(a,1x,10(e17.10,1x))') 'gradScaled = ', gradScaled!(iJac1:iJac2)
+    !print*, 'PAUSE: test gradient'; read(*,*)
    endif
 
    ! re-scale
@@ -2754,27 +2834,27 @@ contains
 
    ! lapack: use the full Jacobian matrix to solve the linear system A.X=B
    case(ixFullMatrix)
-    call dgesv(nState, &  ! intent(in):    [i4b]               number of state variables
-               nRHS,   &  ! intent(in):    [i4b]               number of columns of the matrix B
-               aJac,   &  ! intent(inout): [dp(nState,nState)] input = the nState-by-nState Jacobian matrix A; output = decomposed matrix
-               nState, &  ! intent(in):    [i4b]               the leading dimension of aJac
-               iPiv,   &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
-               rhs,    &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
-               nState, &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
-               err)       ! intent(out)    [i4b]               error code
+    call dgesv(nState,    &  ! intent(in):    [i4b]               number of state variables
+               nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
+               aJac,      &  ! intent(inout): [dp(nState,nState)] input = the nState-by-nState Jacobian matrix A; output = decomposed matrix
+               nState,    &  ! intent(in):    [i4b]               the leading dimension of aJac
+               iPiv,      &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
+               rhs,       &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
+               nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
+               err)          ! intent(out)    [i4b]               error code
 
    ! lapack: use the band diagonal matrix to solve the linear system A.X=B
    case(ixBandMatrix)
-    call dgbsv(nState, &  ! intent(in):    [i4b]               number of state variables
-               kl,     &  ! intent(in):    [i4b]               number of subdiagonals within the band of A
-               ku,     &  ! intent(in):    [i4b]               number of superdiagonals within the band of A
-               nRHS,   &  ! intent(in):    [i4b]               number of columns of the matrix B
-               aJac,   &  ! intent(inout): [dp(nBands,nState)] input = the nBands-by-nState Jacobian matrix A; output = decomposed matrix
-               nBands, &  ! intent(in):    [i4b]               the leading dimension of aJac
-               iPiv,   &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
-               rhs,    &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
-               nState, &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
-               err)       ! intent(out)    [i4b]               error code
+    call dgbsv(nState,    &  ! intent(in):    [i4b]               number of state variables
+               kl,        &  ! intent(in):    [i4b]               number of subdiagonals within the band of A
+               ku,        &  ! intent(in):    [i4b]               number of superdiagonals within the band of A
+               nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
+               aJac,      &  ! intent(inout): [dp(nBands,nState)] input = the nBands-by-nState Jacobian matrix A; output = decomposed matrix
+               nBands+kl, &  ! intent(in):    [i4b]               the leading dimension of aJac
+               iPiv,      &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
+               rhs,       &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
+               nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs
+               err)          ! intent(out)    [i4b]               error code
 
    ! check that we found a valid option (should not get here because of the check above; included for completeness)
    case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
@@ -2903,7 +2983,7 @@ contains
 
    ! scale the residual vector
    ! NOTE: the residual vector is in quadruple precision
-   rVecScaled(1:nState) = real(rVec(1:nState), dp)*fScale(1:nState)   ! NOTE: residual vector is in quadruple precision
+   if(rowEquil) rVecScaled(1:nState) = real(rVec(1:nState), dp)*rowScale(1:nState)   ! NOTE: residual vector is in quadruple precision
 
    ! compute the function evaluation
    f=0.5_dp*dot_product(rVecScaled, rVecScaled)
@@ -2911,7 +2991,7 @@ contains
    ! check
    if(printFlag)then
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': f = ', f
-    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': fScale(iJac1:iJac2)       = ', fScale(iJac1:iJac2) 
+    write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rowScale(iJac1:iJac2)     = ', rowScale(iJac1:iJac2) 
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVec(iJac1:iJac2)         = ', rVec(iJac1:iJac2)
     write(*,'(a,1x,100(e17.5,1x))')  trim(message)//': rVecScaled(iJac1:iJac2)   = ', rVecScaled(iJac1:iJac2)
    endif
