@@ -325,7 +325,7 @@ contains
  integer(i4b),allocatable        :: iPiv(:)                      ! defines if row i of the matrix was interchanged with row iPiv(i)
  integer(i4b),parameter          :: ix_enthalpy=1001             ! energy formulation = enthalpy
  integer(i4b),parameter          :: ix_temperature=1002          ! energy formulation = temperature
- integer(i4b),parameter          :: nrgFormulation=ix_temperature   ! decision for the energy formulation (enthalpy or temperature)
+ integer(i4b),parameter          :: nrgFormulation=ix_enthalpy   ! decision for the energy formulation (enthalpy or temperature)
  integer(i4b),parameter          :: ix_userDefined=1001          ! function scaling = user defined
  integer(i4b),parameter          :: ix_diagonal=1002             ! function scaling = diagonal
  integer(i4b),parameter          :: funcScaling=ix_userDefined   ! decision for the function scaling
@@ -343,12 +343,13 @@ contains
  real(dp),parameter              :: absConvTol_watbal=1.e-8_dp   ! convergence tolerance for soil water balance (m)
  real(dp),parameter              :: stepMax=1._dp                ! maximum step size (K, m, -)
  real(dp)                        :: stpmax                       ! scaled maximum step size
- real(dp),parameter              :: fScaleCanopyMass=100._dp     ! func eval: characteristic scale for canopy mass (kg m-2)
+ real(dp),parameter              :: fScaleCanopyMass=1._dp       ! func eval: characteristic scale for canopy mass (kg m-2)
  real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
  real(dp),parameter              :: fScaleNrg=1000000._dp        ! func eval: characteristic scale for energy (J m-3)
  real(dp),parameter              :: xScaleCanopyMass=1._dp       ! state var: characteristic scale for canopy mass (kg m-2)
+ real(dp),parameter              :: xScaleNrg=1000000._dp        ! state var: characteristic scale for energy (J m-3)
  real(dp),parameter              :: xScaleLiq=0.01_dp            ! state var: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: xScaleMat=1._dp              ! state var: characteristic scale for matric head (m)
+ real(dp),parameter              :: xScaleMat=10._dp             ! state var: characteristic scale for matric head (m)
  real(dp),parameter              :: xScaleTemp=1._dp             ! state var: characteristic scale for temperature (K)
  logical(lgt)                    :: converged                    ! convergence flag
  ! ------------------------------------------------------------------------------------------------------
@@ -692,13 +693,28 @@ contains
 
  ! define scaling for the state vector -- vegetation
  if(computeVegFlux)then
-  xScale(ixCasNrg) = xScaleTemp   ! (K)
-  xScale(ixVegNrg) = xScaleTemp   ! (K)
+  ! (energy)
+  select case(nrgFormulation)
+   case(ix_temperature)
+    xScale(ixCasNrg) = xScaleTemp   ! (K)
+    xScale(ixVegNrg) = xScaleTemp   ! (K)
+   case(ix_enthalpy)
+    xScale(ixCasNrg) = xScaleNrg    ! (J m-3)
+    xScale(ixVegNrg) = xScaleNrg    ! (J m-3)
+   case default; err=20; message=trim(message)//'unable to identify energy formulation'; return
+  end select
+  ! (mass)
   xScale(ixVegWat) = xScaleCanopyMass  ! (kg m-2)
  endif
 
- ! define the scaling for the function evaluation -- snow and soil
- xScale(ixSnowSoilNrg) = xScaleTemp  ! (K)
+ ! define the scaling for the state vector -- snow and soil
+ ! (energy)
+ select case(nrgFormulation)
+  case(ix_temperature); xScale(ixSnowSoilNrg) = xScaleTemp   ! (K)
+  case(ix_enthalpy);    xScale(ixSnowSoilNrg) = xScaleNrg    ! (J m-3)
+  case default; err=20; message=trim(message)//'unable to identify energy formulation'; return
+ end select
+ ! (mass)
  if(nSnow>0) xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
  xScale(ixSoilOnlyMat) = xScaleMat   ! (m)
 
@@ -800,8 +816,11 @@ contains
 
   ! use the lapack routines to solve the linear system A.X=B
   ! NOTE: use the units of the state variable
-  call lapackSolv(aJacScaled,-rVecScaled*xScale,xInc,err,cmessage)
+  call lapackSolv(aJacScaled,-rVecScaled,xInc,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! transform the solution vector to a solution of the original system
+  xInc(:) = xInc(:)*xScale(:)
 
   ! if enthalpy, then need to convert the iteration increment to temperature
   if(nrgFormulation==ix_enthalpy)then
