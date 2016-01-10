@@ -2797,13 +2797,14 @@ contains
   end select  ! (option to solve the linear system A.X=B)
 
   ! identify any errors
+  ! NOTE: return negative error code to force a time step reduction and another trial
   if(err/=0)then
    if(err<0)then
     write(message,'(a,i0,a)') trim(message)//'the ',err,'-th argument had an illegal value'
-    err=abs(err); return
+    err=-20; return
    else
     write(message,'(a,i0,a,i0,a)') trim(message)//'U(',err,',',err,') is exactly zero - factorization complete, but U is singular so the solution could not be completed'
-    return
+    err=-20; return
    endif
   endif
 
