@@ -111,16 +111,16 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
 
  ! read gru_id from netcdf file
- err = nf90_inq_varid(ncid, "gru_id", varid)
+ err = nf90_inq_varid(ncid, "gruId", varid)
  err = nf90_get_var(ncid,varid,gru_id)
 
  ! read the HRU to GRU mapping
  ! (get the variable id)
- err = nf90_inq_varid(ncid, "hru2gru_id", varid)
- if(err/=0)then; message=trim(message)//'problem inquiring hru2gru_id'; return; endif
+ err = nf90_inq_varid(ncid, "hru2gruId", varid)
+ if(err/=0)then; message=trim(message)//'problem inquiring hru2gruId'; return; endif
  ! (read the data)
  err = nf90_get_var(ncid,varid,hru2gru_id)
- if(err/=0)then; message=trim(message)//'problem reading hru2gru_id'; return; endif
+ if(err/=0)then; message=trim(message)//'problem reading hru2gruId'; return; endif
 
  ! allocate mapping array
  do iGRU=1,nGRU

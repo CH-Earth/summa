@@ -143,20 +143,20 @@ contains
  ! **********************************************************************************************
 
  ! read gru_id from netcdf file
- err = nf90_inq_varid(ncid, "gru_id", varid)
- if(err/=0)then; message=trim(message)//'problem inquiring gru_id'; return; endif
+ err = nf90_inq_varid(ncid, "gruId", varid)
+ if(err/=0)then; message=trim(message)//'problem inquiring gruId'; return; endif
  err = nf90_get_var(ncid,varid,gru_id)
- if(err/=0)then; message=trim(message)//'problem reading gru_id'; return; endif
+ if(err/=0)then; message=trim(message)//'problem reading gruId'; return; endif
  ! read hruIndex from netcdf file
- err = nf90_inq_varid(ncid, "hru_id", varid)
- if(err/=0)then; message=trim(message)//'problem inquiring hru_id'; return; endif
+ err = nf90_inq_varid(ncid, "hruId", varid)
+ if(err/=0)then; message=trim(message)//'problem inquiring hruId'; return; endif
  err = nf90_get_var(ncid,varid,hru_id)
- if(err/=0)then; message=trim(message)//'problem reading hru_id'; return; endif
+ if(err/=0)then; message=trim(message)//'problem reading hruId'; return; endif
  ! read hru2gru_id from netcdf file
- err = nf90_inq_varid(ncid, "hru2gru_id", varid)
- if(err/=0)then; message=trim(message)//'problem inquiring hru2gru_id'; return; endif
+ err = nf90_inq_varid(ncid, "hru2gruId", varid)
+ if(err/=0)then; message=trim(message)//'problem inquiring hru2gruId'; return; endif
  err = nf90_get_var(ncid,varid,hru2gru_id)
- if(err/=0)then; message=trim(message)//'problem reading hru2gru_id'; return; endif
+ if(err/=0)then; message=trim(message)//'problem reading hru2gruId'; return; endif
 
  ! defining the indexes for the GRUs and HRUs
  gru_ix = arth(1,1,nGRU)
@@ -212,9 +212,9 @@ contains
   ! find attribute name
   select case(trim(var_name))
    ! categorical data
-   case('hru_id','vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
+   case('hruId','vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
     varType(iAtt) = categorical
-    if(trim(var_name) == "hru_id") then
+    if(trim(var_name) == "hruId") then
      varIndx(iAtt) = get_ixType("hruIndex")
     else
      varIndx(iAtt) = get_ixType(var_name)
@@ -263,7 +263,7 @@ contains
     end do
     iAtt = iAtt + 1
    !for mapping varibles, do nothing
-   case('hru2gru_id','gru_id')
+   case('hru2gruId','gruId')
    ! check that variables are what we expect
    case default
     message=trim(message)//'unknown variable ['//trim(var_name)//'] in local attributes file'
