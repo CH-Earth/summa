@@ -171,7 +171,7 @@ contains
  !endif
  ! ensure solar radiation is zero between sunset and sunrise
  ! NOTE: also ensure that sw radiation is positive
- if(cosZenith <= 0._dp .or. SWRadAtm < 0._dp) SWRadAtm = 0._dp
+ if(SWRadAtm < 0._dp) SWRadAtm = 0._dp
  ! compute the fraction of direct radiation using the parameterization of Nijssen and Lettenmaier (1999)
  if(cosZenith > 0._dp)then
   scalarFractionDirect = Frad_direct*cosZenith/(cosZenith + directScale)
