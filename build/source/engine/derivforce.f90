@@ -160,18 +160,9 @@ contains
                  slope,azimuth,latitude, &  ! intent(in): location variables
                  hri,cosZenith)             ! intent(out): cosine of the solar zenith angle
  !write(*,'(a,1x,4(i2,1x),3(f9.3,1x))') 'im,id,ih,imin,ahour,dataStep,cosZenith = ', &
- !                                       im,id,ih,imin,ahour,dataStep,cosZenith
- ! check that we don't have considerable shortwave when the zenith angle is low
- ! NOTE: this is likely because the data are not in local time
- !if(cosZenith < epsilon(cosZenith) .and. SWRadAtm > 200._dp)then
- ! message=trim(message)//'SWRadAtm > 200 W m-2 when cos zenith angle is zero -- check that forcing data are in local time, '//&
- !                        'that the time stamp in forcing data is at the end of the data interval, and that the lat-lon '//&
- !                        'in the site characteristix file is correct'
- ! err=20; return
- !endif
- ! ensure solar radiation is zero between sunset and sunrise
- ! NOTE: also ensure that sw radiation is positive
- if(cosZenith <= 0._dp .or. SWRadAtm < 0._dp) SWRadAtm = 0._dp
+ 
+ ! ensure solar radiation is non-negative
+ if(SWRadAtm < 0._dp) SWRadAtm = 0._dp
  ! compute the fraction of direct radiation using the parameterization of Nijssen and Lettenmaier (1999)
  if(cosZenith > 0._dp)then
   scalarFractionDirect = Frad_direct*cosZenith/(cosZenith + directScale)
