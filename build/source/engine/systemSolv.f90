@@ -1452,15 +1452,11 @@ contains
   ! compute energy associated with melt/freeze for soil
   rAdd(ixSoilOnlyNrg) = rAdd(ixSoilOnlyNrg) + LH_fus*iden_water*(mLayerVolFracIceLocal(nSnow+1:nLayers) - mLayerVolFracIce(nSnow+1:nLayers))     ! energy associated with melt/freeze (J m-3)
 
-  ! sink terms (-)
+  ! sink terms for water (-)
   ! NOTE: state variable is volumetric water content, so melt-freeze is not included
   ! NOTE: ground evaporation was already included in the flux at the upper boundary
+  ! NOTE: rAdd(ixSnowOnlyWat)=0, and is defined in the initialization above
   rAdd(ixSoilOnlyMat)    = rAdd(ixSoilOnlyMat) + dt*(mLayerTranspire(1:nSoil) - mLayerBaseflow(1:nSoil) )/mLayerDepth(nSnow+1:nLayers) - mLayerCompress(1:nSoil)
-
-  ! liquid water equivalent of melt/freeze for snow layers (-)
-  ! NOTE: state equation for soil is based on the total equivalent liquid water content (liquid plus ice)
-  if(nSnow>0)&
-  rAdd(ixSnowOnlyWat) = rAdd(ixSnowOnlyWat) ! included for clarity 
 
   ! compute the residual vector for the vegetation canopy
   ! NOTE: sMul(ixVegWat) = 1, but include as it converts all variables to quadruple precision
@@ -2490,9 +2486,10 @@ contains
       end do
      end do
      print*, '** test banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2); end do
-     !print*, 'press any key to continue'; read(*,*)
+     write(*,'(a4,1x,100(i11,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=kl+1,nBands
+      write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2)
+     end do
 
     endif  ! (if desire to test band-diagonal matric
 
@@ -2509,8 +2506,10 @@ contains
     ! check
     if(printFlag)then
      print*, '** banded analytical Jacobian:'
-     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-     do iLayer=kl+1,nBands; write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,iJac),iJac=iJac1,iJac2); end do
+     write(*,'(a4,1x,100(i11,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=kl+1,nBands
+      write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,iJac),iJac=iJac1,iJac2)
+     end do
     endif
 
   end select  ! (option to solve the linear system A.X=B)

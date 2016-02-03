@@ -382,7 +382,9 @@ do istep=1,numtim
  end do  ! (end looping through HRUs)
 
  ! print progress
- if(time_data%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') time_data%var
+ if(globalPrintFlag)then
+  if(time_data%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') time_data%var
+ endif
 
  ! *****************************************************************************
  ! (7) create a new NetCDF output file, and write parameters and forcing data

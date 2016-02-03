@@ -1125,8 +1125,17 @@ contains
  real(dp)                      :: dK_dLiq__noIce            ! derivative in hydraulic conductivity w.r.t volumetric liquid water content, in the absence of ice (m s-1)
  real(dp)                      :: dK_dPsi__noIce            ! derivative in hydraulic conductivity w.r.t matric head, in the absence of ice (s-1)
  real(dp)                      :: relSatMP                  ! relative saturation of macropores (-)
+ ! local variables to test the derivative
  logical(lgt),parameter        :: testDeriv=.false.         ! local flag to test the derivative
- real(dp)                      :: xConst,vTheta,volLiq,volIce,x1,x2,effSat,psiLiq,hydCon,hydIce   ! test derivative
+ real(dp)                      :: xConst                    ! LH_fus/(gravity*Tfreeze), used in freezing point depression equation (m K-1)
+ real(dp)                      :: vTheta                    ! volumetric fraction of total water (-)
+ real(dp)                      :: volLiq                    ! volumetric fraction of liquid water (-)
+ real(dp)                      :: volIce                    ! volumetric fraction of ice (-)
+ real(dp)                      :: volFracLiq1,volFracLiq2   ! different trial values of volumetric liquid water content (-)
+ real(dp)                      :: effSat                    ! effective saturation (-)
+ real(dp)                      :: psiLiq                    ! liquid water matric potential (m)
+ real(dp)                      :: hydCon                    ! hydraulic conductivity (m s-1)
+ real(dp)                      :: hydIce                    ! hydraulic conductivity after accounting for ice impedance (-)
  real(dp),parameter            :: dx = 1.e-8_dp             ! finite difference increment (m)
  ! initialize error control
  err=0; message="diagv_node/"
@@ -1141,9 +1150,9 @@ contains
    scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    scalardPsi_dTheta = dPsi_dTheta(scalarvolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    if(testDeriv)then
-    x1 = volFracLiq(scalarMatricHeadTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    x2 = volFracLiq(scalarMatricHeadTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    print*, 'scalardTheta_dPsi = ', scalardTheta_dPsi, (x2 - x1)/dx
+    volFracLiq1 = volFracLiq(scalarMatricHeadTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    volFracLiq2 = volFracLiq(scalarMatricHeadTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    print*, 'scalardTheta_dPsi = ', scalardTheta_dPsi, (volFracLiq2 - volFracLiq1)/dx
    endif  ! (testing the derivative)
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  end select
@@ -1223,7 +1232,7 @@ contains
      vTheta = scalarVolFracIceTrial + scalarVolFracLiqTrial
      volLiq = volFracLiq(xConst*(scalarTempTrial+dx - Tfreeze),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      volIce = vTheta - volLiq
-     effSat = (volLiq - theta_res) / (theta_sat - volIce - theta_res)
+     effSat = (volLiq - theta_res)/(theta_sat - volIce - theta_res)
      psiLiq = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! use effective saturation, so theta_res=0 and theta_sat=1
      hydCon = hydCond_psi(psiLiq,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
      call iceImpede(volIce,f_impede,iceImpedeFac,dIceImpede_dLiq)
