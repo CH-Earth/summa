@@ -99,7 +99,6 @@ contains
  real(dp),parameter                   :: F_inc = 1.25_dp        ! factor used to increase time step
  real(dp),parameter                   :: F_dec = 0.90_dp        ! factor used to decrease time step
  integer(i4b)                         :: maxiter                ! maxiumum number of iterations
- integer(i4b)                         :: iSnow                  ! index for snow layers
  ! check SWE
  real(dp)                             :: oldSWE                 ! SWE at the start of the substep
  real(dp)                             :: newSWE                 ! SWE at the end of the substep
@@ -114,7 +113,6 @@ contains
  character(len=256)                   :: cmessage               ! error message
  logical(lgt)                         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
- real(dp)                             :: scalarCanopyWater      ! total canopy water (kg m-2)
  real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
  real(dp)                             :: dt_wght                ! weight applied to each sub-step, to compute time step average
@@ -132,6 +130,7 @@ contains
  integer(i4b)                         :: nTemp                  ! number of temporary sub-steps
  integer(i4b)                         :: nTrial                 ! number of trial sub-steps
  logical(lgt)                         :: rejectedStep           ! flag to denote if the sub-step is rejected (convergence problem, etc.)
+ logical(lgt),parameter               :: checkTimeStepping=.false.  ! flag to denote a desire to check the time stepping 
  ! balance checks
  real(dp),pointer                     :: scalarSnowfall         ! snowfall rate
  real(dp),pointer                     :: scalarRainfall         ! rainfall rate
@@ -613,6 +612,7 @@ contains
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    !print*, 'after solv: mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt = ', mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt
+   !write(*,'(a,1x,f12.5,1x,i5)') 'dt_temp, niter = ', dt_temp, niter
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then
@@ -749,11 +749,13 @@ contains
    dt_wght = dt_temp/dt ! define weight applied to each sub-step
    call increment_fluxes(dt_wght,(nsub==1 .and. ntemp==1))
 
-   !dt_prog = dt_done+dt_solv+dt_temp  ! progress in time step (s)
-   !dt_frac = dt_prog/dt               ! fraction of time step completed (-)
-   !write(*,'(a,1x,3(f9.3,1x),10(e20.10,1x))') 'dt_wght, dt_prog, dt_frac, totalSoilCompress, dt_prog*averageSoilInflux/dt_frac, scalarSoilCompress, scalarSoilInflux*dt_temp = ', &
-   !                                            dt_wght, dt_prog, dt_frac, totalSoilCompress, dt_prog*averageSoilInflux/dt_frac, scalarSoilCompress, mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp
-   !pause
+   ! check time stepping
+   if(checkTimestepping)then
+    dt_prog = dt_done+dt_solv+dt_temp  ! progress in time step (s)
+    dt_frac = dt_prog/dt               ! fraction of time step completed (-)
+    write(*,'(a,1x,3(f9.3,1x),10(e20.10,1x))') 'dt_wght, dt_prog, dt_frac = ', &
+                                                dt_wght, dt_prog, dt_frac
+   endif
 
    ! compute effective rainfall input and snowpack drainage to/from the snowpack (kg m-2 s-1)
    if(nSnow > 0)then
@@ -1181,7 +1183,6 @@ contains
  character(len=256),parameter    :: filepref='summaRestart'  ! prefix for the restart filename
  character(len=256)              :: timeString          ! string to define the time
  character(len=256)              :: filename            ! name of the restart file
- character(len=256)              :: cmessage            ! error message of downstream routine
  integer(i4b)                    :: iLayer              ! index of the model layer
  real(dp),parameter              :: valueMissing=-999._dp  ! missing value
  ! --------------------------------------------------------------------------------------------------------

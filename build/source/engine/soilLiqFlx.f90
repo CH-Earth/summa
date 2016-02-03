@@ -178,7 +178,6 @@ contains
                         ! input: model decisions
                         model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,          & ! intent(in): index of the method used to calculate flux derivatives
                         model_decisions(iLookDECISIONS%f_Richards)%iDecision,          & ! intent(in): index of the form of Richards' equation
-                        model_decisions(iLookDECISIONS%hc_Profile)%iDecision,          & ! intent(in): index of the option for the hydraulic conductivity profile
                         model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,          & ! intent(in): index of the upper boundary conditions for soil hydrology
                         model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,          & ! intent(in): index of the lower boundary conditions for soil hydrology
 
@@ -219,13 +218,10 @@ contains
                         mpar_data%var(iLookPARAM%theta_sat),                           & ! intent(in): soil porosity (-)
                         mpar_data%var(iLookPARAM%theta_res),                           & ! intent(in): soil residual volumetric water content (-)
                         mpar_data%var(iLookPARAM%wettingFrontSuction),                 & ! intent(in): Green-Ampt wetting front suction (m)
-                        mpar_data%var(iLookPARAM%fieldCapacity),                       & ! intent(in): field capacity (-)
                         mpar_data%var(iLookPARAM%rootingDepth),                        & ! intent(in): rooting depth (m)
                         mpar_data%var(iLookPARAM%kAnisotropic),                        & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                         mpar_data%var(iLookPARAM%zScale_TOPMODEL),                     & ! intent(in): TOPMODEL scaling factor (m)
                         mpar_data%var(iLookPARAM%qSurfScale),                          & ! intent(in): scaling factor in the surface runoff parameterization (-)
-                        mpar_data%var(iLookPARAM%specificYield),                       & ! intent(in): specific yield (-)
-                        mpar_data%var(iLookPARAM%specificStorage),                     & ! intent(in): specific storage coefficient (m-1)
                         mpar_data%var(iLookPARAM%f_impede),                            & ! intent(in): ice impedence factor (-)
                         mpar_data%var(iLookPARAM%soilIceScale),                        & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
                         mpar_data%var(iLookPARAM%soilIceCV),                           & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
@@ -290,7 +286,6 @@ contains
                               ! model decisions
                               ixDerivMethod,               & ! intent(in): choice of method used to compute derivative
                               ixRichards,                  & ! intent(in): choice of the form of Richards' equation
-                              hc_Profile,                  & ! intent(in): index defining the option for the hydraulic conductivity profile
                               ixBcUpperSoilHydrology,      & ! intent(in): choice of upper boundary condition for soil hydrology
                               ixBcLowerSoilHydrology,      & ! intent(in): choice of lower boundary condition for soil hydrology
 
@@ -331,13 +326,10 @@ contains
                               theta_sat,                   & ! intent(in): soil porosity (-)
                               theta_res,                   & ! intent(in): soil residual volumetric water content (-)
                               wettingFrontSuction,         & ! intent(in): Green-Ampt wetting front suction (m)
-                              fieldCapacity,               & ! intent(in): field capacity (-)
                               rootingDepth,                & ! intent(in): rooting depth (m)
                               kAnisotropic,                & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                               zScale_TOPMODEL,             & ! intent(in): TOPMODEL scaling factor (m)
                               qSurfScale,                  & ! intent(in): scaling factor in the surface runoff parameterization (-)
-                              specificYield,               & ! intent(in): specific yield (-)
-                              specificStorage,             & ! intent(in): specific storage coefficient (m-1)
                               f_impede,                    & ! intent(in): ice impedence factor (-)
                               soilIceScale,                & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
                               soilIceCV,                   & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
@@ -397,7 +389,6 @@ contains
  ! input: model decisions
  integer(i4b),intent(in)          :: ixDerivMethod                ! choice of method used to compute derivative
  integer(i4b),intent(in)          :: ixRichards                   ! choice of the form of Richards' equation
- integer(i4b),intent(in)          :: hc_profile                   ! choice of type of hydraulic conductivity profile
  integer(i4b),intent(in)          :: ixBcUpperSoilHydrology       ! choice of upper boundary condition for soil hydrology
  integer(i4b),intent(in)          :: ixBcLowerSoilHydrology       ! choice of lower boundary condition for soil hydrology
  ! input: trial model state variables
@@ -431,13 +422,10 @@ contains
  real(dp),intent(in)              :: theta_sat                    ! soil porosity (-)
  real(dp),intent(in)              :: theta_res                    ! soil residual volumetric water content (-)
  real(dp),intent(in)              :: wettingFrontSuction          ! Green-Ampt wetting front suction (m)
- real(dp),intent(in)              :: fieldCapacity                ! field capacity (-)
  real(dp),intent(in)              :: rootingDepth                 ! rooting depth (m)
  real(dp),intent(in)              :: kAnisotropic                 ! anisotropy factor for lateral hydraulic conductivity (-)
  real(dp),intent(in)              :: zScale_TOPMODEL              ! TOPMODEL scaling factor (m)
  real(dp),intent(in)              :: qSurfScale                   ! scaling factor in the surface runoff parameterization (-)
- real(dp),intent(in)              :: specificYield                ! specific yield (-)
- real(dp),intent(in)              :: specificStorage              ! specific storage coefficient (m-1)
  real(dp),intent(in)              :: f_impede                     ! ice impedence factor (-)
  real(dp),intent(in)              :: soilIceScale                 ! scaling factor for depth of soil ice, used to get frozen fraction (m)
  real(dp),intent(in)              :: soilIceCV                    ! CV of depth of soil ice, used to get frozen fraction (-)
@@ -701,9 +689,6 @@ contains
                   upperBoundTheta,                    & ! intent(in): upper boundary condition (-)
                   ! input: flux at the upper boundary
                   scalarRainPlusMelt,                 & ! intent(in): rain plus melt (m s-1)
-                  ! input: derivative in soil water characteristix
-                  mLayerdPsi_dTheta(1),               & ! intent(in): derivative of the soil moisture characteristic w.r.t. theta (m)
-                  mLayerdTheta_dPsi(1),               & ! intent(in): derivative of the soil moisture characteristic w.r.t. psi (m-1)
                   ! input: transmittance
                   iLayerSatHydCond(0),                & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                   dHydCond_dTemp(1),                  & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -956,7 +941,6 @@ contains
                   ! input: model control
                   desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
                   ixRichards,                      & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
-                  hc_profile,                      & ! intent(in): index defining the decrease of hydraulic conductivity with depth
                   ixBcLowerSoilHydrology,          & ! intent(in): index defining the type of boundary conditions
                   ! input: state variables
                   scalarMatricHeadTrial,           & ! intent(in): matric head in the lowest unsaturated node (m)
@@ -969,7 +953,6 @@ contains
                   lowerBoundTheta,                 & ! intent(in): lower boundary condition (-)
                   ! input: derivative in the soil water characteristic
                   mLayerdPsi_dTheta(nSoil),        & ! intent(in): derivative in the soil water characteristic
-                  mLayerdTheta_dPsi(nSoil),        & ! intent(in): derivative in the soil water characteristic
                   ! input: transmittance
                   iLayerSatHydCond(0),             & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                   iLayerSatHydCond(nSoil),         & ! intent(in): saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
@@ -987,7 +970,6 @@ contains
                   theta_res,                       & ! intent(in): soil residual volumetric water content (-)
                   kAnisotropic,                    & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                   zScale_TOPMODEL,                 & ! intent(in): TOPMODEL scaling factor (m)
-                  specificYield,                   & ! intent(in): specific yield (-)
                   ! output: hydraulic conductivity and diffusivity at the surface
                   iLayerHydCond(nSoil),            & ! intent(out): hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
                   iLayerDiffuse(nSoil),            & ! intent(out): hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
@@ -1143,9 +1125,9 @@ contains
  real(dp)                      :: dK_dLiq__noIce            ! derivative in hydraulic conductivity w.r.t volumetric liquid water content, in the absence of ice (m s-1)
  real(dp)                      :: dK_dPsi__noIce            ! derivative in hydraulic conductivity w.r.t matric head, in the absence of ice (s-1)
  real(dp)                      :: relSatMP                  ! relative saturation of macropores (-)
- !real(dp)                      :: xConst,vTheta,volLiq,volIce,x1,x2,d1,d2,effSat,psiLiq,dEff,dPsi,hydCon,hydIce   ! test derivative
- !real(dp)                      :: x1,x2                     ! trial values of theta (-)
- !real(dp),parameter            :: dx = 1.e-8_dp             ! finite difference increment (m)
+ logical(lgt),parameter        :: testDeriv=.false.         ! local flag to test the derivative
+ real(dp)                      :: xConst,vTheta,volLiq,volIce,x1,x2,effSat,psiLiq,hydCon,hydIce   ! test derivative
+ real(dp),parameter            :: dx = 1.e-8_dp             ! finite difference increment (m)
  ! initialize error control
  err=0; message="diagv_node/"
 
@@ -1157,11 +1139,12 @@ contains
    scalardTheta_dPsi = valueMissing  ! (deliberately cause problems if this is ever used)
   case(mixdform)
    scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   !x1 = volFracLiq(scalarMatricHeadTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   !x2 = volFracLiq(scalarMatricHeadTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   !print*, 'scalardTheta_dPsi = ', scalardTheta_dPsi, (x2 - x1)/dx
-   !scalardPsi_dTheta = valueMissing  ! (deliberately cause problems if this is ever used)
    scalardPsi_dTheta = dPsi_dTheta(scalarvolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   if(testDeriv)then
+    x1 = volFracLiq(scalarMatricHeadTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    x2 = volFracLiq(scalarMatricHeadTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    print*, 'scalardTheta_dPsi = ', scalardTheta_dPsi, (x2 - x1)/dx
+   endif  ! (testing the derivative)
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  end select
 
@@ -1235,19 +1218,21 @@ contains
     ! (compute derivative in hydraulic conductivity w.r.t. temperature)
     dHydCond_dTemp = hydCond_noIce*dIceImpede_dT + dHydCondMicro_dTemp*iceImpedeFac
     ! (test derivative)
-    !xConst = LH_fus/(gravity*Tfreeze)                            ! m K-1 (NOTE: J = kg m2 s-2)
-    !vTheta = scalarVolFracIceTrial + scalarVolFracLiqTrial
-    !volLiq = volFracLiq(xConst*(scalarTempTrial+dx - Tfreeze),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    !volIce = vTheta - volLiq
-    !effSat = (volLiq - theta_res) / (theta_sat - volIce - theta_res)
-    !psiLiq = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! use effective saturation, so theta_res=0 and theta_sat=1
-    !hydCon = hydCond_psi(psiLiq,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
-    !call iceImpede(volIce,f_impede,iceImpedeFac,dIceImpede_dLiq)
-    !hydIce = hydCon*iceImpedeFac
-    !print*, 'test derivative: ', (psiLiq - scalarMatricHeadTrial)/dx, dPsiLiq_dTemp
-    !print*, 'test derivative: ', (hydCon - hydCond_noIce)/dx, dHydCondMicro_dTemp
-    !print*, 'test derivative: ', (hydIce - scalarHydCond)/dx, dHydCond_dTemp
-    !pause
+    if(testDeriv)then
+     xConst = LH_fus/(gravity*Tfreeze)                            ! m K-1 (NOTE: J = kg m2 s-2)
+     vTheta = scalarVolFracIceTrial + scalarVolFracLiqTrial
+     volLiq = volFracLiq(xConst*(scalarTempTrial+dx - Tfreeze),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     volIce = vTheta - volLiq
+     effSat = (volLiq - theta_res) / (theta_sat - volIce - theta_res)
+     psiLiq = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! use effective saturation, so theta_res=0 and theta_sat=1
+     hydCon = hydCond_psi(psiLiq,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
+     call iceImpede(volIce,f_impede,iceImpedeFac,dIceImpede_dLiq)
+     hydIce = hydCon*iceImpedeFac
+     print*, 'test derivative: ', (psiLiq - scalarMatricHeadTrial)/dx, dPsiLiq_dTemp
+     print*, 'test derivative: ', (hydCon - hydCond_noIce)/dx, dHydCondMicro_dTemp
+     print*, 'test derivative: ', (hydIce - scalarHydCond)/dx, dHydCond_dTemp
+     print*, 'press any key to continue'; read(*,*) ! (alternative to the deprecated 'pause' statement)
+    endif  ! testing the derivative
     ! (set values that are not used to missing)
     dHydCond_dVolLiq = valueMissing ! not used, so cause problems
     dDiffuse_dVolLiq = valueMissing ! not used, so cause problems
@@ -1291,9 +1276,6 @@ contains
                        upperBoundTheta,           & ! intent(in): upper boundary condition (-)
                        ! input: flux at the upper boundary
                        scalarRainPlusMelt,        & ! intent(in): rain plus melt (m s-1)
-                       ! input: derivative in soil water characteristix
-                       scalardPsi_dTheta,         & ! intent(in): derivative of the soil moisture characteristic w.r.t. theta (m)
-                       scalardTheta_dPsi,         & ! intent(in): derivative of the soil moisture characteristic w.r.t. psi (m-1)
                        ! input: transmittance
                        surfaceSatHydCond,         & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                        dHydCond_dTemp,            & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -1352,9 +1334,6 @@ contains
  real(dp),intent(in)           :: upperBoundTheta           ! upper boundary condition for volumetric liquid water content (-)
  ! input: flux at the upper boundary
  real(dp),intent(in)           :: scalarRainPlusMelt        ! rain plus melt, used as input to the soil zone before computing surface runoff (m s-1)
- ! input: derivative in soil water characteristix
- real(dp),intent(in)           :: scalardPsi_dTheta         ! derivative of the soil moisture characteristic w.r.t. theta (m)
- real(dp),intent(in)           :: scalardTheta_dPsi         ! derivative of the soil moisture characteristic w.r.t. psi (m-1)
  ! input: transmittance
  real(dp),intent(in)           :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
  real(dp),intent(in)           :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
@@ -1720,7 +1699,6 @@ contains
                        ! input: model control
                        deriv_desired,             & ! intent(in): flag indicating if derivatives are desired
                        ixRichards,                & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
-                       hc_profile,                & ! intent(in): index defining the decrease of hydraulic conductivity with depth
                        bc_lower,                  & ! intent(in): index defining the type of boundary conditions
                        ! input: state variables
                        nodeMatricHead,            & ! intent(in): matric head in the lowest unsaturated node (m)
@@ -1733,7 +1711,6 @@ contains
                        lowerBoundTheta,           & ! intent(in): lower boundary condition (-)
                        ! input: derivative in soil water characteristix
                        node__dPsi_dTheta,         & ! intent(in): derivative of the soil moisture characteristic w.r.t. theta (m)
-                       node__dTheta_dPsi,         & ! intent(in): derivative of the soil moisture characteristic w.r.t. psi (m-1)
                        ! input: transmittance
                        surfaceSatHydCond,         & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                        bottomSatHydCond,          & ! intent(in): saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
@@ -1751,7 +1728,6 @@ contains
                        theta_res,                 & ! intent(in): soil residual volumetric water content (-)
                        kAnisotropic,              & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                        zScale_TOPMODEL,           & ! intent(in): TOPMODEL scaling factor (m)
-                       specificYield,             & ! intent(in): drainable porosity (-)
                        ! output: hydraulic conductivity and diffusivity at the surface
                        bottomHydCond,             & ! intent(out): hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
                        bottomDiffuse,             & ! intent(out): hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
@@ -1773,7 +1749,6 @@ contains
  ! input: model control
  logical(lgt),intent(in)       :: deriv_desired             ! flag to indicate if derivatives are desired
  integer(i4b),intent(in)       :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
- integer(i4b),intent(in)       :: hc_profile                ! index defining the decrease of hydraulic conductivity with depth
  integer(i4b),intent(in)       :: bc_lower                  ! index defining the type of boundary conditions
  ! input: state and diagnostic variables
  real(dp),intent(in)           :: nodeMatricHead            ! matric head in the lowest unsaturated node (m)
@@ -1786,7 +1761,6 @@ contains
  real(dp),intent(in)           :: lowerBoundTheta           ! lower boundary condition for volumetric liquid water content (-)
  ! input: derivative in soil water characteristix
  real(dp),intent(in)           :: node__dPsi_dTheta         ! derivative of the soil moisture characteristic w.r.t. theta (m)
- real(dp),intent(in)           :: node__dTheta_dPsi         ! derivative of the soil moisture characteristic w.r.t. psi (m-1)
  ! input: transmittance
  real(dp),intent(in)           :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
  real(dp),intent(in)           :: bottomSatHydCond          ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
@@ -1804,7 +1778,6 @@ contains
  real(dp),intent(in)           :: theta_res                 ! soil residual volumetric water content (-)
  real(dp),intent(in)           :: kAnisotropic              ! anisotropy factor for lateral hydraulic conductivity (-)
  real(dp),intent(in)           :: zScale_TOPMODEL           ! scale factor for TOPMODEL-ish baseflow parameterization (m)
- real(dp),intent(in)           :: specificYield             ! specific yield (-)
  ! -----------------------------------------------------------------------------------------------------------------------------
  ! output: hydraulic conductivity at the bottom of the unsaturated zone
  real(dp),intent(out)          :: bottomHydCond             ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)

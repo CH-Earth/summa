@@ -106,8 +106,9 @@ contains
  real(dp)                       :: scalarTheta         ! liquid water equivalent of total water [liquid water + ice] (-)
  integer(i4b),pointer           :: scalarLayerType     ! layer type
  real(dp)                       :: scalarPsiLiq        ! liquid water matric potential (m)
- real(dp),pointer               :: scalarVolFracIce    ! volumetric fraction of ice (-)
+ real(dp)                       :: scalarVolFracWat    ! volumetric fraction of total water (-)
  real(dp),pointer               :: scalarVolFracLiq    ! volumetric fraction of liquid water (-)
+ real(dp),pointer               :: scalarVolFracIce    ! volumetric fraction of ice (-)
  real(dp),pointer               :: scalarMatricHead    ! matric head (m)
  real(dp),pointer               :: vGn_alpha           ! van Genutchen "alpha" parameter
  real(dp),pointer               :: vGn_n               ! van Genutchen "n" parameter
@@ -503,6 +504,7 @@ contains
                        ! output
                        scalarVolFracLiq                                        ,& ! intent(out): volumetric fraction of liquid water (-)
                        scalarVolFracIce                                        ,& ! intent(out): volumetric fraction of ice (-)
+                       scalarVolFracWat                                        ,& ! intent(out): volumetric fraction of total water (-)
                        fLiq                                                    ,& ! intent(out): fraction of liquid water (-)
                        err,cmessage)                                              ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
@@ -524,6 +526,7 @@ contains
                     scalarPsiLiq,                              & ! intent(out): liquid water matric potential (m)
                     scalarVolFracLiq,                          & ! intent(out): volumetric fraction of liquid water (-)
                     scalarVolFracIce,                          & ! intent(out): volumetric fraction of ice (-)
+                    scalarVolFracWat,                          & ! intent(out): volumetric fraction of total water (-)
                     err,cmessage)                                ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
    case default; err=10; message=trim(message)//'unknown case for model layer'; return
