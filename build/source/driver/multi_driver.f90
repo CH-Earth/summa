@@ -369,7 +369,7 @@ jstep=1
 do istep=1,numtim
 
  ! set print flag
- globalPrintFlag=.false.
+ globalPrintFlag=.true.
 
  ! read a line of forcing data (if not already opened, open file, and get to the correct place)
  ! NOTE: only read data once: if same data used for multiple HRUs, data is copied across

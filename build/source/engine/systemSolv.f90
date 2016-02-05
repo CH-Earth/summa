@@ -174,14 +174,20 @@ contains
  logical(lgt)                    :: pauseProgress                ! flag to start looking at things more carefully
  logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
  real(dp)                        :: scalarCanopyWat              ! total canopy water (kg m-2)
+ real(dp)                        :: upperBoundTemp               ! temperature of the upper boundary of the snow and soil domains (K)
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
  ! * model indices
  ! ------------------------------------------------------------------------------------------------------
- integer(i4b),parameter          :: nVegNrg=2                    ! number of energy state variables for vegetation
- integer(i4b),parameter          :: nVegLiq=1                    ! number of hydrology state variables for vegetation
+ integer(i4b)                    :: nVegNrg                      ! number of energy state variables for vegetation
+ integer(i4b)                    :: nVegLiq                      ! number of hydrology state variables for vegetation
  integer(i4b)                    :: nVegState                    ! number of vegetation state variables (defines position of snow-soil states in the state vector)
+ integer(i4b)                    :: nNrgState                    ! number of energy state variables
  integer(i4b)                    :: nState                       ! total number of model state variables
+ integer(i4b),parameter          :: ixNrgState=1001              ! named variable defining the energy state variable
+ integer(i4b),parameter          :: ixLiqState=1002              ! named variable defining the liquid water state variable
+ integer(i4b),parameter          :: ixMatState=1003              ! named variable defining the matric head state variable
+ integer(i4b),parameter          :: ixMassState=1004             ! named variable defining the mass of water (currently only used for the veg canopy)
  integer(i4b),parameter          :: ixCasNrg=1                   ! index of the canopy air space state variable
  integer(i4b),parameter          :: ixVegNrg=2                   ! index of the canopy energy state variable
  integer(i4b),parameter          :: ixVegWat=3                   ! index of the canopy total water state variable
@@ -194,6 +200,11 @@ contains
  integer(i4b),dimension(nSnow)   :: ixSnowOnlyWat                ! indices for total water state variables in the snow subdomain
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyNrg                ! indices for energy state variables in the soil subdomain
  integer(i4b),dimension(nSoil)   :: ixSoilOnlyMat                ! indices for matric head state variables in the soil subdomain
+ integer(i4b),allocatable        :: ixStateType(:)               ! indices defining the type of the state (ixNrg, ixLiq, ixMat)
+ integer(i4b),allocatable        :: ixAllState(:)                ! list of indices for all states
+ integer(i4b),allocatable        :: ixNrgOnly(:)                 ! list of indices for energy states
+ integer(i4b),dimension(nSoil)   :: ixSoilState                  ! list of indices for all soil states
+ integer(i4b),dimension(nLayers) :: ixLayerState                 ! list of indices for all model layers
  integer(i4b),parameter          :: nVarSnowSoil=2               ! number of state variables in the snow and soil domain (energy and liquid water/matric head)
  integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter          :: ku=3                         ! number of super-diagonal bands
@@ -227,9 +238,9 @@ contains
  real(dp)                        :: dTheta_dTkCanopy             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
  real(dp)                        :: dCanLiq_dTcanopy             ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
  ! volumetric liquid water content (need to keep track of this, but not part of the state vector for snow and soil)
- real(dp),dimension(nSnow)       :: mLayerVolFracWat             ! initial value of mass fraction of total water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial value for volumetric fraction of ice (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial        ! trial value for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatInit         ! initial value of mass fraction of total water (-)
  ! energy fluxes and derivatives for the vegetation domain
  real(dp)                        :: canairNetNrgFlux             ! net energy flux for the canopy air space (W m-2)
  real(dp)                        :: canopyNetNrgFlux             ! net energy flux for the vegetation canopy (W m-2)
@@ -370,7 +381,7 @@ contains
  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,&  ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
 
  ! domain boundary conditions
- upperBoundTemp          => forc_data%var(iLookFORCE%airtemp)                      ,&  ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
+ airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,&  ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
  scalarRainfall          => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)         ,&  ! intent(in): [dp] rainfall rate (kg m-2 s-1)
  scalarSfcMeltPond       => mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp] ponded water caused by melt of the "snow without a layer" (kg m-2)
 
@@ -445,6 +456,10 @@ contains
   print*, 'ixSub1, ixSub2, ixSub3         = ', ixSub1, ixSub2, ixSub3
  endif
 
+ ! -----
+ ! * initialize decisions/states and run initial checks...
+ ! -------------------------------------------------------
+
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
  if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
@@ -452,7 +467,7 @@ contains
  else
   ixSolve=ixBandMatrix   ! band-diagonal matrix
  endif
- if(globalPrintFlag) print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
+ if(printFlag) print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
 
  ! check that dx is less that epsT
  if(dx>epsT)then
@@ -469,6 +484,24 @@ contains
  ! define canopy depth (m)
  canopyDepth = heightCanopyTop - heightCanopyBottom
 
+ ! define the temperature of the upper boundary (K)
+ upperBoundTemp = airtemp
+
+ ! define canopy depth (m)
+ canopyDepth = heightCanopyTop - heightCanopyBottom
+
+ ! compute the total water in the vegetation canopy
+ if(computeVegFlux)then
+  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce   ! kg m-2
+ endif
+
+ ! compute the total water in snow
+ if(nSnow>0)&
+  mLayerVolFracWatInit(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
+
+ ! compute the total water in soil
+ mLayerVolFracWatInit(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
+
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
   ! (NOTE: if canopy temperature is below absolute zero then canopy was previously buried by snow)
@@ -484,24 +517,42 @@ contains
   endif  ! (if canopy temperature undefined -- means canopy previously buried with snow)
  endif  ! (if computing vegetation fluxes -- canopy exposed)
 
+ ! -----
+ ! * allocate space for the model state vectors and derivative matrices...
+ ! -----------------------------------------------------------------------
+
  ! define the number of vegetation state variables (defines position of snow-soil states in the state vector)
  if(computeVegFlux)then
+  nVegNrg   = 2
+  nVegLiq   = 1
   nVegState = nVegNrg + nVegLiq
  else
+  nVegNrg   = 0
+  nVegLiq   = 0
   nVegState = 0
  endif
+
+ ! define the number state variables of different type
+ nNrgState = nVegNrg + nLayers  ! number of energy state variables
 
  ! define the number of model state variables
  nState = nVegState + nLayers*nVarSnowSoil   ! *nVarSnowSoil (both energy and liquid water)
 
- ! check indices
- if(iJac1 > nState .or. iJac2 > nState)then
-  err=20; message=trim(message)//'index iJac1 or iJac2 is out of range'; return
- endif
+ ! allocate space for the state type
+ allocate(ixStateType(nState),ixAllState(nState),ixNrgOnly(nNrgState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the state type'; return; endif
 
  ! allocate space for the state vectors
  allocate(stateVecInit(nState),stateVecTrial(nState),stateVecNew(nState),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the state vector'; return; endif
+
+ ! allocate space for the scaling vectors
+ allocate(fScale(nState),xScale(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the scaling vectors'; return; endif
+
+ ! allocate space for the flux vectors and residual vectors
+ allocate(dMat(nState),sMul(nState),rAdd(nState),fluxVec0(nState),grad(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),xInc(nState),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
 
  ! allocate space for the baseflow derivatives
  if(ixGroundwater==qbaseTopmodel)then
@@ -517,22 +568,26 @@ contains
  end select
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the Jacobian matrix'; return; endif
 
+ ! allocate space for the numerical Jacobian matrix
+ if(numericalJacobian)then
+  allocate(fluxVec1(nState),nJac(nState,nState),stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
+ endif  ! if calculating the numerical approximation of the Jacobian matrix
+
  ! allocate space for the band-diagonal matrix that is constructed from the full Jacobian matrix
  if(testBandDiagonal)then
   allocate(aJac_test(nBands,nState),stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
  endif
 
- ! allocate space for the flux vectors and Jacobian matrix
- allocate(dMat(nState),sMul(nState),rAdd(nState),fScale(nState),xScale(nState),fluxVec0(nState),grad(nState),rVec(nState),rhs(nState,nRHS),iPiv(nState),xInc(nState),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution vectors'; return; endif
+ ! -----
+ ! * define indices for the model state variables...
+ ! -------------------------------------------------
 
- ! define variables to calculate the numerical Jacobian matrix
- if(numericalJacobian)then
-  ! (allocate space for the flux vector and Jacobian matrix
-  allocate(fluxVec1(nState),nJac(nState,nState),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
- endif  ! if calculating the numerical approximation of the Jacobian matrix
+ ! check indices
+ if(iJac1 > nState .or. iJac2 > nState)then
+  err=20; message=trim(message)//'index iJac1 or iJac2 is out of range'; return
+ endif
 
  ! define the index of the top layer
  ixTopNrg = nVegState + 1                       ! energy
@@ -551,6 +606,30 @@ contains
   ixSnowOnlyNrg = arth(ixTopNrg,nVarSnowSoil,nSnow)    ! energy
   ixSnowOnlyWat = arth(ixTopLiq,nVarSnowSoil,nSnow)    ! total water
  endif
+
+ ! define the state type for the vegetation canopy
+ if(computeVegFlux)then
+  ixStateType(ixCasNrg) = ixNrgState
+  ixStateType(ixVegNrg) = ixNrgState
+  ixStateType(ixVegWat) = ixMassState
+ endif
+
+ ! define the state type for the snow-soil domain
+ ixStateType(ixSnowSoilNrg) = ixNrgState
+ ixStateType(ixSoilOnlyMat) = ixMatState !ixSoilMassVar(:) ! (can be either ixLiqState or ixMatState)
+ if(nSnow>0) ixStateType(ixSnowOnlyWat) = ixLiqState
+
+ ! define indices for state variables
+ ixAllState   = arth(1,1,nState)
+ ixSoilState  = arth(1,1,nSoil)
+ ixLayerState = arth(1,1,nLayers)
+
+ ! define vector of state variables that are energy only
+ ixNrgOnly = pack(ixAllState,ixStateType==ixNrgState)
+
+ ! -----
+ ! * define components of derivative matrices that are constant over a time step (substep)...
+ ! ------------------------------------------------------------------------------------------
 
  ! define the scaled maximum step size (used in the line search)
  stpmax = stepMax*real(nState,dp)
@@ -583,17 +662,9 @@ contains
  if(nSnow>0)&  ! (liquid water in snow only defined if snow layers exist)
  dMat(ixSnowOnlyWat) = 1._dp
 
- ! initialize
- xInc(:)   = 0._dp  ! iteration increment
-
- ! compute the total water in the vegetation canopy
- if(computeVegFlux)then
-  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce   ! kg m-2
- endif
-
- ! compute the total water in snow
- if(nSnow>0)&
-  mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
+ ! -----
+ ! * define scaling vectors...
+ ! ---------------------------
 
  ! define the scaling for the function evaluation -- vegetation
  if(computeVegFlux)then
@@ -618,6 +689,13 @@ contains
  xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
  xScale(ixSoilOnlyMat) = xScaleMat   ! (m)
 
+ ! -----
+ ! * initialize state vectors...
+ ! -----------------------------
+
+ ! initialize
+ xInc(:)   = 0._dp  ! iteration increment
+
  ! build the state vector for the vegetation canopy
  if(computeVegFlux)then
   stateVecInit(ixCasNrg) = scalarCanairTemp
@@ -629,7 +707,7 @@ contains
  stateVecInit(ixSnowSoilNrg) = mLayerTemp(1:nLayers)
  stateVecInit(ixSoilOnlyMat) = mLayerMatricHead(1:nSoil)
  if(nSnow>0)&
- stateVecInit(ixSnowOnlyWat) = mLayerVolFracWat(1:nSnow)
+ stateVecInit(ixSnowOnlyWat) = mLayerVolFracWatInit(1:nSnow)
 
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
@@ -903,6 +981,7 @@ contains
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
+  !print*, 'PAUSE: iterating'; read(*,*)
 
  end do  ! iterating
  !print*, 'PAUSE: after iterations'; read(*,*)
@@ -999,9 +1078,21 @@ contains
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
 
+ ! deallocate space for the state type
+ deallocate(ixStateType,ixAllState,ixNrgOnly,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state type'; return; endif
+
  ! deallocate space for the state vectors etc.
- deallocate(stateVecInit,stateVecTrial,stateVecNew,dMat,sMul,rAdd,fScale,xScale,fluxVec0,aJac,grad,rVec,rhs,iPiv,xInc,stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state/flux vectors and analytical Jacobian matrix'; return; endif
+ deallocate(stateVecInit,stateVecTrial,stateVecNew,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the state vectors'; return; endif
+
+ ! deallocate space for the scaling vectors
+ deallocate(fScale,xScale,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the scaling vectors'; return; endif
+
+ ! deallocate space for the flux and residual vectors
+ deallocate(dMat,sMul,rAdd,fluxVec0,grad,rVec,rhs,iPiv,xInc,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the flux and residual vectors'; return; endif
 
  ! deallocate space for the baseflow derivatives
  if(ixGroundwater==qbaseTopmodel)then
@@ -1009,15 +1100,20 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
  endif
 
+ ! deallocate space for the Jacobian matrix
+ deallocate(aJac,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the Jacobian matrix'; return; endif
+
  ! deallocate space for the variables used to create the numerical Jacobian matrix
  if(numericalJacobian)then
   deallocate(fluxVec1,nJac,stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the flux vector and numerical Jacobian matrix'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the flux vector and numerical Jacobian matrix'; return; endif
  endif
 
+ ! de allocate space for the band-diagonal matrix that is constructed from the full Jacobian matrix
  if(testBandDiagonal)then
   deallocate(aJac_test,stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the band diagonal matrix'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the band diagonal matrix'; return; endif
  endif
 
  ! end associate statement
@@ -1336,7 +1432,7 @@ contains
 
   ! compute the residual vector for the **snow** sub-domain for liquid water
   if(nSnow>0)&
-  rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(1:nSnow) - ( (mLayerVolFracWat(1:nSnow)  + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
+  rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(1:nSnow) - ( (mLayerVolFracWatInit(1:nSnow)  + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
 
   ! compute the residual vector for the **soil** sub-domain for liquid water
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
@@ -2347,7 +2443,7 @@ contains
      print*, '** test banded analytical Jacobian:'
      write(*,'(a4,1x,100(i11,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
      do iLayer=kl+1,nBands
-      write(*,'(i4,1x,100(e17.10,1x))') iLayer, aJac_test(iLayer,iJac1:iJac2)
+      write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iJac),iJac=iJac1,iJac2)
      end do
 
     endif  ! (if desire to test band-diagonal matric
@@ -2367,7 +2463,7 @@ contains
      print*, '** banded analytical Jacobian:'
      write(*,'(a4,1x,100(i11,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
      do iLayer=kl+1,nBands
-      write(*,'(i4,1x,100(e17.10,1x))') iLayer, aJac(iLayer,iJac1:iJac2)
+      write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,iJac),iJac=iJac1,iJac2)
      end do
     endif
 
