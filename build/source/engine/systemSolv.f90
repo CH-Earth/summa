@@ -176,6 +176,7 @@ contains
  logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
  real(dp)                        :: scalarCanopyWat              ! total canopy water (kg m-2)
  real(dp)                        :: upperBoundTemp               ! temperature of the upper boundary of the snow and soil domains (K)
+ real(dp),parameter              :: tempAccelerate=0.00_dp       ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
  ! * model indices
@@ -229,8 +230,6 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! ice content (need to keep track of this, but not part of the state vector)
  real(dp)                        :: theta                        ! liquid water equivalent of total water (liquid plus ice)
- real(dp)                        :: scalarCanopyLiqTrial         ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial         ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerdTheta_dTk             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
  real(dp),dimension(nSoil)       :: dPsiLiq_dTemp                ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
  real(dp),dimension(nSnow)       :: fracLiqSnow                  ! fraction of liquid water in each snow layer (-)
@@ -238,10 +237,19 @@ contains
  real(dp)                        :: totalWaterVeg                ! total water on vegetation (kg m-2)
  real(dp)                        :: dTheta_dTkCanopy             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
  real(dp)                        :: dCanLiq_dTcanopy             ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
- ! volumetric liquid water content (need to keep track of this, but not part of the state vector for snow and soil)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial value for volumetric fraction of ice (-)
+ ! state variables
+ real(dp)                        :: scalarCanairTempTrial        ! trial value for temperature of the canopy air space (K)
+ real(dp)                        :: scalarCanopyTempTrial        ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyWatTrial         ! trial value for liquid water storage in the canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerTempTrial              ! trial value for temperature of layers in the snow and soil domains (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial        ! trial value for volumetric fraction of total water (-)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial        ! trial value for matric head (m)
+ ! diagnostic variables
+ real(dp)                        :: scalarCanopyLiqTrial         ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                        :: scalarCanopyIceTrial         ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial        ! trial value for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatInit         ! initial value of mass fraction of total water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial value for volumetric fraction of ice (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatInit         ! initial value for volumetric fraction of total water (-)
  ! energy fluxes and derivatives for the vegetation domain
  real(dp)                        :: canairNetNrgFlux             ! net energy flux for the canopy air space (W m-2)
  real(dp)                        :: canopyNetNrgFlux             ! net energy flux for the vegetation canopy (W m-2)
@@ -409,6 +417,9 @@ contains
  heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)              ,&  ! intent(in): [dp] height of the top of the vegetation canopy (m)
  heightCanopyBottom      => mpar_data%var(iLookPARAM%heightCanopyBottom)           ,&  ! intent(in): [dp] height of the bottom of the vegetation canopy (m)
 
+ ! snow parameters
+ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
+
  ! soil parameters
  vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)                    ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
  vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
@@ -444,7 +455,7 @@ contains
  firstFluxCall=.true.
 
  ! set the flag to control printing
- printFlagInit=.false.
+ printFlagInit=.true.
  printFlag=printFlagInit
 
  ! set the flag for pausing
@@ -710,6 +721,10 @@ contains
  if(nSnow>0)&
  stateVecInit(ixSnowOnlyWat) = mLayerVolFracWatInit(1:nSnow)
 
+ ! -----
+ ! * compute the initial function evaluation...
+ ! --------------------------------------------
+
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
 
@@ -718,8 +733,68 @@ contains
   if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
  endif
 
- ! initialize the function variable
- fOld=veryBig  ! initialize to a very big number
+ ! try to accelerate solution for energy
+ if(computeVegFlux)then
+  stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
+  stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
+ endif
+
+ ! initialize canopy variables
+ if(computeVegFlux)then
+  ! (extract state variables)
+  scalarCanairTempTrial = stateVecTrial(ixCasNrg)
+  scalarCanopyTempTrial = stateVecTrial(ixVegNrg)
+  scalarCanopyWatTrial  = stateVecTrial(ixVegWat)                    ! total water storage on the canopy (kg m-2)
+  ! (compute liquid water content)
+  fracLiqVeg    = fracliquid(scalarCanopyTempTrial,snowfrz_scale)    ! fraction of liquid water (-)
+  scalarCanopyLiqTrial = fracLiqVeg*scalarCanopyWatTrial             ! mass of liquid water on the canopy (kg m-2)
+  scalarCanopyIceTrial = (1._dp - fracLiqVeg)*scalarCanopyWatTrial   ! mass of ice on the canopy (kg m-2)
+ else
+  ! (state variables)
+  scalarCanairTempTrial = scalarCanairTemp
+  scalarCanopyTempTrial = scalarCanopyTemp
+  scalarCanopyWatTrial  = scalarCanopyLiq + scalarCanopyIce
+  ! (diagnostic variables)
+  fracLiqVeg            = valueMissing
+  scalarCanopyLiqTrial  = scalarCanopyLiq
+  scalarCanopyIceTrial  = scalarCanopyIce
+ endif
+
+ ! compute the fraction of liquid water in each snow layer
+ do iState=1,nSnow
+  fracLiqSnow(iState) = fracliquid(stateVecTrial(ixSnowOnlyNrg(iState)),snowfrz_scale)  ! fraction of liquid water (-)
+ end do
+
+ ! initialize vector for energy
+ mLayerTempTrial = stateVecTrial(ixSnowSoilNrg)
+
+ ! initialize trial vectors for mass
+ scalarCanopyLiqTrial  = scalarCanopyLiq
+ scalarCanopyIceTrial  = scalarCanopyIce
+ mLayerVolFracLiqTrial = mLayerVolFracLiq
+ mLayerVolFracIceTrial = mLayerVolFracIce
+ mLayerMatricHeadTrial = mLayerMatricHead
+
+ ! -----
+ ! * compute the initial function evaluation...
+ ! --------------------------------------------
+
+ ! compute flux vector and residual
+ call xFluxResid(&
+                 ! input
+                 stateVectrial,         & ! intent(in): full state vector (mixed units)
+                 scalarCanopyLiqTrial,  & ! intent(in): liquid water storage in the canopy (kg m-2)
+                 scalarCanopyIceTrial,  & ! intent(in): ice storage in the canopy (kg m-2)
+                 mLayerVolFracLiqTrial, & ! intent(in): volumetric fraction of liquid water (-)
+                 mLayerVolFracIceTrial, & ! intent(in): volumetric fraction of ice (-)
+                 ! output
+                 fluxVec0,              & ! intent(out): flux vector (mixed units)
+                 rVec,                  & ! intent(out): residual vector (mixed units)
+                 err,cmessage)            ! intent(out): error code and error message
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+ ! compute the function evaluation
+ fOld=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
@@ -740,52 +815,6 @@ contains
    print*, '***'
    write(*,'(a,1x,f10.2,1x,2(i4,1x),l1)') '*** new iteration: dt, iter, nstate, computeVegFlux = ', dt, iter, nstate, computeVegFlux
   endif
-
-  ! -----
-  ! * compute model fluxes and residual
-  !    NOTE: refine residual with line search...
-  ! --------------------------------------------
-  call lineSearch(&
-                  ! input
-                  (iter>1),                & ! intent(in): flag to denote the need to perform line search
-                  stateVecTrial,           & ! intent(in): initial state vector
-                  fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                  grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                  xInc,                    & ! intent(in): iteration increment (mixed units)
-                  ! output
-                  stateVecNew,             & ! intent(out): new state vector (m)
-                  fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                  rVec,                    & ! intent(out): new residual vector (mixed units)
-                  fNew,                    & ! intent(out): new function value (mixed units)
-                  converged,               & ! intent(out): convergence flag
-                  err,cmessage)              ! intent(out): error control
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! use full iteration increment if converged all the way to the original value
-  if(err<0)then
-   call lineSearch(&
-                   ! input
-                   .false.,                 & ! intent(in): flag to denote the need to perform line search
-                   stateVecTrial,           & ! intent(in): initial state vector
-                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
-                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
-                   xInc,                    & ! intent(in): iteration increment (mixed units)
-                   ! output
-                   stateVecNew,             & ! intent(out): new state vector (m)
-                   fluxVec0,                & ! intent(out): new flux vector (mixed units)
-                   rVec,                    & ! intent(out): new residual vector (mixed units)
-                   fNew,                    & ! intent(out): new function value (mixed units)
-                   converged,               & ! intent(out): convergence flag
-                   err,cmessage)              ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  endif
-
-  ! update function evaluation and states
-  fOld          = fNew
-  stateVecTrial = stateVecNew
-
-  ! exit iteration loop if converged
-  if(converged) exit
 
   ! -----
   ! * compute Jacobian...
@@ -839,6 +868,52 @@ contains
 
   ! constrain iteration increment
   call imposeConstraints()
+
+  ! -----
+  ! * compute model fluxes and residual
+  !    NOTE: refine residual with line search...
+  ! --------------------------------------------
+  call lineSearch(&
+                  ! input
+                  .true.,                  & ! intent(in): flag to denote the need to perform line search
+                  stateVecTrial,           & ! intent(in): initial state vector
+                  fOld,                    & ! intent(in): function value for trial state vector (mixed units)
+                  grad,                    & ! intent(in): gradient of the function vector (mixed units)
+                  xInc,                    & ! intent(in): iteration increment (mixed units)
+                  ! output
+                  stateVecNew,             & ! intent(out): new state vector (m)
+                  fluxVec0,                & ! intent(out): new flux vector (mixed units)
+                  rVec,                    & ! intent(out): new residual vector (mixed units)
+                  fNew,                    & ! intent(out): new function value (mixed units)
+                  converged,               & ! intent(out): convergence flag
+                  err,cmessage)              ! intent(out): error control
+  if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! use full iteration increment if converged all the way to the original value
+  if(err<0)then
+   call lineSearch(&
+                   ! input
+                   .false.,                 & ! intent(in): flag to denote the need to perform line search
+                   stateVecTrial,           & ! intent(in): initial state vector
+                   fOld,                    & ! intent(in): function value for trial state vector (mixed units)
+                   grad,                    & ! intent(in): gradient of the function vector (mixed units)
+                   xInc,                    & ! intent(in): iteration increment (mixed units)
+                   ! output
+                   stateVecNew,             & ! intent(out): new state vector (m)
+                   fluxVec0,                & ! intent(out): new flux vector (mixed units)
+                   rVec,                    & ! intent(out): new residual vector (mixed units)
+                   fNew,                    & ! intent(out): new function value (mixed units)
+                   converged,               & ! intent(out): convergence flag
+                   err,cmessage)              ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  endif
+
+  ! update function evaluation and states
+  fOld          = fNew
+  stateVecTrial = stateVecNew
+
+  ! exit iteration loop if converged
+  if(converged) exit
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
@@ -1433,6 +1508,15 @@ contains
    rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
    ! --> mass balance
    rVec(ixVegWat) = sMul(ixVegWat)*scalarCanopyWatTrial  - ( (sMul(ixVegWat)*scalarCanopyWat  + fVec(ixVegWat)*dt) + rAdd(ixVegWat) )
+   if(printFlag)then
+    write(*,'(a,1x,f20.10)') 'dt                    = ', dt
+    write(*,'(a,1x,f20.10)') 'rVec(ixCasNrg)        = ', rVec(ixCasNrg)
+    write(*,'(a,1x,f20.10)') 'fVec(ixCasNrg)        = ', fVec(ixCasNrg)
+    write(*,'(a,1x,f20.10)') 'rAdd(ixCasNrg)        = ', rAdd(ixCasNrg)
+    write(*,'(a,1x,f20.10)') 'sMul(ixCasNrg)        = ', sMul(ixCasNrg)
+    write(*,'(a,1x,f20.10)') 'scalarCanairTemp      = ', scalarCanairTemp
+    write(*,'(a,1x,f20.10)') 'scalarCanairTempTrial = ', scalarCanairTempTrial
+   endif
   endif
 
   ! compute the residual vector for the snow and soil sub-domains for energy
@@ -1453,6 +1537,8 @@ contains
 
   ! end association to variables in the data structures
   end associate
+  
+  if(printFlag) write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec 
 
   end subroutine xFluxResid
 

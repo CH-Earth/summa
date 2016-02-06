@@ -383,7 +383,8 @@ do istep=1,numtim
 
  ! print progress
  if(globalPrintFlag)then
-  if(time_data%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') time_data%var
+  !if(time_data%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') time_data%var
+  write(*,'(i4,1x,5(i2,1x))') time_data%var
  endif
 
  ! *****************************************************************************
