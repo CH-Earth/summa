@@ -455,7 +455,7 @@ contains
  firstFluxCall=.true.
 
  ! set the flag to control printing
- printFlagInit=.true.
+ printFlagInit=.false.
  printFlag=printFlagInit
 
  ! set the flag for pausing
@@ -2110,11 +2110,6 @@ contains
     aJac(ixSub3,mLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
     aJac(ixSub2,jLayer) = (dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*fracLiqSnow(iLayer)              ! dVol(below)/dLiq(above) -- (-)
    endif
-   print*, 'iLayer, jLayer, mLayer = ', iLayer, jLayer, mLayer
-   print*, 'fracLiqSnow(iLayer)    = ', fracLiqSnow(iLayer)
-   print*, 'iLayerLiqFluxSnowDeriv(iLayer) = ', iLayerLiqFluxSnowDeriv(iLayer)
-   print*, 'dMat(jLayer) = ', dMat(jLayer)
-   print*, 'aJac(ixDiag,jLayer)    = ', aJac(ixDiag,jLayer)
   end do  ! (looping through snow layers)
 
   ! -----
