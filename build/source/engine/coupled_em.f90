@@ -112,6 +112,7 @@ contains
  ! define other local variables
  character(len=256)                   :: cmessage               ! error message
  logical(lgt)                         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ logical(lgt)                         :: modifiedLayers         ! flag to denote that layers were modified
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
@@ -509,7 +510,8 @@ contains
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer
                     mvar_data,                   & ! intent(inout): model variables for a local HRU
-                    ! output: error control
+                    ! output
+                    modifiedLayers,              & ! intent(out): flag to denote that layers were modified
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
 

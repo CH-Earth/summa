@@ -73,7 +73,8 @@ contains
                         mpar_data,                   & ! intent(in):    model parameters
                         indx_data,                   & ! intent(inout): type of each layer
                         mvar_data,                   & ! intent(inout): model variables for a local HRU
-                        ! output: error control
+                        ! output
+                        divideLayer,                 & ! intent(out): flag to denote that a layer was divided
                         err,message)                   ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
@@ -95,7 +96,8 @@ contains
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
  type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
- ! output: error control
+ ! output
+ logical(lgt),intent(out)        :: divideLayer         ! flag to denote that a layer was divided
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
@@ -169,6 +171,9 @@ contains
 
  ! --------------------------------------------------------------------------------------------------------
 
+ ! initialize flag to denote that a layer was divided
+ divideLayer=.false.
+
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zmax_lower = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
  zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
@@ -185,6 +190,9 @@ contains
 
   ! ** create a new snow layer
   if(createLayer)then
+
+   ! flag that the layers have changed
+   divideLayer=.true.
 
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
@@ -296,6 +304,9 @@ contains
 
   ! check the need to sub-divide
   if(mvar_data%var(iLookMVAR%mLayerDepth)%dat(iLayer) > zmaxCheck)then
+
+   ! flag that layers were divided
+   divideLayer=.true.
 
    ! add a layer to all model variables
    call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage)  ! adds model layer to the index BELOW the layer that is too thick

@@ -49,7 +49,8 @@ contains
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
                        mvar_data,                   & ! intent(inout): model variables for a local HRU
-                       ! output: error control
+                       ! output
+                       modifiedLayers,              & ! intent(out): flag to denote that layers were modified
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
@@ -71,12 +72,15 @@ contains
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
  type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
- ! output: error control
+ ! output
+ logical(lgt),intent(out)        :: modifiedLayers      ! flag to denote that we modified the layers
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! ------------------------------------------------------------------------------------------------
  ! local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
+ logical(lgt)                    :: mergedLayers        ! flag to denote that layers were merged
+ logical(lgt)                    :: divideLayer         ! flag to denote that a layer was divided
  ! initialize error control
  err=0; message='volicePack/'
 
@@ -87,7 +91,8 @@ contains
                   mpar_data,                   & ! intent(in):    model parameters
                   indx_data,                   & ! intent(inout): type of each layer
                   mvar_data,                   & ! intent(inout): model variables for a local HRU
-                  ! output: error control
+                  ! output
+                  divideLayer,                 & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
@@ -98,9 +103,13 @@ contains
                  mpar_data,                   & ! intent(in):    model parameters
                  indx_data,                   & ! intent(inout): type of each layer
                  mvar_data,                   & ! intent(inout): model variables for a local HRU
-                 ! output: error control
+                 ! output
+                 mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
+
+ ! flag if layers were modified
+ modifiedLayers = (mergedLayers .or. divideLayer)
 
  end subroutine volicePack
 

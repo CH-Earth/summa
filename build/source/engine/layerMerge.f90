@@ -57,7 +57,8 @@ contains
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
                        mvar_data,                   & ! intent(inout): model variables for a local HRU
-                       ! output: error control
+                       ! output
+                       mergedLayers,                & ! intent(out): flag to denote that layers were merged
                        err,message)                   ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
@@ -77,7 +78,8 @@ contains
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
  type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
- ! output: error control
+ ! output
+ logical(lgt),intent(out)        :: mergedLayers        ! flag to denote that layers were merged
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
@@ -133,6 +135,9 @@ contains
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
 
+ ! intialize the modified layers flag
+ mergedLayers=.false.
+
  kSnow=0 ! initialize first layer to test (top layer)
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
 
@@ -155,6 +160,9 @@ contains
 
    ! check if need to remove a layer
    if(removeLayer)then
+
+    ! flag that we modified a layer
+    mergedLayers=.true.
 
     ! ***** handle special case of a single layer
     if(nSnow==1)then
@@ -225,6 +233,8 @@ contains
 
  ! handle special case of > 5 layers in the CLM option
  if(nSnow > 5 .and. ix_snowLayers == rulesDependLayerIndex)then
+  ! flag that layers were merged
+  mergedLayers=.true.
   ! initial check to ensure everything is wonderful in the universe
   if(nSnow /= 6)then; err=5; message=trim(message)//'special case of > 5 layers: expect only six layers'; return; endif
   ! combine 5th layer with layer below
