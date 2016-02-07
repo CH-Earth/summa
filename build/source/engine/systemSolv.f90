@@ -112,7 +112,7 @@ contains
  ! provide access to indices that define elements of the data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
- ! provide access to the numerical recipes modules
+ ! provide access to the numerical recipes utility modules
  USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
  ! provide access to utility modules
  USE soil_utils_module,only:volFracLiq                ! compute volumetric fraction of liquid water

@@ -266,7 +266,7 @@ contains
  ! ----------------------------------
  do iindex=1,size(indx_meta)
   ! check that the variable is desired
-  if (.not.indx_meta(iindex)%v_write) cycle
+  if (.not.indx_meta(iindex)%v_write .or. trim(indx_meta(iindex)%varname)=='unknown') cycle
   ! initialize message
   message=trim(message)//trim(indx_meta(iindex)%varname)//'/'
   ! get variable ID

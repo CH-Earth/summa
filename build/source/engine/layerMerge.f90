@@ -407,7 +407,7 @@ contains
  ! (layer "iSnow" will be filled with a combined layer later)
  ! ***********************************************************************************************************
  subroutine rmLyAllVars(mvar_data,indx_data,iSnow,err,message)
- USE data_struc,only:mvar_meta                ! metadata
+ USE data_struc,only:mvar_meta,indx_meta      ! metadata
  USE data_struc,only:var_ilength,var_dlength  ! data vectors with variable length dimension
  USE var_lookup,only:iLookMVAR,iLookINDEX     ! named variables for structure elements
  implicit none
@@ -440,9 +440,18 @@ contains
   call removeOneLayer(mvar_data%var(ivar)%dat,ix_lower,ix_upper,iSnow,err,cmessage)
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
  end do
- ! adjust the layer type (ix_soil or ix_snow) accordingly
- call removeOneLayer(indx_data%var(iLookINDEX%layerType)%dat,1,nLayers,iSnow,err,cmessage)
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ ! loop through index variables and remove one layer
+ do ivar=1,size(indx_data%var)
+  ! define bounds
+  select case(trim(indx_meta(ivar)%vartype))
+   case('midSnow'); ix_lower=1; ix_upper=nSnow
+   case('midToto'); ix_lower=1; ix_upper=nLayers
+   case default; cycle  ! no need to remove soil layers or scalar variables
+  end select
+  ! remove a layer for a model index vector
+  call removeOneLayer(indx_data%var(ivar)%dat,ix_lower,ix_upper,iSnow,err,cmessage)
+  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ end do
  end subroutine rmLyAllVars
 
 

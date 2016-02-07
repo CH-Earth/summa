@@ -139,9 +139,11 @@ contains
  ! ***** define local column model indices -- dimensions depend on the variable type
  ! **********************************************************************************************************
  do ivar=1,size(indx_meta)
-  if (.not.indx_meta(ivar)%v_write) cycle
+  if (.not.indx_meta(ivar)%v_write .or. trim(indx_meta(ivar)%vartype)=='unknown') cycle
   select case(trim(indx_meta(ivar)%vartype))
    case('scalarv'); call def_variab(trim(infile),(/hru_DimName,Timestep_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
+   case('midSnow'); call def_variab(trim(infile),(/hru_DimName,midSnowAndTime_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
+   case('midSoil'); call def_variab(trim(infile),(/hru_DimName,midSoilAndTime_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
    case('midToto'); call def_variab(trim(infile),(/hru_DimName,midTotoAndTime_DimName/),indx_meta(ivar),nf90_int,err,cmessage)
    case default; err=35; message=trim(message)//"varTypeNotFound"; return
   endselect

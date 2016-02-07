@@ -538,7 +538,8 @@ do istep=1,numtim
   end select
 
   ! run the model for a single parameter set and time step
-  call coupled_em(printRestart,                    & ! intent(in): flag to print a re-start file
+  call coupled_em(istep,                           & ! intent(in): time step index
+                  printRestart,                    & ! intent(in): flag to print a re-start file
                   output_fileSuffix,               & ! intent(in): name of the experiment used in the restart file
                   dt_init(iHRU),                   & ! intent(inout): initial time step
                   computeVegFlux(iHRU),            & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)

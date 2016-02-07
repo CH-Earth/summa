@@ -514,16 +514,49 @@ MODULE var_lookup
  ! (6) define model indices
  ! ***********************************************************************************************************
  type, public :: iLook_index
-  integer(i4b)    :: nSnow                 = 1  ! number of snow layers
-  integer(i4b)    :: nSoil                 = 2  ! number of soil layers
-  integer(i4b)    :: nLayers               = 3  ! total number of layers
-  integer(i4b)    :: midSnowStartIndex     = 4  ! start index of the midSnow vector for a given timestep
-  integer(i4b)    :: midSoilStartIndex     = 5  ! start index of the midSoil vector for a given timestep
-  integer(i4b)    :: midTotoStartIndex     = 6  ! start index of the midToto vector for a given timestep
-  integer(i4b)    :: ifcSnowStartIndex     = 7  ! start index of the ifcSnow vector for a given timestep
-  integer(i4b)    :: ifcSoilStartIndex     = 8  ! start index of the ifcSoil vector for a given timestep
-  integer(i4b)    :: ifcTotoStartIndex     = 9  ! start index of the ifcToto vector for a given timestep
-  integer(i4b)    :: layerType             = 10 ! type of layer (soil or snow)
+  ! number of state variables of different type
+  integer(i4b)    :: nVegNrg               = 1    ! number of energy state variables for vegetation
+  integer(i4b)    :: nVegMass              = 2    ! number of hydrology state variables for vegetation (mass of water)
+  integer(i4b)    :: nVegState             = 3    ! number of vegetation state variables
+  integer(i4b)    :: nNrgState             = 4    ! number of energy state variables
+  integer(i4b)    :: nWatState             = 5    ! number of "total water" state variables (volumetric total water content) 
+  integer(i4b)    :: nMatState             = 6    ! number of matric head state variables
+  integer(i4b)    :: nMassState            = 7    ! number of hydrology state variables (mass of water)
+  integer(i4b)    :: nState                = 8    ! total number of model state variables
+  ! number of model layers, and layer indices
+  integer(i4b)    :: nSnow                 = 9    ! number of snow layers
+  integer(i4b)    :: nSoil                 = 10   ! number of soil layers
+  integer(i4b)    :: nLayers               = 11   ! total number of layers
+  integer(i4b)    :: layerType             = 12   ! type of layer (soil or snow)
+  ! indices of model state variables
+  integer(i4b)    :: ixCasNrg              = 13   ! index of the canopy air space state variable
+  integer(i4b)    :: ixVegNrg              = 14   ! index of the canopy energy state variable
+  integer(i4b)    :: ixVegWat              = 15   ! index of the canopy total water state variable
+  integer(i4b)    :: ixTopNrg              = 16   ! index of the upper-most energy state variable in the snow-soil subdomain
+  integer(i4b)    :: ixTopWat              = 17   ! index of the upper-most total water state variable in the snow-soil subdomain
+  integer(i4b)    :: ixTopMat              = 18   ! index of the upper-most matric head state variable in the soil subdomain
+  integer(i4b)    :: ixSnowSoilNrg         = 19   ! indices for energy state variables in the snow-soil subdomain
+  integer(i4b)    :: ixSnowSoilWat         = 20   ! indices for total water state variables in the snow-soil subdomain
+  integer(i4b)    :: ixSnowOnlyNrg         = 21   ! indices for energy state variables in the snow subdomain
+  integer(i4b)    :: ixSnowOnlyWat         = 22   ! indices for total water state variables in the snow subdomain
+  integer(i4b)    :: ixSoilOnlyNrg         = 23   ! indices for energy state variables in the soil subdomain
+  integer(i4b)    :: ixSoilOnlyHyd         = 24   ! indices for hydrology state variables in the soil subdomain
+  ! type of model state variables
+  integer(i4b)    :: ixStateType           = 25   ! indices defining the type of the state (ixNrgState, ixWatState, ixMatState...)
+  integer(i4b)    :: ixAllState            = 26   ! list of indices for all model state variables
+  integer(i4b)    :: ixSoilState           = 27   ! list of indices for all soil layers
+  integer(i4b)    :: ixLayerState          = 28   ! list of indices for all model layers
+  integer(i4b)    :: ixNrgOnly             = 29   ! list of indices for all energy states
+  integer(i4b)    :: ixWatOnly             = 30   ! list of indices for all "total water" state variables (volumetric total water content)
+  integer(i4b)    :: ixMatOnly             = 31   ! list of indices for matric head state variables
+  integer(i4b)    :: ixMassOnly            = 32   ! list of indices for hydrology state variables (mass of water)
+  ! indices for the model output files
+  integer(i4b)    :: midSnowStartIndex     = 33   ! start index of the midSnow vector for a given timestep
+  integer(i4b)    :: midSoilStartIndex     = 34   ! start index of the midSoil vector for a given timestep
+  integer(i4b)    :: midTotoStartIndex     = 35   ! start index of the midToto vector for a given timestep
+  integer(i4b)    :: ifcSnowStartIndex     = 36   ! start index of the ifcSnow vector for a given timestep
+  integer(i4b)    :: ifcSoilStartIndex     = 37   ! start index of the ifcSoil vector for a given timestep
+  integer(i4b)    :: ifcTotoStartIndex     = 38   ! start index of the ifcToto vector for a given timestep
  endtype iLook_index
 
  ! ***********************************************************************************************************
@@ -607,7 +640,10 @@ MODULE var_lookup
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
                                                                         201,202,203,204,205,206,207,208,209)
- type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10)
+ type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
+                                                                         21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
+                                                                         31, 32, 33, 34, 35, 36, 37, 38)
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11)
@@ -619,7 +655,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarType     = 5
  integer(i4b),parameter,public :: maxvarMpar     = 147
  integer(i4b),parameter,public :: maxvarMvar     = 209
- integer(i4b),parameter,public :: maxvarIndx     = 10
+ integer(i4b),parameter,public :: maxvarIndx     = 38
  integer(i4b),parameter,public :: maxvarBpar     = 5
  integer(i4b),parameter,public :: maxvarBvar     = 11
 

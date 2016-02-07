@@ -354,7 +354,7 @@ contains
  ! ************************************************************************************************
  subroutine addModelLayer(mvar_data,indx_data,ix_divide,err,message)
  ! provide access to variables in the data structures
- USE data_struc,only:mvar_meta                        ! metadata
+ USE data_struc,only:mvar_meta,indx_meta              ! metadata
  USE data_struc,only:var_ilength,var_dlength          ! data vectors with variable length dimension
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX  ! named variables for structure elements
  implicit none
@@ -419,10 +419,23 @@ contains
 
  end do  ! looping through variables
 
-
  ! ***** modify the layer indices
- call AddOneLayer(indx_data%var(iLookINDEX%layerType)%dat,1,nLayers,ix_divide,.false.,err,cmessage)
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ do ivar=1,size(indx_data%var)
+
+  ! define bounds
+  select case(trim(indx_meta(ivar)%vartype))
+   case('midSnow'); ix_lower=1; ix_upper=nSnow
+   case('midToto'); ix_lower=1; ix_upper=nLayers
+   case default; cycle
+  end select
+
+  ! add an additional layer -- not a state variable
+  call AddOneLayer(indx_data%var(ivar)%dat,ix_lower,ix_upper,ix_divide,.false.,err,cmessage)
+  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+
+ end do  ! looping through index variables
+
+ ! update the layer type
  indx_data%var(iLookINDEX%layerType)%dat(1:nSnow+1)         = ix_snow
  indx_data%var(iLookINDEX%layerType)%dat(nSnow+2:nLayers+1) = ix_soil
  nLayers = nLayers + 1

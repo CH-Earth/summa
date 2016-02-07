@@ -496,19 +496,52 @@ contains
  bvar_meta(iLookBVAR%averageRoutedRunoff)     = var_info('averageRoutedRunoff'    , 'routed runoff'                                          , 'm s-1' , 'scalarv', .true.)
 
  ! -----
- ! * run time indices...
- ! ---------------------
- indx_meta(iLookINDEX%nSnow)             = var_info('nSnow'            , 'number of snow layers'                                 , '-', 'scalarv', .true.)
- indx_meta(iLookINDEX%nSoil)             = var_info('nSoil'            , 'number of soil layers'                                 , '-', 'scalarv', .false.)
- indx_meta(iLookINDEX%nLayers)           = var_info('nLayers'          , 'total number of layers'                                , '-', 'scalarv', .true.)
- indx_meta(iLookINDEX%midSnowStartIndex) = var_info('midSnowStartIndex', 'start index of the midSnow vector for a given timestep', '-', 'scalarv', .false.)
- indx_meta(iLookINDEX%midSoilStartIndex) = var_info('midSoilStartIndex', 'start index of the midSoil vector for a given timestep', '-', 'scalarv', .false.)
- indx_meta(iLookINDEX%midTotoStartIndex) = var_info('midTotoStartIndex', 'start index of the midToto vector for a given timestep', '-', 'scalarv', .true.)
- indx_meta(iLookINDEX%ifcSnowStartIndex) = var_info('ifcSnowStartIndex', 'start index of the ifcSnow vector for a given timestep', '-', 'scalarv', .false.)
- indx_meta(iLookINDEX%ifcSoilStartIndex) = var_info('ifcSoilStartIndex', 'start index of the ifcSoil vector for a given timestep', '-', 'scalarv', .false.)
- indx_meta(iLookINDEX%ifcTotoStartIndex) = var_info('ifcTotoStartIndex', 'start index of the ifcToto vector for a given timestep', '-', 'scalarv', .true.)
- indx_meta(iLookINDEX%layerType)         = var_info('layerType'        , 'index defining type of layer (soil or snow)'           , '-', 'midToto', .false.)
+ ! * model indices...
+ ! ------------------
 
+ ! number of state variables of different type
+ indx_meta(iLookINDEX%nVegNrg)           = var_info('nVegNrg'          , 'number of energy state variables for vegetation'                 , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nVegMass)          = var_info('nVegMass'         , 'number of hydrology states for vegetation (mass of water)'       , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nVegState)         = var_info('nVegState'        , 'number of vegetation state variables'                            , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nNrgState)         = var_info('nNrgState'        , 'number of energy state variables'                                , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nWatState)         = var_info('nWatState'        , 'number of "total water" states (vol. total water content)'       , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nMatState)         = var_info('nMatState'        , 'number of matric head state variables'                           , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nMassState)        = var_info('nMassState'       , 'number of hydrology state variables (mass of water)'             , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nState)            = var_info('nState'           , 'total number of model state variables'                           , '-', 'scalarv', .false.)
+ ! number of model layers, and layer indices
+ indx_meta(iLookINDEX%nSnow)             = var_info('nSnow'            , 'number of snow layers'                                           , '-', 'scalarv', .true.)
+ indx_meta(iLookINDEX%nSoil)             = var_info('nSoil'            , 'number of soil layers'                                           , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%nLayers)           = var_info('nLayers'          , 'total number of layers'                                          , '-', 'scalarv', .true.)
+ indx_meta(iLookINDEX%layerType)         = var_info('layerType'        , 'index defining type of layer (soil or snow)'                     , '-', 'midToto', .false.)
+ ! indices of model state variables
+ indx_meta(iLookINDEX%ixCasNrg)          = var_info('ixCasNrg'         , 'index of canopy air space energy state variable'                 , '-', 'scalarv', .false.) 
+ indx_meta(iLookINDEX%ixVegNrg)          = var_info('ixVegNrg'         , 'index of canopy energy state variable'                           , '-', 'scalarv', .false.) 
+ indx_meta(iLookINDEX%ixVegWat)          = var_info('ixVegWat'         , 'index of canopy hydrology state variable (mass)'                 , '-', 'scalarv', .false.) 
+ indx_meta(iLookINDEX%ixTopNrg)          = var_info('ixTopNrg'         , 'index of upper-most energy state in the snow-soil subdomain'     , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%ixTopWat)          = var_info('ixTopWat'         , 'index of upper-most total water state in the snow-soil subdomain', '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%ixTopMat)          = var_info('ixTopMat'         , 'index of upper-most matric head state in the soil subdomain'     , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%ixSnowSoilNrg)     = var_info('ixSnowSoilNrg'    , 'indices for energy states in the snow-soil subdomain'            , '-', 'midToto', .false.)
+ indx_meta(iLookINDEX%ixSnowSoilWat)     = var_info('ixSnowSoilWat'    , 'indices for total water states in the snow-soil subdomain'       , '-', 'midToto', .false.)
+ indx_meta(iLookINDEX%ixSnowOnlyNrg)     = var_info('ixSnowOnlyNrg'    , 'indices for energy states in the snow subdomain'                 , '-', 'midSnow', .false.)
+ indx_meta(iLookINDEX%ixSnowOnlyWat)     = var_info('ixSnowOnlyWat'    , 'indices for total water states in the snow subdomain'            , '-', 'midSnow', .false.)
+ indx_meta(iLookINDEX%ixSoilOnlyNrg)     = var_info('ixSoilOnlyNrg'    , 'indices for energy states in the soil subdomain'                 , '-', 'midSoil', .false.)
+ indx_meta(iLookINDEX%ixSoilOnlyHyd)     = var_info('ixSoilOnlyHyd'    , 'indices for hydrology states in the soil subdomain'              , '-', 'midSoil', .false.)
+ ! type of model state variables
+ indx_meta(iLookINDEX%ixStateType)       = var_info('ixStateType'      , 'indices defining the type of the state (ixNrgState...)'          , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixAllState)        = var_info('ixAllState'       , 'list of indices for all model state variables'                   , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixSoilState)       = var_info('ixSoilState'      , 'list of indices for all soil layers'                             , '-', 'midSoil', .false.)
+ indx_meta(iLookINDEX%ixLayerState)      = var_info('ixLayerState'     , 'list of indices for all model layers'                            , '-', 'midToto', .false.)
+ indx_meta(iLookINDEX%ixNrgOnly)         = var_info('ixNrgOnly'        , 'list of indices for all energy states'                           , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixWatOnly)         = var_info('ixWatOnly'        , 'list of indices for all "total water" states'                    , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixMatOnly)         = var_info('ixMatOnly'        , 'list of indices for matric head state variables'                 , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixMassOnly)        = var_info('ixMassOnly'       , 'list of indices for hydrology states (mass of water)'            , '-', 'unknown', .false.)
+ ! indices for the model output files
+ indx_meta(iLookINDEX%midSnowStartIndex) = var_info('midSnowStartIndex', 'start index of the midSnow vector for a given timestep'          , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%midSoilStartIndex) = var_info('midSoilStartIndex', 'start index of the midSoil vector for a given timestep'          , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%midTotoStartIndex) = var_info('midTotoStartIndex', 'start index of the midToto vector for a given timestep'          , '-', 'scalarv', .true.)
+ indx_meta(iLookINDEX%ifcSnowStartIndex) = var_info('ifcSnowStartIndex', 'start index of the ifcSnow vector for a given timestep'          , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%ifcSoilStartIndex) = var_info('ifcSoilStartIndex', 'start index of the ifcSoil vector for a given timestep'          , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%ifcTotoStartIndex) = var_info('ifcTotoStartIndex', 'start index of the ifcToto vector for a given timestep'          , '-', 'scalarv', .true.)
  end subroutine popMetadat
 
 end module popMetadat_module

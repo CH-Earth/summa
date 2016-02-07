@@ -214,7 +214,10 @@ contains
  do ivar=1,size(indx_meta)
   select case(indx_meta(ivar)%vartype)
    case('scalarv'); allocate(indx_data%var(ivar)%dat(1),stat=err)
+   case('midSnow'); allocate(indx_data%var(ivar)%dat(nSnow),stat=err)
+   case('midSoil'); allocate(indx_data%var(ivar)%dat(nSoil),stat=err)
    case('midToto'); allocate(indx_data%var(ivar)%dat(nLayers),stat=err)
+   case('unknown'); allocate(indx_data%var(ivar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
    case default
     err=40; message=trim(message)//"unknownVariableType[name='"//trim(indx_meta(ivar)%varname)//"'; &
                                    &type='"//trim(indx_meta(ivar)%vartype)//"']"; return

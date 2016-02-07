@@ -88,7 +88,11 @@ MODULE data_struc
  ! define named variables to describe the layer type
  integer(i4b),parameter,public      :: ix_soil=1001             ! named variable to denote a soil layer
  integer(i4b),parameter,public      :: ix_snow=1002             ! named variable to denote a snow layer
- integer(i4b),parameter,public      :: ix_mixd=1003             ! named variable to denote a mixed layer
+ ! define named variables to describe the state varible type
+ integer(i4b),parameter,public      :: ixNrgState=2001          ! named variable defining the energy state variable
+ integer(i4b),parameter,public      :: ixWatState=2002          ! named variable defining the total water state variable
+ integer(i4b),parameter,public      :: ixMatState=2003          ! named variable defining the matric head state variable
+ integer(i4b),parameter,public      :: ixMassState=2004         ! named variable defining the mass of water (currently only used for the veg canopy)
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type

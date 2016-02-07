@@ -46,7 +46,8 @@ contains
  ! ************************************************************************************************
  ! public subroutine coupled_em: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
- subroutine coupled_em(printRestart,      & ! intent(in):    flag to print a re-start file
+ subroutine coupled_em(istep,             & ! intent(in):    index of the model time step
+                       printRestart,      & ! intent(in):    flag to print a re-start file
                        output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                        computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -67,8 +68,10 @@ contains
  USE canopySnow_module,only:canopySnow      ! (5) compute interception and unloading of snow from the vegetation canopy
  USE volicePack_module,only:newsnwfall      ! (6) compute change in the top snow layer due to throughfall and unloading
  USE volicePack_module,only:volicePack      ! (7) merge and sub-divide snow layers, if necessary
+ USE indexState_module,only:indexState      ! (8) define indices for all model state variables and layers
  USE diagn_evar_module,only:diagn_evar      ! (8) compute diagnostic energy variables -- thermal conductivity and heat capacity
  ! the model solver
+ USE indexState_module,only:indexState      ! define indices for all model state variables and layers
  USE systemSolv_module,only:systemSolv      ! solve the system of thermodynamic and hydrology equations for a given substep
  ! additional subroutines
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
@@ -85,6 +88,7 @@ contains
                        lightSnow            ! maximum interception capacity an inverse function of new snow density
  implicit none
  ! define input
+ integer(i4b),intent(in)              :: istep                  ! index of model time step
  logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
  character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
  ! define input/output
@@ -538,6 +542,14 @@ contains
     indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
     indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
     indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
+
+    ! compute the indices for the model state variables
+    if(istep==1 .or. modifiedVegState .or. modifiedLayers)then
+     call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                     indx_data,               & ! intent(inout): indices defining model states and layers
+                     err,cmessage)              ! intent(out):   error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! re-compute snow depth and SWE
     if(nSnow > 0)then
