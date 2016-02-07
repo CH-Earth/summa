@@ -46,7 +46,11 @@ contains
  ! ************************************************************************************************
  ! public subroutine coupled_em: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
- subroutine coupled_em(printRestart,output_fileSuffix,dt_init,err,message)
+ subroutine coupled_em(printRestart,      & ! intent(in):    flag to print a re-start file
+                       output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
+                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
+                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                       err,message)         ! intent(out):   error control
  ! data structures and named variables
  USE data_struc,only:data_step                                                      ! time step of forcing data (s)
  USE data_struc,only:model_decisions                                                ! model decision structure
@@ -80,10 +84,13 @@ contains
                        stickySnow,   &      ! maximum interception capacity an increasing function of temerature
                        lightSnow            ! maximum interception capacity an inverse function of new snow density
  implicit none
- ! define output
- character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
+ ! define input
  logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
+ character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
+ ! define input/output
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
+ logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ ! define output
  integer(i4b),intent(out)             :: err                    ! error code
  character(*),intent(out)             :: message                ! error message
  ! control the length of the sub-step
@@ -111,8 +118,9 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! define other local variables
  character(len=256)                   :: cmessage               ! error message
- logical(lgt)                         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- logical(lgt)                         :: modifiedLayers         ! flag to denote that layers were modified
+ logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
+ logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
+ logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
@@ -296,6 +304,9 @@ contains
   ! compute the temperature of the root zone: used in vegetation phenology
   mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
 
+  ! remember if we compute the vegetation flux on the previous sub-step
+  computeVegFluxOld = computeVegFlux  
+
   ! compute the exposed LAI and SAI and whether veg is buried by snow
   call vegPhenlgy(&
                   ! input/output: data structures
@@ -311,6 +322,8 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+  ! flag the case where number of vegetation states has changed
+  modifiedVegState = (computeVegFlux/=computeVegFluxOld)
 
   ! (2) compute wetted canopy area...
   ! ---------------------------------

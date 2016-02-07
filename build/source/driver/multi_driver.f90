@@ -57,6 +57,7 @@ USE derivforce_module,only:derivforce                       ! module to compute 
 USE modelwrite_module,only:writeAttrb,writeParam            ! module to write model attributes and parameters
 USE modelwrite_module,only:writeForce                       ! module to write model forcing data
 USE modelwrite_module,only:writeModel,writeBasin            ! module to write model output
+USE vegPhenlgy_module,only:vegPhenlgy                       ! module to compute vegetation phenology
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
 USE groundwatr_module,only:groundwatr                       ! module to simulate regional groundwater balance
 USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
@@ -138,6 +139,7 @@ integer(i4b),pointer      :: ifcSnowStartIndex=>null()      ! start index of the
 integer(i4b),pointer      :: ifcSoilStartIndex=>null()      ! start index of the ifcSoil vector for a given timestep
 integer(i4b),pointer      :: ifcTotoStartIndex=>null()      ! start index of the ifcToto vector for a given timestep
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
+logical(lgt),allocatable  :: computeVegFlux(:)              ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow) 
 real(dp),pointer          :: totalArea=>null()              ! total basin area (m2)
 ! exfiltration
 real(dp),parameter        :: supersatScale=0.001_dp         ! scaling factor for the logistic function (-)
@@ -151,6 +153,8 @@ real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom o
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
 logical(lgt),parameter    :: overwriteRSMIN=.false.         ! flag to overwrite RSMIN
+real(dp)                  :: notUsed_canopyDepth            ! NOT USED: canopy depth (m)
+real(dp)                  :: notUsed_exposedVAI             ! NOT USED: exposed vegetation area index (m2 m-2)
 ! error control
 integer(i4b)              :: err=0                          ! error code
 character(len=1024)       :: message=''                     ! error message
@@ -202,8 +206,9 @@ call alloc_bvar(err,message); call handle_err(err,message)
 call alloc_forc(nHRU,err,message); call handle_err(err,message)
 call alloc_time(nHRU,err,message); call handle_err(err,message)
 call alloc_stim(refTime,err,message); call handle_err(err,message)
-! allocate space for the time step (recycled for each HRU for subsequent calls to coupled_em)
+! allocate space for the time step and computeVegFlux flags (recycled for each HRU for subsequent calls to coupled_em)
 allocate(dt_init(nHRU),stat=err); call handle_err(err,'problem allocating space for dt_init')
+allocate(computeVegFlux(nHRU),stat=err); call handle_err(err,'problem allocating space for computeVegFlux')
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
@@ -387,6 +392,25 @@ do istep=1,numtim
   write(*,'(i4,1x,5(i2,1x))') time_data%var
  endif
 
+ ! compute the exposed LAI and SAI and whether veg is buried by snow
+ if(istep==1)then  ! (call phenology here because we need the time information
+  do iHRU=1,nHRU
+   call vegPhenlgy(&
+                   ! input/output: data structures
+                   model_decisions,             & ! intent(in):    model decisions
+                   type_hru(iHRU),              & ! intent(in):    type of vegetation and soil
+                   attr_hru(iHRU),              & ! intent(in):    spatial attributes
+                   mpar_hru(iHRU),              & ! intent(in):    model parameters
+                   mvar_hru(iHRU),              & ! intent(inout): model variables for a local HRU
+                   ! output
+                   computeVegFlux(iHRU),        & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                   notUsed_canopyDepth,         & ! intent(out): NOT USED: canopy depth (m)
+                   notUsed_exposedVAI,          & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
+                   err,message)                   ! intent(out): error control
+   call handle_err(err,message)
+  end do  ! looping through HRUs
+ endif  ! if the first time step
+
  ! *****************************************************************************
  ! (7) create a new NetCDF output file, and write parameters and forcing data
  ! *****************************************************************************
@@ -514,10 +538,11 @@ do istep=1,numtim
   end select
 
   ! run the model for a single parameter set and time step
-  call coupled_em(printRestart,                    & ! flag to print a re-start file
-                  output_fileSuffix,               & ! name of the experiment used in the restart file
-                  dt_init(iHRU),                   & ! initial time step
-                  err,message)                       ! error control
+  call coupled_em(printRestart,                    & ! intent(in): flag to print a re-start file
+                  output_fileSuffix,               & ! intent(in): name of the experiment used in the restart file
+                  dt_init(iHRU),                   & ! intent(inout): initial time step
+                  computeVegFlux(iHRU),            & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                  err,message)                       ! intent(out): error control
   call handle_err(err,message)
 
   kHRU = 0
