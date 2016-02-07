@@ -37,7 +37,7 @@ contains
  ! ************************************************************************************************
  subroutine snowLiqFlx(&
                        ! input: model control
-                       iter,                    & ! intent(in): iteration index
+                       firstFluxCall,           & ! intent(in): the first flux call
                        ! input: forcing for the snow domain
                        scalarThroughfallRain,   & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                        scalarCanopyLiqDrainage, & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
@@ -53,7 +53,7 @@ contains
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: model control
- integer(i4b),intent(in)       :: iter                       ! iteration index
+ logical(lgt),intent(in)       :: firstFluxCall              ! the first flux call
  ! input: forcing for the snow domain
  real(dp),intent(in)           :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
  real(dp),intent(in)           :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
@@ -75,7 +75,7 @@ contains
  ! ** calculate fluxes and derivatives for liquid water flow through snow
  call snowLiqFlx_muster(&
                         ! input: model control
-                        iter,                                                       & ! intent(in): iteration index
+                        firstFluxCall,                                              & ! intent(in): the first flux call
                         ! input: forcing for the snow domain
                         scalarThroughfallRain,                                      & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                         scalarCanopyLiqDrainage,                                    & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
@@ -104,7 +104,7 @@ contains
  ! ************************************************************************************************
  subroutine snowLiqFlx_muster(&
                               ! input: model control
-                              iter,                                                       & ! intent(in): iteration index
+                              firstFluxCall,                                              & ! intent(in): the first flux call
                               ! input: forcing for the snow domain
                               scalarThroughfallRain,                                      & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                               scalarCanopyLiqDrainage,                                    & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
@@ -125,7 +125,7 @@ contains
                               err,message)                                                  ! intent(out): error control
  implicit none
  ! input: model control
- integer(i4b),intent(in)       :: iter                       ! iteration index
+ logical(lgt),intent(in)       :: firstFluxCall              ! the first flux call
  ! input: forcing for the snow domain
  real(dp),intent(in)           :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
  real(dp),intent(in)           :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
@@ -173,7 +173,7 @@ contains
  iLayerLiqFluxSnowDeriv(0) = 0._dp
 
  ! compute properties fixed over the time step
- if(iter==1)then
+ if(firstFluxCall)then
   ! loop through snow layers
   do iLayer=1,nSnow
    ! compute the reduction in liquid water holding capacity at high snow density (-)
@@ -183,7 +183,7 @@ contains
    ! compute the residual volumetric liquid water content (-)
    mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
   end do  ! (looping through snow layers)
- endif  ! (if the first iteration)
+ endif  ! (if the first flux call)
 
  ! compute fluxes
  do iLayer=1,nSnow  ! (loop through snow layers)

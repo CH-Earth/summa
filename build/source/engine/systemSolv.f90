@@ -224,7 +224,7 @@ contains
  integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
  integer(i4b)                    :: ixSolve                      ! the type of matrix used to solve the linear system A.X=B
  integer(i4b),parameter          :: iJac1=1                      ! first layer of the Jacobian to print
- integer(i4b),parameter          :: iJac2=5                     ! last layer of the Jacobian to print
+ integer(i4b),parameter          :: iJac2=10                     ! last layer of the Jacobian to print
  ! ------------------------------------------------------------------------------------------------------
  ! * fluxes and derivatives
  ! ------------------------------------------------------------------------------------------------------
@@ -1858,7 +1858,7 @@ contains
    ! compute liquid fluxes
    call snowLiqFlx(&
                    ! input: model control
-                   iter,                                  & ! intent(in): iteration index
+                   firstFluxCall,                         & ! intent(in): the first flux call (compute variables that are constant over the iterations)
                    ! input: forcing for the snow domain
                    scalarThroughfallRain,                 & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                    scalarCanopyLiqDrainage,               & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
@@ -2110,6 +2110,11 @@ contains
     aJac(ixSub3,mLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
     aJac(ixSub2,jLayer) = (dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*fracLiqSnow(iLayer)              ! dVol(below)/dLiq(above) -- (-)
    endif
+   print*, 'iLayer, jLayer, mLayer = ', iLayer, jLayer, mLayer
+   print*, 'fracLiqSnow(iLayer)    = ', fracLiqSnow(iLayer)
+   print*, 'iLayerLiqFluxSnowDeriv(iLayer) = ', iLayerLiqFluxSnowDeriv(iLayer)
+   print*, 'dMat(jLayer) = ', dMat(jLayer)
+   print*, 'aJac(ixDiag,jLayer)    = ', aJac(ixDiag,jLayer)
   end do  ! (looping through snow layers)
 
   ! -----
@@ -2163,6 +2168,15 @@ contains
 
   ! end association to variables in the data structures
   end associate
+
+  if(printFlag)then
+   print*, '** in cpact: banded analytical Jacobian:'
+   write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+   do iLayer=kl+1,nBands
+    write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=iJac1,iJac2)
+   end do
+  endif
+
 
   end subroutine cpactBand
 
