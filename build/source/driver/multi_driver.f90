@@ -150,6 +150,7 @@ real(dp)                  :: fracHRU                        ! fractional area of
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
+logical(lgt),parameter    :: overwriteRSMIN=.false.         ! flag to overwrite RSMIN
 ! error control
 integer(i4b)              :: err=0                          ! error code
 character(len=1024)       :: message=''                     ! error message
@@ -380,6 +381,11 @@ do istep=1,numtim
   call read_force(istep,iHRU,err,message); call handle_err(err,message)
  end do  ! (end looping through HRUs)
 
+ ! print progress
+ if(globalPrintFlag)then
+  if(time_data%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') time_data%var
+ endif
+
  ! *****************************************************************************
  ! (7) create a new NetCDF output file, and write parameters and forcing data
  ! *****************************************************************************
@@ -476,7 +482,7 @@ do istep=1,numtim
               urbanVegCategory)                                                  ! vegetation category for urban areas
 
   ! overwrite the minimum resistance
-  !RSMIN = mpar_data%var(iLookPARAM%minStomatalResistance)
+  if(overwriteRSMIN) RSMIN = mpar_data%var(iLookPARAM%minStomatalResistance)
 
   ! overwrite the vegetation height
   HVT(type_data%var(iLookTYPE%vegTypeIndex)) = mpar_data%var(iLookPARAM%heightCanopyTop)
@@ -601,7 +607,7 @@ do istep=1,numtim
  ! increment the time index
  jstep = jstep+1
 
- !pause 'in driver: testing differences'
+ !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
 
 end do  ! (looping through time)

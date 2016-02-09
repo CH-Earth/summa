@@ -87,7 +87,6 @@ contains
                        scalarVP_CanopyAir,                  & ! intent(in): canopy air vapor pressure (Pa)
                        ! input: data structures
                        type_data,                           & ! intent(in):    type of vegetation and soil
-                       attr_data,                           & ! intent(in):    spatial attributes
                        forc_data,                           & ! intent(in):    model forcing data
                        mpar_data,                           & ! intent(in):    model parameters
                        model_decisions,                     & ! intent(in):    model decisions
@@ -103,8 +102,6 @@ contains
                      var_d,            & ! data vector (dp)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
- ! provide access to the output directory
- USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
  ! provide access to named variables defining elements in the data structures
  USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
@@ -115,7 +112,6 @@ contains
  real(dp),intent(in)             :: scalarVP_CanopyAir        ! canopy air vapor pressure (Pa)
  ! input: data structures
  type(var_i),intent(in)          :: type_data                 ! type of vegetation and soil
- type(var_d),intent(in)          :: attr_data                 ! spatial attributes
  type(var_d),intent(in)          :: forc_data                 ! model forcing data
  type(var_d),intent(in)          :: mpar_data                 ! model parameters
  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
@@ -134,28 +130,6 @@ contains
  real(dp)                        :: scalarStomResist          ! stomatal resistance (s m-1)
  real(dp)                        :: scalarPhotosynthesis      ! photosynthesis (umol CO2 m-2 s-1)
  real(dp)                        :: ci                        ! intercellular co2 partial pressure (Pa)
- ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! local variables for testing
- integer(i4b),parameter          :: ixUnit=66                 ! file unit
- integer(i4b)                    :: iTrial                    ! index of model trial
- integer(i4b),parameter          :: nTrial=100                ! number of model trials
- integer(i4b)                    :: iExp                      ! index of model experiment
- integer(i4b),parameter          :: nExp=3                    ! number of model experiments
- integer(i4b),parameter          :: ixTemp=1                  ! named variable defining perturbations in leaf temperature
- integer(i4b),parameter          :: ixVPD=2                   ! named variable defining perturbations in vapor pressure deficit
- integer(i4b),parameter          :: ixPAR=3                   ! named variable defining perturbations in PAR
- real(dp)                        :: xTrial                    ! normalized trial value
- real(dp)                        :: leafTemp                  ! leaf temperature (K)
- real(dp)                        :: vpd                       ! vapor pressure deficit (Pa)
- real(dp)                        :: par                       ! absorbed PAR (W m-2)
- real(dp)                        :: SatVP_leafTemp            ! saturated vapor pressure at the leaf temperature (Pa)
- real(dp)                        :: derivNotUsed              ! derivative in saturated vapor pressure w.r.t. temperature (not used)
- real(dp)                        :: vpCanair                  ! vapor pressure of the canopy air space (Pa)
- real(dp)                        :: unitConv                  ! unit conversion factor (mol m-3, convert m s-1 --> mol H20 m-2 s-1)
- character(LEN=256)              :: filename                  ! filename
- character(LEN=4),parameter      :: cTemp='Temp'              ! named variable for temperature
- character(LEN=4),parameter      :: cVPD='VPD '               ! named variable for vapor pressure deficit
- character(LEN=4),parameter      :: cPAR='PAR '               ! named variable for PAR
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
 
  ! associate variables in the data structure
@@ -385,11 +359,10 @@ contains
  character(*),intent(out)        :: message                    ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! general local variables
- character(LEN=256)              :: cmessage                   ! error message of downwind routine
  logical(lgt),parameter          :: testDerivs=.false.         ! flag to test the derivatives
  real(dp)                        :: unitConv                   ! unit conversion factor (mol m-3, convert m s-1 --> mol H20 m-2 s-1)
  real(dp)                        :: rlb                        ! leaf boundary layer rersistance (umol-1 m2 s)
- real(dp)                        :: x0,x1,x2,x3,x4             ! temporary variables
+ real(dp)                        :: x0,x1,x2                   ! temporary variables
  real(dp)                        :: co2compPt                  ! co2 compensation point (Pa)
  real(dp)                        :: fHum                       ! humidity function, fraction [0,1] 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1274,32 +1247,6 @@ contains
  end subroutine stomResist_NoahMP
 
 
- ! *******************************************************************************************************
- ! private subroutine quadratic: solve the equation ax2 + bx + c = 0
- ! *******************************************************************************************************
- subroutine quadratic(a, b, c, r1, r2)
- implicit none
- real(dp)  :: a, b, c  ! terms in the quadratic equation
- real(dp)  :: r1, r2   ! roots
- real(dp)  :: q
-
- if (b >= 0._dp)then
-  q = -0.5_dp * (b + sqrt(b*b - 4._dp*a*c))
- else
-  q = -0.5_dp * (b - sqrt(b*b - 4._dp*a*c))
- endif
-
- r1 = q / a
- if (q /= 0._dp)then
-  r2 = c / q
- else
-  r2 = 1.e36_dp
- endif
-
- end subroutine quadratic
-
-
- 
  ! -- end private subroutines
  ! ------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------

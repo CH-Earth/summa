@@ -129,7 +129,6 @@ contains
  integer(i4b)             :: iLayer                ! loop through layers
  real(dp)                 :: fracRootLower         ! fraction of the rooting depth at the lower interface
  real(dp)                 :: fracRootUpper         ! fraction of the rooting depth at the upper interface
- real(dp)                 :: checkCalcs            ! check calculations for aquifer roots
  ! initialize error control
  err=0; message='rootDensty/'
  ! ----------------------------------------------------------------------------------
