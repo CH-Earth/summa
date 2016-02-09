@@ -21,11 +21,6 @@
 module coupled_em_module
 ! numerical recipes data types
 USE nrtype
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
@@ -40,6 +35,11 @@ real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when dia
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
 real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
+! number of variables
+integer(i4b)           :: nSnow                ! number of snow layers
+integer(i4b)           :: nSoil                ! number of soil layers
+integer(i4b)           :: nLayers              ! total number of layers
+integer(i4b)           :: nState               ! total number of state variables
 contains
 
 
@@ -400,6 +400,9 @@ contains
   ! -----------------------------------------
   call vegSWavRad(&
                   dt_sub,                       & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
+                  nSnow,                        & ! intent(in): number of snow layers
+                  nSoil,                        & ! intent(in): number of soil layers
+                  nLayers,                      & ! intent(in): total number of layers
                   computeVegFlux,               & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                   err,cmessage)                   ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -551,6 +554,9 @@ contains
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
+    ! define the number of state variables
+    nState = indx_data%var(iLookINDEX%nState)%dat(1)
+
     ! re-compute snow depth and SWE
     if(nSnow > 0)then
      mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
@@ -619,6 +625,10 @@ contains
    ! get the new solution
    call systemSolv(&
                    ! input: model control
+                   nSnow,                                  & ! intent(in): number of snow layers
+                   nSoil,                                  & ! intent(in): number of soil layers
+                   nLayers,                                & ! intent(in): total number of layers
+                   nState,                                 & ! intent(in): total number of layers
                    dt_temp,                                & ! intent(in): length of the model sub-step
                    maxiter,                                & ! intent(in): maximum number of iterations
                    (nsub==1),                              & ! intent(in): logical flag to denote the first substep
@@ -736,6 +746,7 @@ contains
     call snwDensify(&
                     ! intent(in): variables
                     dt_temp,                                                & ! intent(in): time step (s)
+                    indx_data%var(iLookINDEX%nSnow)%dat(1),                 & ! intent(in): number of snow layers
                     mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
                     mvar_data%var(iLookMVAR%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
                     mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1),  & ! intent(in): sublimation from the snow surface (kg m-2 s-1)

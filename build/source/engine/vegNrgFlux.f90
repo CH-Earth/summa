@@ -38,11 +38,6 @@ USE multiconst,only:sb         ! Stefan Boltzman constant             (W m-2 K-4
 USE multiconst,only:iden_air   ! intrinsic density of air             (kg m-3)
 USE multiconst,only:iden_ice   ! intrinsic density of ice             (kg m-3)
 USE multiconst,only:iden_water ! intrinsic density of liquid water    (kg m-3)
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,   & ! number of snow layers
-                    nSoil,   & ! number of soil layers
-                    nLayers    ! total number of layers
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:  &
  numerical,                  & ! numerical solution
@@ -125,6 +120,7 @@ contains
                        attr_data,                               & ! intent(in):    spatial attributes
                        forc_data,                               & ! intent(in):    model forcing data
                        mpar_data,                               & ! intent(in):    model parameters
+                       indx_data,                               & ! intent(in):    state vector geometry
                        mvar_data,                               & ! intent(inout): model variables for a local HRU
                        bvar_data,                               & ! intent(in):    model variables for the local basin
                        model_decisions,                         & ! intent(in):    model decisions
@@ -172,6 +168,7 @@ contains
  USE data_struc,only:&
                      var_i,            & ! data vector (i4b)
                      var_d,            & ! data vector (dp)
+                     var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to named variables defining elements in the data structures
@@ -207,6 +204,7 @@ contains
  type(var_d),intent(in)          :: attr_data                       ! spatial attributes
  type(var_d),intent(in)          :: forc_data                       ! model forcing data
  type(var_d),intent(in)          :: mpar_data                       ! model parameters
+ type(var_ilength),intent(in)    :: indx_data                       ! state vector geometry
  type(var_dlength),intent(inout) :: mvar_data                       ! model variables for a local HRU
  type(var_dlength),intent(in)    :: bvar_data                       ! model variables for the local basin
  type(model_options),intent(in)  :: model_decisions(:)              ! model decisions
@@ -394,6 +392,11 @@ contains
  ix_stomResist                   => model_decisions(iLookDECISIONS%stomResist)%iDecision,           & ! intent(in): [i4b] choice of function for stomatal resistance
  ix_spatial_gw                   => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,           & ! intent(in): [i4b] choice of groundwater representation (local, basin)
 
+ ! input: layer geometry
+ nSnow                           => indx_data%var(iLookINDEX%nSnow)%dat(1),                         & ! intent(in): [i4b] number of snow layers
+ nSoil                           => indx_data%var(iLookINDEX%nSoil)%dat(1),                         & ! intent(in): [i4b] number of soil layers
+ nLayers                         => indx_data%var(iLookINDEX%nLayers)%dat(1),                       & ! intent(in): [i4b] total number of layers
+
  ! input: physical attributes
  vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                          & ! intent(in): [i4b] vegetation type index
  soilTypeIndex                   => type_data%var(iLookTYPE%soilTypeIndex),                         & ! intent(in): [i4b] soil type index
@@ -456,8 +459,8 @@ contains
  ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
  scalarSWE                       => mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                      & ! intent(in): [dp]    snow water equivalent on the ground (kg m-2)
  scalarSnowDepth                 => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),                & ! intent(in): [dp]    snow depth on the ground surface (m)
- mLayerVolFracLiq                => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers), & ! intent(in): [dp(:)] volumetric fraction of liquid water in each soil layer (-)
- mLayerMatricHead                => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                  & ! intent(in): [dp(:)] matric head in each layer (m)
+ mLayerVolFracLiq                => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,                  & ! intent(in): [dp(:)] volumetric fraction of liquid water in each layer (-)
+ mLayerMatricHead                => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat,                  & ! intent(in): [dp(:)] matric head in each soil layer (m)
  localAquiferStorage             => mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1),           & ! intent(in): [dp]    aquifer storage for the local column (m)
  basinAquiferStorage             => bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),          & ! intent(in): [dp]    aquifer storage for the single basin (m)
 
@@ -839,8 +842,8 @@ contains
                     ix_soilStress,                     & ! intent(in): choice of function for the soil moisture control on stomatal resistance
                     ix_groundwatr,                     & ! intent(in): groundwater parameterization
                     ! input (state variables)
-                    mLayerMatricHead(1:nSoil),         & ! intent(in): matric head in each layer (m)
-                    mLayerVolFracLiq(1:nSoil),         & ! intent(in): volumetric fraction of liquid water in each layer (-)
+                    mLayerMatricHead(1:nSoil),         & ! intent(in): matric head in each soil layer (m)
+                    mLayerVolFracLiq(nSnow+1:nLayers), & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                     scalarAquiferStorage,              & ! intent(in): aquifer storage (m)
                     ! input (diagnostic variables)
                     mLayerRootDensity(1:nSoil),        & ! intent(in): root density in each layer (-)
@@ -1107,7 +1110,7 @@ contains
     ! NOTE: computations are based on start-of-step values, so only compute for the first flux call
     if(firstFluxCall)then
      ! (soil water evaporation factor [0-1])
-     soilEvapFactor = mLayerVolFracLiq(1)/(theta_sat - theta_res)
+     soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res)
      ! (resistance from the soil [s m-1])
      scalarSoilResistance = scalarGroundSnowFraction*1._dp + (1._dp - scalarGroundSnowFraction)*EXP(8.25_dp - 4.225_dp*soilEvapFactor)  ! Sellers (1992)
      !scalarSoilResistance = scalarGroundSnowFraction*0._dp + (1._dp - scalarGroundSnowFraction)*exp(8.25_dp - 6.0_dp*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
@@ -2424,7 +2427,7 @@ contains
 
  ! ** compute the factor limiting transpiration for each soil layer (-)
  wAvgTranspireLimitFac = 0._dp  ! (initialize the weighted average)
- do iLayer=1,nSoil
+ do iLayer=1,size(mLayerMatricHead)
   ! compute the soil stress function
   select case(ixSoilResist)
    case(NoahType)  ! thresholded linear function of volumetric liquid water content

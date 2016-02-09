@@ -24,11 +24,6 @@ USE nrtype
 USE mDecisions_module,only:  &
  moisture,                   & ! moisture-based form of Richards' equation
  mixdform                      ! mixed form of Richards' equation
-! define the number of layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
 implicit none
 private
 public::read_icond
@@ -73,6 +68,9 @@ contains
  integer(i4b),intent(out)       :: err             ! error code
  character(*),intent(out)       :: message         ! error message
  ! define local variables
+ integer(i4b)                   :: nSnow           ! number of snow layers
+ integer(i4b)                   :: nSoil           ! number of soil layers
+ integer(i4b)                   :: nLayers         ! total number of layers
  integer(i4b),parameter         :: missingInteger=-9999     ! missing value for integers
  real(dp),parameter             :: missingDouble=-9999._dp  ! missing value for double
  character(len=256)             :: cmessage        ! error message for downwind routine

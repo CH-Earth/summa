@@ -21,11 +21,6 @@
 module ssdNrgFlux_module
 ! numerical recipes data types
 USE nrtype
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
 ! physical constants
 USE multiconst,only:&
                     sb,          & ! Stefan Boltzman constant      (W m-2 K-4)
@@ -126,6 +121,8 @@ contains
                  ! input: model state variables
                  mLayerTempTrial,                                               & ! intent(in): trial temperature at the current iteration (K)
                  ! input: model coordinates and thermal properties
+                 indx_data%var(iLookINDEX%nSnow)%dat(1),                        & ! intent(in): number of snow layers 
+                 indx_data%var(iLookINDEX%nLayers)%dat(1),                      & ! intent(in): total number of layers 
                  indx_data%var(iLookINDEX%layerType)%dat,                       & ! intent(in): layer type (ix_soil or ix_snow)
                  mvar_data%var(iLookMVAR%mLayerDepth)%dat,                      & ! intent(in): depth of each layer (m)
                  mvar_data%var(iLookMVAR%mLayerHeight)%dat,                     & ! intent(in): height at the mid-point of each layer (m)
@@ -162,6 +159,8 @@ contains
                        ! input: model state variables
                        mLayerTempTrial,                    & ! intent(in): trial temperature at the current iteration (K)
                        ! input: model coordinates and thermal properties
+                       nSnow,                              & ! intent(in): number of snow layers
+                       nLayers,                            & ! intent(in): total number of layers
                        layerType,                          & ! intent(in): type of each layer
                        mLayerDepth,                        & ! intent(in): depth of each layer (m)
                        mLayerHeight,                       & ! intent(in): height of layer mid-points (m)
@@ -190,6 +189,8 @@ contains
  ! input: model state variables
  real(dp),intent(in)           :: mLayerTempTrial(:)         ! intent(in): trial temperature at the current iteration (K)
  ! input: model coordinates and thermal properties
+ integer(i4b),intent(in)       :: nSnow                      ! intent(in): number of snow layers
+ integer(i4b),intent(in)       :: nLayers                    ! intent(in): total number of layers
  integer(i4b),intent(in)       :: layerType(:)               ! intent(in): type of the layer (ix_soil or ix_snow)
  real(dp),intent(in)           :: mLayerDepth(:)             ! intent(in): depth of each layer (m)
  real(dp),intent(in)           :: mLayerHeight(:)            ! intent(in): height of layer mid-points (m)

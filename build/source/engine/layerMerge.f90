@@ -21,11 +21,6 @@
 module layerMerge_module
 ! data types
 USE nrtype
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,   & ! number of snow layers
-                    nSoil,   & ! number of soil layers
-                    nLayers    ! total number of layers
 ! access named variables for snow and soil
 USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
 ! physical constants
@@ -44,7 +39,10 @@ public::layerMerge
 interface removeOneLayer
  module procedure removeOneLayer_rv, removeOneLayer_iv
 end interface removeOneLayer
-
+! provide access to the number layers throughout the module
+integer(i4b)                    :: nSnow               ! number of snow layers
+integer(i4b)                    :: nSoil               ! number of soil layers
+integer(i4b)                    :: nLayers             ! total number of layers
 contains
 
 
@@ -137,6 +135,11 @@ contains
 
  ! intialize the modified layers flag
  mergedLayers=.false.
+
+ ! initialize the number of snow layers
+ nSnow = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  kSnow=0 ! initialize first layer to test (top layer)
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
@@ -307,6 +310,7 @@ contains
  real(dp)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
  real(dp)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
  real(dp),parameter              :: eTol=1.e-4_dp            ! tolerance for the enthalpy-->temperature conversion (J m-3)
+
  ! initialize error control
  err=0; message="layer_combine/"
 

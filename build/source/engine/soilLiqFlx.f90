@@ -32,11 +32,6 @@ USE multiconst,only:&
                     iden_air,& ! intrinsic density of air      (kg m-3)
                     iden_ice,& ! intrinsic density of ice      (kg m-3)
                     iden_water ! intrinsic density of water    (kg m-3)
-! provide access to the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,   & ! number of snow layers
-                    nSoil,   & ! number of soil layers
-                    nLayers    ! total number of layers
 ! provide access to layer types
 USE data_struc,only:ix_soil,ix_snow  ! named variables for snow and soil
 ! provide access to look-up values for model decisions
@@ -116,7 +111,7 @@ contains
  USE data_struc,only:model_decisions                         ! model decision structure
  USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
  ! model variables, parameters, forcing data, etc.
- USE data_struc,only:mpar_data,mvar_data                                            ! data structures
+ USE data_struc,only:mpar_data,mvar_data,indx_data                                  ! data structures
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: model control
@@ -165,13 +160,14 @@ contains
  err=0; message='soilLiqFlx/'
 
  ! get indices for the data structures
- ibeg = nSnow + 1
- iend = nSnow + nSoil
+ ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + 1
+ iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
 
  ! wrapper routine for liquid fluxes
  call soilLiqFlx_muster(&
 
                         ! input: model control
+                        indx_data%var(iLookINDEX%nSoil)%dat(1),                        & ! intent(in): number of soil layers
                         doInfiltrate,                                                  & ! intent(in): flag to compute infiltration
                         deriv_desired,                                                 & ! intent(in): flag indicating if derivatives are desired
 
@@ -268,8 +264,8 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! save information in the data structures
- mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(1:nSoil) = mLayerdTheta_dPsi        ! derivative in the soil water characteristic w.r.t. psi (m-1)
- mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(1:nSoil) = mLayerdPsi_dTheta        ! derivative in the soil water characteristic w.r.t. theta (m)
+ mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(:) = mLayerdTheta_dPsi(:)        ! derivative in the soil water characteristic w.r.t. psi (m-1)
+ mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(:) = mLayerdPsi_dTheta(:)        ! derivative in the soil water characteristic w.r.t. theta (m)
 
  end subroutine soilLiqFlx
 
@@ -280,6 +276,7 @@ contains
  subroutine soilLiqFlx_muster(&
 
                               ! input: model control
+                              nSoil,                       & ! intent(in): number of soil layers
                               doInfiltrate,                & ! intent(in): flag to compute infiltration
                               deriv_desired,               & ! intent(in): flag indicating if derivatives are desired
 
@@ -384,6 +381,7 @@ contains
  ! ***** input variables
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
+ integer(i4b),intent(in)          :: nSoil                        ! number of soil layers
  logical(lgt),intent(in)          :: doInfiltrate                  ! flag to compute infiltration
  logical(lgt),intent(in)          :: deriv_desired                ! flag indicating if derivatives are desired
  ! input: model decisions

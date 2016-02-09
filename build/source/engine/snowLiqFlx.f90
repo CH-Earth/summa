@@ -21,11 +21,6 @@
 module snowLiqFlx_module
 USE nrtype                                    ! numerical recipes data types
 USE multiconst,only:iden_ice,iden_water       ! intrinsic density of ice and water (kg m-3)
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
 implicit none
 private
 public::snowLiqFlx
@@ -37,6 +32,7 @@ contains
  ! ************************************************************************************************
  subroutine snowLiqFlx(&
                        ! input: model control
+                       nSnow,                   & ! intent(in): number of snow layers
                        firstFluxCall,           & ! intent(in): the first flux call
                        ! input: forcing for the snow domain
                        scalarThroughfallRain,   & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
@@ -53,6 +49,7 @@ contains
  USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
  implicit none
  ! input: model control
+ integer(i4b),intent(in)       :: nSnow                      ! number of snow layers
  logical(lgt),intent(in)       :: firstFluxCall              ! the first flux call
  ! input: forcing for the snow domain
  real(dp),intent(in)           :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
@@ -75,6 +72,7 @@ contains
  ! ** calculate fluxes and derivatives for liquid water flow through snow
  call snowLiqFlx_muster(&
                         ! input: model control
+                        nSnow,                                                      & ! intent(in): number of snow layers
                         firstFluxCall,                                              & ! intent(in): the first flux call
                         ! input: forcing for the snow domain
                         scalarThroughfallRain,                                      & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
@@ -104,6 +102,7 @@ contains
  ! ************************************************************************************************
  subroutine snowLiqFlx_muster(&
                               ! input: model control
+                              nSnow,                                                      & ! intent(in): number of snow layers
                               firstFluxCall,                                              & ! intent(in): the first flux call
                               ! input: forcing for the snow domain
                               scalarThroughfallRain,                                      & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
@@ -125,6 +124,7 @@ contains
                               err,message)                                                  ! intent(out): error control
  implicit none
  ! input: model control
+ integer(i4b),intent(in)       :: nSnow                      ! number of snow layers
  logical(lgt),intent(in)       :: firstFluxCall              ! the first flux call
  ! input: forcing for the snow domain
  real(dp),intent(in)           :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)

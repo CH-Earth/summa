@@ -20,10 +20,6 @@
 
 module var_derive_module
 USE nrtype
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
 implicit none
 private
 public::calcHeight
@@ -43,9 +39,6 @@ contains
                        mvar_data,   & ! intent(inout): model variables for a local HRU
                        ! output: error control
                        err,message)
- ! access the number of snow and soil layers
- USE data_struc,only:&
-                     nLayers    ! total number of layers
  ! access named variables for snow and soil
  USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
  ! access to the derived types to define the data structures
@@ -72,6 +65,7 @@ contains
  ! associate variables in data structure
  associate(&
  ! associate the model index structures
+ nLayers        => indx_data%var(iLookINDEX%nLayers)%dat(1),  &   ! total number of layers
  layerType      => indx_data%var(iLookINDEX%layerType)%dat,   &   ! layer type (ix_soil or ix_snow)
  ! associate the values in the model variable structures
  mLayerDepth    => mvar_data%var(iLookMVAR%mLayerDepth)%dat,  &   ! depth of the layer (m)
@@ -135,7 +129,8 @@ contains
  ! associate variables in data structure
  associate(&
  ! associate the model index structures
- nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! number of layers
+ nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
+ nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! total number of layers
  layerType             =>indx_data%var(iLookINDEX%layerType)%dat,               & ! layer type (ix_soil or ix_snow)
  ! associate the model decisions
  ixRootProfile         =>model_decisions(iLookDECISIONS%rootProfil)%iDecision,  & ! choice of the rooting profile
@@ -243,7 +238,8 @@ contains
  ! associate variables in data structure
  associate(&
  ! associate the model index structures
- nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! number of layers
+ nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),           & ! number of snow layers
+ nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
  layerType          => indx_data%var(iLookINDEX%layerType)%dat,         & ! layer type (ix_soil or ix_snow)
  ! associate the values in the parameter structures
  k_soil             => mpar_data%var(iLookPARAM%k_soil),                & ! saturated hydraulic conductivity at the compacted depth (m s-1)

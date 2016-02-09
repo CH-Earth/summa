@@ -93,6 +93,11 @@ MODULE data_struc
  integer(i4b),parameter,public      :: ixWatState=2002          ! named variable defining the total water state variable
  integer(i4b),parameter,public      :: ixMatState=2003          ! named variable defining the matric head state variable
  integer(i4b),parameter,public      :: ixMassState=2004         ! named variable defining the mass of water (currently only used for the veg canopy)
+ ! define named variables describing the type of variable
+ integer(i4b),parameter,public      :: ixScalar=1001
+ integer(i4b),parameter,public      :: ixMlayer=1002
+
+
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
@@ -143,9 +148,6 @@ MODULE data_struc
  ! ***********************************************************************************************************
  ! Define common variables
  ! ***********************************************************************************************************
- integer(i4b),save,public                :: nSnow                    ! number of snow layers
- integer(i4b),save,public                :: nSoil                    ! number of soil layers
- integer(i4b),save,public                :: nLayers                  ! total number of layers in the snow-soil system
  integer(i4b),save,public                :: numtim                   ! number of time steps
  real(dp),save,public                    :: data_step                ! time step of the data
  real(dp),save,public                    :: refJulday                ! reference time in fractional julian days

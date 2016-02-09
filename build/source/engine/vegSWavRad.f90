@@ -23,11 +23,6 @@ module vegSWavRad_module
 USE nrtype
 ! named variables for snow and soil
 USE data_struc,only:ix_soil,ix_snow
-! access the number of snow and soil layers
-USE data_struc,only:&
-                      nSnow,        & ! number of snow layers
-                      nSoil,        & ! number of soil layers
-                      nLayers         ! total number of layers
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:         &
                       noah_mp,      & ! full Noah-MP implementation (including albedo)
@@ -65,6 +60,9 @@ contains
  ! ************************************************************************************************
  subroutine vegSWavRad(&
                        dt,                           & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
+                       nSnow,                        & ! intent(in): number of snow layers
+                       nSoil,                        & ! intent(in): number of soil layers
+                       nLayers,                      & ! intent(in): total number of layers
                        computeVegFlux,               & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        err,message)                    ! intent(out): error control
  ! model decisions
@@ -76,6 +74,9 @@ contains
  implicit none
  ! dummy variables
  real(dp),intent(in)            :: dt                             ! time step (s) -- only used in Noah-MP radiation, to compute albedo
+ integer(i4b),intent(in)        :: nSnow                          ! number of snow layers
+ integer(i4b),intent(in)        :: nSoil                          ! number of soil layers
+ integer(i4b),intent(in)        :: nLayers                        ! total number of layers
  logical(lgt),intent(in)        :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  integer(i4b),intent(out)       :: err                            ! error code
  character(*),intent(out)       :: message                        ! error message
@@ -87,6 +88,8 @@ contains
  call vegSWavRad_muster(&
                         ! input: model control
                         dt,                                                                & ! intent(in): model time step
+                        nSnow,                                                             & ! intent(in): number of snow layers
+                        nSoil,                                                             & ! intent(in): number of soil layers
                         computeVegFlux,                                                    & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                         type_data%var(iLookTYPE%vegTypeIndex),                             & ! intent(in): vegetation type index
                         type_data%var(iLookTYPE%soilTypeIndex),                            & ! intent(in): soil type index
@@ -139,6 +142,8 @@ contains
  subroutine vegSWavRad_muster(&
                               ! input: control
                               dt,                                & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
+                              nSnow,                             & ! intent(in): number of snow layers
+                              nSoil,                             & ! intent(in): number of soil layers
                               computeVegFlux,                    & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                               vegTypeIndex,                      & ! intent(in): vegetation type index
                               soilTypeIndex,                     & ! intent(in): soil type index
@@ -184,6 +189,8 @@ contains
  implicit none
  ! input: control
  real(dp),intent(in)             :: dt                             ! time step (seconds)
+ integer(i4b),intent(in)         :: nSnow                          ! number of snow layers
+ integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
  logical(lgt),intent(in)         :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  integer(i4b),intent(in)         :: vegTypeIndex                   ! vegetation type index
  integer(i4b),intent(in)         :: soilTypeIndex                  ! soil type index

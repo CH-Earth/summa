@@ -28,12 +28,6 @@ USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
 
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,   & ! number of snow layers
-                    nSoil,   & ! number of soil layers
-                    nLayers    ! total number of layers
-
 ! access named variables for snow and soil
 USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
 
@@ -61,6 +55,11 @@ public::layerDivide
 interface addOneLayer
  module procedure AddOneLayer_rv, AddOneLayer_iv
 end interface AddOneLayer
+
+! provide access to the number layers throughout the module
+integer(i4b)                    :: nSnow               ! number of snow layers
+integer(i4b)                    :: nSoil               ! number of soil layers
+integer(i4b)                    :: nLayers             ! total number of layers
 
 contains
 
@@ -177,6 +176,11 @@ contains
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zmax_lower = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
  zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+
+ ! initialize the number of snow layers
+ nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** special case of no snow layers
  if(nSnow==0)then
@@ -428,6 +432,8 @@ contains
    case('midToto'); ix_lower=1; ix_upper=nLayers
    case default; cycle
   end select
+
+  print*, 'ix_lower,ix_upper,ix_divide = ', ix_lower,ix_upper,ix_divide
 
   ! add an additional layer -- not a state variable
   call AddOneLayer(indx_data%var(ivar)%dat,ix_lower,ix_upper,ix_divide,.false.,err,cmessage)

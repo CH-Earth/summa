@@ -21,13 +21,6 @@
 module indexState_module
 ! data types
 USE nrtype
-
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
-
 ! named variables that define the layer type
 USE data_struc,only:ix_soil        ! soil
 USE data_struc,only:ix_snow        ! snow
@@ -200,16 +193,13 @@ contains
    err=20; return
   endif
 
-  ! check
-  write(*,'(a,1x,i4)') 'size '//trim(indx_meta(ivar)%varname)//' = ', size(indx_data%var(iVar)%dat)
-
  end do  ! looping through variables
 
  ! -----
  ! * define the type of model states...
  ! ------------------------------------
 
- ! make an association to variables in the data structures
+ ! make an association to the ALLOCATABLE variables in the data structures
  ! NOTE: we need to do this here since the size may have changed above
  associate(&
  ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat , & ! indices defining the type of the state (ixNrgState...)
@@ -240,17 +230,11 @@ contains
  ! define vector of state variables that are energy only
  ixNrgOnly = pack(ixAllState,ixStateType==ixNrgState)
 
- print*, 'ixStateType = ', ixStateType
- print*, 'ixNrgOnly   = ', ixNrgOnly
-
  ! end association to the ALLOCATABLE variables in the data structures
  end associate 
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
-
- print*, 'nSnow = ', nSnow
- pause 'in indexState'
 
  end associate  ! end association to variables in the data structures
  end subroutine indexState
