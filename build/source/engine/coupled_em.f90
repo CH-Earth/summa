@@ -68,7 +68,6 @@ contains
  USE canopySnow_module,only:canopySnow      ! (5) compute interception and unloading of snow from the vegetation canopy
  USE volicePack_module,only:newsnwfall      ! (6) compute change in the top snow layer due to throughfall and unloading
  USE volicePack_module,only:volicePack      ! (7) merge and sub-divide snow layers, if necessary
- USE indexState_module,only:indexState      ! (8) define indices for all model state variables and layers
  USE diagn_evar_module,only:diagn_evar      ! (8) compute diagnostic energy variables -- thermal conductivity and heat capacity
  ! the model solver
  USE indexState_module,only:indexState      ! define indices for all model state variables and layers

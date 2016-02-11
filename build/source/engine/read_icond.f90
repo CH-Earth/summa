@@ -103,7 +103,6 @@ contains
  real(dp),pointer               :: scalarTemp          ! temperature (K)
  real(dp)                       :: scalarTheta         ! liquid water equivalent of total water [liquid water + ice] (-)
  integer(i4b),pointer           :: scalarLayerType     ! layer type
- real(dp)                       :: scalarPsiLiq        ! liquid water matric potential (m)
  real(dp),pointer               :: scalarVolFracIce    ! volumetric fraction of ice (-)
  real(dp),pointer               :: scalarVolFracLiq    ! volumetric fraction of liquid water (-)
  real(dp),pointer               :: scalarMatricHead    ! matric head (m)
@@ -522,7 +521,6 @@ contains
                     scalarMatricHead,                          & ! intent(in): matric head (m)
                     vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                     ! output
-                    scalarPsiLiq,                              & ! intent(out): liquid water matric potential (m)
                     scalarVolFracLiq,                          & ! intent(out): volumetric fraction of liquid water (-)
                     scalarVolFracIce,                          & ! intent(out): volumetric fraction of ice (-)
                     err,cmessage)                                ! intent(out): error control

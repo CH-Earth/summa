@@ -227,8 +227,11 @@ contains
  ixSoilState  = arth(1,1,nSoil)
  ixLayerState = arth(1,1,nLayers)
 
- ! define vector of state variables that are energy only
- ixNrgOnly = pack(ixAllState,ixStateType==ixNrgState)
+ ! define vector of indices for specific states
+ ixNrgOnly  = pack(ixAllState, ixStateType==ixNrgState)
+ if(nWatState>0)  ixWatOnly  = pack(ixAllState, ixStateType==ixWatState)
+ if(nMatState>0)  ixMatOnly  = pack(ixAllState, ixStateType==ixMatState)
+ if(nMassState>0) ixMassOnly = pack(ixAllState, ixStateType==ixMassState)
 
  ! end association to the ALLOCATABLE variables in the data structures
  end associate 

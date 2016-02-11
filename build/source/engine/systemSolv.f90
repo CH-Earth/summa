@@ -125,6 +125,8 @@ contains
  USE soil_utils_module,only:iceImpede                 ! compute the ice impedance factor (soil)
  USE soil_utils_module,only:dIceImpede_dTemp          ! differentiate the ice impedance factor w.r.t. temperature (soil)
  ! provide access to the flux modules
+ USE getVectorz_module,only:popStateVec               ! populate the state vector
+ USE getVectorz_module,only:varExtract                ! extract variables from the state vector
  USE updatState_module,only:updateSnow                ! update snow states
  USE updatState_module,only:updateSoil                ! update soil states
  USE vegnrgflux_module,only:vegnrgflux                ! compute energy fluxes over vegetation
@@ -301,9 +303,9 @@ contains
  real(dp),dimension(nState)      :: fScale                       ! characteristic scale of the function evaluations (mixed units)
  real(dp),dimension(nState)      :: xScale                       ! characteristic scale of the state vector (mixed units)
  real(dp),dimension(nState)      :: dMat                         ! diagonal matrix (excludes flux derivatives)
- real(qp),dimension(nState)      :: sMul    ! NOTE: qp           ! multiplier for state vector for the residual calculations
- real(qp),dimension(nState)      :: rAdd    ! NOTE: qp           ! additional terms in the residual vector
- real(qp),dimension(nState)      :: rVec    ! NOTE: qp           ! residual vector
+ real(dp),dimension(nState)      :: sMul    ! NOTE: dp           ! multiplier for state vector for the residual calculations
+ real(dp),dimension(nState)      :: rAdd    ! NOTE: dp           ! additional terms in the residual vector
+ real(dp),dimension(nState)      :: rVec    ! NOTE: dp           ! residual vector
  real(dp),dimension(nState)      :: xInc                         ! iteration increment
  real(dp),dimension(nState)      :: grad                         ! gradient of the function vector = matmul(rVec,aJac)
  real(dp),dimension(nState,nRHS) :: rhs                          ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
@@ -311,7 +313,7 @@ contains
  real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:)                    ! analytical Jacobian matrix
- real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
+ real(dp),allocatable            :: nJac(:,:)  ! NOTE: dp        ! numerical Jacobian matrix
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
@@ -496,6 +498,9 @@ contains
   case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
  end select ! (modify the groundwater representation for this single-column implementation)
 
+ ! define the scaled maximum step size (used in the line search)
+ stpmax = stepMax*real(nState,dp)
+
  ! define canopy depth (m)
  canopyDepth = heightCanopyTop - heightCanopyBottom
 
@@ -521,14 +526,7 @@ contains
  if(computeVegFlux)then
   ! (NOTE: if canopy temperature is below absolute zero then canopy was previously buried by snow)
   if(scalarCanopyTemp < 0._dp .or. scalarCanairTemp < 0._dp)then
-   ! check there is snow (there really has to be)
-   if(nSnow == 0)then
-    message=trim(message)//'no snow when canopy temperature or canopy air temperature is undefined -- canopy temps can only be undefined when buried with snow'
-    err=20; return
-   endif
-   ! set canopy temperature to the temperature of the top snow layer + small offset to check derivative calculations
-   scalarCanairTemp = mLayerTemp(1) + 0.1_dp
-   scalarCanopyTemp = mLayerTemp(1) + 0.1_dp
+   message=trim(message)//'canopy temperatures below zero [previously this signified burial by snow; no longer done]'
   endif  ! (if canopy temperature undefined -- means canopy previously buried with snow)
  endif  ! (if computing vegetation fluxes -- canopy exposed)
 
@@ -571,64 +569,6 @@ contains
  ! * define components of derivative matrices that are constant over a time step (substep)...
  ! ------------------------------------------------------------------------------------------
 
- ! define the scaled maximum step size (used in the line search)
- stpmax = stepMax*real(nState,dp)
-
- ! define additional vectors used in the residual calculations
- sMul(:) = 1._dp  ! multiplier for the state vector
- rAdd(:) = 0._dp  ! additional terms in the residual calculations (phase change, compressibility, etc.)
-
- ! define the multiplier for the state vector for residual calculations (vegetation canopy)
- if(computeVegFlux)then
-  sMul(ixCasNrg) = Cp_air*iden_air          ! volumetric heat capacity of air (J m-3 K-1)
-  sMul(ixVegNrg) = scalarBulkVolHeatCapVeg  ! volumetric heat capacity of the vegetation (J m-3 K-1)
-  sMul(ixVegWat) = 1._dp                    ! nothing else on the left hand side
- endif
-
- ! define the multiplier for the state vector for residual calculations (snow-soil domain)
- sMul(ixSnowSoilNrg) = mLayerVolHtCapBulk(1:nLayers)
- sMul(ixSnowSoilWat) = 1._dp
-
- ! compute terms in the Jacobian for vegetation (excluding fluxes)
- ! NOTE: this is computed outside the iteration loop because it does not depend on state variables
- ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
- if(computeVegFlux)then
-  dMat(ixCasNrg) = Cp_air*iden_air          ! volumetric heat capacity of air (J m-3 K-1)
-  dMat(ixVegWat) = 1._dp                    ! nothing else on the left hand side
- endif
-
- ! compute terms in the Jacobian for the snow domain (excluding fluxes)
- ! NOTE: this is computed outside the iteration loop because it does not depend on state variables
- if(nSnow>0)&  ! (liquid water in snow only defined if snow layers exist)
- dMat(ixSnowOnlyWat) = 1._dp
-
- ! -----
- ! * define scaling vectors...
- ! ---------------------------
-
- ! define the scaling for the function evaluation -- vegetation
- if(computeVegFlux)then
-  fScale(ixCasNrg) = fScaleNrg   ! (J m-3)
-  fScale(ixVegNrg) = fScaleNrg   ! (J m-3)
-  fScale(ixVegWat) = fScaleLiq*canopyDepth*iden_water  ! (kg m-2)
- endif
-
- ! define the scaling for the function evaluation -- snow and soil
- fScale(ixSnowSoilNrg) = fScaleNrg  ! (J m-3)
- fScale(ixSnowSoilWat) = fScaleLiq  ! (-)
-
- ! define scaling for the state vector -- vegetation
- if(computeVegFlux)then
-  xScale(ixCasNrg) = xScaleTemp   ! (K)
-  xScale(ixVegNrg) = xScaleTemp   ! (K)
-  xScale(ixVegWat) = xScaleLiq*canopyDepth*iden_water  ! (kg m-2)
- endif
-
- ! define the scaling for the function evaluation -- snow and soil
- xScale(ixSnowSoilNrg) = xScaleTemp  ! (K)
- xScale(ixSnowOnlyWat) = xScaleLiq   ! (-)
- xScale(ixSoilOnlyHyd) = xScaleMat   ! (m)
-
  ! -----
  ! * initialize state vectors...
  ! -----------------------------
@@ -636,18 +576,21 @@ contains
  ! initialize
  xInc(:)   = 0._dp  ! iteration increment
 
- ! build the state vector for the vegetation canopy
- if(computeVegFlux)then
-  stateVecInit(ixCasNrg) = scalarCanairTemp
-  stateVecInit(ixVegNrg) = scalarCanopyTemp
-  stateVecInit(ixVegWat) = scalarCanopyWat  ! kg m-2
- endif
-
- ! build the state vector for the snow and soil domain
- stateVecInit(ixSnowSoilNrg) = mLayerTemp(1:nLayers)
- stateVecInit(ixSoilOnlyHyd) = mLayerMatricHead(1:nSoil)
- if(nSnow>0)&
- stateVecInit(ixSnowOnlyWat) = mLayerVolFracWatInit(1:nSnow)
+ ! initialize state vectors
+ call popStateVec(&
+                  ! input
+                  computeVegFlux,          & ! intent(in):    flag to denote if computing energy flux over vegetation
+                  canopyDepth,             & ! intent(in):    canopy depth (m)
+                  mvar_data,               & ! intent(in):    model variables for a local HRU
+                  indx_data,               & ! intent(in):    indices defining model states and layers
+                  ! output
+                  stateVecInit,            & ! intent(out):   initial model state vector (mixed units)
+                  fScale,                  & ! intent(out):   function scaling vector (mixed units)
+                  xScale,                  & ! intent(out):   variable scaling vector (mixed units)
+                  sMul,                    & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                  dMat,                    & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
+                  err,cmessage)              ! intent(out):   error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! -----
  ! * compute the initial function evaluation...
@@ -667,41 +610,31 @@ contains
   stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
  endif
 
- ! initialize canopy variables
- if(computeVegFlux)then
-  ! (extract state variables)
-  scalarCanairTempTrial = stateVecTrial(ixCasNrg)
-  scalarCanopyTempTrial = stateVecTrial(ixVegNrg)
-  scalarCanopyWatTrial  = stateVecTrial(ixVegWat)                    ! total water storage on the canopy (kg m-2)
-  ! (compute liquid water content)
-  fracLiqVeg    = fracliquid(scalarCanopyTempTrial,snowfrz_scale)    ! fraction of liquid water (-)
-  scalarCanopyLiqTrial = fracLiqVeg*scalarCanopyWatTrial             ! mass of liquid water on the canopy (kg m-2)
-  scalarCanopyIceTrial = (1._dp - fracLiqVeg)*scalarCanopyWatTrial   ! mass of ice on the canopy (kg m-2)
- else
-  ! (state variables)
-  scalarCanairTempTrial = scalarCanairTemp
-  scalarCanopyTempTrial = scalarCanopyTemp
-  scalarCanopyWatTrial  = scalarCanopyLiq + scalarCanopyIce
-  ! (diagnostic variables)
-  fracLiqVeg            = valueMissing
-  scalarCanopyLiqTrial  = scalarCanopyLiq
-  scalarCanopyIceTrial  = scalarCanopyIce
- endif
+ ! extract variables from the model state vector
+ call varExtract(&
+                 ! input
+                 stateVecTrial,                 & ! intent(in):    model state vector (mixed units)
+                 mpar_data,                     & ! intent(in):    model parameters
+                 mvar_data,                     & ! intent(in):    model variables for a local HRU
+                 indx_data,                     & ! intent(in):    indices defining model states and layers
+                 ! output: variables for the vegetation canopy
+                 fracLiqVeg,                    & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                 scalarCanairTempTrial,         & ! intent(out):   trial value of canopy air temperature (K)
+                 scalarCanopyTempTrial,         & ! intent(out):   trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,          & ! intent(out):   trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,          & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial,          & ! intent(out):   trial value of canopy ice content (kg m-2)
+                 ! output: variables for the snow-soil domain
+                 fracLiqSnow,                   & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                 mLayerTempTrial,               & ! intent(out):   trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,         & ! intent(out):   trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,         & ! intent(out):   trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial,         & ! intent(out):   trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial,         & ! intent(out):   trial vector of matric head (m)
+                 ! output: error control
+                 err,cmessage)                    ! intent(out):   error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
- ! compute the fraction of liquid water in each snow layer
- do iState=1,nSnow
-  fracLiqSnow(iState) = fracliquid(stateVecTrial(ixSnowOnlyNrg(iState)),snowfrz_scale)  ! fraction of liquid water (-)
- end do
-
- ! initialize vector for energy
- mLayerTempTrial = stateVecTrial(ixSnowSoilNrg)
-
- ! initialize trial vectors for mass
- scalarCanopyLiqTrial  = scalarCanopyLiq
- scalarCanopyIceTrial  = scalarCanopyIce
- mLayerVolFracLiqTrial = mLayerVolFracLiq
- mLayerVolFracIceTrial = mLayerVolFracIce
- mLayerMatricHeadTrial = mLayerMatricHead
 
  ! -----
  ! * compute the initial function evaluation...
@@ -710,7 +643,7 @@ contains
  ! compute flux vector and residual
  call xFluxResid(&
                  ! input
-                 stateVectrial,         & ! intent(in): full state vector (mixed units)
+                 stateVecTrial,         & ! intent(in): full state vector (mixed units)
                  scalarCanopyLiqTrial,  & ! intent(in): liquid water storage in the canopy (kg m-2)
                  scalarCanopyIceTrial,  & ! intent(in): ice storage in the canopy (kg m-2)
                  mLayerVolFracLiqTrial, & ! intent(in): volumetric fraction of liquid water (-)
@@ -736,7 +669,7 @@ contains
  do iter=1,maxiter
 
   ! keep track of the number of iterations
-  niter = iter
+  niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
 
   ! test
   if(printFlag)then
@@ -1160,7 +1093,6 @@ contains
   character(*),intent(out)       :: message                   ! error message
   ! local
   character(LEN=256)             :: cmessage                  ! error message of downwind routine
-  real(dp),dimension(nSoil)      :: mLayerPsiLiq              ! liquid water matric potential (m)
   ! initialize error control
   err=0; message='updatState/'
 
@@ -1241,7 +1173,6 @@ contains
                      stateVecTrial(ixSoilOnlyHyd(iLayer-nSnow)),& ! intent(in): matric head (m)
                      vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                      ! output
-                     mLayerPsiLiq(iLayer-nSnow),                & ! intent(out): liquid water matric potential
                      mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
                      mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
                      err,cmessage)                                ! intent(out): error control
@@ -1290,7 +1221,7 @@ contains
   real(dp),intent(in)            :: mLayerVolFracIceLocal(:)  ! trial value for volumetric fraction of ice (-)
   ! output variabes
   real(dp),intent(out)           :: fVec(:)                   ! flux vector (mixed units)
-  real(qp),intent(out)           :: rVec(:)                   ! residual vector (mixed units)
+  real(dp),intent(out)           :: rVec(:)                   ! residual vector (mixed units)
   integer(i4b),intent(out)       :: err                       ! error code
   character(*),intent(out)       :: message                   ! error message
   ! --------------------------------------------------------------
@@ -2363,14 +2294,14 @@ contains
   ! dummy
   real(dp),intent(in)            :: stateVec(:)             ! model state vector (mixed units)
   real(dp),intent(in)            :: fluxVec(:)              ! model flux vector (mixed units)
-  real(qp),intent(in)            :: resVec(:)               ! model residual vector (mixed units)
+  real(dp),intent(in)            :: resVec(:)               ! model residual vector (mixed units)
   integer(i4b),intent(out)       :: err                     ! error code
   character(*),intent(out)       :: message                 ! error message
   ! local
   character(len=256)             :: cmessage                ! error message of downwind routine
   real(dp),dimension(nState)     :: stateVecPerturbed       ! perturbed state vector
   real(dp),dimension(nState)     :: fluxVecJac              ! flux vector
-  real(qp),dimension(nState)     :: resVecJac               ! residual vector (mixed units)
+  real(dp),dimension(nState)     :: resVecJac               ! residual vector (mixed units)
   integer(i4b)                   :: iJac                    ! index of row of the Jacobian matrix
   integer(i4b),parameter         :: iTry=-999               ! index of trial model state variable (used for testing)
   ! trial state variables (vegetation canopy)
@@ -2526,7 +2457,7 @@ contains
   implicit none
   ! dummy
   real(dp),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
-  real(qp),intent(in)            :: rVec(:)       ! the residual vector B
+  real(dp),intent(in)            :: rVec(:)       ! the residual vector B
   real(dp),intent(out)           :: grad(:)       ! gradient of the function vector
   real(dp),intent(out)           :: xInc(:)       ! the solution vector X
   integer(i4b),intent(out)       :: err           ! error code
@@ -2716,7 +2647,7 @@ contains
   REAL(DP), INTENT(IN) :: fOld
   ! output variables
   REAL(DP), DIMENSION(:), INTENT(OUT) :: x,fVec
-  REAL(QP), DIMENSION(:), INTENT(OUT) :: rVec
+  REAL(DP), DIMENSION(:), INTENT(OUT) :: rVec
   REAL(DP), INTENT(OUT) :: f
   logical(lgt)              :: converged   ! convergence flag
   integer(i4b),intent(out)  :: err         ! error code
@@ -2847,7 +2778,7 @@ contains
   function checkConv(rVec,xInc,xVec,soilWatbalErr)
   implicit none
   ! dummies
-  real(qp),intent(in)       :: rVec(:)         ! residual vector (mixed units)
+  real(dp),intent(in)       :: rVec(:)         ! residual vector (mixed units)
   real(dp),intent(in)       :: xInc(:)         ! iteration increment (mixed units)
   real(dp),intent(in)       :: xVec(:)         ! state vector (mixed units)
   real(dp),intent(in)       :: soilWatbalErr   ! soil water balance error (m)
