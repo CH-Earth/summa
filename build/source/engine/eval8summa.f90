@@ -301,6 +301,7 @@ contains
   real(dp),dimension(nSoil)      :: vThetaInit            ! liquid equivalent of total water at the start of the step
   real(dp),dimension(nSoil)      :: vThetaTrial           ! liquid equivalent of total water at the current iteration
   character(LEN=256)             :: cmessage              ! error message of downwind routine
+  ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='xFluxResid/'
 
@@ -999,6 +1000,7 @@ contains
   ! internal subroutine cpactBand: compute the compact band-diagonal matric
   ! *********************************************************************************************************
   subroutine cpactBand(err,message)
+  implicit none
   ! dummy variables
   integer(i4b),intent(out)       :: err                     ! error code
   character(*),intent(out)       :: message                 ! error message
@@ -1365,6 +1367,134 @@ contains
   end subroutine analJacob
 
 
+  ! **********************************************************************************************************
+  ! **********************************************************************************************************
+
+
+  ! *********************************************************************************************************
+  ! internal subroutine numlJacob: compute the Jacobian matrix (numerical)
+  ! *********************************************************************************************************
+  subroutine numlJacob(stateVec,fluxVec,resVec,err,message)
+  implicit none
+  ! dummy
+  real(dp),intent(in)            :: stateVec(:)             ! model state vector (mixed units)
+  real(dp),intent(in)            :: fluxVec(:)              ! model flux vector (mixed units)
+  real(dp),intent(in)            :: resVec(:)               ! model residual vector (mixed units)
+  integer(i4b),intent(out)       :: err                     ! error code
+  character(*),intent(out)       :: message                 ! error message
+  ! local
+  character(len=256)             :: cmessage                ! error message of downwind routine
+  real(dp),dimension(nState)     :: stateVecPerturbed       ! perturbed state vector
+  real(dp),dimension(nState)     :: fluxVecJac              ! flux vector
+  real(dp),dimension(nState)     :: resVecJac               ! residual vector (mixed units)
+  real(dp),dimension(nState,nState) :: nJac                 ! the numerical Jacobian matrix
+  integer(i4b)                   :: iJac                    ! index of row of the Jacobian matrix
+  integer(i4b),parameter         :: iTry=-999               ! index of trial model state variable (used for testing)
+  integer(i4b),parameter         :: ixNumFlux=1001          ! named variable for the flux-based form of the numerical Jacobian
+  integer(i4b),parameter         :: ixNumRes=1002           ! named variable for the residual-based form of the numerical Jacobian
+  integer(i4b)                   :: ixNumType=ixNumRes      ! method used to calculate the numerical Jacobian
+  ! --------------------------------------------------------------
+  ! initialize error control
+  err=0; message='numlJacob/'
+
+  ! get a copy of the state vector to perturb
+  stateVecPerturbed(:) = stateVec(:)
+
+  ! loop through state variables
+  do iJac=1,nState
+
+   ! define printFlag
+   if(iJac==iTry) printFlag=.true.
+   if(iJac/=iTry) printFlag=.false.
+
+   ! (perturb state vector)
+   stateVecPerturbed(iJac) = stateVec(iJac) + dx
+
+   ! **
+   ! ** residual-based calculation of the numerical Jacobian
+   if(ixNumType==ixNumRes)then ! switch between the residual-based form and flux-based form
+
+    ! (compute residual vector)
+    call xFluxResid(&
+                    ! input
+                    stateVecPerturbed,              & ! intent(in): full state vector (mixed units)
+                    ! output
+                    fluxVecJac,                     & ! intent(out): flux vector (mixed units)
+                    resVecJac,                      & ! intent(out): residual vector (mixed units)
+                    err,cmessage)                     ! intent(out): error code and error message
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+    ! (compute the row of the Jacobian matrix)
+    nJac(:,iJac) = (resVecJac - resVec)/dx
+
+   ! **
+   ! ** flux-based calculation of the numerical Jacobian
+   else
+
+    ! extract summa variables from the model state vector
+    call varExtract(&
+                    ! input
+                    stateVecPerturbed,             & ! intent(in):    model state vector (mixed units)
+                    mpar_data,                     & ! intent(in):    model parameters
+                    mvar_data,                     & ! intent(in):    model variables for a local HRU
+                    indx_data,                     & ! intent(in):    indices defining model states and layers
+                    ! output: variables for the vegetation canopy
+                    fracLiqVeg,                    & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                    scalarCanairTempTrial,         & ! intent(out):   trial value of canopy air temperature (K)
+                    scalarCanopyTempTrial,         & ! intent(out):   trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,          & ! intent(out):   trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,          & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                    scalarCanopyIceTrial,          & ! intent(out):   trial value of canopy ice content (kg m-2)
+                    ! output: variables for the snow-soil domain
+                    fracLiqSnow,                   & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                    mLayerTempTrial,               & ! intent(out):   trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,         & ! intent(out):   trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,         & ! intent(out):   trial vector of volumetric liquid water content (-)
+                    mLayerVolFracIceTrial,         & ! intent(out):   trial vector of volumetric ice water content (-)
+                    mLayerMatricHeadTrial,         & ! intent(out):   trial vector of matric head (m)
+                    ! output: error control
+                    err,cmessage)                    ! intent(out):   error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+    ! compute model flux for a given state vector
+    call computFlux(&
+                    ! input: state variables
+                    scalarCanairTempTrial,              & ! intent(in): trial value for the temperature of the canopy air space (K)
+                    scalarCanopyTempTrial,              & ! intent(in): trial value for the temperature of the vegetation canopy (K)
+                    mLayerTempTrial,                    & ! intent(in): trial value for the temperature of each snow and soil layer (K)
+                    mLayerMatricHeadTrial,              & ! intent(in): trial value for the matric head in each soil layer (m)
+                    ! input: diagnostic variables defining the liquid water and ice content
+                    scalarCanopyLiqTrial,               & ! intent(in): trial value for the liquid water on the vegetation canopy (kg m-2)
+                    scalarCanopyIceTrial,               & ! intent(in): trial value for the ice on the vegetation canopy (kg m-2)
+                    mLayerVolFracLiqTrial,              & ! intent(in): trial value for the volumetric liquid water content in each snow and soil layer (-)
+                    mLayerVolFracIceTrial,              & ! intent(in): trial value for the volumetric ice in each snow and soil layer (-)
+                    ! output: flux vector
+                    fluxVecJac,                         & ! intent(out): flux vector (mixed units)
+                    ! output: error control
+                    err,cmessage)                         ! intent(out): error code and error message
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+    ! (compute the row of the Jacobian matrix)
+    nJac(:,iJac) = -dt*(fluxVecJac(:) - fluxVec(:))/dx
+
+    ! (add in the diagonal matrix)
+    nJac(iJac,iJac) = nJac(iJac,iJac) + dMat(iJac)
+
+   endif
+
+   ! (set the state back to the input value)
+   stateVecPerturbed(iJac) = stateVec(iJac)
+
+  end do  ! (looping through state variables)
+
+  ! print the Jacobian
+  print*, '** numerical Jacobian:', ixNumType==ixNumRes
+  write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+  do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
+  !pause 'testing Jacobian'
+
+
+  end subroutine numlJacob
 
 
 
