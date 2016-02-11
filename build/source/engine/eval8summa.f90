@@ -73,15 +73,15 @@ contains
  subroutine eval8summa(&
                        ! input
                        dt,                      & ! intent(in):    length of the time step (seconds)
-                       firstSubStep,            & ! intent(in): flag to indicate if we are processing the first sub-step
-                       firstFluxCall,           & ! intent(in): flag to indicate if we are processing the first flux call
+                       firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                       firstFluxCall,           & ! intent(in):    flag to indicate if we are processing the first flux call
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
                        nState,                  & ! intent(in):    total number of state variables
                        stateVec,                & ! intent(in):    model state vector
-                       sMul,                    & ! intent(in):   multiplier for state vector (used in the residual calculations)
-                       dMat,                    & ! intent(in):   diagonal of the Jacobian matrix (excludes fluxes)
+                       sMul,                    & ! intent(inout): multiplier for state vector (used in the residual calculations)
+                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                        ! input/output: data structures
                        type_data,               & ! intent(in):    type of vegetation and soil
                        attr_data,               & ! intent(in):    spatial attributes
@@ -92,7 +92,8 @@ contains
                        bvar_data,               & ! intent(in):    model variables for the local basin
                        model_decisions,         & ! intent(in):    model decisions
                        ! output
-                       rVec,                    & ! intent(out):   residual vector
+                       fluxVec,                 & ! intent(out):   flux vector
+                       resVec,                  & ! intent(out):   residual vector
                        aJac,                    & ! intent(out):   analytical Jacobian matrix (either band or full)
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -109,8 +110,8 @@ contains
  integer(i4b),intent(in)         :: nLayers       ! total number of layers
  integer(i4b),intent(in)         :: nState        ! total number of state variables
  real(dp),intent(in)             :: stateVec(:)   ! model state vector (mixed units)
- real(dp),intent(in)             :: sMul(:)       ! multiplier for state vector (used in the residual calculations)
- real(dp),intent(in)             :: dMat(:)       ! diagonal of the Jacobian matrix (excludes fluxes)
+ real(dp),intent(inout)          :: sMul(:)       ! multiplier for state vector (used in the residual calculations)
+ real(dp),intent(inout)          :: dMat(:)       ! diagonal of the Jacobian matrix (excludes fluxes)
  ! input/output: data structures
  type(var_i),intent(in)          :: type_data     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data     ! spatial attributes
@@ -121,7 +122,8 @@ contains
  type(var_dlength),intent(in)    :: bvar_data     ! model variables for the local basin
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  ! output
- real(dp),intent(out)            :: rVec(:)       ! residual vector
+ real(dp),intent(out)            :: fluxVec(:)    ! flux vector
+ real(dp),intent(out)            :: resVec(:)     ! residual vector
  real(dp),intent(out)            :: aJac(:,:)     ! analytical Jacobian matrix (either band or full)
  integer(i4b),intent(out)        :: err           ! error code
  character(*),intent(out)        :: message       ! error message
@@ -208,6 +210,16 @@ contains
  real(dp)                        :: totalWaterVeg                ! total water on vegetation (kg m-2)
  real(dp)                        :: dTheta_dTkCanopy             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
  real(dp)                        :: dCanLiq_dTcanopy             ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
+ ! Jacobian matrices
+ logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the Jacobian matrix
+ logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
+ logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
+ integer(i4b),parameter          :: ixFullMatrix=1001            ! named variable for the full Jacobian matrix
+ integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
+ integer(i4b)                    :: ixSolve                      ! the type of matrix used to solve the linear system A.X=B
+ integer(i4b),parameter          :: ku=3                         ! number of super-diagonal bands
+ integer(i4b),parameter          :: kl=4                         ! number of sub-diagonal bands
+ integer(i4b),parameter          :: nBands=2*kl+ku+1             ! length of the leading dimension of the band diagonal matrix
  ! general local variables
  logical(lgt)                    :: computeVegFlux               ! flag to compute the vegetation flux
  real(dp)                        :: canopyDepth                  ! canopy depth (m)
@@ -215,6 +227,8 @@ contains
  integer(i4b)                    :: local_ixGroundwater          ! local index for groundwater representation
  logical(lgt)                    :: printFlag                    ! flag to control printing (set to false for numerical jacobian)
  logical(lgt)                    :: printFlagInit                ! initialize flag to control printing
+ integer(i4b)                    :: iState                       ! index of matrix row
+ integer(i4b)                    :: jState                       ! index of matrix column
  integer(i4b)                    :: iLayer                       ! index of model layer
  integer(i4b)                    :: jLayer                       ! index of model layer within the full state vector (hydrology)
  integer(i4b)                    :: kLayer                       ! index of model layer within the snow-soil domain
@@ -228,17 +242,44 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  associate(&
  ! model decisions
+ ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision   ,&  ! intent(in): [i4b] index of the form of Richards' equation
  ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,&  ! intent(in): [i4b] groundwater parameterization
  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,&  ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
+
  ! vegetation parameters
  nVegState               => indx_data%var(iLookINDEX%nVegState)%dat(1)             ,&  ! intent(in): [i4b]    number of vegetation state variables
  heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)              ,&  ! intent(in): [dp] height of the top of the vegetation canopy (m)
- heightCanopyBottom      => mpar_data%var(iLookPARAM%heightCanopyBottom)            &  ! intent(in): [dp] height of the bottom of the vegetation canopy (m)
+ heightCanopyBottom      => mpar_data%var(iLookPARAM%heightCanopyBottom)           ,&  ! intent(in): [dp] height of the bottom of the vegetation canopy (m)
+
+ ! diagnostic variables
+ scalarBulkVolHeatCapVeg => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),&  ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ mLayerVolHtCapBulk      => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat        ,&  ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
+
+ ! indices for specific state variables
+ ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b] index of canopy energy state variable
+ ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
+ ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat             &  ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+
  ) ! association to variables in the data structures
+
+ ! -----
+ ! * preliminaries...
+ ! ------------------
+
+ ! NOTE: these preliminaries could be done outside this routine, which is called EVERY iteration!!
 
  ! set the flag to control printing
  printFlagInit=globalPrintFlag
  printFlag=printFlagInit
+
+ ! identify the matrix solution method
+ ! (the type of matrix used to solve the linear system A.X=B)
+ if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix .or. numericalJacobian)then
+  ixSolve=ixFullMatrix   ! full Jacobian matrix
+ else
+  ixSolve=ixBandMatrix   ! band-diagonal matrix
+ endif
+ if(printFlag) print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
 
  ! define the need to compute the fluxes over vegetation
  computeVegFlux = (nVegState==3)
@@ -257,19 +298,68 @@ contains
   case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
  end select ! (modify the groundwater representation for this single-column implementation)
 
+ ! -----
+ ! * compute the residual vector...
+ ! --------------------------------
 
+ ! compute residual vector
+ call xFluxResid(&
+                 ! input
+                 stateVec,      & ! intent(in): full state vector (mixed units)
+                 ! output
+                 fluxVec,       & ! intent(out): flux vector (mixed units)
+                 resVec,        & ! intent(out): residual vector (mixed units)
+                 err,cmessage)    ! intent(out): error code and error message
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
- ! set values to missing
- rVec(:) = valueMissing
- aJac(:,:) = valueMissing
+ ! -----
+ ! * compute the Jacobian matrix...
+ ! --------------------------------
 
+ ! compute terms in the Jacobian for vegetation (excluding fluxes)
+ ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
+ if(computeVegFlux)then
+  dMat(ixVegNrg) = scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy       ! volumetric heat capacity of the vegetation (J m-3 K-1)
+ endif
 
+ ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
+ ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
+ dMat(ixSnowSoilNrg) = mLayerVolHtCapBulk(1:nLayers) + LH_fus*iden_water*mLayerdTheta_dTk(1:nLayers)
 
+ ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
+ if(ixRichards==moisture)then; err=20; message=trim(message)//'have not implemented the moisture-based form of RE yet'; return; endif
+ dMat(ixSoilOnlyHyd) = dVolTot_dPsi0(1:nSoil) + dCompress_dPsi(1:nSoil)
+
+ ! compute the analytical Jacobian matrix
+ select case(ixSolve)
+  case(ixFullMatrix); call analJacob(err,cmessage)
+  case(ixBandMatrix); call cpactBand(err,cmessage)
+  case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
+ end select
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+ ! *** testing: compute the numerical approximation of the Jacobian matrix
+ if(numericalJacobian)then
+  printFlag=.false.
+  call numlJacob(stateVec,fluxVec,resVec,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  printFlag=printFlagInit
+ endif  ! if computing the numerical Jacobian matrix
 
  ! end associtation to variables in the data structures
  end associate
 
+
  ! start of internal subroutines 
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
+ ! **********************************************************************************************************
  ! **********************************************************************************************************
  ! **********************************************************************************************************
  contains
@@ -1005,8 +1095,6 @@ contains
   integer(i4b),intent(out)       :: err                     ! error code
   character(*),intent(out)       :: message                 ! error message
   ! named variables for elements of the compact band-diagonal matrix
-  integer(i4b),parameter         :: ku=3                    ! number of super-diagonal bands
-  integer(i4b),parameter         :: kl=4                    ! number of sub-diagonal bands
   integer(i4b),parameter         :: ixSup3=kl+1             ! index for the 3rd super-diagonal band
   integer(i4b),parameter         :: ixSup2=kl+2             ! index for the 2nd super-diagonal band
   integer(i4b),parameter         :: ixSup1=kl+3             ! index for the 1st super-diagonal band
@@ -1015,7 +1103,6 @@ contains
   integer(i4b),parameter         :: ixSub2=kl+6             ! index for the 2nd sub-diagonal band
   integer(i4b),parameter         :: ixSub3=kl+7             ! index for the 3rd sub-diagonal band
   integer(i4b),parameter         :: ixSub4=kl+8             ! index for the 3rd sub-diagonal band
-  integer(i4b),parameter         :: nBands=2*kl+ku+1        ! length of the leading dimension of the band diagonal matrix
   ! local variables
   ! -------------------------------------------------------------
   ! initialize error control
@@ -1493,17 +1580,28 @@ contains
   do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
   !pause 'testing Jacobian'
 
-
   end subroutine numlJacob
 
 
+  ! **********************************************************************************************************
+  ! **********************************************************************************************************
 
 
-
-
-
-
-
+  subroutine testBandMatrix()
+  real(dp)  :: aJac_test(nState,nState)
+  aJac_test(:,:)=0._dp
+  ! form band-diagonal matrix
+  do iState=1,nState
+   do jState=max(1,iState-ku),min(nState,iState+kl)
+    aJac_test(kl + ku + 1 + jState - iState, iState) = aJac(jState,iState)
+   end do
+  end do
+  print*, '** test banded analytical Jacobian:'
+  write(*,'(a4,1x,100(i11,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+  do iLayer=kl+1,nBands
+   write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac_test(iLayer,iState),iState=iJac1,iJac2)
+  end do
+  end subroutine testBandMatrix
 
  end subroutine eval8summa
 
