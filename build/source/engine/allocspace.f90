@@ -43,36 +43,108 @@ contains
  ! public subroutine init_metad: initialize metadata structures
  ! ************************************************************************************************
  subroutine init_metad(err,message)
- ! used to initialize the metadata structures
+ ! ascii utilities
+ USE ascii_util_module,only:split_line
+ ! number of variables in each data structure
  USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
  USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
+ USE var_lookup,only:maxvarDiag,maxvarFlux,maxvarDeriv              ! maximum number variables in each data structure
  USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
+ ! metadata structures
  USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
+ USE data_struc,only:diag_meta,flux_meta,deriv_meta                 ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
+ ! named variables defining strructure elements
+ USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE       ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookDIAG,iLookFLUX,iLookDERIV                 ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookBPAR,iLookBVAR                            ! named variables showing the elements of each data structure
  implicit none
- ! declare variables
+ ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
+ ! define look-up variables for data structures
+ integer(i4b)                         :: iStruct     ! loop through data structures
+ integer(i4b),parameter               :: nStruct=12  ! number of data structures
+ integer(i4b),parameter               :: ixTime=1    ! the time data structure
+ integer(i4b),parameter               :: ixForc=2    ! the time data structure
+ integer(i4b),parameter               :: ixAttr=3    ! the time data structure
+ integer(i4b),parameter               :: ixType=4    ! the time data structure
+ integer(i4b),parameter               :: ixMpar=5    ! the time data structure
+ integer(i4b),parameter               :: ixMvar=6    ! the time data structure
+ integer(i4b),parameter               :: ixBpar=7    ! the time data structure
+ integer(i4b),parameter               :: ixBvar=8    ! the time data structure
+ integer(i4b),parameter               :: ixIndx=9    ! the time data structure
+ integer(i4b),parameter               :: ixDiag=10   ! the time data structure
+ integer(i4b),parameter               :: ixFlux=11   ! the time data structure
+ integer(i4b),parameter               :: ixDeriv=12  ! the time data structure
+ ! check that the structure constructors are correct
+ character(len=8192)                  :: longString  ! string containing the indices defined in the structure constructor
+ character(len=32),allocatable        :: words(:)    ! vector of words extracted from the long string
+ character(len=32)                    :: cTry        ! character string of trial structure
+ integer(i4b)                         :: ix          ! index of the variable in the data structure
+ integer(i4b)                         :: ixTest      ! test the structure constructor = (1,2,3,...,nVar)
+ integer(i4b)                         :: nVar        ! the number of variables in each data structure
+ ! error control
+ character(len=256)                   :: cmessage    ! error message of downwind routine
  ! initialize errors
  err=0; message="init_model/"
+
  ! ensure metadata structures are deallocated
- if (associated(time_meta)) deallocate(time_meta)
- if (associated(forc_meta)) deallocate(forc_meta)
- if (associated(attr_meta)) deallocate(attr_meta)
- if (associated(type_meta)) deallocate(type_meta)
- if (associated(mpar_meta)) deallocate(mpar_meta)
- if (associated(mvar_meta)) deallocate(mvar_meta)
- if (associated(indx_meta)) deallocate(indx_meta)
- if (associated(bpar_meta)) deallocate(bpar_meta)
- if (associated(bvar_meta)) deallocate(bvar_meta)
+ if (associated(time_meta))  deallocate(time_meta)   ! 1
+ if (associated(forc_meta))  deallocate(forc_meta)   ! 2
+ if (associated(attr_meta))  deallocate(attr_meta)   ! 3
+ if (associated(type_meta))  deallocate(type_meta)   ! 4
+ if (associated(mpar_meta))  deallocate(mpar_meta)   ! 5
+ if (associated(mvar_meta))  deallocate(mvar_meta)   ! 6
+ if (associated(bpar_meta))  deallocate(bpar_meta)   ! 7
+ if (associated(bvar_meta))  deallocate(bvar_meta)   ! 8
+ if (associated(indx_meta))  deallocate(indx_meta)   ! 9
+ if (associated(diag_meta))  deallocate(diag_meta)   ! 10
+ if (associated(flux_meta))  deallocate(flux_meta)   ! 11
+ if (associated(deriv_meta)) deallocate(deriv_meta)  ! 12
+
  ! allocate metadata structures
  allocate(time_meta(maxvarTime),forc_meta(maxvarForc),attr_meta(maxvarAttr),type_meta(maxvarType),&
           mpar_meta(maxvarMpar),mvar_meta(maxvarMvar),indx_meta(maxvarIndx),&
+          diag_meta(maxvarDiag),flux_meta(maxvarFlux),deriv_meta(maxvarDeriv),&
           bpar_meta(maxvarBpar),bvar_meta(maxvarBvar),stat=err)
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
- end subroutine init_metad
 
+ ! check that the structure constructors are correct
+ do iStruct=1,nStruct
+  ! convert the lookup structures to a character string
+  select case(iStruct)
+   case(ixTime);  write(longString,*) iLookTIME;  nVar=maxvarTime; cTry='iLookTIME'
+   case(ixForc);  write(longString,*) iLookFORCE; nVar=maxvarForc; cTry='iLookFORCE'
+   case(ixAttr);  write(longString,*) iLookATTR;  nVar=maxvarAttr; cTry='iLookATTR'
+   case(ixType);  write(longString,*) iLookTYPE;  nVar=maxvarType; cTry='iLookTYPE'
+   case(ixMpar);  write(longString,*) iLookPARAM; nVar=maxvarMpar; cTry='iLookMPAR'
+   case(ixMvar);  write(longString,*) iLookMVAR;  nVar=maxvarMvar; cTry='iLookMVAR'
+   case(ixBpar);  write(longString,*) iLookBPAR;  nVar=maxvarBpar; cTry='iLookBPAR'
+   case(ixBvar);  write(longString,*) iLookBVAR;  nVar=maxvarBvar; cTry='iLookBVAR'
+   case(ixIndx);  write(longString,*) iLookINDEX; nVar=maxvarIndx; cTry='iLookINDX'
+   case(ixDiag);  write(longString,*) iLookDIAG;  nVar=maxvarDiag; cTry='iLookDIAG'
+   case(ixFlux);  write(longString,*) iLookFLUX;  nVar=maxvarFlux; cTry='iLookFLUX'
+   case(ixDeriv); write(longString,*) iLookDERIV; nVar=maxvarDeriv; cTry='iLookDERIV'
+   case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
+  end select
+  ! convert the string to a character vector
+  call split_line(longString,words,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(size(words)/=nVar)then; err=20; message=trim(message)//'unexpected number of elements'; return; endif
+  ! check that the integer value is appropriate
+  do ix=1,nVar
+   read(words(ix),*) ixTest  ! convert character to integer; store in ixTest
+   if(ixTest/=ix)then
+    write(message,'(a,i0,a)')trim(message)//'problem with structure constructor '//trim(cTry)//' [element=',ix,']'
+    err=20; return
+   endif
+  end do
+ end do  ! looping through data structures
+
+ end subroutine init_metad
 
  ! ************************************************************************************************
  ! public subroutine alloc_stim: initialize data structures for scalar time structures

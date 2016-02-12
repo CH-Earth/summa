@@ -76,10 +76,10 @@ contains
  integer(i4b),intent(out)             :: err      ! error code
  character(*),intent(out)             :: message  ! error message
  ! declare local variables
- integer(i4b),parameter  :: cLen=2048
+ integer(i4b),parameter  :: cLen=8192
  character(len=cLen)     :: temp                  ! temporary line of characters
  integer(i4b)            :: iword                 ! loop through words
- integer(i4b),parameter  :: maxWords=100          ! maximum number of words in a line
+ integer(i4b),parameter  :: maxWords=1000         ! maximum number of words in a line
  integer(i4b)            :: i1                    ! index at the start of a given word
  character(len=256)      :: cword                 ! the current word
  integer(i4b)            :: nWords                ! number of words in the character string

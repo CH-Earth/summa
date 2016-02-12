@@ -82,6 +82,10 @@ MODULE data_struc
  type(var_info),pointer,save,public      :: indx_meta(:) => null()   ! local model indices for each HRU
  type(var_info),pointer,save,public      :: bpar_meta(:) => null()   ! basin parameters for aggregated processes
  type(var_info),pointer,save,public      :: bvar_meta(:) => null()   ! basin parameters for aggregated processes
+ ! define new arrays of metadata
+ type(var_info),pointer,save,public      :: diag_meta(:) => null()   ! local model derivatives for each HRU
+ type(var_info),pointer,save,public      :: flux_meta(:) => null()   ! local model fluxes for each HRU
+ type(var_info),pointer,save,public      :: deriv_meta(:) => null()  ! local model derivatives for each HRU
  ! ***********************************************************************************************************
  ! Define hierarchal derived data types
  ! ***********************************************************************************************************

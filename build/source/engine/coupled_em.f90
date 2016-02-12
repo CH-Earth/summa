@@ -326,7 +326,7 @@ contains
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
   ! flag the case where number of vegetation states has changed
-  modifiedVegState = (computeVegFlux/=computeVegFluxOld)
+  modifiedVegState = (computeVegFlux.neqv.computeVegFluxOld)
 
   ! (2) compute wetted canopy area...
   ! ---------------------------------
