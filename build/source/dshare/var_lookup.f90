@@ -25,6 +25,7 @@ MODULE var_lookup
  private
  ! define missing value
  integer(i4b),parameter     :: imiss = -999      ! used to initialize named variables
+
  ! ***********************************************************************************************************
  ! (0) define model decisions
  ! ***********************************************************************************************************
@@ -68,6 +69,7 @@ MODULE var_lookup
   integer(i4b)    :: spatial_gw       = 37 ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting       = 38 ! choice of method for sub-grid routing
  endtype iLook_decision
+
  ! ***********************************************************************************************************
  ! (1) define model time
  ! ***********************************************************************************************************
@@ -78,6 +80,7 @@ MODULE var_lookup
   integer(i4b)    :: ih               = 4  ! hour
   integer(i4b)    :: imin             = 5  ! minute
  endtype iLook_time
+
  ! ***********************************************************************************************************
  ! (2) define model forcing data
  ! ***********************************************************************************************************
@@ -91,6 +94,7 @@ MODULE var_lookup
   integer(i4b)    :: LWRadAtm         = 7  ! downwelling longwave radiation  (W m-2)
   integer(i4b)    :: airpres          = 8  ! pressure                        (Pa)
  endtype iLook_force
+
  ! ***********************************************************************************************************
  ! (3) define local attributes
  ! ***********************************************************************************************************
@@ -103,6 +107,7 @@ MODULE var_lookup
   integer(i4b)    :: HRUarea          = 6  ! area of each HRU  (m2)
   integer(i4b)    :: mHeight          = 7  ! measurement height above bare ground (m)
  end type iLook_attr
+
  ! ***********************************************************************************************************
  ! (4) define local classification of veg, soil, etc.
  ! ***********************************************************************************************************
@@ -113,6 +118,7 @@ MODULE var_lookup
   integer(i4b)    :: slopeTypeIndex   = 4  ! index defining slope (-)
   integer(i4b)    :: downHRUindex     = 5  ! index of downslope HRU (0 = basin outlet)
  end type iLook_type
+
  ! ***********************************************************************************************************
  ! (5) define model parameters
  ! ***********************************************************************************************************
@@ -278,6 +284,7 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer3_upper          = 146 ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper          = 147 ! maximum layer depth for the 4th layer when > 4 layers (m)
  endtype ilook_param
+
  ! ***********************************************************************************************************
  ! (6) define model variables
  ! ***********************************************************************************************************
@@ -511,7 +518,93 @@ MODULE var_lookup
  endtype iLook_mvar
 
  ! ***********************************************************************************************************
- ! (6) define model indices
+ ! (7) define model fluxes
+ ! ***********************************************************************************************************
+ type, public :: iLook_flux
+  ! net energy and mass fluxes for the vegetation domain
+  integer(i4b)    :: canairNetNrgFlux             ! net energy flux for the canopy air space (W m-2)
+  integer(i4b)    :: canopyNetNrgFlux             ! net energy flux for the vegetation canopy (W m-2)
+  integer(i4b)    :: groundNetNrgFlux             ! net energy flux for the ground surface (W m-2)
+  integer(i4b)    :: canopyNetLiqFlux             ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
+  ! liquid water fluxes associated with evapotranspiration
+  integer(i4b)    :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
+  integer(i4b)    :: scalarCanopyEvaporation      ! canopy evaporation/condensation (kg m-2 s-1)
+  integer(i4b)    :: scalarGroundEvaporation      ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+  ! energy fluxes and derivatives for the snow and soil domains
+  integer(i4b)    :: ssdNetNrgFlux                ! net energy flux for each layer in the snow+soil domain (J m-3 s-1)
+  ! liquid water fluxes and derivatives for the soil domain
+  integer(i4b)    :: xMaxInfilRate                ! maximum infiltration rate (m s-1)
+  integer(i4b)    :: scalarSurfaceInfiltration    ! surface infiltration rate (m s-1) -- only computed for iter==1
+  integer(i4b)    :: mLayerTranspire              ! transpiration loss from each soil layer (m s-1)
+  integer(i4b)    :: mLayerHydCond                ! hydraulic conductivity in each soil layer (m s-1)
+  integer(i4b)    :: snowNetLiqFlux               ! net liquid water flux for each snow layer (s-1)
+  integer(i4b)    :: soilNetLiqFlux               ! net liquid water flux for each soil layer (s-1)
+ endtype iLook_flux
+
+ ! ***********************************************************************************************************
+ ! (8) define derivatives
+ ! ***********************************************************************************************************
+ type, public :: iLook_deriv
+  ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
+  integer(i4b)    :: dCanairNetFlux_dCanairTemp   ! derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
+  integer(i4b)    :: dCanairNetFlux_dCanopyTemp   ! derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
+  integer(i4b)    :: dCanairNetFlux_dGroundTemp   ! derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
+  integer(i4b)    :: dCanopyNetFlux_dCanairTemp   ! derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
+  integer(i4b)    :: dCanopyNetFlux_dCanopyTemp   ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+  integer(i4b)    :: dCanopyNetFlux_dGroundTemp   ! derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+  integer(i4b)    :: dCanopyNetFlux_dCanLiq       ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  integer(i4b)    :: dGroundNetFlux_dCanairTemp   ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
+  integer(i4b)    :: dGroundNetFlux_dCanopyTemp   ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+  integer(i4b)    :: dGroundNetFlux_dGroundTemp   ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+  integer(i4b)    :: dGroundNetFlux_dCanLiq       ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
+  ! derivatives in evaporative fluxes w.r.t. relevant state variables
+  integer(i4b)    :: dCanopyEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dCanopyEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dCanopyEvaporation_dTGround  ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dCanopyEvaporation_dCanLiq   ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
+  integer(i4b)    :: dGroundEvaporation_dTCanair  ! derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dGroundEvaporation_dTCanopy  ! derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dGroundEvaporation_dTGround  ! derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+  integer(i4b)    :: dGroundEvaporation_dCanLiq   ! derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
+  ! derivatives in canopy water w.r.t canopy temperature
+  integer(i4b)    :: dTheta_dTkCanopy             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  integer(i4b)    :: dCanLiq_dTcanopy             ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
+  ! derivatives in canopy liquid fluxes w.r.t. canopy water
+  integer(i4b)    :: scalarCanopyLiqDeriv         ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
+  integer(i4b)    :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
+  integer(i4b)    :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
+  integer(i4b)    :: dNrgFlux_dTempAbove          ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+  integer(i4b)    :: dNrgFlux_dTempBelow          ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+  ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
+  integer(i4b)    :: iLayerLiqFluxSnowDeriv       ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+  ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
+  integer(i4b)    :: dVolTot_dPsi0                ! derivative in total water content w.r.t. total water matric potential (m-1)
+  integer(i4b)    :: dq_dHydStateAbove            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
+  integer(i4b)    :: dq_dHydStateBelow            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
+  integer(i4b)    :: mLayerdTheta_dPsi            ! derivative in the soil water characteristic w.r.t. psi (m-1)
+  integer(i4b)    :: mLayerdPsi_dTheta            ! derivative in the soil water characteristic w.r.t. theta (m)
+  integer(i4b)    :: dCompress_dPsi               ! derivative in compressibility w.r.t matric head (m-1)
+  ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
+  integer(i4b)    :: dq_dNrgStateAbove            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
+  integer(i4b)    :: dq_dNrgStateBelow            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
+  integer(i4b)    :: mLayerdTheta_dTk             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  integer(i4b)    :: dPsiLiq_dTemp                ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
+ endtype iLook_deriv
+
+ ! ***********************************************************************************************************
+ ! (8) define diagnostic variables
+ ! ***********************************************************************************************************
+ type, public :: iLook_diag
+  integer(i4b)    :: fracLiqVeg                   ! fraction of liquid water on vegetation (-)
+  integer(i4b)    :: fracLiqSnow                  ! fraction of liquid water in each snow layer (-)
+  integer(i4b)    :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
+  integer(i4b)    :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
+  integer(i4b)    :: soilControl                  ! soil control on infiltration (-)
+ endtype iLook_diag
+
+ ! ***********************************************************************************************************
+ ! (9) define model indices
  ! ***********************************************************************************************************
  type, public :: iLook_index
   ! number of state variables of different type
