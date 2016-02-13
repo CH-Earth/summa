@@ -39,6 +39,7 @@ USE allocspace_module,only:alloc_bpar                       ! module to allocate
 USE allocspace_module,only:alloc_bvar                       ! module to allocate space for basin-average model variable structures
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
 USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
+USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
 USE def_output_module,only:def_output                       ! module to define model output
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
 USE read_attrb_module,only:read_attrb                       ! module to read local attributes
@@ -188,6 +189,8 @@ doJacobian=.false.
 call init_metad(err,message); call handle_err(err,message)
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
+! check data structures
+call checkStruc(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures

@@ -247,7 +247,7 @@ contains
  mpar_meta(iLookPARAM%zmaxLayer1_upper)      = var_info('zmaxLayer1_upper'      , 'maximum layer depth for the 1st (top) layer when > 1 layer'       , 'm'               , 'scalarv', .false.)
  mpar_meta(iLookPARAM%zmaxLayer2_upper)      = var_info('zmaxLayer2_upper'      , 'maximum layer depth for the 2nd layer when > 2 layers'            , 'm'               , 'scalarv', .false.)
  mpar_meta(iLookPARAM%zmaxLayer3_upper)      = var_info('zmaxLayer3_upper'      , 'maximum layer depth for the 3rd layer when > 3 layers'            , 'm'               , 'scalarv', .false.)
- mpar_meta(iLookPARAM%zmaxLayer4_upper)      = var_info('zmaxLayer3_upper'      , 'maximum layer depth for the 4th layer when > 4 layers'            , 'm'               , 'scalarv', .false.)
+ mpar_meta(iLookPARAM%zmaxLayer4_upper)      = var_info('zmaxLayer4_upper'      , 'maximum layer depth for the 4th layer when > 4 layers'            , 'm'               , 'scalarv', .false.)
 
  ! -----
  ! * basin parameter data...
@@ -359,6 +359,7 @@ contains
  diag_meta(iLookDIAG%scalarFrozenArea)                = var_info('scalarFrozenArea'               , 'fraction of area that is considered impermeable due to soil ice'  , '-'               , 'scalarv', .false.)
  diag_meta(iLookDIAG%scalarSoilControl)               = var_info('scalarSoilControl'              , 'soil control on infiltration (1=controlling; 0=not)'              , '-'               , 'scalarv', .false.)
  diag_meta(iLookDIAG%mLayerVolFracAir)                = var_info('mLayerVolFracAir'               , 'volumetric fraction of air in each layer'                         , '-'               , 'midToto', .false.)
+ diag_meta(iLookDIAG%mLayerTcrit)                     = var_info('mLayerTcrit'                    , 'critical soil temperature above which all water is unfrozen'      , 'K'               , 'midSoil', .false.)
  diag_meta(iLookDIAG%mLayerCompress)                  = var_info('mLayerCompress'                 , 'change in volumetric water content due to compression of soil'    , '-'               , 'midSoil', .false.)
  diag_meta(iLookDIAG%scalarSoilCompress)              = var_info('scalarSoilCompress'             , 'change in total soil storage due to compression of soil matrix'   , 'kg m-2'          , 'scalarv', .false.)
  ! mass balance check

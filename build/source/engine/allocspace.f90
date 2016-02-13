@@ -43,8 +43,6 @@ contains
  ! public subroutine init_metad: initialize metadata structures
  ! ************************************************************************************************
  subroutine init_metad(err,message)
- ! ascii utilities
- USE ascii_util_module,only:split_line
  ! number of variables in each data structure
  USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
  USE var_lookup,only:maxvarState,maxvarDiag,maxvarFlux,maxvarDeriv  ! maximum number variables in each data structure
@@ -55,40 +53,10 @@ contains
  USE data_struc,only:state_meta,diag_meta,flux_meta,deriv_meta      ! metadata structures
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
- ! named variables defining strructure elements
- USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE       ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookSTATE,iLookDIAG,iLookFLUX,iLookDERIV      ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookBPAR,iLookBVAR                            ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
- ! define look-up variables for data structures
- integer(i4b)                         :: iStruct     ! loop through data structures
- integer(i4b),parameter               :: nStruct=13  ! number of data structures
- integer(i4b),parameter               :: ixTime=1    ! the time data structure
- integer(i4b),parameter               :: ixForc=2    ! the forcing data structure
- integer(i4b),parameter               :: ixAttr=3    ! the attribute data structure
- integer(i4b),parameter               :: ixType=4    ! the type data structure
- integer(i4b),parameter               :: ixMpar=5    ! the model parameter data structure
- integer(i4b),parameter               :: ixMvar=6    ! the model variable data structure
- integer(i4b),parameter               :: ixBpar=7    ! the basin parameter data structure
- integer(i4b),parameter               :: ixBvar=8    ! the basin variable data structure
- integer(i4b),parameter               :: ixIndx=9    ! the model index data structure
- integer(i4b),parameter               :: ixState=10  ! the state variable data structure
- integer(i4b),parameter               :: ixDiag=11   ! the diagnostic variable data structure
- integer(i4b),parameter               :: ixFlux=12   ! the flux data structure
- integer(i4b),parameter               :: ixDeriv=13  ! the model derivative data structure
- ! check that the structure constructors are correct
- character(len=8192)                  :: longString  ! string containing the indices defined in the structure constructor
- character(len=32),allocatable        :: words(:)    ! vector of words extracted from the long string
- character(len=32)                    :: cTry        ! character string of trial structure
- integer(i4b)                         :: ix          ! index of the variable in the data structure
- integer(i4b)                         :: ixTest      ! test the structure constructor = (1,2,3,...,nVar)
- integer(i4b)                         :: nVar        ! the number of variables in each data structure
- ! error control
- character(len=256)                   :: cmessage    ! error message of downwind routine
  ! initialize errors
  err=0; message="init_model/"
 
@@ -113,43 +81,6 @@ contains
           mpar_meta(maxvarMpar),mvar_meta(maxvarMvar),indx_meta(maxvarIndx),&
           bpar_meta(maxvarBpar),bvar_meta(maxvarBvar),stat=err)
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
-
- print*, 'maxvarFlux = ', maxvarFlux
-
- ! check that the structure constructors are correct
- do iStruct=1,nStruct
-  ! convert the lookup structures to a character string
-  select case(iStruct)
-   case(ixTime);  write(longString,*) iLookTIME;  nVar=maxvarTime;  cTry='iLookTIME'
-   case(ixForc);  write(longString,*) iLookFORCE; nVar=maxvarForc;  cTry='iLookFORCE'
-   case(ixAttr);  write(longString,*) iLookATTR;  nVar=maxvarAttr;  cTry='iLookATTR'
-   case(ixType);  write(longString,*) iLookTYPE;  nVar=maxvarType;  cTry='iLookTYPE'
-   case(ixMpar);  write(longString,*) iLookPARAM; nVar=maxvarMpar;  cTry='iLookMPAR'
-   case(ixMvar);  write(longString,*) iLookMVAR;  nVar=maxvarMvar;  cTry='iLookMVAR'
-   case(ixBpar);  write(longString,*) iLookBPAR;  nVar=maxvarBpar;  cTry='iLookBPAR'
-   case(ixBvar);  write(longString,*) iLookBVAR;  nVar=maxvarBvar;  cTry='iLookBVAR'
-   case(ixIndx);  write(longString,*) iLookINDEX; nVar=maxvarIndx;  cTry='iLookINDX'
-   case(ixState); write(longString,*) iLookSTATE; nVar=maxvarState; cTry='iLookSTATE'
-   case(ixDiag);  write(longString,*) iLookDIAG;  nVar=maxvarDiag;  cTry='iLookDIAG'
-   case(ixFlux);  write(longString,*) iLookFLUX;  nVar=maxvarFlux;  cTry='iLookFLUX'
-   case(ixDeriv); write(longString,*) iLookDERIV; nVar=maxvarDeriv; cTry='iLookDERIV'
-   case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
-  end select
-  ! convert the string to a character vector
-  call split_line(longString,words,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  if(size(words)/=nVar)then; err=20; message=trim(message)//'unexpected number of elements'; return; endif
-  ! check that the integer value is appropriate
-  do ix=1,nVar
-   read(words(ix),*) ixTest  ! convert character to integer; store in ixTest
-   if(ixTest/=ix)then
-    write(message,'(a,i0,a)')trim(message)//'problem with structure constructor '//trim(cTry)//' [element=',ix,']'
-    err=20; return
-   endif
-  end do
- end do  ! looping through data structures
-
- pause 'testing check'
 
  end subroutine init_metad
 

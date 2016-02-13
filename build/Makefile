@@ -43,7 +43,7 @@ endif
 # Ubuntu gfortran compiler tested with 4.6 and higher
 # also used for the travis build
 ifeq "$(FC)" "gfortran"
- NCDF_PATH = /usr
+ NCDF_PATH = /opt/netcdf4-gnu
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
@@ -168,6 +168,7 @@ SUMMA_SOLVER= \
 		vegLiqFlux.f90 \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
+		eval8summa.f90 \
 		systemSolv.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
@@ -184,6 +185,7 @@ SUMMA_PRELIM= \
 		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
+		checkStruc.f90 \
 		ffile_info.f90 \
 		read_attrb.f90 \
 		read_pinit.f90 \
@@ -205,6 +207,7 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 # Define routines for the SUMMA model runs
 SUMMA_MODRUN = \
 		indexState.f90 \
+		getVectorz.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
