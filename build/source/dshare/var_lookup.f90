@@ -583,7 +583,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarVP_CanopyAir               ! vapor pressure of the canopy air space (Pa)
   integer(i4b)    :: scalarTwetbulb                   ! wet bulb temperature (K)
   integer(i4b)    :: scalarSnowfallTemp               ! temperature of fresh snow (K)
-  integer(i4b)    :: scalarNewSnowDensity             ! density of fresh snow, should snow be falling in this time step (kg m-3)
+  integer(i4b)    :: scalarNewSnowDensity             ! density of fresh snow (kg m-3)
   integer(i4b)    :: scalarO2air                      ! atmospheric o2 concentration (Pa)
   integer(i4b)    :: scalarCO2air                     ! atmospheric co2 concentration (Pa)
   ! shortwave radiation
@@ -618,20 +618,20 @@ MODULE var_lookup
   integer(i4b)    :: mLayerRootDensity                ! fraction of roots in each soil layer (-)
   integer(i4b)    :: scalarAquiferRootFrac            ! fraction of roots below the soil profile (-)
   ! canopy hydrology
-  integer(i4b)    :: fracLiqVeg                       ! fraction of liquid water on vegetation (-)
+  integer(i4b)    :: scalarFracLiqVeg                 ! fraction of liquid water on vegetation (-)
   integer(i4b)    :: scalarCanopyWetFraction          ! fraction of canopy that is wet
   ! snow hydrology
   integer(i4b)    :: scalarSnowAge                    ! non-dimensional snow age (-)
   integer(i4b)    :: scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   integer(i4b)    :: spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
   integer(i4b)    :: spectralSnowAlbedoDiffuse        ! diffuse snow albedo for individual spectral bands (-)
-  integer(i4b)    :: fracLiqSnow                      ! fraction of liquid water in each snow layer (-)
+  integer(i4b)    :: scalarFracLiqSnow                ! fraction of liquid water in each snow layer (-)
   integer(i4b)    :: mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   integer(i4b)    :: mLayerPoreSpace                  ! total pore space in each snow layer (-)
   ! soil hydrology
   integer(i4b)    :: scalarInfilArea                  ! fraction of unfrozen area where water can infiltrate (-)
   integer(i4b)    :: scalarFrozenArea                 ! fraction of area that is considered impermeable due to soil ice (-)
-  integer(i4b)    :: soilControl                      ! soil control on infiltration (-)
+  integer(i4b)    :: scalarSoilControl                ! soil control on infiltration: 1=controlling; 0=not (-)
   integer(i4b)    :: mLayerVolFracAir                 ! volumetric fraction of air in each layer (-)
   integer(i4b)    :: mLayerTcrit                      ! critical soil temperature above which all water is unfrozen (K)
   integer(i4b)    :: mLayerCompress                   ! change in volumetric water content due to compression of soil (-)
@@ -652,10 +652,10 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public :: iLook_flux
   ! net energy and mass fluxes for the vegetation domain
-  integer(i4b)    :: canairNetNrgFlux                 ! net energy flux for the canopy air space (W m-2)
-  integer(i4b)    :: canopyNetNrgFlux                 ! net energy flux for the vegetation canopy (W m-2)
-  integer(i4b)    :: groundNetNrgFlux                 ! net energy flux for the ground surface (W m-2)
-  integer(i4b)    :: canopyNetLiqFlux                 ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
+  integer(i4b)    :: scalarCanairNetNrgFlux           ! net energy flux for the canopy air space (W m-2)
+  integer(i4b)    :: scalarCanopyNetNrgFlux           ! net energy flux for the vegetation canopy (W m-2)
+  integer(i4b)    :: scalarGroundNetNrgFlux           ! net energy flux for the ground surface (W m-2)
+  integer(i4b)    :: scalarCanopyNetLiqFlux           ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
   ! forcing
   integer(i4b)    :: scalarRainfall                   ! computed rainfall rate (kg m-2 s-1)
   integer(i4b)    :: scalarSnowfall                   ! computed snowfall rate (kg m-2 s-1)
@@ -712,7 +712,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyEvaporation          ! canopy evaporation/condensation (kg m-2 s-1)
   integer(i4b)    :: scalarGroundEvaporation          ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
   integer(i4b)    :: mLayerTranspire                  ! transpiration loss from each soil layer (kg m-2 s-1)
-  ! liquid  and solid water fluxes through the canopy
+  ! liquid and solid water fluxes through the canopy
   integer(i4b)    :: scalarThroughfallSnow            ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
   integer(i4b)    :: scalarThroughfallRain            ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
   integer(i4b)    :: scalarCanopySnowUnloading        ! unloading of snow from the vegetion canopy (kg m-2 s-1)
@@ -723,13 +723,13 @@ MODULE var_lookup
   integer(i4b)    :: scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1 K-1)
   integer(i4b)    :: mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
-  integer(i4b)    :: iLayerConductiveFlux             ! conductive energy flux at layer interfaces at end of time step (W m-2)
-  integer(i4b)    :: iLayerAdvectiveFlux              ! advective energy flux at layer interfaces at end of time step (W m-2)
-  integer(i4b)    :: iLayerNrgFlux                    ! energy flux at layer interfaces at the end of the time step (W m-2)
-  integer(i4b)    :: ssdNetNrgFlux                    ! net energy flux for each layer in the snow+soil domain (J m-3 s-1)
+  integer(i4b)    :: iLayerConductiveFlux             ! conductive energy flux at layer interfaces (W m-2)
+  integer(i4b)    :: iLayerAdvectiveFlux              ! advective energy flux at layer interfaces (W m-2)
+  integer(i4b)    :: iLayerNrgFlux                    ! energy flux at layer interfaces (W m-2)
+  integer(i4b)    :: mLayerNrgFlux                    ! net energy flux for each layer in the snow+soil domain (J m-3 s-1)
   ! liquid water fluxes for the snow domain
-  integer(i4b)    :: iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
-  integer(i4b)    :: snowNetLiqFlux                   ! net liquid water flux for each snow layer (s-1)
+  integer(i4b)    :: iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces (m s-1)
+  integer(i4b)    :: mLayerLiqFluxSnow                ! net liquid water flux for each snow layer (s-1)
   ! liquid water fluxes for the soil domain
   integer(i4b)    :: scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   integer(i4b)    :: scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
@@ -738,9 +738,8 @@ MODULE var_lookup
   integer(i4b)    :: mLayerSatHydCondMP               ! saturated hydraulic conductivity of macropores in each layer (m s-1)
   integer(i4b)    :: mLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
   integer(i4b)    :: mLayerHydCond                    ! hydraulic conductivity in each soil layer (m s-1)
-  integer(i4b)    :: iLayerSatHydCond                 ! saturated hydraulic conductivity at each layer interface (m s-1)
-  integer(i4b)    :: iLayerLiqFluxSoil                ! liquid flux at soil layer interfaces at the end of the time step (m s-1)
-  integer(i4b)    :: soilNetLiqFlux                   ! net liquid water flux for each soil layer (s-1)
+  integer(i4b)    :: iLayerLiqFluxSoil                ! liquid flux at soil layer interfaces (m s-1)
+  integer(i4b)    :: mLayerLiqFluxSoil                ! net liquid water flux for each soil layer (s-1)
   integer(i4b)    :: mLayerBaseflow                   ! baseflow from each soil layer (m s-1)
   integer(i4b)    :: mLayerColumnInflow               ! total inflow to each layer in a given soil column (m3 s-1)
   integer(i4b)    :: mLayerColumnOutflow              ! total outflow from each layer in a given soil column (m3 s-1)
@@ -944,7 +943,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86, 87, 88)
+                                                                         81, 82, 83, 84, 85, 86, 87)
 
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -994,6 +993,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarAttr      = storage_size(iLookATTR)/iLength
  integer(i4b),parameter,public :: maxvarType      = storage_size(iLookTYPE)/iLength
  integer(i4b),parameter,public :: maxvarMpar      = storage_size(iLookPARAM)/iLength
+ integer(i4b),parameter,public :: maxvarState     = storage_size(iLookState)/iLength
  integer(i4b),parameter,public :: maxvarDiag      = storage_size(iLookDIAG)/iLength
  integer(i4b),parameter,public :: maxvarFlux      = storage_size(iLookFLUX)/iLength
  integer(i4b),parameter,public :: maxvarDeriv     = storage_size(iLookDERIV)/iLength

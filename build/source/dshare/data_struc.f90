@@ -73,19 +73,19 @@ MODULE data_struc
   logical(lgt)                           :: v_write=.FALSE.          ! flag to write variable to the output file
  endtype var_info
  ! define arrays of metadata
- type(var_info),pointer,save,public      :: time_meta(:) => null()   ! model time information
- type(var_info),pointer,save,public      :: forc_meta(:) => null()   ! model forcing data
- type(var_info),pointer,save,public      :: attr_meta(:) => null()   ! local attributes
- type(var_info),pointer,save,public      :: type_meta(:) => null()   ! local classification of veg, soil, etc.
- type(var_info),pointer,save,public      :: mpar_meta(:) => null()   ! local model parameters for each HRU
- type(var_info),pointer,save,public      :: mvar_meta(:) => null()   ! local model variables for each HRU
- type(var_info),pointer,save,public      :: indx_meta(:) => null()   ! local model indices for each HRU
- type(var_info),pointer,save,public      :: bpar_meta(:) => null()   ! basin parameters for aggregated processes
- type(var_info),pointer,save,public      :: bvar_meta(:) => null()   ! basin parameters for aggregated processes
- ! define new arrays of metadata
- type(var_info),pointer,save,public      :: diag_meta(:) => null()   ! local model derivatives for each HRU
- type(var_info),pointer,save,public      :: flux_meta(:) => null()   ! local model fluxes for each HRU
- type(var_info),pointer,save,public      :: deriv_meta(:) => null()  ! local model derivatives for each HRU
+ type(var_info),pointer,save,public      :: time_meta(:)  => null()   ! model time information
+ type(var_info),pointer,save,public      :: forc_meta(:)  => null()   ! model forcing data
+ type(var_info),pointer,save,public      :: attr_meta(:)  => null()   ! local attributes
+ type(var_info),pointer,save,public      :: type_meta(:)  => null()   ! local classification of veg, soil, etc.
+ type(var_info),pointer,save,public      :: mpar_meta(:)  => null()   ! local model parameters for each HRU
+ type(var_info),pointer,save,public      :: mvar_meta(:)  => null()   ! local model variables for each HRU
+ type(var_info),pointer,save,public      :: indx_meta(:)  => null()   ! local model indices for each HRU
+ type(var_info),pointer,save,public      :: bpar_meta(:)  => null()   ! basin parameters for aggregated processes
+ type(var_info),pointer,save,public      :: bvar_meta(:)  => null()   ! basin parameters for aggregated processes
+ type(var_info),pointer,save,public      :: state_meta(:) => null()   ! local state variables for each HRU
+ type(var_info),pointer,save,public      :: diag_meta(:)  => null()   ! local diagnostic variables for each HRU
+ type(var_info),pointer,save,public      :: flux_meta(:)  => null()   ! local model fluxes for each HRU
+ type(var_info),pointer,save,public      :: deriv_meta(:) => null()   ! local model derivatives for each HRU
  ! ***********************************************************************************************************
  ! Define hierarchal derived data types
  ! ***********************************************************************************************************
@@ -97,11 +97,6 @@ MODULE data_struc
  integer(i4b),parameter,public      :: ixWatState=2002          ! named variable defining the total water state variable
  integer(i4b),parameter,public      :: ixMatState=2003          ! named variable defining the matric head state variable
  integer(i4b),parameter,public      :: ixMassState=2004         ! named variable defining the mass of water (currently only used for the veg canopy)
- ! define named variables describing the type of variable
- integer(i4b),parameter,public      :: ixScalar=1001
- integer(i4b),parameter,public      :: ixMlayer=1002
-
-
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
@@ -140,15 +135,19 @@ MODULE data_struc
  type(var_dlength),pointer,save,public   :: mvar_hru(:) => null()    ! model variables
  type(var_ilength),pointer,save,public   :: indx_hru(:) => null()    ! model indices
  ! define data types for individual HRUs, and for basin-average quantities
- type(var_i),pointer,save,public         :: time_data => null()      ! model time data
- type(var_d),pointer,save,public         :: forc_data => null()      ! model forcing data
- type(var_d),pointer,save,public         :: attr_data => null()      ! local attributes
- type(var_i),pointer,save,public         :: type_data => null()      ! local classification of veg, soil, etc.
- type(var_d),pointer,save,public         :: mpar_data => null()      ! local column model parameters
- type(var_dlength),pointer,save,public   :: mvar_data => null()      ! local column model variables
- type(var_ilength),pointer,save,public   :: indx_data => null()      ! local column model indices
- type(var_d),pointer,save,public         :: bpar_data => null()      ! basin-average model parameters
- type(var_dlength),pointer,save,public   :: bvar_data => null()      ! basin-average model variables
+ type(var_i),pointer,save,public         :: time_data  => null()      ! model time data
+ type(var_d),pointer,save,public         :: forc_data  => null()      ! model forcing data
+ type(var_d),pointer,save,public         :: attr_data  => null()      ! local attributes
+ type(var_i),pointer,save,public         :: type_data  => null()      ! local classification of veg, soil, etc.
+ type(var_d),pointer,save,public         :: mpar_data  => null()      ! local column model parameters
+ type(var_dlength),pointer,save,public   :: mvar_data  => null()      ! local column model variables
+ type(var_ilength),pointer,save,public   :: indx_data  => null()      ! local column model indices
+ type(var_d),pointer,save,public         :: bpar_data  => null()      ! basin-average model parameters
+ type(var_dlength),pointer,save,public   :: bvar_data  => null()      ! basin-average model variables
+ type(var_dlength),pointer,save,public   :: state_data => null()      ! local column state variables 
+ type(var_dlength),pointer,save,public   :: diag_data  => null()      ! local column diagnostic variables
+ type(var_dlength),pointer,save,public   :: flux_data  => null()      ! local column fluxes
+ type(var_dlength),pointer,save,public   :: deriv_data => null()      ! local column derivatives
  ! ***********************************************************************************************************
  ! Define common variables
  ! ***********************************************************************************************************

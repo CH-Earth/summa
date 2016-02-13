@@ -47,18 +47,18 @@ contains
  USE ascii_util_module,only:split_line
  ! number of variables in each data structure
  USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
+ USE var_lookup,only:maxvarState,maxvarDiag,maxvarFlux,maxvarDeriv  ! maximum number variables in each data structure
  USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
- USE var_lookup,only:maxvarDiag,maxvarFlux,maxvarDeriv              ! maximum number variables in each data structure
  USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
  ! metadata structures
  USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
+ USE data_struc,only:state_meta,diag_meta,flux_meta,deriv_meta      ! metadata structures
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
- USE data_struc,only:diag_meta,flux_meta,deriv_meta                 ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
  ! named variables defining strructure elements
  USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE       ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookSTATE,iLookDIAG,iLookFLUX,iLookDERIV      ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookDIAG,iLookFLUX,iLookDERIV                 ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookBPAR,iLookBVAR                            ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
@@ -66,19 +66,20 @@ contains
  character(*),intent(out)             :: message     ! error message
  ! define look-up variables for data structures
  integer(i4b)                         :: iStruct     ! loop through data structures
- integer(i4b),parameter               :: nStruct=12  ! number of data structures
+ integer(i4b),parameter               :: nStruct=13  ! number of data structures
  integer(i4b),parameter               :: ixTime=1    ! the time data structure
- integer(i4b),parameter               :: ixForc=2    ! the time data structure
- integer(i4b),parameter               :: ixAttr=3    ! the time data structure
- integer(i4b),parameter               :: ixType=4    ! the time data structure
- integer(i4b),parameter               :: ixMpar=5    ! the time data structure
- integer(i4b),parameter               :: ixMvar=6    ! the time data structure
- integer(i4b),parameter               :: ixBpar=7    ! the time data structure
- integer(i4b),parameter               :: ixBvar=8    ! the time data structure
- integer(i4b),parameter               :: ixIndx=9    ! the time data structure
- integer(i4b),parameter               :: ixDiag=10   ! the time data structure
- integer(i4b),parameter               :: ixFlux=11   ! the time data structure
- integer(i4b),parameter               :: ixDeriv=12  ! the time data structure
+ integer(i4b),parameter               :: ixForc=2    ! the forcing data structure
+ integer(i4b),parameter               :: ixAttr=3    ! the attribute data structure
+ integer(i4b),parameter               :: ixType=4    ! the type data structure
+ integer(i4b),parameter               :: ixMpar=5    ! the model parameter data structure
+ integer(i4b),parameter               :: ixMvar=6    ! the model variable data structure
+ integer(i4b),parameter               :: ixBpar=7    ! the basin parameter data structure
+ integer(i4b),parameter               :: ixBvar=8    ! the basin variable data structure
+ integer(i4b),parameter               :: ixIndx=9    ! the model index data structure
+ integer(i4b),parameter               :: ixState=10  ! the state variable data structure
+ integer(i4b),parameter               :: ixDiag=11   ! the diagnostic variable data structure
+ integer(i4b),parameter               :: ixFlux=12   ! the flux data structure
+ integer(i4b),parameter               :: ixDeriv=13  ! the model derivative data structure
  ! check that the structure constructors are correct
  character(len=8192)                  :: longString  ! string containing the indices defined in the structure constructor
  character(len=32),allocatable        :: words(:)    ! vector of words extracted from the long string
@@ -101,32 +102,36 @@ contains
  if (associated(bpar_meta))  deallocate(bpar_meta)   ! 7
  if (associated(bvar_meta))  deallocate(bvar_meta)   ! 8
  if (associated(indx_meta))  deallocate(indx_meta)   ! 9
- if (associated(diag_meta))  deallocate(diag_meta)   ! 10
- if (associated(flux_meta))  deallocate(flux_meta)   ! 11
- if (associated(deriv_meta)) deallocate(deriv_meta)  ! 12
+ if (associated(state_meta)) deallocate(state_meta)  ! 10
+ if (associated(diag_meta))  deallocate(diag_meta)   ! 11
+ if (associated(flux_meta))  deallocate(flux_meta)   ! 12
+ if (associated(deriv_meta)) deallocate(deriv_meta)  ! 13
 
  ! allocate metadata structures
  allocate(time_meta(maxvarTime),forc_meta(maxvarForc),attr_meta(maxvarAttr),type_meta(maxvarType),&
+          state_meta(maxvarState),diag_meta(maxvarDiag),flux_meta(maxvarFlux),deriv_meta(maxvarDeriv),&
           mpar_meta(maxvarMpar),mvar_meta(maxvarMvar),indx_meta(maxvarIndx),&
-          diag_meta(maxvarDiag),flux_meta(maxvarFlux),deriv_meta(maxvarDeriv),&
           bpar_meta(maxvarBpar),bvar_meta(maxvarBvar),stat=err)
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
+
+ print*, 'maxvarFlux = ', maxvarFlux
 
  ! check that the structure constructors are correct
  do iStruct=1,nStruct
   ! convert the lookup structures to a character string
   select case(iStruct)
-   case(ixTime);  write(longString,*) iLookTIME;  nVar=maxvarTime; cTry='iLookTIME'
-   case(ixForc);  write(longString,*) iLookFORCE; nVar=maxvarForc; cTry='iLookFORCE'
-   case(ixAttr);  write(longString,*) iLookATTR;  nVar=maxvarAttr; cTry='iLookATTR'
-   case(ixType);  write(longString,*) iLookTYPE;  nVar=maxvarType; cTry='iLookTYPE'
-   case(ixMpar);  write(longString,*) iLookPARAM; nVar=maxvarMpar; cTry='iLookMPAR'
-   case(ixMvar);  write(longString,*) iLookMVAR;  nVar=maxvarMvar; cTry='iLookMVAR'
-   case(ixBpar);  write(longString,*) iLookBPAR;  nVar=maxvarBpar; cTry='iLookBPAR'
-   case(ixBvar);  write(longString,*) iLookBVAR;  nVar=maxvarBvar; cTry='iLookBVAR'
-   case(ixIndx);  write(longString,*) iLookINDEX; nVar=maxvarIndx; cTry='iLookINDX'
-   case(ixDiag);  write(longString,*) iLookDIAG;  nVar=maxvarDiag; cTry='iLookDIAG'
-   case(ixFlux);  write(longString,*) iLookFLUX;  nVar=maxvarFlux; cTry='iLookFLUX'
+   case(ixTime);  write(longString,*) iLookTIME;  nVar=maxvarTime;  cTry='iLookTIME'
+   case(ixForc);  write(longString,*) iLookFORCE; nVar=maxvarForc;  cTry='iLookFORCE'
+   case(ixAttr);  write(longString,*) iLookATTR;  nVar=maxvarAttr;  cTry='iLookATTR'
+   case(ixType);  write(longString,*) iLookTYPE;  nVar=maxvarType;  cTry='iLookTYPE'
+   case(ixMpar);  write(longString,*) iLookPARAM; nVar=maxvarMpar;  cTry='iLookMPAR'
+   case(ixMvar);  write(longString,*) iLookMVAR;  nVar=maxvarMvar;  cTry='iLookMVAR'
+   case(ixBpar);  write(longString,*) iLookBPAR;  nVar=maxvarBpar;  cTry='iLookBPAR'
+   case(ixBvar);  write(longString,*) iLookBVAR;  nVar=maxvarBvar;  cTry='iLookBVAR'
+   case(ixIndx);  write(longString,*) iLookINDEX; nVar=maxvarIndx;  cTry='iLookINDX'
+   case(ixState); write(longString,*) iLookSTATE; nVar=maxvarState; cTry='iLookSTATE'
+   case(ixDiag);  write(longString,*) iLookDIAG;  nVar=maxvarDiag;  cTry='iLookDIAG'
+   case(ixFlux);  write(longString,*) iLookFLUX;  nVar=maxvarFlux;  cTry='iLookFLUX'
    case(ixDeriv); write(longString,*) iLookDERIV; nVar=maxvarDeriv; cTry='iLookDERIV'
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
@@ -143,6 +148,8 @@ contains
    endif
   end do
  end do  ! looping through data structures
+
+ pause 'testing check'
 
  end subroutine init_metad
 

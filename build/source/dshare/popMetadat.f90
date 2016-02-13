@@ -17,6 +17,10 @@ contains
  USE data_struc, only: mvar_meta  ! data structure for local model variable metadata
  USE data_struc, only: bvar_meta  ! data structure for basin model variable metadata
  USE data_struc, only: indx_meta  ! data structure for index metadata
+ USE data_struc, only: state_meta ! data structure for local state variables
+ USE data_struc, only: diag_meta  ! data structure for local diagnostic variables
+ USE data_struc, only: flux_meta  ! data structure for local flux variables
+ USE data_struc, only: deriv_meta ! data structure for local flux derivatives
  ! structures of named variables
  USE var_lookup, only: iLookTIME  ! named variables for time data structure
  USE var_lookup, only: iLookFORCE ! named variables for forcing data structure
@@ -27,6 +31,10 @@ contains
  USE var_lookup, only: iLookMVAR  ! named variables for local model variable data structure
  USE var_lookup, only: iLookBVAR  ! named variables for basin model variable data structure
  USE var_lookup, only: iLookINDEX ! named variables for index variable data structure
+ USE var_lookup, only: iLookSTATE ! named variables for local state variables
+ USE var_lookup, only: iLookDIAG  ! named variables for local diagnostic variables
+ USE var_lookup, only: iLookFLUX  ! named variables for local flux variables
+ USE var_lookup, only: iLookDERIV ! named variables for local flux derivatives
  implicit none
  ! dummy variables
  integer(i4b),intent(out)       :: err                            ! error code
@@ -251,7 +259,270 @@ contains
  bpar_meta(iLookBPAR%routingGammaScale)         = var_info('routingGammaScale'        , 'scale parameter in Gamma distribution used for sub-grid routing', 's'    , 'scalarv', .true.)
 
  ! -----
- ! * local model variables...
+ ! * local model state variables...
+ ! --------------------------------
+ ! state variables for vegetation
+ state_meta(iLookSTATE%scalarCanopyIce)                 = var_info('scalarCanopyIce'                , 'mass of ice on the vegetation canopy'                             , 'kg m-2'          , 'scalarv', .true.)
+ state_meta(iLookSTATE%scalarCanopyLiq)                 = var_info('scalarCanopyLiq'                , 'mass of liquid water on the vegetation canopy'                    , 'kg m-2'          , 'scalarv', .true.)
+ state_meta(iLookSTATE%scalarCanairTemp)                = var_info('scalarCanairTemp'               , 'temperature of the canopy air space'                              , 'K'               , 'scalarv', .true.)
+ state_meta(iLookSTATE%scalarCanopyTemp)                = var_info('scalarCanopyTemp'               , 'temperature of the vegetation canopy'                             , 'K'               , 'scalarv', .true.)
+ ! state variables for snow
+ state_meta(iLookSTATE%scalarSnowAlbedo)                = var_info('scalarSnowAlbedo'               , 'snow albedo for the entire spectral band'                         , '-'               , 'scalarv', .false.)
+ state_meta(iLookSTATE%scalarSnowDepth)                 = var_info('scalarSnowDepth'                , 'total snow depth'                                                 , 'm'               , 'scalarv', .true.)
+ state_meta(iLookSTATE%scalarSWE)                       = var_info('scalarSWE'                      , 'snow water equivalent'                                            , 'kg m-2'          , 'scalarv', .true.)
+ state_meta(iLookSTATE%scalarSfcMeltPond)               = var_info('scalarSfcMeltPond'              , 'ponded water caused by melt of the "snow without a layer"'        , 'kg m-2'          , 'scalarv', .false.)
+ ! define state variables for the snow+soil domain
+ state_meta(iLookSTATE%mLayerDepth)                     = var_info('mLayerDepth'                    , 'depth of each layer'                                              , 'm'               , 'midToto', .false.)
+ state_meta(iLookSTATE%mLayerTemp)                      = var_info('mLayerTemp'                     , 'temperature of each layer'                                        , 'K'               , 'midToto', .true.)
+ state_meta(iLookSTATE%mLayerVolFracIce)                = var_info('mLayerVolFracIce'               , 'volumetric fraction of ice in each layer'                         , '-'               , 'midToto', .false.)
+ state_meta(iLookSTATE%mLayerVolFracLiq)                = var_info('mLayerVolFracLiq'               , 'volumetric fraction of liquid water in each layer'                , '-'               , 'midToto', .true.)
+ state_meta(iLookSTATE%mLayerMatricHead)                = var_info('mLayerMatricHead'               , 'matric head of water in the soil'                                 , 'm'               , 'midSoil', .false.)
+ ! other state variables
+ state_meta(iLookSTATE%scalarAquiferStorage)            = var_info('scalarAquiferStorage'           , 'water required to bring aquifer to the bottom of the soil profile', 'm'               , 'scalarv', .false.)
+ state_meta(iLookSTATE%scalarSurfaceTemp)               = var_info('scalarSurfaceTemp'              , 'surface temperature (just a copy of the upper-layer temperature)' , 'K'               , 'scalarv', .true.)
+
+ ! -----
+ ! * local model diagnostic variables...
+ ! -------------------------------------
+ ! layer geometry
+ diag_meta(iLookDIAG%mLayerHeight)                    = var_info('mLayerHeight'                   , 'height of the layer mid-point (top of soil = 0)'                  , 'm'               , 'midToto', .false.)
+ diag_meta(iLookDIAG%iLayerHeight)                    = var_info('iLayerHeight'                   , 'height of the layer interface (top of soil = 0)'                  , 'm'               , 'ifcToto', .true.)
+ ! local properties
+ diag_meta(iLookDIAG%scalarGreenVegFraction)          = var_info('scalarGreenVegFraction'         , 'green vegetation fraction (used to compute LAI)'                  , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarBulkVolHeatCapVeg)         = var_info('scalarBulkVolHeatCapVeg'        , 'bulk volumetric heat capacity of vegetation'                      , 'J m-3 K-1'       , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarCanopyEmissivity)          = var_info('scalarCanopyEmissivity'         , 'effective canopy emissivity'                                      , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarRootZoneTemp)              = var_info('scalarRootZoneTemp'             , 'average temperature of the root zone'                             , 'K'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarLAI)                       = var_info('scalarLAI'                      , 'one-sided leaf area index'                                        , 'm2 m-2'          , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarSAI)                       = var_info('scalarSAI'                      , 'one-sided stem area index'                                        , 'm2 m-2'          , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarExposedLAI)                = var_info('scalarExposedLAI'               , 'exposed leaf area index (after burial by snow)'                   , 'm2 m-2'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarExposedSAI)                = var_info('scalarExposedSAI'               , 'exposed stem area index (after burial by snow)'                   , 'm2 m-2'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarCanopyIceMax)              = var_info('scalarCanopyIceMax'             , 'maximum interception storage capacity for ice'                    , 'kg m-2'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarCanopyLiqMax)              = var_info('scalarCanopyLiqMax'             , 'maximum interception storage capacity for liquid water'           , 'kg m-2'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarGrowingSeasonIndex)        = var_info('scalarGrowingSeasonIndex'       , 'growing season index (0=off, 1=on)'                               , '-'               , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarVolHtCap_air)              = var_info('scalarVolHtCap_air'             , 'volumetric heat capacity air'                                     , 'J m-3 K-1'       , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarVolHtCap_ice)              = var_info('scalarVolHtCap_ice'             , 'volumetric heat capacity ice'                                     , 'J m-3 K-1'       , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarVolHtCap_soil)             = var_info('scalarVolHtCap_soil'            , 'volumetric heat capacity dry soil'                                , 'J m-3 K-1'       , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarVolHtCap_water)            = var_info('scalarVolHtCap_water'           , 'volumetric heat capacity liquid wat'                              , 'J m-3 K-1'       , 'scalarv', .false.)
+ diag_meta(iLookDIAG%mLayerVolHtCapBulk)              = var_info('mLayerVolHtCapBulk'             , 'volumetric heat capacity in each layer'                           , 'J m-3 K-1'       , 'midToto', .false.)
+ ! forcing
+ diag_meta(iLookDIAG%scalarVPair)                     = var_info('scalarVPair'                    , 'vapor pressure of the air above the vegetation canopy'            , 'Pa'              , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarVP_CanopyAir)              = var_info('scalarVP_CanopyAir'             , 'vapor pressure of the canopy air space'                           , 'Pa'              , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarTwetbulb)                  = var_info('scalarTwetbulb'                 , 'wet bulb temperature'                                             , 'K'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarSnowfallTemp)              = var_info('scalarSnowfallTemp'             , 'temperature of fresh snow'                                        , 'K'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarNewSnowDensity)            = var_info('scalarNewSnowDensity'           , 'density of fresh snow'                                            , 'kg m-3'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarO2air)                     = var_info('scalarO2air'                    , 'atmospheric o2 concentration'                                     , 'Pa'              , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarCO2air)                    = var_info('scalarCO2air'                   , 'atmospheric co2 concentration'                                    , 'Pa'              , 'scalarv', .false.)
+ ! shortwave radiation
+ diag_meta(iLookDIAG%scalarCosZenith)                 = var_info('scalarCosZenith'                , 'cosine of the solar zenith angle'                                 , '-'               , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarFractionDirect)            = var_info('scalarFractionDirect'           , 'fraction of direct radiation (0-1)'                               , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarCanopySunlitFraction)      = var_info('scalarCanopySunlitFraction'     , 'sunlit fraction of canopy'                                        , '-'               , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarCanopySunlitLAI)           = var_info('scalarCanopySunlitLAI'          , 'sunlit leaf area'                                                 , '-'               , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarCanopyShadedLAI)           = var_info('scalarCanopyShadedLAI'          , 'shaded leaf area'                                                 , '-'               , 'scalarv', .true.)
+ diag_meta(iLookDIAG%spectralAlbGndDirect)            = var_info('spectralAlbGndDirect'           , 'direct  albedo of underlying surface for each spectral band'      , '-'               , 'wLength', .false.)
+ diag_meta(iLookDIAG%spectralAlbGndDiffuse)           = var_info('spectralAlbGndDiffuse'          , 'diffuse albedo of underlying surface for each spectral band'      , '-'               , 'wLength', .false.)
+ diag_meta(iLookDIAG%scalarGroundAlbedo)              = var_info('scalarGroundAlbedo'             , 'albedo of the ground surface'                                     , '-'               , 'scalarv', .false.)
+ ! turbulent heat transfer
+ diag_meta(iLookDIAG%scalarLatHeatSubVapCanopy)       = var_info('scalarLatHeatSubVapCanopy'      , 'latent heat of sublimation/vaporization used for veg canopy'      , 'J kg-1'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarLatHeatSubVapGround)       = var_info('scalarLatHeatSubVapGround'      , 'latent heat of sublimation/vaporization used for ground surface'  , 'J kg-1'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarSatVP_CanopyTemp)          = var_info('scalarSatVP_CanopyTemp'         , 'saturation vapor pressure at the temperature of vegetation canopy', 'Pa'              , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarSatVP_GroundTemp)          = var_info('scalarSatVP_GroundTemp'         , 'saturation vapor pressure at the temperature of the ground'       , 'Pa'              , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarZ0Canopy)                  = var_info('scalarZ0Canopy'                 , 'roughness length of the canopy'                                   , 'm'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarWindReductionFactor)       = var_info('scalarWindReductionFactor'      , 'canopy wind reduction factor'                                     , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarZeroPlaneDisplacement)     = var_info('scalarZeroPlaneDisplacement'    , 'zero plane displacement'                                          , 'm'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarRiBulkCanopy)              = var_info('scalarRiBulkCanopy'             , 'bulk Richardson number for the canopy'                            , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarRiBulkGround)              = var_info('scalarRiBulkGround'             , 'bulk Richardson number for the ground surface'                    , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarCanopyStabilityCorrection) = var_info('scalarCanopyStabilityCorrection', 'stability correction for the canopy'                              , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarGroundStabilityCorrection) = var_info('scalarGroundStabilityCorrection', 'stability correction for the ground surface'                      , '-'               , 'scalarv', .false.)
+ ! evapotranspiration
+ diag_meta(iLookDIAG%scalarIntercellularCO2Sunlit)    = var_info('scalarIntercellularCO2Sunlit'   , 'carbon dioxide partial pressure of leaf interior (sunlit leaves)' , 'Pa'              , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarIntercellularCO2Shaded)    = var_info('scalarIntercellularCO2Shaded'   , 'carbon dioxide partial pressure of leaf interior (shaded leaves)' , 'Pa'              , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarTranspireLim)              = var_info('scalarTranspireLim'             , 'aggregate soil moisture and aquifer control on transpiration'     , '-'               , 'scalarv', .true.)
+ diag_meta(iLookDIAG%scalarTranspireLimAqfr)          = var_info('scalarTranspireLimAqfr'         , 'aquifer storage control on transpiration'                         , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarFoliageNitrogenFactor)     = var_info('scalarFoliageNitrogenFactor'    , 'foliage nitrogen concentration (1=saturated)'                     , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarSoilRelHumidity)           = var_info('scalarSoilRelHumidity'          , 'relative humidity in the soil pores in the upper-most soil layer' , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%mLayerTranspireLim)              = var_info('mLayerTranspireLim'             , 'soil moist & veg limit on transpiration for each layer'           , '-'               , 'midSoil', .false.)
+ diag_meta(iLookDIAG%mLayerRootDensity)               = var_info('mLayerRootDensity'              , 'fraction of roots in each soil layer'                             , '-'               , 'midSoil', .false.)
+ diag_meta(iLookDIAG%scalarAquiferRootFrac)           = var_info('scalarAquiferRootFrac'          , 'fraction of roots below the soil profile (in the aquifer)'        , '-'               , 'scalarv', .false.)
+ ! canopy hydrology
+ diag_meta(iLookDIAG%scalarFracLiqVeg)                = var_info('scalarFracLiqVeg'               , 'fraction of liquid water on vegetation'                           , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarCanopyWetFraction)         = var_info('scalarCanopyWetFraction'        , 'fraction canopy that is wet'                                      , '-'               , 'scalarv', .true.)
+ ! snow hydrology
+ diag_meta(iLookDIAG%scalarSnowAge)                   = var_info('scalarSnowAge'                  , 'non-dimensional snow age'                                         , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarGroundSnowFraction)        = var_info('scalarGroundSnowFraction'       , 'fraction ground that is covered with snow'                        , '-'               , 'scalarv', .true.)
+ diag_meta(iLookDIAG%spectralSnowAlbedoDirect)        = var_info('spectralSnowAlbedoDirect'       , 'direct snow albedo for individual spectral bands'                 , '-'               , 'wLength', .false.)
+ diag_meta(iLookDIAG%spectralSnowAlbedoDiffuse)       = var_info('spectralSnowAlbedoDiffuse'      , 'diffuse snow albedo for individual spectral bands'                , '-'               , 'wLength', .false.)
+ diag_meta(iLookDIAG%scalarFracLiqSnow)               = var_info('scalarFracLiqSnow'              , 'fraction of liquid water in each snow layer'                      , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%mLayerThetaResid)                = var_info('mLayerThetaResid'               , 'residual volumetric water content in each snow layer'             , '-'               , 'midSnow', .false.)
+ diag_meta(iLookDIAG%mLayerPoreSpace)                 = var_info('mLayerPoreSpace'                , 'total pore space in each snow layer'                              , '-'               , 'midSnow', .false.)
+ ! soil hydrology
+ diag_meta(iLookDIAG%scalarInfilArea)                 = var_info('scalarInfilArea'                , 'fraction of unfrozen area where water can infiltrate'             , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarFrozenArea)                = var_info('scalarFrozenArea'               , 'fraction of area that is considered impermeable due to soil ice'  , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarSoilControl)               = var_info('scalarSoilControl'              , 'soil control on infiltration (1=controlling; 0=not)'              , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%mLayerVolFracAir)                = var_info('mLayerVolFracAir'               , 'volumetric fraction of air in each layer'                         , '-'               , 'midToto', .false.)
+ diag_meta(iLookDIAG%mLayerCompress)                  = var_info('mLayerCompress'                 , 'change in volumetric water content due to compression of soil'    , '-'               , 'midSoil', .false.)
+ diag_meta(iLookDIAG%scalarSoilCompress)              = var_info('scalarSoilCompress'             , 'change in total soil storage due to compression of soil matrix'   , 'kg m-2'          , 'scalarv', .false.)
+ ! mass balance check
+ diag_meta(iLookDIAG%scalarSoilWatBalError)           = var_info('scalarSoilWatBalError'          , 'error in the total soil water balance'                            , 'kg m-2'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarAquiferBalError)           = var_info('scalarAquiferBalError'          , 'error in the aquifer water balance'                               , 'kg m-2'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarTotalSoilLiq)              = var_info('scalarTotalSoilLiq'             , 'total mass of liquid water in the soil'                           , 'kg m-2'          , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarTotalSoilIce)              = var_info('scalarTotalSoilIce'             , 'total mass of ice in the soil'                                    , 'kg m-2'          , 'scalarv', .false.)
+ ! variable shortcuts
+ diag_meta(iLookDIAG%scalarVGn_m)                     = var_info('scalarVGn_m'                    , 'van Genuchten "m" parameter'                                      , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarKappa)                     = var_info('scalarKappa'                    , 'constant in the freezing curve function'                          , 'm K-1'           , 'scalarv', .false.)
+ diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , 'scalarv', .false.)
+
+ ! -----
+ ! * local model fluxes...
+ ! -----------------------
+ ! net energy and mass fluxes for the vegetation domain
+ flux_meta(iLookFLUX%scalarCanairNetNrgFlux)          = var_info('scalarCanairNetNrgFlux'         , 'net energy flux for the canopy air space'                         , 'W m-2'          , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarCanopyNetNrgFlux)          = var_info('scalarCanopyNetNrgFlux'         , 'net energy flux for the vegetation canopy'                        , 'W m-2'          , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarGroundNetNrgFlux)          = var_info('scalarGroundNetNrgFlux'         , 'net energy flux for the ground surface'                           , 'W m-2'          , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarCanopyNetLiqFlux)          = var_info('scalarCanopyNetLiqFlux'         , 'net liquid water flux for the vegetation canopy'                  , 'kg m-2 s-1'     , 'scalarv', .false.)
+ ! forcing
+ flux_meta(iLookFLUX%scalarRainfall)                  = var_info('scalarRainfall'                 , 'computed rainfall rate'                                           , 'kg m-2 s-1'      , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarSnowfall)                  = var_info('scalarSnowfall'                 , 'computed snowfall rate'                                           , 'kg m-2 s-1'      , 'scalarv', .false.)
+ ! shortwave radiation
+ flux_meta(iLookFLUX%spectralIncomingDirect)          = var_info('spectralIncomingDirect'         , 'incoming direct solar radiation in each wave band'                , 'W m-2'           , 'wLength', .false.)
+ flux_meta(iLookFLUX%spectralIncomingDiffuse)         = var_info('spectralIncomingDiffuse'        , 'incoming diffuse solar radiation in each wave band'               , 'W m-2'           , 'wLength', .false.)
+ flux_meta(iLookFLUX%scalarCanopySunlitPAR)           = var_info('scalarCanopySunlitPAR'          , 'average absorbed par for sunlit leaves'                           , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarCanopyShadedPAR)           = var_info('scalarCanopyShadedPAR'          , 'average absorbed par for shaded leaves'                           , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%spectralBelowCanopyDirect)       = var_info('spectralBelowCanopyDirect'      , 'downward direct flux below veg layer for each spectral band'      , 'W m-2'           , 'wLength', .false.)
+ flux_meta(iLookFLUX%spectralBelowCanopyDiffuse)      = var_info('spectralBelowCanopyDiffuse'     , 'downward diffuse flux below veg layer for each spectral band'     , 'W m-2'           , 'wLength', .false.)
+ flux_meta(iLookFLUX%scalarBelowCanopySolar)          = var_info('scalarBelowCanopySolar'         , 'solar radiation transmitted below the canopy'                     , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarCanopyAbsorbedSolar)       = var_info('scalarCanopyAbsorbedSolar'      , 'solar radiation absorbed by canopy'                               , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarGroundAbsorbedSolar)       = var_info('scalarGroundAbsorbedSolar'      , 'solar radiation absorbed by ground'                               , 'W m-2'           , 'scalarv', .true.)
+ ! longwave radiation
+ flux_meta(iLookFLUX%scalarLWRadCanopy)               = var_info('scalarLWRadCanopy'              , 'longwave radiation emitted from the canopy'                       , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadGround)               = var_info('scalarLWRadGround'              , 'longwave radiation emitted at the ground surface'                 , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadUbound2Canopy)        = var_info('scalarLWRadUbound2Canopy'       , 'downward atmospheric longwave radiation absorbed by the canopy'   , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadUbound2Ground)        = var_info('scalarLWRadUbound2Ground'       , 'downward atmospheric longwave radiation absorbed by the ground'   , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadUbound2Ubound)        = var_info('scalarLWRadUbound2Ubound'       , 'atmospheric radiation refl by ground + lost thru upper boundary'  , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadCanopy2Ubound)        = var_info('scalarLWRadCanopy2Ubound'       , 'longwave radiation emitted from canopy lost thru upper boundary'  , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadCanopy2Ground)        = var_info('scalarLWRadCanopy2Ground'       , 'longwave radiation emitted from canopy absorbed by the ground'    , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadCanopy2Canopy)        = var_info('scalarLWRadCanopy2Canopy'       , 'canopy longwave reflected from ground and absorbed by the canopy' , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadGround2Ubound)        = var_info('scalarLWRadGround2Ubound'       , 'longwave radiation emitted from ground lost thru upper boundary'  , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWRadGround2Canopy)        = var_info('scalarLWRadGround2Canopy'       , 'longwave radiation emitted from ground and absorbed by the canopy', 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLWNetCanopy)               = var_info('scalarLWNetCanopy'              , 'net longwave radiation at the canopy'                             , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarLWNetGround)               = var_info('scalarLWNetGround'              , 'net longwave radiation at the ground surface'                     , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarLWNetUbound)               = var_info('scalarLWNetUbound'              , 'net longwave radiation at the upper atmospheric boundary'         , 'W m-2'           , 'scalarv', .false.)
+ ! turbulent heat transfer
+ flux_meta(iLookFLUX%scalarEddyDiffusCanopyTop)       = var_info('scalarEddyDiffusCanopyTop'      , 'eddy diffusivity for heat at the top of the canopy'               , 'm2 s-1'          , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarFrictionVelocity)          = var_info('scalarFrictionVelocity'         , 'friction velocity (canopy momentum sink)'                         , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarWindspdCanopyTop)          = var_info('scalarWindspdCanopyTop'         , 'windspeed at the top of the canopy'                               , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarWindspdCanopyBottom)       = var_info('scalarWindspdCanopyBottom'      , 'windspeed at the height of the bottom of the canopy'              , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarGroundResistance)          = var_info('scalarGroundResistance'         , 'below canopy aerodynamic resistance'                              , 's m-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarCanopyResistance)          = var_info('scalarCanopyResistance'         , 'above canopy aerodynamic resistance'                              , 's m-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLeafResistance)            = var_info('scalarLeafResistance'           , 'mean leaf boundary layer resistance per unit leaf area'           , 's m-1'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarSoilResistance)            = var_info('scalarSoilResistance'           , 'soil surface resistance'                                          , 's m-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarSenHeatTotal)              = var_info('scalarSenHeatTotal'             , 'sensible heat from the canopy air space to the atmosphere'        , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarSenHeatCanopy)             = var_info('scalarSenHeatCanopy'            , 'sensible heat from the canopy to the canopy air space'            , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarSenHeatGround)             = var_info('scalarSenHeatGround'            , 'sensible heat from the ground (below canopy or non-vegetated)'    , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarLatHeatTotal)              = var_info('scalarLatHeatTotal'             , 'latent heat from the canopy air space to the atmosphere'          , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarLatHeatCanopyEvap)         = var_info('scalarLatHeatCanopyEvap'        , 'evaporation latent heat from the canopy to the canopy air space'  , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarLatHeatCanopyTrans)        = var_info('scalarLatHeatCanopyTrans'       , 'transpiration latent heat from the canopy to the canopy air space', 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarLatHeatGround)             = var_info('scalarLatHeatGround'            , 'latent heat from the ground (below canopy or non-vegetated)'      , 'W m-2'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarCanopyAdvectiveHeatFlux)   = var_info('scalarCanopyAdvectiveHeatFlux'  , 'heat advected to the canopy with precipitation (snow + rain)'     , 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarGroundAdvectiveHeatFlux)   = var_info('scalarGroundAdvectiveHeatFlux'  , 'heat advected to the ground with throughfall + unloading/drainage', 'W m-2'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarCanopySublimation)         = var_info('scalarCanopySublimation'        , 'canopy sublimation/frost'                                         , 'kg m-2 s-1'      , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarSnowSublimation)           = var_info('scalarSnowSublimation'          , 'snow sublimation/frost (below canopy or non-vegetated)'           , 'kg m-2 s-1'      , 'scalarv', .false.)
+ ! liquid water fluxes associated with evapotranspiration 
+ flux_meta(iLookFLUX%scalarStomResistSunlit)          = var_info('scalarStomResistSunlit'         , 'stomatal resistance for sunlit leaves'                            , 's m-1'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarStomResistShaded)          = var_info('scalarStomResistShaded'         , 'stomatal resistance for shaded leaves'                            , 's m-1'           , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarPhotosynthesisSunlit)      = var_info('scalarPhotosynthesisSunlit'     , 'sunlit photosynthesis'                                            , 'umolco2 m-2 s-1' , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarPhotosynthesisShaded)      = var_info('scalarPhotosynthesisShaded'     , 'shaded photosynthesis'                                            , 'umolco2 m-2 s-1' , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarCanopyTranspiration)       = var_info('scalarCanopyTranspiration'      , 'canopy transpiration'                                             , 'kg m-2 s-1'      , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarCanopyEvaporation)         = var_info('scalarCanopyEvaporation'        , 'canopy evaporation/condensation'                                  , 'kg m-2 s-1'      , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarGroundEvaporation)         = var_info('scalarGroundEvaporation'        , 'ground evaporation/condensation (below canopy or non-vegetated)'  , 'kg m-2 s-1'      , 'scalarv', .false.)
+ flux_meta(iLookFLUX%mLayerTranspire)                 = var_info('mLayerTranspire'                , 'transpiration loss from each soil layer'                          , 'm s-1'           , 'midSoil', .false.)
+ ! liquid and solid water fluxes through the canopy
+ flux_meta(iLookFLUX%scalarThroughfallSnow)           = var_info('scalarThroughfallSnow'          , 'snow that reaches the ground without ever touching the canopy'    , 'kg m-2 s-1'      , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarThroughfallRain)           = var_info('scalarThroughfallRain'          , 'rain that reaches the ground without ever touching the canopy'    , 'kg m-2 s-1'      , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarCanopySnowUnloading)       = var_info('scalarCanopySnowUnloading'      , 'unloading of snow from the vegetation canopy'                     , 'kg m-2 s-1'      , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarCanopyLiqDrainage)         = var_info('scalarCanopyLiqDrainage'        , 'drainage of liquid water from the vegetation canopy'              , 'kg m-2 s-1'      , 'scalarv', .true.)
+ flux_meta(iLookFLUX%scalarCanopyMeltFreeze)          = var_info('scalarCanopyMeltFreeze'         , 'melt/freeze of water stored in the canopy'                        , 'kg m-2 s-1'      , 'scalarv', .false.)
+ ! energy fluxes and for the snow and soil domains
+ flux_meta(iLookFLUX%scalarLambda_drysoil)            = var_info('scalarLambda_drysoil'           , 'thermal conductivity of dry soil'                                 , 'W m-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarLambda_wetsoil)            = var_info('scalarLambda_wetsoil'           , 'thermal conductivity of wet soil'                                 , 'W m-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%mLayerThermalC)                  = var_info('mLayerThermalC'                 , 'thermal conductivity at the mid-point of each layer'              , 'W m-1 K-1'       , 'midToto', .false.)
+ flux_meta(iLookFLUX%iLayerThermalC)                  = var_info('iLayerThermalC'                 , 'thermal conductivity at the interface of each layer'              , 'W m-1 K-1'       , 'ifcToto', .false.)
+ flux_meta(iLookFLUX%iLayerConductiveFlux)            = var_info('iLayerConductiveFlux'           , 'conductive energy flux at layer interfaces'                       , 'W m-2'           , 'ifcToto', .false.)
+ flux_meta(iLookFLUX%iLayerAdvectiveFlux)             = var_info('iLayerAdvectiveFlux'            , 'advective energy flux at layer interfaces'                        , 'W m-2'           , 'ifcToto', .false.)
+ flux_meta(iLookFLUX%iLayerNrgFlux)                   = var_info('iLayerNrgFlux'                  , 'energy flux at layer interfaces'                                  , 'W m-2'           , 'ifcToto', .true.)
+ flux_meta(iLookFLUX%mLayerNrgFlux)                   = var_info('mLayerNrgFlux'                  , 'net energy flux for each layer within the snow+soil domain'       , 'J m-3 s-1'       , 'midToto', .true.)
+ ! liquid water fluxes for the snow domain 
+ flux_meta(iLookFLUX%iLayerLiqFluxSnow)               = var_info('iLayerLiqFluxSnow'              , 'liquid flux at snow layer interfaces'                             , 'm s-1'           , 'ifcSnow', .false.)
+ flux_meta(iLookFLUX%mLayerLiqFluxSnow)               = var_info('mLayerLiqFluxSnow'              , 'net liquid water flux for each snow layer'                        , 's-1'             , 'midSnow', .false.)
+ ! liquid water fluxes for the soil domain
+ flux_meta(iLookFLUX%scalarRainPlusMelt)              = var_info('scalarRainPlusMelt'             , 'rain plus melt, used as input to soil before surface runoff'      , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarInfiltration)              = var_info('scalarInfiltration'             , 'infiltration of water into the soil profile'                      , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarExfiltration)              = var_info('scalarExfiltration'             , 'exfiltration of water from the top of the soil profile'           , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarSurfaceRunoff)             = var_info('scalarSurfaceRunoff'            , 'surface runoff'                                                   , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%mLayerSatHydCondMP)              = var_info('mLayerSatHydCondMP'             , 'saturated hydraulic conductivity of macropores in each layer'     , 'm s-1'           , 'midSoil', .false.)
+ flux_meta(iLookFLUX%mLayerSatHydCond)                = var_info('mLayerSatHydCond'               , 'saturated hydraulic conductivity in each layer'                   , 'm s-1'           , 'midSoil', .false.)
+ flux_meta(iLookFLUX%mLayerHydCond)                   = var_info('mLayerHydCond'                  , 'hydraulic conductivity in each layer'                             , 'm s-1'           , 'midSoil', .false.)
+ flux_meta(iLookFLUX%iLayerLiqFluxSoil)               = var_info('iLayerLiqFluxSoil'              , 'liquid flux at soil layer interfaces'                             , 'm s-1'           , 'ifcSoil', .false.)
+ flux_meta(iLookFLUX%mLayerLiqFluxSoil)               = var_info('mLayerLiqFluxSoil'              , 'net liquid water flux for each soil layer'                        , 's-1'             , 'midSoil', .false.)
+ flux_meta(iLookFLUX%mLayerBaseflow)                  = var_info('mLayerBaseflow'                 , 'baseflow from each soil layer'                                    , 'm s-1'           , 'midSoil', .false.)
+ flux_meta(iLookFLUX%mLayerColumnInflow)              = var_info('mLayerColumnInflow'             , 'total inflow to each layer in a given soil column'                , 'm3 s-1'          , 'midSoil', .false.)
+ flux_meta(iLookFLUX%mLayerColumnOutflow)             = var_info('mLayerColumnOutflow'            , 'total outflow from each layer in a given soil column'             , 'm3 s-1'          , 'midSoil', .false.)
+ flux_meta(iLookFLUX%scalarSoilBaseflow)              = var_info('scalarSoilBaseflow'             , 'total baseflow from the soil profile'                             , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarSoilDrainage)              = var_info('scalarSoilDrainage'             , 'drainage from the bottom of the soil profile'                     , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarAquiferRecharge)           = var_info('scalarAquiferRecharge'          , 'recharge to the aquifer'                                          , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarAquiferTranspire)          = var_info('scalarAquiferTranspire'         , 'transpiration loss from the aquifer'                              , 'm s-1'           , 'scalarv', .false.)
+ flux_meta(iLookFLUX%scalarAquiferBaseflow)           = var_info('scalarAquiferBaseflow'          , 'baseflow from the aquifer'                                        , 'm s-1'           , 'scalarv', .false.)
+
+ ! -----
+ ! * local flux derivatives...
+ ! ---------------------------
+ ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
+ deriv_meta(iLookDERIV%dCanairNetFlux_dCanairTemp)    = var_info('dCanairNetFlux_dCanairTemp'   , 'derivative in net canopy air space flux w.r.t. canopy air temperature', 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanairNetFlux_dCanopyTemp)    = var_info('dCanairNetFlux_dCanopyTemp'   , 'derivative in net canopy air space flux w.r.t. canopy temperature'    , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanairNetFlux_dGroundTemp)    = var_info('dCanairNetFlux_dGroundTemp'   , 'derivative in net canopy air space flux w.r.t. ground temperature'    , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanopyNetFlux_dCanairTemp)    = var_info('dCanopyNetFlux_dCanairTemp'   , 'derivative in net canopy flux w.r.t. canopy air temperature'          , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanopyNetFlux_dCanopyTemp)    = var_info('dCanopyNetFlux_dCanopyTemp'   , 'derivative in net canopy flux w.r.t. canopy temperature'              , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanopyNetFlux_dGroundTemp)    = var_info('dCanopyNetFlux_dGroundTemp'   , 'derivative in net canopy flux w.r.t. ground temperature'              , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanopyNetFlux_dCanLiq)        = var_info('dCanopyNetFlux_dCanLiq'       , 'derivative in net canopy fluxes w.r.t. canopy liquid water content'   , 'J kg-1 s-1'     , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundNetFlux_dCanairTemp)    = var_info('dGroundNetFlux_dCanairTemp'   , 'derivative in net ground flux w.r.t. canopy air temperature'          , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundNetFlux_dCanopyTemp)    = var_info('dGroundNetFlux_dCanopyTemp'   , 'derivative in net ground flux w.r.t. canopy temperature'              , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundNetFlux_dGroundTemp)    = var_info('dGroundNetFlux_dGroundTemp'   , 'derivative in net ground flux w.r.t. ground temperature'              , 'W m-2 K-1'      , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundNetFlux_dCanLiq)        = var_info('dGroundNetFlux_dCanLiq'       , 'derivative in net ground fluxes w.r.t. canopy liquid water content'   , 'J kg-1 s-1'     , 'scalarv', .false.)
+ ! derivatives in evaporative fluxes w.r.t. relevant state variables
+ deriv_meta(iLookDERIV%dCanopyEvaporation_dTCanair)   = var_info('dCanopyEvaporation_dTCanair'  , 'derivative in canopy evaporation w.r.t. canopy air temperature'       , 'kg m-2 s-1 K-1' , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanopyEvaporation_dTCanopy)   = var_info('dCanopyEvaporation_dTCanopy'  , 'derivative in canopy evaporation w.r.t. canopy temperature'           , 'kg m-2 s-1 K-1' , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanopyEvaporation_dTGround)   = var_info('dCanopyEvaporation_dTGround'  , 'derivative in canopy evaporation w.r.t. ground temperature'           , 'kg m-2 s-1 K-1' , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanopyEvaporation_dCanLiq)    = var_info('dCanopyEvaporation_dCanLiq'   , 'derivative in canopy evaporation w.r.t. canopy liquid water content'  , 's-1'            , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundEvaporation_dTCanair)   = var_info('dGroundEvaporation_dTCanair'  , 'derivative in ground evaporation w.r.t. canopy air temperature'       , 'kg m-2 s-1 K-1' , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundEvaporation_dTCanopy)   = var_info('dGroundEvaporation_dTCanopy'  , 'derivative in ground evaporation w.r.t. canopy temperature'           , 'kg m-2 s-1 K-1' , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundEvaporation_dTGround)   = var_info('dGroundEvaporation_dTGround'  , 'derivative in ground evaporation w.r.t. ground temperature'           , 'kg m-2 s-1 K-1' , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dGroundEvaporation_dCanLiq)    = var_info('dGroundEvaporation_dCanLiq'   , 'derivative in ground evaporation w.r.t. canopy liquid water content'  , 's-1'            , 'scalarv', .false.)
+ ! derivatives in canopy water w.r.t canopy temperature
+ deriv_meta(iLookDERIV%dTheta_dTkCanopy)              = var_info('dTheta_dTkCanopy'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCanLiq_dTcanopy)              = var_info('dCanLiq_dTcanopy'             , 'derivative of canopy liquid storage w.r.t. temperature'               , 'kg m-2 K-1'     , 'scalarv', .false.)
+ ! derivatives in canopy liquid fluxes w.r.t. canopy water
+ deriv_meta(iLookDERIV%scalarCanopyLiqDeriv)          = var_info('scalarCanopyLiqDeriv'         , 'derivative in (throughfall + drainage) w.r.t. canopy liquid water'    , 's-1'            , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%scalarThroughfallRainDeriv)    = var_info('scalarThroughfallRainDeriv'   , 'derivative in throughfall w.r.t. canopy liquid water'                 , 's-1'            , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%scalarCanopyLiqDrainageDeriv)  = var_info('scalarCanopyLiqDrainageDeriv' , 'derivative in canopy drainage w.r.t. canopy liquid water'             , 's-1'            , 'scalarv', .false.)
+ ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
+ deriv_meta(iLookDERIV%dNrgFlux_dTempAbove)           = var_info('dNrgFlux_dTempAbove'          , 'derivatives in the flux w.r.t. temperature in the layer above'        , 'J m-2 s-1 K-1'  , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dNrgFlux_dTempBelow)           = var_info('dNrgFlux_dTempBelow'          , 'derivatives in the flux w.r.t. temperature in the layer below'        , 'J m-2 s-1 K-1'  , 'scalarv', .false.)
+ ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
+ deriv_meta(iLookDERIV%iLayerLiqFluxSnowDeriv)        = var_info('iLayerLiqFluxSnowDeriv'       , 'derivative in vertical liquid water flux at layer interfaces'         , 'm s-1'          , 'scalarv', .false.)
+ ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
+ deriv_meta(iLookDERIV%dVolTot_dPsi0)                 = var_info('dVolTot_dPsi0'                , 'derivative in total water content w.r.t. total water matric potential', 'm-1'            , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%mLayerdTheta_dPsi)             = var_info('mLayerdTheta_dPsi'            , 'derivative in the soil water characteristic w.r.t. psi'               , 'm-1'            , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%mLayerdPsi_dTheta)             = var_info('mLayerdPsi_dTheta'            , 'derivative in the soil water characteristic w.r.t. theta'             , 'm'              , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dCompress_dPsi)                = var_info('dCompress_dPsi'               , 'derivative in compressibility w.r.t matric head'                      , 'm-1'            , 'scalarv', .false.)
+ ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
+ deriv_meta(iLookDERIV%dq_dNrgStateAbove)             = var_info('dq_dNrgStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dq_dNrgStateBelow)             = var_info('dq_dNrgStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , 'scalarv', .false.)
+ deriv_meta(iLookDERIV%dPsiLiq_dTemp)                 = var_info('dPsiLiq_dTemp'                , 'derivative in the liquid water matric potential w.r.t. temperature'   , 'm K-1'          , 'scalarv', .false.)
+
+ ! -----
+ ! **TEMPORARY** * local model variables...
  ! --------------------------
  ! timestep-average fluxes for a few key variables
  mvar_meta(iLookMVAR%totalSoilCompress)               = var_info('totalSoilCompress'              , 'change in total soil storage due to compression of soil matrix'   , 'kg m-2'          , 'scalarv', .false.)
