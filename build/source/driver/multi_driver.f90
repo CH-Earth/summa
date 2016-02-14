@@ -69,7 +69,8 @@ USE groundwatr_module,only:groundwatr                       ! module to simulate
 USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
 ! provide access to data
 USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
-USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! file containing information on local attributes
+USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
+USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of file containing information on local attributes
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
 USE data_struc,only:doJacobian                              ! flag to compute the Jacobian
@@ -138,6 +139,7 @@ type(spatial_intVec)      :: indxStruct    ! x%hru(:)%var(:)%dat -- model indice
 type(var_double)          :: bparStruct    ! x%var(:)            -- basin-average parameters
 type(var_doubleVec)       :: bvarStruct    ! x%var(:)%dat        -- basin-average variables
 ! define counters
+integer(i4b)              :: iVar                           ! index of a model variable 
 integer(i4b)              :: iHRU,jHRU,kHRU                 ! index of the hydrologic response unit
 integer(i4b)              :: nHRU                           ! number of hydrologic response units
 integer(i4b)              :: iStep=0                        ! index of model time step
@@ -224,6 +226,7 @@ call checkStruc(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures
 ! *****************************************************************************
+
 ! *** TEMPORARY CODE ***
 ! code will be replaced once merge with the NetCDF branch
 ! get the number of HRUs
@@ -246,18 +249,13 @@ call alloc_bvar(err,message); call handle_err(err,message)
 call alloc_forc(nHRU,err,message); call handle_err(err,message)
 call alloc_time(nHRU,err,message); call handle_err(err,message)
 call alloc_stim(refTime,err,message); call handle_err(err,message)
+
 ! allocate space for the time step and computeVegFlux flags (recycled for each HRU for subsequent calls to coupled_em)
 allocate(dt_init(nHRU),stat=err); call handle_err(err,'problem allocating space for dt_init')
 allocate(computeVegFlux(nHRU),stat=err); call handle_err(err,'problem allocating space for computeVegFlux')
 
-! read local attributes for each HRU
-call read_attrb(nHRU,err,message); call handle_err(err,message)
-
-
-
-
-print*, 'nHRU = ', nHRU
-
+! initialize data structures
+! NOTE: this should replace the entire set of calls above
 call initStruct(&
                 ! input: model control
                 nHRU,       &    ! number of HRUs
@@ -275,12 +273,8 @@ call initStruct(&
                 err,message)   ; call handle_err(err,message)
 
 
-
-pause ' in driver'
-
-
-
-
+! read local attributes for each HRU
+call read_attrb(nHRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
@@ -344,6 +338,30 @@ do iHRU=1,nHRU
  mpar_data => mpar_hru(iHRU)
  mvar_data => mvar_hru(iHRU)
  indx_data => indx_hru(iHRU)
+
+ ! ***** TEMPORARY CODE *****
+ ! code will be replaced once merge with the NetCDF branch
+ ! get the number of snow and soil layers
+ if(allocated(dataLines) deallocate(dataLines)
+ call file_open(trim(SETNGS_PATH)//trim(LOCAL_MODEL_INITCOND),fileUnit,err,message); call handle_err(err,message)
+ call get_vlines(fileUnit,dataLines,err,message); call handle_err(err,message)
+ nSnow=0           ! initialize the number of snow layers
+ nSoil=0           ! initialize the number of soil layers
+ do iVar=1,size(dataLines)
+  ! split the line into an array of words
+  call split_line(vlines(iVar),chardata,err,message); call handle_err(err,message)
+  ! check if the line contains initial conditions data (contains the word "snow" or "soil")
+  do iword=1,size(chardata)
+   if(chardata(iword)=='snow') nSnow = nSnow+1
+   if(chardata(iword)=='soil') nSoil = nSoil+1
+   if(chardata(iword)=='snow' .or. chardata(iword)=='soil') exit ! exit once read the layer type
+  end do
+  deallocate(chardata)
+ end do
+ nLayers = nSnow+nSoil
+ close(fileUnit)
+ ! **** END OF TEMPORARY CODE ***
+
 
  ! check that the parameters are consistent
  call paramCheck(err,message); call handle_err(err,message)
