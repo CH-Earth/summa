@@ -125,6 +125,67 @@ MODULE data_struc
  type, public :: var_i
   integer(i4b),pointer                   :: var(:) => null()
  endtype var_i
+
+
+
+
+
+
+ ! define derived types to hold multivariate data for a single variable (different variables have different length)
+ ! NOTE: use derived types here to facilitate adding the "variable" dimension
+ ! ** double precision type
+ type, public :: doubleVec
+  real(dp),allocatable        :: dat(:)
+ endtype doubleVec
+ ! ** integer type
+ type, public :: intVec
+  integer(i4b),allocatable    :: dat(:)
+ endtype intVec
+
+ ! define derived types to hold data for multiple variables
+ ! ** double precision type of variable length
+ type, public :: var_doubleVec
+  type(doubleVec),allocatable :: var(:)
+ endtype var_doubleVec
+ ! ** integer type of variable length
+ type, public :: var_intVec
+  type(intVec),allocatable    :: var(:)
+ endtype var_intVec
+ ! ** double precision type of fixed length
+ type, public :: var_double
+  real(dp),allocatable        :: var(:)
+ endtype var_double
+ ! ** integer type of variable length
+ type, public :: var_int
+  integer(i4b),allocatable    :: var(:)
+ endtype var_int
+
+ ! define derived types to hold spatial
+ ! ** double precision type of variable length
+ type, public :: spatial_doubleVec
+  type(var_doubleVec),allocatable :: hru(:)
+ endtype spatial_doubleVec
+ ! ** integer type of variable length
+ type, public :: spatial_intVec
+  type(var_intVec),allocatable    :: hru(:)
+ endtype spatial_intVec
+ ! ** double precision type of fixed length
+ type, public :: spatial_double
+  type(var_double),allocatable    :: hru(:)
+ endtype spatial_double
+ ! ** integer type of variable length
+ type, public :: spatial_int
+  type(var_int),allocatable       :: hru(:)
+ endtype spatial_int
+
+
+
+
+
+
+
+
+
  ! define top-level derived types
  ! NOTE: either allocate directly, or use to point to higher dimensional structures
  type(var_i),pointer,save,public         :: time_hru(:) => null()    ! model time data

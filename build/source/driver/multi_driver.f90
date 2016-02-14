@@ -28,7 +28,12 @@ USE nrtype                                                  ! variable types, et
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
+USE ascii_util_module,only:file_open                        ! open ascii file
+USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
+USE allocspace_module,only:initStruct                       ! module to allocate space for data structures
+USE allocspace_module,only:alloc_attr                       ! module to allocate space for local attributes
+USE allocspace_module,only:alloc_type                       ! module to allocate space for categorical data
 USE allocspace_module,only:alloc_stim                       ! module to allocate space for scalar time structures
 USE allocspace_module,only:alloc_time                       ! module to allocate space for model time structures
 USE allocspace_module,only:alloc_forc                       ! module to allocate space for model forcing data strictures
@@ -64,6 +69,7 @@ USE groundwatr_module,only:groundwatr                       ! module to simulate
 USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
 ! provide access to data
 USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
+USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! file containing information on local attributes
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
 USE data_struc,only:doJacobian                              ! flag to compute the Jacobian
@@ -86,6 +92,16 @@ USE data_struc,only:globalPrintFlag                         ! global print flag
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
 USE noahmp_globals,only:RSMIN                               ! minimum stomatal resistance (vegType)
+! provide access to the derived types to define the data structures
+USE data_struc,only:&
+                    var_int,             & ! x%var(:)            (i4b)
+                    var_double,          & ! x%var(:)            (dp)
+                    var_intVec,          & ! x%var(:)%dat        (i4b)
+                    var_doubleVec,       & ! x%var(:)%dat        (dp)
+                    spatial_int,         & ! x%hru(:)%var(:)     (i4b)
+                    spatial_double,      & ! x%hru(:)%var(:)     (dp)
+                    spatial_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
+                    spatial_doubleVec      ! x%hru(:)%var(:)%dat (dp)
 ! named variables for elements of model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
@@ -111,6 +127,16 @@ implicit none
 ! *****************************************************************************
 ! (0) variable definitions
 ! *****************************************************************************
+! define the data structures
+type(var_int)             :: timeStruct    ! x%var(:)            -- model time data
+type(spatial_double)      :: forcStruct    ! x%hru(:)%var(:)     -- model forcing data
+type(spatial_double)      :: attrStruct    ! x%hru(:)%var(:)     -- local attributes for each HRU
+type(spatial_int)         :: typeStruct    ! x%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+type(spatial_double)      :: mparStruct    ! x%hru(:)%var(:)     -- model parameters
+type(spatial_doubleVec)   :: mvarStruct    ! x%hru(:)%var(:)%dat -- model variables
+type(spatial_intVec)      :: indxStruct    ! x%hru(:)%var(:)%dat -- model indices
+type(var_double)          :: bparStruct    ! x%var(:)            -- basin-average parameters
+type(var_doubleVec)       :: bvarStruct    ! x%var(:)%dat        -- basin-average variables
 ! define counters
 integer(i4b)              :: iHRU,jHRU,kHRU                 ! index of the hydrologic response unit
 integer(i4b)              :: nHRU                           ! number of hydrologic response units
@@ -150,6 +176,9 @@ real(dp),parameter        :: fSmall = epsilon(xMatch)       ! smallest possible 
 real(dp),allocatable      :: upArea(:)                      ! area upslope of each HRU
 ! general local variables
 real(dp)                  :: fracHRU                        ! fractional area of a given HRU (-)
+integer(i4b),parameter    :: fileUnit=82                    ! file unit
+character(LEN=256),allocatable :: dataLines(:)    ! vector of character strings from non-comment lines
+
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
@@ -195,10 +224,18 @@ call checkStruc(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures
 ! *****************************************************************************
-! read local attributes for each HRU
-call read_attrb(nHRU,err,message); call handle_err(err,message)
+! *** TEMPORARY CODE ***
+! code will be replaced once merge with the NetCDF branch
+! get the number of HRUs
+call file_open(trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES),fileUnit,err,message); call handle_err(err,message)
+call get_vlines(fileUnit,dataLines,err,message); call handle_err(err,message)
+nHRU = size(dataLines)-1  ! -1 because of the header
+close(fileUnit)
+! **** END OF TEMPORARY CODE ***
+
 ! allocate space for HRU data structures
-! NOTE: attr_hru and type_hru are defined in read_attrb
+call alloc_attr(nHRU,err,message); call handle_err(err,message) 
+call alloc_type(nHRU,err,message); call handle_err(err,message)
 call alloc_mpar(nHRU,err,message); call handle_err(err,message)
 call alloc_mvar(nHRU,err,message); call handle_err(err,message)
 call alloc_indx(nHRU,err,message); call handle_err(err,message)
@@ -212,6 +249,38 @@ call alloc_stim(refTime,err,message); call handle_err(err,message)
 ! allocate space for the time step and computeVegFlux flags (recycled for each HRU for subsequent calls to coupled_em)
 allocate(dt_init(nHRU),stat=err); call handle_err(err,'problem allocating space for dt_init')
 allocate(computeVegFlux(nHRU),stat=err); call handle_err(err,'problem allocating space for computeVegFlux')
+
+! read local attributes for each HRU
+call read_attrb(nHRU,err,message); call handle_err(err,message)
+
+
+
+
+print*, 'nHRU = ', nHRU
+
+call initStruct(&
+                ! input: model control
+                nHRU,       &    ! number of HRUs
+                ! input: data structures
+                timeStruct, &    ! model time data
+                forcStruct, &    ! model forcing data
+                attrStruct, &    ! local attributes for each HRU
+                typeStruct, &    ! local classification of soil veg etc. for each HRU
+                mparStruct, &    ! model parameters
+                mvarStruct, &    ! model variables
+                indxStruct, &    ! model indices
+                bparStruct, &    ! basin-average parameters
+                bvarStruct, &    ! basin-average variables
+                ! output: error control
+                err,message)   ; call handle_err(err,message)
+
+
+
+pause ' in driver'
+
+
+
+
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU

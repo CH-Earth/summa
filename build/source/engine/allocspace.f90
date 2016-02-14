@@ -19,10 +19,22 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module allocspace_module
+! data types
 USE nrtype
+! number of variables in each data structure
+USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
+USE var_lookup,only:maxvarState,maxvarDiag,maxvarFlux,maxvarDeriv  ! maximum number variables in each data structure
+USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
+USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
+! metadata structures
+USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
+USE data_struc,only:state_meta,diag_meta,flux_meta,deriv_meta      ! metadata structures
+USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
+USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
 implicit none
 private
 public::init_metad
+public::initStruct
 public::alloc_stim
 public::alloc_time
 public::alloc_forc
@@ -36,6 +48,30 @@ public::alloc_bvar
 ! define missing values
 integer(i4b),parameter :: missingInteger=-9999
 real(dp),parameter     :: missingDouble=-9999._dp
+! -----------------------------------------------------------------------------------------------------------------------------------
+! data structure information
+integer(i4b),parameter               :: nStruct=13  ! number of data structures
+type info ! data structure information
+ character(len=32)                   :: structName  ! name of the data structure
+ character(len=32)                   :: lookName    ! name of the look-up variables
+ integer(i4b)                        :: nVar        ! number of variables in each data structure
+end type info
+! populate structure information
+type(info),parameter,dimension(nStruct) :: structInfo=(/&
+                                            info('time',  'TIME' , maxvarTime ), & ! the time data structure
+                                            info('forc',  'FORCE', maxvarForc ), & ! the forcing data structure
+                                            info('attr',  'ATTR' , maxvarAttr ), & ! the attribute data structure
+                                            info('type',  'TYPE' , maxvarType ), & ! the type data structure
+                                            info('mpar',  'PARAM', maxvarMpar ), & ! the model parameter data structure
+                                            info('mvar',  'MVAR' , maxvarMvar ), & ! the model variable data structure
+                                            info('bpar',  'BPAR' , maxvarBpar ), & ! the basin parameter data structure
+                                            info('bvar',  'BVAR' , maxvarBvar ), & ! the basin variable data structure
+                                            info('indx',  'INDEX', maxvarIndx ), & ! the model index data structure
+                                            info('state', 'STATE', maxvarState), & ! the state variable data structure
+                                            info('diag',  'DIAG' , maxvarDiag ), & ! the diagnostic variable data structure
+                                            info('flux',  'FLUX' , maxvarFlux ), & ! the flux data structure
+                                            info('deriv', 'DERIV', maxvarDeriv) /) ! the model derivative data structure
+! -----------------------------------------------------------------------------------------------------------------------------------
 contains
 
 
@@ -43,16 +79,6 @@ contains
  ! public subroutine init_metad: initialize metadata structures
  ! ************************************************************************************************
  subroutine init_metad(err,message)
- ! number of variables in each data structure
- USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
- USE var_lookup,only:maxvarState,maxvarDiag,maxvarFlux,maxvarDeriv  ! maximum number variables in each data structure
- USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
- USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
- ! metadata structures
- USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
- USE data_struc,only:state_meta,diag_meta,flux_meta,deriv_meta      ! metadata structures
- USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
- USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -83,6 +109,148 @@ contains
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
 
  end subroutine init_metad
+
+
+ ! ************************************************************************************************
+ ! public subroutine initStruct: initialize data structures
+ ! ************************************************************************************************
+ subroutine initStruct(&
+                       ! input: model control
+                       nHRU,       &    ! number of HRUs
+                       ! input: data structures
+                       timeStruct, &    ! model time data
+                       forcStruct, &    ! model forcing data
+                       attrStruct, &    ! local attributes for each HRU
+                       typeStruct, &    ! local classification of soil veg etc. for each HRU
+                       mparStruct, &    ! model parameters
+                       mvarStruct, &    ! model variables
+                       indxStruct, &    ! model indices
+                       bparStruct, &    ! basin-average parameters
+                       bvarStruct, &    ! basin-average variables
+                       ! output: error control
+                       err,message)
+ ! provide access to the derived types to define the data structures
+ USE data_struc,only:&
+                     var_int,             & ! x%var(:)            (i4b)
+                     var_double,          & ! x%var(:)            (dp)
+                     var_intVec,          & ! x%var(:)%dat        (i4b)
+                     var_doubleVec,       & ! x%var(:)%dat        (dp)
+                     spatial_int,         & ! x%hru(:)%var(:)     (i4b)
+                     spatial_double,      & ! x%hru(:)%var(:)     (dp)
+                     spatial_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
+                     spatial_doubleVec      ! x%hru(:)%var(:)%dat (dp)
+ implicit none
+ ! input: model control
+ integer(i4b),            intent(in)   :: nHRU          ! number of HRUs
+ ! input: data structures
+ type(var_int),           intent(out)  :: timeStruct    ! model time data
+ type(spatial_double),    intent(out)  :: forcStruct    ! model forcing data
+ type(spatial_double),    intent(out)  :: attrStruct    ! local attributes for each HRU
+ type(spatial_int),       intent(out)  :: typeStruct    ! local classification of soil veg etc. for each HRU
+ type(spatial_double),    intent(out)  :: mparStruct    ! model parameters
+ type(spatial_doubleVec), intent(out)  :: mvarStruct    ! model variables
+ type(spatial_intVec),    intent(out)  :: indxStruct    ! model indices
+ type(var_double),        intent(out)  :: bparStruct    ! basin-average parameters
+ type(var_doubleVec),     intent(out)  :: bvarStruct    ! basin-average variables
+ ! output: error control
+ integer(i4b),intent(out)              :: err           ! error code
+ character(*),intent(out)              :: message       ! error message
+ ! ---------------------------------------------------------------------------------------------------------------
+ ! local variables
+ integer(i4b)                          :: iHRU          ! index of HRUs 
+ integer(i4b)                          :: iVar          ! index of variable
+ integer(i4b)                          :: iStruct       ! index of data structure 
+ logical(lgt)                          :: check         ! flag to check if the structure is already allocated
+ integer(i4b),parameter                :: nTimeDelay=2000 ! number of elements in the time delay histogram
+ character(len=256)                    :: cMessage      ! error message of downwind routine
+ ! initialize errors
+ err=0; message="initStruct/"
+
+ ! -----
+ ! * allocate spatial dimensions...
+ ! --------------------------------
+
+ ! loop through data structures
+ do iStruct=1,nStruct
+  check=.false. ! initialize check
+  ! check that the metadata is fully populated
+  select case(trim(structInfo(iStruct)%structName))
+   case('time'); ! do nothing for time: no spatial dimension 
+   case('forc'); if(allocated(forcStruct%hru))then; check=.true.; else; allocate(forcStruct%hru(nHRU),stat=err); endif
+   case('attr'); if(allocated(attrStruct%hru))then; check=.true.; else; allocate(attrStruct%hru(nHRU),stat=err); endif 
+   case('type'); if(allocated(typeStruct%hru))then; check=.true.; else; allocate(typeStruct%hru(nHRU),stat=err); endif 
+   case('mpar'); if(allocated(mparStruct%hru))then; check=.true.; else; allocate(mparStruct%hru(nHRU),stat=err); endif
+   case('mvar'); if(allocated(mvarStruct%hru))then; check=.true.; else; allocate(mvarStruct%hru(nHRU),stat=err); endif
+   case('indx'); if(allocated(indxStruct%hru))then; check=.true.; else; allocate(indxStruct%hru(nHRU),stat=err); endif
+   case('bpar'); ! do nothing for basin-average parameters: no spatial dimension 
+   case('bvar'); ! do nothing for basin-average variables: no spatial dimension
+   case('state');! do nothing -- ADD LATER
+   case('diag'); ! do nothing -- Likely will not define at the top level
+   case('flux'); ! do nothing -- Likely will not define at the top level
+   case('deriv');! do nothing -- Likely will not define at the top level
+   case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
+  end select
+  ! check errors
+  if(check) then; err=20; message=trim(message)//'structure '//trim(structInfo(iStruct)%structName)//' was unexpectedly allocated already'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating the '//trim(structInfo(iStruct)%structName)//' structure'; return; endif
+ end do  ! looping through data structures
+
+ ! -----
+ ! * allocate variable dimensions...
+ ! ---------------------------------
+
+ do iHRU=1,nHRU  ! loop through HRUs
+  do iStruct=1,nStruct  ! loop through data structures
+   check=.false. ! initialize check
+   ! check that the metadata is fully populated
+   select case(trim(structInfo(iStruct)%structName))
+    case('time'); if(allocated(timeStruct%var)          )then; check=.true.; else; allocate(timeStruct%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('forc'); if(allocated(forcStruct%hru(iHRU)%var))then; check=.true.; else; allocate(forcStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('attr'); if(allocated(attrStruct%hru(iHRU)%var))then; check=.true.; else; allocate(attrStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('type'); if(allocated(typeStruct%hru(iHRU)%var))then; check=.true.; else; allocate(typeStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('mpar'); if(allocated(mparStruct%hru(iHRU)%var))then; check=.true.; else; allocate(mparStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('mvar'); if(allocated(mvarStruct%hru(iHRU)%var))then; check=.true.; else; allocate(mvarStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('indx'); if(allocated(indxStruct%hru(iHRU)%var))then; check=.true.; else; allocate(indxStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('bpar'); if(allocated(bparStruct%var)          )then; check=.true.; else; allocate(bparStruct%var(structInfo(iStruct)%nVar),stat=err); endif 
+    case('bvar'); if(allocated(bvarStruct%var)          )then; check=.true.; else; allocate(bvarStruct%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('state');! do nothing -- ADD LATER
+    case('diag'); ! do nothing -- Likely will not define at the top level
+    case('flux'); ! do nothing -- Likely will not define at the top level
+    case('deriv');! do nothing -- Likely will not define at the top level
+    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
+   end select
+   ! check errors
+   if(check) then; err=20;write(message,'(a,i0)') trim(message)//'structure '//trim(structInfo(iStruct)%structName)//' was unexpectedly allocated already for HRU ', iHRU; return; endif
+   if(err/=0)then; err=20;write(message,'(a,i0)') trim(message)//'problem allocating the '//trim(structInfo(iStruct)%structName)//' structure for HRU ', iHRU; return; endif
+  end do  ! looping through data structures
+ end do  ! loop through HRUs
+
+ ! -----
+ ! * allocate specific variables in the bvar structure...
+ ! ------------------------------------------------------
+
+ ! loop through variables in the bVar structure
+ do iVar=1,maxvarBvar
+  ! check allocated
+  if(allocated(bvarStruct%var(iVar)%dat))then
+   message=trim(message)//'variable '//trim(bvar_meta(iVar)%varname)//' is unexpectedly allocated'
+   err=20; return
+  ! allocate dimension
+  else
+   select case(trim(bvar_meta(iVar)%vartype))
+    case('scalarv'); allocate(bvarStruct%var(ivar)%dat(1),stat=err)
+    case('routing'); allocate(bvarStruct%var(ivar)%dat(nTimeDelay),stat=err)
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(bvar_meta(ivar)%varname)//"'; type='"//trim(bvar_meta(ivar)%vartype)//"']"; return
+   endselect
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(bvar_meta(ivar)%varname)//' in the bvar structure'; return; endif
+   bvarStruct%var(ivar)%dat(:) = missingDouble
+  endif  ! if not allocated
+ end do  ! looping through variables
+
+
+ end subroutine initStruct
+
+
 
  ! ************************************************************************************************
  ! public subroutine alloc_stim: initialize data structures for scalar time structures

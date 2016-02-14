@@ -33,8 +33,6 @@ contains
  USE ascii_util_module,only:file_open              ! open ascii file
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines             ! read a vector of non-comment lines from an ASCII file
- USE allocspace_module,only:alloc_attr             ! module to allocate space for local attributes
- USE allocspace_module,only:alloc_type             ! module to allocate space for categorical data
  ! provide access to data
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
@@ -44,7 +42,7 @@ contains
  USE get_ixname_module,only:get_ixAttr,get_ixType  ! access function to find index of elements in structure
  implicit none
  ! define output
- integer(i4b),intent(out)             :: nHRU        ! number of hydrologic response units
+ integer(i4b),intent(in)             :: nHRU        ! number of hydrologic response units
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! define general variables
@@ -176,12 +174,11 @@ contains
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,dataLines,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- ! get the number of HRUs
- nHRU = size(dataLines)
- ! allocate space
- call alloc_attr(nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- call alloc_type(nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! close the file unit
+ close(unt)
 
+ ! check the number of HRUs
+ if(size(dataLines)/=nHRU)then; err=20; message=trim(message)//'unexpected number of HRUs'; return; endif
 
  ! **********************************************************************************************
  ! (4) put data in the structures
