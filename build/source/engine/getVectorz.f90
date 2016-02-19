@@ -75,7 +75,7 @@ contains
  real(dp),intent(out)            :: stateVec(:)            ! model state vector (mixed units)
  real(dp),intent(out)            :: fScale(:)              ! function scaling vector (mixed units)
  real(dp),intent(out)            :: xScale(:)              ! variable scaling vector (mixed units)
- real(dp),intent(out)            :: sMul(:)                ! multiplier for state vector (used in the residual calculations)
+ real(qp),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
  real(dp),intent(out)            :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code

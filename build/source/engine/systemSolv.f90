@@ -303,9 +303,9 @@ contains
  real(dp),dimension(nState)      :: fScale                       ! characteristic scale of the function evaluations (mixed units)
  real(dp),dimension(nState)      :: xScale                       ! characteristic scale of the state vector (mixed units)
  real(dp),dimension(nState)      :: dMat                         ! diagonal matrix (excludes flux derivatives)
- real(dp),dimension(nState)      :: sMul    ! NOTE: dp           ! multiplier for state vector for the residual calculations
- real(dp),dimension(nState)      :: rAdd    ! NOTE: dp           ! additional terms in the residual vector
- real(dp),dimension(nState)      :: rVec    ! NOTE: dp           ! residual vector
+ real(qp),dimension(nState)      :: sMul    ! NOTE: qp           ! multiplier for state vector for the residual calculations
+ real(qp),dimension(nState)      :: rAdd    ! NOTE: qp           ! additional terms in the residual vector
+ real(qp),dimension(nState)      :: rVec    ! NOTE: qp           ! residual vector
  real(dp),dimension(nState)      :: xInc                         ! iteration increment
  real(dp),dimension(nState)      :: grad                         ! gradient of the function vector = matmul(rVec,aJac)
  real(dp),dimension(nState,nRHS) :: rhs                          ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
@@ -313,7 +313,7 @@ contains
  real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
  real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
  real(dp),allocatable            :: aJac(:,:)                    ! analytical Jacobian matrix
- real(dp),allocatable            :: nJac(:,:)  ! NOTE: dp        ! numerical Jacobian matrix
+ real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
  real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
@@ -1239,7 +1239,7 @@ contains
   real(dp),intent(in)            :: mLayerVolFracIceLocal(:)  ! trial value for volumetric fraction of ice (-)
   ! output variabes
   real(dp),intent(out)           :: fVec(:)                   ! flux vector (mixed units)
-  real(dp),intent(out)           :: rVec(:)                   ! residual vector (mixed units)
+  real(qp),intent(out)           :: rVec(:)  ! NOTE: qp       ! residual vector (mixed units)
   integer(i4b),intent(out)       :: err                       ! error code
   character(*),intent(out)       :: message                   ! error message
   ! --------------------------------------------------------------
@@ -2312,14 +2312,14 @@ contains
   ! dummy
   real(dp),intent(in)            :: stateVec(:)             ! model state vector (mixed units)
   real(dp),intent(in)            :: fluxVec(:)              ! model flux vector (mixed units)
-  real(dp),intent(in)            :: resVec(:)               ! model residual vector (mixed units)
+  real(qp),intent(in)            :: resVec(:)  ! qp         ! model residual vector (mixed units)
   integer(i4b),intent(out)       :: err                     ! error code
   character(*),intent(out)       :: message                 ! error message
   ! local
   character(len=256)             :: cmessage                ! error message of downwind routine
   real(dp),dimension(nState)     :: stateVecPerturbed       ! perturbed state vector
   real(dp),dimension(nState)     :: fluxVecJac              ! flux vector
-  real(dp),dimension(nState)     :: resVecJac               ! residual vector (mixed units)
+  real(qp),dimension(nState)     :: resVecJac   ! qp        ! residual vector (mixed units)
   integer(i4b)                   :: iJac                    ! index of row of the Jacobian matrix
   integer(i4b),parameter         :: iTry=-999               ! index of trial model state variable (used for testing)
   ! trial state variables (vegetation canopy)
@@ -2475,7 +2475,7 @@ contains
   implicit none
   ! dummy
   real(dp),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
-  real(dp),intent(in)            :: rVec(:)       ! the residual vector B
+  real(qp),intent(in)            :: rVec(:)  ! qp ! the residual vector B
   real(dp),intent(out)           :: grad(:)       ! gradient of the function vector
   real(dp),intent(out)           :: xInc(:)       ! the solution vector X
   integer(i4b),intent(out)       :: err           ! error code
@@ -2669,7 +2669,7 @@ contains
   REAL(DP), INTENT(IN) :: fOld
   ! output variables
   REAL(DP), DIMENSION(:), INTENT(OUT) :: x,fVec
-  REAL(DP), DIMENSION(:), INTENT(OUT) :: rVec
+  REAL(QP), DIMENSION(:), INTENT(OUT) :: rVec
   REAL(DP), INTENT(OUT) :: f
   logical(lgt)              :: converged   ! convergence flag
   integer(i4b),intent(out)  :: err         ! error code
@@ -2800,7 +2800,7 @@ contains
   function checkConv(rVec,xInc,xVec,soilWatbalErr)
   implicit none
   ! dummies
-  real(dp),intent(in)       :: rVec(:)         ! residual vector (mixed units)
+  real(qp),intent(in)       :: rVec(:) ! qp    ! residual vector (mixed units)
   real(dp),intent(in)       :: xInc(:)         ! iteration increment (mixed units)
   real(dp),intent(in)       :: xVec(:)         ! state vector (mixed units)
   real(dp),intent(in)       :: soilWatbalErr   ! soil water balance error (m)

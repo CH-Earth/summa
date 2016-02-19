@@ -349,9 +349,9 @@ contains
  logical(lgt),parameter          :: printFlag=.false.        ! flag for printing (debugging)
  logical(lgt),parameter          :: testDerivatives=.false.  ! flag to test derivatives (debugging)
  real(dp)                        :: xDepth,xTran,xFlow       ! temporary variables (depth, transmissivity, flow)
- real(dp)                        :: dPart0,dPart1,dPart2,dPart3  ! derivatives for part of a function
- real(dp)                        :: f0,f1                    ! different function evaluations
- real(dp)                        :: t0,t1,tOld               ! different function evaluations
+ real(qp)                        :: dPart0,dPart1,dPart2,dPart3  ! derivatives for part of a function
+ real(qp)                        :: f0,f1                    ! different function evaluations
+ real(qp)                        :: t0,t1,tOld               ! different function evaluations
  ! ---------------------------------------------------------------------------------------
  ! * association to data in structures
  ! ---------------------------------------------------------------------------------------
