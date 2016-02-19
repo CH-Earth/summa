@@ -641,7 +641,7 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
- integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b)                         :: unt            ! file unit (free unit output from file_open) 
  character(LEN=256),allocatable       :: charline(:)    ! vector of character strings
  integer(i4b)                         :: nDecisions     ! number of model decisions
  integer(i4b)                         :: iDecision      ! index of model decisions

@@ -35,7 +35,7 @@ contains
  implicit none
  ! declare dummy variables
  character(*),intent(in)              :: infile      ! filename
- integer(i4b),intent(in)              :: unt         ! file unit
+ integer(i4b),intent(out)             :: unt         ! file unit
  integer(i4b),intent(out)             :: err         ! error code
  character(*),intent(out)             :: message     ! error message
  ! declare local variables
@@ -56,7 +56,7 @@ contains
   err=20; return
  endif
  ! open file
- open(unt,file=trim(infile),status="old",action="read",iostat=err)
+ open(newunit=unt,file=trim(infile),status="old",action="read",iostat=err)
  if(err/=0)then
    message=trim(message)//"OpenError['"//trim(infile)//"']"
    err=20; return

@@ -26,6 +26,7 @@ USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum num
 USE var_lookup,only:maxvarState,maxvarDiag,maxvarFlux,maxvarDeriv  ! maximum number variables in each data structure
 USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
 USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
+USE var_lookup,only:maxvarDecisions                                ! maximum number of decisions
 ! metadata structures
 USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
 USE data_struc,only:state_meta,diag_meta,flux_meta,deriv_meta      ! metadata structures
@@ -48,6 +49,9 @@ public::alloc_bvar
 ! define missing values
 integer(i4b),parameter :: missingInteger=-9999
 real(dp),parameter     :: missingDouble=-9999._dp
+! define fixed dimensions
+integer(i4b),parameter :: nBand=2         ! number of spectral bands
+integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay histogram
 ! -----------------------------------------------------------------------------------------------------------------------------------
 ! data structure information
 integer(i4b),parameter               :: nStruct=13  ! number of data structures
@@ -117,6 +121,8 @@ contains
  subroutine initStruct(&
                        ! input: model control
                        nHRU,       &    ! number of HRUs
+                       nSnow,      &    ! number of snow layers for each HRU
+                       nSoil,      &    ! number of soil layers for each HRU
                        ! input: data structures
                        timeStruct, &    ! model time data
                        forcStruct, &    ! model forcing data
@@ -142,6 +148,8 @@ contains
  implicit none
  ! input: model control
  integer(i4b),            intent(in)   :: nHRU          ! number of HRUs
+ integer(i4b),            intent(in)   :: nSnow(:)      ! number of snow layers for each HRU
+ integer(i4b),            intent(in)   :: nSoil(:)      ! number of soil layers for each HRU
  ! input: data structures
  type(var_int),           intent(out)  :: timeStruct    ! model time data
  type(spatial_double),    intent(out)  :: forcStruct    ! model forcing data
@@ -158,10 +166,9 @@ contains
  ! ---------------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                          :: iHRU          ! index of HRUs 
- integer(i4b)                          :: iVar          ! index of variable
  integer(i4b)                          :: iStruct       ! index of data structure 
  logical(lgt)                          :: check         ! flag to check if the structure is already allocated
- integer(i4b),parameter                :: nTimeDelay=2000 ! number of elements in the time delay histogram
+ integer(i4b)                          :: nLayers       ! total number of layers in the snow+soil domian
  character(len=256)                    :: cMessage      ! error message of downwind routine
  ! initialize errors
  err=0; message="initStruct/"
@@ -173,7 +180,7 @@ contains
  ! loop through data structures
  do iStruct=1,nStruct
   check=.false. ! initialize check
-  ! check that the metadata is fully populated
+  ! allocate spatial dimension
   select case(trim(structInfo(iStruct)%structName))
    case('time'); ! do nothing for time: no spatial dimension 
    case('forc'); if(allocated(forcStruct%hru))then; check=.true.; else; allocate(forcStruct%hru(nHRU),stat=err); endif
@@ -199,10 +206,14 @@ contains
  ! * allocate variable dimensions...
  ! ---------------------------------
 
- do iHRU=1,nHRU  ! loop through HRUs
-  do iStruct=1,nStruct  ! loop through data structures
+ do iStruct=1,nStruct  ! loop through data structures
+  do iHRU=1,nHRU  ! loop through HRUs
    check=.false. ! initialize check
-   ! check that the metadata is fully populated
+   ! cycle for variables without a HRU dimension
+   select case(trim(structInfo(iStruct)%structName))
+    case('time','bpar','bvar'); if(iHRU>1) cycle
+   end select
+   ! allocate variable dimension
    select case(trim(structInfo(iStruct)%structName))
     case('time'); if(allocated(timeStruct%var)          )then; check=.true.; else; allocate(timeStruct%var(structInfo(iStruct)%nVar),stat=err); endif
     case('forc'); if(allocated(forcStruct%hru(iHRU)%var))then; check=.true.; else; allocate(forcStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
@@ -226,31 +237,151 @@ contains
  end do  ! loop through HRUs
 
  ! -----
- ! * allocate specific variables in the bvar structure...
- ! ------------------------------------------------------
+ ! * allocate specific variables...
+ ! --------------------------------
 
- ! loop through variables in the bVar structure
- do iVar=1,maxvarBvar
-  ! check allocated
-  if(allocated(bvarStruct%var(iVar)%dat))then
-   message=trim(message)//'variable '//trim(bvar_meta(iVar)%varname)//' is unexpectedly allocated'
-   err=20; return
-  ! allocate dimension
-  else
-   select case(trim(bvar_meta(iVar)%vartype))
-    case('scalarv'); allocate(bvarStruct%var(ivar)%dat(1),stat=err)
-    case('routing'); allocate(bvarStruct%var(ivar)%dat(nTimeDelay),stat=err)
-    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(bvar_meta(ivar)%varname)//"'; type='"//trim(bvar_meta(ivar)%vartype)//"']"; return
-   endselect
-   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(bvar_meta(ivar)%varname)//' in the bvar structure'; return; endif
-   bvarStruct%var(ivar)%dat(:) = missingDouble
-  endif  ! if not allocated
- end do  ! looping through variables
-
+ do iStruct=1,nStruct  ! loop through data structures
+  do iHRU=1,nHRU  ! loop through HRUs
+   ! get the number of layers in the snow+soil sub-domain
+   nLayers = nSnow(iHRU) + nSoil(iHRU)
+   ! cycle for variables without a HRU dimension
+   select case(trim(structInfo(iStruct)%structName))
+    case('time','bpar','bvar'); if(iHRU>1) cycle
+   end select
+   ! allocate data dimension
+   select case(trim(structInfo(iStruct)%structName))
+    case('time'); ! do nothing: no data dimension 
+    case('forc'); ! do nothing: no data dimension
+    case('attr'); ! do nothing: no data dimension
+    case('type'); ! do nothing: no data dimension
+    case('mpar'); ! do nothing: no data dimension
+    case('mvar'); call allocateDat_dp( mvar_meta,nSnow(iHRU),nSoil(iHRU),nLayers,mvarStruct%hru(iHRU),err,cmessage)
+    case('indx'); call allocateDat_int(indx_meta,nSnow(iHRU),nSoil(iHRU),nLayers,indxStruct%hru(iHRU),err,cmessage)
+    case('bpar'); ! do nothing: no data dimension 
+    case('bvar'); call allocateDat_dp( bvar_meta,nSnow(iHRU),nSoil(iHRU),nLayers,bvarStruct,err,cmessage)  ! NOTE: no HRU dimension
+    case('state');! do nothing -- ADD LATER
+    case('diag'); ! do nothing -- Likely will not define at the top level
+    case('flux'); ! do nothing -- Likely will not define at the top level
+    case('deriv');! do nothing -- Likely will not define at the top level
+    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
+   end select
+   ! check errors
+   if(err/=0)then
+    write(message,'(a,i0)') trim(message)//trim(cmessage)//'; attempting to allocate the '//trim(structInfo(iStruct)%structName)//' structure for HRU ', iHRU
+    err=20; return
+   endif
+  end do  ! looping through data structures
+ end do  ! loop through HRUs
 
  end subroutine initStruct
 
+ ! ************************************************************************************************
+ ! private subroutine allocateDat_dp: initialize data dimension of the data structures
+ ! ************************************************************************************************
+ subroutine allocateDat_dp(metadata,nSnow,nSoil,nLayers, & ! input
+                           varData,err,message)            ! output
+ ! provide access to derived data types
+ USE data_struc,only:var_info       ! metadata structure
+ USE data_struc,only:var_doubleVec  ! x%var(:)%dat (dp)
+ implicit none
+ ! input variables
+ type(var_info),intent(in)         :: metadata(:) ! metadata structure
+ integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nSoil       ! number of soil layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ ! output variables
+ type(var_doubleVec),intent(inout) :: varData     ! model variables for a local HRU
+ integer(i4b),intent(out)          :: err         ! error code
+ character(*),intent(out)          :: message     ! error message
+ ! local variables
+ integer(i4b)                      :: iVar        ! variable index
+ ! initialize error control
+ err=0; message='allocateDat_dp/'
 
+ ! loop through variables in the data structure
+ do iVar=1,size(metadata)
+
+  ! check allocated
+  if(allocated(varData%var(iVar)%dat))then
+   message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
+   err=20; return
+
+  ! allocate dimension
+  else
+   select case(trim(metadata(iVar)%vartype))
+    case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err)
+    case('wLength'); allocate(varData%var(iVar)%dat(nBand),stat=err)
+    case('midSnow'); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case('midSoil'); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case('midToto'); allocate(varData%var(iVar)%dat(nLayers),stat=err)
+    case('ifcSnow'); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
+   endselect
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
+   varData%var(iVar)%dat(:) = missingDouble
+  endif  ! if not allocated
+
+ end do  ! looping through variables
+
+ end subroutine allocateDat_dp
+
+ ! ************************************************************************************************
+ ! private subroutine allocateDat_int: initialize data dimension of the data structures
+ ! ************************************************************************************************
+ subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
+                            varData,err,message)            ! output
+ ! provide access to derived data types
+ USE data_struc,only:var_info       ! metadata structure
+ USE data_struc,only:var_intVec     ! x%var(:)%dat (i4b)
+ implicit none
+ ! input variables
+ type(var_info),intent(in)         :: metadata(:) ! metadata structure
+ integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nSoil       ! number of soil layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ ! output variables
+ type(var_intVec),intent(inout)    :: varData     ! model variables for a local HRU
+ integer(i4b),intent(out)          :: err         ! error code
+ character(*),intent(out)          :: message     ! error message
+ ! local variables
+ integer(i4b)                      :: iVar        ! variable index
+ ! initialize error control
+ err=0; message='allocateDat_int/'
+
+ ! loop through variables in the data structure
+ do iVar=1,size(metadata)
+
+  ! check allocated
+  if(allocated(varData%var(iVar)%dat))then
+   message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
+   err=20; return
+
+  ! allocate dimension
+  else
+   select case(trim(metadata(iVar)%vartype))
+    case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err)
+    case('wLength'); allocate(varData%var(iVar)%dat(nBand),stat=err)
+    case('midSnow'); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case('midSoil'); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case('midToto'); allocate(varData%var(iVar)%dat(nLayers),stat=err)
+    case('ifcSnow'); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
+   endselect
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
+   varData%var(iVar)%dat(:) = missingInteger
+  endif  ! if not allocated
+
+ end do  ! looping through variables
+
+ end subroutine allocateDat_int
 
  ! ************************************************************************************************
  ! public subroutine alloc_stim: initialize data structures for scalar time structures

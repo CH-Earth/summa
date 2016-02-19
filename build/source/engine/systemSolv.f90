@@ -927,11 +927,29 @@ contains
   ) ! associating variables with indices of model state variables
 
   ! ** limit temperature increment to zMaxTempIncrement
-  if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
-   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
-   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
+  !if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
+  ! iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
+  ! xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
+  ! xInc       = xIncFactor*xInc
+  !endif
+
+  ! vegetation
+  if(computeVegFlux)then
+   if(abs(xInc(ixVegNrg)) > 1._dp)then
+    xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc            ! scale iteration increments
+   endif
+  endif
+
+  ! snow and soil
+  if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
+   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
+   xIncFactor = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   endif
+
+
+
 
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
@@ -2475,6 +2493,10 @@ contains
   ! --------------------------------------------------------------
   ! * scale variables
   ! --------------------------------------------------------------
+
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.10,1x))') 'fScale = ', fScale(iJac1:iJac2)
+  endif
 
   ! select the option used to solve the linear system A.X=B
   select case(ixSolve)

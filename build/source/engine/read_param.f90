@@ -50,7 +50,7 @@ contains
  ! define local variables
  character(len=1024)             :: cmessage          ! error message for downwind routine
  character(LEN=1024)             :: infile            ! input filename
- integer(i4b),parameter          :: unt=99            ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b)                    :: unt               ! file unit (free unit output from file_open)
  integer(i4b)                    :: iline             ! loop through lines in the file
  integer(i4b),parameter          :: maxLines=1000     ! maximum lines in the file
  integer(i4b)                    :: iend              ! check for the end of the file

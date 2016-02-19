@@ -433,8 +433,6 @@ contains
    case default; cycle
   end select
 
-  print*, 'ix_lower,ix_upper,ix_divide = ', ix_lower,ix_upper,ix_divide
-
   ! add an additional layer -- not a state variable
   call AddOneLayer(indx_data%var(ivar)%dat,ix_lower,ix_upper,ix_divide,.false.,err,cmessage)
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif

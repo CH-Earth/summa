@@ -160,8 +160,9 @@ contains
 
  ! define the scaling for the state vector
  xScale(ixNrgOnly) = xScaleTemp ! K
- if(nWatState>0) xScale(ixWatOnly) = xScaleLiq   ! (-)
- if(nMatState>0) xScale(ixMatOnly) = xScaleMat   ! (m)
+ if(nWatState>0)  xScale(ixWatOnly)  = xScaleLiq   ! (-)
+ if(nMatState>0)  xScale(ixMatOnly)  = xScaleMat   ! (m)
+ if(nMassState>0) xScale(ixMassOnly) = xScaleLiq*canopyDepth*iden_water  ! (kg m-2)
 
  ! -----
  ! * define components of derivative matrices that are constant over a time step (substep)...

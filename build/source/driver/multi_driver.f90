@@ -30,6 +30,7 @@ USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOA
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-Mp parameters
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
+USE ascii_util_module,only:split_line                       ! extract the list of variable names from the character string
 USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
 USE allocspace_module,only:initStruct                       ! module to allocate space for data structures
 USE allocspace_module,only:alloc_attr                       ! module to allocate space for local attributes
@@ -158,8 +159,8 @@ character(len=64)         :: output_fileSuffix=''           ! suffix for the out
 character(len=256)        :: summaFileManagerFile=''        ! path/name of file defining directories and files
 character(len=256)        :: fileout=''                     ! output filename
 ! define pointers for model indices
-integer(i4b),pointer      :: nSnow=>null()                  ! number of snow layers
-integer(i4b),pointer      :: nSoil=>null()                  ! number of soil layers
+integer(i4b),allocatable  :: nSnow(:)                       ! number of snow layers for each HRU
+integer(i4b),allocatable  :: nSoil(:)                       ! number of soil layers for each HRU
 integer(i4b),pointer      :: nLayers=>null()                ! total number of layers
 integer(i4b),pointer      :: midSnowStartIndex=>null()      ! start index of the midSnow vector for a given timestep
 integer(i4b),pointer      :: midSoilStartIndex=>null()      ! start index of the midSoil vector for a given timestep
@@ -178,8 +179,10 @@ real(dp),parameter        :: fSmall = epsilon(xMatch)       ! smallest possible 
 real(dp),allocatable      :: upArea(:)                      ! area upslope of each HRU
 ! general local variables
 real(dp)                  :: fracHRU                        ! fractional area of a given HRU (-)
-integer(i4b),parameter    :: fileUnit=82                    ! file unit
+integer(i4b)              :: fileUnit                       ! file unit (output from file_open; a unit not currently used)
 character(LEN=256),allocatable :: dataLines(:)    ! vector of character strings from non-comment lines
+character(LEN=256),allocatable :: chardata(:)     ! vector of character data
+integer(i4b)              :: iWord                          ! loop through words in a string
 
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
@@ -229,11 +232,44 @@ call checkStruc(err,message); call handle_err(err,message)
 
 ! *** TEMPORARY CODE ***
 ! code will be replaced once merge with the NetCDF branch
+
 ! get the number of HRUs
 call file_open(trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES),fileUnit,err,message); call handle_err(err,message)
 call get_vlines(fileUnit,dataLines,err,message); call handle_err(err,message)
 nHRU = size(dataLines)-1  ! -1 because of the header
+deallocate(dataLines)
 close(fileUnit)
+
+! allocate space for the number of snow and soil layers
+allocate(nSnow(nHRU),nSoil(nHRU),stat=err); call handle_err(err,'unable to allocate space for the number of snow and soil layers')
+
+! loop through HRUs
+! NOTE: currently the same initial conditions for all HRUs; will change when shift to NetCDF
+do iHRU=1,nHRU
+
+ ! get a vector of non-commented lines
+ call file_open(trim(SETNGS_PATH)//trim(MODEL_INITCOND),fileUnit,err,message); call handle_err(err,message)
+ call get_vlines(fileUnit,dataLines,err,message); call handle_err(err,message)
+ close(fileUnit)
+
+ ! get the number of snow and soil layers for each HRU
+ nSnow(iHRU)=0           ! initialize the number of snow layers
+ nSoil(iHRU)=0           ! initialize the number of soil layers
+ do iVar=1,size(dataLines)
+  ! split the line into an array of words
+  call split_line(dataLines(iVar),chardata,err,message); call handle_err(err,message)
+  ! check if the line contains initial conditions data (contains the word "snow" or "soil")
+  do iword=1,size(chardata)
+   if(chardata(iword)=='snow') nSnow(iHRU) = nSnow(iHRU)+1
+   if(chardata(iword)=='soil') nSoil(iHRU) = nSoil(iHRU)+1
+   if(chardata(iword)=='snow' .or. chardata(iword)=='soil') exit ! exit once read the layer type
+  end do
+  deallocate(chardata)
+ end do
+ deallocate(dataLines)
+
+end do  ! looping through HRUs
+
 ! **** END OF TEMPORARY CODE ***
 
 ! allocate space for HRU data structures
@@ -259,6 +295,8 @@ allocate(computeVegFlux(nHRU),stat=err); call handle_err(err,'problem allocating
 call initStruct(&
                 ! input: model control
                 nHRU,       &    ! number of HRUs
+                nSnow,      &    ! number of snow layers in each HRU
+                nSoil,      &    ! number of soil layers in each HRU
                 ! input: data structures
                 timeStruct, &    ! model time data
                 forcStruct, &    ! model forcing data
@@ -272,14 +310,24 @@ call initStruct(&
                 ! output: error control
                 err,message)   ; call handle_err(err,message)
 
-
 ! read local attributes for each HRU
-call read_attrb(nHRU,err,message); call handle_err(err,message)
+call read_attrb(nHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
+
+! *** TEMPORARY CODE ***
+! code will be replaced once we fully transition to the new structures
+do iHRU=1,nHRU
+ do iVar=1,max(size(attr_hru(iHRU)%var),size(type_hru(iHRU)%var))
+  if(iVar <= size(attr_hru(iHRU)%var)) attr_hru(iHRU)%var(iVar) = attrStruct%hru(iHRU)%var(iVar)
+  if(iVar <= size(type_hru(iHRU)%var)) type_hru(iHRU)%var(iVar) = typeStruct%hru(iHRU)%var(iVar)
+ end do
+end do
+
+! **** END OF TEMPORARY CODE ***
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
 ! *****************************************************************************
-call ffile_info(nHRU,err,message); call handle_err(err,message)
+call ffile_info(nHRU,typeStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4b) read model decisions
@@ -339,29 +387,6 @@ do iHRU=1,nHRU
  mvar_data => mvar_hru(iHRU)
  indx_data => indx_hru(iHRU)
 
- ! ***** TEMPORARY CODE *****
- ! code will be replaced once merge with the NetCDF branch
- ! get the number of snow and soil layers
- if(allocated(dataLines) deallocate(dataLines)
- call file_open(trim(SETNGS_PATH)//trim(LOCAL_MODEL_INITCOND),fileUnit,err,message); call handle_err(err,message)
- call get_vlines(fileUnit,dataLines,err,message); call handle_err(err,message)
- nSnow=0           ! initialize the number of snow layers
- nSoil=0           ! initialize the number of soil layers
- do iVar=1,size(dataLines)
-  ! split the line into an array of words
-  call split_line(vlines(iVar),chardata,err,message); call handle_err(err,message)
-  ! check if the line contains initial conditions data (contains the word "snow" or "soil")
-  do iword=1,size(chardata)
-   if(chardata(iword)=='snow') nSnow = nSnow+1
-   if(chardata(iword)=='soil') nSoil = nSoil+1
-   if(chardata(iword)=='snow' .or. chardata(iword)=='soil') exit ! exit once read the layer type
-  end do
-  deallocate(chardata)
- end do
- nLayers = nSnow+nSoil
- close(fileUnit)
- ! **** END OF TEMPORARY CODE ***
-
 
  ! check that the parameters are consistent
  call paramCheck(err,message); call handle_err(err,message)
@@ -371,9 +396,9 @@ do iHRU=1,nHRU
  print*, 'aquifer storage = ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)
  ! assign pointers to model layers
  ! NOTE: layer structure is different for each HRU
- nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
- nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
- nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
+ nSnow(iHRU)   =  indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil(iHRU)   =  indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers       => indx_data%var(iLookINDEX%nLayers)%dat(1)
  ! re-calculate height of each layer
  call calcHeight(&
                  ! input/output: data structures
@@ -572,13 +597,13 @@ do istep=1,numtim
 
   ! assign pointers to model layers
   ! NOTE: layer structure is different for each HRU
-  nSnow   => indx_data%var(iLookINDEX%nSnow)%dat(1)
-  nSoil   => indx_data%var(iLookINDEX%nSoil)%dat(1)
-  nLayers => indx_data%var(iLookINDEX%nLayers)%dat(1)
+  nSnow(iHRU)   =  indx_data%var(iLookINDEX%nSnow)%dat(1)
+  nSoil(iHRU)   =  indx_data%var(iLookINDEX%nSoil)%dat(1)
+  nLayers       => indx_data%var(iLookINDEX%nLayers)%dat(1)
 
   ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
-  allocate(zSoilReverseSign(nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
-  zSoilReverseSign(1:nSoil) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow+1:nSnow+nSoil)
+  allocate(zSoilReverseSign(nSoil(iHRU)),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
+  zSoilReverseSign(:) = -mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow(iHRU)+1:nLayers)
 
   ! assign pointers to model indices
   midSnowStartIndex => indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1)
@@ -593,7 +618,7 @@ do istep=1,numtim
               type_data%var(iLookTYPE%soilTypeIndex),                          & ! soil type
               type_data%var(iLookTYPE%slopeTypeIndex),                         & ! slope type index
               zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
-              nSoil,                                                           & ! number of soil layers
+              nSoil(iHRU),                                                     & ! number of soil layers
               urbanVegCategory)                                                  ! vegetation category for urban areas
 
   ! overwrite the minimum resistance
@@ -686,11 +711,11 @@ do istep=1,numtim
   !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
 
   ! increment the model indices
-  midSnowStartIndex = midSnowStartIndex + nSnow
-  midSoilStartIndex = midSoilStartIndex + nSoil
+  midSnowStartIndex = midSnowStartIndex + nSnow(iHRU)
+  midSoilStartIndex = midSoilStartIndex + nSoil(iHRU)
   midTotoStartIndex = midTotoStartIndex + nLayers
-  ifcSnowStartIndex = ifcSnowStartIndex + nSnow+1
-  ifcSoilStartIndex = ifcSoilStartIndex + nSoil+1
+  ifcSnowStartIndex = ifcSnowStartIndex + nSnow(iHRU)+1
+  ifcSoilStartIndex = ifcSoilStartIndex + nSoil(iHRU)+1
   ifcTotoStartIndex = ifcTotoStartIndex + nLayers+1
 
   ! deallocate height at bottom of each soil layer(used in Noah MP)

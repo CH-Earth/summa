@@ -209,6 +209,15 @@ MODULE data_struc
  type(var_dlength),pointer,save,public   :: diag_data  => null()      ! local column diagnostic variables
  type(var_dlength),pointer,save,public   :: flux_data  => null()      ! local column fluxes
  type(var_dlength),pointer,save,public   :: deriv_data => null()      ! local column derivatives
+
+
+
+
+
+
+
+
+
  ! ***********************************************************************************************************
  ! Define common variables
  ! ***********************************************************************************************************
