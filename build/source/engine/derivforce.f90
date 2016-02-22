@@ -115,6 +115,11 @@ contains
  real(dp),parameter            :: unfrozenLiq=0.01_dp        ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
  real(dp),parameter            :: eps=epsilon(fracrain)      ! a number that is almost negligible
  real(dp)                      :: Tmin,Tmax                  ! minimum and maximum wet bulb temperature in the time step (K)
+ real(dp),parameter            :: pomNewSnowDenMax=150._dp   ! Upper limit for new snow density limit in Hedstrom and Pomeroy 1998. 150 was used because at was the highest observed density at air temperatures used in this study. See Figure 4 of Hedstrom and Pomeroy (1998).
+ real(dp),parameter            :: andersonWarmDenLimit=2._dp ! Upper air temperature limit in Anderson (1976) new snow density (C)
+ real(dp),parameter            :: andersonColdDenLimit=15._dp! Lower air temperature limit in Anderson (1976) new snow density (C)
+ real(dp),parameter            :: andersonDenScal=1.5_dp     ! Scalar parameter in Anderson (1976) new snow density function (-) 
+ real(dp),parameter            :: pahautDenWindScal=0.5_dp   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  ! initialize error control
  err=0; message="f-derivforce/"
  ! assign pointers to model parameters
@@ -256,18 +261,18 @@ contains
   select case(model_decisions(iLookDECISIONS%snowDenNew)%iDecision)
    ! Hedstrom and Pomeroy 1998
    case(hedAndPom) 
-    newSnowDensity = min(150._dp,newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal))  ! new snow density (kg m-3)
+    newSnowDensity = min(pomNewSnowDenMax,newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal))  ! new snow density (kg m-3)
    ! Pahaut 1976 (Boone et al. 2002)
    case(pahaut_76)
-    newSnowDensity = max(newSnowDenMin,newSnowDenAdd + (newSnowDenMultTemp * (airtemp-Tfreeze))+(newSnowDenMultWind*((windspd)**0.5_dp))); ! new snow density (kg m-3)
+    newSnowDensity = max(newSnowDenMin,newSnowDenAdd + (newSnowDenMultTemp * (airtemp-Tfreeze))+(newSnowDenMultWind*((windspd)**pahautDenWindScal))); ! new snow density (kg m-3)
    ! Anderson 1976 
    case(anderson) 
-    if(airtemp>(Tfreeze+2._dp))then
-     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(newSnowDenBase)**(3._dp/2._dp) ! new snow density (kg m-3)
-    elseif(airtemp<=(Tfreeze-15._dp))then
+    if(airtemp>(Tfreeze+andersonWarmDenLimit))then
+     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
+    elseif(airtemp<=(Tfreeze-andersonColdDenLimit))then
      newSnowDensity = newSnowDenMin ! new snow density (kg m-3)
     else
-     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(airtemp-Tfreeze+newSnowDenBase)**(3._dp/2._dp) ! new snow density (kg m-3)
+     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(airtemp-Tfreeze+newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
     endif
    ! Constant new snow density
    case(constDens) 
