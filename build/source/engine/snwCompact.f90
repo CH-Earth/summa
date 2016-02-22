@@ -96,6 +96,7 @@ contains
  real(dp),parameter                  :: snwden_min=100._dp       ! minimum snow density for reducing metamorphism rate (kg m-3)
  real(dp),parameter                  :: snwDensityMax=550._dp    ! maximum snow density for collapse under melt (kg m-3)
  real(dp),parameter                  :: wetSnowThresh=0.01_dp    ! threshold to discriminate between "wet" and "dry" snow
+ real(dp),parameter                  :: minLayerDensity=40._dp   ! minimum snow density allowed for any layer (kg m-3)
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="snwDensify/"
@@ -178,8 +179,8 @@ contains
  endif
 
  ! check for low/high snow density
- if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice < 40._dp) .or. &
-    any(mLayerVolFracIceNew(1:nSnow)*iden_ice > 917._dp))then
+ if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice < minLayerDensity) .or. &
+    any(mLayerVolFracIceNew(1:nSnow) > 1._dp))then
   do iSnow=1,nSnow
    write(*,'(a,1x,i4,1x,f9.3)') 'iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
   end do
