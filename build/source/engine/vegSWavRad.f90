@@ -71,7 +71,7 @@ contains
  USE data_struc,only:model_decisions                              ! model decision structure
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! model variables, parameters, etc.
- USE data_struc,only:type_data,mvar_data,indx_data     ! data structures
+ USE data_struc,only:type_data,mvar_data               ! data structures
  USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
  implicit none
  ! dummy variables

@@ -99,30 +99,6 @@ contains
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! model decisions
- integer(i4b)                    :: ix_snowLayers       ! decision for snow combination
- ! model parameters (new snow density)
- real(dp)                        :: newSnowDenMin       ! minimum new snow density (kg m-3)
- real(dp)                        :: newSnowDenMult      ! multiplier for new snow density (kg m-3)
- real(dp)                        :: newSnowDenScal      ! scaling factor for new snow density (K)
- ! model parameters (control on the depth of snow layers)
- real(dp)                        :: zmax                ! maximum layer depth (m)
- real(dp)                        :: zmaxLayer1_lower    ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
- real(dp)                        :: zmaxLayer2_lower    ! maximum layer depth for the 2nd layer when only 2 layers (m)
- real(dp)                        :: zmaxLayer3_lower    ! maximum layer depth for the 3rd layer when only 3 layers (m)
- real(dp)                        :: zmaxLayer4_lower    ! maximum layer depth for the 4th layer when only 4 layers (m)
- real(dp)                        :: zmaxLayer1_upper    ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
- real(dp)                        :: zmaxLayer2_upper    ! maximum layer depth for the 2nd layer when > 2 layers (m)
- real(dp)                        :: zmaxLayer3_upper    ! maximum layer depth for the 3rd layer when > 3 layers (m)
- real(dp)                        :: zmaxLayer4_upper    ! maximum layer depth for the 4th layer when > 4 layers (m)
- ! model parameters (compute layer temperature)
- real(dp)                        :: fc_param            ! freeezing curve parameter for snow (K-1)
- ! diagnostic scalar variables
- real(dp)                        :: scalarSnowDepth     ! total snow depth (m)
- real(dp)                        :: scalarSWE           ! SWE (kg m-2)
- real(dp)                        :: scalarSnowfall      ! snowfall flux (kg m-2 s-1)
- real(dp)                        :: scalarSnowfallTemp  ! computed temperature of fresh snow (K)
  ! model state variables (all layers)
  ! NOTE: use pointers because dimension length changes
  real(dp),pointer                :: mLayerTemp(:)       ! temperature of each layer (K)
@@ -131,8 +107,6 @@ contains
  ! model coordinate variables
  ! NOTE: use pointers because dimension length changes
  real(dp),pointer                :: mLayerDepth(:)      ! depth of the layer (m)
- real(dp),pointer                :: mLayerHeight(:)     ! height of the layer mid-point (m)
- real(dp),pointer                :: iLayerHeight(:)     ! height of the layer interface (m)
  ! model index variables
  ! NOTE: use pointers because dimension length changes
  integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
@@ -153,6 +127,7 @@ contains
  real(dp)                        :: fracLiq             ! fraction of liquid water (-)
  integer(i4b),parameter          :: ixVisible=1         ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2          ! named variable to define index in array of near IR part of the spectrum
+ logical(lgt),parameter          :: printFlag=.false.   ! flag to print output
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -270,14 +245,14 @@ contains
    indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
    ! check
-   print*, trim(message)
-   do kLayer=1,nLayers
-    write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
-   end do
-   print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-   print*, 'snow albedo = ', mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)
-
-   !pause ' check layer sub-division'
+   if(printFlag)then
+    print*, trim(message)
+    do kLayer=1,nLayers
+     write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
+    end do
+    print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
+    print*, 'snow albedo = ', mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)
+   endif  ! (if printing progress)
 
   endif  ! if creating a new layer
   return
@@ -288,11 +263,12 @@ contains
  ! ********************************************************************************************************************
 
  ! check
- !print*, 'before sub-division'
- !do kLayer=1,nLayers
- ! write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
- !end do
- !if(scalarSnowDepth > 0.5_dp) pause ' deep snow'
+ if(printFlag)then
+  print*, 'before sub-division'
+  do kLayer=1,nLayers
+   write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
+  end do
+ endif  ! (if printing progress)
 
  ! ***** sub-divide snow layers, if necessary
 
@@ -381,9 +357,6 @@ contains
  integer(i4b),intent(out)        :: err       ! error code
  character(*),intent(out)        :: message   ! error message
  ! ---------------------------------------------------------------------------------------------
- ! variables in the data structures
- ! diagnostic variables
- real(dp)                        :: scalarSnowDepth     ! total snow depth (m)
  ! model coordinate variables
  ! NOTE: use pointers because dimension length changes
  real(dp),pointer                :: mLayerDepth(:)      ! depth of the layer (m)
