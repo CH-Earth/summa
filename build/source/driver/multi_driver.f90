@@ -502,10 +502,10 @@ do istep=1,numtim
  end do  ! (end looping through HRUs)
 
  ! print progress
- if(globalPrintFlag)then
+ !if(globalPrintFlag)then
   !if(time_data%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') time_data%var
   write(*,'(i4,1x,5(i2,1x))') time_data%var
- endif
+ !endif
 
  ! compute the exposed LAI and SAI and whether veg is buried by snow
  if(istep==1)then  ! (call phenology here because we need the time information

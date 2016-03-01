@@ -879,7 +879,7 @@ contains
 
   ! make sure that we don't exceed the step
   dt_sub = min(dt-dt_done, dt_sub)
-  print*, 'in substep loop: dt_sub = ', dt_sub
+  !print*, 'in substep loop: dt_sub = ', dt_sub
 
  end do  ! (sub-step loop)
  !pause 'completed time step'

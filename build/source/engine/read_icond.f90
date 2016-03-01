@@ -545,6 +545,8 @@ contains
    err=20; return
   endif
  end do
+ ! ensure that the height 
+
  ! **********************************************************************************************
  ! deallocate variable names vector
  deallocate(varnames,chardata,stat=err)

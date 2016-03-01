@@ -157,7 +157,11 @@ contains
    case(powerLaw)
     if(iLayerHeight(iLayer-1)<rootingDepth)then
      ! compute the fraction of the rooting depth at the lower and upper interfaces
-     fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
+     if(iLayer==nSnow+1)then  ! height=0; avoid precision issues
+      fracRootLower = 0._dp
+     else
+      fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
+     endif
      fracRootUpper = iLayerHeight(iLayer)/rootingDepth
      if(fracRootUpper>1._dp) fracRootUpper=1._dp
      ! compute the root density

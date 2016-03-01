@@ -948,9 +948,6 @@ contains
    xInc       = xIncFactor*xInc
   endif
 
-
-
-
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
   if(computeVegFlux)then
@@ -998,12 +995,11 @@ contains
   endif  ! if computing fluxes through vegetation
 
   ! ** impose solution constraints for snow
-  ! ** impose solution constraints for snow
   if(nSnow > 0)then
 
    ! --------------------------------------------------------------------------------------------------------------------
    ! loop through snow layers
-   checksnow: do iState=1,nSnow  ! necessary to ensure that NO layers rise above Tfreeze
+   !checksnow: do iState=1,nSnow  ! necessary to ensure that NO layers rise above Tfreeze
     ! - get updated snow temperatures
     mLayerTempCheck = stateVecTrial(ixSnowOnlyNrg) + xInc(ixSnowOnlyNrg)
     ! - check sub-freezing temperatures for snow
@@ -1013,10 +1009,10 @@ contains
      cInc       = 0.5_dp*(Tfreeze - stateVecTrial(ixSnowOnlyNrg(iMax(1))) )        ! constrained temperature increment (K) -- simplified bi-section
      xIncFactor = cInc/xInc(ixSnowOnlyNrg(iMax(1)))                                ! scaling factor for the iteration increment (-)
      xInc       = xIncFactor*xInc
-    else    ! if snow temperature > freezing
-     exit checkSnow
+   ! else    ! if snow temperature > freezing
+   !  exit checkSnow
     endif   ! if snow temperature > freezing
-   end do checkSnow
+   !end do checkSnow
 
    ! --------------------------------------------------------------------------------------------------------------------
    ! - check if drain more than what is available
@@ -1034,7 +1030,6 @@ contains
    end do
 
   endif   ! if snow layers exist
-
 
   ! --------------------------------------------------------------------------------------------------------------------
   ! ** impose solution constraints for soil
