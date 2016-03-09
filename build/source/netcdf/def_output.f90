@@ -42,7 +42,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(nHRU,infile,err,message)
+ subroutine def_output(nHRU,nSoil,infile,err,message)
  USE data_struc,only:forc_meta,attr_meta,type_meta  ! metadata structures
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta  ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta            ! metadata structures
@@ -50,6 +50,7 @@ contains
  USE multiconst,only:integerMissing
  ! declare dummy variables
  integer(i4b), intent(in)    :: nHRU                         ! number of HRUs
+ integer(i4b), intent(in)    :: nSoil                        ! number of soil layers in the first HRU (used to define fixed length dimensions)
  character(*), intent(in)    :: infile                       ! file suffix
  integer(i4b),intent(out)    :: err                          ! error code
  character(*),intent(out)    :: message                      ! error message
@@ -61,7 +62,7 @@ contains
  ! **********************************************************************************************************
  ! ***** create initial file
  ! **********************************************************************************************************
- call ini_create(nHRU,trim(infile),err,cmessage)
+ call ini_create(nHRU,nSoil,trim(infile),err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! **********************************************************************************************************
  ! ***** define model decisions
@@ -170,15 +171,11 @@ contains
  ! **********************************************************************************************************
  ! private subroutine ini_create: initial create
  ! **********************************************************************************************************
- subroutine ini_create(nHRU,infile,err,message)
+ subroutine ini_create(nHRU,nSoil,infile,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
  USE data_struc,only:data_step          ! time step of model forcing data (s)
  USE data_struc,only:numtim             ! number of time steps
- ! model model index structures
- USE data_struc,only:indx_data          ! data structures
- USE data_struc,only:ix_soil            ! named variable to identify a soil layer
- USE var_lookup,only:iLookINDEX         ! named variables for structure elements
  ! model decisions
  USE data_struc,only:model_decisions    ! model decision structure
  USE var_lookup,only:iLookDECISIONS     ! named variables for elements of the decision structure
@@ -188,6 +185,7 @@ contains
  implicit none
  ! declare dummy variables
  integer(i4b),intent(in)     :: nHRU                       ! number of HRUs
+ integer(i4b), intent(in)    :: nSoil                      ! number of soil layers in the first HRU (used to define fixed length dimensions)
  character(*),intent(in)     :: infile                     ! filename
  integer(i4b),intent(out)    :: err                        ! error code
  character(*),intent(out)    :: message                    ! error message
@@ -200,11 +198,8 @@ contains
  integer(i4b)                :: meanSnowLayersPerStep      ! mean number of snow layers per time step
  integer(i4b)                :: maxStepsPerFile            ! maximum number of time steps to be stored in each file
  integer(i4b)                :: maxLength                  ! maximum length of the variable vector
- integer(i4b)                :: nSoil                      ! number of soil layers
  ! initialize error control
  err=0;message="f-iniCreate/"
- ! define number of soil layers
- nSoil = count(indx_data%var(iLookINDEX%layerType)%dat == ix_soil)  ! number of soil layers
  ! identify length of the variable vector
  maxStepsPerFile = min(numtim, nint(366._dp * secprday/data_step) )
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)

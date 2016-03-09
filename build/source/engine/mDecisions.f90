@@ -149,7 +149,6 @@ contains
  subroutine mDecisions(err,message)
  ! model time structures
  USE multiconst,only:secprday               ! number of seconds in a day
- USE data_struc,only:time_meta              ! time metadata
  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
  USE data_struc,only:startTime,finshTime    ! start/end time of simulation
  USE data_struc,only:dJulianStart           ! julian day of start time of simulation
@@ -172,7 +171,6 @@ contains
  character(*),intent(out)             :: message        ! error message
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
- integer(i4b)                         :: nAtt           ! number of attributes in the time structures
  real(dp)                             :: dsec           ! second
  ! initialize error control
  err=0; message='mDecisions/'
@@ -185,13 +183,6 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! -------------------------------------------------------------------------------------------------
-
- ! allocate space for start/end time structures
- nAtt = size(time_meta)  ! number of attributes in the time structure
- allocate(startTime,finshTime, stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structures'; return; endif
- allocate(startTime%var(nAtt),finshTime%var(nAtt), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structure components'; return; endif
 
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
@@ -663,10 +654,6 @@ contains
  close(unt)
  ! get the number of model decisions
  nDecisions = size(charline)
- ! allocate space for the model decisions
- if(associated(model_decisions)) deallocate(model_decisions)
- allocate(model_decisions(maxvarDecisions),stat=err)
- if(err/=0)then;err=30;message=trim(message)//"problemAllocateModelDecisions"; return; endif
  ! populate the model decisions structure
  do iDecision=1,nDecisions
   ! extract name of decision and the decision selected

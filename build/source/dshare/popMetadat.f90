@@ -39,8 +39,6 @@ contains
  ! dummy variables
  integer(i4b),intent(out)       :: err                            ! error code
  character(*),intent(out)       :: message                        ! error message
- ! local variables
- character(LEN=256)             :: cmessage                       ! error message of downwind routine
  ! initialize error control
  err=0; message='popMetadat/'
 

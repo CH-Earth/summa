@@ -169,7 +169,6 @@ contains
  character(LEN=256)              :: cmessage                     ! error message of downwind routine
  real(dp)                        :: canopyDepth                  ! depth of the vegetation canopy (m)
  integer(i4b)                    :: iter                         ! iteration index
- integer(i4b)                    :: iState,jState,kState         ! index of model state variable
  integer(i4b)                    :: iLayer                       ! index of model layer
  integer(i4b)                    :: jLayer                       ! index of model layer within the full state vector (hydrology)
  integer(i4b)                    :: kLayer                       ! index of model layer within the snow-soil domain
@@ -187,7 +186,6 @@ contains
  ! * model indices
  ! ------------------------------------------------------------------------------------------------------
  integer(i4b),parameter          :: nVarSnowSoil=2               ! number of state variables in the snow and soil domain (energy and total water/matric head)
- integer(i4b),dimension(nSoil)   :: ixSoilState                  ! list of indices for all soil states
  integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter          :: ku=3                         ! number of super-diagonal bands
  integer(i4b),parameter          :: kl=4                         ! number of sub-diagonal bands
@@ -1723,6 +1721,10 @@ contains
                   iLayerLiqFluxSoil,                      & ! intent(in): liquid flux at the interface of each soil layer (m s-1)
                   ! input: trial value of model state variabes
                   mLayerTempTrial,                        & ! intent(in): trial temperature at the current iteration (K)
+                  ! input-output: data structures
+                  mpar_data,                              & ! intent(in):    model parameters
+                  indx_data,                              & ! intent(in):    model indices
+                  mvar_data,                              & ! intent(inout): local HRU model variables
                   ! output: fluxes and derivatives at all layer interfaces
                   iLayerNrgFlux,                          & ! intent(out): energy flux at the layer interfaces (W m-2)
                   dNrgFlux_dTempAbove,                    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
@@ -1747,6 +1749,9 @@ contains
                   computeVegFlux,                         & ! intent(in): flag to denote if computing energy flux over vegetation
                   scalarCanopyLiqTrial,                   & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
                   scalarRainfall,                         & ! intent(in): rainfall rate (kg m-2 s-1)
+                  ! input-output: data structures
+                  mpar_data,                              & ! intent(in): model parameters
+                  mvar_data,                              & ! intent(in): local HRU model variables
                   ! output
                   scalarThroughfallRain,                  & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
                   scalarCanopyLiqDrainage,                & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -1781,6 +1786,9 @@ contains
                    scalarCanopyLiqDrainage,               & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
                    ! input: model state vector
                    mLayerVolFracLiqTrial(1:nSnow),        & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
+                   ! input-output: data structures
+                   mpar_data,                             & ! intent(in):    model parameters
+                   mvar_data,                             & ! intent(inout): local HRU model variables
                    ! output: fluxes and derivatives
                    iLayerLiqFluxSnow(0:nSnow),            & ! intent(out): vertical liquid water flux at layer interfaces (m s-1)
                    iLayerLiqFluxSnowDeriv(0:nSnow),       & ! intent(out): derivative in vertical liquid water flux at layer interfaces (m s-1)
@@ -1804,6 +1812,7 @@ contains
   ! *********************************************
   call soilLiqFlx(&
                   ! input: model control
+                  nSoil,                                  & ! intent(in): number of soil layers
                   firstFluxCall,                          & ! intent(in): flag indicating first call
                   .true.,                                 & ! intent(in): flag indicating if derivatives are desired
                   ! input: trial state variables
@@ -1818,6 +1827,10 @@ contains
                   scalarCanopyTranspiration,              & ! intent(in): canopy transpiration (kg m-2 s-1)
                   scalarGroundEvaporation,                & ! intent(in): ground evaporation (kg m-2 s-1)
                   scalarRainPlusMelt,                     & ! intent(in): rain plus melt (m s-1)
+                  ! input-output: data structures
+                  mpar_data,                              & ! intent(in):    model parameters
+                  indx_data,                              & ! intent(in):    model indices
+                  mvar_data,                              & ! intent(inout): local HRU model variables
                   ! output: diagnostic variables for surface runoff
                   xMaxInfilRate,                          & ! intent(inout): maximum infiltration rate (m s-1)
                   scalarInfilArea,                        & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)

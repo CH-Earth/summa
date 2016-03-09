@@ -82,10 +82,6 @@ contains
  ! **********************************************************************************************
  ! (0) get number of variables in each data structure
  ! **********************************************************************************************
- ! check that metadata structures are initialized
- if(.not.associated(attr_meta) .or. .not.associated(type_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
  nVar_attr = size(attr_meta)
  nVar_type = size(type_meta)
  ! allocate space for the check vectors

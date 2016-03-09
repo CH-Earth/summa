@@ -73,7 +73,7 @@ contains
  ! (1) read in the list of forcing files
  ! ------------------------------------------------------------------------------------------------------------------
  ! allocate space for forcing information
- if(associated(forcFileInfo)) deallocate(forcFileInfo)
+ if(allocated(forcFileInfo)) deallocate(forcFileInfo)
  allocate(forcFileInfo(nHRU), stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; endif
  ! build filename
@@ -111,14 +111,14 @@ contains
  ! (2) read in the information that describes each forcing file
  ! ------------------------------------------------------------------------------------------------------------------
  ! check that the time metadata is already populated
- if(.not.associated(time_meta))then; err=30; message=trim(message)//"TimeMetadataNonexistent"; return; endif
+ if(.not.allocated(time_meta))then; err=30; message=trim(message)//"TimeMetadataNonexistent"; return; endif
  ! check that the forcing metadata is already populated
- if(.not.associated(forc_meta))then; err=30; message=trim(message)//"ForcingMetadataNonexistent"; return; endif
+ if(.not.allocated(forc_meta))then; err=30; message=trim(message)//"ForcingMetadataNonexistent"; return; endif
  ! read description of file that is used in each HRU
  do iHRU=1,nHRU
   ! allocate space for the column indices
-  if(associated(forcFileInfo(iHRU)%time_ix)) deallocate(forcFileInfo(iHRU)%time_ix)
-  if(associated(forcFileInfo(iHRU)%data_ix)) deallocate(forcFileInfo(iHRU)%data_ix)
+  if(allocated(forcFileInfo(iHRU)%time_ix)) deallocate(forcFileInfo(iHRU)%time_ix)
+  if(allocated(forcFileInfo(iHRU)%data_ix)) deallocate(forcFileInfo(iHRU)%data_ix)
   allocate(forcFileInfo(iHRU)%time_ix(size(time_meta)),&
            forcFileInfo(iHRU)%data_ix(size(forc_meta)),stat=err)
   if(err/=0)then; err=40; message=trim(message)//"problemAllocateStructureElement"; return; endif
