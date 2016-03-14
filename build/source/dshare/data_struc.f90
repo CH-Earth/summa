@@ -82,7 +82,7 @@ MODULE data_struc
  type(var_info),allocatable,save,public  :: indx_meta(:)     ! local model indices for each HRU
  type(var_info),allocatable,save,public  :: bpar_meta(:)     ! basin parameters for aggregated processes
  type(var_info),allocatable,save,public  :: bvar_meta(:)     ! basin parameters for aggregated processes
- type(var_info),allocatable,save,public  :: state_meta(:)    ! local state variables for each HRU
+ type(var_info),allocatable,save,public  :: prog_meta(:)     ! local state variables for each HRU
  type(var_info),allocatable,save,public  :: diag_meta(:)     ! local diagnostic variables for each HRU
  type(var_info),allocatable,save,public  :: flux_meta(:)     ! local model fluxes for each HRU
  type(var_info),allocatable,save,public  :: deriv_meta(:)    ! local model derivatives for each HRU

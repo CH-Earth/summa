@@ -37,17 +37,17 @@ contains
  USE ascii_util_module,only:split_line
  ! number of variables in each data structure
  USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
- USE var_lookup,only:maxvarState,maxvarDiag,maxvarFlux,maxvarDeriv  ! maximum number variables in each data structure
+ USE var_lookup,only:maxvarProg,maxvarDiag,maxvarFlux,maxvarDeriv   ! maximum number variables in each data structure
  USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
  USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
  ! metadata structures
  USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
- USE data_struc,only:state_meta,diag_meta,flux_meta,deriv_meta      ! metadata structures
+ USE data_struc,only:prog_meta,diag_meta,flux_meta,deriv_meta       ! metadata structures
  USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
  USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
  ! named variables defining strructure elements
  USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE       ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookSTATE,iLookDIAG,iLookFLUX,iLookDERIV      ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV       ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookBPAR,iLookBVAR                            ! named variables showing the elements of each data structure
  implicit none
@@ -80,7 +80,7 @@ contains
                                              info('bpar',  'BPAR' , maxvarBpar ), & ! the basin parameter data structure
                                              info('bvar',  'BVAR' , maxvarBvar ), & ! the basin variable data structure
                                              info('indx',  'INDEX', maxvarIndx ), & ! the model index data structure
-                                             info('state', 'STATE', maxvarState), & ! the state variable data structure
+                                             info('prog',  'PROG',  maxvarProg),  & ! the prognostic (state) variable data structure
                                              info('diag',  'DIAG' , maxvarDiag ), & ! the diagnostic variable data structure
                                              info('flux',  'FLUX' , maxvarFlux ), & ! the flux data structure
                                              info('deriv', 'DERIV', maxvarDeriv) /) ! the model derivative data structure
@@ -105,7 +105,7 @@ contains
    case('bpar');  write(longString,*) iLookBPAR
    case('bvar');  write(longString,*) iLookBVAR
    case('indx');  write(longString,*) iLookINDEX
-   case('state'); write(longString,*) iLookSTATE
+   case('prog');  write(longString,*) iLookPROG
    case('diag');  write(longString,*) iLookDIAG
    case('flux');  write(longString,*) iLookFLUX
    case('deriv'); write(longString,*) iLookDERIV
@@ -142,7 +142,7 @@ contains
    case('bpar');  call checkPopulated(iStruct,bpar_meta,err,cmessage) 
    case('bvar');  call checkPopulated(iStruct,bvar_meta,err,cmessage) 
    case('indx');  call checkPopulated(iStruct,indx_meta,err,cmessage) 
-   case('state'); call checkPopulated(iStruct,state_meta,err,cmessage) 
+   case('prog');  call checkPopulated(iStruct,prog_meta,err,cmessage) 
    case('diag');  call checkPopulated(iStruct,diag_meta,err,cmessage) 
    case('flux');  call checkPopulated(iStruct,flux_meta,err,cmessage) 
    case('deriv'); call checkPopulated(iStruct,deriv_meta,err,cmessage) 
@@ -170,7 +170,7 @@ contains
   USE get_ixname_module,only: get_ixindex
   USE get_ixname_module,only: get_ixbpar
   USE get_ixname_module,only: get_ixbvar
-  USE get_ixname_module,only: get_ixstate
+  USE get_ixname_module,only: get_ixprog
   USE get_ixname_module,only: get_ixdiag
   USE get_ixname_module,only: get_ixflux
   USE get_ixname_module,only: get_ixderiv
@@ -210,7 +210,7 @@ contains
      case('bpar');  jVar = get_ixbpar(trim(metadata(iVar)%varname)) 
      case('bvar');  jVar = get_ixbvar(trim(metadata(iVar)%varname)) 
      case('indx');  jVar = get_ixindex(trim(metadata(iVar)%varname)) 
-     case('state'); jVar = get_ixstate(trim(metadata(iVar)%varname)) 
+     case('prog');  jVar = get_ixprog(trim(metadata(iVar)%varname)) 
      case('diag');  jVar = get_ixdiag(trim(metadata(iVar)%varname)) 
      case('flux');  jVar = get_ixflux(trim(metadata(iVar)%varname)) 
      case('deriv'); jVar = get_ixderiv(trim(metadata(iVar)%varname)) 

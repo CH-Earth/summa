@@ -94,6 +94,9 @@ USE var_lookup,only:iLookATTR                               ! look-up values for
 USE var_lookup,only:iLookMVAR                               ! look-up values for local column model variables
 USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
 USE var_lookup,only:iLookINDEX                              ! look-up values for local column index variables
+USE var_lookup,only:iLookPROG                               ! look-up values for local column model prognostic (state) variables
+USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables 
+USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes 
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
@@ -120,6 +123,12 @@ type(spatial_int)         :: typeStruct    ! x%hru(:)%var(:)     -- local classi
 type(spatial_double)      :: mparStruct    ! x%hru(:)%var(:)     -- model parameters
 type(spatial_doubleVec)   :: mvarStruct    ! x%hru(:)%var(:)%dat -- model variables
 type(spatial_intVec)      :: indxStruct    ! x%hru(:)%var(:)%dat -- model indices
+
+type(spatial_doubleVec)   :: progStruct    ! x%hru(:)%var(:)%dat -- model prognostic (state) variables
+type(spatial_doubleVec)   :: diagStruct    ! x%hru(:)%var(:)%dat -- model diagnostic variables
+type(spatial_doubleVec)   :: fluxStruct    ! x%hru(:)%var(:)%dat -- model fluxes
+type(var_dlength)         :: derivStruct   ! x%var(:)%dat        -- model derivatives
+
 type(var_d)               :: bparStruct    ! x%var(:)            -- basin-average parameters
 type(var_dlength)         :: bvarStruct    ! x%var(:)%dat        -- basin-average variables
 ! define the ancillary data structures
@@ -271,6 +280,10 @@ call initStruct(&
                 mparStruct, &    ! model parameters
                 mvarStruct, &    ! model variables
                 indxStruct, &    ! model indices
+                progStruct, &    ! model prognostic (state) variables
+                diagStruct, &    ! model diagnostic variables
+                fluxStruct, &    ! model fluxes
+                derivStruct,&    ! model derivatives
                 bparStruct, &    ! basin-average parameters
                 bvarStruct, &    ! basin-average variables
                 ! output: error control
@@ -364,13 +377,16 @@ do iHRU=1,nHRU
  ! check that the parameters are consistent
  call paramCheck(mparStruct%hru(iHRU)%var,err,message); call handle_err(err,message)
 
+ ! calculate a look-up table for the temperature-enthalpy conversion 
+ call E2T_lookup(mparStruct%hru(iHRU)%var,err,message); call handle_err(err,message)
+
  ! read description of model initial conditions -- also initializes model structure components
  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
  call read_icond(nSnow(iHRU),             & ! number of snow layers
                  nSoil(iHRU),             & ! number of soil layers
                  mparStruct%hru(iHRU)%var,& ! vector of model parameters
-                 mvarStruct%hru(iHRU),    & ! data structure of model variables
                  indxStruct%hru(iHRU),    & ! data structure of model indices
+                 progStruct%hru(iHRU),    & ! model prognostic (state) variables
                  err,message)               ! error control
  call handle_err(err,message)
 
@@ -378,30 +394,29 @@ do iHRU=1,nHRU
  call calcHeight(&
                  ! input/output: data structures
                  indxStruct%hru(iHRU),   & ! intent(in): layer type
-                 mvarStruct%hru(iHRU),   & ! intent(inout): model variables for a local HRU
+                 progStruct%hru(iHRU),   & ! intent(inout): model prognostic (state) variables for a local HRU
                  ! output: error control
                  err,message); call handle_err(err,message)
 
- ! calculate a look-up table for the temperature-enthalpy conversion 
- call E2T_lookup(mparStruct%hru(iHRU)%var,err,message); call handle_err(err,message)
-
  ! calculate vertical distribution of root density
  call rootDensty(mparStruct%hru(iHRU)%var,& ! vector of model parameters
-                 mvarStruct%hru(iHRU),    & ! data structure of model variables
                  indxStruct%hru(iHRU),    & ! data structure of model indices
+                 progStruct%hru(iHRU),    & ! data structure of model prognostic (state) variables
+                 diagStruct%hru(iHRU),    & ! data structure of model diagnostic variables
                  err,message)               ! error control
  call handle_err(err,message) 
 
  ! calculate saturated hydraulic conductivity in each soil layer
  call satHydCond(mparStruct%hru(iHRU)%var,& ! vector of model parameters
-                 mvarStruct%hru(iHRU),    & ! data structure of model variables
                  indxStruct%hru(iHRU),    & ! data structure of model indices
+                 progStruct%hru(iHRU),    & ! data structure of model prognostic (state) variables
+                 fluxStruct%hru(iHRU),    & ! data structure of model fluxes 
                  err,message)               ! error control
  call handle_err(err,message)
 
  ! calculate "short-cut" variables such as volumetric heat capacity
  call v_shortcut(mparStruct%hru(iHRU)%var,& ! vector of model parameters
-                 mvarStruct%hru(iHRU),    & ! data structure of model variables
+                 diagStruct%hru(iHRU),    & ! data structure of model diagnostic variables
                  err,message)               ! error control
  call handle_err(err,message)
 
@@ -415,9 +430,12 @@ do iHRU=1,nHRU
   LAIM(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
  endif
 
+ ! define the green vegetation fraction of the grid box (used to compute LAI)
+ diagStruct%hru(iHRU)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
+
  ! initialize canopy drip
  ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
- mvarStruct%hru(iHRU)%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
+ fluxStruct%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
 
  ! define the file if the first HRU
  if(iHRU==1) then
@@ -460,14 +478,14 @@ select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
  case(singleBasin)
   bvarStruct%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._dp
   do iHRU=1,nHRU
-   mvarStruct%hru(iHRU)%var(iLookMVAR%scalarAquiferStorage)%dat(1) = 0._dp  ! not used
+   progStruct%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! not used
   end do
  case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
 endselect
 
 ! initialize time step length for each HRU
 do iHRU=1,nHRU
- dt_init(iHRU) = mvarStruct%hru(iHRU)%var(iLookMVAR%dt_init)%dat(1) ! seconds
+ dt_init(iHRU) = progStruct%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
 end do
 
 ! initialize time step index
@@ -505,7 +523,8 @@ do istep=1,numtim
                    typeStruct%hru(iHRU),        & ! intent(in):    type of vegetation and soil
                    attrStruct%hru(iHRU),        & ! intent(in):    spatial attributes
                    mparStruct%hru(iHRU),        & ! intent(in):    model parameters
-                   mvarStruct%hru(iHRU),        & ! intent(inout): model variables for a local HRU
+                   progStruct%hru(iHRU),        & ! intent(in):    model prognostic variables for a local HRU
+                   diagStruct%hru(iHRU),        & ! intent(inout): model diagnostic variables for a local HRU
                    ! output
                    computeVegFlux(iHRU),        & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                    notUsed_canopyDepth,         & ! intent(out): NOT USED: canopy depth (m)
@@ -556,7 +575,7 @@ do istep=1,numtim
 
  ! initialize total inflow for each layer in a soil column
  do iHRU=1,nHRU
-  mvarStruct%hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = 0._dp
+  fluxStruct%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._dp
  end do
 
 
@@ -576,7 +595,7 @@ do istep=1,numtim
 
   ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
   allocate(zSoilReverseSign(nSoil(iHRU)),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
-  zSoilReverseSign(:) = -mvarStruct%hru(iHRU)%var(iLookMVAR%iLayerHeight)%dat(nSnow(iHRU)+1:nLayers)
+  zSoilReverseSign(:) = -progStruct%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(nSnow(iHRU)+1:nLayers)
 
   ! get NOAH-MP parameters
   call REDPRM(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex),                & ! vegetation type index
@@ -599,15 +618,13 @@ do istep=1,numtim
    LAIM(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
   endif
 
-  ! define the green vegetation fraction of the grid box (used to compute LAI)
-  mvarStruct%hru(iHRU)%var(iLookMVAR%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
-
   ! compute derived forcing variables
   call derivforce(timeStruct%var,          & ! vector of time information
                   forcStruct%hru(iHRU)%var,& ! vector of model forcing data
                   attrStruct%hru(iHRU)%var,& ! vector of model attributes
                   mparStruct%hru(iHRU)%var,& ! vector of model parameters
-                  mvarStruct%hru(iHRU),    & ! data structure of model variables
+                  diagStruct%hru(iHRU),    & ! data structure of model diagnostic variables
+                  fluxStruct%hru(iHRU),    & ! data structure of model fluxes
                   err,message)               ! error control
   call handle_err(err,message)
 
@@ -631,15 +648,19 @@ do istep=1,numtim
                   output_fileSuffix,    & ! intent(in):    name of the experiment used in the restart file
                   dt_init(iHRU),        & ! intent(inout): initial time step
                   computeVegFlux(iHRU), & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                  ! data structures
+                  ! data structures (input)
                   timeStruct,           & ! intent(in):    model time data
                   typeStruct%hru(iHRU), & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrStruct%hru(iHRU), & ! intent(in):    local attributes for each HRU
                   forcStruct%hru(iHRU), & ! intent(in):    model forcing data
                   mparStruct%hru(iHRU), & ! intent(in):    model parameters
-                  indxStruct%hru(iHRU), & ! intent(in):    model indices
                   bvarStruct,           & ! intent(in):    basin-average model variables
-                  mvarStruct%hru(iHRU), & ! intent(out):   local HRU model variables
+                  ! data structures (input-output)
+                  indxStruct%hru(iHRU), & ! intent(inout): model indices
+                  progStruct%hru(iHRU), & ! intent(inout): model prognostic variables for a local HRU
+                  diagStruct%hru(iHRU), & ! intent(inout): model diagnostic variables for a local HRU
+                  fluxStruct%hru(iHRU), & ! intent(inout): model fluxes for a local HRU
+                  mvarStruct%hru(iHRU), & ! intent(inout): model variables for a local HRU
                   ! error control
                   err,message)            ! intent(out): error control
   call handle_err(err,message)
@@ -656,28 +677,28 @@ do istep=1,numtim
    endif  ! (if identified a downslope HRU)
   end do
 
-  !write(*,'(a,1x,i4,1x,10(f20.10,1x))') 'iHRU, averageColumnOutflow = ', iHRU, mvarStruct%hru(iHRU)%var(iLookMVAR%averageColumnOutflow)%dat(:)
+  !write(*,'(a,1x,i4,1x,10(f20.10,1x))') 'iHRU, averageColumnOutflow = ', iHRU, fluxStruct%hru(iHRU)%var(iLookFLUX%averageColumnOutflow)%dat(:)
 
   ! add inflow to the downslope HRU
   if(kHRU > 0)then  ! if there is a downslope HRU
-   mvarStruct%hru(kHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:) = mvarStruct%hru(kHRU)%var(iLookMVAR%mLayerColumnInflow)%dat(:)  + mvarStruct%hru(iHRU)%var(iLookMVAR%averageColumnOutflow)%dat(:)
+   fluxStruct%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxStruct%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxStruct%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
 
   ! increment basin column outflow (m3 s-1)
   else
-   bvarStruct%var(iLookBVAR%basin__ColumnOutflow)%dat(1)   = bvarStruct%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(mvarStruct%hru(iHRU)%var(iLookMVAR%averageColumnOutflow)%dat(:))
+   bvarStruct%var(iLookBVAR%basin__ColumnOutflow)%dat(1)   = bvarStruct%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxStruct%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
   endif
 
   ! increment basin surface runoff (m s-1)
-  bvarStruct%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = bvarStruct%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)     + mvarStruct%hru(iHRU)%var(iLookMVAR%averageSurfaceRunoff)%dat(1)    * fracHRU
+  bvarStruct%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = bvarStruct%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)     + fluxStruct%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)    * fracHRU
 
   ! increment basin-average baseflow input variables (m s-1)
-  bvarStruct%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarStruct%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + mvarStruct%hru(iHRU)%var(iLookMVAR%averageSoilDrainage)%dat(1)     * fracHRU
-  bvarStruct%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarStruct%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + mvarStruct%hru(iHRU)%var(iLookMVAR%averageAquiferTranspire)%dat(1) * fracHRU
+  bvarStruct%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarStruct%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxStruct%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
+  bvarStruct%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarStruct%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxStruct%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
 
   ! increment aquifer baseflow -- ONLY if baseflow is computed individually for each HRU
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn)then
-   bvarStruct%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarStruct%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + mvarStruct%hru(iHRU)%var(iLookMVAR%averageAquiferBaseflow)%dat(1) * fracHRU
+   bvarStruct%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarStruct%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxStruct%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
   endif
 
   ! write the forcing data to the model output file
@@ -744,7 +765,7 @@ contains
  ! **************************************************************************************************
  subroutine handle_err(err,message)
  ! used to handle error codes
- USE var_lookup,only:iLookMVAR,iLookPARAM,iLookINDEX    ! named variables defining elements in data structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX    ! named variables defining elements in data structure
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)::err             ! error code
@@ -769,17 +790,17 @@ contains
  print*, 'soilStressParam    = ', mparStruct%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
  print*, 'critSoilWilting    = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
  print*, 'critSoilTranspire  = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
- print*, 'scalarSWE          = ', mvarStruct%hru(iHRU)%var(iLookMVAR%scalarSWE)%dat(1)
- print*, 'scalarSnowDepth    = ', mvarStruct%hru(iHRU)%var(iLookMVAR%scalarSnowDepth)%dat(1)
- print*, 'scalarCanopyTemp   = ', mvarStruct%hru(iHRU)%var(iLookMVAR%scalarCanopyTemp)%dat(1)
- print*, 'scalarRainPlusMelt = ', mvarStruct%hru(iHRU)%var(iLookMVAR%scalarRainPlusMelt)%dat(1)
+ print*, 'scalarSWE          = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
+ print*, 'scalarSnowDepth    = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
+ print*, 'scalarCanopyTemp   = ', progStruct%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
+ print*, 'scalarRainPlusMelt = ', fluxStruct%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
  write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%hru(iHRU)%var(iLookINDEX%layerType)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', mvarStruct%hru(iHRU)%var(iLookMVAR%mLayerDepth)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', mvarStruct%hru(iHRU)%var(iLookMVAR%mLayerTemp)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', mvarStruct%hru(iHRU)%var(iLookMVAR%mLayerVolFracIce)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', mvarStruct%hru(iHRU)%var(iLookMVAR%mLayerVolFracLiq)%dat
- print*, 'mLayerMatricHead   = ', mvarStruct%hru(iHRU)%var(iLookMVAR%mLayerMatricHead)%dat
- print*, 'column inflow      = ', mvarStruct%hru(iHRU)%var(iLookMVAR%mLayerColumnInflow)%dat
+ write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
+ write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
+ write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
+ write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
+ print*, 'mLayerMatricHead   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
+ print*, 'column inflow      = ', fluxStruct%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
  print*,'error code = ', err
  print*, timeStruct%var
  write(*,'(a)') trim(message)

@@ -36,7 +36,7 @@ contains
  subroutine calcHeight(&
                        ! input/output: data structures
                        indx_data,   & ! intent(in): layer type
-                       mvar_data,   & ! intent(inout): model variables for a local HRU
+                       prog_data,   & ! intent(inout): model variables for a local HRU
                        ! output: error control
                        err,message)
  ! access named variables for snow and soil
@@ -45,13 +45,13 @@ contains
  USE data_struc,only:var_ilength    ! x%var(:)%dat (i4b)
  USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookMVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookPROG,iLookINDEX  ! named variables for structure elements
  implicit none
  ! ----------------------------------------------------------------------------------
  ! dummy variables
  ! input/output: data structures
  type(var_ilength),intent(in)       :: indx_data      ! type of model layer
- type(var_dlength),intent(inout)    :: mvar_data      ! model variables for a local HRU
+ type(var_dlength),intent(inout)    :: prog_data      ! model variables for a local HRU
  ! output: error control
  integer(i4b),intent(out)           :: err            ! error code
  character(*),intent(out)           :: message        ! error message
@@ -67,9 +67,9 @@ contains
  nLayers        => indx_data%var(iLookINDEX%nLayers)%dat(1),  &   ! total number of layers
  layerType      => indx_data%var(iLookINDEX%layerType)%dat,   &   ! layer type (ix_soil or ix_snow)
  ! associate the values in the model variable structures
- mLayerDepth    => mvar_data%var(iLookMVAR%mLayerDepth)%dat,  &   ! depth of the layer (m)
- mLayerHeight   => mvar_data%var(iLookMVAR%mLayerHeight)%dat, &   ! height of the layer mid-point (m)
- iLayerHeight   => mvar_data%var(iLookMVAR%iLayerHeight)%dat  &   ! height of the layer interface (m)
+ mLayerDepth    => prog_data%var(iLookPROG%mLayerDepth)%dat,  &   ! depth of the layer (m)
+ mLayerHeight   => prog_data%var(iLookPROG%mLayerHeight)%dat, &   ! height of the layer mid-point (m)
+ iLayerHeight   => prog_data%var(iLookPROG%iLayerHeight)%dat  &   ! height of the layer interface (m)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
@@ -99,7 +99,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine rootDensty: compute vertical distribution of root density
  ! **********************************************************************************************************
- subroutine rootDensty(parData,varData,idxData,err,message)
+ subroutine rootDensty(parData,indx_data,prog_data,diag_data,err,message)
  ! model decision structures
  USE data_struc,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -113,15 +113,16 @@ contains
  noExplicit                    ! no explicit groundwater parameterization
  ! named variables
  USE data_struc,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookDIAG        ! named variables for structure elements
  ! data types
  USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
  USE data_struc,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
  real(dp),intent(in)             :: parData(:)      ! vector of model parameters
- type(var_dlength),intent(inout) :: varData         ! data structure of model variables for a local HRU
- type(var_ilength),intent(inout) :: idxData         ! data structure of model indices for a local HRU
+ type(var_ilength),intent(in)    :: indx_data       ! data structure of model indices for a local HRU
+ type(var_dlength),intent(in)    :: prog_data       ! data structure of model prognostic (state) variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data       ! data structure of model diagnostic variables for a local HRU
  ! declare output variables
  integer(i4b),intent(out)        :: err             ! error code
  character(*),intent(out)        :: message         ! error message
@@ -143,13 +144,13 @@ contains
  rootingDepth          =>parData(iLookPARAM%rootingDepth),                      & ! rooting depth (m)
  rootDistExp           =>parData(iLookPARAM%rootDistExp),                       & ! root distribution exponent (-)
  ! associate the model index structures
- nSnow                 =>idxData%var(iLookINDEX%nSnow)%dat(1),                  & ! number of snow layers
- nLayers               =>idxData%var(iLookINDEX%nLayers)%dat(1),                & ! total number of layers
- layerType             =>idxData%var(iLookINDEX%layerType)%dat,                 & ! layer type (ix_soil or ix_snow)
+ nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
+ nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! total number of layers
+ layerType             =>indx_data%var(iLookINDEX%layerType)%dat,               & ! layer type (ix_soil or ix_snow)
+ iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures
- scalarAquiferRootFrac =>varData%var(iLookMVAR%scalarAquiferRootFrac)%dat(1),   & ! fraction of roots below the soil profile (in the aquifer)
- mLayerRootDensity     =>varData%var(iLookMVAR%mLayerRootDensity)%dat,          & ! fraction of roots in each soil layer (-)
- iLayerHeight          =>varData%var(iLookMVAR%iLayerHeight)%dat                & ! height of the layer interface (m)
+ scalarAquiferRootFrac =>diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1), & ! fraction of roots below the soil profile (in the aquifer)
+ mLayerRootDensity     =>diag_data%var(iLookDIAG%mLayerRootDensity)%dat         & ! fraction of roots in each soil layer (-)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
@@ -225,7 +226,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine satHydCond: compute vertical profile of saturated hydraulic conductivity
  ! **********************************************************************************************************
- subroutine satHydCond(parData,varData,idxData,err,message)
+ subroutine satHydCond(parData,indx_data,prog_data,flux_data,err,message)
  ! model decision structures
  USE data_struc,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -235,15 +236,16 @@ contains
   powerLaw_profile             ! power-law profile
  ! named variables
  USE data_struc,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookFLUX        ! named variables for structure elements
  ! data types
  USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
  USE data_struc,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
  real(dp),intent(in)             :: parData(:)      ! vector of model parameters
- type(var_dlength),intent(inout) :: varData         ! data structure of model variables for a local HRU
- type(var_ilength),intent(inout) :: idxData         ! data structure of model indices for a local HRU
+ type(var_ilength),intent(in)    :: indx_data       ! data structure of model indices for a local HRU
+ type(var_dlength),intent(in)    :: prog_data       ! data structure of model prognostic (state) variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data       ! data structure of model fluxes for a local HRU
  ! declare output variables
  integer(i4b),intent(out)        :: err             ! error code
  character(*),intent(out)        :: message         ! error message
@@ -255,20 +257,21 @@ contains
  ! associate variables in data structure
  associate(&
  ! associate the values in the parameter structures
- k_soil             => parData(iLookPARAM%k_soil),                    & ! saturated hydraulic conductivity at the compacted depth (m s-1)
- k_macropore        => parData(iLookPARAM%k_macropore),               & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
- compactedDepth     => parData(iLookPARAM%compactedDepth),            & ! the depth at which k_soil reaches the compacted value given by CH78 (m)
- zScale_TOPMODEL    => parData(iLookPARAM%zScale_TOPMODEL),           & ! exponent for the TOPMODEL-ish baseflow parameterization (-)
+ k_soil             => parData(iLookPARAM%k_soil),                      & ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ k_macropore        => parData(iLookPARAM%k_macropore),                 & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
+ compactedDepth     => parData(iLookPARAM%compactedDepth),              & ! the depth at which k_soil reaches the compacted value given by CH78 (m)
+ zScale_TOPMODEL    => parData(iLookPARAM%zScale_TOPMODEL),             & ! exponent for the TOPMODEL-ish baseflow parameterization (-)
  ! associate the model index structures
- nSnow              => idxData%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
- nLayers            => idxData%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
- layerType          => idxData%var(iLookINDEX%layerType)%dat,         & ! layer type (ix_soil or ix_snow)
+ nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
+ nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
+ layerType          => indx_data%var(iLookINDEX%layerType)%dat,         & ! layer type (ix_soil or ix_snow)
+ ! associate the coordinate variables
+ mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
+ iLayerHeight       => prog_data%var(iLookPROG%iLayerHeight)%dat,       & ! height at the interface of each layer (m)
  ! associate the values in the model variable structures
- mLayerSatHydCondMP => varData%var(iLookMVAR%mLayerSatHydCondMP)%dat, & ! saturated hydraulic conductivity for macropores at the mid-point of each layer (m s-1)
- mLayerSatHydCond   => varData%var(iLookMVAR%mLayerSatHydCond)%dat,   & ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
- iLayerSatHydCond   => varData%var(iLookMVAR%iLayerSatHydCond)%dat,   & ! saturated hydraulic conductivity at the interface of each layer (m s-1)
- mLayerHeight       => varData%var(iLookMVAR%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
- iLayerHeight       => varData%var(iLookMVAR%iLayerHeight)%dat        & ! height at the interface of each layer (m)
+ mLayerSatHydCondMP => flux_data%var(ilookFLUX%mlayersathydcondmp)%dat, & ! saturated hydraulic conductivity for macropores at the mid-point of each layer (m s-1)
+ mLayerSatHydCond   => flux_data%var(ilookFLUX%mlayersathydcond)%dat,   & ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ iLayerSatHydCond   => flux_data%var(ilookFLUX%ilayersathydcond)%dat    & ! saturated hydraulic conductivity at the interface of each layer (m s-1)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
@@ -428,7 +431,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
- subroutine v_shortcut(parData,varData,err,message)
+ subroutine v_shortcut(parData,diag_data,err,message)
  ! used to compute derived model variables
  USE multiconst, only:&
                        LH_fus,    &            ! latent heat of fusion                (J kg-1)
@@ -442,14 +445,14 @@ contains
                        gravity,   &            ! gravitational acceleration           (m s-2)
                        Tfreeze                 ! freezing point of pure water         (K)
  ! named variables
- USE data_struc,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                  ! named variables for structure elements
+ USE data_struc,only:ix_soil,ix_snow           ! named variables defining snow and soil layers
+ USE var_lookup,only:iLookPARAM,iLookDIAG      ! named variables for structure elements
  ! data types
  USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
  implicit none
  ! declare input variables
  real(dp),intent(in)             :: parData(:)      ! vector of model parameters
- type(var_dlength),intent(inout) :: varData         ! data structure of model variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data         ! data structure of model variables for a local HRU
  ! declare output variables
  integer(i4b),intent(out)        :: err             ! error code
  character(*),intent(out)        :: message         ! error message
@@ -461,22 +464,22 @@ contains
  ! associate variables in data structure
  associate(&
  ! associate values in the parameter structures
- iden_soil      =>parData(iLookPARAM%soil_dens_intr),                 & ! intrinsic soil density (kg m-3)
- frac_sand      =>parData(iLookPARAM%frac_sand),                      & ! fraction of sand (-)
- frac_silt      =>parData(iLookPARAM%frac_silt),                      & ! fraction of silt (-)
- frac_clay      =>parData(iLookPARAM%frac_clay),                      & ! fraction of clay (-)
- theta_sat      =>parData(iLookPARAM%theta_sat),                      & ! soil porosity (-)
- vGn_n          =>parData(iLookPARAM%vGn_n),                          & ! van Genutchen "n" parameter (-)
+ iden_soil      =>parData(iLookPARAM%soil_dens_intr),                   & ! intrinsic soil density (kg m-3)
+ frac_sand      =>parData(iLookPARAM%frac_sand),                        & ! fraction of sand (-)
+ frac_silt      =>parData(iLookPARAM%frac_silt),                        & ! fraction of silt (-)
+ frac_clay      =>parData(iLookPARAM%frac_clay),                        & ! fraction of clay (-)
+ theta_sat      =>parData(iLookPARAM%theta_sat),                        & ! soil porosity (-)
+ vGn_n          =>parData(iLookPARAM%vGn_n),                            & ! van Genutchen "n" parameter (-)
  ! associate values in the model variable structures
- vGn_m          =>varData%var(iLookMVAR%scalarVGn_m)%dat(1),          & ! van Genutchen "m" parameter (-)
- kappa          =>varData%var(iLookMVAR%scalarKappa)%dat(1),          & ! constant in the freezing curve function (m K-1)
- volHtCap_air   =>varData%var(iLookMVAR%scalarVolHtCap_air)%dat(1),   & ! volumetric heat capacity of air (J m-3 K-1)
- volHtCap_ice   =>varData%var(iLookMVAR%scalarVolHtCap_ice)%dat(1),   & ! volumetric heat capacity of ice (J m-3 K-1)
- volHtCap_soil  =>varData%var(iLookMVAR%scalarVolHtCap_soil)%dat(1),  & ! volumetric heat capacity of soil (J m-3 K-1)
- volHtCap_water =>varData%var(iLookMVAR%scalarVolHtCap_water)%dat(1), & ! volumetric heat capacity of water (J m-3 K-1)
- lambda_drysoil =>varData%var(iLookMVAR%scalarLambda_drysoil)%dat(1), & ! thermal conductivity of dry soil (W m-1)
- lambda_wetsoil =>varData%var(iLookMVAR%scalarLambda_wetsoil)%dat(1), & ! thermal conductivity of wet soil (W m-1)
- volLatHt_fus   =>varData%var(iLookMVAR%scalarvolLatHt_fus)%dat(1)    & ! volumetric latent heat of fusion (J m-3)
+ vGn_m          =>diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),          & ! van Genutchen "m" parameter (-)
+ kappa          =>diag_data%var(iLookDIAG%scalarKappa)%dat(1),          & ! constant in the freezing curve function (m K-1)
+ volHtCap_air   =>diag_data%var(iLookDIAG%scalarVolHtCap_air)%dat(1),   & ! volumetric heat capacity of air (J m-3 K-1)
+ volHtCap_ice   =>diag_data%var(iLookDIAG%scalarVolHtCap_ice)%dat(1),   & ! volumetric heat capacity of ice (J m-3 K-1)
+ volHtCap_soil  =>diag_data%var(iLookDIAG%scalarVolHtCap_soil)%dat(1),  & ! volumetric heat capacity of soil (J m-3 K-1)
+ volHtCap_water =>diag_data%var(iLookDIAG%scalarVolHtCap_water)%dat(1), & ! volumetric heat capacity of water (J m-3 K-1)
+ volLatHt_fus   =>diag_data%var(iLookDIAG%scalarvolLatHt_fus)%dat(1),   & ! volumetric latent heat of fusion (J m-3)
+ lambda_drysoil =>diag_data%var(iLookDIAG%scalarLambda_drysoil)%dat(1), & ! thermal conductivity of dry soil (W m-1)
+ lambda_wetsoil =>diag_data%var(iLookDIAG%scalarLambda_wetsoil)%dat(1)  & ! thermal conductivity of wet soil (W m-1)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 

@@ -33,11 +33,11 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
- subroutine read_icond(nSnow,    &   ! number of snow layers
-                       nSoil,    &   ! number of soil layers
-                       parData,  &   ! vector of model parameters
-                       varData,  &   ! data structure of model variables
-                       idxData,  &   ! data structure of model indices
+ subroutine read_icond(nSnow,      &   ! number of snow layers
+                       nSoil,      &   ! number of soil layers
+                       parData  ,  &   ! vector of model parameters
+                       indx_data,  &   ! data structure of model indices
+                       prog_data,  &   ! model prognostic (state) variables
                        err,message)  ! error control
  USE multiconst, only:&
                        LH_fus,    &  ! latent heat of fusion                (J kg-1)
@@ -58,12 +58,13 @@ contains
  USE ascii_util_module,only:file_open              ! open file
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines             ! get a list of character strings from non-comment lines
- USE get_ixname_module,only:get_ixmvar,get_ixindex ! access function to find index of elements in structure
+ USE get_ixname_module,only:get_ixindex            ! access function to find index of elements in structure
+ USE get_ixname_module,only:get_ixprog             ! access function to find index of elements in structure
  ! named variabes for model decisions
  USE var_lookup,only:iLookDECISIONS                ! named variables for elements of the decision structure
- USE var_lookup,only:iLookMVAR,iLookPARAM,iLookINDEX ! named variables to describe structure elements
+ USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG ! named variables to describe structure elements
  ! metadata
- USE data_struc,only:mvar_meta                     ! metadata for model variables, indices
+ USE data_struc,only:prog_meta                     ! metadata for model prognostic (state) variables
  USE data_struc,only:ix_soil,ix_snow               ! named variables to describe the type of layer
  ! data types
  USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
@@ -73,8 +74,8 @@ contains
  integer(i4b),intent(in)           :: nSnow           ! number of snow layers
  integer(i4b),intent(in)           :: nSoil           ! number of soil layers
  real(dp),intent(in)               :: parData(:)      ! vector of model parameters
- type(var_dlength),intent(inout)   :: varData         ! data structure of model variables for a local HRU
- type(var_ilength),intent(inout)   :: idxData         ! data structure of model indices for a local HRU
+ type(var_ilength),intent(inout)   :: indx_data       ! data structure of model indices for a local HRU
+ type(var_dlength),intent(inout)   :: prog_data       ! data structure of model prognostic (state) variables for a local HRU
  ! define output
  integer(i4b),intent(out)          :: err             ! error code
  character(*),intent(out)          :: message         ! error message
@@ -125,7 +126,7 @@ contains
   'missing value index is the same as ix_snow or ix_soil'; return; endif
 
  ! allocate space for the variable check vector
- allocate(checkGotVars(size(mvar_meta)),stat=err)
+ allocate(checkGotVars(size(prog_meta)),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'allocating logical check vector'; return; endif
  checkGotVars(:) = .false.  ! initialize vector
 
@@ -146,17 +147,17 @@ contains
 
  ! save the number of layers
  nLayers = nSnow+nSoil
- idxData%var(iLookINDEX%nSnow)%dat(1)   = nSnow
- idxData%var(iLookINDEX%nSoil)%dat(1)   = nSoil
- idxData%var(iLookINDEX%nLayers)%dat(1) = nLayers
+ indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+ indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
  ! initalize the indices for midSnow, midSoil, midToto, and ifcToto
- idxData%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
- idxData%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
- idxData%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
- idxData%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
- idxData%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
- idxData%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
+ indx_data%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
+ indx_data%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
+ indx_data%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
+ indx_data%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
+ indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
+ indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
 
  ! **********************************************************************************************
  ! (1) open files, etc.
@@ -183,14 +184,14 @@ contains
    call split_line(temp,chardata,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    ! find the variable -- variable name is first
-   jvar = get_ixmvar(trim(chardata(1)))
+   jvar = get_ixprog(trim(chardata(1)))
    if(jvar<=0)then; err=30; message=trim(message)//'variableNotFound[var='//trim(chardata(1))//']'; return; endif
    checkGotVars(jvar)=.true.
    ! read the data -- value is second
-   read(chardata(2),*,iostat=err) varData%var(jvar)%dat(1)
+   read(chardata(2),*,iostat=err) prog_data%var(jvar)%dat(1)
    if(err/=0)then; err=40; message=trim(message)//"problemInternalRead[data='"//trim(chardata(2))//"']"; return; endif
    deallocate(chardata)
-   !print*, jVar, trim(mvar_meta(jvar)%vardesc), varData%var(jvar)%dat(1)
+   !print*, jVar, trim(prog_meta(jvar)%vardesc), prog_data%var(jvar)%dat(1)
   endif    ! if we are in the scalar part of the file
   ! check if reached the start of the scalar definitions
   if (trim(temp)=='<start_'//trim(scalar_tag)//'>') scalar_flag=.true.
@@ -199,14 +200,15 @@ contains
  end do  ! looping through lines
  ! check if we got the desired scalar variables
  do ivar=1,size(namesScalarDesired)
-  jvar=get_ixmvar(trim(namesScalarDesired(ivar)))
+  jvar=get_ixprog(trim(namesScalarDesired(ivar)))
   if(.not.checkGotVars(jvar))then
    message=trim(message)//'initial condion undefined for variable '//trim(namesScalarDesired(ivar))
    err=20; return
   endif
  end do
  ! initialize the spectral albedo
- varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1:nBand) = varData%var(iLookMVAR%scalarSnowAlbedo)%dat(1)
+ prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)
+
  ! **********************************************************************************************
  ! (5) read the layer initial conditions
  ! **********************************************************************************************
@@ -268,22 +270,22 @@ contains
    do ivar=1,nVars
     ! check if it is the layerType variable (special case)
     if(trim(varnames(ivar))=='layerType')then
-     idxData%var(iLookINDEX%layerType)%dat(iToto) = layerType
+     indx_data%var(iLookINDEX%layerType)%dat(iToto) = layerType
      cycle
     endif
     ! get the variable index
-    jvar = get_ixmvar(trim(varnames(ivar)))
+    jvar = get_ixprog(trim(varnames(ivar)))
     if(jvar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ivar))//"']"; return; endif
     ! ***** populate the data variable *****
-    select case(trim(mvar_meta(jvar)%vartype))
-     case('midSoil'); if(layerType==ix_soil) read(chardata(ivar),*,iostat=err) varData%var(jvar)%dat(iSoil)
-     case('midSnow'); if(layerType==ix_snow) read(chardata(ivar),*,iostat=err) varData%var(jvar)%dat(iSnow)
-     case('midToto');                        read(chardata(ivar),*,iostat=err) varData%var(jvar)%dat(iToto)
-     case('ifcSnow');                        read(chardata(ivar),*,iostat=err) varData%var(jvar)%dat(iSnow-1)  ! IC = top interface
-     case('ifcSoil');                        read(chardata(ivar),*,iostat=err) varData%var(jvar)%dat(iSoil-1)  ! IC = top interface
-     case('ifcToto');                        read(chardata(ivar),*,iostat=err) varData%var(jvar)%dat(iToto-1)  ! IC = top interface
+    select case(trim(prog_meta(jvar)%vartype))
+     case('midSoil'); if(layerType==ix_soil) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil)
+     case('midSnow'); if(layerType==ix_snow) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow)
+     case('midToto');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto)
+     case('ifcSnow');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow-1)  ! IC = top interface
+     case('ifcSoil');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil-1)  ! IC = top interface
+     case('ifcToto');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto-1)  ! IC = top interface
      case default
-     err=40; message=trim(message)//"unknownInitCondType[name='"//trim(mvar_meta(jvar)%varname)//"']"; return
+     err=40; message=trim(message)//"unknownInitCondType[name='"//trim(prog_meta(jvar)%varname)//"']"; return
     endselect
     if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ivar))//"']"; return; endif
    end do    ! (looping through initial conditions variables)
@@ -294,30 +296,30 @@ contains
  ! close file
  close(unt)
  ! set iLayerHeight for the bottom layer
- varData%var(iLookMVAR%iLayerHeight)%dat(nLayers) = &
- varData%var(iLookMVAR%iLayerHeight)%dat(nLayers-1) + varData%var(iLookMVAR%mLayerDepth)%dat(nLayers)
+ prog_data%var(iLookPROG%iLayerHeight)%dat(nLayers) = &
+ prog_data%var(iLookPROG%iLayerHeight)%dat(nLayers-1) + prog_data%var(iLookPROG%mLayerDepth)%dat(nLayers)
  ! check matric head is read correctly
- !print*,'mLayerMatricHead ', varData%var(iLookMVAR%mLayerMatricHead)%dat(:)
+ !print*,'mLayerMatricHead ', prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! ensure the snow albedo is realistic
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! ensure the spectral average albedo is realistic
- if(varData%var(iLookMVAR%scalarSnowAlbedo)%dat(1) > parData(iLookPARAM%albedoMax)) &
-    varData%var(iLookMVAR%scalarSnowAlbedo)%dat(1) = parData(iLookPARAM%albedoMax)
- if(varData%var(iLookMVAR%scalarSnowAlbedo)%dat(1) < parData(iLookPARAM%albedoMinWinter)) &
-    varData%var(iLookMVAR%scalarSnowAlbedo)%dat(1) = parData(iLookPARAM%albedoMinWinter)
+ if(prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1) > parData(iLookPARAM%albedoMax)) &
+    prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1) = parData(iLookPARAM%albedoMax)
+ if(prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1) < parData(iLookPARAM%albedoMinWinter)) &
+    prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1) = parData(iLookPARAM%albedoMinWinter)
  ! ensure the visible albedo is realistic
- if(varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) > parData(iLookPARAM%albedoMaxVisible)) &
-    varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) = parData(iLookPARAM%albedoMaxVisible)
- if(varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) < parData(iLookPARAM%albedoMinVisible)) &
-    varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(1) = parData(iLookPARAM%albedoMinVisible)
+ if(prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) > parData(iLookPARAM%albedoMaxVisible)) &
+    prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = parData(iLookPARAM%albedoMaxVisible)
+ if(prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) < parData(iLookPARAM%albedoMinVisible)) &
+    prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = parData(iLookPARAM%albedoMinVisible)
  ! ensure the nearIR albedo is realistic
- if(varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) > parData(iLookPARAM%albedoMaxNearIR)) &
-    varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) = parData(iLookPARAM%albedoMaxNearIR)
- if(varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) < parData(iLookPARAM%albedoMinNearIR)) &
-    varData%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(2) = parData(iLookPARAM%albedoMinNearIR)
+ if(prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) > parData(iLookPARAM%albedoMaxNearIR)) &
+    prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) = parData(iLookPARAM%albedoMaxNearIR)
+ if(prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) < parData(iLookPARAM%albedoMinNearIR)) &
+    prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) = parData(iLookPARAM%albedoMinNearIR)
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! ensure the initial conditions are consistent with the constitutive functions
@@ -326,22 +328,22 @@ contains
  ! associate local variables with variables in the data structures
  associate(&
  ! state variables in the vegetation canopy
- scalarCanopyTemp  => varData%var(iLookMVAR%scalarCanopyTemp)%dat(1) , & ! canopy temperature
- scalarCanopyIce   => varData%var(iLookMVAR%scalarCanopyIce)%dat(1)  , & ! mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiq   => varData%var(iLookMVAR%scalarCanopyLiq)%dat(1)  , & ! mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyTemp  => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1) , & ! canopy temperature
+ scalarCanopyIce   => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)  , & ! mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiq   => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)  , & ! mass of liquid water on the vegetation canopy (kg m-2)
  ! state variables in the snow+soil domain
- mLayerTemp        => varData%var(iLookMVAR%mLayerTemp)%dat          , & ! temperature (K)
- mLayerVolFracLiq  => varData%var(iLookMVAR%mLayerVolFracLiq)%dat    , & ! volumetric fraction of liquid water in each snow layer (-)
- mLayerVolFracIce  => varData%var(iLookMVAR%mLayerVolFracIce)%dat    , & ! volumetric fraction of ice in each snow layer (-)
- mLayerMatricHead  => varData%var(iLookMVAR%mLayerMatricHead)%dat    , & ! matric head (m)
- mLayerLayerType   => idxData%var(iLookINDEX%layerType)%dat          , & ! type of layer (ix_soil or ix_snow)
+ mLayerTemp        => prog_data%var(iLookPROG%mLayerTemp)%dat          , & ! temperature (K)
+ mLayerVolFracLiq  => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat    , & ! volumetric fraction of liquid water in each snow layer (-)
+ mLayerVolFracIce  => prog_data%var(iLookPROG%mLayerVolFracIce)%dat    , & ! volumetric fraction of ice in each snow layer (-)
+ mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat    , & ! matric head (m)
+ mLayerLayerType   => indx_data%var(iLookINDEX%layerType)%dat          , & ! type of layer (ix_soil or ix_snow)
  ! model parameters
- vGn_alpha         => parData(iLookPARAM%vGn_alpha)              , & ! van Genutchen "alpha" parameter (m-1)
- vGn_n             => parData(iLookPARAM%vGn_n)                  , & ! van Genutchen "n" parameter (-)
- theta_sat         => parData(iLookPARAM%theta_sat)              , & ! soil porosity (-)
- theta_res         => parData(iLookPARAM%theta_res)              , & ! soil residual volumetric water content (-)
- snowfrz_scale     => parData(iLookPARAM%snowfrz_scale)          , & ! scaling parameter for the snow freezing curve (K-1)
- FCapil            => parData(iLookPARAM%FCapil)                   & ! fraction of pore space in tension storage (-)
+ vGn_alpha         => parData(iLookPARAM%vGn_alpha)                    , & ! van Genutchen "alpha" parameter (m-1)
+ vGn_n             => parData(iLookPARAM%vGn_n)                        , & ! van Genutchen "n" parameter (-)
+ theta_sat         => parData(iLookPARAM%theta_sat)                    , & ! soil porosity (-)
+ theta_res         => parData(iLookPARAM%theta_res)                    , & ! soil residual volumetric water content (-)
+ snowfrz_scale     => parData(iLookPARAM%snowfrz_scale)                , & ! scaling parameter for the snow freezing curve (K-1)
+ FCapil            => parData(iLookPARAM%FCapil)                         & ! fraction of pore space in tension storage (-)
  )  ! (associate local variables with model parameters)
  ! ***************************************************************************************
 
@@ -463,16 +465,16 @@ contains
 
  ! if snow layers exist, compute snow depth and SWE
  if(nSnow > 0)then
-  varData%var(iLookMVAR%scalarSnowDepth)%dat(1) = -varData%var(iLookMVAR%iLayerHeight)%dat(0)
-  varData%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (varData%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                        varData%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                      * varData%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+  prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) =      -prog_data%var(iLookPROG%iLayerHeight)%dat(0)
+  prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                          prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                        * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
  endif  ! (if snow layers exist
 
  ! check that the layering is consistent
  do iLayer=1,nLayers
-  h1 = sum(varData%var(iLookMVAR%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
-  h2 = varData%var(iLookMVAR%iLayerHeight)%dat(iLayer) - varData%var(iLookMVAR%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
+  h1 = sum(prog_data%var(iLookPROG%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer
+  h2 = prog_data%var(iLookPROG%iLayerHeight)%dat(iLayer) - prog_data%var(iLookPROG%iLayerHeight)%dat(0)  ! difference between snow-atm interface and bottom of layer
   !write(*,'(a,1x,10(e20.10,1x))') 'h1, h2, (h1 - h2) = ', h1, h2, (h1 - h2)
   if(abs(h1 - h2) > 1.e-12_dp)then
    write(message,'(a,1x,i0)') trim(message)//'mis-match between layer depth and layer height [suggest round numbers in initial conditions file]; layer = ', iLayer
@@ -490,20 +492,20 @@ contains
  ! print states
  if(doPrintStates)then
   print*,'****************************************************************************************'
-  print*, 'mLayerDepth      ', varData%var(iLookMVAR%mLayerDepth)%dat(:)
-  print*, 'iLayerHeight     ', varData%var(iLookMVAR%iLayerHeight)%dat(:)
-  print*, 'mLayerTemp       ', varData%var(iLookMVAR%mLayerTemp)%dat(:)
-  print*, 'mLayerVolFracIce ', varData%var(iLookMVAR%mLayerVolFracIce)%dat(:)
-  print*, 'mLayerVolFracLiq ', varData%var(iLookMVAR%mLayerVolFracLiq)%dat(:)
-  print*, 'mLayerMatricHead ', varData%var(iLookMVAR%mLayerMatricHead)%dat(:)
-  print*, 'scalarCanopyIce  ', varData%var(iLookMVAR%scalarCanopyIce)%dat(:)
-  print*, 'scalarCanopyLiq  ', varData%var(iLookMVAR%scalarCanopyLiq)%dat(:)
-  print*, 'scalarCanairTemp ', varData%var(iLookMVAR%scalarCanairTemp)%dat(:)
-  print*, 'scalarCanopyTemp ', varData%var(iLookMVAR%scalarCanopyTemp)%dat(:)
-  print*, 'scalarSnowAlbedo ', varData%var(iLookMVAR%scalarSnowAlbedo)%dat(:)
-  print*, 'scalarSnowDepth  ', varData%var(iLookMVAR%scalarSnowDepth)%dat(:)
-  print*, 'scalarSWE        ', varData%var(iLookMVAR%scalarSWE)%dat(:)
-  print*, 'layerType        ', idxData%var(iLookINDEX%layerType)%dat(:)
+  print*, 'mLayerDepth      ', prog_data%var(iLookPROG%mLayerDepth)%dat(:)
+  print*, 'iLayerHeight     ', prog_data%var(iLookPROG%iLayerHeight)%dat(:)
+  print*, 'mLayerTemp       ', prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+  print*, 'mLayerVolFracIce ', prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
+  print*, 'mLayerVolFracLiq ', prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:)
+  print*, 'mLayerMatricHead ', prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
+  print*, 'scalarCanopyIce  ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(:)
+  print*, 'scalarCanopyLiq  ', prog_data%var(iLookPROG%scalarCanopyLiq)%dat(:)
+  print*, 'scalarCanairTemp ', prog_data%var(iLookPROG%scalarCanairTemp)%dat(:)
+  print*, 'scalarCanopyTemp ', prog_data%var(iLookPROG%scalarCanopyTemp)%dat(:)
+  print*, 'scalarSnowAlbedo ', prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(:)
+  print*, 'scalarSnowDepth  ', prog_data%var(iLookPROG%scalarSnowDepth)%dat(:)
+  print*, 'scalarSWE        ', prog_data%var(iLookPROG%scalarSWE)%dat(:)
+  print*, 'layerType        ', indx_data%var(iLookINDEX%layerType)%dat(:)
   print*,'****************************************************************************************'
   !pause
  endif  ! (if printing states)

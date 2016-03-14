@@ -23,13 +23,13 @@ module allocspace_module
 USE nrtype
 ! number of variables in each data structure
 USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
-USE var_lookup,only:maxvarState,maxvarDiag,maxvarFlux,maxvarDeriv  ! maximum number variables in each data structure
+USE var_lookup,only:maxvarProg,maxvarDiag,maxvarFlux,maxvarDeriv   ! maximum number variables in each data structure
 USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
 USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
 USE var_lookup,only:maxvarDecisions                                ! maximum number of decisions
 ! metadata structures
 USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
-USE data_struc,only:state_meta,diag_meta,flux_meta,deriv_meta      ! metadata structures
+USE data_struc,only:prog_meta,diag_meta,flux_meta,deriv_meta       ! metadata structures
 USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
 USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
 USE data_struc,only:model_decisions                                ! model decision structure
@@ -65,7 +65,7 @@ type(info),parameter,dimension(nStruct) :: structInfo=(/&
                                             info('bpar',  'BPAR' , maxvarBpar ), & ! the basin parameter data structure
                                             info('bvar',  'BVAR' , maxvarBvar ), & ! the basin variable data structure
                                             info('indx',  'INDEX', maxvarIndx ), & ! the model index data structure
-                                            info('state', 'STATE', maxvarState), & ! the state variable data structure
+                                            info('prog',  'PROG',  maxvarProg),  & ! the prognostic (state) variable data structure
                                             info('diag',  'DIAG' , maxvarDiag ), & ! the diagnostic variable data structure
                                             info('flux',  'FLUX' , maxvarFlux ), & ! the flux data structure
                                             info('deriv', 'DERIV', maxvarDeriv) /) ! the model derivative data structure
@@ -94,14 +94,14 @@ contains
  if (allocated(bpar_meta))  deallocate(bpar_meta)   ! 7
  if (allocated(bvar_meta))  deallocate(bvar_meta)   ! 8
  if (allocated(indx_meta))  deallocate(indx_meta)   ! 9
- if (allocated(state_meta)) deallocate(state_meta)  ! 10
+ if (allocated(prog_meta))  deallocate(prog_meta)  ! 10
  if (allocated(diag_meta))  deallocate(diag_meta)   ! 11
  if (allocated(flux_meta))  deallocate(flux_meta)   ! 12
  if (allocated(deriv_meta)) deallocate(deriv_meta)  ! 13
 
  ! allocate metadata structures
  allocate(time_meta(maxvarTime),forc_meta(maxvarForc),attr_meta(maxvarAttr),type_meta(maxvarType),&
-          state_meta(maxvarState),diag_meta(maxvarDiag),flux_meta(maxvarFlux),deriv_meta(maxvarDeriv),&
+          prog_meta(maxvarProg),diag_meta(maxvarDiag),flux_meta(maxvarFlux),deriv_meta(maxvarDeriv),&
           mpar_meta(maxvarMpar),mvar_meta(maxvarMvar),indx_meta(maxvarIndx),&
           bpar_meta(maxvarBpar),bvar_meta(maxvarBvar),stat=err)
  if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
@@ -151,6 +151,10 @@ contains
                        mparStruct, &    ! model parameters
                        mvarStruct, &    ! model variables
                        indxStruct, &    ! model indices
+                       progStruct, &    ! model prognostic (state) variables
+                       diagStruct, &    ! model diagnostic variables
+                       fluxStruct, &    ! model fluxes
+                       derivStruct,&    ! model derivatives
                        bparStruct, &    ! basin-average parameters
                        bvarStruct, &    ! basin-average variables
                        ! output: error control
@@ -179,6 +183,10 @@ contains
  type(spatial_double),    intent(out)  :: mparStruct    ! model parameters
  type(spatial_doubleVec), intent(out)  :: mvarStruct    ! model variables
  type(spatial_intVec),    intent(out)  :: indxStruct    ! model indices
+ type(spatial_doubleVec), intent(out)  :: progStruct    ! model prognostic (state) variables
+ type(spatial_doubleVec), intent(out)  :: diagStruct    ! model diagnostic variables
+ type(spatial_doubleVec), intent(out)  :: fluxStruct    ! model fluxes
+ type(var_dlength),       intent(out)  :: derivStruct   ! model derivatives
  type(var_d),             intent(out)  :: bparStruct    ! basin-average parameters
  type(var_dlength),       intent(out)  :: bvarStruct    ! basin-average variables
  ! output: error control
@@ -203,7 +211,7 @@ contains
   check=.false. ! initialize check
   ! allocate spatial dimension
   select case(trim(structInfo(iStruct)%structName))
-   case('time'); ! do nothing for time: no spatial dimension 
+   case('time'); cycle   ! do nothing: no spatial dimension 
    case('forc'); if(allocated(forcStruct%hru))then; check=.true.; else; allocate(forcStruct%hru(nHRU),stat=err); endif
    case('attr'); if(allocated(attrStruct%hru))then; check=.true.; else; allocate(attrStruct%hru(nHRU),stat=err); endif 
    case('type'); if(allocated(typeStruct%hru))then; check=.true.; else; allocate(typeStruct%hru(nHRU),stat=err); endif 
@@ -211,12 +219,12 @@ contains
    case('mpar'); if(allocated(mparStruct%hru))then; check=.true.; else; allocate(mparStruct%hru(nHRU),stat=err); endif
    case('mvar'); if(allocated(mvarStruct%hru))then; check=.true.; else; allocate(mvarStruct%hru(nHRU),stat=err); endif
    case('indx'); if(allocated(indxStruct%hru))then; check=.true.; else; allocate(indxStruct%hru(nHRU),stat=err); endif
-   case('bpar'); ! do nothing for basin-average parameters: no spatial dimension 
-   case('bvar'); ! do nothing for basin-average variables: no spatial dimension
-   case('state');! do nothing -- ADD LATER
-   case('diag'); ! do nothing -- Likely will not define at the top level
-   case('flux'); ! do nothing -- Likely will not define at the top level
-   case('deriv');! do nothing -- Likely will not define at the top level
+   case('prog'); if(allocated(progStruct%hru))then; check=.true.; else; allocate(progStruct%hru(nHRU),stat=err); endif
+   case('diag'); if(allocated(diagStruct%hru))then; check=.true.; else; allocate(diagStruct%hru(nHRU),stat=err); endif 
+   case('flux'); if(allocated(fluxStruct%hru))then; check=.true.; else; allocate(fluxStruct%hru(nHRU),stat=err); endif
+   case('deriv');cycle   ! do nothing: no spatial dimension
+   case('bpar'); cycle   ! do nothing: no spatial dimension 
+   case('bvar'); cycle   ! do nothing: no spatial dimension
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   ! check errors
@@ -233,7 +241,7 @@ contains
    check=.false. ! initialize check
    ! cycle for variables without a HRU dimension
    select case(trim(structInfo(iStruct)%structName))
-    case('time','bpar','bvar'); if(iHRU>1) cycle
+    case('time','deriv','bpar','bvar'); if(iHRU>1) cycle
    end select
    ! allocate variable dimension
    select case(trim(structInfo(iStruct)%structName))
@@ -245,12 +253,12 @@ contains
     case('mpar'); if(allocated(mparStruct%hru(iHRU)%var))then; check=.true.; else; allocate(mparStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
     case('mvar'); if(allocated(mvarStruct%hru(iHRU)%var))then; check=.true.; else; allocate(mvarStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
     case('indx'); if(allocated(indxStruct%hru(iHRU)%var))then; check=.true.; else; allocate(indxStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('prog'); if(allocated(progStruct%hru(iHRU)%var))then; check=.true.; else; allocate(progStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif 
+    case('diag'); if(allocated(diagStruct%hru(iHRU)%var))then; check=.true.; else; allocate(diagStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('flux'); if(allocated(fluxStruct%hru(iHRU)%var))then; check=.true.; else; allocate(fluxStruct%hru(iHRU)%var(structInfo(iStruct)%nVar),stat=err); endif
+    case('deriv');if(allocated(derivStruct%var)         )then; check=.true.; else; allocate(derivStruct%var(structInfo(iStruct)%nVar),stat=err); endif
     case('bpar'); if(allocated(bparStruct%var)          )then; check=.true.; else; allocate(bparStruct%var(structInfo(iStruct)%nVar),stat=err); endif 
     case('bvar'); if(allocated(bvarStruct%var)          )then; check=.true.; else; allocate(bvarStruct%var(structInfo(iStruct)%nVar),stat=err); endif
-    case('state');! do nothing -- ADD LATER
-    case('diag'); ! do nothing -- Likely will not define at the top level
-    case('flux'); ! do nothing -- Likely will not define at the top level
-    case('deriv');! do nothing -- Likely will not define at the top level
     case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
    end select
    ! check errors
@@ -268,6 +276,10 @@ contains
    ! get the number of layers in the snow+soil sub-domain
    nLayers = nSnow(iHRU) + nSoil(iHRU)
    if(trim(structInfo(iStruct)%structName)=='bvar' .and. iHRU>1) cycle
+   ! cycle for variables without a HRU dimension
+   select case(trim(structInfo(iStruct)%structName))
+    case('deriv','bvar'); if(iHRU>1) cycle
+   end select
    ! allocate data dimension
    select case(trim(structInfo(iStruct)%structName))
     case('time'); cycle  ! do nothing: no data dimension 
@@ -276,14 +288,14 @@ contains
     case('type'); cycle  ! do nothing: no data dimension
     case('dpar'); cycle  ! do nothing: no data dimension
     case('mpar'); cycle  ! do nothing: no data dimension
-    case('mvar'); call allocateDat_dp( mvar_meta,nSnow(iHRU),nSoil(iHRU),nLayers,mvarStruct%hru(iHRU),err,cmessage)
-    case('indx'); call allocateDat_int(indx_meta,nSnow(iHRU),nSoil(iHRU),nLayers,indxStruct%hru(iHRU),err,cmessage)
+    case('mvar'); call allocateDat_dp( mvar_meta, nSnow(iHRU),nSoil(iHRU),nLayers,mvarStruct%hru(iHRU),err,cmessage)
+    case('indx'); call allocateDat_int(indx_meta, nSnow(iHRU),nSoil(iHRU),nLayers,indxStruct%hru(iHRU),err,cmessage)
+    case('prog'); call allocateDat_dp( prog_meta, nSnow(iHRU),nSoil(iHRU),nLayers,progStruct%hru(iHRU),err,cmessage) 
+    case('diag'); call allocateDat_dp( diag_meta, nSnow(iHRU),nSoil(iHRU),nLayers,diagStruct%hru(iHRU),err,cmessage)  ! NOTE: no HRU dimension
+    case('flux'); call allocateDat_dp( flux_meta, nSnow(iHRU),nSoil(iHRU),nLayers,fluxStruct%hru(iHRU),err,cmessage)  ! NOTE: no HRU dimension
+    case('deriv');call allocateDat_dp( deriv_meta,nSnow(iHRU),nSoil(iHRU),nLayers,derivStruct,err,cmessage) ! NOTE: no HRU dimension
     case('bpar'); cycle  ! do nothing: no data dimension 
-    case('bvar'); call allocateDat_dp( bvar_meta,nSnow(iHRU),nSoil(iHRU),nLayers,bvarStruct,err,cmessage)  ! NOTE: no HRU dimension
-    case('state');cycle  ! do nothing -- ADD LATER
-    case('diag'); cycle  ! do nothing -- Likely will not define at the top level
-    case('flux'); cycle  ! do nothing -- Likely will not define at the top level
-    case('deriv');cycle  ! do nothing -- Likely will not define at the top level
+    case('bvar'); call allocateDat_dp( bvar_meta,nSnow(iHRU),nSoil(iHRU),nLayers,bvarStruct,err,cmessage)   ! NOTE: no HRU dimension
     case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
    end select
    ! check errors

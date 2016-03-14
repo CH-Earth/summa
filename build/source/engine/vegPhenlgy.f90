@@ -53,7 +53,8 @@ contains
                        type_data,                   & ! intent(in):    type of vegetation and soil
                        attr_data,                   & ! intent(in):    spatial attributes
                        mpar_data,                   & ! intent(in):    model parameters
-                       mvar_data,                   & ! intent(inout): model variables for a local HRU
+                       prog_data,                   & ! intent(in):    prognostic variables for a local HRU
+                       diag_data,                   & ! intent(inout): diagnostic variables for a local HRU
                        ! output
                        computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                        canopyDepth,                 & ! intent(out): canopy depth (m)
@@ -67,7 +68,7 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookBVAR,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! modules
  USE NOAHMP_ROUTINES,only:phenology         ! determine vegetation phenology
@@ -82,7 +83,8 @@ contains
  type(var_i),intent(in)          :: type_data           ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data           ! spatial attributes
  type(var_d),intent(in)          :: mpar_data           ! model parameters
- type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: prog_data           ! prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data           ! diagnostic variables for a local HRU
  ! output
  logical(lgt),intent(out)        :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(dp),intent(out)            :: canopyDepth         ! canopy depth (m)
@@ -107,21 +109,23 @@ contains
  vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                     & ! intent(in): [i4b] vegetation type index
  latitude                        => attr_data%var(iLookATTR%latitude),                         & ! intent(in): [dp] latitude
 
+ ! model state variables
+ scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! intent(in):    [dp] snow depth on the ground surface (m)
+ scalarCanopyTemp                => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
+
  ! diagnostic variables and parameters (input)
- scalarSnowDepth                 => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),           & ! intent(in):    [dp] snow depth on the ground surface (m)
- scalarCanopyTemp                => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
- scalarRootZoneTemp              => mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1),        & ! intent(in):    [dp] root zone temperature (K)
+ scalarRootZoneTemp              => diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1),        & ! intent(in):    [dp] root zone temperature (K)
  heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop),                 & ! intent(in):    [dp] height of the top of the canopy layer (m)
  heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom),              & ! intent(in):    [dp] height of the bottom of the canopy layer (m)
 
  ! diagnostic variables and parameters (input/output)
- scalarLAI                       => mvar_data%var(iLookMVAR%scalarLAI)%dat(1),                 & ! intent(inout): [dp] one-sided leaf area index (m2 m-2)
- scalarSAI                       => mvar_data%var(iLookMVAR%scalarSAI)%dat(1),                 & ! intent(inout): [dp] one-sided stem area index (m2 m-2)
+ scalarLAI                       => diag_data%var(iLookDIAG%scalarLAI)%dat(1),                 & ! intent(inout): [dp] one-sided leaf area index (m2 m-2)
+ scalarSAI                       => diag_data%var(iLookDIAG%scalarSAI)%dat(1),                 & ! intent(inout): [dp] one-sided stem area index (m2 m-2)
 
  ! diagnostic variables and parameters (output)
- scalarExposedLAI                => mvar_data%var(iLookMVAR%scalarExposedLAI)%dat(1),          & ! intent(out): [dp] exposed leaf area index after burial by snow (m2 m-2)
- scalarExposedSAI                => mvar_data%var(iLookMVAR%scalarExposedSAI)%dat(1),          & ! intent(out): [dp] exposed stem area index after burial by snow (m2 m-2)
- scalarGrowingSeasonIndex        => mvar_data%var(iLookMVAR%scalarGrowingSeasonIndex)%dat(1)   & ! intent(out): [dp] growing season index (0=off, 1=on)
+ scalarExposedLAI                => diag_data%var(iLookDIAG%scalarExposedLAI)%dat(1),          & ! intent(out): [dp] exposed leaf area index after burial by snow (m2 m-2)
+ scalarExposedSAI                => diag_data%var(iLookDIAG%scalarExposedSAI)%dat(1),          & ! intent(out): [dp] exposed stem area index after burial by snow (m2 m-2)
+ scalarGrowingSeasonIndex        => diag_data%var(iLookDIAG%scalarGrowingSeasonIndex)%dat(1)   & ! intent(out): [dp] growing season index (0=off, 1=on)
 
  ) ! associate variables in data structure
  ! ----------------------------------------------------------------------------------------------------------------------------------

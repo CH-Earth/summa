@@ -46,7 +46,9 @@ contains
                        model_decisions,             & ! intent(in):    model decisions
                        forc_data,                   & ! intent(in):    model forcing data
                        mpar_data,                   & ! intent(in):    model parameters
-                       mvar_data,                   & ! intent(inout): model variables for a local HRU
+                       diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
+                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                       flux_data,                   & ! intent(inout): model flux variables
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
@@ -57,7 +59,7 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX,iLookBVAR,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  implicit none
  ! ------------------------------------------------------------------------------------------------
@@ -69,7 +71,9 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: forc_data           ! model forcing data
  type(var_d),intent(in)          :: mpar_data           ! model parameters
- type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: diag_data           ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data           ! model flux variables
  ! output: error control
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
@@ -107,18 +111,19 @@ contains
  ratioDrip2Unloading       => mpar_data%var(iLookPARAM%ratioDrip2Unloading),               & ! intent(in): [dp] ratio of canopy drip to snow unloading (-)
  snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff),                & ! intent(in): [dp] time constant for unloading of snow from the forest canopy (s-1)
 
- ! model variables (input)
- scalarSnowfall            => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
- scalarNewSnowDensity      => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),        & ! intent(in): [dp] density of new snow (kg m-3)
- scalarCanopyLiqDrainage   => mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
+ ! model diagnostic variables
+ scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),        & ! intent(in): [dp] density of new snow (kg m-3)
 
- ! model variables (input/output)
- scalarCanopyIce           => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
+ ! model prognostic variables (input/output)
+ scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
+
+ ! model fluxes (input)
+ scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
+ scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
 
  ! model variables (output)
- scalarThroughfallSnow     => mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),       & ! intent(out): [dp] snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
- scalarCanopySnowUnloading => mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1)    & ! intent(out): [dp] unloading of snow from the vegetion canopy (kg m-2 s-1)
-
+ scalarThroughfallSnow     => flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),       & ! intent(out): [dp] snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ scalarCanopySnowUnloading => flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)    & ! intent(out): [dp] unloading of snow from the vegetion canopy (kg m-2 s-1)
 
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------

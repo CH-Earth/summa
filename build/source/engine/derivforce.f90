@@ -29,14 +29,14 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(time_data,forc_data,attr_data,mpar_data,mvar_data,err,message)
+ subroutine derivforce(time_data,forc_data,attr_data,mpar_data,diag_data,flux_data,err,message)
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
  USE multiconst,only:secprhour                               ! number of seconds in an hour
  USE multiconst,only:minprhour                               ! number of minutes in an hour
  USE data_struc,only:data_step                               ! length of the data step (s)
  USE data_struc,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
  USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
- USE var_lookup,only:iLookPARAM,iLookFORCE,iLookMVAR         ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookFORCE,iLookDIAG,iLookFLUX  ! named variables for structure elements
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions
@@ -49,7 +49,8 @@ contains
  real(dp),    intent(in)         :: attr_data(:)             ! vector of model attributes
  real(dp),    intent(in)         :: mpar_data(:)             ! vector of model parameters
  ! output variables
- type(var_dlength),intent(inout) :: mvar_data                ! data structure of model variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data                ! data structure of model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                ! data structure of model fluxes for a local HRU
  integer(i4b),intent(out)        :: err                      ! error code
  character(*),intent(out)        :: message                  ! error message
  ! variables for cosine of the solar zenith angle
@@ -89,7 +90,7 @@ contains
  ih                      => time_data(iLookTIME%ih)                               , & ! hour
  imin                    => time_data(iLookTIME%imin)                             , & ! minute
  latitude                => attr_data(iLookATTR%latitude)                         , & ! latitude (degrees north)
- cosZenith               => mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
+ cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
  ! model forcing data
  SWRadAtm                => forc_data(iLookFORCE%SWRadAtm)                        , & ! downward shortwave radiation (W m-2)
  airtemp                 => forc_data(iLookFORCE%airtemp)                         , & ! air temperature at 2 meter height (K)
@@ -98,19 +99,19 @@ contains
  spechum                 => forc_data(iLookFORCE%spechum)                         , & ! specific humidity at 2 meter height (g g-1)
  pptrate                 => forc_data(iLookFORCE%pptrate)                         , & ! precipitation rate (kg m-2 s-1)
  ! derived model forcing data
- scalarO2air             => mvar_data%var(iLookMVAR%scalarO2air)%dat(1)           , & ! atmospheric o2 concentration (Pa)
- scalarCO2air            => mvar_data%var(iLookMVAR%scalarCO2air)%dat(1)          , & ! atmospheric co2 concentration (Pa)
+ scalarO2air             => diag_data%var(iLookDIAG%scalarO2air)%dat(1)           , & ! atmospheric o2 concentration (Pa)
+ scalarCO2air            => diag_data%var(iLookDIAG%scalarCO2air)%dat(1)          , & ! atmospheric co2 concentration (Pa)
  ! radiation variables
- scalarFractionDirect    => mvar_data%var(iLookMVAR%scalarFractionDirect)%dat(1)  , & ! fraction of direct radiation (0-1)
- spectralIncomingDirect  => mvar_data%var(iLookMVAR%spectralIncomingDirect)%dat   , & ! downwelling direct shortwave radiation for each waveband (W m-2)
- spectralIncomingDiffuse => mvar_data%var(iLookMVAR%spectralIncomingDiffuse)%dat  , & ! downwelling diffuse shortwave radiation for each waveband (W m-2)
+ scalarFractionDirect    => diag_data%var(iLookDIAG%scalarFractionDirect)%dat(1)  , & ! fraction of direct radiation (0-1)
+ spectralIncomingDirect  => flux_data%var(iLookFLUX%spectralIncomingDirect)%dat   , & ! downwelling direct shortwave radiation for each waveband (W m-2)
+ spectralIncomingDiffuse => flux_data%var(iLookFLUX%spectralIncomingDiffuse)%dat  , & ! downwelling diffuse shortwave radiation for each waveband (W m-2)
  ! snow accumulation variables
- VPair                   => mvar_data%var(iLookMVAR%scalarVPair)%dat(1)           , & ! vapor pressure of the air above the vegetation canopy (Pa)
- twetbulb                => mvar_data%var(iLookMVAR%scalarTwetbulb)%dat(1)        , & ! wet bulb temperature (K)
- rainfall                => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)        , & ! computed rainfall rate (kg m-2 s-1)
- snowfall                => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)        , & ! computed snowfall rate (kg m-2 s-1)
- snowfallTemp            => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1)    , & ! computed temperature of fresh snow (K)
- newSnowDensity          => mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1)    & ! computed density of new snow (kg m-3)
+ rainfall                => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)        , & ! computed rainfall rate (kg m-2 s-1)
+ snowfall                => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1)        , & ! computed snowfall rate (kg m-2 s-1)
+ VPair                   => diag_data%var(iLookDIAG%scalarVPair)%dat(1)           , & ! vapor pressure of the air above the vegetation canopy (Pa)
+ twetbulb                => diag_data%var(iLookDIAG%scalarTwetbulb)%dat(1)        , & ! wet bulb temperature (K)
+ snowfallTemp            => diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1)    , & ! computed temperature of fresh snow (K)
+ newSnowDensity          => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1)    & ! computed density of new snow (kg m-3)
  ) ! (associating local variables with the information in the data structures)
 
  ! initialize error control

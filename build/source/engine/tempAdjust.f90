@@ -42,7 +42,8 @@ contains
                        canopyDepth,                 & ! intent(in): canopy depth (m)
                        ! input/output: data structures
                        mpar_data,                   & ! intent(in):    model parameters
-                       mvar_data,                   & ! intent(inout): model variables for a local HRU
+                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                       diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
@@ -51,7 +52,7 @@ contains
                      var_d,              & ! data vector (dp)
                      var_dlength           ! data vector with variable length dimension (dp)
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookMVAR  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG  ! named variables for structure elements
  ! utility routines
  USE snow_utils_module,only:fracliquid     ! compute fraction of liquid water
  USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
@@ -61,7 +62,8 @@ contains
  real(dp),intent(in)             :: canopyDepth         ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_d),intent(in)          :: mpar_data           ! model parameters
- type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
+ type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(out)   :: diag_data           ! model diagnostic variables for a local HRU
  ! output: error control
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
@@ -92,12 +94,12 @@ contains
  maxMassVegetation         => mpar_data%var(iLookPARAM%maxMassVegetation),                 & ! intent(in): [dp] maximum mass of vegetation (full foliage) (kg m-2)
 
  ! state variables (input/output)
- scalarCanopyLiq           => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),             & ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
- scalarCanopyIce           => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyTemp          => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),            & ! intent(inout): [dp] temperature of the vegetation canopy (K)
+ scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),             & ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),            & ! intent(inout): [dp] temperature of the vegetation canopy (K)
 
  ! diagnostic variables (output)
- scalarBulkVolHeatCapVeg   => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)      & ! intent(out): [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
+ scalarBulkVolHeatCapVeg   => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)      & ! intent(out): [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
 
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------

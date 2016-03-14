@@ -530,21 +530,23 @@ MODULE var_lookup
 
 
  ! ***********************************************************************************************************
- ! (6) define model state variables
+ ! (6) define model prognostic (state) variables
  ! ***********************************************************************************************************
- type, public :: iLook_state
+ type, public :: iLook_prog
+  ! define variables for time stepping
+  integer(i4b)    :: dt_init                          ! length of initial time step at start of next data interval (s)
   ! define state variables for vegetation
   integer(i4b)    :: scalarCanopyIce                  ! mass of ice on the vegetation canopy (kg m-2)
   integer(i4b)    :: scalarCanopyLiq                  ! mass of liquid water on the vegetation canopy (kg m-2)
   integer(i4b)    :: scalarCanairTemp                 ! temperature of the canopy air space (Pa)
   integer(i4b)    :: scalarCanopyTemp                 ! temperature of the vegetation canopy (K)
   ! define state variables for snow
+  integer(i4b)    :: spectralSnowAlbedoDiffuse        ! diffuse snow albedo for individual spectral bands (-)
   integer(i4b)    :: scalarSnowAlbedo                 ! snow albedo for the entire spectral band (-)
   integer(i4b)    :: scalarSnowDepth                  ! total snow depth (m)
   integer(i4b)    :: scalarSWE                        ! snow water equivalent (kg m-2)
   integer(i4b)    :: scalarSfcMeltPond                ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   ! define state variables for the snow+soil domain
-  integer(i4b)    :: mLayerDepth                      ! depth of each layer (m)
   integer(i4b)    :: mLayerTemp                       ! temperature of each layer (K)
   integer(i4b)    :: mLayerVolFracIce                 ! volumetric fraction of ice water in each layer (-)
   integer(i4b)    :: mLayerVolFracLiq                 ! volumetric fraction of liquid water in each layer (-)
@@ -552,15 +554,16 @@ MODULE var_lookup
   ! define other state variables
   integer(i4b)    :: scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
   integer(i4b)    :: scalarSurfaceTemp                ! surface temperature (K)
- endtype iLook_state
+  ! define coordinate variables
+  integer(i4b)    :: mLayerDepth                      ! depth of each layer (m)
+  integer(i4b)    :: mLayerHeight                     ! height at the mid-point of each layer (m)
+  integer(i4b)    :: iLayerHeight                     ! height of the layer interface; top of soil = 0 (m)
+ endtype iLook_prog
 
  ! ***********************************************************************************************************
  ! (7) define diagnostic variables
  ! ***********************************************************************************************************
  type, public :: iLook_diag
-  ! layer geometry
-  integer(i4b)    :: iLayerHeight                     ! height of the layer interface; top of soil = 0 (m)
-  integer(i4b)    :: mLayerHeight                     ! height at the mid-point of each layer (m)
   ! local properties
   integer(i4b)    :: scalarGreenVegFraction           ! green vegetation fraction used to compute LAI (-)
   integer(i4b)    :: scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
@@ -578,6 +581,10 @@ MODULE var_lookup
   integer(i4b)    :: scalarVolHtCap_soil              ! volumetric heat capacity dry soil (J m-3 K-1)
   integer(i4b)    :: scalarVolHtCap_water             ! volumetric heat capacity liquid wat (J m-3 K-1)
   integer(i4b)    :: mLayerVolHtCapBulk               ! volumetric heat capacity in each layer (J m-3 K-1)
+  integer(i4b)    :: scalarLambda_drysoil             ! thermal conductivity of dry soil     (W m-1 K-1)
+  integer(i4b)    :: scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1 K-1)
+  integer(i4b)    :: mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
+  integer(i4b)    :: iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! forcing
   integer(i4b)    :: scalarVPair                      ! vapor pressure of the air above the vegetation canopy (Pa)
   integer(i4b)    :: scalarVP_CanopyAir               ! vapor pressure of the canopy air space (Pa)
@@ -624,7 +631,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarSnowAge                    ! non-dimensional snow age (-)
   integer(i4b)    :: scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   integer(i4b)    :: spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
-  integer(i4b)    :: spectralSnowAlbedoDiffuse        ! diffuse snow albedo for individual spectral bands (-)
   integer(i4b)    :: scalarFracLiqSnow                ! fraction of liquid water in each snow layer (-)
   integer(i4b)    :: mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   integer(i4b)    :: mLayerPoreSpace                  ! total pore space in each snow layer (-)
@@ -719,10 +725,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyLiqDrainage          ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
   integer(i4b)    :: scalarCanopyMeltFreeze           ! melt/freeze of water stored in the canopy (kg m-2 s-1)
   ! energy fluxes and for the snow and soil domains
-  integer(i4b)    :: scalarLambda_drysoil             ! thermal conductivity of dry soil     (W m-1 K-1)
-  integer(i4b)    :: scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1 K-1)
-  integer(i4b)    :: mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
-  integer(i4b)    :: iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerConductiveFlux             ! conductive energy flux at layer interfaces (W m-2)
   integer(i4b)    :: iLayerAdvectiveFlux              ! advective energy flux at layer interfaces (W m-2)
   integer(i4b)    :: iLayerNrgFlux                    ! energy flux at layer interfaces (W m-2)
@@ -737,6 +739,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarSurfaceRunoff              ! surface runoff (m s-1)
   integer(i4b)    :: mLayerSatHydCondMP               ! saturated hydraulic conductivity of macropores in each layer (m s-1)
   integer(i4b)    :: mLayerSatHydCond                 ! saturated hydraulic conductivity in each layer (m s-1)
+  integer(i4b)    :: iLayerSatHydCond                 ! saturated hydraulic conductivity at each layer interface (m s-1)
   integer(i4b)    :: mLayerHydCond                    ! hydraulic conductivity in each soil layer (m s-1)
   integer(i4b)    :: iLayerLiqFluxSoil                ! liquid flux at soil layer interfaces (m s-1)
   integer(i4b)    :: mLayerLiqFluxSoil                ! net liquid water flux for each soil layer (s-1)
@@ -922,9 +925,9 @@ MODULE var_lookup
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147)
 
- ! named variables: model state variables
- type(iLook_state),   public,parameter :: iLookSTATE    =iLook_state   ( 1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13, 14, 15)
+ ! named variables: model prognostic (state) variables
+ type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -933,7 +936,7 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72, 73, 74, 75, 76)
+                                                                         71, 72, 73, 74, 75, 76, 77)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -943,7 +946,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86, 87)
+                                                                         81, 82, 83, 84)
 
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -993,7 +996,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarAttr      = storage_size(iLookATTR)/iLength
  integer(i4b),parameter,public :: maxvarType      = storage_size(iLookTYPE)/iLength
  integer(i4b),parameter,public :: maxvarMpar      = storage_size(iLookPARAM)/iLength
- integer(i4b),parameter,public :: maxvarState     = storage_size(iLookState)/iLength
+ integer(i4b),parameter,public :: maxvarProg      = storage_size(iLookPROG)/iLength
  integer(i4b),parameter,public :: maxvarDiag      = storage_size(iLookDIAG)/iLength
  integer(i4b),parameter,public :: maxvarFlux      = storage_size(iLookFLUX)/iLength
  integer(i4b),parameter,public :: maxvarDeriv     = storage_size(iLookDERIV)/iLength

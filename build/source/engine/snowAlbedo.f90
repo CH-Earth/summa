@@ -58,7 +58,9 @@ contains
                        ! input/output: data structures
                        model_decisions,                       & ! intent(in):    model decisions
                        mpar_data,                             & ! intent(in):    model parameters
-                       mvar_data,                             & ! intent(inout): model variables for a local HRU
+                       flux_data,                             & ! intent(in):    model flux variables
+                       diag_data,                             & ! intent(inout): model diagnostic variables for a local HRU
+                       prog_data,                             & ! intent(inout): model prognostic variables for a local HRU
                        ! output: error control
                        err,message)                             ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -69,7 +71,7 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookFLUX,iLookDIAG,iLookPROG,iLookBVAR,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                             ! named variables for elements of the decision structure
  ! provide access to desired modules
  USE snow_utils_module,only:fracliquid                          ! compute fraction of liquid water at a given temperature
@@ -80,7 +82,9 @@ contains
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)          ! model decisions
  type(var_d),intent(in)          :: mpar_data                   ! model parameters
- type(var_dlength),intent(inout) :: mvar_data                   ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: flux_data                   ! model flux variables
+ type(var_dlength),intent(inout) :: diag_data                   ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: prog_data                   ! model prognostic variables for a local HRU
  ! output: error control
  integer(i4b),intent(out)        :: err                         ! error code
  character(*),intent(out)        :: message                     ! error message
@@ -121,13 +125,13 @@ contains
  albedoRefresh             => mpar_data%var(iLookPARAM%albedoRefresh),                & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
  snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale),                & ! intent(in): scaling parameter for the freezing curve for snow (K-1)
  ! input: model variables
- surfaceTemp               => mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),             & ! intent(in): surface temperature
- snowfallRate              => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),         & ! intent(in): snowfall rate (kg m-2 s-1)
- cosZenith                 => mvar_data%var(iLookMVAR%scalarCosZenith)%dat(1),        & ! intent(in): cosine of the zenith angle (-)
+ surfaceTemp               => prog_data%var(iLookPROG%mLayerTemp)%dat(1),             & ! intent(in): surface temperature
+ snowfallRate              => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),         & ! intent(in): snowfall rate (kg m-2 s-1)
+ cosZenith                 => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1),        & ! intent(in): cosine of the zenith angle (-)
  ! input/output: model variables
- spectralSnowAlbedoDiffuse => mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat, & ! intent(inout): diffuse snow albedo in each spectral band (-)
- spectralSnowAlbedoDirect  => mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat,  & ! intent(inout): direct snow albedo in each spectral band (-)
- scalarSnowAlbedo          => mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)        & ! intent(inout): snow albedo for the entire spectral band (-)
+ scalarSnowAlbedo          => prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1),       & ! intent(inout): snow albedo for the entire spectral band (-)
+ spectralSnowAlbedoDirect  => diag_data%var(iLookDIAG%spectralSnowAlbedoDirect)%dat,  & ! intent(inout): direct snow albedo in each spectral band (-)
+ spectralSnowAlbedoDiffuse => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat  & ! intent(inout): diffuse snow albedo in each spectral band (-)
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------------
 
