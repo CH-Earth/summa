@@ -113,13 +113,19 @@ contains
  mpar_meta(iLookPARAM%newSnowDenMin)         = var_info('newSnowDenMin'         , 'minimum new snow density'                                         , 'kg m-3'          , 'scalarv', .true.)
  mpar_meta(iLookPARAM%newSnowDenMult)        = var_info('newSnowDenMult'        , 'multiplier for new snow density'                                  , 'kg m-3'          , 'scalarv', .true.)
  mpar_meta(iLookPARAM%newSnowDenScal)        = var_info('newSnowDenScal'        , 'scaling factor for new snow density'                              , 'K'               , 'scalarv', .true.)
- ! snow compaction
+ mpar_meta(iLookPARAM%constSnowDen)          = var_info('constSnowDen'          , 'Constant new snow density'                                        , 'kg m-3'          , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenAdd)         = var_info('newSnowDenAdd'         , 'Pahaut 1976, additive factor for new snow density'                , 'kg m-3'          , 'scalarv', .true.) 
+ mpar_meta(iLookPARAM%newSnowDenMultTemp)    = var_info('newSnowDenMultTemp'    , 'Pahaut 1976, multiplier for new snow density applied to air temperature'              , 'kg m-3 K-1'     , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenMultWind)    = var_info('newSnowDenMultWind'    , 'Pahaut 1976, multiplier for new snow density applied to wind speed'                   , 'kg m-7/2 s-1/2' , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenMultAnd)      = var_info('newSnowDenMultAnd'    , 'Anderson 1976, multiplier for new snow density for Anderson function'                 , 'K-1'            , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenBase)         = var_info('newSnowDenBase'       , 'Anderson 1976, base value that is rasied to the (3/2) power'                          , 'K'              , 'scalarv', .true.)
+ ! snow compaction 
  mpar_meta(iLookPARAM%densScalGrowth)        = var_info('densScalGrowth'        , 'density scaling factor for grain growth'                          , 'kg-1 m3'         , 'scalarv', .true.)
  mpar_meta(iLookPARAM%tempScalGrowth)        = var_info('tempScalGrowth'        , 'temperature scaling factor for grain growth'                      , 'K-1'             , 'scalarv', .true.)
  mpar_meta(iLookPARAM%grainGrowthRate)       = var_info('grainGrowthRate'       , 'rate of grain growth'                                             , 's-1'             , 'scalarv', .true.)
  mpar_meta(iLookPARAM%densScalOvrbdn)        = var_info('densScalOvrbdn'        , 'density scaling factor for overburden pressure'                   , 'kg-1 m3'         , 'scalarv', .true.)
  mpar_meta(iLookPARAM%tempScalOvrbdn)        = var_info('tempScalOvrbdn'        , 'temperature scaling factor for overburden pressure'               , 'K-1'             , 'scalarv', .true.)
- mpar_meta(iLookPARAM%base_visc)             = var_info('base_visc'             , 'viscosity coefficient at T=T_frz and snow density=0'              , 'kg s m-2'        , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%baseViscosity )        = var_info('baseViscosity '         , 'viscosity coefficient at T=T_frz and snow density=0'              , 'kg s m-2'        , 'scalarv', .true.)
  ! water flow through snow
  mpar_meta(iLookPARAM%Fcapil)                = var_info('Fcapil'                , 'capillary retention (fraction of total pore volume)'              , '-'               , 'scalarv', .true.)
  mpar_meta(iLookPARAM%k_snow)                = var_info('k_snow'                , 'hydraulic conductivity of snow'                                   , 'm s-1'           , 'scalarv', .true.)

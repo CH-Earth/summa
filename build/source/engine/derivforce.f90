@@ -20,6 +20,12 @@
 
 module derivforce_module
 USE nrtype
+! look-up values for the choice of snow albedo options
+USE mDecisions_module,only:  &
+ constDens,              &    ! Constant new snow density
+ anderson,               &    ! Anderson 1976
+ hedAndPom,              &    ! Hedstrom and Pomeroy (1998), expoential increase
+ pahaut_76                    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 implicit none
 private
 public::derivforce
@@ -36,8 +42,10 @@ contains
  USE data_struc,only:data_step                               ! length of the data step (s)
  USE data_struc,only:time_data,forc_data                     ! forcing data structures
  USE data_struc,only:attr_data,mpar_data,mvar_data           ! model data structures
+ USE data_struc,only:model_decisions                         ! model decision structure
  USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
  USE var_lookup,only:iLookPARAM,iLookFORCE,iLookMVAR         ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions
@@ -71,6 +79,12 @@ contains
  real(dp),pointer              :: newSnowDenMin              ! minimum new snow density (kg m-3)
  real(dp),pointer              :: newSnowDenMult             ! multiplier for new snow density (kg m-3)
  real(dp),pointer              :: newSnowDenScal             ! scaling factor for new snow density (K)
+ real(dp),pointer              :: constSnowDen               ! Constant new snow density (kg m-3)
+ real(dp),pointer              :: newSnowDenAdd              ! Pahaut 1976, additive factor for new snow density (kg m-3)
+ real(dp),pointer              :: newSnowDenMultTemp         ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
+ real(dp),pointer              :: newSnowDenMultWind         ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
+ real(dp),pointer              :: newSnowDenMultAnd          ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
+ real(dp),pointer              :: newSnowDenBase             ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! local pointers to model forcing data
  real(dp),pointer              :: SWRadAtm                   ! downward shortwave radiation (W m-2)
  real(dp),pointer              :: airtemp                    ! air temperature at 2 meter height (K)
@@ -101,6 +115,11 @@ contains
  real(dp),parameter            :: unfrozenLiq=0.01_dp        ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
  real(dp),parameter            :: eps=epsilon(fracrain)      ! a number that is almost negligible
  real(dp)                      :: Tmin,Tmax                  ! minimum and maximum wet bulb temperature in the time step (K)
+ real(dp),parameter            :: pomNewSnowDenMax=150._dp   ! Upper limit for new snow density limit in Hedstrom and Pomeroy 1998. 150 was used because at was the highest observed density at air temperatures used in this study. See Figure 4 of Hedstrom and Pomeroy (1998).
+ real(dp),parameter            :: andersonWarmDenLimit=2._dp ! Upper air temperature limit in Anderson (1976) new snow density (C)
+ real(dp),parameter            :: andersonColdDenLimit=15._dp! Lower air temperature limit in Anderson (1976) new snow density (C)
+ real(dp),parameter            :: andersonDenScal=1.5_dp     ! Scalar parameter in Anderson (1976) new snow density function (-) 
+ real(dp),parameter            :: pahautDenWindScal=0.5_dp   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  ! initialize error control
  err=0; message="f-derivforce/"
  ! assign pointers to model parameters
@@ -115,6 +134,12 @@ contains
  newSnowDenMin      => mpar_data%var(iLookPARAM%newSnowDenMin)      ! minimum new snow density (kg m-3)
  newSnowDenMult     => mpar_data%var(iLookPARAM%newSnowDenMult)     ! multiplier for new snow density (kg m-3)
  newSnowDenScal     => mpar_data%var(iLookPARAM%newSnowDenScal)     ! scaling factor for new snow density (K)
+ constSnowDen       => mpar_data%var(iLookPARAM%constSnowDen)       ! Constant new snow density (kg m-3)
+ newSnowDenAdd      => mpar_data%var(iLookPARAM%newSnowDenAdd)      ! Pahaut 1976, additive factor for new snow density (kg m-3)
+ newSnowDenMultTemp => mpar_data%var(iLookPARAM%newSnowDenMultTemp) ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
+ newSnowDenMultWind => mpar_data%var(iLookPARAM%newSnowDenMultWind) ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
+ newSnowDenMultAnd  => mpar_data%var(iLookPARAM%newSnowDenMultAnd)  ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
+ newSnowDenBase     => mpar_data%var(iLookPARAM%newSnowDenBase)     ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! assign pointers to radiation geometry variables
  im        => time_data%var(iLookTIME%im)                           ! month
  id        => time_data%var(iLookTIME%id)                           ! day
@@ -232,7 +257,28 @@ contains
 
  ! compute density of new snow
  if(snowfall > tiny(fracrain))then
-  newSnowDensity = newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal)  ! new snow density (kg m-3)
+  ! Determine which method to use 
+  select case(model_decisions(iLookDECISIONS%snowDenNew)%iDecision)
+   ! Hedstrom and Pomeroy 1998
+   case(hedAndPom) 
+    newSnowDensity = min(pomNewSnowDenMax,newSnowDenMin + newSnowDenMult*exp((airtemp-Tfreeze)/newSnowDenScal))  ! new snow density (kg m-3)
+   ! Pahaut 1976 (Boone et al. 2002)
+   case(pahaut_76)
+    newSnowDensity = max(newSnowDenMin,newSnowDenAdd + (newSnowDenMultTemp * (airtemp-Tfreeze))+(newSnowDenMultWind*((windspd)**pahautDenWindScal))); ! new snow density (kg m-3)
+   ! Anderson 1976 
+   case(anderson) 
+    if(airtemp>(Tfreeze+andersonWarmDenLimit))then
+     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
+    elseif(airtemp<=(Tfreeze-andersonColdDenLimit))then
+     newSnowDensity = newSnowDenMin ! new snow density (kg m-3)
+    else
+     newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(airtemp-Tfreeze+newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
+    endif
+   ! Constant new snow density
+   case(constDens) 
+    newSnowDensity = constSnowDen; ! new snow density (kg m-3)
+   case default; message=trim(message)//'unable to identify option for new snow density'; err=20; return
+  end select ! identifying option for new snow density
  else
   newSnowDensity = valueMissing
   rainfall = rainfall + snowfall ! in most cases snowfall will be zero here
