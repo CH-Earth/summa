@@ -31,8 +31,8 @@ USE module_sf_noahmplsm,only:redprm                         ! module to assign m
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
 USE ascii_util_module,only:split_line                       ! extract the list of variable names from the character string
-USE allocspace_module,only:init_metad                       ! module to allocate space for metadata structures
 USE allocspace_module,only:initStruct                       ! module to allocate space for data structures
+USE allocspace_module,only:allocLocal                       ! module to allocate space for data structures
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
 USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
 USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
@@ -65,20 +65,25 @@ USE summaFileManager,only:MODEL_INITCOND                    ! name of model init
 USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of file containing information on local attributes
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
-USE data_struc,only:doJacobian                              ! flag to compute the Jacobian
-USE data_struc,only:localParFallback                        ! local column default parameters
-USE data_struc,only:basinParFallback                        ! basin-average default parameters
-USE data_struc,only:mpar_meta,bpar_meta                     ! metadata for local column and basin-average model parameters
-USE data_struc,only:numtim                                  ! number of time steps
-USE data_struc,only:model_decisions                         ! model decisions
-USE data_struc,only:urbanVegCategory                        ! vegetation category for urban areas
-USE data_struc,only:globalPrintFlag                         ! global print flag
-USE data_struc,only:forcFileInfo                            ! forcing file info
+USE globalData,only:refTime                                 ! reference time
+USE globalData,only:startTime                               ! start time
+USE globalData,only:finshTime                               ! end time
+USE globalData,only:doJacobian                              ! flag to compute the Jacobian
+USE globalData,only:localParFallback                        ! local column default parameters
+USE globalData,only:basinParFallback                        ! basin-average default parameters
+USE globalData,only:time_meta                               ! metadata for time information 
+USE globalData,only:mpar_meta,bpar_meta                     ! metadata for local column and basin-average model parameters
+USE globalData,only:indx_meta,prog_meta,diag_meta,flux_meta ! metadata for local column variables
+USE globalData,only:numtim                                  ! number of time steps
+USE globalData,only:model_decisions                         ! model decisions
+USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
+USE globalData,only:globalPrintFlag                         ! global print flag
+USE globalData,only:forcFileInfo                            ! forcing file info
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
 USE noahmp_globals,only:RSMIN                               ! minimum stomatal resistance (vegType)
 ! provide access to the derived types to define the data structures
-USE data_struc,only:&
+USE data_types,only:&
                     var_i,               & ! x%var(:)            (i4b)
                     var_d,               & ! x%var(:)            (dp)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
@@ -91,7 +96,6 @@ USE data_struc,only:&
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
-USE var_lookup,only:iLookMVAR                               ! look-up values for local column model variables
 USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
 USE var_lookup,only:iLookINDEX                              ! look-up values for local column index variables
 USE var_lookup,only:iLookPROG                               ! look-up values for local column model prognostic (state) variables
@@ -121,7 +125,6 @@ type(spatial_double)      :: forcStruct    ! x%hru(:)%var(:)     -- model forcin
 type(spatial_double)      :: attrStruct    ! x%hru(:)%var(:)     -- local attributes for each HRU
 type(spatial_int)         :: typeStruct    ! x%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
 type(spatial_double)      :: mparStruct    ! x%hru(:)%var(:)     -- model parameters
-type(spatial_doubleVec)   :: mvarStruct    ! x%hru(:)%var(:)%dat -- model variables
 type(spatial_intVec)      :: indxStruct    ! x%hru(:)%var(:)%dat -- model indices
 
 type(spatial_doubleVec)   :: progStruct    ! x%hru(:)%var(:)%dat -- model prognostic (state) variables
@@ -204,11 +207,14 @@ call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(e
 ! initialize the Jacobian flag
 doJacobian=.false.
 
+! allocate time structures
+call allocLocal(time_meta, refTime,   err=err, message=message); call handle_err(err,message)  ! reference time for the model simulation
+call allocLocal(time_meta, startTime, err=err, message=message); call handle_err(err,message)  ! start time for the model simulation 
+call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err(err,message)  ! end time for the model simulation
+
 ! *****************************************************************************
-! (2) read model metadata
+! (2) populate/check metadata structures
 ! *****************************************************************************
-! initialize model metadata structures
-call init_metad(err,message); call handle_err(err,message)
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
 ! check data structures
@@ -278,7 +284,6 @@ call initStruct(&
                 typeStruct, &    ! local classification of soil veg etc. for each HRU
                 dparStruct, &    ! default model parameters
                 mparStruct, &    ! model parameters
-                mvarStruct, &    ! model variables
                 indxStruct, &    ! model indices
                 progStruct, &    ! model prognostic (state) variables
                 diagStruct, &    ! model diagnostic variables
@@ -660,7 +665,6 @@ do istep=1,numtim
                   progStruct%hru(iHRU), & ! intent(inout): model prognostic variables for a local HRU
                   diagStruct%hru(iHRU), & ! intent(inout): model diagnostic variables for a local HRU
                   fluxStruct%hru(iHRU), & ! intent(inout): model fluxes for a local HRU
-                  mvarStruct%hru(iHRU), & ! intent(inout): model variables for a local HRU
                   ! error control
                   err,message)            ! intent(out): error control
   call handle_err(err,message)
@@ -705,7 +709,10 @@ do istep=1,numtim
   call writeForce(fileout,forcStruct%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
 
   ! write the model output to the NetCDF file
-  call writeModel(fileout,indxStruct%hru(iHRU),mvarStruct%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+  call writeModel(fileout,indxStruct%hru(iHRU),indx_meta,indxStruct%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+  call writeModel(fileout,indxStruct%hru(iHRU),prog_meta,progStruct%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+  call writeModel(fileout,indxStruct%hru(iHRU),diag_meta,diagStruct%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+  call writeModel(fileout,indxStruct%hru(iHRU),flux_meta,fluxStruct%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
   !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
 
   ! increment the model indices

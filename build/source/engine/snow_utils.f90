@@ -83,7 +83,7 @@ contains
  ! ***********************************************************************************************************
  subroutine tcond_snow(BulkDenIce,thermlcond,err,message)
  USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  USE mDecisions_module,only:Yen1965,Mellor1977,Jordan1991,Smirnova2000 ! named variables defining thermal conductivity options
  implicit none

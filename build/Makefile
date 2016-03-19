@@ -143,7 +143,8 @@ HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 SUMMA_DATAMS= \
 		multiconst.f90 \
 		var_lookup.f90 \
-		data_struc.f90 \
+		data_types.f90 \
+		globalData.f90 \
 		popMetadat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
@@ -168,7 +169,6 @@ SUMMA_SOLVER= \
 		vegLiqFlux.f90 \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
-		eval8summa.f90 \
 		systemSolv.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))

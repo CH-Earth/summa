@@ -36,7 +36,7 @@ contains
  ! ************************************************************************************************
  subroutine paramCheck(mpar_data,err,message)
  ! model decisions
- USE data_struc,only:model_decisions  ! model decision structure
+ USE globalData,only:model_decisions  ! model decision structure
  USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
  ! SUMMA look-up variables
  USE var_lookup,only:iLookPARAM       ! named variables for elements of the data structures

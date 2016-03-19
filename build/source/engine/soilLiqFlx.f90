@@ -33,7 +33,7 @@ USE multiconst,only:&
                     iden_ice,& ! intrinsic density of ice      (kg m-3)
                     iden_water ! intrinsic density of water    (kg m-3)
 ! provide access to layer types
-USE data_struc,only:ix_soil,ix_snow  ! named variables for snow and soil
+USE globalData,only:ix_soil,ix_snow  ! named variables for snow and soil
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:  &
  ! look-up values for method used to compute derivative
@@ -89,7 +89,9 @@ contains
                        ! input-output: data structures
                        mpar_data,                    & ! intent(in):    model parameters
                        indx_data,                    & ! intent(in):    model indices
-                       mvar_data,                    & ! intent(inout): local HRU model variables
+                       prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,                    & ! intent(in):    model diagnostic variables for a local HRU
+                       flux_data,                    & ! intent(in):    model fluxes for a local HRU
                        ! output: diagnostic variables for surface runoff
                        xMaxInfilRate,                & ! intent(inout): maximum infiltration rate (m s-1)
                        scalarInfilArea,              & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
@@ -113,14 +115,18 @@ contains
                        ! output: error control
                        err,message)                    ! intent(out): error control
  ! model decisions
- USE data_struc,only:model_decisions                   ! model decision structure
+ USE globalData,only:model_decisions                   ! model decision structure
  USE var_lookup,only:iLookDECISIONS                    ! named variables for elements of the decision structure
  ! named variables
- USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ USE var_lookup,only:iLookPROG              ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG              ! named variables for structure elements
+ USE var_lookup,only:iLookFLUX              ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM             ! named variables for structure elements
+ USE var_lookup,only:iLookINDEX             ! named variables for structure elements
  ! data types
- USE data_struc,only:var_d           ! x%var(:)       (dp)
- USE data_struc,only:var_ilength     ! x%var(:)%dat   (i4b)
- USE data_struc,only:var_dlength     ! x%var(:)%dat   (dp)
+ USE data_types,only:var_d                  ! x%var(:)       (dp)
+ USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
+ USE data_types,only:var_dlength            ! x%var(:)%dat   (dp)
  ! utility modules
  USE soil_utils_module,only:volFracLiq      ! compute volumetric fraction of liquid water
  USE soil_utils_module,only:matricHead      ! compute matric head (m)
@@ -150,7 +156,9 @@ contains
  ! input-output: data structures
  type(var_d),intent(in)           :: mpar_data                     ! model parameters
  type(var_ilength),intent(in)     :: indx_data                     ! state vector geometry
- type(var_dlength),intent(inout)  :: mvar_data                     ! model variables for the local basin
+ type(var_dlength),intent(in)     :: prog_data                     ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)     :: diag_data                     ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)     :: flux_data                     ! model fluxes for a local HRU
  ! output: diagnostic variables for surface runoff
  real(dp),intent(inout)           :: xMaxInfilRate                 ! maximum infiltration rate (m s-1)
  real(dp),intent(inout)           :: scalarInfilArea               ! fraction of unfrozen area where water can infiltrate (-)
@@ -227,7 +235,7 @@ contains
 
  ! get a copy of iLayerHeight
  ! NOTE: performance hit, though cannot define the shape (0:) with the associate construct
- iLayerHeight(0:nSoil) = mvar_data%var(iLookMVAR%iLayerHeight)%dat(ibeg-1:iend)  ! height of the layer interfaces (m)
+ iLayerHeight(0:nSoil) = prog_data%var(iLookPROG%iLayerHeight)%dat(ibeg-1:iend)  ! height of the layer interfaces (m)
 
  ! make association between local variables and the information in the data structures
  associate(&
@@ -237,8 +245,8 @@ contains
   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,   & ! intent(in): index of the upper boundary conditions for soil hydrology
   ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,   & ! intent(in): index of the lower boundary conditions for soil hydrology
   ! input: model coordinate variables -- NOTE: use of ibeg and iend
-  mLayerDepth            => mvar_data%var(iLookMVAR%mLayerDepth)%dat(ibeg:iend),    & ! intent(in): depth of the layer (m)
-  mLayerHeight           => mvar_data%var(iLookMVAR%mLayerHeight)%dat(ibeg:iend),   & ! intent(in): height of the layer mid-point (m)
+  mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend),    & ! intent(in): depth of the layer (m)
+  mLayerHeight           => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend),   & ! intent(in): height of the layer mid-point (m)
   ! input: upper boundary conditions
   upperBoundHead         => mpar_data%var(iLookPARAM%upperBoundHead),               & ! intent(in): upper boundary condition for matric head (m)
   upperBoundTheta        => mpar_data%var(iLookPARAM%upperBoundTheta),              & ! intent(in): upper boundary condition for volumetric liquid water content (-)
@@ -246,9 +254,9 @@ contains
   lowerBoundHead         => mpar_data%var(iLookPARAM%lowerBoundHead),               & ! intent(in): lower boundary condition for matric head (m)
   lowerBoundTheta        => mpar_data%var(iLookPARAM%lowerBoundTheta),              & ! intent(in): lower boundary condition for volumetric liquid water content (-)
   ! input: soil parameters
-  vGn_alpha              => mpar_data%var(iLookPARAM%vGn_alpha),                    & ! intent(in): van Genutchen "alpha" parameter (m-1)
+  vGn_m                  => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),            & ! intent(in): van Genutchen "m" parameter (-)
   vGn_n                  => mpar_data%var(iLookPARAM%vGn_n),                        & ! intent(in): van Genutchen "n" parameter (-)
-  vGn_m                  => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1),            & ! intent(in): van Genutchen "m" parameter (-)
+  vGn_alpha              => mpar_data%var(iLookPARAM%vGn_alpha),                    & ! intent(in): van Genutchen "alpha" parameter (m-1)
   mpExp                  => mpar_data%var(iLookPARAM%mpExp),                        & ! intent(in): empirical exponent in macropore flow equation (-)
   theta_mp               => mpar_data%var(iLookPARAM%theta_mp),                     & ! intent(in): volumetric liquid water content when macropore flow begins (-)
   theta_sat              => mpar_data%var(iLookPARAM%theta_sat),                    & ! intent(in): soil porosity (-)
@@ -262,13 +270,13 @@ contains
   soilIceScale           => mpar_data%var(iLookPARAM%soilIceScale),                 & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
   soilIceCV              => mpar_data%var(iLookPARAM%soilIceCV),                    & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
   ! input: saturated hydraulic conductivity
-  mLayerSatHydCondMP     =>  mvar_data%var(iLookMVAR%mLayerSatHydCondMP)%dat,        & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
-  mLayerSatHydCond       =>  mvar_data%var(iLookMVAR%mLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
-  iLayerSatHydCond       =>  mvar_data%var(iLookMVAR%iLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
+  mLayerSatHydCondMP     =>  flux_data%var(iLookflux%mLayerSatHydCondMP)%dat,        & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
+  mLayerSatHydCond       =>  flux_data%var(iLookflux%mLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+  iLayerSatHydCond       =>  flux_data%var(iLookflux%iLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
   ! input: factors limiting transpiration (from vegFlux routine)
-  mLayerRootDensity      =>  mvar_data%var(iLookMVAR%mLayerRootDensity)%dat,         & ! intent(in): root density in each layer (-)
-  scalarTranspireLim     =>  mvar_data%var(iLookMVAR%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
-  mLayerTranspireLim     =>  mvar_data%var(iLookMVAR%mLayerTranspireLim)%dat         & ! intent(in): transpiration limiting factor in each layer (-)
+  mLayerRootDensity      =>  diag_data%var(iLookDIAG%mLayerRootDensity)%dat,         & ! intent(in): root density in each layer (-)
+  scalarTranspireLim     =>  diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
+  mLayerTranspireLim     =>  diag_data%var(iLookDIAG%mLayerTranspireLim)%dat         & ! intent(in): transpiration limiting factor in each layer (-)
  )  ! associating local variables with the information in the data structures
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -771,13 +779,8 @@ contains
 
  ! end of drainage section
 
-
  ! *****************************************************************************************************************************************************************
  ! *****************************************************************************************************************************************************************
-
- ! save information in the data structures
- mvar_data%var(iLookMVAR%mLayerdTheta_dPsi)%dat(:) = mLayerdTheta_dPsi(:)        ! derivative in the soil water characteristic w.r.t. psi (m-1)
- mvar_data%var(iLookMVAR%mLayerdPsi_dTheta)%dat(:) = mLayerdPsi_dTheta(:)        ! derivative in the soil water characteristic w.r.t. theta (m)
 
  ! end association between local variables and the information in the data structures
  end associate

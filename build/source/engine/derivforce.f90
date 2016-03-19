@@ -33,8 +33,8 @@ contains
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
  USE multiconst,only:secprhour                               ! number of seconds in an hour
  USE multiconst,only:minprhour                               ! number of minutes in an hour
- USE data_struc,only:data_step                               ! length of the data step (s)
- USE data_struc,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
+ USE globalData,only:data_step                               ! length of the data step (s)
+ USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
  USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
  USE var_lookup,only:iLookPARAM,iLookFORCE,iLookDIAG,iLookFLUX  ! named variables for structure elements
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle

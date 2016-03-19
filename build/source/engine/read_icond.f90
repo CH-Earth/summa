@@ -64,11 +64,11 @@ contains
  USE var_lookup,only:iLookDECISIONS                ! named variables for elements of the decision structure
  USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG ! named variables to describe structure elements
  ! metadata
- USE data_struc,only:prog_meta                     ! metadata for model prognostic (state) variables
- USE data_struc,only:ix_soil,ix_snow               ! named variables to describe the type of layer
+ USE globaldata,only:prog_meta                     ! metadata for model prognostic (state) variables
+ USE globaldata,only:ix_soil,ix_snow               ! named variables to describe the type of layer
  ! data types
- USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
- USE data_struc,only:var_ilength    ! x%var(:)%dat (i4b)
+ USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
+ USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! define input
  integer(i4b),intent(in)           :: nSnow           ! number of snow layers

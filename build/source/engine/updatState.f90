@@ -29,7 +29,7 @@ USE multiconst,only:&
                     gravity,     & ! gravitational acceleteration  (m s-2)
                     LH_fus         ! latent heat of fusion         (J kg-1)
 ! named variables
-USE data_struc,only:ix_soil,ix_snow ! named variables for snow and soil
+USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 implicit none
 private
 public::updateSnow

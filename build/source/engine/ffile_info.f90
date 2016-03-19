@@ -34,9 +34,9 @@ contains
  USE ascii_util_module,only:file_open
  USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
- USE data_struc,only:time_meta,forc_meta     ! model forcing metadata
- USE data_struc,only:forcFileInfo,data_step  ! info on model forcing file
- USE data_struc,only:spatial_int             ! data type for categorical data x%hru(:)%var(:)     (i4b)
+ USE globalData,only:time_meta,forc_meta     ! model forcing metadata
+ USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
+ USE data_types,only:spatial_int             ! data type for categorical data x%hru(:)%var(:)     (i4b)
  USE var_lookup,only:iLookTYPE               ! named variables to index elements of the data vectors
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
@@ -110,10 +110,6 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------
  ! (2) read in the information that describes each forcing file
  ! ------------------------------------------------------------------------------------------------------------------
- ! check that the time metadata is already populated
- if(.not.allocated(time_meta))then; err=30; message=trim(message)//"TimeMetadataNonexistent"; return; endif
- ! check that the forcing metadata is already populated
- if(.not.allocated(forc_meta))then; err=30; message=trim(message)//"ForcingMetadataNonexistent"; return; endif
  ! read description of file that is used in each HRU
  do iHRU=1,nHRU
   ! allocate space for the column indices

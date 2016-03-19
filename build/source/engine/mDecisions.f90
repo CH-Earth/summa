@@ -150,13 +150,13 @@ contains
  ! model time structures
  USE multiconst,only:secprday               ! number of seconds in a day
  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
- USE data_struc,only:startTime,finshTime    ! start/end time of simulation
- USE data_struc,only:dJulianStart           ! julian day of start time of simulation
- USE data_struc,only:dJulianFinsh           ! julian day of end time of simulation
- USE data_struc,only:data_step              ! length of data step (s)
- USE data_struc,only:numtim                 ! number of time steps in the simulation
+ USE globalData,only:startTime,finshTime    ! start/end time of simulation
+ USE globalData,only:dJulianStart           ! julian day of start time of simulation
+ USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
+ USE globalData,only:data_step              ! length of data step (s)
+ USE globalData,only:numtim                 ! number of time steps in the simulation
  ! model decision structures
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globaldata,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  ! Noah-MP decision structures
  USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
@@ -624,7 +624,7 @@ contains
  USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
  USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code

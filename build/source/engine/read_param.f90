@@ -37,8 +37,8 @@ contains
  USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
  USE get_ixname_module,only:get_ixparam              ! access function to find index of elements in structure
- USE data_struc,only:spatial_int                     ! spatial integer data type: x%hru(:)%var(:)
- USE data_struc,only:spatial_double                  ! spatial double data type: x%hru(:)%var(:)
+ USE data_types,only:spatial_int                     ! spatial integer data type: x%hru(:)%var(:)
+ USE data_types,only:spatial_double                  ! spatial double data type: x%hru(:)%var(:)
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input

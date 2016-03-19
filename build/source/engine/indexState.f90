@@ -22,17 +22,17 @@ module indexState_module
 ! data types
 USE nrtype
 ! named variables that define the layer type
-USE data_struc,only:ix_soil        ! soil
-USE data_struc,only:ix_snow        ! snow
+USE globalData,only:ix_soil        ! soil
+USE globalData,only:ix_snow        ! snow
 ! named variables to describe the state varible type
-USE data_struc,only:ixNrgState     ! named variable defining the energy state variable
-USE data_struc,only:ixWatState     ! named variable defining the total water state variable
-USE data_struc,only:ixMatState     ! named variable defining the matric head state variable
-USE data_struc,only:ixMassState    ! named variable defining the mass of water (currently only used for the veg canopy)
+USE globalData,only:ixNrgState     ! named variable defining the energy state variable
+USE globalData,only:ixWatState     ! named variable defining the total water state variable
+USE globalData,only:ixMatState     ! named variable defining the matric head state variable
+USE globalData,only:ixMassState    ! named variable defining the mass of water (currently only used for the veg canopy)
 ! provide access to the derived types to define the data structures
-USE data_struc,only:var_ilength    ! data vector with variable length dimension (i4b)
+USE data_types,only:var_ilength    ! data vector with variable length dimension (i4b)
 ! provide access to the metadata
-USE data_struc,only:indx_meta      ! metadata for the variables in the index structure
+USE globalData,only:indx_meta      ! metadata for the variables in the index structure
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookINDEX     ! named variables for structure elements
 implicit none

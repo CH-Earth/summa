@@ -33,13 +33,13 @@ contains
  USE summaFileManager,only:INPUT_PATH                  ! path of the forcing data file
  USE time_utils_module,only:extractTime,compJulday     ! extract time info from units string
  USE multiconst,only:secprday                          ! number of seconds in a day
- USE data_struc,only:forcFileInfo                      ! forcing file info
- USE data_struc,only:data_step                         ! length of the data step (s)
- USE data_struc,only:dJulianStart                      ! julian day of start time of simulation
- USE data_struc,only:refTime,refJulday                 ! reference time
- USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
- USE data_struc,only:yearLength                        ! number of days in the current year
- USE data_struc,only:time_meta,forc_meta               ! metadata structures
+ USE globalData,only:forcFileInfo                      ! forcing file info
+ USE globalData,only:data_step                         ! length of the data step (s)
+ USE globalData,only:dJulianStart                      ! julian day of start time of simulation
+ USE globalData,only:refTime,refJulday                 ! reference time
+ USE globalData,only:fracJulDay                        ! fractional julian days since the start of year
+ USE globalData,only:yearLength                        ! number of days in the current year
+ USE globalData,only:time_meta,forc_meta               ! metadata structures
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  implicit none
  ! define input variables

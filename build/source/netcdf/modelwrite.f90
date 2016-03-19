@@ -37,8 +37,8 @@ contains
  ! public subroutine writeAttrb: write local attributes
  ! **********************************************************************************************************
  subroutine writeAttrb(fileout,iHRU,attr_data,type_data,err,message)
- USE data_struc,only:attr_meta                   ! metadata for local attributes
- USE data_struc,only:type_meta                   ! metadata for local classification of veg, soil, etc.
+ USE globalData,only:attr_meta                   ! metadata for local attributes
+ USE globalData,only:type_meta                   ! metadata for local classification of veg, soil, etc.
  implicit none
  ! declare input variables
  character(*), intent(in)    :: fileout          ! output file
@@ -100,8 +100,8 @@ contains
  ! public subroutine writeParam: write model parameters
  ! **********************************************************************************************************
  subroutine writeParam(fileout,iHRU,mpar_data,bpar_data,err,message)
- USE data_struc,only:mpar_meta                   ! metadata for local-column model parameter structures
- USE data_struc,only:bpar_meta                   ! metadata for basin-average model parameter structures
+ USE globalData,only:mpar_meta                   ! metadata for local-column model parameter structures
+ USE globalData,only:bpar_meta                   ! metadata for basin-average model parameter structures
  implicit none
  ! declare input variables
  character(*), intent(in)    :: fileout          ! output file
@@ -163,8 +163,8 @@ contains
  ! public subroutine writeParam: write model forcing data
  ! **********************************************************************************************************
  subroutine writeForce(fileout,forc_data,iHRU,istep,err,message)
- USE data_struc,only:var_d                       ! data structure: x%var(:)    (dp)
- USE data_struc,only:forc_meta                   ! forcing metadata
+ USE data_types,only:var_d                       ! data structure: x%var(:)    (dp)
+ USE globalData,only:forc_meta                   ! forcing metadata
  USE var_lookup,only:iLookFORCE                  ! identifies element of the forcing structure
  implicit none
  ! declare dummy variables
@@ -219,27 +219,28 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeModel: write local column model variables
  ! **********************************************************************************************************
- subroutine writeModel(fileout,indx_data,mvar_data,iHRU,istep,err,message)
- USE data_struc,only:var_ilength                 ! data structure: x%var(:)%dat (i4b)
- USE data_struc,only:var_dlength                 ! data structure: x%var(:)%dat (dp)
- USE data_struc,only:mvar_meta,indx_meta         ! metadata 
+ subroutine writeModel(fileout,indx_data,metaStruct,dataStruct,iHRU,istep,err,message)
  USE var_lookup,only:iLookINDEX                  ! identifies element of the index structure
+ USE data_types,only:var_ilength                 ! data structure: x%var(:)%dat (i4b)
+ USE data_types,only:var_dlength                 ! data structure: x%var(:)%dat (dp)
+ USE data_types,only:var_info                    ! metadata structure
  implicit none
- ! declare dummy variables
+ ! input variables
  character(*), intent(in)      :: fileout        ! output file
- type(var_ilength),intent(in)  :: indx_data      ! state vector geometry
- type(var_dlength),intent(in)  :: mvar_data      ! model variables for the local basin
+ type(var_ilength),intent(in)  :: indx_data      ! model indices
+ type(var_info),intent(in)     :: metaStruct(:)  ! metadata structure
+ class(*),intent(in)           :: dataStruct     ! data structure
  integer(i4b), intent(in)      :: iHRU           ! hydrologic response unit
  integer(i4b), intent(in)      :: istep          ! model time step
+ ! output variables
  integer(i4b),intent(out)      :: err            ! error code
  character(*),intent(out)      :: message        ! error message
  ! local variables
  integer(i4b)                  :: ncid           ! NetCDF file ID
- integer(i4b)                  :: iindex         ! loop through model index variables
- integer(i4b)                  :: imodel         ! loop through model variables
+ integer(i4b)                  :: ivar           ! variable index
  integer(i4b)                  :: iVarId         ! variable ID
  ! initialize error control
- err=0;message="f-writeModel/"
+ err=0;message="writeModel/"
 
  ! associate local variables with information in the data structures
  associate(&
@@ -260,48 +261,49 @@ contains
  err = nf90_open(trim(fileout),nf90_write,ncid)
  call netcdf_err(err,message); if (err/=0) return
 
- ! loop through model index variables
- ! ----------------------------------
- do iindex=1,size(indx_meta)
-  ! check that the variable is desired
-  if (.not.indx_meta(iindex)%v_write .or. trim(indx_meta(iindex)%varname)=='unknown') cycle
-  ! initialize message
-  message=trim(message)//trim(indx_meta(iindex)%varname)//'/'
-  ! get variable ID
-  err = nf90_inq_varid(ncid,trim(indx_meta(iindex)%varname),iVarId)
-  call netcdf_err(err,message); if (err/=0) return
-  ! write data
-  err = nf90_put_var(ncid,iVarId,indx_data%var(iindex)%dat,start=(/iHRU,istep/),count=(/1,1/))
-  call netcdf_err(err,message); if (err/=0) return
-  message="f-writeModel/"
- end do
-
  ! loop through model variables
- ! ----------------------------
- do imodel=1,size(mvar_meta)
+ do ivar=1,size(metaStruct)
+
   ! check that the variable is desired
-  if (.not.mvar_meta(imodel)%v_write) cycle
-  ! initialize message
-  message=trim(message)//trim(mvar_meta(imodel)%varname)//'/'
+  if (.not.metaStruct(ivar)%v_write .or. trim(metaStruct(ivar)%varname)=='unknown') cycle
+
   ! get variable ID
-  err = nf90_inq_varid(ncid,trim(mvar_meta(imodel)%varname),iVarId)
+  err = nf90_inq_varid(ncid,trim(metaStruct(ivar)%varname),iVarId)
   call netcdf_err(err,message); if (err/=0) return
-  ! write data
-  select case(trim(mvar_meta(imodel)%vartype))
-   case('scalarv'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,istep/),count=(/1,1/))
-   case('wLength'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,1,istep/),count=(/1,maxSpectral,1/))
-   case('midSnow'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
-   case('midSoil'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
-   case('midToto'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
-   case('ifcSnow'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
-   case('ifcSoil'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
-   case('ifcToto'); err = nf90_put_var(ncid,iVarId,mvar_data%var(imodel)%dat,start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
-   case default
-    err=40; message=trim(message)//"unknownVariableType[name='"//trim(mvar_meta(imodel)%varname)//"'; &
-                                   &type='"//trim(mvar_meta(imodel)%vartype)//"']"; return
-  endselect
+
+  ! select data type
+  select type(dataStruct)
+
+   ! write integer data
+   type is (var_ilength)
+    err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
+
+   ! write double precision data
+   type is (var_dlength)
+
+    ! write model data 
+    select case(trim(metaStruct(ivar)%vartype))
+     case('scalarv'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
+     case('wLength'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,1,istep/),count=(/1,maxSpectral,1/))
+     case('midSnow'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
+     case('midSoil'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
+     case('midToto'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
+     case('ifcSnow'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
+     case('ifcSoil'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
+     case('ifcToto'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
+     case default
+      err=40; message=trim(message)//"unknownVariableType[name='"//trim(metaStruct(ivar)%varname)//"'; &
+                                     &type='"//trim(metaStruct(ivar)%vartype)//"']"; return
+    endselect ! selecting the variable type
+
+   ! check that we found the data type
+   class default; err=20; message=trim(message)//'unable to identify the data structure'
+
+  end select  ! selecting the data structure
+
+  ! process error code
   call netcdf_err(err,message); if (err/=0) return
-  message="f-writeModel/"
+
  end do  ! looping through model variables
 
  ! close output file
@@ -317,8 +319,8 @@ contains
  ! public subroutine writeBasin: write basin-average variables
  ! **********************************************************************************************************
  subroutine writeBasin(fileout,bvar_data,istep,err,message)
- USE data_struc,only:var_dlength               ! data structure: x%var(:)%dat (dp)
- USE data_struc,only:bvar_meta                 ! metadata structures
+ USE data_types,only:var_dlength               ! data structure: x%var(:)%dat (dp)
+ USE globalData,only:bvar_meta                 ! metadata structures
  USE var_lookup,only:iLookINDEX                ! identifies element of the index structure
  implicit none
  ! declare dummy variables

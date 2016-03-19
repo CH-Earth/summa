@@ -34,12 +34,12 @@ contains
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines             ! read a vector of non-comment lines from an ASCII file
  ! provide access to derived data types
- USE data_struc,only:spatial_int                   ! x%hru(:)%var(:)     (i4b)
- USE data_struc,only:spatial_double                ! x%hru(:)%var(:)     (dp)
+ USE data_types,only:spatial_int                   ! x%hru(:)%var(:)     (i4b)
+ USE data_types,only:spatial_double                ! x%hru(:)%var(:)     (dp)
  ! provide access to global data
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
- USE data_struc,only:attr_meta,type_meta           ! metadata structures
+ USE globalData,only:attr_meta,type_meta           ! metadata structures
  USE var_lookup,only:iLookATTR,iLookTYPE           ! named variables for elements of the data structures
  USE get_ixname_module,only:get_ixAttr,get_ixType  ! access function to find index of elements in structure
  implicit none

@@ -36,7 +36,7 @@ USE multiconst,only:&
                     iden_ice,    & ! intrinsic density of ice      (kg m-3)
                     iden_water     ! intrinsic density of water    (kg m-3)
 ! named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow                        ! names variables for snow and soil
+USE globalData,only:ix_soil,ix_snow                        ! names variables for snow and soil
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:      &
  ! look-up values for the numerical method
@@ -77,7 +77,9 @@ contains
                        ! input-output: data structures
                        mpar_data,                          & ! intent(in):    model parameters
                        indx_data,                          & ! intent(in):    model indices
-                       mvar_data,                          & ! intent(inout): local HRU model variables
+                       prog_data,                          & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
+                       flux_data,                          & ! intent(inout): model fluxes for a local HRU
                        ! output: fluxes and derivatives at all layer interfaces
                        iLayerNrgFlux,                      & ! intent(out):   energy flux at the layer interfaces (W m-2)
                        dFlux_dTempAbove,                   & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
@@ -85,14 +87,18 @@ contains
                        ! output: error control
                        err,message)                          ! intent(out): error control
  ! model decisions
- USE data_struc,only:model_decisions                         ! model decision structure
+ USE globalData,only:model_decisions                         ! model decision structure
  USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
- ! named variables 
- USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ ! named variables
+ USE var_lookup,only:iLookPROG       ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+ USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
  ! data types
- USE data_struc,only:var_d           ! x%var(:)       (dp)
- USE data_struc,only:var_ilength     ! x%var(:)%dat   (i4b)
- USE data_struc,only:var_dlength     ! x%var(:)%dat   (dp)
+ USE data_types,only:var_d           ! x%var(:)       (dp)
+ USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
+ USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
  implicit none
  ! input: fluxes and derivatives at the upper boundary
  real(dp),intent(in)             :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
@@ -105,7 +111,9 @@ contains
  ! input-output: data structures
  type(var_d),intent(in)          :: mpar_data                  ! model parameters
  type(var_ilength),intent(in)    :: indx_data                  ! state vector geometry
- type(var_dlength),intent(inout) :: mvar_data                  ! model variables for the local basin
+ type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                  ! model fluxes for a local HRU
  ! output: fluxes and derivatives at all layer interfaces
  real(dp),intent(out)            :: iLayerNrgFlux(0:)          ! energy flux at the layer interfaces (W m-2)
  real(dp),intent(out)            :: dFlux_dTempAbove(0:)       ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
@@ -128,13 +136,13 @@ contains
   nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in): number of snow layers 
   nLayers              => indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in): total number of layers 
   layerType            => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in): layer type (ix_soil or ix_snow)
-  mLayerDepth          => mvar_data%var(iLookMVAR%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
-  mLayerHeight         => mvar_data%var(iLookMVAR%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
-  iLayerThermalC       => mvar_data%var(iLookMVAR%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
+  mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
+  mLayerHeight         => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
+  iLayerThermalC       => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
   lowerBoundTemp       => mpar_data%var(iLookPARAM%lowerBoundTemp),             & ! intent(in): temperature of the lower boundary (K)
   ! output: diagnostic fluxes
-  iLayerConductiveFlux => mvar_data%var(iLookMVAR%iLayerConductiveFlux)%dat,    & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
-  iLayerAdvectiveFlux  => mvar_data%var(iLookMVAR%iLayerAdvectiveFlux)%dat      & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
+  iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,    & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
+  iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat      & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
  )  ! association of local variables with information in the data structures 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control

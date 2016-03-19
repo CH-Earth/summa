@@ -22,7 +22,7 @@ module read_pinit_module
 USE nrtype
 ! check for when model decisions are undefined
 USE mDecisions_module,only: unDefined
-USE data_struc,only:model_decisions
+USE globalData,only:model_decisions
 USE var_lookup,only:iLookDECISIONS,iLookPARAM
 implicit none
 private
@@ -38,17 +38,17 @@ contains
  USE summaFileManager,only:SETNGS_PATH     ! path for metadata files
  USE ascii_util_module,only:file_open      ! open ascii file
  USE ascii_util_module,only:split_line     ! extract the list of variable names from the character string
- USE data_struc,only:var_info              ! data type for metadata
- USE data_struc,only:par_info              ! data type for parameter constraints
+ USE data_types,only:var_info              ! data type for metadata
+ USE data_types,only:par_info              ! data type for parameter constraints
  USE get_ixname_module,only:get_ixParam    ! identify index of named variable for local column model parameters
  USE get_ixname_module,only:get_ixBpar     ! identify index of named variable for basin-average model parameters
  implicit none
  ! define input
  character(*),intent(in)                :: filenm         ! name of file containing default values and constraints of model parameters
  logical(lgt),intent(in)                :: isLocal        ! .true. if the file describes local column parameters
- type(var_info),allocatable,intent(in)  :: mpar_meta(:)   ! metadata for model parameters
+ type(var_info),intent(in)              :: mpar_meta(:)   ! metadata for model parameters
  ! define output
- type(par_info),allocatable,intent(out) :: parFallback(:) ! default values and constraints of model parameters
+ type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
  integer(i4b),intent(out)               :: err            ! error code
  character(*),intent(out)               :: message        ! error message
  ! define general variables
@@ -83,12 +83,6 @@ contains
  ! **********************************************************************************************
  ! (2) read default model parameter values and constraints
  ! **********************************************************************************************
- ! check that the parameter metadata is already populated
- if(.not.allocated(mpar_meta))then; err=30; message=trim(message)//"Parameter metadata is not allocated"; return; endif
- ! allocate space for the parameter structure
- if (allocated(parFallback)) deallocate(parFallback)
- allocate(parFallback(size(mpar_meta)),stat=err)
- if(err/=0)then; err=40; message=trim(message)//"problemAllocateStructure"; return; endif
  ! fill parameter vector with missing data
  parFallback(:)%default_val = amiss
  parFallback(:)%lower_limit = amiss

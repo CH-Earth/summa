@@ -22,7 +22,7 @@ module vegSWavRad_module
 ! Numerical recipes data types
 USE nrtype
 ! named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow
+USE globalData,only:ix_soil,ix_snow
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:         &
                       noah_mp,      & ! full Noah-MP implementation (including albedo)
@@ -65,18 +65,18 @@ contains
                        nLayers,                      & ! intent(in):    total number of layers
                        computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        type_data,                    & ! intent(in):    classification of veg, soil etc. for a local HRU
-                       prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
+                       prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
                        diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
                        flux_data,                    & ! intent(inout): model flux variables
                        err,message)                    ! intent(out): error control
  ! model decisions
- USE data_struc,only:model_decisions                              ! model decision structure
+ USE globalData,only:model_decisions                              ! model decision structure
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! named variables for structure elements
  USE var_lookup,only:iLookTYPE,iLookPROG,iLookDIAG,iLookFLUX
  ! data types
- USE data_struc,only:var_i           ! x%var(:)       (i4b)
- USE data_struc,only:var_dlength     ! x%var(:)%dat   (dp)
+ USE data_types,only:var_i           ! x%var(:)       (i4b)
+ USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
  ! external routines
  USE NOAHMP_ROUTINES,only:radiation                                ! subroutine to calculate albedo and shortwave radiaiton in the canopy
  implicit none
@@ -87,7 +87,7 @@ contains
  integer(i4b),intent(in)         :: nLayers                        ! total number of layers
  logical(lgt),intent(in)         :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  type(var_i),intent(in)          :: type_data                      ! classification of veg, soil etc. for a local HRU
- type(var_dlength),intent(in)    :: prog_data                      ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: prog_data                      ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                      ! model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                      ! model flux variables
  integer(i4b),intent(out)        :: err                            ! error code

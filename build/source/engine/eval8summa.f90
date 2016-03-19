@@ -22,7 +22,7 @@ module eval8summa_module
 ! data types
 USE nrtype
 ! access the global print flag
-USE data_struc,only:globalPrintFlag
+USE globalData,only:globalPrintFlag
 ! constants
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
@@ -34,9 +34,9 @@ USE multiconst,only:&
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 ! layer types
-USE data_struc,only:ix_soil,ix_snow ! named variables for snow and soil
+USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 ! provide access to the derived types to define the data structures
-USE data_struc,only:&
+USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (dp)
                     var_ilength,  & ! data vector with variable length dimension (i4b)

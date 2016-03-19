@@ -29,7 +29,7 @@ USE multiconst,only:&
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
 
 ! access named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
+USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
 
 ! define look-up values for the choice of method to combine and sub-divide snow layers
 USE mDecisions_module,only:&
@@ -80,13 +80,13 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! access the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! access metadata
- USE data_struc,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
+ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
  ! access named variables defining elements in the data structures
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
@@ -352,8 +352,8 @@ contains
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
  subroutine addModelLayer(dataStruct,metaStruct,ix_divide,err,message)
- USE data_struc,only:var_ilength,var_dlength       ! data vectors with variable length dimension
- USE data_struc,only:var_info                      ! metadata structure
+ USE data_types,only:var_ilength,var_dlength       ! data vectors with variable length dimension
+ USE data_types,only:var_info                      ! metadata structure
  implicit none
  ! ---------------------------------------------------------------------------------------------
  ! input/output: data structures

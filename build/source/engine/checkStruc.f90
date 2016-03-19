@@ -35,20 +35,17 @@ contains
  subroutine checkStruc(err,message)
  ! ascii utilities
  USE ascii_util_module,only:split_line
- ! number of variables in each data structure
- USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
- USE var_lookup,only:maxvarProg,maxvarDiag,maxvarFlux,maxvarDeriv   ! maximum number variables in each data structure
- USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
- USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
+ ! summary of data structures
+ USE globalData,only:structInfo
  ! metadata structures
- USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
- USE data_struc,only:prog_meta,diag_meta,flux_meta,deriv_meta       ! metadata structures
- USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
- USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
+ USE globalData,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
+ USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta       ! metadata structures
+ USE globalData,only:mpar_meta,indx_meta                            ! metadata structures
+ USE globalData,only:bpar_meta,bvar_meta                            ! metadata structures
  ! named variables defining strructure elements
  USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE       ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV       ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX                ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPARAM,iLookINDEX                          ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookBPAR,iLookBVAR                            ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
@@ -56,34 +53,12 @@ contains
  character(*),intent(out)             :: message     ! error message
  ! local variables
  integer(i4b)                         :: iStruct     ! index of data structure
- integer(i4b),parameter               :: nStruct=13  ! number of data structures
+ integer(i4b),parameter               :: nStruct=size(structInfo)  ! number of data structures
  character(len=8192)                  :: longString  ! string containing the indices defined in the structure constructor
  character(len=32),allocatable        :: words(:)    ! vector of words extracted from the long string
  integer(i4b)                         :: ix          ! index of the variable in the data structure
  integer(i4b)                         :: ixTest      ! test the structure constructor = (1,2,3,...,nVar)
  character(len=256)                   :: cmessage    ! error message of downwind routine
- ! -----------------------------------------------------------------------------------------------------------------------------------
- ! data structure information
- type info ! data structure information
-  character(len=32)                   :: structName  ! name of the data structure
-  character(len=32)                   :: lookName    ! name of the look-up variables
-  integer(i4b)                        :: nVar        ! number of variables in each data structure
- end type info
- ! populate structure information
- type(info),parameter,dimension(nStruct) :: structInfo=(/&
-                                             info('time',  'TIME' , maxvarTime ), & ! the time data structure   
-                                             info('forc',  'FORCE', maxvarForc ), & ! the forcing data structure
-                                             info('attr',  'ATTR' , maxvarAttr ), & ! the attribute data structure
-                                             info('type',  'TYPE' , maxvarType ), & ! the type data structure
-                                             info('mpar',  'PARAM', maxvarMpar ), & ! the model parameter data structure
-                                             info('mvar',  'MVAR' , maxvarMvar ), & ! the model variable data structure
-                                             info('bpar',  'BPAR' , maxvarBpar ), & ! the basin parameter data structure
-                                             info('bvar',  'BVAR' , maxvarBvar ), & ! the basin variable data structure
-                                             info('indx',  'INDEX', maxvarIndx ), & ! the model index data structure
-                                             info('prog',  'PROG',  maxvarProg),  & ! the prognostic (state) variable data structure
-                                             info('diag',  'DIAG' , maxvarDiag ), & ! the diagnostic variable data structure
-                                             info('flux',  'FLUX' , maxvarFlux ), & ! the flux data structure
-                                             info('deriv', 'DERIV', maxvarDeriv) /) ! the model derivative data structure
  ! -----------------------------------------------------------------------------------------------------------------------------------
  ! initialize errors
  err=0; message="checkStruc/"
@@ -101,7 +76,6 @@ contains
    case('attr');  write(longString,*) iLookATTR
    case('type');  write(longString,*) iLookTYPE
    case('mpar');  write(longString,*) iLookPARAM
-   case('mvar');  write(longString,*) iLookMVAR
    case('bpar');  write(longString,*) iLookBPAR
    case('bvar');  write(longString,*) iLookBVAR
    case('indx');  write(longString,*) iLookINDEX
@@ -138,7 +112,6 @@ contains
    case('attr');  call checkPopulated(iStruct,attr_meta,err,cmessage) 
    case('type');  call checkPopulated(iStruct,type_meta,err,cmessage) 
    case('mpar');  call checkPopulated(iStruct,mpar_meta,err,cmessage) 
-   case('mvar');  call checkPopulated(iStruct,mvar_meta,err,cmessage) 
    case('bpar');  call checkPopulated(iStruct,bpar_meta,err,cmessage) 
    case('bvar');  call checkPopulated(iStruct,bvar_meta,err,cmessage) 
    case('indx');  call checkPopulated(iStruct,indx_meta,err,cmessage) 
@@ -159,14 +132,13 @@ contains
   ! ************************************************************************************************
   subroutine checkPopulated(iStruct,metadata,err,message)
   ! access the data type for the metadata structures
-  USE data_struc,only:var_info 
+  USE data_types,only:var_info 
   ! get index from character string
   USE get_ixname_module,only: get_ixtime
   USE get_ixname_module,only: get_ixattr
   USE get_ixname_module,only: get_ixtype
   USE get_ixname_module,only: get_ixforce
   USE get_ixname_module,only: get_ixparam
-  USE get_ixname_module,only: get_ixmvar
   USE get_ixname_module,only: get_ixindex
   USE get_ixname_module,only: get_ixbpar
   USE get_ixname_module,only: get_ixbvar
@@ -206,7 +178,6 @@ contains
      case('attr');  jVar = get_ixattr(trim(metadata(iVar)%varname)) 
      case('type');  jVar = get_ixtype(trim(metadata(iVar)%varname)) 
      case('mpar');  jVar = get_ixparam(trim(metadata(iVar)%varname))  
-     case('mvar');  jVar = get_ixmvar(trim(metadata(iVar)%varname)) 
      case('bpar');  jVar = get_ixbpar(trim(metadata(iVar)%varname)) 
      case('bvar');  jVar = get_ixbvar(trim(metadata(iVar)%varname)) 
      case('indx');  jVar = get_ixindex(trim(metadata(iVar)%varname)) 
@@ -220,7 +191,6 @@ contains
 
      ! --> check that the variable is in the correct structure
      if(jStruct/=iStruct)then
-      if(trim(structInfo(iStruct)%structName)=='mvar' .or. trim(structInfo(jStruct)%structName)=='mvar') cycle
       message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(structInfo(jStruct)%structName)//'_meta'
       err=20; return
 

@@ -34,7 +34,7 @@ USE mDecisions_module,only:      &
  NL_scatter,                     &         ! Simplified method Nijssen and Lettenmaier (JGR 1999)
  BeersLaw                                  ! Beer's Law (as implemented in VIC)
 ! named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow
+USE globalData,only:ix_soil,ix_snow
 implicit none
 private
 public::vegPhenlgy
@@ -62,7 +62,7 @@ contains
                        err,message)                   ! intent(out): error control
  ! -------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_i,            & ! data vector (i4b)
                      var_d,            & ! data vector (dp)
                      var_dlength,      & ! data vector with variable length dimension (dp)
@@ -73,9 +73,9 @@ contains
  ! modules
  USE NOAHMP_ROUTINES,only:phenology         ! determine vegetation phenology
  ! common variables
- USE data_struc,only:urbanVegCategory       ! vegetation category for urban areas
- USE data_struc,only:fracJulday             ! fractional julian days since the start of year
- USE data_struc,only:yearLength             ! number of days in the current year
+ USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
+ USE globalData,only:fracJulday             ! fractional julian days since the start of year
+ USE globalData,only:yearLength             ! number of days in the current year
  implicit none
  ! -------------------------------------------------------------------------------------------------
  ! input/output

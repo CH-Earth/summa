@@ -38,8 +38,8 @@ USE multiconst,only:&
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
 
 ! named variables that define the layer type
-USE data_struc,only:ix_soil        ! soil
-USE data_struc,only:ix_snow        ! snow
+USE globalData,only:ix_soil        ! soil
+USE globalData,only:ix_snow        ! snow
 implicit none
 private
 public::diagn_evar
@@ -67,7 +67,7 @@ contains
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength         ! data vector with variable length dimension (dp)
@@ -75,7 +75,7 @@ contains
  USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
  ! provide access to named variables for thermal conductivity of soil
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  USE mDecisions_module,only: funcSoilWet, & ! function of soil wetness
                              mixConstit,  & ! mixture of constituents
                              hanssonVZJ     ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004

@@ -48,7 +48,7 @@ contains
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,              & ! data vector (dp)
                      var_dlength           ! data vector with variable length dimension (dp)
  ! provide access to named variables defining elements in the data structures

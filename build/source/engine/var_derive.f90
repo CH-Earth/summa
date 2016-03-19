@@ -40,10 +40,10 @@ contains
                        ! output: error control
                        err,message)
  ! access named variables for snow and soil
- USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
+ USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
  ! access to the derived types to define the data structures
- USE data_struc,only:var_ilength    ! x%var(:)%dat (i4b)
- USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
+ USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
+ USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
  ! provide access to named variables defining elements in the data structures
  USE var_lookup,only:iLookPROG,iLookINDEX  ! named variables for structure elements
  implicit none
@@ -101,7 +101,7 @@ contains
  ! **********************************************************************************************************
  subroutine rootDensty(parData,indx_data,prog_data,diag_data,err,message)
  ! model decision structures
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  ! look-up values for the choice of the rooting profile
  USE mDecisions_module,only: &
@@ -112,11 +112,11 @@ contains
  bigBucket,                  & ! a big bucket (lumped aquifer model)
  noExplicit                    ! no explicit groundwater parameterization
  ! named variables
- USE data_struc,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
+ USE globalData,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
  USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookDIAG        ! named variables for structure elements
  ! data types
- USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
- USE data_struc,only:var_ilength    ! x%var(:)%dat (i4b)
+ USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
+ USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
  real(dp),intent(in)             :: parData(:)      ! vector of model parameters
@@ -228,18 +228,18 @@ contains
  ! **********************************************************************************************************
  subroutine satHydCond(parData,indx_data,prog_data,flux_data,err,message)
  ! model decision structures
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  ! look-up values for the choice of groundwater parameterization
  USE mDecisions_module,only: &
   constant,                  & ! constant hydraulic conductivity with depth
   powerLaw_profile             ! power-law profile
  ! named variables
- USE data_struc,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
+ USE globalData,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
  USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookFLUX        ! named variables for structure elements
  ! data types
- USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
- USE data_struc,only:var_ilength    ! x%var(:)%dat (i4b)
+ USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
+ USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
  real(dp),intent(in)             :: parData(:)      ! vector of model parameters
@@ -328,17 +328,17 @@ contains
  ! external functions
  USE soil_utils_module,only:gammp                     ! compute the cumulative probabilty based on the Gamma distribution
  ! model decision structures
- USE data_struc,only:model_decisions                  ! model decision structure
+ USE globalData,only:model_decisions                  ! model decision structure
  USE var_lookup,only:iLookDECISIONS                   ! named variables for elements of the decision structure
  ! look-up values for the sub-grid routing method
  USE mDecisions_module,only:      &
   timeDelay,&  ! time-delay histogram
   qInstant     ! instantaneous routing
  ! named variables 
- USE data_struc,only:data_step                        ! time step of forcing data
+ USE globalData,only:data_step                        ! time step of forcing data
  USE var_lookup,only:iLookBVAR,iLookBPAR              ! named variables for structure elements
  ! data types
- USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
+ USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
  implicit none
  ! input variables
  real(dp),intent(in)             :: bpar_data(:)           ! vector of basin-average model parameters
@@ -445,10 +445,10 @@ contains
                        gravity,   &            ! gravitational acceleration           (m s-2)
                        Tfreeze                 ! freezing point of pure water         (K)
  ! named variables
- USE data_struc,only:ix_soil,ix_snow           ! named variables defining snow and soil layers
+ USE globalData,only:ix_soil,ix_snow           ! named variables defining snow and soil layers
  USE var_lookup,only:iLookPARAM,iLookDIAG      ! named variables for structure elements
  ! data types
- USE data_struc,only:var_dlength    ! x%var(:)%dat (dp)
+ USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
  implicit none
  ! declare input variables
  real(dp),intent(in)             :: parData(:)      ! vector of model parameters

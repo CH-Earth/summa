@@ -41,7 +41,7 @@ contains
                        scalarRainfall,               & ! intent(in): rainfall rate (kg m-2 s-1)
                        ! input-output: data structures
                        mpar_data,                    & ! intent(in): model parameters
-                       mvar_data,                    & ! intent(in): local HRU model variables
+                       diag_data,                    & ! intent(in): local HRU model diagnostic variables
                        ! output
                        scalarThroughfallRain,        & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
                        scalarCanopyLiqDrainage,      & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -49,13 +49,13 @@ contains
                        scalarCanopyLiqDrainageDeriv, & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
                        err,message)                    ! intent(out): error control
  ! model decisions
- USE data_struc,only:model_decisions                              ! model decision structure
+ USE globalData,only:model_decisions                              ! model decision structure
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! named variables 
- USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements
  ! data types
- USE data_struc,only:var_d           ! x%var(:)       (dp)
- USE data_struc,only:var_dlength     ! x%var(:)%dat   (dp)
+ USE data_types,only:var_d           ! x%var(:)       (dp)
+ USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
  implicit none
  ! input
  logical(lgt),intent(in)         :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -63,7 +63,7 @@ contains
  real(dp),intent(in)             :: scalarRainfall               ! rainfall (kg m-2 s-1)
  ! input-output: data structures
  type(var_d),intent(in)          :: mpar_data                    ! model parameters
- type(var_dlength),intent(inout) :: mvar_data                    ! model variables for the local basin
+ type(var_dlength),intent(inout) :: diag_data                    ! model diagnostic variables for the local basin
  ! output
  real(dp),intent(out)            :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
  real(dp),intent(out)            :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
@@ -75,7 +75,7 @@ contains
  ! make association of local variables with information in the data structures
  associate(&
   ixCanopyInterception       => model_decisions(iLookDECISIONS%cIntercept)%iDecision, & ! intent(in): index defining choice of parameterization for canopy interception
-  scalarCanopyLiqMax         => mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
+  scalarCanopyLiqMax         => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
   scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain),       & ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
   scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)         & ! intent(in): canopy drainage coefficient (s-1)
  ) ! associating local variables with information in the data structures 

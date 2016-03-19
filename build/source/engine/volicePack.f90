@@ -22,7 +22,7 @@ module volicePack_module
 ! numerical recipes data types
 USE nrtype
 ! named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow
+USE globalData,only:ix_soil,ix_snow
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,  & ! freezing point              (K)
@@ -56,7 +56,7 @@ contains
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)

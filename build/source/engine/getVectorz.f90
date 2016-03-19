@@ -28,15 +28,16 @@ USE multiconst,only:&
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 ! layer types
-USE data_struc,only:ix_soil,ix_snow ! named variables for snow and soil
+USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 ! provide access to the derived types to define the data structures
-USE data_struc,only:&
+USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (dp)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength     ! data vector with variable length dimension (dp)
 ! provide access to indices that define elements of the data structures
-USE var_lookup,only:iLookMVAR       ! named variables for structure elements
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 implicit none
@@ -55,7 +56,8 @@ contains
                         ! input
                         computeVegFlux,          & ! intent(in):    flag to denote if computing energy flux over vegetation
                         canopyDepth,             & ! intent(in):    canopy depth (m)
-                        mvar_data,               & ! intent(in):    model variables for a local HRU
+                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                        diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
                         indx_data,               & ! intent(in):    indices defining model states and layers
                         ! output
                         stateVec,                & ! intent(out):   model state vector
@@ -69,7 +71,8 @@ contains
  ! input
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(dp),intent(in)             :: canopyDepth            ! canopy depth (m)
- type(var_dlength),intent(in)    :: mvar_data              ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: prog_data              ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
  ! output: state vectors
  real(dp),intent(out)            :: stateVec(:)            ! model state vector (mixed units)
@@ -95,18 +98,18 @@ contains
  ! make association with variables in the data structures
  associate(&
  ! model states for the vegetation canopy
- scalarCanairTemp  => mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp] temperature of the canopy air space (K)
- scalarCanopyTemp  => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1)       ,& ! intent(inout): [dp] temperature of the vegetation canopy (K)
- scalarCanopyIce   => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)        ,& ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiq   => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)        ,& ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanairTemp  => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the canopy air space (K)
+ scalarCanopyTemp  => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the vegetation canopy (K)
+ scalarCanopyIce   => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp] mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiq   => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in): [dp] mass of liquid water on the vegetation canopy (kg m-2)
  ! model state variable vectors for the snow-soil layers
- mLayerTemp        => mvar_data%var(iLookMVAR%mLayerTemp)%dat                ,& ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
- mLayerVolFracLiq  => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
- mLayerVolFracIce  => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of ice (-)
- mLayerMatricHead  => mvar_data%var(iLookMVAR%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)\
+ mLayerTemp        => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
+ mLayerVolFracLiq  => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
+ mLayerVolFracIce  => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of ice (-)
+ mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)\
  ! model diagnostic variables
- volHeatCapVeg     => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
- mLayerVolHeatCap  => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat        ,& ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
+ volHeatCapVeg     => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ mLayerVolHeatCap  => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
  ! indices defining model states and layers
  ixCasNrg          => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy air space energy state variable
  ixVegNrg          => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
@@ -209,7 +212,8 @@ contains
                        ! input
                        stateVec,                             & ! intent(in):    model state vector (mixed units)
                        mpar_data,                            & ! intent(in):    model parameters
-                       mvar_data,                            & ! intent(in):    model variables for a local HRU
+                       prog_data,                            & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,                            & ! intent(in):    model diagnostic variables for a local HRU
                        indx_data,                            & ! intent(in):    indices defining model states and layers
                        ! output: variables for the vegetation canopy
                        fracLiqVeg,                           & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
@@ -236,7 +240,8 @@ contains
  ! input
  real(dp),intent(in)             :: stateVec(:)                ! model state vector (mixed units)
  type(var_d),intent(in)          :: mpar_data                  ! model parameters for a local HRU
- type(var_dlength),intent(in)    :: mvar_data                  ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data                  ! indices defining model states and layers                 
  ! output: variables for the vegetation canopy
  real(dp),intent(out)            :: fracLiqVeg                 ! fraction of liquid water on the vegetation canopy (-)
@@ -263,17 +268,17 @@ contains
  ! make association with variables in the data structures
  associate(&
  ! snow and soil parameters
- snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
- vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)                    ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
+ vGn_m             => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
  vGn_n             => mpar_data%var(iLookPARAM%vGn_n)                        ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_m             => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)            ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
+ vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)                    ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
  theta_sat         => mpar_data%var(iLookPARAM%theta_sat)                    ,&  ! intent(in): [dp] soil porosity (-)
  theta_res         => mpar_data%var(iLookPARAM%theta_res)                    ,&  ! intent(in): [dp] soil residual volumetric water content (-)
+ snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
  ! model states for the vegetation canopy
- scalarCanairTemp  => mvar_data%var(iLookMVAR%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the canopy air space (K)
- scalarCanopyTemp  => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the vegetation canopy (K)
- scalarCanopyIce   => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiq   => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)        ,& ! intent(in): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanairTemp  => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the canopy air space (K)
+ scalarCanopyTemp  => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the vegetation canopy (K)
+ scalarCanopyIce   => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp] mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiq   => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in): [dp] mass of liquid water on the vegetation canopy (kg m-2)
  ! number of model layers, and layer type
  nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in): [i4b]    total number of snow layers
  nLayers           => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in): [i4b]    total number of snow and soil layers
