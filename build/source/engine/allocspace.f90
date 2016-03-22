@@ -69,7 +69,6 @@ contains
                        forcStruct, &    ! model forcing data
                        attrStruct, &    ! local attributes for each HRU
                        typeStruct, &    ! local classification of soil veg etc. for each HRU
-                       dparStruct, &    ! default model parameters
                        mparStruct, &    ! model parameters
                        indxStruct, &    ! model indices
                        progStruct, &    ! model prognostic (state) variables
@@ -90,7 +89,6 @@ contains
  type(spatial_double),    intent(out)  :: forcStruct    ! model forcing data
  type(spatial_double),    intent(out)  :: attrStruct    ! local attributes for each HRU
  type(spatial_int),       intent(out)  :: typeStruct    ! local classification of soil veg etc. for each HRU
- type(spatial_double),    intent(out)  :: dparStruct    ! default model parameters
  type(spatial_double),    intent(out)  :: mparStruct    ! model parameters
  type(spatial_intVec),    intent(out)  :: indxStruct    ! model indices
  type(spatial_doubleVec), intent(out)  :: progStruct    ! model prognostic (state) variables
@@ -117,7 +115,6 @@ contains
    case('forc'); call allocGlobal(nHRU, forc_meta,  forcStruct,  err, cmessage)   ! model forcing data
    case('attr'); call allocGlobal(nHRU, attr_meta,  attrStruct,  err, cmessage)   ! local attributes for each HRU
    case('type'); call allocGlobal(nHRU, type_meta,  typeStruct,  err, cmessage)   ! local classification of soil veg etc. for each HRU  
-   case('dpar'); call allocGlobal(nHRU, mpar_meta,  dparStruct,  err, cmessage)   ! default model parameters
    case('mpar'); call allocGlobal(nHRU, mpar_meta,  mparStruct,  err, cmessage)   ! model parameters
    case('indx'); call allocGlobal(nHRU, indx_meta,  indxStruct,  err, cmessage)   ! model variables
    case('prog'); call allocGlobal(nHRU, prog_meta,  progStruct,  err, cmessage)   ! model prognostic (state) variables
@@ -180,9 +177,11 @@ contains
    type is (var_d);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
    type is (var_ilength);  call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
    type is (var_dlength);  call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-   ! error check
+   ! check identified the data type
    class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
   end select
+  ! error check
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine allocGlobal
 
@@ -203,18 +202,34 @@ contains
  integer(i4b),intent(out)         :: err            ! error code
  character(*),intent(out)         :: message        ! error message
  ! local
+ integer(i4b)                     :: iVar           ! loop through variables in the metadata structure
  logical(lgt)                     :: check          ! .true. if the variables are allocated
  integer(i4b)                     :: nVars          ! number of variables in the metadata structure
  integer(i4b)                     :: nLayers        ! total number of layers
-  character(len=256)              :: cmessage       ! error message of the downwind routine
+ character(len=256)               :: cmessage       ! error message of the downwind routine
  ! initialize error control
  err=0; message='allocLocal/'
 
  ! get the number of variables in the metadata structure
  nVars = size(metaStruct)
 
- ! get the total number of layers
- nLayers = nSnow+nSoil
+ ! check if nSnow and nSoil are present
+ if(present(nSnow) .or. present(nSoil))then
+  ! check both are present
+  if(.not.present(nSoil))then; err=20; message=trim(message)//'expect nSoil to be present when nSnow is present'; return; endif
+  if(.not.present(nSnow))then; err=20; message=trim(message)//'expect nSnow to be present when nSoil is present'; return; endif
+  nLayers = nSnow+nSoil
+
+ ! check that nSnow and nSoil are not needed
+ else
+  do iVar=1,size(metaStruct)  ! loop through variables in the metadata structure
+   select case(trim(metaStruct(iVar)%vartype))
+    case('midSnow','ifcSnow'); err=20; message=trim(message)//'nSnow is missing'; return
+    case('midSoil','ifcSoil'); err=20; message=trim(message)//'nSoil is missing'; return
+    case('midToto','ifcToto'); err=20; message=trim(message)//'nLayers is missing'; return
+   end select
+  end do ! loop through variables in the metadata structure
+ endif
 
  ! initialize allocation check
  check=.false.
@@ -270,7 +285,7 @@ contains
    message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
    err=20; return
 
-  ! allocate dimension
+  ! allocate structures
   else
    select case(trim(metadata(iVar)%vartype))
     case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err)
@@ -285,7 +300,9 @@ contains
     case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
    endselect
+   ! check error
    if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
+   ! set to missing
    varData%var(iVar)%dat(:) = missingDouble
   endif  ! if not allocated
 
@@ -321,7 +338,7 @@ contains
    message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
    err=20; return
 
-  ! allocate dimension
+  ! allocate structures
   else
    select case(trim(metadata(iVar)%vartype))
     case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err)
@@ -336,7 +353,9 @@ contains
     case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
    endselect
+   ! check error
    if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
+   ! set to missing
    varData%var(iVar)%dat(:) = missingInteger
   endif  ! if not allocated
 

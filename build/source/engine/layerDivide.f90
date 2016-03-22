@@ -245,67 +245,68 @@ contains
    endif  ! (if NOT using the Noah-MP radiation routine)
 
   endif  ! if creating a new layer
-  return
- endif
 
  ! end special case of nSnow=0
  ! ********************************************************************************************************************
  ! ********************************************************************************************************************
 
  ! ***** sub-divide snow layers, if necessary
+ else ! if nSnow>0
 
- ! identify the number of layers to check for need for sub-division
- select case(ix_snowLayers)
-  case(sameRulesAllLayers);    nCheck = nSnow
-  case(rulesDependLayerIndex); nCheck = min(nSnow,4)  ! the depth of the 5th layer, if it exists, does not have a maximum value
-  case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
- end select ! (option to combine/sub-divide snow layers)
-
- ! loop through all layers, and sub-divide a given layer, if necessary
- do iLayer=1,nCheck
-
-  ! identify the maximum depth of the layer
+  ! identify the number of layers to check for need for sub-division
   select case(ix_snowLayers)
-   case(sameRulesAllLayers);    zmaxCheck = zmax
-   case(rulesDependLayerIndex)
-    if(iLayer == nSnow)then
-     zmaxCheck = zmax_lower(iLayer)
-    else
-     zmaxCheck = zmax_upper(iLayer)
-    endif
+   case(sameRulesAllLayers);    nCheck = nSnow
+   case(rulesDependLayerIndex); nCheck = min(nSnow,4)  ! the depth of the 5th layer, if it exists, does not have a maximum value
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
+  
+  ! loop through all layers, and sub-divide a given layer, if necessary
+  do iLayer=1,nCheck
+  
+   ! identify the maximum depth of the layer
+   select case(ix_snowLayers)
+    case(sameRulesAllLayers);    zmaxCheck = zmax
+    case(rulesDependLayerIndex)
+     if(iLayer == nSnow)then
+      zmaxCheck = zmax_lower(iLayer)
+     else
+      zmaxCheck = zmax_upper(iLayer)
+     endif
+    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+   end select ! (option to combine/sub-divide snow layers)
+  
+   ! check the need to sub-divide
+   if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
+  
+    ! flag that layers were divided
+    divideLayer=.true.
+  
+    ! add a layer to all model variables
+    call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+    ! define the layer depth
+    layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
+    depthOriginal = mLayerDepth(iLayer)
+    mLayerDepth(iLayer)   = fracTop*depthOriginal
+    mLayerDepth(iLayer+1) = (1._dp - fracTop)*depthOriginal
+    end associate layerSplit
+  
+    exit  ! NOTE: only sub-divide one layer per substep
+  
+   endif   ! (if sub-dividing layer)
+  
+  end do  ! (looping through layers)
 
-  ! check the need to sub-divide
-  if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
-
-   ! flag that layers were divided
-   divideLayer=.true.
-
-   ! add a layer to all model variables
-   call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! define the layer depth
-   associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
-   depthOriginal = mLayerDepth(iLayer)
-   mLayerDepth(iLayer)   = fracTop*depthOriginal
-   mLayerDepth(iLayer) = (1._dp - fracTop)*depthOriginal
-   end associate
-
-   exit  ! NOTE: only sub-divide one layer per substep
-
-  endif   ! (if sub-dividing layer)
-
- end do  ! (looping through layers)
+ endif  ! if nSnow==0
 
  ! update coordinates
  if(divideLayer)then
 
   ! associate coordinate variables in data structure
-  associate(&
+  geometry: associate(&
   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat        ,& ! depth of the layer (m)
   mLayerHeight     => prog_data%var(iLookPROG%mLayerHeight)%dat       ,& ! height of the layer mid-point (m)
   iLayerHeight     => prog_data%var(iLookPROG%iLayerHeight)%dat       ,& ! height of the layer interface (m)
@@ -332,13 +333,17 @@ contains
   end do
 
   ! check
-  if(scalarSnowDepth - sum(prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow)) < epsilon(scalarSnowDepth))then
-   message=trim(message)//'problem sub-dividing snow layer'
+  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > epsilon(scalarSnowDepth))then
+   print*, 'nSnow = ', nSnow
+   write(*,'(a,1x,f20.15,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
+   write(*,'(a,1x,f20.15,1x)') 'scalarSnowDepth           = ', scalarSnowDepth
+   write(*,'(a,1x,f20.15,1x)') 'epsilon(scalarSnowDepth)  = ', epsilon(scalarSnowDepth)
+   message=trim(message)//'sum of layer depths does not equal snow depth'
    err=20; return
   endif
 
   ! end association with coordinate variables in data structure
-  end associate
+  end associate geometry
 
  endif  ! if dividing a layer
 

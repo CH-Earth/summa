@@ -297,7 +297,7 @@ contains
     endselect ! selecting the variable type
 
    ! check that we found the data type
-   class default; err=20; message=trim(message)//'unable to identify the data structure'
+   class default; err=20; message=trim(message)//'unable to identify the data structure'; return
 
   end select  ! selecting the data structure
 

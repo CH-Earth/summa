@@ -25,6 +25,7 @@ MODULE globalData
  USE data_types,only: file_info      ! metadata for model forcing datafile
  USE data_types,only: par_info       ! default parameter values and parameter bounds
  USE data_types,only: var_info       ! metadata for variables in each model structure
+ USE data_types,only: extended_info  ! extended metadata for variables in each model structure
  USE data_types,only: struct_info    ! summary information on all data structures 
  USE data_types,only: var_i          ! vector of integers 
  ! number of variables in each data structure
@@ -67,6 +68,9 @@ MODULE globalData
  type(var_info),save,public                  :: deriv_meta(maxvarDeriv) ! local model derivatives for each HRU
  type(var_info),save,public                  :: bpar_meta(maxvarBpar)   ! basin parameters for aggregated processes
  type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
+
+ ! ancillary metadata structures
+ type(extended_info),save,public,allocatable :: averageFlux_meta(:)     ! timestep-average model fluxes
 
  ! define summary information on all data structures
  integer(i4b),parameter                      :: nStruct=12              ! number of data structures

@@ -70,6 +70,11 @@ MODULE data_types
   logical(lgt)                           :: v_write=.FALSE.  ! flag to write variable to the output file
  endtype var_info
 
+ ! define extended data type (include indices to map onto parent data type)
+ type,extends(var_info),public :: extended_info
+  integer(i4b)                           :: ixParent         ! index in the parent data structure
+ endtype extended_info
+
  ! ***********************************************************************************************************
  ! Define summary of data structures
  ! ***********************************************************************************************************

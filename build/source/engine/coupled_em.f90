@@ -176,8 +176,10 @@ contains
  real(dp)                             :: dt_frac                ! fraction of time step (-)
  integer(i4b)                         :: nTemp                  ! number of temporary sub-steps
  integer(i4b)                         :: nTrial                 ! number of trial sub-steps
+ logical(lgt)                         :: firstStep              ! flag to denote if the first time step
  logical(lgt)                         :: rejectedStep           ! flag to denote if the sub-step is rejected (convergence problem, etc.)
- logical(lgt),parameter               :: checkTimeStepping=.false.  ! flag to denote a desire to check the time stepping 
+ logical(lgt),parameter               :: checkTimeStepping=.false.      ! flag to denote a desire to check the time stepping 
+ logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility 
  ! balance checks
  integer(i4b)                         :: iVar                   ! loop through model variables
  real(dp)                             :: totalSoilCompress      ! change in storage associated with compression of the soil matrix (kg m-2)
@@ -203,6 +205,9 @@ contains
 
  ! This is the start of a data step for a local HRU
 
+ ! define the first step
+ firstStep = (istep==1)
+
  ! count the number of snow and soil layers
  ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
  !         (nSnow and nSoil are shared in the data structure)
@@ -216,13 +221,37 @@ contains
  call allocLocal(flux_meta,flux_data,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ ! initialize compression
+ totalSoilCompress = 0._dp  ! change in storage associated with compression of the soil matrix (kg m-2)
+
+ ! initialize precip forcing
+ ! NOTE: forcing is constant over a time-step
+ flux_data%var(iLookFLUX%scalarSnowfall)%dat(1) = flux_mean%var(iLookFLUX%scalarSnowfall)%dat(1)
+ flux_data%var(iLookFLUX%scalarRainfall)%dat(1) = flux_mean%var(iLookFLUX%scalarRainfall)%dat(1)
+
+ ! initialize radiative forcing
+ ! NOTE: forcing is constant over a time-step
+ flux_data%var(iLookFLUX%spectralIncomingDirect)%dat  = flux_mean%var(iLookFLUX%spectralIncomingDirect)%dat   ! downwelling direct shortwave radiation for each waveband (W m-2)
+ flux_data%var(iLookFLUX%spectralIncomingDiffuse)%dat = flux_mean%var(iLookFLUX%spectralIncomingDiffuse)%dat  ! downwelling diffuse shortwave radiation for each waveband (W m-2)
+
+ ! initialize canopy drip (used in canopySnow)
+ ! NOTE: canopy drip from the previous time step is used to compute throughfall of snow for the current time step
+ flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = flux_mean%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)
+
+ ! initialize saturated hydraulic conductivity
+ ! NOTE: saturated hydarulic conductivity is constant over the time step
+ flux_data%var(ilookFLUX%mlayersathydcondmp)%dat = flux_mean%var(ilookFLUX%mlayersathydcondmp)%dat ! saturated hydraulic conductivity for macropores at the mid-point of each layer (m s-1)
+ flux_data%var(ilookFLUX%mlayersathydcond)%dat   = flux_mean%var(ilookFLUX%mlayersathydcond)%dat   ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+ flux_data%var(ilookFLUX%ilayersathydcond)%dat   = flux_mean%var(ilookFLUX%ilayersathydcond)%dat   ! saturated hydraulic conductivity at the interface of each layer (m s-1)
+
+ ! initialize inflow
+ ! NOTE: inflow is constant over a time-step
+ flux_data%var(iLookFLUX%mLayerColumnInflow)%dat = flux_mean%var(iLookFLUX%mLayerColumnInflow)%dat
+
  ! initialize mean fluxes
  do iVar=1,size(flux_meta)
   flux_mean%var(iVar)%dat(:) = 0._dp
  end do
-
- ! initialize compression
- totalSoilCompress = 0._dp  ! change in storage associated with compression of the soil matrix (kg m-2)
 
  ! associate local variables with information in the data structures
  associate(&
@@ -296,7 +325,6 @@ contains
   oldSWE = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   !print*, 'nSnow = ', nSnow
   !print*, 'oldSWE = ', oldSWE
-
 
   ! (1) compute phenology...
   ! ------------------------
@@ -374,7 +402,6 @@ contains
    dCanopyWetFraction_dWat                                 = 0._dp
    dCanopyWetFraction_dT                                   = 0._dp
   endif
-
 
   ! (3) compute snow albedo...
   ! --------------------------
@@ -554,7 +581,7 @@ contains
     indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
     ! compute the indices for the model state variables
-    if(istep==1 .or. modifiedVegState .or. modifiedLayers)then
+    if(firstStep .or. modifiedVegState .or. modifiedLayers)then
      call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
                      indx_data,               & ! intent(inout): indices defining model states and layers
                      err,cmessage)              ! intent(out):   error control
@@ -659,13 +686,8 @@ contains
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-   ! test: recompute snow depth and SWE
-   if(nSnow > 0)then
-    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
-    prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                            prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                          * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
-   endif
+   ! update first step
+   firstStep=.false.
 
    ! if err<0 (warnings) and hence non-convergence
    if(err<0)then
@@ -782,6 +804,14 @@ contains
                    err,cmessage)
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+   ! recompute snow depth and SWE
+   if(nSnow > 0)then
+    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+    prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                            prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                          * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+   endif
+
 
    ! (12) compute sub-step averages associated with the temporary steps...
    ! ---------------------------------------------------------------------
@@ -847,7 +877,7 @@ contains
   endif
 
   ! check SWE
-  effSnowfall = flux_mean%var(iLookFLUX%scalarThroughfallSnow)%dat(1) + flux_mean%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)
+  effSnowfall = flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1) + flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)
   newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   delSWE      = newSWE - (oldSWE - sfcMeltPond)
   massBalance = delSWE - (effSnowfall + effRainfall + sublimation - snwDrainage)*dt_sub
@@ -999,6 +1029,13 @@ contains
 
  ! save the surface temperature (just to make things easier to visualize)
  prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
+
+ ! ensure backwards compatibility
+ if(backwardsCompatibility)then
+  do iVar=1,size(flux_mean%var)
+   flux_mean%var(iVar)%dat = flux_data%var(iVar)%dat
+  end do
+ endif
 
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)

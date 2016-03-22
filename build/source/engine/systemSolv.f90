@@ -741,6 +741,10 @@ contains
   ! constrain iteration increment
   call imposeConstraints()
 
+  if(printFlag)then
+   write(*,'(a,1x,10(e17.10,1x))') 'xInc = ', xInc(iJac1:iJac2)
+  endif
+
   ! -----
   ! * compute model fluxes and residual
   !    NOTE: refine residual with line search...
@@ -1444,6 +1448,11 @@ contains
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
   vThetaTrial(1:nSoil) = mLayerVolFracLiqLocal(nSnow+1:nLayers) + mLayerVolFracIceLocal(nSnow+1:nLayers) ! liquid equivalent of total water at the current iteration
   rVec(ixSoilOnlyHyd)  = vThetaTrial(1:nSoil) - ( (vThetaInit(1:nSoil) + fVec(ixSoilOnlyHyd)*dt) + rAdd(ixSoilOnlyHyd) )
+
+  if(printFlag)then
+   write(*,'(a,1x,3(e20.10,1x))')  'rVec(ixSoilOnlyHyd(1)), fVec(ixSoilOnlyHyd(1)), rAdd(ixSoilOnlyHyd(1)) = ', &
+                                    rVec(ixSoilOnlyHyd(1)), fVec(ixSoilOnlyHyd(1)), rAdd(ixSoilOnlyHyd(1))
+  endif
 
   ! compute the soil water balance error (m)
   ! NOTE: declared in the main routine so accessible in all internal routines

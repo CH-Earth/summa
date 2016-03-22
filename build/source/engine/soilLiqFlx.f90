@@ -270,9 +270,9 @@ contains
   soilIceScale           => mpar_data%var(iLookPARAM%soilIceScale),                 & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
   soilIceCV              => mpar_data%var(iLookPARAM%soilIceCV),                    & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
   ! input: saturated hydraulic conductivity
-  mLayerSatHydCondMP     =>  flux_data%var(iLookflux%mLayerSatHydCondMP)%dat,        & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
-  mLayerSatHydCond       =>  flux_data%var(iLookflux%mLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
-  iLayerSatHydCond       =>  flux_data%var(iLookflux%iLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
+  mLayerSatHydCondMP     =>  flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat,        & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
+  mLayerSatHydCond       =>  flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+  iLayerSatHydCond       =>  flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
   ! input: factors limiting transpiration (from vegFlux routine)
   mLayerRootDensity      =>  diag_data%var(iLookDIAG%mLayerRootDensity)%dat,         & ! intent(in): root density in each layer (-)
   scalarTranspireLim     =>  diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)

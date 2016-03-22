@@ -28,6 +28,7 @@ USE nrtype                                                  ! variable types, et
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-MP parameters
+USE nr_utility_module,only:arth                             ! get a sequence of numbers
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
 USE ascii_util_module,only:split_line                       ! extract the list of variable names from the character string
@@ -74,6 +75,7 @@ USE globalData,only:basinParFallback                        ! basin-average defa
 USE globalData,only:time_meta                               ! metadata for time information 
 USE globalData,only:mpar_meta,bpar_meta                     ! metadata for local column and basin-average model parameters
 USE globalData,only:indx_meta,prog_meta,diag_meta,flux_meta ! metadata for local column variables
+USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 USE globalData,only:numtim                                  ! number of time steps
 USE globalData,only:model_decisions                         ! model decisions
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
@@ -92,6 +94,7 @@ USE data_types,only:&
                     spatial_double,      & ! x%hru(:)%var(:)     (dp)
                     spatial_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
                     spatial_doubleVec      ! x%hru(:)%var(:)%dat (dp)
+USE data_types,only:extended_info          ! extended metadata structure
 ! named variables for elements of model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
@@ -174,7 +177,7 @@ integer(i4b)              :: fileUnit                       ! file unit (output 
 character(LEN=256),allocatable :: dataLines(:)    ! vector of character strings from non-comment lines
 character(LEN=256),allocatable :: chardata(:)     ! vector of character data
 integer(i4b)              :: iWord                          ! loop through words in a string
-
+integer(i4b)              :: nScalarFlux                    ! number of scalar flux variables
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
@@ -219,6 +222,18 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 call popMetadat(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
+
+! allocate space for the averageFlux metadata structure
+nScalarFlux = count(flux_meta(:)%vartype == 'scalarv')
+if(allocated(averageFlux_meta)) deallocate(averageFlux_meta)
+allocate(averageFlux_meta(nScalarFlux),stat=err)
+if(err/=0) call handle_err(20,'problem allocating space for averageFlux_meta')
+
+! define mapping with the parent data structure
+averageFlux_meta(:)%ixParent = pack(arth(1,1,size(flux_meta)), flux_meta(:)%vartype == 'scalarv')
+
+! copy across the metadata from the parent structure
+averageFlux_meta(:)%var_info = flux_meta(averageFlux_meta(:)%ixParent)
 
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures
@@ -271,7 +286,6 @@ allocate(dt_init(nHRU),stat=err); call handle_err(err,'problem allocating space 
 allocate(computeVegFlux(nHRU),stat=err); call handle_err(err,'problem allocating space for computeVegFlux')
 
 ! initialize data structures
-! NOTE: this should replace the entire set of calls above
 call initStruct(&
                 ! input: model control
                 nHRU,       &    ! number of HRUs
@@ -282,7 +296,6 @@ call initStruct(&
                 forcStruct, &    ! model forcing data
                 attrStruct, &    ! local attributes for each HRU
                 typeStruct, &    ! local classification of soil veg etc. for each HRU
-                dparStruct, &    ! default model parameters
                 mparStruct, &    ! model parameters
                 indxStruct, &    ! model indices
                 progStruct, &    ! model prognostic (state) variables
@@ -293,6 +306,8 @@ call initStruct(&
                 bvarStruct, &    ! basin-average variables
                 ! output: error control
                 err,message)   ; call handle_err(err,message)
+
+! get the 
 
 ! read local attributes for each HRU
 call read_attrb(nHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
@@ -343,8 +358,20 @@ select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
  case default; call handle_err(30,'unable to identify vegetation category')
 end select
 
+! allocate space for default model parameters
+if(allocated(dparStruct%hru))then
+ call handle_err(20,'dparStruct is unexpectedly allocated')
+else
+ ! allocate the spatial dimension
+ allocate(dparStruct%hru(nHRU),stat=err)
+ if(err/=0) call handle_err(20,'problem allocating dparStruct')
+endif
+
 ! set default model parameters
 do iHRU=1,nHRU
+ ! allocate the variable dimension for a given HRU
+ call allocLocal(mpar_meta,dparStruct%hru(iHRU),err=err,message=message)
+ call handle_err(err,message)
  ! set parmameters to their default value
  dparStruct%hru(iHRU)%var(:) = localParFallback(:)%default_val         ! x%hru(:)%var(:)
  ! overwrite default model parameters with information from the Noah-MP tables
@@ -435,9 +462,6 @@ do iHRU=1,nHRU
   LAIM(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
  endif
 
- ! define the green vegetation fraction of the grid box (used to compute LAI)
- diagStruct%hru(iHRU)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
-
  ! initialize canopy drip
  ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
  fluxStruct%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
@@ -522,6 +546,7 @@ do istep=1,numtim
  ! compute the exposed LAI and SAI and whether veg is buried by snow
  if(istep==1)then  ! (call phenology here because we need the time information)
   do iHRU=1,nHRU
+   ! get vegetation phenology
    call vegPhenlgy(&
                    ! input/output: data structures
                    model_decisions,             & ! intent(in):    model decisions
@@ -536,6 +561,8 @@ do istep=1,numtim
                    notUsed_exposedVAI,          & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
                    err,message)                   ! intent(out): error control
    call handle_err(err,message)
+   ! define the green vegetation fraction of the grid box (used to compute LAI)
+   diagStruct%hru(iHRU)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
   end do  ! looping through HRUs
  endif  ! if the first time step
 

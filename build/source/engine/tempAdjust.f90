@@ -63,7 +63,7 @@ contains
  ! input/output: data structures
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
- type(var_dlength),intent(out)   :: diag_data           ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
  ! output: error control
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message

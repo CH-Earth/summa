@@ -97,7 +97,7 @@ contains
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   ! check errors
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName)//']'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage)//' [structure =  '//trim(structInfo(iStruct)%structName)//']'; return; endif
  end do  ! looping through data structures
 
  end subroutine def_output
@@ -201,7 +201,7 @@ contains
  ! local variables
  integer(i4b)               :: ncid        ! NetCDF file ID
  ! initialize error control
- err=0;message="f-defAttrib/"//trim(attname)//"/"//trim(attvalue)//"/"
+ err=0;message="put_attrib/"//trim(attname)//"/"//trim(attvalue)//"/"
  ! open NetCDF file
  err = nf90_open(infile,nf90_write,ncid)
  call netcdf_err(err,message); if (err/=0) return
@@ -239,6 +239,8 @@ contains
  integer(i4b)                  :: id                ! loop through dimensions
  integer(i4b)                  :: ncid              ! NetCDF file ID
  integer(i4b)                  :: iVarId            ! variable ID
+ ! initialize error control
+ err=0; message='def_variab/'
 
  ! open NetCDF file
  err = nf90_open(infile,nf90_write,ncid)
@@ -253,29 +255,39 @@ contains
   ! check that the variable is desired
   if (.not.metadata(ivar)%v_write .or. trim(metadata(ivar)%vartype)=='unknown') cycle
 
+  ! deallocate dimension names and IDs
+  if(allocated(dimensionNames)) deallocate(dimensionNames)
+  if(allocated(dimensionIDs))   deallocate(dimensionIDs)
+
   ! ** get variable shape
   ! special case of the time variable
   if(metadata(ivar)%varname == 'time')then
-   dimensionNames = (/Timestep_DimName/)
+   allocate(dimensionNames, source=(/Timestep_DimName/), stat=err)
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating dimensions for variable '//trim(metadata(ivar)%varname); return; endif
   ! standard case
   else
    select case(trim(metadata(ivar)%vartype))
     ! (scalar variable -- many different types)
     case('scalarv')
-     if(hruDesire==needHRU .and. timeDesire==needTime) dimensionNames = (/hru_DimName,Timestep_DimName/)
-     if(hruDesire==needHRU .and. timeDesire==  noTime) dimensionNames = (/hru_DimName/)
-     if(hruDesire==  noHRU .and. timeDesire==needTime) dimensionNames = (/Timestep_DimName/)
-     if(hruDesire==  noHRU .and. timeDesire==  noTime) dimensionNames = (/scalar_DimName/)
+     if(hruDesire==needHRU .and. timeDesire==needTime) allocate(dimensionNames, source=(/hru_DimName,Timestep_DimName/), stat=err)
+     if(hruDesire==needHRU .and. timeDesire==  noTime) allocate(dimensionNames, source=(/hru_DimName/)                 , stat=err)
+     if(hruDesire==  noHRU .and. timeDesire==needTime) allocate(dimensionNames, source=(/Timestep_DimName/)            , stat=err)
+     if(hruDesire==  noHRU .and. timeDesire==  noTime) allocate(dimensionNames, source=(/scalar_DimName/)              , stat=err)
     ! (other variables)
-    case('wLength'); dimensionNames = (/hru_DimName,wLength_DimName,Timestep_DimName/)
-    case('midSnow'); dimensionNames = (/hru_DimName,midSnowAndTime_DimName/)
-    case('midSoil'); dimensionNames = (/hru_DimName,midSoilAndTime_DimName/)
-    case('midToto'); dimensionNames = (/hru_DimName,midTotoAndTime_DimName/)
-    case('ifcSnow'); dimensionNames = (/hru_DimName,ifcSnowAndTime_DimName/)
-    case('ifcSoil'); dimensionNames = (/hru_DimName,ifcSoilAndTime_DimName/)
-    case('ifcToto'); dimensionNames = (/hru_DimName,ifcTotoAndTime_DimName/)
-    case('routing'); dimensionNames = (/routing_DimName/)
+    case('wLength'); allocate(dimensionNames, source=(/hru_DimName,wLength_DimName,Timestep_DimName/), stat=err)
+    case('midSnow'); allocate(dimensionNames, source=(/hru_DimName,midSnowAndTime_DimName/)          , stat=err)
+    case('midSoil'); allocate(dimensionNames, source=(/hru_DimName,midSoilAndTime_DimName/)          , stat=err)
+    case('midToto'); allocate(dimensionNames, source=(/hru_DimName,midTotoAndTime_DimName/)          , stat=err)
+    case('ifcSnow'); allocate(dimensionNames, source=(/hru_DimName,ifcSnowAndTime_DimName/)          , stat=err)
+    case('ifcSoil'); allocate(dimensionNames, source=(/hru_DimName,ifcSoilAndTime_DimName/)          , stat=err)
+    case('ifcToto'); allocate(dimensionNames, source=(/hru_DimName,ifcTotoAndTime_DimName/)          , stat=err)
+    case('routing'); allocate(dimensionNames, source=(/routing_DimName/)                             , stat=err)
    end select
+   ! check errors
+   if(err/=0)then
+    message=trim(message)//'problem allocating dimensions for variable '//trim(metadata(ivar)%varname)
+    return
+   endif
   endif  ! check if we are processing the time variable
   ! check that we got the shape
   if(.not.allocated(dimensionNames))then
