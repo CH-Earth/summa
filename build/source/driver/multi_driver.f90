@@ -60,12 +60,13 @@ USE vegPhenlgy_module,only:vegPhenlgy                       ! module to compute 
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
 USE groundwatr_module,only:groundwatr                       ! module to simulate regional groundwater balance
 USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
-! provide access to data
+! provide access to file paths
 USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
 USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of file containing information on local attributes
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
+! provide access to global data
 USE globalData,only:refTime                                 ! reference time
 USE globalData,only:startTime                               ! start time
 USE globalData,only:finshTime                               ! end time
@@ -81,6 +82,8 @@ USE globalData,only:model_decisions                         ! model decisions
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:globalPrintFlag                         ! global print flag
 USE globalData,only:forcFileInfo                            ! forcing file info
+USE multiconst,only:integerMissing                          ! missing integer value
+! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
 USE noahmp_globals,only:RSMIN                               ! minimum stomatal resistance (vegType)
@@ -95,7 +98,7 @@ USE data_types,only:&
                     spatial_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
                     spatial_doubleVec      ! x%hru(:)%var(:)%dat (dp)
 USE data_types,only:extended_info          ! extended metadata structure
-! named variables for elements of model structures
+! provide access to the named variables that describe elements of parent model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
@@ -107,7 +110,9 @@ USE var_lookup,only:iLookFLUX                               ! look-up values for
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
-! named variables for model decisions
+! provide access to the named variables that describe elements of child  model structures
+USE var_lookup,only:childFLUX_MEAN                          ! look-up values for timestep-average model fluxes
+! provide access to the named variables that describe model decisions
 USE mDecisions_module,only:  &                              ! look-up values for method used to compute derivative
  numerical,   & ! numerical solution
  analytical     ! analytical solution
@@ -224,16 +229,20 @@ call popMetadat(err,message); call handle_err(err,message)
 call checkStruc(err,message); call handle_err(err,message)
 
 ! allocate space for the averageFlux metadata structure
-nScalarFlux = count(flux_meta(:)%vartype == 'scalarv')
+nScalarFlux = count(flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
 if(allocated(averageFlux_meta)) deallocate(averageFlux_meta)
 allocate(averageFlux_meta(nScalarFlux),stat=err)
 if(err/=0) call handle_err(20,'problem allocating space for averageFlux_meta')
 
 ! define mapping with the parent data structure
-averageFlux_meta(:)%ixParent = pack(arth(1,1,size(flux_meta)), flux_meta(:)%vartype == 'scalarv')
+averageFlux_meta(:)%ixParent = pack(arth(1,1,size(flux_meta)), flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
 
 ! copy across the metadata from the parent structure
 averageFlux_meta(:)%var_info = flux_meta(averageFlux_meta(:)%ixParent)
+
+! put the child indices in the childFLUX_MEAN vector
+childFLUX_MEAN(:) = integerMissing
+childFLUX_MEAN(averageFlux_meta(:)%ixParent) = arth(1,1,nScalarFlux)
 
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures

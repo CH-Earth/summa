@@ -64,7 +64,7 @@ contains
                        indx_data,         & ! intent(inout): model indices
                        prog_data,         & ! intent(inout): prognostic variables for a local HRU
                        diag_data,         & ! intent(inout): diagnostic variables for a local HRU
-                       flux_mean,         & ! intent(inout): model fluxes for a local HRU
+                       flux_data,         & ! intent(inout): model fluxes for a local HRU
                        ! error control
                        err,message)         ! intent(out):   error control
  ! data types
@@ -73,15 +73,17 @@ contains
                      var_d,               & ! x%var(:)            (dp)
                      var_ilength,         & ! x%var(:)%dat        (i4b)
                      var_dlength            ! x%var(:)%dat        (dp)
- ! named variables
+ ! named variables for parent structures
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX ! named variables for structure elements
  USE globalData,only:ix_soil,ix_snow        ! named variables for snow and soil
+ ! named variables for child structures
+ USE var_lookup,only:childFLUX_MEAN
  ! global data
  USE globalData,only:data_step              ! time step of forcing data (s)
  USE globalData,only:model_decisions        ! model decision structure
  ! structure allocations
- USE globalData,only:flux_meta              ! metadata structures
+ USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
  USE allocspace_module,only:allocLocal      ! allocate local data structures
  ! preliminary subroutines
  USE vegPhenlgy_module,only:vegPhenlgy      ! (1) compute vegetation phenology
@@ -126,7 +128,7 @@ contains
  type(var_ilength),intent(inout)      :: indx_data              ! state vector geometry
  type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
  type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU 
- type(var_dlength),intent(inout)      :: flux_mean              ! model fluxes for a local HRU
+ type(var_dlength),intent(inout)      :: flux_data              ! model fluxes for a local HRU
  ! error control
  integer(i4b),intent(out)             :: err                    ! error code
  character(*),intent(out)             :: message                ! error message
@@ -158,7 +160,7 @@ contains
  logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
  logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
  logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
- type(var_dlength)                    :: flux_data              ! model fluxes for a local HRU
+ type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
@@ -218,38 +220,14 @@ contains
  nLayers = nSnow + nSoil
 
  ! allocate space for the local fluxes
- call allocLocal(flux_meta,flux_data,nSnow,nSoil,err,cmessage)
+ call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! initialize compression
  totalSoilCompress = 0._dp  ! change in storage associated with compression of the soil matrix (kg m-2)
 
- ! initialize precip forcing
- ! NOTE: forcing is constant over a time-step
- flux_data%var(iLookFLUX%scalarSnowfall)%dat(1) = flux_mean%var(iLookFLUX%scalarSnowfall)%dat(1)
- flux_data%var(iLookFLUX%scalarRainfall)%dat(1) = flux_mean%var(iLookFLUX%scalarRainfall)%dat(1)
-
- ! initialize radiative forcing
- ! NOTE: forcing is constant over a time-step
- flux_data%var(iLookFLUX%spectralIncomingDirect)%dat  = flux_mean%var(iLookFLUX%spectralIncomingDirect)%dat   ! downwelling direct shortwave radiation for each waveband (W m-2)
- flux_data%var(iLookFLUX%spectralIncomingDiffuse)%dat = flux_mean%var(iLookFLUX%spectralIncomingDiffuse)%dat  ! downwelling diffuse shortwave radiation for each waveband (W m-2)
-
- ! initialize canopy drip (used in canopySnow)
- ! NOTE: canopy drip from the previous time step is used to compute throughfall of snow for the current time step
- flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = flux_mean%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)
-
- ! initialize saturated hydraulic conductivity
- ! NOTE: saturated hydarulic conductivity is constant over the time step
- flux_data%var(ilookFLUX%mlayersathydcondmp)%dat = flux_mean%var(ilookFLUX%mlayersathydcondmp)%dat ! saturated hydraulic conductivity for macropores at the mid-point of each layer (m s-1)
- flux_data%var(ilookFLUX%mlayersathydcond)%dat   = flux_mean%var(ilookFLUX%mlayersathydcond)%dat   ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
- flux_data%var(ilookFLUX%ilayersathydcond)%dat   = flux_mean%var(ilookFLUX%ilayersathydcond)%dat   ! saturated hydraulic conductivity at the interface of each layer (m s-1)
-
- ! initialize inflow
- ! NOTE: inflow is constant over a time-step
- flux_data%var(iLookFLUX%mLayerColumnInflow)%dat = flux_mean%var(iLookFLUX%mLayerColumnInflow)%dat
-
  ! initialize mean fluxes
- do iVar=1,size(flux_meta)
+ do iVar=1,size(averageFlux_meta)
   flux_mean%var(iVar)%dat(:) = 0._dp
  end do
 
@@ -823,8 +801,8 @@ contains
    dt_wght = dt_temp/dt ! define weight applied to each sub-step
 
    ! increment fluxes
-   do iVar=1,size(flux_meta)
-    flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(iVar)%dat(:)*dt_wght 
+   do iVar=1,size(averageFlux_meta)
+    flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght 
    end do
 
    ! increment change in storage associated with compression of the soil matrix (kg m-2)
@@ -936,28 +914,28 @@ contains
  ! associate local variables with information in the data structures
  associate(&
  ! model forcing
- scalarSnowfall             => flux_mean%var(iLookFLUX%scalarSnowfall)%dat(1)                 ,&  ! computed snowfall rate (kg m-2 s-1)
- scalarRainfall             => flux_mean%var(iLookFLUX%scalarRainfall)%dat(1)                 ,&  ! computed rainfall rate (kg m-2 s-1)
+ scalarSnowfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowfall)           )%dat(1)     ,&  ! computed snowfall rate (kg m-2 s-1)
+ scalarRainfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarRainfall)           )%dat(1)     ,&  ! computed rainfall rate (kg m-2 s-1)
  ! canopy fluxes
- averageThroughfallSnow     => flux_mean%var(iLookFLUX%scalarThroughfallSnow)%dat(1)          ,&  ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
- averageThroughfallRain     => flux_mean%var(iLookFLUX%scalarThroughfallRain)%dat(1)          ,&  ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
- averageCanopySnowUnloading => flux_mean%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)      ,&  ! unloading of snow from the vegetion canopy (kg m-2 s-1)
- averageCanopyLiqDrainage   => flux_mean%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)        ,&  ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
- averageCanopySublimation   => flux_mean%var(iLookFLUX%scalarCanopySublimation)%dat(1)        ,&  ! canopy sublimation/frost (kg m-2 s-1)
- averageCanopyEvaporation   => flux_mean%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)        ,&  ! canopy evaporation/condensation (kg m-2 s-1)
+ averageThroughfallSnow     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallSnow)    )%dat(1)     ,&  ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ averageThroughfallRain     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallRain)    )%dat(1)     ,&  ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ averageCanopySnowUnloading => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySnowUnloading))%dat(1)     ,&  ! unloading of snow from the vegetion canopy (kg m-2 s-1)
+ averageCanopyLiqDrainage   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyLiqDrainage)  )%dat(1)     ,&  ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+ averageCanopySublimation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation)  )%dat(1)     ,&  ! canopy sublimation/frost (kg m-2 s-1)
+ averageCanopyEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyEvaporation)  )%dat(1)     ,&  ! canopy evaporation/condensation (kg m-2 s-1)
  ! soil fluxes
- averageSoilInflux          => flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(0)              ,&  ! influx of water at the top of the soil profile (m s-1)
- averageSoilDrainage        => flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(nSoil)          ,&  ! drainage from the bottom of the soil profile (m s-1)
- averageSoilBaseflow        => flux_mean%var(iLookFLUX%scalarSoilBaseflow)%dat(1)             ,&  ! total baseflow from throughout the soil profile (m s-1)
- averageCanopyTranspiration => flux_mean%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)      ,&  ! canopy transpiration (kg m-2 s-1)
+ averageSoilInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil)        )%dat(0)     ,&  ! influx of water at the top of the soil profile (m s-1)
+ averageSoilDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil)        )%dat(nSoil) ,&  ! drainage from the bottom of the soil profile (m s-1)
+ averageSoilBaseflow        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilBaseflow)       )%dat(1)     ,&  ! total baseflow from throughout the soil profile (m s-1)
+ averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1)     ,&  ! canopy transpiration (kg m-2 s-1)
  ! state variables in the vegetation canopy
- scalarCanopyLiq            => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)                ,&  ! canopy liquid water (kg m-2)
- scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                ,&  ! canopy ice content (kg m-2)
+ scalarCanopyLiq            => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)                               ,&  ! canopy liquid water (kg m-2)
+ scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                               ,&  ! canopy ice content (kg m-2)
  ! state variables in the soil domain
- mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)      ,&  ! depth of each soil layer (m)
- mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers) ,&  ! volumetric ice content in each soil layer (-)
- mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers) ,&  ! volumetric liquid water content in each soil layer (-)
- scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)            &  ! aquifer storage (m)
+ mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)                     ,&  ! depth of each soil layer (m)
+ mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers)                ,&  ! volumetric ice content in each soil layer (-)
+ mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)                ,&  ! volumetric liquid water content in each soil layer (-)
+ scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                           &  ! aquifer storage (m)
  ) ! (association of local variables with information in the data structures
 
  ! canopy water balance
@@ -1030,10 +1008,10 @@ contains
  ! save the surface temperature (just to make things easier to visualize)
  prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
 
- ! ensure backwards compatibility
- if(backwardsCompatibility)then
+ ! overwrite flux data with the timestep-average value
+ if(.not.backwardsCompatibility)then
   do iVar=1,size(flux_mean%var)
-   flux_mean%var(iVar)%dat = flux_data%var(iVar)%dat
+   flux_data%var(averageFlux_meta(iVar)%ixParent)%dat = flux_mean%var(iVar)%dat
   end do
  endif
 
