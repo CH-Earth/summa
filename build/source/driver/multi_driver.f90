@@ -34,6 +34,7 @@ USE ascii_util_module,only:get_vlines                       ! read a vector of n
 USE ascii_util_module,only:split_line                       ! extract the list of variable names from the character string
 USE allocspace_module,only:initStruct                       ! module to allocate space for data structures
 USE allocspace_module,only:allocLocal                       ! module to allocate space for data structures
+USE childStruc_module,only:childStruc                       ! module to create a child data structure
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
 USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
 USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
@@ -182,7 +183,7 @@ integer(i4b)              :: fileUnit                       ! file unit (output 
 character(LEN=256),allocatable :: dataLines(:)    ! vector of character strings from non-comment lines
 character(LEN=256),allocatable :: chardata(:)     ! vector of character data
 integer(i4b)              :: iWord                          ! loop through words in a string
-integer(i4b)              :: nScalarFlux                    ! number of scalar flux variables
+logical(lgt)              :: flux_mask(size(flux_meta))     ! mask defining desired flux variables
 real(dp),allocatable      :: zSoilReverseSign(:)            ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)    :: greenVegFrac_monthly           ! fraction of green vegetation in each month (0-1)
 real(dp),parameter        :: doubleMissing=-9999._dp        ! missing value
@@ -228,21 +229,10 @@ call popMetadat(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! allocate space for the averageFlux metadata structure
-nScalarFlux = count(flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
-if(allocated(averageFlux_meta)) deallocate(averageFlux_meta)
-allocate(averageFlux_meta(nScalarFlux),stat=err)
-if(err/=0) call handle_err(20,'problem allocating space for averageFlux_meta')
-
-! define mapping with the parent data structure
-averageFlux_meta(:)%ixParent = pack(arth(1,1,size(flux_meta)), flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
-
-! copy across the metadata from the parent structure
-averageFlux_meta(:)%var_info = flux_meta(averageFlux_meta(:)%ixParent)
-
-! put the child indices in the childFLUX_MEAN vector
-childFLUX_MEAN(:) = integerMissing
-childFLUX_MEAN(averageFlux_meta(:)%ixParent) = arth(1,1,nScalarFlux)
+! create the averageFlux metadata structure
+flux_mask = (flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
+call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
+call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3) read information for each HRU and allocate space for data structures

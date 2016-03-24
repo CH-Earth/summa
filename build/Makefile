@@ -186,6 +186,7 @@ SUMMA_PRELIM= \
 		convE2Temp.f90 \
 		allocspace.f90 \
 		checkStruc.f90 \
+		childStruc.f90 \
 		ffile_info.f90 \
 		read_attrb.f90 \
 		read_pinit.f90 \
