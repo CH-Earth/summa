@@ -126,6 +126,7 @@ contains
  integer(i4b),parameter          :: ixVisible=1         ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2          ! named variable to define index in array of near IR part of the spectrum
  logical(lgt),parameter          :: printFlag=.false.   ! flag to print output
+ real(dp),parameter              :: verySmall=1.e-10_dp ! a very small number (used for error checking)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -333,11 +334,11 @@ contains
   end do
 
   ! check
-  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > epsilon(scalarSnowDepth))then
+  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > verySmall)then
    print*, 'nSnow = ', nSnow
-   write(*,'(a,1x,f20.15,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
-   write(*,'(a,1x,f20.15,1x)') 'scalarSnowDepth           = ', scalarSnowDepth
-   write(*,'(a,1x,f20.15,1x)') 'epsilon(scalarSnowDepth)  = ', epsilon(scalarSnowDepth)
+   write(*,'(a,1x,f30.25,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
+   write(*,'(a,1x,f30.25,1x)') 'scalarSnowDepth           = ', scalarSnowDepth
+   write(*,'(a,1x,f30.25,1x)') 'epsilon(scalarSnowDepth)  = ', epsilon(scalarSnowDepth)
    message=trim(message)//'sum of layer depths does not equal snow depth'
    err=20; return
   endif
