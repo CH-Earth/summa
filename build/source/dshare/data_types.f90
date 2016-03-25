@@ -86,55 +86,125 @@ MODULE data_types
  end type struct_info
 
  ! ***********************************************************************************************************
+ ! Define data types to map between GRUs and HRUs
+ ! ***********************************************************************************************************
+
+ ! hru info data structure
+ type, public :: hru_info
+  integer(i4b)                      :: hru_ix                   ! index of the hru in the entire domain
+  integer(i4b)                      :: hru_id                   ! id (non-sequential number) of the hru
+  integer(i4b)                      :: nSnow                    ! number of snow layers
+  integer(i4b)                      :: nSoil                    ! number of soil layers
+ endtype hru_info
+
+ ! define mapping from HRUs to the HRUs
+ type, public :: gru2hru_map
+  integer(i4b)                      :: gru_ix                   ! index of the gru
+  integer(i4b)                      :: hruCount                 ! total number of hrus in the gru
+  type(hru_info), allocatable       :: hruInfo(:)               ! basic information of HRUs within the gru
+ endtype gru2hru_map
+
+ ! define the mapping from the HRUs to the GRUs
+ type, public :: hru2gru_map
+  integer(i4b)                      :: gru_ix                   ! index of gru which the hru belongs to 
+  integer(i4b)                      :: ihru                     ! index of a hru within a gru
+ endtype hru2gru_map
+
+ ! ***********************************************************************************************************
  ! Define hierarchal derived data types
  ! ***********************************************************************************************************
  ! define derived types to hold multivariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
  type, public :: dlength
-  real(dp),allocatable                       :: dat(:) 
+  real(dp),allocatable                :: dat(:)    ! dat(:) 
  endtype dlength
  ! ** integer type
  type, public :: ilength
-  integer(i4b),allocatable                   :: dat(:) 
+  integer(i4b),allocatable            :: dat(:)    ! dat(:)
  endtype ilength
 
  ! define derived types to hold data for multiple variables
  ! NOTE: use derived types here to facilitate adding extra dimensions (e.g., spatial)
  ! ** double precision type of variable length
  type, public :: var_dlength
-  type(dlength),allocatable                  :: var(:) 
+  type(dlength),allocatable           :: var(:)    ! var(:)%dat 
  endtype var_dlength
  ! ** integer type of variable length
  type, public :: var_ilength
-  type(ilength),allocatable                  :: var(:) 
+  type(ilength),allocatable           :: var(:)    ! var(:)%dat
  endtype var_ilength
  ! ** double precision type of fixed length
  type, public :: var_d
-  real(dp),allocatable                       :: var(:) 
+  real(dp),allocatable                :: var(:)    ! var(:)
  endtype var_d
- ! ** integer type of variable length
+ ! ** integer type of fixed length
  type, public :: var_i
-  integer(i4b),allocatable                   :: var(:) 
+  integer(i4b),allocatable            :: var(:)    ! var(:)
  endtype var_i
 
- ! define derived types to hold spatial dimensions
- ! ** double precision type of variable length
- type, public :: spatial_doubleVec
-  type(var_dlength),allocatable :: hru(:)
- endtype spatial_doubleVec
- ! ** integer type of variable length
- type, public :: spatial_intVec
-  type(var_ilength),allocatable :: hru(:)
- endtype spatial_intVec
  ! ** double precision type of fixed length
- type, public :: spatial_double
-  type(var_d),allocatable       :: hru(:)
- endtype spatial_double
+ type, public :: hru_d
+  real(dp),allocatable                :: hru(:)    ! hru(:)
+ endtype hru_d
+ ! ** integer type of fixed length
+ type, public :: hru_i
+  integer(i4b),allocatable            :: hru(:)    ! hru(:)
+ endtype hru_i
+
+ ! define derived types to hold JUST the HRU dimension
+ ! ** double precision type of variable length
+ type, public :: hru_doubleVec
+  type(var_dlength),allocatable      :: hru(:)     ! hru(:)%var(:)%dat
+ endtype hru_doubleVec
  ! ** integer type of variable length
- type, public :: spatial_int
-  type(var_i),allocatable       :: hru(:)
- endtype spatial_int
+ type, public :: hru_intVec
+  type(var_ilength),allocatable      :: hru(:)     ! hru(:)%var(:)%dat
+ endtype hru_intVec
+ ! ** double precision type of fixed length
+ type, public :: hru_double
+  type(var_d),allocatable            :: hru(:)     ! hru(:)%var(:)
+ endtype hru_double
+ ! ** integer type of fixed length
+ type, public :: hru_int
+  type(var_i),allocatable            :: hru(:)     ! hru(:)%var(:)
+ endtype hru_int
+
+ ! define derived types to hold JUST the HRU dimension
+ ! ** double precision type of variable length
+ type, public :: gru_doubleVec
+  type(var_dlength),allocatable      :: gru(:)     ! gru(:)%var(:)%dat
+ endtype gru_doubleVec
+ ! ** integer type of variable length
+ type, public :: gru_intVec
+  type(var_ilength),allocatable      :: gru(:)     ! gru(:)%var(:)%dat
+ endtype gru_intVec
+ ! ** double precision type of fixed length
+ type, public :: gru_double
+  type(var_d),allocatable            :: gru(:)     ! gru(:)%var(:)
+ endtype gru_double
+ ! ** integer type of variable length
+ type, public :: gru_int
+  type(var_i),allocatable            :: gru(:)     ! gru(:)%var(:)
+ endtype gru_int
+
+ ! define derived types to hold BOTH the GRU and HRU dimension
+ ! ** double precision type of variable length
+ type, public :: gru_hru_doubleVec
+  type(hru_doubleVec),allocatable    :: gru(:)     ! gru(:)%hru(:)%var(:)%dat
+ endtype gru_hru_doubleVec
+ ! ** integer type of variable length
+ type, public :: gru_hru_intVec
+  type(hru_intVec),allocatable       :: gru(:)     ! gru(:)%hru(:)%var(:)%dat
+ endtype gru_hru_intVec
+ ! ** double precision type of fixed length
+ type, public :: gru_hru_double
+  type(hru_double),allocatable       :: gru(:)     ! gru(:)%hru(:)%var(:)
+ endtype gru_hru_double
+ ! ** integer type of variable length
+ type, public :: gru_hru_int
+  type(hru_int),allocatable          :: gru(:)     ! gru(:)%hru(:)%var(:)
+ endtype gru_hru_int
 
 END MODULE data_types
 

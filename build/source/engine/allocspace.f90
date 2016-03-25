@@ -21,32 +21,31 @@
 module allocspace_module
 ! data types
 USE nrtype
-! metadata structures
-USE globalData,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
-USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta       ! metadata structures
-USE globalData,only:mpar_meta,indx_meta                            ! metadata structures
-USE globalData,only:bpar_meta,bvar_meta                            ! metadata structures
-USE globalData,only:model_decisions                                ! model decision structure
-! time structures
-USE globalData,only:refTime,startTime,finshTime                    ! reference time, start time, and end time for the model simulation
-! structure information
-USE globalData,only:structInfo             ! information on the data structures                  
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
+                    ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
                     var_d,               & ! x%var(:)            (dp)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
                     var_dlength,         & ! x%var(:)%dat        (dp)
-                    spatial_int,         & ! x%hru(:)%var(:)     (i4b)
-                    spatial_double,      & ! x%hru(:)%var(:)     (dp)
-                    spatial_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
-                    spatial_doubleVec      ! x%hru(:)%var(:)%dat (dp)
+                    ! gru dimension
+                    gru_int,             & ! x%gru(:)%var(:)     (i4b)
+                    gru_double,          & ! x%gru(:)%var(:)     (dp)
+                    gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
+                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
+                    ! gru+hru dimension
+                    gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
+                    gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
+                    gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
 ! metadata structure
-USE data_types,only:var_info
+USE data_types,only:var_info               ! data type for metadata
+USE globalData,only:gru_struc              ! gru-hru mapping structures
 implicit none
 private
-public::initStruct
+public::allocGlobal
 public::allocLocal
+public::allocate_gru_struc
 ! define missing values
 integer(i4b),parameter :: missingInteger=-9999
 real(dp),parameter     :: missingDouble=-9999._dp
@@ -57,135 +56,193 @@ integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay
 contains
 
  ! ************************************************************************************************
- ! public subroutine initStruct: initialize data structures
+ ! public subroutine allocate_gru_struc: allocate space for GRU-HRU mapping structures
  ! ************************************************************************************************
- subroutine initStruct(&
-                       ! input: model control
-                       nHRU,       &    ! number of HRUs
-                       nSnow,      &    ! number of snow layers for each HRU
-                       nSoil,      &    ! number of soil layers for each HRU
-                       ! input: data structures
-                       timeStruct, &    ! model time data
-                       forcStruct, &    ! model forcing data
-                       attrStruct, &    ! local attributes for each HRU
-                       typeStruct, &    ! local classification of soil veg etc. for each HRU
-                       mparStruct, &    ! model parameters
-                       indxStruct, &    ! model indices
-                       progStruct, &    ! model prognostic (state) variables
-                       diagStruct, &    ! model diagnostic variables
-                       fluxStruct, &    ! model fluxes
-                       derivStruct,&    ! model derivatives
-                       bparStruct, &    ! basin-average parameters
-                       bvarStruct, &    ! basin-average variables
-                       ! output: error control
-                       err,message)
+ subroutine allocate_gru_struc(nGRU,nHRU,err,message)
+ USE netcdf
+ USE nr_utility_module,only:arth
+ ! provide access to subroutines
+ USE netcdf_util_module,only:nc_file_open          ! open netCDF file
+ ! provide access to data
+ USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
+ USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
+ USE globalData,only: index_map                    ! relating different indexing system
+ USE globalData,only: gru_struc                    ! gru-hru mapping structures
+ 
  implicit none
- ! input: model control
- integer(i4b),            intent(in)   :: nHRU          ! number of HRUs
- integer(i4b),            intent(in)   :: nSnow(:)      ! number of snow layers for each HRU
- integer(i4b),            intent(in)   :: nSoil(:)      ! number of soil layers for each HRU
- ! output: data structures
- type(var_i),             intent(out)  :: timeStruct    ! model time data
- type(spatial_double),    intent(out)  :: forcStruct    ! model forcing data
- type(spatial_double),    intent(out)  :: attrStruct    ! local attributes for each HRU
- type(spatial_int),       intent(out)  :: typeStruct    ! local classification of soil veg etc. for each HRU
- type(spatial_double),    intent(out)  :: mparStruct    ! model parameters
- type(spatial_intVec),    intent(out)  :: indxStruct    ! model indices
- type(spatial_doubleVec), intent(out)  :: progStruct    ! model prognostic (state) variables
- type(spatial_doubleVec), intent(out)  :: diagStruct    ! model diagnostic variables
- type(spatial_doubleVec), intent(out)  :: fluxStruct    ! model fluxes
- type(var_dlength),       intent(out)  :: derivStruct   ! model derivatives
- type(var_d),             intent(out)  :: bparStruct    ! basin-average parameters
- type(var_dlength),       intent(out)  :: bvarStruct    ! basin-average variables
- ! output: error control
- integer(i4b),intent(out)              :: err           ! error code
- character(*),intent(out)              :: message       ! error message
- ! ---------------------------------------------------------------------------------------------------------------
+ ! define output
+ integer(i4b),intent(out)             :: nGRU               ! number of grouped response units
+ integer(i4b),intent(out)             :: nHRU               ! number of hydrologic response units
+ integer(i4b),intent(out)             :: err                ! error code
+ character(*),intent(out)             :: message            ! error message
+ ! define general variables
+ character(len=256)                   :: cmessage           ! error message for downwind routine
+ character(LEN=256)                   :: infile             ! input filename
+ 
+ ! define variables for NetCDF file operation
+ integer(i4b)                         :: mode               ! netCDF file open mode
+ integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
+ integer(i4b)                         :: varid              ! variable id from netcdf file
+ integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
+ integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
+ integer(i4b),allocatable             :: hru_id(:)          ! unique id of hru over entire domain
+ integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs
+ integer(i4b),allocatable             :: hru2gru_id(:)      ! unique GRU ids at each HRU
+      
+ ! define local variables
+ integer(i4b)                         :: hruCount           ! number of hrus in a gru
+ integer(i4b)                         :: iGRU               ! index of a GRU and HRU
+
+ ! Start procedure here
+ err=0; message="allocate_gru_hru_map/"
+
+ ! check that gru_struc structure is initialized
+ if(allocated(gru_struc)) deallocate(gru_struc)
+ if(allocated(index_map)) deallocate(index_map)
+
+ ! build filename
+ infile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
+ ! open file
+ mode=nf90_noWrite
+ call nc_file_open(trim(infile), mode, ncid, err, cmessage)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get gru_ix dimension length
+ err = nf90_inq_dimid(ncid, "ngru", gruDimID);             if(err/=0)then; message=trim(message)//'problem finding nGRU dimension'; return; endif
+ err = nf90_inquire_dimension(ncid, gruDimID, len = nGRU); if(err/=0)then; message=trim(message)//'problem reading nGRU dimension'; return; endif
+
+ ! get hru_dim dimension length (ie., the number of hrus in entire domain)
+ err = nf90_inq_dimid(ncid, "nhru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding nHRU dimension'; return; endif
+ err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU); if(err/=0)then; message=trim(message)//'problem reading nHRU dimension'; return; endif
+ 
+ allocate(gru_struc(nGRU), index_map(nHRU), stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for mapping structures'; return; endif
+ 
+ allocate(gru_id(nGRU),hru_id(nHRU),hru2gru_id(nHRU),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
+
+ ! read gru_id from netcdf file
+ err = nf90_inq_varid(ncid, "gruId", varid);     if(err/=0)then; message=trim(message)//'problem finding gruId variable'; return; endif
+ err = nf90_get_var(ncid,varid,gru_id);          if(err/=0)then; message=trim(message)//'problem reading gruId variable'; return; endif
+
+ ! read the HRU to GRU mapping
+ err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=0)then; message=trim(message)//'problem finding hru2gruId variable'; return; endif
+ err = nf90_get_var(ncid,varid,hru2gru_id);      if(err/=0)then; message=trim(message)//'problem reading hru2gruId variable'; return; endif
+
+ ! allocate mapping array
+ do iGRU=1,nGRU
+  hruCount = count(hru2gru_id==gru_id(iGRU))
+  gru_struc(iGRU)%hruCount = hruCount
+  allocate(gru_struc(iGRU)%hruInfo(hruCount),stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; endif
+ enddo
+
+ ! close the HRU_ATTRIBUTES netCDF file
+ err = nf90_close(ncid)
+ if(err/=0)then; err=20; message=trim(message)//'error closing zLocalAttributes file'; return; endif
+ end subroutine allocate_gru_struc
+
+ ! ************************************************************************************************
+ ! public subroutine allocGlobal: allocate space for global data structures 
+ ! ************************************************************************************************
+ subroutine allocGlobal(metaStruct,dataStruct,err,message)
+ implicit none
+ ! input
+ type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
+ ! output
+ class(*),intent(out)            :: dataStruct     ! data structure
+ integer(i4b),intent(out)        :: err            ! error code
+ character(*),intent(out)        :: message        ! error message
  ! local variables
- integer(i4b)                          :: iStruct       ! index of data structure 
- character(len=256)                    :: cmessage      ! error message of downwind routine
- ! initialize errors
- err=0; message="initStruct/"
+ logical(lgt)                    :: check          ! .true. if structure is already allocated
+ integer(i4b)                    :: iHRU           ! loop through HRUs
+ integer(i4b)                    :: iGRU           ! loop through GRUs
+ integer(i4b)                    :: nGRU           ! number of GRUs
+ logical(lgt)                    :: spatial        ! spatial flag
+ character(len=256)              :: cmessage       ! error message of the downwind routine
+ ! initialize error control
+ err=0; message='allocGlobal/'
+ 
+ ! initialize allocation check
+ check=.false.
+ 
+ ! get the number of GRUs
+ nGRU = size(gru_struc)
 
- ! loop through data structures
- do iStruct=1,size(structInfo)
-  ! allocate space
-  select case(trim(structInfo(iStruct)%structName))
-   case('time'); call allocGlobal(nHRU, time_meta,  timeStruct,  err, cmessage)   ! model forcing data
-   case('forc'); call allocGlobal(nHRU, forc_meta,  forcStruct,  err, cmessage)   ! model forcing data
-   case('attr'); call allocGlobal(nHRU, attr_meta,  attrStruct,  err, cmessage)   ! local attributes for each HRU
-   case('type'); call allocGlobal(nHRU, type_meta,  typeStruct,  err, cmessage)   ! local classification of soil veg etc. for each HRU  
-   case('mpar'); call allocGlobal(nHRU, mpar_meta,  mparStruct,  err, cmessage)   ! model parameters
-   case('indx'); call allocGlobal(nHRU, indx_meta,  indxStruct,  err, cmessage)   ! model variables
-   case('prog'); call allocGlobal(nHRU, prog_meta,  progStruct,  err, cmessage)   ! model prognostic (state) variables
-   case('diag'); call allocGlobal(nHRU, diag_meta,  diagStruct,  err, cmessage)   ! model diagnostic variables
-   case('flux'); call allocGlobal(nHRU, flux_meta,  fluxStruct,  err, cmessage)   ! model fluxes
-   case('deriv');call allocGlobal(nHRU, deriv_meta, derivStruct, err, cmessage)   ! model derivatives
-   case('bpar'); call allocGlobal(nHRU, bpar_meta,  bparStruct,  err, cmessage)   ! basin-average parameters
-   case('bvar'); call allocGlobal(nHRU, bvar_meta,  bvarStruct,  err, cmessage)   ! basin-average variables
-   case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
-  end select
-  ! check errors
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName)//']'; return; endif
- end do  ! looping through data structures
+ ! * allocate GRU dimension
+ select type(dataStruct)
+  ! gru dimension only
+  type is (gru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+  type is (gru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+  type is (gru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+  type is (gru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+  ! gru+hru dimensions
+  type is (gru_hru_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+  type is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+  type is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+  type is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); endif
+ end select
 
- contains
+ ! check errors
+ if(check) then; err=20; message=trim(message)//'GRU structure was unexpectedly allocated already'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating GRU dimension'; return; endif
 
-  ! ************************************************************************************************
-  ! internal subroutine allocGlobal: allocate space for global data structures 
-  ! ************************************************************************************************
-  subroutine allocGlobal(nHRU,metaStruct,dataStruct,err,message)
-  implicit none
-  ! input
-  integer(i4b),intent(in)         :: nHRU           ! number of HRUs
-  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
-  ! output
-  class(*),intent(out)            :: dataStruct     ! data structure
-  integer(i4b),intent(out)        :: err            ! error code
-  character(*),intent(out)        :: message        ! error message
-  ! local variables
-  logical(lgt)                    :: check          ! .true. if structure is already allocated
-  integer(i4b)                    :: iHRU           ! loop htrough HRUs
-  character(len=256)              :: cmessage       ! error message of the downwind routine
-  ! initialize error control
-  err=0; message='allocGlobal/'
-  
-  ! initialize allocation check
-  check=.false.
-  
-  ! allocate HRU dimension
+ ! * allocate HRU dimension
+ do iGRU=1,nGRU
+  ! allocate the HRU dimension
   select type(dataStruct)
-   type is (spatial_int);       if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif 
-   type is (spatial_intVec);    if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
-   type is (spatial_double);    if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
-   type is (spatial_doubleVec); if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
+   type is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); endif
+   type is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); endif
+   type is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); endif
+   type is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); endif
   end select
-
   ! check errors
-  if(check) then; err=20; message=trim(message)//'structure was unexpectedly allocated already'; return; endif
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating'; return; endif
+  if(check) then; err=20; message=trim(message)//'HRU structure was unexpectedly allocated already'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating HRU dimension'; return; endif
+ end do
 
-  ! allocate local data structures
+ ! * allocate local data structures where there is a spatial dimension
+ do iGRU=1,nGRU
+  ! initialize the spatial flag
+  spatial=.true.
+  ! get the number of snow and soil layers
+  associate(&
+  nHRU  => gru_struc(iGRU)%hruCount,         & ! number of HRUs
+  nSnow => gru_struc(iGRU)%hruInfo(:)%nSnow, & ! number of snow layers for each HRU
+  nSoil => gru_struc(iGRU)%hruInfo(:)%nSoil  ) ! number of soil layers for each HRU
+  ! allocate space
   select type(dataStruct)
    ! structures with an HRU dimension
-   type is (spatial_int);       do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
-   type is (spatial_intVec);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
-   type is (spatial_double);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
-   type is (spatial_doubleVec); do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
+   type is (gru_hru_int);       do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
+   type is (gru_hru_intVec);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
+   type is (gru_hru_double);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
+   type is (gru_hru_doubleVec); do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
    ! structures without an HRU dimension
-   type is (var_i);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
-   type is (var_d);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-   type is (var_ilength);  call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-   type is (var_dlength);  call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-   ! check identified the data type
-   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
+   type is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),err=err,message=cmessage)
+   type is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),err=err,message=cmessage)
+   class default; spatial=.false.
   end select
+  ! end association to info in data structures
+  end associate
   ! error check
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  ! check that we found the structure
+  if(.not.spatial)exit
+ end do  ! loop through GRUs
 
-  end subroutine allocGlobal
+ ! * allocate local data structures where there is a spatial dimension
+ select type(dataStruct)
+  type is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
+  type is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  type is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  type is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  ! check identified the data type
+  class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; endif
+ end select
+ ! error check
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
- end subroutine initStruct
+ end subroutine allocGlobal
 
  ! ************************************************************************************************
  ! public subroutine allocLocal: allocate space for local data structures
@@ -202,7 +259,6 @@ contains
  integer(i4b),intent(out)         :: err            ! error code
  character(*),intent(out)         :: message        ! error message
  ! local
- integer(i4b)                     :: iVar           ! loop through variables in the metadata structure
  logical(lgt)                     :: check          ! .true. if the variables are allocated
  integer(i4b)                     :: nVars          ! number of variables in the metadata structure
  integer(i4b)                     :: nLayers        ! total number of layers
@@ -222,13 +278,11 @@ contains
 
  ! check that nSnow and nSoil are not needed
  else
-  do iVar=1,size(metaStruct)  ! loop through variables in the metadata structure
-   select case(trim(metaStruct(iVar)%vartype))
-    case('midSnow','ifcSnow'); err=20; message=trim(message)//'nSnow is missing'; return
-    case('midSoil','ifcSoil'); err=20; message=trim(message)//'nSoil is missing'; return
-    case('midToto','ifcToto'); err=20; message=trim(message)//'nLayers is missing'; return
-   end select
-  end do ! loop through variables in the metadata structure
+  select type(dataStruct)
+   type is (var_ilength); err=20
+   type is (var_dlength); err=20
+  end select
+  if(err/=0)then; message=trim(message)//'expect nSnow and nSoil to be present for variable-length data structures'; return; endif
  endif
 
  ! initialize allocation check
