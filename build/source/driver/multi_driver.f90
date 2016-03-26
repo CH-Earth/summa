@@ -358,7 +358,7 @@ call read_attrb(nGRU,nHRU,attrStruct,typeStruct,err,message); call handle_err(er
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
 ! *****************************************************************************
-call ffile_info(nHRU,typeStruct,err,message); call handle_err(err,message)
+call ffile_info(nHRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4b) read model decisions

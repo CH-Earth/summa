@@ -40,12 +40,12 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define a derived type for the data in the file
  type,public  :: file_info
-  character(len=256)                     :: filenmDesc='notPopulatedYet' ! name of file that describes the data
   character(len=256)                     :: filenmData='notPopulatedYet' ! name of data file
-  integer(i4b)                           :: ncols                    ! number of columns in the file
-  integer(i4b)                           :: ixFirstHRU               ! index of the first HRU to share the same data
-  integer(i4b),allocatable               :: time_ix(:)               ! column index for each time variable
-  integer(i4b),allocatable               :: data_ix(:)               ! column index for each forcing data variable
+  integer(i4b)                           :: nVars                    ! number of variables in the file
+  integer(i4b)                           :: nTimeSteps               ! number of variables in the file
+  integer(i4b),allocatable               :: data_id(:)               ! netcdf variable id for each forcing data variable
+  character(len=256),allocatable         :: varName(:)               ! netcdf variable name for each forcing data variable
+  real(dp)                               :: firstJulDay              ! first julian day in forcing file
  end type file_info
 
  ! ***********************************************************************************************************
