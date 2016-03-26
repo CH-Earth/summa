@@ -134,7 +134,7 @@ contains
 
   ! get the HRU index
   read(chardata(1),*,iostat=err) hruIndex
-  if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(chardata(1))//"']"; return; endif
+  if(err/=0)then;err=41;message=trim(message)//"problemInternalRead [data='"//trim(chardata(1))//"']"; return; endif
 
   ! identify the HRU index
   do jHRU=1,nHRU
@@ -157,7 +157,7 @@ contains
    if(jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
    ! populate the appropriate element of the parameter vector
    read(chardata(ipar),*,iostat=err) mparStruct%gru(kGRU)%hru(kHRU)%var(jpar)
-   if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
+   if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
   end do    ! (looping through model parameters)
 
  end do    ! (looping through HRUs)

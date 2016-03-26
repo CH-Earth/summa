@@ -38,8 +38,8 @@ contains
  USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
  USE summaFileManager,only:INPUT_PATH        ! path for forcing files
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
- USE globalData,only:time_meta,forc_meta     ! model forcing metadata
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
+ USE globalData,only:forc_meta               ! forcing metadata
  USE var_lookup,only:iLookTYPE               ! named variables to index elements of the data vectors
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
@@ -185,7 +185,7 @@ contains
      ! get first time from file, place into forcFileInfo
      if(trim(varname)=='time')then
       err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forcFileInfo(iFile)%firstJulDay,start=(/1/))
-      if(err/=0)then; message=trim(message)//'problem reading firrdt Julian day'; return; endif
+      if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; endif
      endif  ! if the variable name is time
 
     ! data step
@@ -224,7 +224,7 @@ contains
    end do
   endif
 
- end do ! (loop through lines in the file)
+ end do ! (loop through files)
 
  end subroutine ffile_info
 

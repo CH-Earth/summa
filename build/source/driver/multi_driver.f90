@@ -108,7 +108,6 @@ USE globalData,only:structInfo                              ! information on the
 USE globalData,only:numtim                                  ! number of time steps
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:globalPrintFlag                         ! global print flag
-USE globalData,only:forcFileInfo                            ! forcing file info
 USE multiconst,only:integerMissing                          ! missing integer value
 ! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
@@ -171,8 +170,6 @@ integer(i4b)                     :: iStep=0                    ! index of model 
 integer(i4b)                     :: jStep=0                    ! index of model output
 integer(i4b)                     :: ix_gru                     ! index of GRU that corresponds to the global HRU
 integer(i4b)                     :: ix_hru                     ! index of local HRU that corresponds to the global HRU
-integer(i4b)                     :: jx_gru                     ! mapping from a previously used forcing file: index of GRU that corresponds to the global HRU
-integer(i4b)                     :: jx_hru                     ! mapping from a previously used forcing file: index of local HRU that corresponds to the global HRU
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
@@ -206,6 +203,9 @@ character(LEN=256),allocatable   :: dataLines(:)               ! vector of chara
 character(LEN=256),allocatable   :: chardata(:)                ! vector of character data
 integer(i4b)                     :: iWord                      ! loop through words in a string
 logical(lgt)                     :: flux_mask(size(flux_meta)) ! mask defining desired flux variables
+integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
+integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
+integer(i4b)                     :: forcingStep=-999           ! index of current time step in current forcing file
 real(dp),allocatable             :: zSoilReverseSign(:)        ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)           :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
 real(dp),parameter               :: doubleMissing=-9999._dp    ! missing value
@@ -565,24 +565,29 @@ do istep=1,numtim
  ! set print flag
  globalPrintFlag=.true.
 
- ! read a line of forcing data (if not already opened, open file, and get to the correct place)
+ ! read forcing data 
  do iHRU=1,nHRU  ! loop through global HRUs
 
   ! get mapping
   ix_gru = index_map(iHRU)%gru_ix
   ix_hru = index_map(iHRU)%ihru
 
-  ! copy forcing from another HRU
-  ! NOTE: these features will be removed once we move to NetCDF input
-  if(forcFileInfo(iHRU)%ixFirstHRU > 0)then
-   jx_gru = index_map(forcFileInfo(iHRU)%ixFirstHRU)%gru_ix
-   jx_hru = index_map(forcFileInfo(iHRU)%ixFirstHRU)%ihru
-   forcStruct%gru(ix_gru)%hru(ix_hru) = forcStruct%gru(jx_gru)%hru(jx_hru)  ! copy forcing data from another HRU
-
   ! read forcing data
-  else
-   call read_force(istep,iHRU,timeStruct%var,forcStruct%gru(ix_gru)%hru(ix_hru)%var,err,message); call handle_err(err,message)
-  endif
+  call read_force(&
+                  ! input
+                  istep,                                  & ! intent(in):    time step index
+                  ix_gru,                                 & ! intent(in):    index of gru
+                  ix_hru,                                 & ! intent(in):    index of LOCAL hru
+                  iHRU,                                   & ! intent(in):    index of GLOBAL hru
+                  ! input-output
+                  iFile,                                  & ! intent(inout): index of current forcing file in forcing file list
+                  forcingStep,                            & ! intent(inout): index of read position in time dimension in current netcdf file
+                  forcNcid,                               & ! intent(inout): netcdf file identifier for the current forcing file
+                  ! output
+                  timeStruct%var,                         & ! intent(out):   time data structure (integer)
+                  forcStruct%gru(ix_gru)%hru(ix_hru)%var, & ! intent(out):   forcing data structure (double precision)
+                  err, message)                             ! intent(out):   error control
+  call handle_err(err,message)
 
  end do  ! (end looping through global HRUs)
 
@@ -858,6 +863,9 @@ do istep=1,numtim
 
  end do  ! (looping through GRUs)
 
+ ! increment forcingStep
+ forcingStep=forcingStep+1
+
  ! increment the time index
  jstep = jstep+1
 
@@ -894,28 +902,32 @@ contains
  ! dump variables
  print*, 'error, variable dump:'
  print*, 'istep              = ', istep
- print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
- print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
- print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
- print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
- print*, 'theta_sat          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
- print*, 'plantWiltPsi       = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
- print*, 'soilStressParam    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
- print*, 'critSoilWilting    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
- print*, 'critSoilTranspire  = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
- print*, 'scalarSWE          = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
- print*, 'scalarSnowDepth    = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
- print*, 'scalarCanopyTemp   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
- print*, 'scalarRainPlusMelt = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
- write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
- print*, 'mLayerMatricHead   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
- print*, 'column inflow      = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
+ if(iGRU<=nGRU)then
+  if(iHRU<=gru_struc(iGRU)%hruCount)then
+   print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
+   print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
+   print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
+   print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
+   print*, 'theta_sat          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
+   print*, 'plantWiltPsi       = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
+   print*, 'soilStressParam    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
+   print*, 'critSoilWilting    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
+   print*, 'critSoilTranspire  = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
+   print*, 'scalarSWE          = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
+   print*, 'scalarSnowDepth    = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
+   print*, 'scalarCanopyTemp   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
+   print*, 'scalarRainPlusMelt = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
+   write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
+   write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
+   print*, 'mLayerMatricHead   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
+   print*, 'column inflow      = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
+  endif  ! if HRU is valid
+ endif  ! if GRU is valid
  print*,'error code = ', err
- print*, timeStruct%var
+ if(allocated(timeStruct%var)) print*, timeStruct%var
  write(*,'(a)') trim(message)
  stop
  end subroutine handle_err

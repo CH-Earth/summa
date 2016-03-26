@@ -24,6 +24,7 @@ implicit none
 private
 public::extractTime
 public::compjulday
+public::compcalday
 contains
 
 
@@ -174,5 +175,92 @@ contains
 
  end subroutine compjulday
 
+ ! ***************************************************************************************
+ ! public subroutine compgregcal: convert julian day (units of days) to calendar date
+ ! source: https://en.wikipedia.org/wiki/Julian_day#Julian_or_Gregorian_calendar_from_Julian_day_number
+ ! ***************************************************************************************
+
+ subroutine compcalday(julday,                              & !input
+                       iyyy,mm,id,ih,imin,dsec,err,message)   !output
+ USE multiconst,only:secprmin  ! seconds in an (day, hour, minute)
+ implicit none
+
+ ! input variables	
+ real(dp), intent(in)          :: julday       ! julian day
+
+ ! output varibles
+ integer(i4b), intent(out)     :: iyyy         ! year
+ integer(i4b), intent(out)     :: mm           ! month
+ integer(i4b), intent(out)     :: id           ! day
+ integer(i4b), intent(out)     :: ih           ! hour
+ integer(i4b), intent(out)     :: imin         ! minute
+ real(dp),     intent(out)     :: dsec         ! seconds
+ integer(i4b), intent(out)     :: err          ! error code
+ character(*), intent(out)     :: message      ! error message
+
+ ! local parameters
+ integer(i4b),parameter       :: y = 4716
+ integer(i4b),parameter       :: j = 1401
+ integer(i4b),parameter       :: m = 2
+ integer(i4b),parameter       :: n = 12
+ integer(i4b),parameter       :: r = 4
+ integer(i4b),parameter       :: p = 1461
+ integer(i4b),parameter       :: v = 3
+ integer(i4b),parameter       :: u = 5
+ integer(i4b),parameter       :: s = 153
+ integer(i4b),parameter       :: w = 2
+ integer(i4b),parameter       :: b = 274277
+ integer(i4b),parameter       :: c = -38
+ real(dp),parameter           :: hr_per_day = 24.0_dp
+ real(dp),parameter           :: min_per_hour = 60.0_dp
+
+ ! local variables
+ integer(i4b)          :: f,e,g,h                            ! various step variables from wikipedia
+ integer(i4b)          :: step_1a,step_1b,step_1c,step_1d    ! temporary variables for calendar calculations
+ real(dp)              :: frac_day  ! fractional day 
+ real(dp)              :: remainder ! remainder of modulus operation
+
+ ! initialize errors
+ err=0; message="compcalday"
+ if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; endif
+
+ ! step 1
+ step_1a = 4*julday+b
+ step_1b = step_1a/146097
+ step_1c = step_1b*3
+ step_1d = step_1c/4
+
+ f = julday+j+step_1d+c
+
+ ! step 2
+ e = r * f + v
+
+ ! step 3
+ g = mod(e,p)/r
+
+ ! step 4
+ h = u * g + w
+
+ ! find day
+ id = (mod(h,s))/u + 1
+
+ ! find month
+ mm = mod(h/s+m,n)+1
+
+ ! find year
+ iyyy = (e/p)-y + (n+m-mm)/n
+
+ ! now find hour,min,second
+
+ frac_day = julday - floor(julday)
+ ih = floor((frac_day+1e-9)*hr_per_day)
+
+ remainder = (frac_day+1e-9)*hr_per_day - ih
+ imin = floor(remainder*min_per_hour)
+
+ remainder = remainder*min_per_hour - imin
+ dsec = nint(remainder*secprmin)
+
+ end subroutine compcalday
 
 end module time_utils_module
