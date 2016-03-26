@@ -24,6 +24,7 @@ USE netcdf
 implicit none
 private
 public::nc_file_open
+public::netcdf_err
 contains
 
 

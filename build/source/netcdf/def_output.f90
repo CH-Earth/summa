@@ -21,6 +21,7 @@
 module def_output_module
 USE nrtype
 USE netcdf
+USE netcdf_util_module,only:netcdf_err                    ! netcdf error handling function
 implicit none
 private
 public :: def_output
@@ -326,23 +327,5 @@ contains
  err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
 
  end subroutine def_variab
-
-
- ! **********************************************************************************************************
- ! private subroutine netcdf_err: error control
- ! **********************************************************************************************************
- subroutine netcdf_err(err,message)
- ! used to handle errors for NetCDF calls
- implicit none
- ! declare dummies
- integer(i4b), intent(inout)   :: err
- character(*), intent(inout)   :: message
- ! start procedure here
- if (err/=nf90_noerr) then
-  message=trim(message)//"["//trim(nf90_strerror(err))//"]"
-  err=200
- endif
- end subroutine netcdf_err
-
 
 end module def_output_module

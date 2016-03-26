@@ -32,6 +32,7 @@ contains
  ! provide access to subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open          ! open netcdf file
+ USE netcdf_util_module,only:netcdf_err            ! netcdf error handling function
  USE nr_utility_module,only:arth
  USE ascii_util_module,only:file_open              ! open ascii file
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
@@ -307,23 +308,5 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'problem deallocating space'; return; endif
 
  end subroutine read_attrb
-
- ! **********************************************************************************************************
- ! private subroutine netcdf_err: error control
- ! **********************************************************************************************************
- subroutine netcdf_err(err,message)
- ! used to handle errors for NetCDF calls
- use netcdf
- implicit none
- ! declare dummies
- integer(i4b), intent(inout)   :: err
- character(*), intent(inout)   :: message
- ! start procedure here
- if (err/=nf90_noerr) then
-  message=trim(message)//"["//trim(nf90_strerror(err))//"]"
-  err=200
- endif
- end subroutine netcdf_err
-
 
 end module read_attrb_module
