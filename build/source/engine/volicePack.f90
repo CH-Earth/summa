@@ -22,7 +22,7 @@ module volicePack_module
 ! numerical recipes data types
 USE nrtype
 ! named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow
+USE globalData,only:ix_soil,ix_snow
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,  & ! freezing point              (K)
@@ -48,19 +48,22 @@ contains
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
-                       mvar_data,                   & ! intent(inout): model variables for a local HRU
-                       ! output: error control
+                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                       diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                       ! output
+                       modifiedLayers,              & ! intent(out): flag to denote that layers were modified
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
  ! external subroutine
  USE layerMerge_module,only:layerMerge   ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide ! sub-divide layers if they are too thick
@@ -70,13 +73,18 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
- type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
- ! output: error control
+ type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data           ! model flux variables
+ ! output
+ logical(lgt),intent(out)        :: modifiedLayers      ! flag to denote that we modified the layers
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! ------------------------------------------------------------------------------------------------
  ! local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
+ logical(lgt)                    :: mergedLayers        ! flag to denote that layers were merged
+ logical(lgt)                    :: divideLayer         ! flag to denote that a layer was divided
  ! initialize error control
  err=0; message='volicePack/'
 
@@ -86,8 +94,11 @@ contains
                   model_decisions,             & ! intent(in):    model decisions
                   mpar_data,                   & ! intent(in):    model parameters
                   indx_data,                   & ! intent(inout): type of each layer
-                  mvar_data,                   & ! intent(inout): model variables for a local HRU
-                  ! output: error control
+                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                  flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                  ! output
+                  divideLayer,                 & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
@@ -97,10 +108,16 @@ contains
                  model_decisions,             & ! intent(in):    model decisions
                  mpar_data,                   & ! intent(in):    model parameters
                  indx_data,                   & ! intent(inout): type of each layer
-                 mvar_data,                   & ! intent(inout): model variables for a local HRU
-                 ! output: error control
+                 prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                 diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                 flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                 ! output
+                 mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
+
+ ! flag if layers were modified
+ modifiedLayers = (mergedLayers .or. divideLayer)
 
  end subroutine volicePack
 

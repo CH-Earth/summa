@@ -21,11 +21,6 @@
 module coupled_em_module
 ! numerical recipes data types
 USE nrtype
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
@@ -40,21 +35,56 @@ real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when dia
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
 real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
+! number of variables
+integer(i4b)           :: nSnow                ! number of snow layers
+integer(i4b)           :: nSoil                ! number of soil layers
+integer(i4b)           :: nLayers              ! total number of layers
+integer(i4b)           :: nState               ! total number of state variables
 contains
 
 
  ! ************************************************************************************************
  ! public subroutine coupled_em: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
- subroutine coupled_em(printRestart,output_fileSuffix,dt_init,err,message)
- ! data structures and named variables
- USE data_struc,only:data_step                                                      ! time step of forcing data (s)
- USE data_struc,only:model_decisions                                                ! model decision structure
- USE data_struc,only:type_data,attr_data,forc_data,mpar_data                        ! data structures
- USE data_struc,only:bvar_data,mvar_data,indx_data,time_data                        ! data structures
- USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
- USE data_struc,only:ix_soil,ix_snow                                                ! named variables for snow and soil
- USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookINDEX ! named variables for structure elements
+ subroutine coupled_em(&
+                       ! model control
+                       istep,             & ! intent(in):    index of the model time step
+                       printRestart,      & ! intent(in):    flag to print a re-start file
+                       output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
+                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
+                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                       ! data structures (input)
+                       time_data,         & ! intent(in):    model time data
+                       type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
+                       attr_data,         & ! intent(in):    local attributes for each HRU
+                       forc_data,         & ! intent(in):    model forcing data
+                       mpar_data,         & ! intent(in):    model parameters
+                       bvar_data,         & ! intent(in):    basin-average variables
+                       ! data structures (input-output)
+                       indx_data,         & ! intent(inout): model indices
+                       prog_data,         & ! intent(inout): prognostic variables for a local HRU
+                       diag_data,         & ! intent(inout): diagnostic variables for a local HRU
+                       flux_data,         & ! intent(inout): model fluxes for a local HRU
+                       ! error control
+                       err,message)         ! intent(out):   error control
+ ! data types
+ USE data_types,only:&
+                     var_i,               & ! x%var(:)            (i4b)
+                     var_d,               & ! x%var(:)            (dp)
+                     var_ilength,         & ! x%var(:)%dat        (i4b)
+                     var_dlength            ! x%var(:)%dat        (dp)
+ ! named variables for parent structures
+ USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX ! named variables for structure elements
+ USE globalData,only:ix_soil,ix_snow        ! named variables for snow and soil
+ ! named variables for child structures
+ USE var_lookup,only:childFLUX_MEAN
+ ! global data
+ USE globalData,only:data_step              ! time step of forcing data (s)
+ USE globalData,only:model_decisions        ! model decision structure
+ ! structure allocations
+ USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
+ USE allocspace_module,only:allocLocal      ! allocate local data structures
  ! preliminary subroutines
  USE vegPhenlgy_module,only:vegPhenlgy      ! (1) compute vegetation phenology
  USE vegNrgFlux_module,only:wettedFrac      ! (2) compute wetted fraction of the canopy (used in sw radiation fluxes)
@@ -65,6 +95,7 @@ contains
  USE volicePack_module,only:volicePack      ! (7) merge and sub-divide snow layers, if necessary
  USE diagn_evar_module,only:diagn_evar      ! (8) compute diagnostic energy variables -- thermal conductivity and heat capacity
  ! the model solver
+ USE indexState_module,only:indexState      ! define indices for all model state variables and layers
  USE systemSolv_module,only:systemSolv      ! solve the system of thermodynamic and hydrology equations for a given substep
  ! additional subroutines
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
@@ -80,15 +111,30 @@ contains
                        stickySnow,   &      ! maximum interception capacity an increasing function of temerature
                        lightSnow            ! maximum interception capacity an inverse function of new snow density
  implicit none
- ! define output
- character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
+ ! model control
+ integer(i4b),intent(in)              :: istep                  ! index of model time step
  logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
+ character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
+ logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ ! data structures (input)
+ type(var_i),intent(in)               :: time_data              ! time information
+ type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
+ type(var_d),intent(in)               :: attr_data              ! spatial attributes
+ type(var_d),intent(in)               :: forc_data              ! model forcing data
+ type(var_d),intent(in)               :: mpar_data              ! model parameters
+ type(var_dlength),intent(in)         :: bvar_data              ! basin-average model variables
+ ! data structures (input-output)
+ type(var_ilength),intent(inout)      :: indx_data              ! state vector geometry
+ type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
+ type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU 
+ type(var_dlength),intent(inout)      :: flux_data              ! model fluxes for a local HRU
+ ! error control
  integer(i4b),intent(out)             :: err                    ! error code
  character(*),intent(out)             :: message                ! error message
  ! control the length of the sub-step
- real(dp),pointer                     :: minstep                ! minimum time step (seconds)
- real(dp),pointer                     :: maxstep                ! maximum time step (seconds)
+ real(dp)                             :: minstep                ! minimum time step (seconds)
+ real(dp)                             :: maxstep                ! maximum time step (seconds)
  real(dp)                             :: dt                     ! length of time step (seconds)
  real(dp)                             :: dt_sub                 ! length of the sub-step (seconds)
  real(dp)                             :: dt_done                ! length of time step completed (seconds)
@@ -111,7 +157,10 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! define other local variables
  character(len=256)                   :: cmessage               ! error message
- logical(lgt)                         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
+ logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
+ logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
+ type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
  real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
@@ -129,11 +178,13 @@ contains
  real(dp)                             :: dt_frac                ! fraction of time step (-)
  integer(i4b)                         :: nTemp                  ! number of temporary sub-steps
  integer(i4b)                         :: nTrial                 ! number of trial sub-steps
+ logical(lgt)                         :: firstStep              ! flag to denote if the first time step
  logical(lgt)                         :: rejectedStep           ! flag to denote if the sub-step is rejected (convergence problem, etc.)
- logical(lgt),parameter               :: checkTimeStepping=.false.  ! flag to denote a desire to check the time stepping 
+ logical(lgt),parameter               :: checkTimeStepping=.false.      ! flag to denote a desire to check the time stepping 
+ logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility 
  ! balance checks
- real(dp),pointer                     :: scalarSnowfall         ! snowfall rate
- real(dp),pointer                     :: scalarRainfall         ! rainfall rate
+ integer(i4b)                         :: iVar                   ! loop through model variables
+ real(dp)                             :: totalSoilCompress      ! change in storage associated with compression of the soil matrix (kg m-2)
  real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
  real(dp)                             :: scalarTotalSoilLiq     ! total liquid water in the soil column (kg m-2)
@@ -151,64 +202,13 @@ contains
  real(dp)                             :: xCompress              ! compression in a given layer (m)
  real(dp)                             :: xFlux0,xFlux1          ! fluxes at the layer boundaries (m)
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
- ! ** local pointers to model state variables
- ! ----------------------------------------------------------------------------------------------------------------------------------------------
- real(dp),pointer                     :: mLayerDepth(:)         ! depth of each soil layer (m)
- real(dp),pointer                     :: mLayerVolFracIce(:)    ! volumetric ice content in each soil layer (-)
- real(dp),pointer                     :: mLayerVolFracLiq(:)    ! volumetric liquid water content in each soil layer (-)
- real(dp),pointer                     :: scalarAquiferStorage   ! aquifer storage (m)
- real(dp),pointer                     :: scalarCanopyLiq        ! canopy liquid water content (kg m-2)
- real(dp),pointer                     :: scalarCanopyIce        ! canopy ice content (kg m-2)
- ! ----------------------------------------------------------------------------------------------------------------------------------------------
- ! ** local pointers to increment fluxes
- ! ----------------------------------------------------------------------------------------------------------------------------------------------
- ! local pointers to flux variables
- real(dp),pointer                     :: scalarThroughfallSnow       ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
- real(dp),pointer                     :: scalarThroughfallRain       ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
- real(dp),pointer                     :: scalarCanopySnowUnloading   ! unloading of snow from the vegetion canopy (kg m-2 s-1)
- real(dp),pointer                     :: scalarCanopyLiqDrainage     ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
- real(dp),pointer                     :: scalarCanopyMeltFreeze      ! melt/freeze of water stored in the canopy (kg m-2 s-1)
- real(dp),pointer                     :: scalarCanopyTranspiration   ! canopy transpiration (kg m-2 s-1)
- real(dp),pointer                     :: scalarCanopyEvaporation     ! canopy evaporation/condensation (kg m-2 s-1)
- real(dp),pointer                     :: scalarCanopySublimation     ! canopy sublimation/frost (kg m-2 s-1)
- real(dp),pointer                     :: scalarSnowSublimation       ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
- real(dp),pointer                     :: scalarGroundEvaporation     ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
- real(dp),pointer                     :: scalarRainPlusMelt          ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
- real(dp),pointer                     :: scalarSurfaceRunoff         ! surface runoff (m s-1)
- real(dp),pointer                     :: scalarSoilInflux            ! influx of water at the top of the soil profile (m s-1)
- real(dp),pointer                     :: scalarSoilCompress          ! change in storage associated with compression of the soil matrix (kg m-2)
- real(dp),pointer                     :: scalarSoilBaseflow          ! total baseflow from throughout the soil profile (m s-1)
- real(dp),pointer                     :: scalarSoilDrainage          ! drainage from the bottom of the soil profile (m s-1)
- real(dp),pointer                     :: scalarAquiferRecharge       ! recharge to the aquifer (m s-1)
- real(dp),pointer                     :: scalarAquiferBaseflow       ! baseflow from the aquifer (m s-1)
- real(dp),pointer                     :: scalarAquiferTranspire      ! transpiration from the aquifer (m s-1)
- real(dp),pointer                     :: mLayerColumnOutflow(:)      ! total outflow from each layer in a given soil column (m3 s-1)
- ! local pointers to timestep-average flux variables
- real(dp),pointer                     :: totalSoilCompress           ! change in storage associated with compression of the soil matrix (kg m-2)
- real(dp),pointer                     :: averageThroughfallSnow      ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
- real(dp),pointer                     :: averageThroughfallRain      ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
- real(dp),pointer                     :: averageCanopySnowUnloading  ! unloading of snow from the vegetion canopy (kg m-2 s-1)
- real(dp),pointer                     :: averageCanopyLiqDrainage    ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
- real(dp),pointer                     :: averageCanopyMeltFreeze     ! melt/freeze of water stored in the canopy (kg m-2 s-1)
- real(dp),pointer                     :: averageCanopyTranspiration  ! canopy transpiration (kg m-2 s-1)
- real(dp),pointer                     :: averageCanopyEvaporation    ! canopy evaporation/condensation (kg m-2 s-1)
- real(dp),pointer                     :: averageCanopySublimation    ! canopy sublimation/frost (kg m-2 s-1)
- real(dp),pointer                     :: averageSnowSublimation      ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
- real(dp),pointer                     :: averageGroundEvaporation    ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
- real(dp),pointer                     :: averageRainPlusMelt         ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
- real(dp),pointer                     :: averageSurfaceRunoff        ! surface runoff (m s-1)
- real(dp),pointer                     :: averageSoilInflux           ! influx of water at the top of the soil profile (m s-1)
- real(dp),pointer                     :: averageSoilBaseflow         ! total baseflow from throughout the soil profile (m s-1)
- real(dp),pointer                     :: averageSoilDrainage         ! drainage from the bottom of the soil profile (m s-1)
- real(dp),pointer                     :: averageAquiferRecharge      ! recharge to the aquifer (m s-1)
- real(dp),pointer                     :: averageAquiferBaseflow      ! baseflow from the aquifer (m s-1)
- real(dp),pointer                     :: averageAquiferTranspire     ! transpiration from the aquifer (m s-1)
- real(dp),pointer                     :: averageColumnOutflow(:)     ! outflow from each layer in the soil profile (m3 s-1)
- ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="coupled_em/"
 
  ! This is the start of a data step for a local HRU
+
+ ! define the first step
+ firstStep = (istep==1)
 
  ! count the number of snow and soil layers
  ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
@@ -219,38 +219,54 @@ contains
  ! compute the total number of snow and soil layers
  nLayers = nSnow + nSoil
 
- scalarCanopyLiq => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)
- scalarCanopyIce => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
- balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
+ ! allocate space for the local fluxes
+ call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nSoil,err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
- ! point to model state variables
- ! NOTE: need to do this at the start of each sub-step because number of layers may change
- mLayerDepth          => mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nLayers)           ! depth of each soil layer (m)
- mLayerVolFracIce     => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(nSnow+1:nLayers)      ! volumetric ice content in each soil layer (-)
- mLayerVolFracLiq     => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers)      ! volumetric liquid water content in each soil layer (-)
- scalarAquiferStorage => mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)                ! aquifer storage (m)
+ ! initialize compression
+ totalSoilCompress = 0._dp  ! change in storage associated with compression of the soil matrix (kg m-2)
+
+ ! initialize mean fluxes
+ do iVar=1,size(averageFlux_meta)
+  flux_mean%var(iVar)%dat(:) = 0._dp
+ end do
+
+ ! associate local variables with information in the data structures
+ associate(&
+ ! state variables in the vegetation canopy
+ scalarCanopyLiq      => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)                 ,&  ! canopy liquid water (kg m-2)
+ scalarCanopyIce      => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                 ,&  ! canopy ice content (kg m-2)
+ ! state variables in the soil domain
+ mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)       ,&  ! depth of each soil layer (m)
+ mLayerVolFracIce     => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers)  ,&  ! volumetric ice content in each soil layer (-)
+ mLayerVolFracLiq     => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)  ,&  ! volumetric liquid water content in each soil layer (-)
+ scalarAquiferStorage => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)             &  ! aquifer storage (m)
+ ) ! (association of local variables with information in the data structures
 
  ! compute total soil moisture and ice at the *START* of the step (kg m-2)
  scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(1:nSoil)*mLayerDepth(1:nSoil))
  scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(1:nSoil)*mLayerDepth(1:nSoil))  ! NOTE: no expansion and hence use iden_water
- !scalarTotalSoilIce = sum(iden_ice  *mLayerVolFracIce(1:nSoil)*mLayerDepth(1:nSoil))
 
- ! get the total water in the soil (liquid plus ice) at the start of the time step (kg m-2)
- balanceSoilWater0 = scalarTotalSoilLiq + scalarTotalSoilIce
+ ! compute storage of water in the canopy and the soil
+ balanceCanopyWater0 = scalarCanopyLiq + scalarCanopyIce
+ balanceSoilWater0   = scalarTotalSoilLiq + scalarTotalSoilIce
 
  ! get the total aquifer storage at the start of the time step (kg m-2)
  balanceAquifer0 = scalarAquiferStorage*iden_water
 
+ ! end association of local variables with information in the data structures
+ end associate
+
  ! print re-start file
  if(printRestart)then
-  call printRestartFile(output_fileSuffix,dt_init,time_data,mvar_data,err,cmessage)
+  call printRestartFile(output_fileSuffix,dt_init,time_data,prog_data,err,cmessage)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
   !pause
  endif
 
- ! assign pointers to algorithmic control parameters
- minstep => mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
- maxstep => mpar_data%var(iLookPARAM%maxstep)  ! maximum time step (s)
+ ! short-cut to the algorithmic control parameters
+ minstep = mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
+ maxstep = mpar_data%var(iLookPARAM%maxstep)  ! maximum time step (s)
  !print*, 'minstep, maxstep = ', minstep, maxstep
 
  ! define maximum number of iterations
@@ -260,11 +276,11 @@ contains
  dt = data_step
 
  ! compute the number of layers with roots
- nLayersRoots = count(mvar_data%var(iLookMVAR%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)-verySmall)
+ nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)-verySmall)
  if(nLayersRoots == 0)then; err=20; message=trim(message)//'no roots within the soil profile'; return; endif
 
  ! define the foliage nitrogen factor
- mvar_data%var(iLookMVAR%scalarFoliageNitrogenFactor)%dat(1) = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
+ diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1) = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
 
  ! initialize the length of the sub-step
  dt_sub  = min(dt_init,min(dt,maxstep))
@@ -284,16 +300,18 @@ contains
   nsub = nsub+1
 
   ! save SWE
-  oldSWE = mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+  oldSWE = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   !print*, 'nSnow = ', nSnow
   !print*, 'oldSWE = ', oldSWE
-
 
   ! (1) compute phenology...
   ! ------------------------
 
   ! compute the temperature of the root zone: used in vegetation phenology
-  mvar_data%var(iLookMVAR%scalarRootZoneTemp)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
+  diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
+
+  ! remember if we compute the vegetation flux on the previous sub-step
+  computeVegFluxOld = computeVegFlux  
 
   ! compute the exposed LAI and SAI and whether veg is buried by snow
   call vegPhenlgy(&
@@ -302,7 +320,8 @@ contains
                   type_data,                   & ! intent(in):    type of vegetation and soil
                   attr_data,                   & ! intent(in):    spatial attributes
                   mpar_data,                   & ! intent(in):    model parameters
-                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  prog_data,                   & ! intent(in):    model prognostic variables for a local HRU
+                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
                   ! output
                   computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                   canopyDepth,                 & ! intent(out): canopy depth (m)
@@ -310,23 +329,25 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+  ! flag the case where number of vegetation states has changed
+  modifiedVegState = (computeVegFlux.neqv.computeVegFluxOld)
 
   ! (2) compute wetted canopy area...
   ! ---------------------------------
 
   ! compute maximum canopy liquid water (kg m-2)
-  mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
+  diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
 
   ! compute maximum canopy ice content (kg m-2)
   ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
   ! NOTE 2: this is a different variable than the max ice used in the throughfall (snow interception) calculations
   select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
-   case(lightSnow);  mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)       ! use maximum per unit leaf area storage capacity for snow (kg m-2)
-   case(stickySnow); mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp ! use maximum per unit leaf area storage capacity for snow (kg m-2)
+   case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)       ! use maximum per unit leaf area storage capacity for snow (kg m-2)
+   case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp ! use maximum per unit leaf area storage capacity for snow (kg m-2)
    case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
   end select ! identifying option for maximum branch interception capacity
-  !print*, 'mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1) = ', mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1)
-  !print*, 'mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1) = ', mvar_data%var(iLookMVAR%scalarCanopyIceMax)%dat(1)
+  !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
+  !print*, 'diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1)
 
   ! compute wetted fraction of the canopy
   ! NOTE: assume that the wetted fraction is constant over the substep for the radiation calculations
@@ -337,17 +358,17 @@ contains
                    ! input
                    .false.,                                                      & ! flag to denote if derivatives are required
                    .false.,                                                      & ! flag to denote if derivatives are calculated numerically
-                   (mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1) < Tfreeze), & ! flag to denote if the canopy is frozen
+                   (prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1) < Tfreeze), & ! flag to denote if the canopy is frozen
                    varNotUsed1,                                                  & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
                    varNotUsed2,                                                  & ! fraction of liquid water on the canopy
-                   mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),              & ! canopy liquid water (kg m-2)
-                   mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
-                   mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
-                   mvar_data%var(iLookMVAR%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
+                   prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),              & ! canopy liquid water (kg m-2)
+                   prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
+                   diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
+                   diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
                    mpar_data%var(iLookPARAM%canopyWettingFactor),                & ! maximum wetted fraction of the canopy (-)
                    mpar_data%var(iLookPARAM%canopyWettingExp),                   & ! exponent in canopy wetting function (-)
                    ! output
-                   mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
+                   diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
                    dCanopyWetFraction_dWat,                                      & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
                    dCanopyWetFraction_dT,                                        & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
                    err,cmessage)
@@ -355,11 +376,10 @@ contains
 
   ! vegetation is completely buried by snow (or no veg exisits at all)
   else
-   mvar_data%var(iLookMVAR%scalarCanopyWetFraction)%dat(1) = 0._dp
+   diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._dp
    dCanopyWetFraction_dWat                                 = 0._dp
    dCanopyWetFraction_dT                                   = 0._dp
   endif
-
 
   ! (3) compute snow albedo...
   ! --------------------------
@@ -372,7 +392,9 @@ contains
                   ! input/output: data structures
                   model_decisions,             & ! intent(in):    model decisions
                   mpar_data,                   & ! intent(in):    model parameters
-                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  flux_data,                   & ! intent(in):    model flux variables
+                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -381,11 +403,17 @@ contains
   ! (4) compute canopy sw radiation fluxes...
   ! -----------------------------------------
   call vegSWavRad(&
-                  dt_sub,                       & ! intent(in): time step (s) -- only used in Noah-MP radiation, to compute albedo
-                  computeVegFlux,               & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                  err,cmessage)                   ! intent(out): error control
+                  dt_sub,                       & ! intent(in):    time step (s) -- only used in Noah-MP radiation, to compute albedo
+                  nSnow,                        & ! intent(in):    number of snow layers
+                  nSoil,                        & ! intent(in):    number of soil layers
+                  nLayers,                      & ! intent(in):    total number of layers
+                  computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                  type_data,                    & ! intent(in):    type of vegetation and soil
+                  prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
+                  diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
+                  flux_data,                    & ! intent(inout): model flux variables
+                  err,cmessage)                   ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
 
 
   ! (5) compute canopy throughfall and unloading...
@@ -401,11 +429,13 @@ contains
                   model_decisions,             & ! intent(in):    model decisions
                   forc_data,                   & ! intent(in):    model forcing data
                   mpar_data,                   & ! intent(in):    model parameters
-                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
+                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                  flux_data,                   & ! intent(inout): model flux variables
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-  !print*, 'canopyIce = ', mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
+  !print*, 'canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
 
   ! adjust canopy temperature to account for new snow
   call tempAdjust(&
@@ -413,7 +443,8 @@ contains
                   canopyDepth,                 & ! intent(in): canopy depth (m)
                   ! input/output: data structures
                   mpar_data,                   & ! intent(in):    model parameters
-                  mvar_data,                   & ! intent(inout): model variables for a local HRU
+                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                  diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -422,11 +453,11 @@ contains
   ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation
   ! NOTE 2: this initialization needs to be done AFTER the call to canopySnow, since canopySnow uses canopy drip drom the previous time step
   if(.not.computeVegFlux)then
-   mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1)   = mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)
-   mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) = 0._dp
+   flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = flux_data%var(iLookFLUX%scalarRainfall)%dat(1)
+   flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
   else
-   mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1)   = 0._dp
-   mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) = 0._dp
+   flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._dp
+   flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
   endif
 
   ! (6) add snowfall to the snowpack...
@@ -440,35 +471,35 @@ contains
                  (nSnow > 0),                                               & ! logical flag if snow layers exist
                  mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
                  ! input: diagnostic scalar variables
-                 mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
-                 mvar_data%var(iLookMVAR%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
-                 mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
-                 mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
+                 diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
+                 diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
+                 flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
+                 flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
                  ! input/output: state variables
-                 mvar_data%var(iLookMVAR%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
-                 mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
-                 mvar_data%var(iLookMVAR%mLayerTemp)%dat(1),                & ! temperature of the top layer (K)
-                 mvar_data%var(iLookMVAR%mLayerDepth)%dat(1),               & ! depth of the top layer (m)
-                 mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1),          & ! volumetric fraction of ice of the top layer (-)
-                 mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1),          & ! volumetric fraction of liquid water of the top layer (-)
+                 prog_data%var(iLookPROG%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
+                 prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
+                 prog_data%var(iLookPROG%mLayerTemp)%dat(1),                & ! temperature of the top layer (K)
+                 prog_data%var(iLookPROG%mLayerDepth)%dat(1),               & ! depth of the top layer (m)
+                 prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1),          & ! volumetric fraction of ice of the top layer (-)
+                 prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1),          & ! volumetric fraction of liquid water of the top layer (-)
                  ! output: error control
                  err,cmessage)                                                ! error control
   if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; endif
 
   ! re-compute snow depth and SWE
   if(nSnow > 0)then
-   mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-   mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                           mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                           * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+   prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+   prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
   endif
-  !print*, 'SWE after snowfall = ',  mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+  !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
   ! update coordinate variables
   call calcHeight(&
                   ! input/output: data structures
                   indx_data,   & ! intent(in): layer type
-                  mvar_data,   & ! intent(inout): model variables for a local HRU
+                  prog_data,   & ! intent(inout): model variables for a local HRU
                   ! output: error control
                   err,cmessage)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -508,8 +539,11 @@ contains
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer
-                    mvar_data,                   & ! intent(inout): model variables for a local HRU
-                    ! output: error control
+                    prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                    diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                    flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                    ! output
+                    modifiedLayers,              & ! intent(out): flag to denote that layers were modified
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
 
@@ -524,12 +558,23 @@ contains
     indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
     indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
+    ! compute the indices for the model state variables
+    if(firstStep .or. modifiedVegState .or. modifiedLayers)then
+     call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                     indx_data,               & ! intent(inout): indices defining model states and layers
+                     err,cmessage)              ! intent(out):   error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    ! define the number of state variables
+    nState = indx_data%var(iLookINDEX%nState)%dat(1)
+
     ! re-compute snow depth and SWE
     if(nSnow > 0)then
-     mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-     mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                             mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                             * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+     prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+     prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                             prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                           * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
     endif
 
 
@@ -543,7 +588,8 @@ contains
                     ! input/output: data structures
                     mpar_data,               & ! intent(in):    model parameters
                     indx_data,               & ! intent(in):    model layer indices
-                    mvar_data,               & ! intent(inout): model variables for a local HRU
+                    prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                    diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                     ! output: error control
                     err,cmessage)              ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
@@ -556,13 +602,13 @@ contains
     if(nSnow==0)then
      call implctMelt(&
                      ! input/output: integrated snowpack properties
-                     mvar_data%var(iLookMVAR%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
-                     mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
-                     mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
+                     prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
+                     prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
+                     prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
                      ! input/output: properties of the upper-most soil layer
-                     mvar_data%var(iLookMVAR%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
-                     mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
-                     mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                     prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
+                     prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
+                     diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
                      ! output: error control
                      err,cmessage                                             ) ! intent(out): error control
      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -573,12 +619,12 @@ contains
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then
-    mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-    mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                            mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                            * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+    prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                            prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                          * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
    endif
-   !write(*,'(a,1x,2(f20.5,1x),l1)') 'b4 systemSolv: testSWE, meltPond, rejectedStep = ', mvar_data%var(iLookMVAR%scalarSWE)%dat(1), mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1), rejectedStep
+   !write(*,'(a,1x,2(f20.5,1x),l1)') 'b4 systemSolv: testSWE, meltPond, rejectedStep = ', prog_data%var(iLookPROG%scalarSWE)%dat(1), prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1), rejectedStep
 
    ! print progress
    !if(dt_temp < dt_sub-tinyNumber)then
@@ -592,6 +638,10 @@ contains
    ! get the new solution
    call systemSolv(&
                    ! input: model control
+                   nSnow,                                  & ! intent(in): number of snow layers
+                   nSoil,                                  & ! intent(in): number of soil layers
+                   nLayers,                                & ! intent(in): total number of layers
+                   nState,                                 & ! intent(in): total number of layers
                    dt_temp,                                & ! intent(in): length of the model sub-step
                    maxiter,                                & ! intent(in): maximum number of iterations
                    (nsub==1),                              & ! intent(in): logical flag to denote the first substep
@@ -602,7 +652,9 @@ contains
                    forc_data,                              & ! intent(in):    model forcing data
                    mpar_data,                              & ! intent(in):    model parameters
                    indx_data,                              & ! intent(in):    index data
-                   mvar_data,                              & ! intent(inout): model variables for a local HRU
+                   prog_data,                              & ! intent(inout): model prognostic variables for a local HRU
+                   diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
+                   flux_data,                              & ! intent(inout): model fluxes for a local HRU
                    bvar_data,                              & ! intent(in):    model variables for the local basin
                    model_decisions,                        & ! intent(in):    model decisions
                    ! output: model control
@@ -611,17 +663,9 @@ contains
 
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-   !print*, 'after solv: mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt = ', mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)*dt_temp*dt_temp/dt
 
-   ! test: recompute snow depth and SWE
-   if(nSnow > 0)then
-    mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-    mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                            mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                            * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
-   endif
-   !write(*,'(a,1x,2(i4,1x),10(f15.5,1x))') 'nTrial, nTemp, dt_temp, dt_solv, dt_sub, test SWE = ', &
-   !                                         nTrial, nTemp, dt_temp, dt_solv, dt_sub, mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+   ! update first step
+   firstStep=.false.
 
    ! if err<0 (warnings) and hence non-convergence
    if(err<0)then
@@ -652,18 +696,18 @@ contains
    if(computeVegFlux)then
 
     ! remove mass of ice on the canopy
-    mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) = mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) + &
-                                                      mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)*dt_temp
+    prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) + &
+                                                      flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)*dt_temp
 
     ! if removed all ice, take the remaining sublimation from water
-    if(mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) < 0._dp)then
-     mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1) = mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1) + mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
-     mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1) = 0._dp
+    if(prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) < 0._dp)then
+     prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) + prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
+     prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) = 0._dp
     endif
 
     ! check that there is sufficient canopy water to support the converged sublimation rate over the time step dt_temp
     ! NOTE we conducted checks and time step adjustments in systemSolv above so we should not get here: hence fatal error
-    if(mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1) < -tinyNumber)then
+    if(prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) < -tinyNumber)then
      message=trim(message)//'canopy sublimation rate over time step dt_temp depletes more than the available water'
      err=20; return
     endif
@@ -677,15 +721,15 @@ contains
    if(nSnow > 0)then ! snow layers exist
 
     ! compute volumetric sublimation (-)
-    volSub = dt_temp*mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1)/mvar_data%var(iLookMVAR%mLayerDepth)%dat(1)
+    volSub = dt_temp*flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)/prog_data%var(iLookPROG%mLayerDepth)%dat(1)
 
     ! update volumetric fraction of ice (-)
     ! NOTE: fluxes are positive downward
-    mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1) = mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1) + volSub/iden_ice
+    prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1) + volSub/iden_ice
 
     ! check that there is sufficient ice in the top snow layer to support the converged sublimation rate over the time step dt_temp
     ! NOTE we conducted checks and time step adjustments in systemSolv above so we should not get here: hence fatal error
-    if(mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1) < -tinyNumber)then
+    if(prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1) < -tinyNumber)then
      message=trim(message)//'surface sublimation rate over time step dt_temp depletes more than the available water'
      err=20; return
     endif
@@ -694,13 +738,13 @@ contains
    else
 
     ! no snow: check that sublimation is zero
-    if(abs(mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1)) > verySmall)then
+    if(abs(flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)) > verySmall)then
      message=trim(message)//'sublimation of snow has been computed when no snow exists'
      err=20; return
     endif
 
    endif  ! (if snow layers exist)
-   !print*, 'ice after sublimation: ', mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1)*iden_ice
+   !print*, 'ice after sublimation: ', prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice
 
 
    ! (11) account for compaction and cavitation in the snowpack...
@@ -709,9 +753,10 @@ contains
     call snwDensify(&
                     ! intent(in): variables
                     dt_temp,                                                & ! intent(in): time step (s)
-                    mvar_data%var(iLookMVAR%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
-                    mvar_data%var(iLookMVAR%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
-                    mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1),  & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
+                    indx_data%var(iLookINDEX%nSnow)%dat(1),                 & ! intent(in): number of snow layers
+                    prog_data%var(iLookPROG%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
+                    diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
+                    flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),  & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
                     ! intent(in): parameters
                     mpar_data%var(iLookPARAM%densScalGrowth),               & ! intent(in): density scaling factor for grain growth (kg-1 m3)
                     mpar_data%var(iLookPARAM%tempScalGrowth),               & ! intent(in): temperature scaling factor for grain growth (K-1)
@@ -720,9 +765,9 @@ contains
                     mpar_data%var(iLookPARAM%tempScalOvrbdn),               & ! intent(in): temperature scaling factor for overburden pressure (K-1)
                     mpar_data%var(iLookPARAM%baseViscosity),                 & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
                     ! intent(inout): state variables
-                    mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow),      & ! intent(inout): depth of each layer (m)
-                    mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
-                    mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
+                    prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow),      & ! intent(inout): depth of each layer (m)
+                    prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
+                    prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
                     ! output: error control
                     err,cmessage)                     ! intent(out): error control
     if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; endif
@@ -732,10 +777,18 @@ contains
    call calcHeight(&
                    ! input/output: data structures
                    indx_data,   & ! intent(in): layer type
-                   mvar_data,   & ! intent(inout): model variables for a local HRU
+                   prog_data,   & ! intent(inout): model variables for a local HRU
                    ! output: error control
                    err,cmessage)
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! recompute snow depth and SWE
+   if(nSnow > 0)then
+    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+    prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                            prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                          * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+   endif
 
 
    ! (12) compute sub-step averages associated with the temporary steps...
@@ -746,7 +799,14 @@ contains
 
    ! increment model fluxes
    dt_wght = dt_temp/dt ! define weight applied to each sub-step
-   call increment_fluxes(dt_wght,(nsub==1 .and. ntemp==1))
+
+   ! increment fluxes
+   do iVar=1,size(averageFlux_meta)
+    flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght 
+   end do
+
+   ! increment change in storage associated with compression of the soil matrix (kg m-2)
+   totalSoilCompress = totalSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)
 
    ! check time stepping
    if(checkTimestepping)then
@@ -758,12 +818,12 @@ contains
 
    ! compute effective rainfall input and snowpack drainage to/from the snowpack (kg m-2 s-1)
    if(nSnow > 0)then
-    effRainfall = effRainfall + (mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1) + mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1) )*dt_temp/dt_sub
-    snwDrainage = snwDrainage + (mvar_data%var(iLookMVAR%iLayerLiqFluxSnow)%dat(nSnow)*iden_water )*dt_temp/dt_sub ! m s-1 -> kg m-2 s-1
-    sublimation = sublimation + (mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1))*dt_temp/dt_sub
+    effRainfall = effRainfall + (flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_temp/dt_sub
+    snwDrainage = snwDrainage + (flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat(nSnow)*iden_water )*dt_temp/dt_sub ! m s-1 -> kg m-2 s-1
+    sublimation = sublimation + (flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1))*dt_temp/dt_sub
    ! compute the surface melt pond (kg m-2)
    else
-    sfcMeltPond = sfcMeltPond + mvar_data%var(iLookMVAR%scalarSfcMeltPond)%dat(1)
+    sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
    endif
 
    ! increment sub-step
@@ -788,15 +848,15 @@ contains
 
   ! recompute snow depth and SWE
   if(nSnow > 0)then
-   mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1) = sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow))
-   mvar_data%var(iLookMVAR%scalarSWE)%dat(1)       = sum( (mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                           mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                           * mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow) )
+   prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+   prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
   endif
 
   ! check SWE
-  effSnowfall = mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1) + mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1)
-  newSWE      = mvar_data%var(iLookMVAR%scalarSWE)%dat(1)
+  effSnowfall = flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1) + flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)
+  newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   delSWE      = newSWE - (oldSWE - sfcMeltPond)
   massBalance = delSWE - (effSnowfall + effRainfall + sublimation - snwDrainage)*dt_sub
   if(abs(massBalance) > 1.d-6)then
@@ -851,24 +911,35 @@ contains
  ! (14) balance checks...
  ! ----------------------
 
- ! get total canopy water
- scalarCanopyLiq => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1)
- scalarCanopyIce => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1)
+ ! associate local variables with information in the data structures
+ associate(&
+ ! model forcing
+ scalarSnowfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowfall)           )%dat(1)     ,&  ! computed snowfall rate (kg m-2 s-1)
+ scalarRainfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarRainfall)           )%dat(1)     ,&  ! computed rainfall rate (kg m-2 s-1)
+ ! canopy fluxes
+ averageThroughfallSnow     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallSnow)    )%dat(1)     ,&  ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ averageThroughfallRain     => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarThroughfallRain)    )%dat(1)     ,&  ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ averageCanopySnowUnloading => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySnowUnloading))%dat(1)     ,&  ! unloading of snow from the vegetion canopy (kg m-2 s-1)
+ averageCanopyLiqDrainage   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyLiqDrainage)  )%dat(1)     ,&  ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+ averageCanopySublimation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation)  )%dat(1)     ,&  ! canopy sublimation/frost (kg m-2 s-1)
+ averageCanopyEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyEvaporation)  )%dat(1)     ,&  ! canopy evaporation/condensation (kg m-2 s-1)
+ ! soil fluxes
+ averageSoilInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil)        )%dat(0)     ,&  ! influx of water at the top of the soil profile (m s-1)
+ averageSoilDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil)        )%dat(nSoil) ,&  ! drainage from the bottom of the soil profile (m s-1)
+ averageSoilBaseflow        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilBaseflow)       )%dat(1)     ,&  ! total baseflow from throughout the soil profile (m s-1)
+ averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1)     ,&  ! canopy transpiration (kg m-2 s-1)
+ ! state variables in the vegetation canopy
+ scalarCanopyLiq            => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)                               ,&  ! canopy liquid water (kg m-2)
+ scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                               ,&  ! canopy ice content (kg m-2)
+ ! state variables in the soil domain
+ mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)                     ,&  ! depth of each soil layer (m)
+ mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers)                ,&  ! volumetric ice content in each soil layer (-)
+ mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)                ,&  ! volumetric liquid water content in each soil layer (-)
+ scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                           &  ! aquifer storage (m)
+ ) ! (association of local variables with information in the data structures
+
+ ! canopy water balance
  balanceCanopyWater1 = scalarCanopyLiq + scalarCanopyIce
-
- ! get snowfall and rainfall
- scalarSnowfall => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1)        ! computed snowfall rate (kg m-2 s-1)
- scalarRainfall => mvar_data%var(iLookMVAR%scalarRainfall)%dat(1)        ! computed rainfall rate (kg m-2 s-1)
-
- ! print progress
- !write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
- !write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
- !write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)*dt = ', (scalarSnowfall - averageThroughfallSnow)*dt
- !write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)*dt = ', (scalarRainfall - averageThroughfallRain)*dt
- !write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading*dt
- !write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage*dt
- !write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation*dt
- !write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation*dt
 
  ! balance checks for the canopy
  ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
@@ -889,19 +960,10 @@ contains
   message=trim(message)//'canopy hydrology does not balance'
   err=20; return
  endif
- !pause 'canopy hydrology does balance'
-
- ! point to model state variables
- ! NOTE: need to do this at the end of each sub-step because number of layers may change
- mLayerDepth          => mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nLayers)           ! depth of each soil layer (m)
- mLayerVolFracIce     => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(nSnow+1:nLayers)      ! volumetric ice content in each soil layer (-)
- mLayerVolFracLiq     => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+1:nLayers)      ! volumetric liquid water content in each soil layer (-)
- scalarAquiferStorage => mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1)                ! aquifer storage (m)
 
  ! compute the liquid water and ice content at the end of the time step
  scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(1:nSoil)*mLayerDepth(1:nSoil))
  scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(1:nSoil)*mLayerDepth(1:nSoil))   ! NOTE: no expansion of soil, hence use iden_water
- !scalarTotalSoilIce = sum(iden_ice  *mLayerVolFracIce(1:nSoil)*mLayerDepth(1:nSoil))
 
  ! get the total water in the soil (liquid plus ice) at the end of the time step (kg m-2)
  balanceSoilWater1 = scalarTotalSoilLiq + scalarTotalSoilIce
@@ -914,15 +976,6 @@ contains
  balanceSoilBaseflow      = averageSoilBaseflow*iden_water*dt
  balanceSoilDrainage      = averageSoilDrainage*iden_water*dt
  balanceSoilTranspiration = averageCanopyTranspiration*dt      ! NOTE ground evaporation included in the flux at the upper boundary
-
- !write(*,'(a,1x,f20.10)') 'totalSoilCompress          = ', totalSoilCompress                  ! kg m-2
- !write(*,'(a,1x,f20.10)') 'averageSoilInflux          = ', averageSoilInflux*iden_water*dt    ! m s-1  -> kg m-2
- !write(*,'(a,1x,f20.10)') 'averageSoilBaseflow        = ', averageSoilBaseflow*iden_water*dt
- !write(*,'(a,1x,f20.10)') 'averageSoilDrainage        = ', averageSoilDrainage*iden_water*dt
- !write(*,'(a,1x,f20.10)') 'averageCanopyTranspiration = ', averageCanopyTranspiration*dt
- !write(*,'(a,1x,f20.10)') 'averageGroundEvaporation   = ', averageGroundEvaporation*dt
-
- !print*, 'sum(mLayerBaseflow) = ', sum(mvar_data%var(iLookMVAR%mLayerBaseflow)%dat)
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilTranspiration - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
@@ -938,22 +991,29 @@ contains
   write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
   ! check the water balance in each layer
   do iLayer=1,nSoil
-   xCompress = mvar_data%var(iLookMVAR%mLayerCompress)%dat(iLayer)
-   xFlux0    = mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(iLayer-1)*dt
-   xFlux1    = mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(iLayer)*dt
+   xCompress = diag_data%var(iLookDIAG%mLayerCompress)%dat(iLayer)
+   xFlux0    = flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(iLayer-1)*dt
+   xFlux1    = flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(iLayer)*dt
    write(*,'(a,1x,i4,1x,10(e20.10,1x))') 'iLayer, xFlux0, xFlux1, (xFlux1 - xFlux0)/mLayerDepth(iLayer), xCompress = ', &
                                           iLayer, xFlux0, xFlux1, (xFlux1 - xFlux0)/mLayerDepth(iLayer), xCompress
   end do
-
+  ! error control
   message=trim(message)//'soil hydrology does not balance'
   err=20; return
  endif
- !pause 'soil hydrology does balance'
 
- !print*, 'mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1) = ', mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1)
+ ! end association of local variables with information in the data structures
+ end associate
 
  ! save the surface temperature (just to make things easier to visualize)
- mvar_data%var(iLookMVAR%scalarSurfaceTemp)%dat(1) = mvar_data%var(iLookMVAR%mLayerTemp)%dat(1)
+ prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
+
+ ! overwrite flux data with the timestep-average value
+ if(.not.backwardsCompatibility)then
+  do iVar=1,size(flux_mean%var)
+   flux_data%var(averageFlux_meta(iVar)%ixParent)%dat = flux_mean%var(iVar)%dat
+  end do
+ endif
 
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
@@ -962,121 +1022,6 @@ contains
   message=trim(message)//'number of sub-steps > 2000'
   err=20; return
  endif
-
-
- ! ********************************************************************************************************************************
- ! ********************************************************************************************************************************
- ! ********************************************************************************************************************************
-
- contains
-
-
-  ! *********************************************************************************************************
-  ! internal subroutine increment_fluxes: calculate timestep-average fluxes
-  ! *********************************************************************************************************
-  subroutine increment_fluxes(dt_wght,initialize)
-  real(dp),intent(in)     :: dt_wght    ! weight assigned to sub-step
-  logical(lgt),intent(in) :: initialize ! flag to initialize fluxes
-
-  ! set up pointers
-
-  ! assign pointers to timestep-average model fluxes
-  if(initialize)then
-   totalSoilCompress          => mvar_data%var(iLookMVAR%totalSoilCompress)%dat(1)             ! change in storage associated with compression of the soil matrix (kg m-2)
-   averageThroughfallSnow     => mvar_data%var(iLookMVAR%averageThroughfallSnow)%dat(1)        ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
-   averageThroughfallRain     => mvar_data%var(iLookMVAR%averageThroughfallRain)%dat(1)        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-   averageCanopySnowUnloading => mvar_data%var(iLookMVAR%averageCanopySnowUnloading)%dat(1)    ! unloading of snow from the vegetion canopy (kg m-2 s-1)
-   averageCanopyLiqDrainage   => mvar_data%var(iLookMVAR%averageCanopyLiqDrainage)%dat(1)      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-   averageCanopyMeltFreeze    => mvar_data%var(iLookMVAR%averageCanopyMeltFreeze)%dat(1)       ! melt/freeze of water stored in the canopy (kg m-2 s-1)
-   averageCanopyTranspiration => mvar_data%var(iLookMVAR%averageCanopyTranspiration)%dat(1)    ! canopy transpiration (kg m-2 s-1)
-   averageCanopyEvaporation   => mvar_data%var(iLookMVAR%averageCanopyEvaporation)%dat(1)      ! canopy evaporation/condensation (kg m-2 s-1)
-   averageCanopySublimation   => mvar_data%var(iLookMVAR%averageCanopySublimation)%dat(1)      ! canopy sublimation/frost (kg m-2 s-1)
-   averageSnowSublimation     => mvar_data%var(iLookMVAR%averageSnowSublimation)%dat(1)        ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
-   averageGroundEvaporation   => mvar_data%var(iLookMVAR%averageGroundEvaporation)%dat(1)      ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
-   averageRainPlusMelt        => mvar_data%var(iLookMVAR%averageRainPlusMelt)%dat(1)           ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
-   averageSurfaceRunoff       => mvar_data%var(iLookMVAR%averageSurfaceRunoff)%dat(1)          ! surface runoff (m s-1)
-   averageSoilInflux          => mvar_data%var(iLookMVAR%averageSoilInflux)%dat(1)             ! influx of water at the top of the soil profile (m s-1)
-   averageSoilBaseflow        => mvar_data%var(iLookMVAR%averageSoilBaseflow)%dat(1)           ! total baseflow from throughout the soil profile (m s-1)
-   averageSoilDrainage        => mvar_data%var(iLookMVAR%averageSoilDrainage)%dat(1)           ! drainage from the bottom of the soil profile (m s-1)
-   averageAquiferRecharge     => mvar_data%var(iLookMVAR%averageAquiferRecharge)%dat(1)        ! recharge to the aquifer (m s-1)
-   averageAquiferBaseflow     => mvar_data%var(iLookMVAR%averageAquiferBaseflow)%dat(1)        ! baseflow from the aquifer (m s-1)
-   averageAquiferTranspire    => mvar_data%var(iLookMVAR%averageAquiferTranspire)%dat(1)       ! transpiration from the aquifer (m s-1)
-   averageColumnOutflow       => mvar_data%var(iLookMVAR%averageColumnOutflow)%dat             ! outflow from each layer in the soil profile (m3 s-1)
-  endif
-
-  ! initialize average fluxes
-  if(initialize)then
-   totalSoilCompress          = 0._dp  ! change in storage associated with compression of the soil matrix (kg m-2)
-   averageThroughfallSnow     = 0._dp  ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
-   averageThroughfallRain     = 0._dp  ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-   averageCanopySnowUnloading = 0._dp  ! unloading of snow from the vegetion canopy (kg m-2 s-1)
-   averageCanopyLiqDrainage   = 0._dp  ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-   averageCanopyMeltFreeze    = 0._dp  ! melt/freeze of water stored in the canopy (kg m-2 s-1)
-   averageCanopyTranspiration = 0._dp  ! canopy transpiration (kg m-2 s-1)
-   averageCanopyEvaporation   = 0._dp  ! canopy evaporation/condensation (kg m-2 s-1)
-   averageCanopySublimation   = 0._dp  ! canopy sublimation/frost (kg m-2 s-1)
-   averageSnowSublimation     = 0._dp  ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
-   averageGroundEvaporation   = 0._dp  ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
-   averageRainPlusMelt        = 0._dp  ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
-   averageSurfaceRunoff       = 0._dp  ! surface runoff (m s-1)
-   averageSoilInflux          = 0._dp  ! influx of water at the top of the soil profile (m s-1)
-   averageSoilBaseflow        = 0._dp  ! total baseflow from throughout the soil profile (m s-1)
-   averageSoilDrainage        = 0._dp  ! drainage from the bottom of the soil profile (m s-1)
-   averageAquiferRecharge     = 0._dp  ! recharge to the aquifer (m s-1)
-   averageAquiferBaseflow     = 0._dp  ! baseflow from the aquifer (m s-1)
-   averageAquiferTranspire    = 0._dp  ! transpiration from the aquifer (m s-1)
-   averageColumnOutflow       = 0._dp  ! outflow from each layer in the soil profile (m3 s-1)
-  endif
-
-  ! assign pointers to the model flux variables
-  ! NOTE: need to do this every sub-step becaause the model structures are re-defined
-  scalarThroughfallSnow     => mvar_data%var(iLookMVAR%scalarThroughfallSnow)%dat(1)           ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
-  scalarThroughfallRain     => mvar_data%var(iLookMVAR%scalarThroughfallRain)%dat(1)           ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-  scalarCanopySnowUnloading => mvar_data%var(iLookMVAR%scalarCanopySnowUnloading)%dat(1)       ! unloading of snow from the vegetion canopy (kg m-2 s-1)
-  scalarCanopyLiqDrainage   => mvar_data%var(iLookMVAR%scalarCanopyLiqDrainage)%dat(1)         ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-  scalarCanopyMeltFreeze    => mvar_data%var(iLookMVAR%scalarCanopyMeltFreeze)%dat(1)          ! melt/freeze of water stored in the canopy (kg m-2 s-1)
-  scalarCanopyTranspiration => mvar_data%var(iLookMVAR%scalarCanopyTranspiration)%dat(1)       ! canopy transpiration (kg m-2 s-1)
-  scalarCanopyEvaporation   => mvar_data%var(iLookMVAR%scalarCanopyEvaporation)%dat(1)         ! canopy evaporation/condensation (kg m-2 s-1)
-  scalarCanopySublimation   => mvar_data%var(iLookMVAR%scalarCanopySublimation)%dat(1)         ! canopy sublimation/frost (kg m-2 s-1)
-  scalarSnowSublimation     => mvar_data%var(iLookMVAR%scalarSnowSublimation)%dat(1)           ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
-  scalarGroundEvaporation   => mvar_data%var(iLookMVAR%scalarGroundEvaporation)%dat(1)         ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
-  scalarRainPlusMelt        => mvar_data%var(iLookMVAR%scalarRainPlusMelt)%dat(1)              ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
-  scalarSurfaceRunoff       => mvar_data%var(iLookMVAR%scalarSurfaceRunoff)%dat(1)             ! surface runoff (m s-1)
-  scalarSoilInflux          => mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(0)               ! influx of water at the top of the soil profile (m s-1)
-  scalarSoilDrainage        => mvar_data%var(iLookMVAR%iLayerLiqFluxSoil)%dat(nSoil)           ! drainage from the bottom of the soil profile (m s-1)
-  scalarSoilCompress        => mvar_data%var(iLookMVAR%scalarSoilCompress)%dat(1)              ! change in storage associated with compression of the soil matrix (kg m-2)
-  scalarSoilBaseflow        => mvar_data%var(iLookMVAR%scalarSoilBaseflow)%dat(1)              ! total baseflow from throughout the soil profile (m s-1)
-  scalarAquiferRecharge     => mvar_data%var(iLookMVAR%scalarAquiferRecharge)%dat(1)           ! recharge to the aquifer (m s-1)
-  scalarAquiferBaseflow     => mvar_data%var(iLookMVAR%scalarAquiferBaseflow)%dat(1)           ! baseflow from the aquifer (m s-1)
-  scalarAquiferTranspire    => mvar_data%var(iLookMVAR%scalarAquiferTranspire)%dat(1)          ! transpiration from the aquifer (m s-1)
-  mLayerColumnOutflow       => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat                ! total outflow from each layer in a given soil column (m3 s-1)
-
-  ! increment storage over the time step
-  totalSoilCompress          = totalSoilCompress          + scalarSoilCompress ! NOTE mass not rate  ! change in storage associated with compression of the soil matrix (kg m-2)
-
-  ! increment timestep-average fluxes
-  averageThroughfallSnow     = averageThroughfallSnow     + scalarThroughfallSnow     *dt_wght ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
-  averageThroughfallRain     = averageThroughfallRain     + scalarThroughfallRain     *dt_wght ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-  averageCanopySnowUnloading = averageCanopySnowUnloading + scalarCanopySnowUnloading *dt_wght ! unloading of snow from the vegetion canopy (kg m-2 s-1)
-  averageCanopyLiqDrainage   = averageCanopyLiqDrainage   + scalarCanopyLiqDrainage   *dt_wght ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-  averageCanopyMeltFreeze    = averageCanopyMeltFreeze    + scalarCanopyMeltFreeze    *dt_wght ! melt/freeze of water stored in the canopy (kg m-2 s-1)
-  averageCanopyTranspiration = averageCanopyTranspiration + scalarCanopyTranspiration *dt_wght ! canopy transpiration (kg m-2 s-1)
-  averageCanopyEvaporation   = averageCanopyEvaporation   + scalarCanopyEvaporation   *dt_wght ! canopy evaporation/condensation (kg m-2 s-1)
-  averageCanopySublimation   = averageCanopySublimation   + scalarCanopySublimation   *dt_wght ! canopy sublimation/frost (kg m-2 s-1)
-  averageSnowSublimation     = averageSnowSublimation     + scalarSnowSublimation     *dt_wght ! snow sublimation/frost - below canopy or non-vegetated (kg m-2 s-1)
-  averageGroundEvaporation   = averageGroundEvaporation   + scalarGroundEvaporation   *dt_wght ! ground evaporation/condensation - below canopy or non-vegetated (kg m-2 s-1)
-  averageRainPlusMelt        = averageRainPlusMelt        + scalarRainPlusMelt        *dt_wght ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
-  averageSurfaceRunoff       = averageSurfaceRunoff       + scalarSurfaceRunoff       *dt_wght ! surface runoff (m s-1)
-  averageSoilInflux          = averageSoilInflux          + scalarSoilInflux          *dt_wght ! influx of water at the top of the soil profile (m s-1)
-  averageSoilBaseflow        = averageSoilBaseflow        + scalarSoilBaseflow        *dt_wght ! total baseflow from throughout the soil profile (m s-1)
-  averageSoilDrainage        = averageSoilDrainage        + scalarSoilDrainage        *dt_wght ! drainage from the bottom of the soil profile (m s-1)
-  averageAquiferRecharge     = averageAquiferRecharge     + scalarAquiferRecharge     *dt_wght ! recharge to the aquifer (m s-1)
-  averageAquiferBaseflow     = averageAquiferBaseflow     + scalarAquiferBaseflow     *dt_wght ! baseflow from the aquifer (m s-1)
-  averageAquiferTranspire    = averageAquiferTranspire    + scalarAquiferTranspire    *dt_wght ! transpiration from the aquifer (m s-1)
-  averageColumnOutflow       = averageColumnOutflow       + mLayerColumnOutflow       *dt_wght ! outflow from each soil layer in a given soil column (m3 s-1)
-
-  end subroutine increment_fluxes
-
 
  end subroutine coupled_em
 
@@ -1152,15 +1097,15 @@ contains
                              output_fileSuffix,& ! intent(in): suffix defining the model experiment
                              dt_init,          & ! intent(in): time step length (s)
                              time_data,        & ! intent(in): model time structures
-                             mvar_data,        & ! intent(in): model variables for a local HRU
+                             prog_data,        & ! intent(in): model prognostic variables for a local HRU
                              err,message)        ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! access the derived types to define the data structures
- USE data_struc,only:var_i                  ! data vector (i4b)
- USE data_struc,only:var_dlength            ! data vector with variable length dimension (dp)
+ USE data_types,only:var_i                  ! data vector (i4b)
+ USE data_types,only:var_dlength            ! data vector with variable length dimension (dp)
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookMVAR,iLookTIME    ! named variables for structure elements
+ USE var_lookup,only:iLookPROG,iLookTIME    ! named variables for structure elements
  ! access file paths
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX      ! define output file
  ! access desired modules
@@ -1171,7 +1116,7 @@ contains
  character(*),intent(in)         :: output_fileSuffix   ! suffix defining the model experiment
  real(dp),intent(in)             :: dt_init             ! time step length (s)
  type(var_i),intent(in)          :: time_data           ! model time structures
- type(var_dlength),intent(in)    :: mvar_data           ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: prog_data           ! model prognostic variables for a local HRU
  ! output: error control
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
@@ -1214,15 +1159,15 @@ contains
  ! write scalar state variables
  write(ixUnit,'(a)') '<start_scalar_icond>'
  write(ixUnit,'(a25,1x,e20.10)') 'dt_init                 ', dt_init                                              ! time step length (s)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyIce         ', mvar_data%var(iLookMVAR%scalarCanopyIce     )%dat(1) ! canopy ice content (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyLiq         ', mvar_data%var(iLookMVAR%scalarCanopyLiq     )%dat(1) ! canopy liquid water content (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanairTemp        ', mvar_data%var(iLookMVAR%scalarCanairTemp    )%dat(1) ! temperature of the canopy air space (K)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyTemp        ', mvar_data%var(iLookMVAR%scalarCanopyTemp    )%dat(1) ! temperature of the vegetation canopy (K)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowAlbedo        ', mvar_data%var(iLookMVAR%scalarSnowAlbedo    )%dat(1) ! snow albedo (-)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSWE               ', mvar_data%var(iLookMVAR%scalarSWE           )%dat(1) ! snow water equivalent (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowDepth         ', mvar_data%var(iLookMVAR%scalarSnowDepth     )%dat(1) ! snow depth (m)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSfcMeltPond       ', mvar_data%var(iLookMVAR%scalarSfcMeltPond   )%dat(1) ! surface melt pond (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarAquiferStorage    ', mvar_data%var(iLookMVAR%scalarAquiferStorage)%dat(1) ! aquifer storage (m)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyIce         ', prog_data%var(iLookPROG%scalarCanopyIce     )%dat(1) ! canopy ice content (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyLiq         ', prog_data%var(iLookPROG%scalarCanopyLiq     )%dat(1) ! canopy liquid water content (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanairTemp        ', prog_data%var(iLookPROG%scalarCanairTemp    )%dat(1) ! temperature of the canopy air space (K)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyTemp        ', prog_data%var(iLookPROG%scalarCanopyTemp    )%dat(1) ! temperature of the vegetation canopy (K)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowAlbedo        ', prog_data%var(iLookPROG%scalarSnowAlbedo    )%dat(1) ! snow albedo (-)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSWE               ', prog_data%var(iLookPROG%scalarSWE           )%dat(1) ! snow water equivalent (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowDepth         ', prog_data%var(iLookPROG%scalarSnowDepth     )%dat(1) ! snow depth (m)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarSfcMeltPond       ', prog_data%var(iLookPROG%scalarSfcMeltPond   )%dat(1) ! surface melt pond (kg m-2)
+ write(ixUnit,'(a25,1x,e20.10)') 'scalarAquiferStorage    ', prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1) ! aquifer storage (m)
  write(ixUnit,'(a)') '<end_scalar_icond>'
 
  ! make the file easier to read
@@ -1237,24 +1182,24 @@ contains
  if(nSnow>0)then
   do iLayer=1,nSnow  ! loop through snow layers
    write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      snow',                                            &
-                                                                     mvar_data%var(iLookMVAR%iLayerHeight    )%dat(iLayer-1), &  ! height at the top of the layer (m)
-                                                                     mvar_data%var(iLookMVAR%mLayerDepth     )%dat(iLayer),   &  ! depth of each layer (m)
-                                                                     mvar_data%var(iLookMVAR%mLayerTemp      )%dat(iLayer),   &  ! temperature of each layer (K)
-                                                                     mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iLayer),   &  ! volumetric ice content (-)
-                                                                     mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iLayer),   &  ! volumetric liquid water content (-)
+                                                                     prog_data%var(iLookPROG%iLayerHeight    )%dat(iLayer-1), &  ! height at the top of the layer (m)
+                                                                     prog_data%var(iLookPROG%mLayerDepth     )%dat(iLayer),   &  ! depth of each layer (m)
+                                                                     prog_data%var(iLookPROG%mLayerTemp      )%dat(iLayer),   &  ! temperature of each layer (K)
+                                                                     prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer),   &  ! volumetric ice content (-)
+                                                                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer),   &  ! volumetric liquid water content (-)
                                                                      valueMissing                                                ! matric head (missing for snow)
   end do  ! looping through snow layers
  endif  ! if snow layers exist
 
  ! write state variables for each soil layer
  do iLayer=1,nSoil  ! loop through snow layers
-  write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      soil',                                                  &
-                                                                    mvar_data%var(iLookMVAR%iLayerHeight    )%dat(nSnow+iLayer-1), &  ! height at the top of the layer (m)
-                                                                    mvar_data%var(iLookMVAR%mLayerDepth     )%dat(nSnow+iLayer),   &  ! depth of each layer (m)
-                                                                    mvar_data%var(iLookMVAR%mLayerTemp      )%dat(nSnow+iLayer),   &  ! temperature of each layer (K)
-                                                                    mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(nSnow+iLayer),   &  ! volumetric ice content (-)
-                                                                    mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(nSnow+iLayer),   &  ! volumetric liquid water content (-)
-                                                                    mvar_data%var(iLookMVAR%mLayerMatricHead)%dat(iLayer)             ! matric head (m)
+  write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      soil',                                             &
+                                                                     prog_data%var(iLookPROG%iLayerHeight    )%dat(nSnow+iLayer-1), &  ! height at the top of the layer (m)
+                                                                     prog_data%var(iLookPROG%mLayerDepth     )%dat(nSnow+iLayer),   &  ! depth of each layer (m)
+                                                                     prog_data%var(iLookPROG%mLayerTemp      )%dat(nSnow+iLayer),   &  ! temperature of each layer (K)
+                                                                     prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+iLayer),   &  ! volumetric ice content (-)
+                                                                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+iLayer),   &  ! volumetric liquid water content (-)
+                                                                     prog_data%var(iLookPROG%mLayerMatricHead)%dat(iLayer)             ! matric head (m)
  end do  ! looping through soil layers
 
  ! end definition of layer variables

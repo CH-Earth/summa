@@ -37,15 +37,9 @@ USE multiconst,only:&
                     lambda_ice,  & ! thermal conductivity of ice   (J s-1 m-1)
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
 
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
-
 ! named variables that define the layer type
-USE data_struc,only:ix_soil        ! soil
-USE data_struc,only:ix_snow        ! snow
+USE globalData,only:ix_soil        ! soil
+USE globalData,only:ix_snow        ! snow
 implicit none
 private
 public::diagn_evar
@@ -67,20 +61,21 @@ contains
                        ! input/output: data structures
                        mpar_data,               & ! intent(in):    model parameters
                        indx_data,               & ! intent(in):    model layer indices
-                       mvar_data,               & ! intent(inout): model variables for a local HRU
+                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength         ! data vector with variable length dimension (dp)
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
  ! provide access to named variables for thermal conductivity of soil
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  USE mDecisions_module,only: funcSoilWet, & ! function of soil wetness
                              mixConstit,  & ! mixture of constituents
                              hanssonVZJ     ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
@@ -92,8 +87,9 @@ contains
  real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_d),intent(in)          :: mpar_data              ! model parameters
- type(var_ilength),intent(inout) :: indx_data              ! model layer indices
- type(var_dlength),intent(inout) :: mvar_data              ! model variables for a local HRU
+ type(var_ilength),intent(in)    :: indx_data              ! model layer indices
+ type(var_dlength),intent(in)    :: prog_data              ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data              ! model diagnostic variables for a local HRU
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -120,21 +116,22 @@ contains
  real(dp),parameter                :: f2=1.06_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(dp)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message="diagn_evar/"
  ! associate variables in data structure
  associate(&
  ! input: model decisions
  ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in): choice of method for thermal conductivity of soil
  ! input: state variables
- scalarCanopyIce         => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),           & ! intent(in): canopy ice content (kg m-2)
- scalarCanopyLiquid      => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
- mLayerVolFracIce        => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat,             & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
- mLayerVolFracLiq        => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+ scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),           & ! intent(in): canopy ice content (kg m-2)
+ scalarCanopyLiquid      => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),           & ! intent(in): canopy liquid water content (kg m-2)
+ mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,             & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+ mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
  ! input: coordinate variables
+ nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers 
+ nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in): number of soil layers
+ nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (ix_soil or ix_snow)
- mLayerHeight            => mvar_data%var(iLookMVAR%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
- iLayerHeight            => mvar_data%var(iLookMVAR%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
+ mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
+ iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
  ! input: heat capacity and thermal conductivity
  specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg),                 & ! intent(in): specific heat of vegetation (J kg-1 K-1)
  maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation),               & ! intent(in): maximum mass of vegetation (kg m-2)
@@ -145,13 +142,15 @@ contains
  frac_silt               => mpar_data%var(iLookPARAM%frac_silt),                       & ! intent(in): fraction of silt (-)
  frac_clay               => mpar_data%var(iLookPARAM%frac_clay),                       & ! intent(in): fraction of clay (-)
  ! output: diagnostic variables
- scalarBulkVolHeatCapVeg => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
- mLayerVolHtCapBulk      => mvar_data%var(iLookMVAR%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
- mLayerThermalC          => mvar_data%var(iLookMVAR%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
- iLayerThermalC          => mvar_data%var(iLookMVAR%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
- mLayerVolFracAir        => mvar_data%var(iLookMVAR%mLayerVolFracAir)%dat              & ! intent(out): volumetric fraction of air in each layer (-)
+ scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
+ mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
+ mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
+ iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
+ mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat              & ! intent(out): volumetric fraction of air in each layer (-)
  )  ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message="diagn_evar/"
 
  ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
  if(computeVegFlux)then

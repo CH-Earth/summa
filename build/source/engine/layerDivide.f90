@@ -28,14 +28,8 @@ USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
 
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,   & ! number of snow layers
-                    nSoil,   & ! number of soil layers
-                    nLayers    ! total number of layers
-
 ! access named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
+USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
 
 ! define look-up values for the choice of method to combine and sub-divide snow layers
 USE mDecisions_module,only:&
@@ -58,9 +52,14 @@ USE mDecisions_module,only:& ! identify model options for snow albedo
 implicit none
 private
 public::layerDivide
-interface addOneLayer
- module procedure AddOneLayer_rv, AddOneLayer_iv
-end interface AddOneLayer
+
+! provide access to the number layers throughout the module
+integer(i4b)                    :: nSnow               ! number of snow layers
+integer(i4b)                    :: nSoil               ! number of soil layers
+integer(i4b)                    :: nLayers             ! total number of layers
+! define missing values
+real(dp)              :: missingDouble=-9999._dp  ! missing value (double precision)
+integer(i4b)          :: missingInteger=-9999     ! missing value (integer)
 
 contains
 
@@ -72,54 +71,53 @@ contains
                         model_decisions,             & ! intent(in):    model decisions
                         mpar_data,                   & ! intent(in):    model parameters
                         indx_data,                   & ! intent(inout): type of each layer
-                        mvar_data,                   & ! intent(inout): model variables for a local HRU
-                        ! output: error control
+                        prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                        diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                        flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                        ! output
+                        divideLayer,                 & ! intent(out): flag to denote that a layer was divided
                         err,message)                   ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! access the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
+ ! access metadata
+ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookPARAM                                ! named variables for elements of the parameter structure
  ! computational modules
- USE snow_utils_module,only:fracliquid,templiquid               ! functions to compute temperature/liquid water
+ USE snow_utils_module,only:fracliquid,templiquid              ! functions to compute temperature/liquid water
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
- type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
- ! output: error control
+ type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data           ! model flux variables
+ ! output
+ logical(lgt),intent(out)        :: divideLayer         ! flag to denote that a layer was divided
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
- ! --------------------------------------------------------------------------------------------------------
- ! model state variables (all layers)
- ! NOTE: use pointers because dimension length changes
- real(dp),pointer                :: mLayerTemp(:)       ! temperature of each layer (K)
- real(dp),pointer                :: mLayerVolFracIce(:) ! volumetric fraction of ice in each layer (-)
- real(dp),pointer                :: mLayerVolFracLiq(:) ! volumetric fraction of liquid water in each layer (-)
- ! model coordinate variables
- ! NOTE: use pointers because dimension length changes
- real(dp),pointer                :: mLayerDepth(:)      ! depth of the layer (m)
- ! model index variables
- ! NOTE: use pointers because dimension length changes
- integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iLayer              ! layer index
- integer(i4b)                    :: kLayer              ! layer index
+ integer(i4b)                    :: jLayer              ! layer index
  real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
  real(dp),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
  real(dp)                        :: zmaxCheck           ! value of zmax for a given snow layer
  integer(i4b)                    :: nCheck              ! number of layers to check to divide
  logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
+ real(dp)                        :: depthOriginal       ! original layer depth before sub-division (m)
+ real(dp),parameter              :: fracTop=0.5_dp      ! fraction of old layer used for the top layer
  real(dp)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
  real(dp)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
  real(dp),parameter              :: unfrozenLiq=0.01_dp ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
@@ -128,6 +126,7 @@ contains
  integer(i4b),parameter          :: ixVisible=1         ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2          ! named variable to define index in array of near IR part of the spectrum
  logical(lgt),parameter          :: printFlag=.false.   ! flag to print output
+ real(dp),parameter              :: verySmall=1.e-10_dp ! a very small number (used for error checking)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -153,25 +152,25 @@ contains
  ! model parameters (compute layer temperature)
  fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale),            & ! freezing curve parameter for snow (K-1)
  ! diagnostic scalar variables
- scalarSnowfall         => mvar_data%var(iLookMVAR%scalarSnowfall)%dat(1),     & ! snowfall flux (kg m-2 s-1)
- scalarSnowfallTemp     => mvar_data%var(iLookMVAR%scalarSnowfallTemp)%dat(1), & ! computed temperature of fresh snow (K)
- scalarSnowDepth        => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),    & ! total snow depth (m)
- scalarSWE              => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)           & ! SWE (kg m-2)
+ scalarSnowfall         => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),     & ! snowfall flux (kg m-2 s-1)
+ scalarSnowfallTemp     => diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1), & ! computed temperature of fresh snow (K)
+ scalarSnowDepth        => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),    & ! total snow depth (m)
+ scalarSWE              => prog_data%var(iLookPROG%scalarSWE)%dat(1)           & ! SWE (kg m-2)
  )  ! end associate statement
 
- ! assign pointers to model state variables
- mLayerDepth            => mvar_data%var(iLookMVAR%mLayerDepth)%dat           ! depth of the layer (m)
- mLayerTemp             => mvar_data%var(iLookMVAR%mLayerTemp)%dat            ! temperature of each layer (K)
- mLayerVolFracIce       => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat      ! volumetric fraction of ice in each layer (-)
- mLayerVolFracLiq       => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat      ! volumetric fraction of liquid water in each layer (-)
- ! assign local pointers to the model index structures
- layerType              => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
-
  ! --------------------------------------------------------------------------------------------------------
+
+ ! initialize flag to denote that a layer was divided
+ divideLayer=.false.
 
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zmax_lower = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
  zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+
+ ! initialize the number of snow layers
+ nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** special case of no snow layers
  if(nSnow==0)then
@@ -186,20 +185,29 @@ contains
   ! ** create a new snow layer
   if(createLayer)then
 
+   ! flag that the layers have changed
+   divideLayer=.true.
+
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
-   call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage)
-   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+   call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! re-assign pointers to the coordinate variables
-   mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
-   layerType        => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
-
-   ! re-assign pointers to the model state variables
+   ! associate local variables to the information in the data structures
    ! NOTE: need to do this here, since state vectors have just been modified
-   mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
-   mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer (-)
-   mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
+   associate(&
+   ! coordinate variables
+   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat        ,& ! depth of each layer (m)
+   ! model state variables
+   mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat         ,& ! temperature of each layer (K)
+   mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat   ,& ! volumetric fraction of ice in each layer (-)
+   mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat    & ! volumetric fraction of liquid water in each layer (-)
+   ) ! (association of local variables to the information in the data structures)
+
+   ! get the layer depth
+   mLayerDepth(1) = scalarSnowDepth
 
    ! compute surface layer temperature
    surfaceLayerSoilTemp = mLayerTemp(2)    ! temperature of the top soil layer (K)
@@ -214,123 +222,131 @@ contains
    mLayerVolFracIce(1) = (1._dp - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
    mLayerVolFracLiq(1) =          fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
 
+   ! end association with local variables to the information in the data structures)
+   end associate
+
    ! initialize albedo
    ! NOTE: albedo is computed within the Noah-MP radiation routine
    if(model_decisions(iLookDECISIONS%canopySrad)%iDecision /= noah_mp)then
     select case(model_decisions(iLookDECISIONS%alb_method)%iDecision)
      ! (constant decay rate -- albedo the same for all spectral bands)
      case(constantDecay)
-      mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)          = mpar_data%var(iLookPARAM%albedoMax)
-      mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(:) = mpar_data%var(iLookPARAM%albedoMax)
+      prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)          = mpar_data%var(iLookPARAM%albedoMax)
+      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(:) = mpar_data%var(iLookPARAM%albedoMax)
      ! (variable decay rate)
      case(variableDecay)
-      mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(ixVisible) = mpar_data%var(iLookPARAM%albedoMaxVisible)
-      mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(ixNearIR)  = mpar_data%var(iLookPARAM%albedoMaxNearIR)
-      mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)                  = (        mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxVisible) + &
+      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixVisible) = mpar_data%var(iLookPARAM%albedoMaxVisible)
+      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixNearIR)  = mpar_data%var(iLookPARAM%albedoMaxNearIR)
+      prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)                  = (        mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxVisible) + &
                                                                           (1._dp - mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxNearIR)
      case default; err=20; message=trim(message)//'unable to identify option for snow albedo'; return
     end select  ! identify option for snow albedo
     ! set direct albedo to diffuse albedo
-    mvar_data%var(iLookMVAR%spectralSnowAlbedoDirect)%dat(:) = mvar_data%var(iLookMVAR%spectralSnowAlbedoDiffuse)%dat(:)
+    diag_data%var(iLookDIAG%spectralSnowAlbedoDirect)%dat(:) = prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(:)
    endif  ! (if NOT using the Noah-MP radiation routine)
 
-   ! update the total number of layers
-   nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-   nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
-   nLayers = nSnow + nSoil
-
-   ! save the number of layers in the data structures
-   indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
-   indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
-   indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
-
-   ! check
-   if(printFlag)then
-    print*, trim(message)
-    do kLayer=1,nLayers
-     write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
-    end do
-    print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-    print*, 'snow albedo = ', mvar_data%var(iLookMVAR%scalarSnowAlbedo)%dat(1)
-   endif  ! (if printing progress)
-
   endif  ! if creating a new layer
-  return
- endif
 
  ! end special case of nSnow=0
  ! ********************************************************************************************************************
  ! ********************************************************************************************************************
 
- ! check
- if(printFlag)then
-  print*, 'before sub-division'
-  do kLayer=1,nLayers
-   write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
-  end do
- endif  ! (if printing progress)
-
  ! ***** sub-divide snow layers, if necessary
+ else ! if nSnow>0
 
- ! identify the number of layers to check for need for sub-division
- select case(ix_snowLayers)
-  case(sameRulesAllLayers);    nCheck = nSnow
-  case(rulesDependLayerIndex); nCheck = min(nSnow,4)  ! the depth of the 5th layer, if it exists, does not have a maximum value
-  case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
- end select ! (option to combine/sub-divide snow layers)
-
- ! loop through all layers, and sub-divide a given layer, if necessary
- do iLayer=1,nCheck
-
-  ! identify the maximum depth of the layer
+  ! identify the number of layers to check for need for sub-division
   select case(ix_snowLayers)
-   case(sameRulesAllLayers);    zmaxCheck = zmax
-   case(rulesDependLayerIndex)
-    if(iLayer == nSnow)then
-     zmaxCheck = zmax_lower(iLayer)
-    else
-     zmaxCheck = zmax_upper(iLayer)
-    endif
+   case(sameRulesAllLayers);    nCheck = nSnow
+   case(rulesDependLayerIndex); nCheck = min(nSnow,4)  ! the depth of the 5th layer, if it exists, does not have a maximum value
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
+  
+  ! loop through all layers, and sub-divide a given layer, if necessary
+  do iLayer=1,nCheck
+  
+   ! identify the maximum depth of the layer
+   select case(ix_snowLayers)
+    case(sameRulesAllLayers);    zmaxCheck = zmax
+    case(rulesDependLayerIndex)
+     if(iLayer == nSnow)then
+      zmaxCheck = zmax_lower(iLayer)
+     else
+      zmaxCheck = zmax_upper(iLayer)
+     endif
+    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+   end select ! (option to combine/sub-divide snow layers)
+  
+   ! check the need to sub-divide
+   if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
+  
+    ! flag that layers were divided
+    divideLayer=.true.
+  
+    ! add a layer to all model variables
+    call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+    ! define the layer depth
+    layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
+    depthOriginal = mLayerDepth(iLayer)
+    mLayerDepth(iLayer)   = fracTop*depthOriginal
+    mLayerDepth(iLayer+1) = (1._dp - fracTop)*depthOriginal
+    end associate layerSplit
+  
+    exit  ! NOTE: only sub-divide one layer per substep
+  
+   endif   ! (if sub-dividing layer)
+  
+  end do  ! (looping through layers)
 
-  ! check the need to sub-divide
-  if(mvar_data%var(iLookMVAR%mLayerDepth)%dat(iLayer) > zmaxCheck)then
+ endif  ! if nSnow==0
 
-   ! add a layer to all model variables
-   call addModelLayer(mvar_data,indx_data,iLayer,err,cmessage)  ! adds model layer to the index BELOW the layer that is too thick
-   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ ! update coordinates
+ if(divideLayer)then
 
-   ! re-assign local pointer to the model index structures
-   layerType => indx_data%var(iLookINDEX%layerType)%dat            ! layer type (ix_soil or ix_snow)
+  ! associate coordinate variables in data structure
+  geometry: associate(&
+  mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat        ,& ! depth of the layer (m)
+  mLayerHeight     => prog_data%var(iLookPROG%mLayerHeight)%dat       ,& ! height of the layer mid-point (m)
+  iLayerHeight     => prog_data%var(iLookPROG%iLayerHeight)%dat       ,& ! height of the layer interface (m)
+  layerType        => indx_data%var(iLookINDEX%layerType)%dat         ,& ! type of each layer (ix_snow or ix_soil)
+  nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! number of snow layers
+  nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! number of soil layers
+  nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)         & ! total number of layers
+  )  ! (association of local variables with coordinate variab;es in data structures)
 
-   ! identify the number of snow and soil layers, and check all is a-OK
-   nSnow   = count(layerType==ix_snow)
-   nSoil   = count(layerType==ix_soil)
-   nLayers = nSnow + nSoil
+  ! update the layer type
+  layerType(1:nSnow+1)         = ix_snow
+  layerType(nSnow+2:nLayers+1) = ix_soil
 
-   ! save the number of layers in the data structures
-   indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
-   indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
-   indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
+  ! identify the number of snow and soil layers, and check all is a-OK
+  nSnow   = count(layerType==ix_snow)
+  nSoil   = count(layerType==ix_soil)
+  nLayers = nSnow + nSoil
 
-   ! check
-   mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
-   mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
-   mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer (-)
-   mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
-   !print*, 'after sub-division'
-   !do kLayer=1,nLayers
-   ! write(*,'(i4,1x,4(f9.3,1x))') layerType(kLayer), mLayerDepth(kLayer), mLayerTemp(kLayer), mLayerVolFracIce(kLayer), mLayerVolFracLiq(kLayer)
-   !end do
-   !print*, 'created a new layer, nSnow = ', count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-   !pause ' check layer sub-division'
+  ! re-set coordinate variables
+  iLayerHeight(0) = -scalarSnowDepth
+  do jLayer=1,nLayers
+   iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
+   mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._dp
+  end do
 
-   exit  ! NOTE: only sub-divide one layer per substep
+  ! check
+  if(abs(sum(mLayerDepth(1:nSnow)) - scalarSnowDepth) > verySmall)then
+   print*, 'nSnow = ', nSnow
+   write(*,'(a,1x,f30.25,1x)') 'sum(mLayerDepth(1:nSnow)) = ', sum(mLayerDepth(1:nSnow))
+   write(*,'(a,1x,f30.25,1x)') 'scalarSnowDepth           = ', scalarSnowDepth
+   write(*,'(a,1x,f30.25,1x)') 'epsilon(scalarSnowDepth)  = ', epsilon(scalarSnowDepth)
+   message=trim(message)//'sum of layer depths does not equal snow depth'
+   err=20; return
+  endif
 
-  endif   ! (if sub-dividing layer)
+  ! end association with coordinate variables in data structure
+  end associate geometry
 
- end do  ! (looping through layers)
+ endif  ! if dividing a layer
 
  ! end associate variables in data structure
  end associate
@@ -341,202 +357,119 @@ contains
  ! ************************************************************************************************
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
- subroutine addModelLayer(mvar_data,indx_data,ix_divide,err,message)
- ! provide access to variables in the data structures
- USE data_struc,only:mvar_meta                        ! metadata
- USE data_struc,only:var_ilength,var_dlength          ! data vectors with variable length dimension
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX  ! named variables for structure elements
+ subroutine addModelLayer(dataStruct,metaStruct,ix_divide,err,message)
+ USE data_types,only:var_ilength,var_dlength       ! data vectors with variable length dimension
+ USE data_types,only:var_info                      ! metadata structure
  implicit none
  ! ---------------------------------------------------------------------------------------------
  ! input/output: data structures
- type(var_dlength),intent(inout) :: mvar_data ! model variables for a local HRU
- type(var_ilength),intent(inout) :: indx_data ! type of model layer
+ class(*),intent(inout)          :: dataStruct     ! data structure
+ type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! input: snow layer indices
- integer(i4b),intent(in)         :: ix_divide ! index of the layer to divide
+ integer(i4b),intent(in)         :: ix_divide      ! index of the layer to divide
  ! output: error control
- integer(i4b),intent(out)        :: err       ! error code
- character(*),intent(out)        :: message   ! error message
- ! ---------------------------------------------------------------------------------------------
- ! model coordinate variables
- ! NOTE: use pointers because dimension length changes
- real(dp),pointer                :: mLayerDepth(:)      ! depth of the layer (m)
- real(dp),pointer                :: mLayerHeight(:)     ! height of the layer mid-point (m)
- real(dp),pointer                :: iLayerHeight(:)     ! height of the layer interface (m)
- ! model index variables
- ! NOTE: use pointers because dimension length changes
- integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
+ integer(i4b),intent(out)        :: err            ! error code
+ character(*),intent(out)        :: message        ! error message
  ! ---------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                    :: ivar                ! index of model variable
- integer(i4b)                    :: jLayer              ! index of model layer
- integer(i4b)                    :: ix_lower            ! lower bound of the vector
- integer(i4b)                    :: ix_upper            ! upper bound of the vector
- logical(lgt)                    :: stateVariable       ! .true. if variable is a state variable
- real(dp)                        :: depthOriginal       ! original layer depth before sub-division (m)
- real(dp),parameter              :: fracTop=0.5_dp      ! fraction of old layer used for the top layer
- character(LEN=256)              :: cmessage            ! error message of downwind routine
+ integer(i4b)                    :: ivar           ! index of model variable
+ integer(i4b)                    :: ix_lower       ! lower bound of the vector
+ integer(i4b)                    :: ix_upper       ! upper bound of the vector
+ logical(lgt)                    :: stateVariable  ! .true. if variable is a state variable
+ real(dp),allocatable            :: tempVec_dp(:)  ! temporary vector (double precision)
+ integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
  ! ---------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='addModelLayer/'
 
- ! associate variables in data structure
- associate(&
- scalarSnowDepth        => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1)    & ! total snow depth (m)
- )  ! associate
-
  ! ***** add a layer to each model variable
- do ivar=1,size(mvar_data%var)
-
+ do ivar=1,size(metaStruct)
+  
   ! define bounds
-  select case(trim(mvar_meta(ivar)%vartype))
+  select case(trim(metaStruct(ivar)%vartype))
    case('midSnow'); ix_lower=1; ix_upper=nSnow
    case('midToto'); ix_lower=1; ix_upper=nLayers
    case('ifcSnow'); ix_lower=0; ix_upper=nSnow
    case('ifcToto'); ix_lower=0; ix_upper=nLayers
    case default; cycle
   end select
-
+  
   ! identify whether it is a state variable
-  select case(trim(mvar_meta(ivar)%varname))
+  select case(trim(metaStruct(ivar)%varname))
    case('mLayerDepth','mLayerTemp','mLayerVolFracIce','mLayerVolFracLiq'); stateVariable=.true.
    case default; stateVariable=.false.
   end select
 
-  ! add an additional layer -- only get to here if snow in the layer
-  call AddOneLayer(mvar_data%var(ivar)%dat,ix_lower,ix_upper,ix_divide,stateVariable,err,cmessage)
-  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+  ! divide layers
+  select type(dataStruct)
+
+   ! ** double precision
+   type is (var_dlength)
+    ! check allocated
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    ! assign the data vector to the temporary vector
+    allocate(tempVec_dp, source=dataStruct%var(ivar)%dat)
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    ! reallocate space for the new vector
+    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
+    allocate(dataStruct%var(ivar)%dat(ix_lower:ix_upper+1),stat=err)
+    if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
+    ! populate the state vector
+    if(stateVariable)then
+     if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
+      if(ix_divide > 0)then
+       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_dp(1:ix_divide)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_dp(ix_divide)    ! repeat data for the sub-divided layer
+      endif
+      if(ix_upper > ix_divide) &
+       dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_dp(ix_divide+1:ix_upper)  ! copy data
+     endif  ! if the vector exists
+    ! not a state variable
+    else
+     dataStruct%var(ivar)%dat(:) = missingDouble
+    endif
+    ! deallocate the temporary vector: strictly not necessary, but include to be safe
+    deallocate(tempVec_dp,stat=err)
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+
+   ! ** integer
+   type is (var_ilength)
+    ! check allocated
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    ! assign the data vector to the temporary vector
+    allocate(tempVec_i4b, source=dataStruct%var(ivar)%dat)
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    ! reallocate space for the new vector
+    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
+    allocate(dataStruct%var(ivar)%dat(ix_lower:ix_upper+1),stat=err)
+    if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
+    ! populate the state vector
+    if(stateVariable)then
+     if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
+      if(ix_divide > 0)then
+       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_i4b(1:ix_divide)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
+      endif
+      if(ix_upper > ix_divide) &
+       dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_i4b(ix_divide+1:ix_upper)  ! copy data
+     endif  ! if the vector exists
+    ! not a state variable
+    else
+     dataStruct%var(ivar)%dat(:) = missingInteger
+    endif
+    ! deallocate the temporary vector: strictly not necessary, but include to be safe
+    deallocate(tempVec_i4b,stat=err)
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+
+   ! check that we found the data type
+   class default; err=20; message=trim(message)//'unable to identify the data type'; return
+
+  end select ! dependence on data types
 
  end do  ! looping through variables
 
-
- ! ***** modify the layer indices
- call AddOneLayer(indx_data%var(iLookINDEX%layerType)%dat,1,nLayers,ix_divide,.false.,err,cmessage)
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
- indx_data%var(iLookINDEX%layerType)%dat(1:nSnow+1)         = ix_snow
- indx_data%var(iLookINDEX%layerType)%dat(nSnow+2:nLayers+1) = ix_soil
- nLayers = nLayers + 1
-
- ! assign pointers to model coordinate variables
- mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of the layer (m)
- mLayerHeight     => mvar_data%var(iLookMVAR%mLayerHeight)%dat         ! height of the layer mid-point (m)
- iLayerHeight     => mvar_data%var(iLookMVAR%iLayerHeight)%dat         ! height of the layer interface (m)
- layerType        => indx_data%var(iLookINDEX%layerType)%dat           ! type of each layer (ix_snow or ix_soil)
-
- ! ***** modify the layer depth
- if(ix_divide==0)then ! no layers exist currently
-  mLayerDepth(1) = scalarSnowDepth
- else ! layers already exist
-  depthOriginal = mLayerDepth(ix_divide)
-  mLayerDepth(ix_divide)   = fracTop*depthOriginal
-  mLayerDepth(ix_divide+1) = (1._dp - fracTop)*depthOriginal
- endif
-
- ! check
- if(scalarSnowDepth - sum(mvar_data%var(iLookMVAR%mLayerDepth)%dat(1:nSnow)) < epsilon(scalarSnowDepth))then
-  message=trim(message)//'problem sub-dividing snow layer'
-  err=20; return
- endif
-
- ! ***** re-set coordinate variables
- iLayerHeight(0) = -scalarSnowDepth
- do jLayer=1,nLayers
-  iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
-  mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._dp
- end do
-
- ! end associate variables in data structure
- end associate
-
  end subroutine addModelLayer
-
-
- ! ***************************************************************************************************
- ! private subroutine AddOneLayer_rv: add an additional snow layer (real version)
- ! ***************************************************************************************************
- ! Returns a new vector which has one more element than the input vector
- !  -- optionally copies data from the original vector to the new vector for elements (2:n)->(3:n+1),
- !      and copies element 1 into elements 1:2, and copies element 0 into element 0
- ! ***************************************************************************************************
- subroutine AddOneLayer_rv(datavec,ix_lower,ix_upper,ix_divide,stateVariable,err,message)
- implicit none
- ! dummies
- real(dp),pointer,intent(inout)     :: datavec(:)    ! the original and the new vector
- integer(i4b),intent(in)            :: ix_lower      ! lower bound of the old vector
- integer(i4b),intent(in)            :: ix_upper      ! upper bound of the old vector
- integer(i4b),intent(in)            :: ix_divide     ! index of the layer to divide
- logical(lgt),intent(in)            :: stateVariable ! .true. if a state variable
- integer(i4b),intent(out)           :: err           ! error code
- character(*),intent(out)           :: message       ! error message
- ! locals
- real(dp)                           :: tempvec(ix_lower:ix_upper)  ! temporary vector
- real(dp),parameter                 :: missingReal=-9999._dp
- ! initialize error control
- err=0; message='AddOneLayer_rv/'
- ! check the data vector is associated
- if(.not.associated(datavec))then; err=20; message='data vector is not associated'; return; endif
- ! assign the data vector to the temporary vector
- tempvec=datavec
- ! reallocate space for the new vector
- deallocate(datavec,stat=err)
- if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
- allocate(datavec(ix_lower:ix_upper+1),stat=err)
- if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
- if(stateVariable)then
-  if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
-   if(ix_divide > 0)then
-    datavec(1:ix_divide) = tempvec(1:ix_divide)  ! copy data
-    datavec(ix_divide+1) = tempvec(ix_divide)    ! repeat data for the sub-divided layer
-   endif
-   if(ix_upper > ix_divide) datavec(ix_divide+2:ix_upper+1) = tempvec(ix_divide+1:ix_upper)
-  endif
- else
-  datavec = missingReal
- endif
- end subroutine AddOneLayer_rv
-
- ! ***************************************************************************************************
- ! private subroutine AddOneLayer_iv: add an additional snow layer (integer version)
- ! ***************************************************************************************************
- ! Returns a new vector which has one more element than the input vector
- !  -- optionally copies data from the original vector to the new vector for elements (2:n)->(3:n+1),
- !      and copies element 1 into elements 1:2, and copies element 0 into element 0
- ! ***************************************************************************************************
- subroutine AddOneLayer_iv(datavec,ix_lower,ix_upper,ix_divide,stateVariable,err,message)
- implicit none
- ! dummies
- integer(i4b),pointer,intent(inout) :: datavec(:)    ! the original and the new vector
- integer(i4b),intent(in)            :: ix_lower      ! lower bound of the old vector
- integer(i4b),intent(in)            :: ix_upper      ! upper bound of the old vector
- integer(i4b),intent(in)            :: ix_divide     ! index of the layer to divide
- logical(lgt),intent(in)            :: stateVariable ! .true. if a state variable
- integer(i4b),intent(out)           :: err           ! error code
- character(*),intent(out)           :: message       ! error message
- ! locals
- integer(i4b)                       :: tempvec(ix_lower:ix_upper)  ! temporary vector
- integer(i4b),parameter             :: missingInteger=-9999
- ! initialize error control
- err=0; message='AddOneLayer_iv/'
- ! check the data vector is associated
- if(.not.associated(datavec))then; err=20; message='data vector is not associated'; return; endif
- ! assign the data vector to the temporary vector
- tempvec=datavec
- ! reallocate space for the new vector
- deallocate(datavec,stat=err)
- if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
- allocate(datavec(ix_lower:ix_upper+1),stat=err)
- if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
- if(stateVariable)then
-  if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
-   if(ix_divide > 0)then
-    datavec(1:ix_divide) = tempvec(1:ix_divide)  ! copy data
-    datavec(ix_divide+1) = tempvec(ix_divide)    ! repeat data for the sub-divided layer
-   endif
-   if(ix_upper > ix_divide) datavec(ix_divide+2:ix_upper+1) = tempvec(ix_divide+1:ix_upper)
-  endif
- else
-  datavec = missingInteger
- endif
- end subroutine AddOneLayer_iv
-
 
 end module layerDivide_module

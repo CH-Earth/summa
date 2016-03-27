@@ -29,21 +29,23 @@ contains
  ! ************************************************************************************************
  ! public subroutine ffile_info: read information on model forcing files
  ! ************************************************************************************************
- subroutine ffile_info(nHRU,err,message)
+ subroutine ffile_info(nHRU,typeStruct,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
  USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
- USE data_struc,only:time_meta,forc_meta     ! model forcing metadata
- USE data_struc,only:forcFileInfo,data_step  ! info on model forcing file
- USE data_struc,only:type_hru                ! data structure for categorical data
+ USE globalData,only:time_meta,forc_meta     ! model forcing metadata
+ USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
+ USE data_types,only:spatial_int             ! data type for categorical data x%hru(:)%var(:)     (i4b)
  USE var_lookup,only:iLookTYPE               ! named variables to index elements of the data vectors
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line      ! split a line into words
  implicit none
- ! define output
+ ! define input
  integer(i4b),intent(in)              :: nHRU           ! number of hydrologic response units
+ type(spatial_int),intent(in)         :: typeStruct     ! local classification of soil veg etc. for each HRU
+ ! define output
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
  ! define local variables
@@ -51,7 +53,7 @@ contains
  integer(i4b),parameter               :: imiss = -999   ! missing data
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
- integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
  integer(i4b)                         :: iline          ! loop through lines in the file
  integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file
  character(LEN=256)                   :: filenameDesc   ! name of file that describes the forcing datafile
@@ -71,7 +73,7 @@ contains
  ! (1) read in the list of forcing files
  ! ------------------------------------------------------------------------------------------------------------------
  ! allocate space for forcing information
- if(associated(forcFileInfo)) deallocate(forcFileInfo)
+ if(allocated(forcFileInfo)) deallocate(forcFileInfo)
  allocate(forcFileInfo(nHRU), stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; endif
  ! build filename
@@ -91,7 +93,7 @@ contains
   if(err/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; endif
   ! identify the HRU index
   do jHRU=1,nHRU
-   if(hruIndex == type_hru(jHRU)%var(iLookTYPE%hruIndex))then
+   if(hruIndex == typeStruct%hru(jHRU)%var(iLookTYPE%hruIndex))then
     kHRU=jHRU
     exit
    endif
@@ -108,15 +110,11 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------
  ! (2) read in the information that describes each forcing file
  ! ------------------------------------------------------------------------------------------------------------------
- ! check that the time metadata is already populated
- if(.not.associated(time_meta))then; err=30; message=trim(message)//"TimeMetadataNonexistent"; return; endif
- ! check that the forcing metadata is already populated
- if(.not.associated(forc_meta))then; err=30; message=trim(message)//"ForcingMetadataNonexistent"; return; endif
  ! read description of file that is used in each HRU
  do iHRU=1,nHRU
   ! allocate space for the column indices
-  if(associated(forcFileInfo(iHRU)%time_ix)) deallocate(forcFileInfo(iHRU)%time_ix)
-  if(associated(forcFileInfo(iHRU)%data_ix)) deallocate(forcFileInfo(iHRU)%data_ix)
+  if(allocated(forcFileInfo(iHRU)%time_ix)) deallocate(forcFileInfo(iHRU)%time_ix)
+  if(allocated(forcFileInfo(iHRU)%data_ix)) deallocate(forcFileInfo(iHRU)%data_ix)
   allocate(forcFileInfo(iHRU)%time_ix(size(time_meta)),&
            forcFileInfo(iHRU)%data_ix(size(forc_meta)),stat=err)
   if(err/=0)then; err=40; message=trim(message)//"problemAllocateStructureElement"; return; endif

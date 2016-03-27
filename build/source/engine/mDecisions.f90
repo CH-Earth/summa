@@ -154,15 +154,14 @@ contains
  subroutine mDecisions(err,message)
  ! model time structures
  USE multiconst,only:secprday               ! number of seconds in a day
- USE data_struc,only:time_meta              ! time metadata
  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
- USE data_struc,only:startTime,finshTime    ! start/end time of simulation
- USE data_struc,only:dJulianStart           ! julian day of start time of simulation
- USE data_struc,only:dJulianFinsh           ! julian day of end time of simulation
- USE data_struc,only:data_step              ! length of data step (s)
- USE data_struc,only:numtim                 ! number of time steps in the simulation
+ USE globalData,only:startTime,finshTime    ! start/end time of simulation
+ USE globalData,only:dJulianStart           ! julian day of start time of simulation
+ USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
+ USE globalData,only:data_step              ! length of data step (s)
+ USE globalData,only:numtim                 ! number of time steps in the simulation
  ! model decision structures
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globaldata,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  ! Noah-MP decision structures
  USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
@@ -177,7 +176,6 @@ contains
  character(*),intent(out)             :: message        ! error message
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
- integer(i4b)                         :: nAtt           ! number of attributes in the time structures
  real(dp)                             :: dsec           ! second
  ! initialize error control
  err=0; message='mDecisions/'
@@ -190,13 +188,6 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! -------------------------------------------------------------------------------------------------
-
- ! allocate space for start/end time structures
- nAtt = size(time_meta)  ! number of attributes in the time structure
- allocate(startTime,finshTime, stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structures'; return; endif
- allocate(startTime%var(nAtt),finshTime%var(nAtt), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structure components'; return; endif
 
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
@@ -648,7 +639,7 @@ contains
  USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
  USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
@@ -656,7 +647,7 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
- integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b)                         :: unt            ! file unit (free unit output from file_open) 
  character(LEN=256),allocatable       :: charline(:)    ! vector of character strings
  integer(i4b)                         :: nDecisions     ! number of model decisions
  integer(i4b)                         :: iDecision      ! index of model decisions
@@ -678,10 +669,6 @@ contains
  close(unt)
  ! get the number of model decisions
  nDecisions = size(charline)
- ! allocate space for the model decisions
- if(associated(model_decisions)) deallocate(model_decisions)
- allocate(model_decisions(maxvarDecisions),stat=err)
- if(err/=0)then;err=30;message=trim(message)//"problemAllocateModelDecisions"; return; endif
  ! populate the model decisions structure
  do iDecision=1,nDecisions
   ! extract name of decision and the decision selected

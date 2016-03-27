@@ -28,25 +28,26 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_force: read in forcing data
  ! ************************************************************************************************
- subroutine read_force(istep,iHRU,err,message)
+ subroutine read_force(istep,iHRU,time_data,forc_data,err,message)
  USE nrtype                                            ! variable types, etc.
  USE summaFileManager,only:INPUT_PATH                  ! path of the forcing data file
  USE time_utils_module,only:extractTime,compJulday     ! extract time info from units string
  USE multiconst,only:secprday                          ! number of seconds in a day
- USE data_struc,only:forcFileInfo                      ! forcing file info
- USE data_struc,only:data_step                         ! length of the data step (s)
- USE data_struc,only:dJulianStart                      ! julian day of start time of simulation
- USE data_struc,only:refTime,refJulday                 ! reference time
- USE data_struc,only:fracJulDay                        ! fractional julian days since the start of year
- USE data_struc,only:yearLength                        ! number of days in the current year
- USE data_struc,only:time_meta,forc_meta               ! metadata structures
- USE data_struc,only:time_data,time_hru                ! time information
- USE data_struc,only:forc_data,forc_hru                ! forcing data
+ USE globalData,only:forcFileInfo                      ! forcing file info
+ USE globalData,only:data_step                         ! length of the data step (s)
+ USE globalData,only:dJulianStart                      ! julian day of start time of simulation
+ USE globalData,only:refTime,refJulday                 ! reference time
+ USE globalData,only:fracJulDay                        ! fractional julian days since the start of year
+ USE globalData,only:yearLength                        ! number of days in the current year
+ USE globalData,only:time_meta,forc_meta               ! metadata structures
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  implicit none
- ! define dummy variables
+ ! define input variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
  integer(i4b),intent(in)           :: iHRU             ! index of hydrologic response unit
+ ! define output variables
+ integer(i4b),intent(out)          :: time_data(:)     ! vector of time data for a given time step
+ real(dp),    intent(out)          :: forc_data(:)     ! vector of forcing data for a given time step
  integer(i4b),intent(out)          :: err              ! error code
  character(*),intent(out)          :: message          ! error message
  ! define local variables
@@ -67,27 +68,18 @@ contains
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
- ! local pointers to data structures
- integer(i4b),pointer              :: ncols            ! number of columns in the forcing data file
- integer(i4b),pointer              :: time_ix(:)       ! column index for time
- integer(i4b),pointer              :: data_ix(:)       ! column index for forcing data
  ! Start procedure here
  err=0; message="read_force/"
  ! **********************************************************************************************
- ! early return: check if we have the data already
- ! NOTE: scalar data structures are pointing to the HRU data structures
- if(forcFileInfo(iHRU)%ixFirstHRU > 0)then
-  time_data = time_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! time information
-  forc_data = forc_hru(forcFileInfo(iHRU)%ixFirstHRU)  ! forcing data
-  return
- endif
+ ! associate local variables with the information in the data structures
+ associate(&
+ ncols   => forcFileInfo(iHRU)%ncols   , & ! number of columns in the forcing data file
+ time_ix => forcFileInfo(iHRU)%time_ix , & ! column index for time
+ data_ix => forcFileInfo(iHRU)%data_ix   & ! column index for forcing data
+ )  ! (associate local variables with the information in the data structures
  ! **********************************************************************************************
  ! define the file unit
  unt = baseUnit + iHRU
- ! define local pointers to data structures
- ncols   => forcFileInfo(iHRU)%ncols   ! number of columns in the forcing data file
- time_ix => forcFileInfo(iHRU)%time_ix ! column index for time
- data_ix => forcFileInfo(iHRU)%data_ix ! column index for forcing data
  ! allocate space for the character vector
  allocate(cline(ncols),stat=err)
  if (err/=0) then; err=10; message=trim(message)//"problemAllocate"; return; endif
@@ -130,25 +122,25 @@ contains
                   refJulday,err,cmessage)                   ! output = julian day (fraction of day) + error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   ! identify the start index
-  time_data%var(:) = imiss
+  time_data(:) = imiss
   ! read data using free format
   read(unt,*,iostat=err) cline
   if(err/=0)then; err=20; write(message,'(a,i0,a)')trim(message)//"ProblemLineRead[firstStep]"; return; endif
   ! put data in time structure
   do iline=1,size(time_ix)
    if (time_ix(iline)<1 .or. time_ix(iline)>ncols) cycle
-   read(cline(time_ix(iline)),*,iostat=err) time_data%var(iline)
+   read(cline(time_ix(iline)),*,iostat=err) time_data(iline)
    if(err/=0)then; err=30; message=trim(message)//"ProblemTimeRead[var='"//trim(time_meta(iline)%varname)//"']"; return; endif
-   !print*,trim(time_meta(iline)%varname),time_data%var(iline)
+   !print*,trim(time_meta(iline)%varname),time_data(iline)
   end do
   ! compute the julian date of the first time index
-  call compjulday(time_data%var(iLookTIME%iyyy),            & ! input  = year
-                  time_data%var(iLookTIME%im),              & ! input  = month
-                  time_data%var(iLookTIME%id),              & ! input  = day
-                  time_data%var(iLookTIME%ih),              & ! input  = hour
-                  time_data%var(iLookTIME%imin),dsec,       & ! input  = minute/second
+  call compjulday(time_data(iLookTIME%iyyy),            & ! input  = year
+                  time_data(iLookTIME%im),              & ! input  = month
+                  time_data(iLookTIME%id),              & ! input  = day
+                  time_data(iLookTIME%ih),              & ! input  = hour
+                  time_data(iLookTIME%imin),dsec,       & ! input  = minute/second
                   juldayFirst,err,cmessage)                   ! output = julian day (fraction of day) + error control
-  write(*,'(a,i4,1x,4(i2,1x))') 'firstTime: iyyy, im, id, ih, imin = ', time_data%var
+  write(*,'(a,i4,1x,4(i2,1x))') 'firstTime: iyyy, im, id, ih, imin = ', time_data
   ! compute the start index
   iStart = nint( (dJulianStart - juldayFirst)*secprday/data_step )
   print*, 'iStartIndex = ', iStart
@@ -182,8 +174,8 @@ contains
  ! **********************************************************************************************
 
  ! initialize time and forcing data structures
- time_data%var(:) = imiss
- forc_data%var(:) = amiss
+ time_data(:) = imiss
+ forc_data(:) = amiss
  ! check that the file unit is what we expect
  inquire(file=trim(infile),number=untCheck)
  if(unt/=untCheck)then; err=20; message=trim(message)//'unexpected file unit for file ['//trim(infile)//']'; return; endif
@@ -193,65 +185,65 @@ contains
  ! put data in time structure
  do iline=1,size(time_ix)
   if (time_ix(iline)<1 .or. time_ix(iline)>ncols) cycle
-  read(cline(time_ix(iline)),*,iostat=err) time_data%var(iline)
+  read(cline(time_ix(iline)),*,iostat=err) time_data(iline)
   if(err/=0)then; err=30; message=trim(message)//"ProblemTimeRead[var='"//trim(time_meta(iline)%varname)//"']"; return; endif
-  !print*,trim(time_meta(iline)%varname),time_data%var(iline)
+  !print*,trim(time_meta(iline)%varname),time_data(iline)
  end do
  ! check to see if any of the time data is missing
- if(any(time_data%var(:)==imiss))then
+ if(any(time_data(:)==imiss))then
   do iline=1,size(time_ix)
-   if(time_data%var(iline)==imiss)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varname)//"']"; return; endif
+   if(time_data(iline)==imiss)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varname)//"']"; return; endif
   end do
  endif
  ! put data in forcing structure
  do iline=1,size(data_ix)
   !print*,data_ix(iline)
   if (data_ix(iline)<1 .or. data_ix(iline)>ncols) cycle
-  read(cline(data_ix(iline)),*,iostat=err) forc_data%var(iline)
+  read(cline(data_ix(iline)),*,iostat=err) forc_data(iline)
   if(err/=0)then; err=30; message=trim(message)//"ProblemDataRead[var='"//trim(forc_meta(iline)%varname)//"']"; return; endif
-  !print*,trim(forc_meta(iline)%varname),forc_data%var(iline)
+  !print*,trim(forc_meta(iline)%varname),forc_data(iline)
  end do
  ! compute the julian day at the start of the year
- call compjulday(time_data%var(iLookTIME%iyyy),          & ! input  = year
+ call compjulday(time_data(iLookTIME%iyyy),          & ! input  = year
                  1, 1, 1, 1, 0._dp,                      & ! input  = month, day, hour, minute, second
                  startJulDay,err,cmessage)                 ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! compute the fractional julian day for the current time step
- call compjulday(time_data%var(iLookTIME%iyyy),           & ! input  = year
-                 time_data%var(iLookTIME%im),             & ! input  = month
-                 time_data%var(iLookTIME%id),             & ! input  = day
-                 time_data%var(iLookTIME%ih),             & ! input  = hour
-                 time_data%var(iLookTIME%imin),0._dp,     & ! input  = minute/second
+ call compjulday(time_data(iLookTIME%iyyy),           & ! input  = year
+                 time_data(iLookTIME%im),             & ! input  = month
+                 time_data(iLookTIME%id),             & ! input  = day
+                 time_data(iLookTIME%ih),             & ! input  = hour
+                 time_data(iLookTIME%imin),0._dp,     & ! input  = minute/second
                  currentJulday,err,cmessage)                ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! compute the time since the start of the year (in fractional days)
  fracJulday = currentJulday - startJulDay
  ! compute time since the reference time (in seconds)
- forc_data%var(iLookFORCE%time) = (currentJulday-refJulday)*secprday
+ forc_data(iLookFORCE%time) = (currentJulday-refJulday)*secprday
  ! compute the number of days in the current year
  yearLength = 365
- if(mod(time_data%var(iLookTIME%iyyy),4) == 0)then
+ if(mod(time_data(iLookTIME%iyyy),4) == 0)then
   yearLength = 366
-  if(mod(time_data%var(iLookTIME%iyyy),100) == 0)then
+  if(mod(time_data(iLookTIME%iyyy),100) == 0)then
    yearLength = 365
-   if(mod(time_data%var(iLookTIME%iyyy),400) == 0)then
+   if(mod(time_data(iLookTIME%iyyy),400) == 0)then
     yearLength = 366
    endif
   endif
  endif
  ! check to see if any of the forcing data is missing
- if(any(forc_data%var(:)<amiss*0.99_dp))then
+ if(any(forc_data(:)<amiss*0.99_dp))then
   do iline=1,size(data_ix)
-   if(forc_data%var(iline)<amiss*0.99_dp)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"; return; endif
+   if(forc_data(iline)<amiss*0.99_dp)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"; return; endif
   end do
  endif
  ! test
  if(checkTime)then
-  write(*,'(i4,1x,4(i2,1x),f9.3,1x,i4)') time_data%var(iLookTIME%iyyy),           & ! year
-                                         time_data%var(iLookTIME%im),             & ! month
-                                         time_data%var(iLookTIME%id),             & ! day
-                                         time_data%var(iLookTIME%ih),             & ! hour
-                                         time_data%var(iLookTIME%imin),           & ! minute
+  write(*,'(i4,1x,4(i2,1x),f9.3,1x,i4)') time_data(iLookTIME%iyyy),           & ! year
+                                         time_data(iLookTIME%im),             & ! month
+                                         time_data(iLookTIME%id),             & ! day
+                                         time_data(iLookTIME%ih),             & ! hour
+                                         time_data(iLookTIME%imin),           & ! minute
                                          fracJulday,                              & ! fractional julian day for the current time step
                                          yearLength                                 ! number of days in the current year
   !pause ' checking time'
@@ -259,6 +251,10 @@ contains
  ! deallocate cline
  deallocate(cline,stat=err)
  if (err/=0) then; err=10; message=trim(message)//"problemDeallocate"; return; endif
+
+ ! end association of  local variables with the information in the data structures
+ end associate
+
  end subroutine read_force
 
 

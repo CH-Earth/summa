@@ -22,7 +22,7 @@ module read_pinit_module
 USE nrtype
 ! check for when model decisions are undefined
 USE mDecisions_module,only: unDefined
-USE data_struc,only:model_decisions
+USE globalData,only:model_decisions
 USE var_lookup,only:iLookDECISIONS,iLookPARAM
 implicit none
 private
@@ -38,35 +38,35 @@ contains
  USE summaFileManager,only:SETNGS_PATH     ! path for metadata files
  USE ascii_util_module,only:file_open      ! open ascii file
  USE ascii_util_module,only:split_line     ! extract the list of variable names from the character string
- USE data_struc,only:var_info              ! data type for metadata
- USE data_struc,only:par_info              ! data type for parameter constraints
+ USE data_types,only:var_info              ! data type for metadata
+ USE data_types,only:par_info              ! data type for parameter constraints
  USE get_ixname_module,only:get_ixParam    ! identify index of named variable for local column model parameters
  USE get_ixname_module,only:get_ixBpar     ! identify index of named variable for basin-average model parameters
  implicit none
  ! define input
- character(*),intent(in)              :: filenm         ! name of file containing default values and constraints of model parameters
- logical(lgt),intent(in)              :: isLocal        ! .true. if the file describes local column parameters
- type(var_info),pointer,intent(in)    :: mpar_meta(:)   ! metadata for model parameters
+ character(*),intent(in)                :: filenm         ! name of file containing default values and constraints of model parameters
+ logical(lgt),intent(in)                :: isLocal        ! .true. if the file describes local column parameters
+ type(var_info),intent(in)              :: mpar_meta(:)   ! metadata for model parameters
  ! define output
- type(par_info),pointer,intent(out)   :: parFallback(:) ! default values and constraints of model parameters
- integer(i4b),intent(out)             :: err            ! error code
- character(*),intent(out)             :: message        ! error message
+ type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
+ integer(i4b),intent(out)               :: err            ! error code
+ character(*),intent(out)               :: message        ! error message
  ! define general variables
- logical(lgt),parameter               :: backwardsCompatible=.true. ! .true. if skip check that all parameters are populated
- real(dp),parameter                   :: amiss=1.d+30   ! missing data
- character(len=256)                   :: cmessage       ! error message for downwind routine
- character(LEN=256)                   :: infile         ! input filename
- integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
- integer(i4b)                         :: iline          ! loop through lines in the file
- integer(i4b),parameter               :: maxLines=1000  ! maximum lines in the file
- character(LEN=256)                   :: temp           ! single line of information
+ logical(lgt),parameter                 :: backwardsCompatible=.true. ! .true. if skip check that all parameters are populated
+ real(dp),parameter                     :: amiss=1.d+30   ! missing data
+ character(len=256)                     :: cmessage       ! error message for downwind routine
+ character(LEN=256)                     :: infile         ! input filename
+ integer(i4b)                           :: unt            ! file unit (free unit output from file_open)
+ integer(i4b)                           :: iline          ! loop through lines in the file
+ integer(i4b),parameter                 :: maxLines=1000  ! maximum lines in the file
+ character(LEN=256)                     :: temp           ! single line of information
  ! define local variables for the default model parameters
- integer(i4b)                         :: iend           ! check for the end of the file
- character(LEN=256)                   :: ffmt           ! file format
- character(LEN=32)                    :: varname        ! name of variable
- type(par_info)                       :: parTemp        ! temporary parameter structure
- character(len=2)                     :: dLim           ! column delimiter
- integer(i4b)                         :: ivar           ! index of model variable
+ integer(i4b)                           :: iend           ! check for the end of the file
+ character(LEN=256)                     :: ffmt           ! file format
+ character(LEN=32)                      :: varname        ! name of variable
+ type(par_info)                         :: parTemp        ! temporary parameter structure
+ character(len=2)                       :: dLim           ! column delimiter
+ integer(i4b)                           :: ivar           ! index of model variable
  ! Start procedure here
  err=0; message="read_pinit/"
  ! **********************************************************************************************
@@ -83,12 +83,6 @@ contains
  ! **********************************************************************************************
  ! (2) read default model parameter values and constraints
  ! **********************************************************************************************
- ! check that the parameter metadata is already populated
- if(.not.associated(mpar_meta))then; err=30; message=trim(message)//"Parameter metadata is non-existent"; return; endif
- ! allocate space for the parameter structure
- if (associated(parFallback)) deallocate(parFallback)
- allocate(parFallback(size(mpar_meta)),stat=err)
- if(err/=0)then; err=40; message=trim(message)//"problemAllocateStructure"; return; endif
  ! fill parameter vector with missing data
  parFallback(:)%default_val = amiss
  parFallback(:)%lower_limit = amiss

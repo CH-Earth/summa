@@ -19,405 +19,348 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module allocspace_module
+! data types
 USE nrtype
+! metadata structures
+USE globalData,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
+USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta       ! metadata structures
+USE globalData,only:mpar_meta,indx_meta                            ! metadata structures
+USE globalData,only:bpar_meta,bvar_meta                            ! metadata structures
+USE globalData,only:model_decisions                                ! model decision structure
+! time structures
+USE globalData,only:refTime,startTime,finshTime                    ! reference time, start time, and end time for the model simulation
+! structure information
+USE globalData,only:structInfo             ! information on the data structures                  
+! provide access to the derived types to define the data structures
+USE data_types,only:&
+                    var_i,               & ! x%var(:)            (i4b)
+                    var_d,               & ! x%var(:)            (dp)
+                    var_ilength,         & ! x%var(:)%dat        (i4b)
+                    var_dlength,         & ! x%var(:)%dat        (dp)
+                    spatial_int,         & ! x%hru(:)%var(:)     (i4b)
+                    spatial_double,      & ! x%hru(:)%var(:)     (dp)
+                    spatial_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
+                    spatial_doubleVec      ! x%hru(:)%var(:)%dat (dp)
+! metadata structure
+USE data_types,only:var_info
 implicit none
 private
-public::init_metad
-public::alloc_stim
-public::alloc_time
-public::alloc_forc
-public::alloc_attr
-public::alloc_type
-public::alloc_mpar
-public::alloc_mvar
-public::alloc_indx
-public::alloc_bpar
-public::alloc_bvar
+public::initStruct
+public::allocLocal
 ! define missing values
 integer(i4b),parameter :: missingInteger=-9999
 real(dp),parameter     :: missingDouble=-9999._dp
+! define fixed dimensions
+integer(i4b),parameter :: nBand=2         ! number of spectral bands
+integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay histogram
+! -----------------------------------------------------------------------------------------------------------------------------------
 contains
 
-
  ! ************************************************************************************************
- ! public subroutine init_metad: initialize metadata structures
+ ! public subroutine initStruct: initialize data structures
  ! ************************************************************************************************
- subroutine init_metad(err,message)
- ! used to initialize the metadata structures
- USE var_lookup,only:maxvarTime,maxvarForc,maxvarAttr,maxvarType    ! maximum number variables in each data structure
- USE var_lookup,only:maxvarMpar,maxvarMvar,maxvarIndx               ! maximum number variables in each data structure
- USE var_lookup,only:maxvarBpar,maxvarBvar                          ! maximum number variables in each data structure
- USE data_struc,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
- USE data_struc,only:mpar_meta,mvar_meta,indx_meta                  ! metadata structures
- USE data_struc,only:bpar_meta,bvar_meta                            ! metadata structures
+ subroutine initStruct(&
+                       ! input: model control
+                       nHRU,       &    ! number of HRUs
+                       nSnow,      &    ! number of snow layers for each HRU
+                       nSoil,      &    ! number of soil layers for each HRU
+                       ! input: data structures
+                       timeStruct, &    ! model time data
+                       forcStruct, &    ! model forcing data
+                       attrStruct, &    ! local attributes for each HRU
+                       typeStruct, &    ! local classification of soil veg etc. for each HRU
+                       mparStruct, &    ! model parameters
+                       indxStruct, &    ! model indices
+                       progStruct, &    ! model prognostic (state) variables
+                       diagStruct, &    ! model diagnostic variables
+                       fluxStruct, &    ! model fluxes
+                       derivStruct,&    ! model derivatives
+                       bparStruct, &    ! basin-average parameters
+                       bvarStruct, &    ! basin-average variables
+                       ! output: error control
+                       err,message)
  implicit none
- ! declare variables
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! initialize errors
- err=0; message="init_model/"
- ! ensure metadata structures are deallocated
- if (associated(time_meta)) deallocate(time_meta)
- if (associated(forc_meta)) deallocate(forc_meta)
- if (associated(attr_meta)) deallocate(attr_meta)
- if (associated(type_meta)) deallocate(type_meta)
- if (associated(mpar_meta)) deallocate(mpar_meta)
- if (associated(mvar_meta)) deallocate(mvar_meta)
- if (associated(indx_meta)) deallocate(indx_meta)
- if (associated(bpar_meta)) deallocate(bpar_meta)
- if (associated(bvar_meta)) deallocate(bvar_meta)
- ! allocate metadata structures
- allocate(time_meta(maxvarTime),forc_meta(maxvarForc),attr_meta(maxvarAttr),type_meta(maxvarType),&
-          mpar_meta(maxvarMpar),mvar_meta(maxvarMvar),indx_meta(maxvarIndx),&
-          bpar_meta(maxvarBpar),bvar_meta(maxvarBvar),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateMetadata"; return; endif
- end subroutine init_metad
-
-
- ! ************************************************************************************************
- ! public subroutine alloc_stim: initialize data structures for scalar time structures
- ! ************************************************************************************************
- subroutine alloc_stim(datastr,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:var_i,time_meta                 ! data structures
- implicit none
- ! dummy variables
- type(var_i),intent(out),pointer      :: datastr     ! data structure to allocate
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! initialize errors
- err=0; message="alloc_stim/"
- ! check that the metadata structure is allocated
- if(.not.associated(time_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(datastr)) deallocate(datastr)
- allocate(datastr,stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! initialize second level data structure
- allocate(datastr%var(size(time_meta)),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- ! set values to missing
- datastr%var(:) = missingInteger
- end subroutine alloc_stim
-
- ! ************************************************************************************************
- ! public subroutine alloc_time: initialize data structures for time structures
- ! ************************************************************************************************
- subroutine alloc_time(nHRU,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:time_hru,time_meta              ! data structures
- implicit none
- ! dummy variables
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
+ ! input: model control
+ integer(i4b),            intent(in)   :: nHRU          ! number of HRUs
+ integer(i4b),            intent(in)   :: nSnow(:)      ! number of snow layers for each HRU
+ integer(i4b),            intent(in)   :: nSoil(:)      ! number of soil layers for each HRU
+ ! output: data structures
+ type(var_i),             intent(out)  :: timeStruct    ! model time data
+ type(spatial_double),    intent(out)  :: forcStruct    ! model forcing data
+ type(spatial_double),    intent(out)  :: attrStruct    ! local attributes for each HRU
+ type(spatial_int),       intent(out)  :: typeStruct    ! local classification of soil veg etc. for each HRU
+ type(spatial_double),    intent(out)  :: mparStruct    ! model parameters
+ type(spatial_intVec),    intent(out)  :: indxStruct    ! model indices
+ type(spatial_doubleVec), intent(out)  :: progStruct    ! model prognostic (state) variables
+ type(spatial_doubleVec), intent(out)  :: diagStruct    ! model diagnostic variables
+ type(spatial_doubleVec), intent(out)  :: fluxStruct    ! model fluxes
+ type(var_dlength),       intent(out)  :: derivStruct   ! model derivatives
+ type(var_d),             intent(out)  :: bparStruct    ! basin-average parameters
+ type(var_dlength),       intent(out)  :: bvarStruct    ! basin-average variables
+ ! output: error control
+ integer(i4b),intent(out)              :: err           ! error code
+ character(*),intent(out)              :: message       ! error message
+ ! ---------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                         :: iHRU        ! loop through HRUs
- integer(i4b)                         :: nVar        ! number of variables
+ integer(i4b)                          :: iStruct       ! index of data structure 
+ character(len=256)                    :: cmessage      ! error message of downwind routine
  ! initialize errors
- err=0; message="alloc_time/"
- ! check that the metadata structure is allocated
- if(.not.associated(time_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(time_hru)) deallocate(time_hru)
- allocate(time_hru(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! initialize second level data structure
- nVar = size(time_meta)
- do iHRU=1,nHRU
-  allocate(time_hru(iHRU)%var(nVar),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
-  ! set values to missing
-  time_hru(iHRU)%var(:) = missingInteger
- end do
- end subroutine alloc_time
+ err=0; message="initStruct/"
 
+ ! loop through data structures
+ do iStruct=1,size(structInfo)
+  ! allocate space
+  select case(trim(structInfo(iStruct)%structName))
+   case('time'); call allocGlobal(nHRU, time_meta,  timeStruct,  err, cmessage)   ! model forcing data
+   case('forc'); call allocGlobal(nHRU, forc_meta,  forcStruct,  err, cmessage)   ! model forcing data
+   case('attr'); call allocGlobal(nHRU, attr_meta,  attrStruct,  err, cmessage)   ! local attributes for each HRU
+   case('type'); call allocGlobal(nHRU, type_meta,  typeStruct,  err, cmessage)   ! local classification of soil veg etc. for each HRU  
+   case('mpar'); call allocGlobal(nHRU, mpar_meta,  mparStruct,  err, cmessage)   ! model parameters
+   case('indx'); call allocGlobal(nHRU, indx_meta,  indxStruct,  err, cmessage)   ! model variables
+   case('prog'); call allocGlobal(nHRU, prog_meta,  progStruct,  err, cmessage)   ! model prognostic (state) variables
+   case('diag'); call allocGlobal(nHRU, diag_meta,  diagStruct,  err, cmessage)   ! model diagnostic variables
+   case('flux'); call allocGlobal(nHRU, flux_meta,  fluxStruct,  err, cmessage)   ! model fluxes
+   case('deriv');call allocGlobal(nHRU, deriv_meta, derivStruct, err, cmessage)   ! model derivatives
+   case('bpar'); call allocGlobal(nHRU, bpar_meta,  bparStruct,  err, cmessage)   ! basin-average parameters
+   case('bvar'); call allocGlobal(nHRU, bvar_meta,  bvarStruct,  err, cmessage)   ! basin-average variables
+   case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
+  end select
+  ! check errors
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName)//']'; return; endif
+ end do  ! looping through data structures
+
+ contains
+
+  ! ************************************************************************************************
+  ! internal subroutine allocGlobal: allocate space for global data structures 
+  ! ************************************************************************************************
+  subroutine allocGlobal(nHRU,metaStruct,dataStruct,err,message)
+  implicit none
+  ! input
+  integer(i4b),intent(in)         :: nHRU           ! number of HRUs
+  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
+  ! output
+  class(*),intent(out)            :: dataStruct     ! data structure
+  integer(i4b),intent(out)        :: err            ! error code
+  character(*),intent(out)        :: message        ! error message
+  ! local variables
+  logical(lgt)                    :: check          ! .true. if structure is already allocated
+  integer(i4b)                    :: iHRU           ! loop htrough HRUs
+  character(len=256)              :: cmessage       ! error message of the downwind routine
+  ! initialize error control
+  err=0; message='allocGlobal/'
+  
+  ! initialize allocation check
+  check=.false.
+  
+  ! allocate HRU dimension
+  select type(dataStruct)
+   type is (spatial_int);       if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif 
+   type is (spatial_intVec);    if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
+   type is (spatial_double);    if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
+   type is (spatial_doubleVec); if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
+  end select
+
+  ! check errors
+  if(check) then; err=20; message=trim(message)//'structure was unexpectedly allocated already'; return; endif
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating'; return; endif
+
+  ! allocate local data structures
+  select type(dataStruct)
+   ! structures with an HRU dimension
+   type is (spatial_int);       do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
+   type is (spatial_intVec);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
+   type is (spatial_double);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
+   type is (spatial_doubleVec); do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err=err,message=cmessage); end do
+   ! structures without an HRU dimension
+   type is (var_i);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
+   type is (var_d);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+   type is (var_ilength);  call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+   type is (var_dlength);  call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+   ! check identified the data type
+   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
+  end select
+  ! error check
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+  end subroutine allocGlobal
+
+ end subroutine initStruct
 
  ! ************************************************************************************************
- ! public subroutine alloc_forc: initialize data structures for model forcing data
+ ! public subroutine allocLocal: allocate space for local data structures
  ! ************************************************************************************************
- subroutine alloc_forc(nHRU,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:forc_hru,forc_meta             ! data structures
+ subroutine allocLocal(metaStruct,dataStruct,nSnow,nSoil,err,message)
  implicit none
- ! dummy variables
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! local variables
- integer(i4b)                         :: iHRU        ! loop through HRUs
- integer(i4b)                         :: nVar        ! number of variables
- ! initialize errors
- err=0; message="alloc_forc/"
- ! check that the metadata structure is allocated
- if(.not.associated(forc_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(forc_hru)) deallocate(forc_hru)
- allocate(forc_hru(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! initialize second level data structure
- nVar = size(forc_meta)
- do iHRU=1,nHRU
-  allocate(forc_hru(iHRU)%var(nVar),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
-  ! set values to missing
-  forc_hru(iHRU)%var(:) = missingDouble
- end do
- end subroutine alloc_forc
+ ! input-output
+ type(var_info),intent(in)        :: metaStruct(:)  ! metadata structure
+ class(*),intent(inout)           :: dataStruct     ! data structure
+ ! optional input
+ integer(i4b),intent(in),optional :: nSnow          ! number of snow layers
+ integer(i4b),intent(in),optional :: nSoil          ! number of soil layers
+ ! output
+ integer(i4b),intent(out)         :: err            ! error code
+ character(*),intent(out)         :: message        ! error message
+ ! local
+ integer(i4b)                     :: iVar           ! loop through variables in the metadata structure
+ logical(lgt)                     :: check          ! .true. if the variables are allocated
+ integer(i4b)                     :: nVars          ! number of variables in the metadata structure
+ integer(i4b)                     :: nLayers        ! total number of layers
+ character(len=256)               :: cmessage       ! error message of the downwind routine
+ ! initialize error control
+ err=0; message='allocLocal/'
 
+ ! get the number of variables in the metadata structure
+ nVars = size(metaStruct)
+
+ ! check if nSnow and nSoil are present
+ if(present(nSnow) .or. present(nSoil))then
+  ! check both are present
+  if(.not.present(nSoil))then; err=20; message=trim(message)//'expect nSoil to be present when nSnow is present'; return; endif
+  if(.not.present(nSnow))then; err=20; message=trim(message)//'expect nSnow to be present when nSoil is present'; return; endif
+  nLayers = nSnow+nSoil
+
+ ! check that nSnow and nSoil are not needed
+ else
+  do iVar=1,size(metaStruct)  ! loop through variables in the metadata structure
+   select case(trim(metaStruct(iVar)%vartype))
+    case('midSnow','ifcSnow'); err=20; message=trim(message)//'nSnow is missing'; return
+    case('midSoil','ifcSoil'); err=20; message=trim(message)//'nSoil is missing'; return
+    case('midToto','ifcToto'); err=20; message=trim(message)//'nLayers is missing'; return
+   end select
+  end do ! loop through variables in the metadata structure
+ endif
+
+ ! initialize allocation check
+ check=.false.
+
+ ! allocate the dimension for model variables
+ select type(dataStruct)
+  type is (var_i);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); endif; return
+  type is (var_d);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); endif; return
+  type is (var_ilength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); endif
+  type is (var_dlength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); endif
+  class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
+ end select
+ ! check errors
+ if(check) then; err=20; message=trim(message)//'structure was unexpectedly allocated already'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating'; return; endif
+
+ ! allocate the dimension for model data
+ select type(dataStruct)
+  type is (var_ilength); call allocateDat_int(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  type is (var_dlength); call allocateDat_dp( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
+ end select
+ ! check errors
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ end subroutine allocLocal
 
  ! ************************************************************************************************
- ! public subroutine alloc_attr: initialize data structures for local attributes
+ ! private subroutine allocateDat_dp: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine alloc_attr(nHRU,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:attr_meta,attr_hru   ! data structures
+ subroutine allocateDat_dp(metadata,nSnow,nSoil,nLayers, & ! input
+                           varData,err,message)            ! output
  implicit none
- ! dummy variables
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
+ ! input variables
+ type(var_info),intent(in)         :: metadata(:) ! metadata structure
+ integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nSoil       ! number of soil layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ ! output variables
+ type(var_dlength),intent(inout)   :: varData     ! model variables for a local HRU
+ integer(i4b),intent(out)          :: err         ! error code
+ character(*),intent(out)          :: message     ! error message
  ! local variables
- integer(i4b)                         :: iHRU        ! loop through HRUs
- integer(i4b)                         :: nVar        ! number of variables
- ! initialize errors
- err=0; message="alloc_attr/"
- ! check that the metadata structure is allocated
- if(.not.associated(attr_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(attr_hru)) deallocate(attr_hru)
- allocate(attr_hru(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! initialize second level data structure
- nVar = size(attr_meta)
- do iHRU=1,nHRU
-  allocate(attr_hru(iHRU)%var(nVar),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
-  ! fill data with missing values
-  attr_hru(iHRU)%var(:) = missingDouble
- end do
- end subroutine alloc_attr
+ integer(i4b)                      :: iVar        ! variable index
+ ! initialize error control
+ err=0; message='allocateDat_dp/'
 
+ ! loop through variables in the data structure
+ do iVar=1,size(metadata)
 
- ! *************************************************************************************************
- ! public subroutine alloc_type: initialize data structures for local classification of veg, soil, etc.
- ! *************************************************************************************************
- subroutine alloc_type(nHRU,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:type_hru,type_meta             ! data structures
+  ! check allocated
+  if(allocated(varData%var(iVar)%dat))then
+   message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
+   err=20; return
+
+  ! allocate structures
+  else
+   select case(trim(metadata(iVar)%vartype))
+    case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err)
+    case('wLength'); allocate(varData%var(iVar)%dat(nBand),stat=err)
+    case('midSnow'); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case('midSoil'); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case('midToto'); allocate(varData%var(iVar)%dat(nLayers),stat=err)
+    case('ifcSnow'); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
+   endselect
+   ! check error
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
+   ! set to missing
+   varData%var(iVar)%dat(:) = missingDouble
+  endif  ! if not allocated
+
+ end do  ! looping through variables
+
+ end subroutine allocateDat_dp
+
+ ! ************************************************************************************************
+ ! private subroutine allocateDat_int: initialize data dimension of the data structures
+ ! ************************************************************************************************
+ subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
+                            varData,err,message)            ! output
  implicit none
- ! dummy variables
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
+ ! input variables
+ type(var_info),intent(in)         :: metadata(:) ! metadata structure
+ integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nSoil       ! number of soil layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ ! output variables
+ type(var_ilength),intent(inout)   :: varData     ! model variables for a local HRU
+ integer(i4b),intent(out)          :: err         ! error code
+ character(*),intent(out)          :: message     ! error message
  ! local variables
- integer(i4b)                         :: iHRU        ! loop through HRUs
- integer(i4b)                         :: nVar        ! number of variables
- ! initialize errors
- err=0; message="f-alloc_type/"
- ! check that the metadata structure is allocated
- if(.not.associated(type_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(type_hru)) deallocate(type_hru)
- allocate(type_hru(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! initialize second level data structure
- nVar = size(type_meta)
- do iHRU=1,nHRU
-  allocate(type_hru(iHRU)%var(nVar),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
-  ! fill data with missing values
-  type_hru(iHRU)%var(:) = missingInteger
- end do
- end subroutine alloc_type
+ integer(i4b)                      :: iVar        ! variable index
+ ! initialize error control
+ err=0; message='allocateDat_int/'
 
+ ! loop through variables in the data structure
+ do iVar=1,size(metadata)
 
- ! *************************************************************************************************
- ! public subroutine alloc_mpar: initialize data structures for model parameters
- ! *************************************************************************************************
- subroutine alloc_mpar(nHRU,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:mpar_hru,mpar_meta             ! data structures
- implicit none
- ! dummy variables
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! local variables
- integer(i4b)                         :: iHRU        ! loop through HRUs
- integer(i4b)                         :: nPar        ! number of parameters
- ! initialize errors
- err=0; message="f-alloc_mpar/"
- ! check that the metadata structure is allocated
- if(.not.associated(mpar_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(mpar_hru)) deallocate(mpar_hru)
- allocate(mpar_hru(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! get the number of parameters
- nPar = size(mpar_meta)
- ! loop through HRUs
- do iHRU=1,nHRU
-  ! initialize second level data structure
-  allocate(mpar_hru(iHRU)%var(nPar),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
-  ! set values to missing
-  mpar_hru(iHRU)%var(:) = missingDouble
- end do  ! looping through HRUs
- end subroutine alloc_mpar
+  ! check allocated
+  if(allocated(varData%var(iVar)%dat))then
+   message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
+   err=20; return
 
+  ! allocate structures
+  else
+   select case(trim(metadata(iVar)%vartype))
+    case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err)
+    case('wLength'); allocate(varData%var(iVar)%dat(nBand),stat=err)
+    case('midSnow'); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case('midSoil'); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case('midToto'); allocate(varData%var(iVar)%dat(nLayers),stat=err)
+    case('ifcSnow'); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
+   endselect
+   ! check error
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
+   ! set to missing
+   varData%var(iVar)%dat(:) = missingInteger
+  endif  ! if not allocated
 
- ! *************************************************************************************************
- ! public subroutine alloc_mvar: initialize data structures for model variables
- ! *************************************************************************************************
- subroutine alloc_mvar(nHRU,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:mvar_hru,mvar_meta             ! data structures
- implicit none
- ! dummy variables
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! local variables
- integer(i4b)                         :: iHRU        ! loop through HRUs
- integer(i4b)                         :: nVar        ! number of variables
- ! initialize errors
- err=0; message="alloc_mvar/"
- ! check that the metadata structure is allocated
- if(.not.associated(mvar_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(mvar_hru)) deallocate(mvar_hru)
- allocate(mvar_hru(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! initialize second level data structure
- nVar = size(mvar_meta)
- do iHRU=1,nHRU
-  allocate(mvar_hru(iHRU)%var(nVar),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- end do ! (looping through the HRUs)
- end subroutine alloc_mvar
+ end do  ! looping through variables
 
-
- ! *************************************************************************************************
- ! public subroutine alloc_indx: initialize structure components for model indices
- ! *************************************************************************************************
- subroutine alloc_indx(nHRU,err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:indx_hru,indx_meta             ! data structures
- implicit none
- ! dummy variables
- integer(i4b),intent(in)              :: nHRU        ! number of HRUs
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! local variables
- integer(i4b)                         :: iHRU        ! loop through HRUs
- integer(i4b)                         :: nVar        ! number of variables
- ! initialize errors
- err=0; message="alloc_indx/"
- ! check that the metadata structure is allocated
- if(.not.associated(indx_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(indx_hru)) deallocate(indx_hru)
- allocate(indx_hru(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! initialize second level data structure
- nVar = size(indx_meta)
- do iHRU=1,nHRU
-  allocate(indx_hru(iHRU)%var(nVar),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- end do ! (looping through HRUs in the data structure)
- end subroutine alloc_indx
-
-
- ! *************************************************************************************************
- ! public subroutine alloc_bpar: initialize data structures for basin-average model parameters
- ! *************************************************************************************************
- subroutine alloc_bpar(err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:bpar_data,bpar_meta             ! data structures
- implicit none
- ! dummy variables
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! local variables
- integer(i4b)                         :: nPar        ! number of parameters
- ! initialize errors
- err=0; message="alloc_bpar/"
- ! check that the metadata structure is allocated
- if(.not.associated(bpar_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(bpar_data)) deallocate(bpar_data)
- allocate(bpar_data,stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! get the number of parameters
- nPar = size(bpar_meta)
- ! initialize second level data structure
- allocate(bpar_data%var(nPar),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- ! set values to missing
- bpar_data%var(:) = missingDouble
- end subroutine alloc_bpar
-
-
- ! *************************************************************************************************
- ! public subroutine alloc_bvar: initialize data structures for basin-average model variables
- ! *************************************************************************************************
- subroutine alloc_bvar(err,message)
- ! used to initialize structure components for model variables
- USE data_struc,only:bvar_data,bvar_meta             ! data structures
- implicit none
- ! dummy variables
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
- ! local variables
- integer(i4b)                         :: iVar        ! index of variables
- integer(i4b)                         :: nVar        ! number of variables
- integer(i4b),parameter               :: nTimeDelay=2000 ! number of elements in the time delay histogram
- ! initialize errors
- err=0; message="alloc_bvar/"
- ! check that the metadata structure is allocated
- if(.not.associated(bvar_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
- ! initialize top-level data structure
- if(associated(bvar_data)) deallocate(bvar_data)
- allocate(bvar_data,stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateDataTopLevel"; return; endif
- ! get the number of parameters
- nVar = size(bvar_meta)
- ! initialize second level data structure
- allocate(bvar_data%var(nVar),stat=err)
- if(err/=0)then; err=20; message=trim(message)//"problemAllocateData2ndLevel"; return; endif
- ! initialize third-level data structures
- do iVar=1,nVar
-  select case(bvar_meta(ivar)%vartype)
-   case('scalarv'); allocate(bvar_data%var(ivar)%dat(1),stat=err)
-   case('routing'); allocate(bvar_data%var(ivar)%dat(nTimeDelay),stat=err)
-   case default
-    err=40; message=trim(message)//"unknownVariableType[name='"//trim(bvar_meta(ivar)%varname)//"'; &
-                                   &type='"//trim(bvar_meta(ivar)%vartype)//"']"; return
-  endselect
-  bvar_data%var(ivar)%dat(:) = missingDouble
- end do ! (looping through model variables)
- end subroutine alloc_bvar
-
+ end subroutine allocateDat_int
 
 end module allocspace_module

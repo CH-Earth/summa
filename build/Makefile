@@ -43,7 +43,7 @@ endif
 # Ubuntu gfortran compiler tested with 4.6 and higher
 # also used for the travis build
 ifeq "$(FC)" "gfortran"
- NCDF_PATH = /usr
+ NCDF_PATH = /opt/netcdf4-gnu
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
@@ -51,12 +51,21 @@ endif
 
 # Intel fortran compiler
 ifeq "$(FC)" "ifort"
- NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
+ NCDF_PATH = /opt/netcdf4-intel
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 endif
 
+# Portland compiler
+ifeq "$(FC)" "pgfortran"
+ NCDF_PATH = /opt/netcdf4-pgi
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+endif
+
+# define netcdf libraries and include files
 LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
 INCNETCDF = -I$(NCDF_PATH)/include
 
@@ -74,10 +83,16 @@ ifeq "$(FC)" "gfortran"
  FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 endif
 ifeq "$(FC)" "ifort"
- FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
- FLAGS_COMM = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
- FLAGS_SUMMA = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+ FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
+ FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
+ FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 endif
+ifeq "$(FC)" "pgfortran"
+ FLAGS_NOAH = -O0 -pg -g -traceback -r8 -Mfree -Mbounds
+ FLAGS_COMM = -O0 -pg -g -traceback -Mfree -Mbounds
+ FLAGS_SUMMA = -O0 -pg -g -traceback -Mfree -Mbounds -Minfo -Mnoautoinline -Ktrap=inv,denorm,divz,ovf,unf,inexact
+endif
+
 
 #========================================================================
 # PART 1: Define directory paths
@@ -128,7 +143,8 @@ HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 SUMMA_DATAMS= \
 		multiconst.f90 \
 		var_lookup.f90 \
-		data_struc.f90 \
+		data_types.f90 \
+		globalData.f90 \
 		popMetadat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
@@ -169,6 +185,7 @@ SUMMA_PRELIM= \
 		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
+		checkStruc.f90 \
 		ffile_info.f90 \
 		read_attrb.f90 \
 		read_pinit.f90 \
@@ -189,6 +206,8 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 
 # Define routines for the SUMMA model runs
 SUMMA_MODRUN = \
+		indexState.f90 \
+		getVectorz.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
@@ -281,7 +300,7 @@ compile_summa:
 
 # link routines
 link:
-	$(FC) *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
+	$(FC) -p -g *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

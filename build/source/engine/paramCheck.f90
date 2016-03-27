@@ -34,17 +34,18 @@ contains
  ! ************************************************************************************************
  ! public subroutine paramCheck: check consistency of model parameters
  ! ************************************************************************************************
- subroutine paramCheck(err,message)
+ subroutine paramCheck(mpar_data,err,message)
  ! model decisions
- USE data_struc,only:model_decisions  ! model decision structure
+ USE globalData,only:model_decisions  ! model decision structure
  USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
- ! FUSE data structures
- USE data_struc,only:mpar_data        ! data structures for model parameters
+ ! SUMMA look-up variables
  USE var_lookup,only:iLookPARAM       ! named variables for elements of the data structures
  implicit none
+ ! define input
+ real(dp),intent(in)            :: mpar_data(:)         ! parameter vector
  ! define output
- integer(i4b),intent(out)       :: err         ! error code
- character(*),intent(out)       :: message     ! error message
+ integer(i4b),intent(out)       :: err                  ! error code
+ character(*),intent(out)       :: message              ! error message
  ! local variables
  integer(i4b)                   :: iLayer               ! index of model layers
  real(dp),dimension(5)          :: zminLayer            ! minimum layer depth in each layer (m)
@@ -61,27 +62,27 @@ contains
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
   ! SNTHERM option
   case(sameRulesAllLayers)
-   if(mpar_data%var(iLookPARAM%zmax)/mpar_data%var(iLookPARAM%zmin) < 2.5_dp)then
+   if(mpar_data(iLookPARAM%zmax)/mpar_data(iLookPARAM%zmin) < 2.5_dp)then
     message=trim(message)//'zmax must be at least 2.5 times larger than zmin: this avoids merging layers that have just been divided'
     err=20; return
    endif
   ! CLM option
   case(rulesDependLayerIndex)
    ! (build vectors of min/max)
-   zminLayer       = (/mpar_data%var(iLookPARAM%zminLayer1),&
-                       mpar_data%var(iLookPARAM%zminLayer2),&
-                       mpar_data%var(iLookPARAM%zminLayer3),&
-                       mpar_data%var(iLookPARAM%zminLayer4),&
-                       mpar_data%var(iLookPARAM%zminLayer5)/)
-   zmaxLayer_lower = (/mpar_data%var(iLookPARAM%zmaxLayer1_lower),&
-                       mpar_data%var(iLookPARAM%zmaxLayer2_lower),&
-                       mpar_data%var(iLookPARAM%zmaxLayer3_lower),&
-                       mpar_data%var(iLookPARAM%zmaxLayer4_lower)/)
-   zmaxLayer_upper = (/mpar_data%var(iLookPARAM%zmaxLayer1_upper),&
-                       mpar_data%var(iLookPARAM%zmaxLayer2_upper),&
-                       mpar_data%var(iLookPARAM%zmaxLayer3_upper),&
-                       mpar_data%var(iLookPARAM%zmaxLayer4_upper)/)
-  ! (check consistency)
+   zminLayer       = (/mpar_data(iLookPARAM%zminLayer1),&
+                       mpar_data(iLookPARAM%zminLayer2),&
+                       mpar_data(iLookPARAM%zminLayer3),&
+                       mpar_data(iLookPARAM%zminLayer4),&
+                       mpar_data(iLookPARAM%zminLayer5)/)
+   zmaxLayer_lower = (/mpar_data(iLookPARAM%zmaxLayer1_lower),&
+                       mpar_data(iLookPARAM%zmaxLayer2_lower),&
+                       mpar_data(iLookPARAM%zmaxLayer3_lower),&
+                       mpar_data(iLookPARAM%zmaxLayer4_lower)/)
+   zmaxLayer_upper = (/mpar_data(iLookPARAM%zmaxLayer1_upper),&
+                       mpar_data(iLookPARAM%zmaxLayer2_upper),&
+                       mpar_data(iLookPARAM%zmaxLayer3_upper),&
+                       mpar_data(iLookPARAM%zmaxLayer4_upper)/)
+   ! (check consistency)
    do iLayer=1,4  ! NOTE: the lower layer does not have a maximum value
     ! ensure that we have higher maximum thresholds for sub-division when fewer number of layers
     if(zmaxLayer_lower(iLayer) < zmaxLayer_upper(iLayer))then
@@ -109,27 +110,27 @@ contains
  ! ************************************
 
  ! check that the maximum transpiration limit is within bounds
- if(mpar_data%var(iLookPARAM%critSoilTranspire)>mpar_data%var(iLookPARAM%theta_sat) .or. &
-    mpar_data%var(iLookPARAM%critSoilTranspire)<mpar_data%var(iLookPARAM%theta_res))then
+ if(mpar_data(iLookPARAM%critSoilTranspire)>mpar_data(iLookPARAM%theta_sat) .or. &
+    mpar_data(iLookPARAM%critSoilTranspire)<mpar_data(iLookPARAM%theta_res))then
   message=trim(message)//'critSoilTranspire parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
  endif
 
  ! check that the soil wilting point is within bounds
- if(mpar_data%var(iLookPARAM%critSoilWilting)>mpar_data%var(iLookPARAM%theta_sat) .or. &
-    mpar_data%var(iLookPARAM%critSoilWilting)<mpar_data%var(iLookPARAM%theta_res))then
-  print*, 'mpar_data%var(iLookPARAM%theta_res) = ', mpar_data%var(iLookPARAM%theta_res)
-  print*, 'mpar_data%var(iLookPARAM%theta_sat) = ', mpar_data%var(iLookPARAM%theta_sat)
+ if(mpar_data(iLookPARAM%critSoilWilting)>mpar_data(iLookPARAM%theta_sat) .or. &
+    mpar_data(iLookPARAM%critSoilWilting)<mpar_data(iLookPARAM%theta_res))then
+  print*, 'mpar_data(iLookPARAM%theta_res) = ', mpar_data(iLookPARAM%theta_res)
+  print*, 'mpar_data(iLookPARAM%theta_sat) = ', mpar_data(iLookPARAM%theta_sat)
   message=trim(message)//'critSoilWilting parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
  endif
 
  ! check that the field capacity is within bounds
- if(mpar_data%var(iLookPARAM%fieldCapacity)>mpar_data%var(iLookPARAM%theta_sat) .or. &
-    mpar_data%var(iLookPARAM%fieldCapacity)<mpar_data%var(iLookPARAM%theta_res))then
-  print*, 'mpar_data%var(iLookPARAM%fieldCapacity) = ', mpar_data%var(iLookPARAM%fieldCapacity)
+ if(mpar_data(iLookPARAM%fieldCapacity)>mpar_data(iLookPARAM%theta_sat) .or. &
+    mpar_data(iLookPARAM%fieldCapacity)<mpar_data(iLookPARAM%theta_res))then
+  print*, 'mpar_data(iLookPARAM%fieldCapacity) = ', mpar_data(iLookPARAM%fieldCapacity)
   message=trim(message)//'fieldCapacity parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
