@@ -814,26 +814,28 @@ contains
  ! dump variables
  print*, 'error, variable dump:'
  print*, 'istep              = ', istep
- print*, 'HRU index          = ', typeStruct%hru(iHRU)%var(iLookTYPE%hruIndex)
- print*, 'pptrate            = ', forcStruct%hru(iHRU)%var(iLookFORCE%pptrate)
- print*, 'airtemp            = ', forcStruct%hru(iHRU)%var(iLookFORCE%airtemp)
- print*, 'theta_res          = ', mparStruct%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
- print*, 'theta_sat          = ', mparStruct%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
- print*, 'plantWiltPsi       = ', mparStruct%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
- print*, 'soilStressParam    = ', mparStruct%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
- print*, 'critSoilWilting    = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
- print*, 'critSoilTranspire  = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
- print*, 'scalarSWE          = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
- print*, 'scalarSnowDepth    = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
- print*, 'scalarCanopyTemp   = ', progStruct%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
- print*, 'scalarRainPlusMelt = ', fluxStruct%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
- write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%hru(iHRU)%var(iLookINDEX%layerType)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
- write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
- print*, 'mLayerMatricHead   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
- print*, 'column inflow      = ', fluxStruct%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
+ if(iHRU<=nHRU)then
+  print*, 'HRU index          = ', typeStruct%hru(iHRU)%var(iLookTYPE%hruIndex)
+  print*, 'pptrate            = ', forcStruct%hru(iHRU)%var(iLookFORCE%pptrate)
+  print*, 'airtemp            = ', forcStruct%hru(iHRU)%var(iLookFORCE%airtemp)
+  print*, 'theta_res          = ', mparStruct%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
+  print*, 'theta_sat          = ', mparStruct%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
+  print*, 'plantWiltPsi       = ', mparStruct%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
+  print*, 'soilStressParam    = ', mparStruct%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
+  print*, 'critSoilWilting    = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
+  print*, 'critSoilTranspire  = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
+  print*, 'scalarSWE          = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
+  print*, 'scalarSnowDepth    = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
+  print*, 'scalarCanopyTemp   = ', progStruct%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
+  print*, 'scalarRainPlusMelt = ', fluxStruct%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
+  write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%hru(iHRU)%var(iLookINDEX%layerType)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
+  print*, 'mLayerMatricHead   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
+  print*, 'column inflow      = ', fluxStruct%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
+ endif
  print*,'error code = ', err
  print*, timeStruct%var
  write(*,'(a)') trim(message)
