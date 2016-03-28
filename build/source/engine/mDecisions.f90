@@ -559,11 +559,12 @@ contains
  end select
 
  ! choice of new snow density
+ ! NOTE: use hedAndPom as the default, where density method is undefined (not populated yet)
  select case(trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision))
-  case('constDens'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = constDens           ! Constant new snow density
-  case('anderson');  model_decisions(iLookDECISIONS%snowDenNew)%iDecision = anderson            ! Anderson 1976
-  case('hedAndPom'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = hedAndPom           ! Hedstrom and Pomeroy (1998), expoential increase
-  case('pahaut_76'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = pahaut_76           ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+  case('hedAndPom','notPopulatedYet'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = hedAndPom           ! Hedstrom and Pomeroy (1998), expoential increase
+  case('anderson');                    model_decisions(iLookDECISIONS%snowDenNew)%iDecision = anderson            ! Anderson 1976
+  case('pahaut_76');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = pahaut_76           ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+  case('constDens');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = constDens           ! Constant new snow density
   case default
    err=10; message=trim(message)//"unknown option for new snow density [option="//trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision)//"]"; return
  end select
