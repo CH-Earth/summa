@@ -139,6 +139,11 @@ integer(i4b),parameter,public :: singleBasin          = 292    ! single groundwa
 ! look-up values for the choice of sub-grid routing method
 integer(i4b),parameter,public :: timeDelay            = 301    ! time-delay histogram
 integer(i4b),parameter,public :: qInstant             = 302    ! instantaneous routing
+! look-up values for the choice of new snow density method
+integer(i4b),parameter,public :: constDens            = 311    ! Constant new snow density
+integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976 
+integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
+integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -551,6 +556,16 @@ contains
   case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing
   case default
    err=10; message=trim(message)//"unknown option for sub-grid routing [option="//trim(model_decisions(iLookDECISIONS%subRouting)%cDecision)//"]"; return
+ end select
+
+ ! choice of new snow density
+ select case(trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision))
+  case('constDens'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = constDens           ! Constant new snow density
+  case('anderson');  model_decisions(iLookDECISIONS%snowDenNew)%iDecision = anderson            ! Anderson 1976
+  case('hedAndPom'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = hedAndPom           ! Hedstrom and Pomeroy (1998), expoential increase
+  case('pahaut_76'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = pahaut_76           ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+  case default
+   err=10; message=trim(message)//"unknown option for new snow density [option="//trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision)//"]"; return
  end select
 
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
