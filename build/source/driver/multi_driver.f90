@@ -28,6 +28,7 @@ USE nrtype                                                  ! variable types, et
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-MP parameters
+USE module_sf_noahmplsm,only:isWater                        ! parameter for water land cover type
 USE nr_utility_module,only:arth                             ! get a sequence of numbers
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
@@ -594,7 +595,7 @@ do istep=1,numtim
  ! print progress
  !if(globalPrintFlag)then
   !if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-  write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+  !write(*,'(i4,1x,5(i2,1x))') timeStruct%var
  !endif
 
  ! compute the exposed LAI and SAI and whether veg is buried by snow
@@ -689,6 +690,9 @@ do istep=1,numtim
   ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
 
+   ! write the forcing data to the model output file
+   call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+   
    ! identify the area covered by the current HRU
    fracHRU =  attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea) / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
   
@@ -722,8 +726,11 @@ do istep=1,numtim
     SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)
     LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
    endif
-  
-   ! compute derived forcing variables
+   
+   write(*,*) 'iGRU',iGRU,'iHRU',iHRU,'type',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) 
+   ! cycle water pixel
+   if (typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) == isWater) cycle
+ 
    call derivforce(timeStruct%var,                    & ! vector of time information
                    forcStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model forcing data
                    attrStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model attributes
@@ -812,8 +819,6 @@ do istep=1,numtim
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
    endif
   
-   ! write the forcing data to the model output file
-   call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
   
    ! write the model output to the NetCDF file
    call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),indx_meta,indxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
@@ -821,7 +826,7 @@ do istep=1,numtim
    call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),diag_meta,diagStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
    call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),flux_meta,fluxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
    !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
-  
+
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow

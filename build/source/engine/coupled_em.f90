@@ -329,6 +329,14 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+  ! check
+  if(computeVegFlux)then
+   if(canopyDepth < epsilon(canopyDepth))then
+    message=trim(message)//'canopy depth is zero when computeVegFlux flag is .true.'
+    err=20; return
+   endif
+  endif
+
   ! flag the case where number of vegetation states has changed
   modifiedVegState = (computeVegFlux.neqv.computeVegFluxOld)
 
@@ -437,6 +445,7 @@ contains
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
   !print*, 'canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
 
+  print*, 'before tempAdjust: canopyDepth = ', canopyDepth
   ! adjust canopy temperature to account for new snow
   call tempAdjust(&
                   ! input: derived parameters
