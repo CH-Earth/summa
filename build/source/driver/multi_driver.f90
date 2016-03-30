@@ -179,8 +179,8 @@ integer(i4b),parameter           :: ixRestart_id=1002          ! named variable 
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
 integer(i4b)                     :: ixRestart=ixRestart_im     ! define frequency to write restart files
 ! define output file
-character(len=8)                 :: cdate1=''                  ! initial date
-character(len=10)                :: ctime1=''                  ! initial time
+!character(len=8)                 :: cdate1=''                  ! initial date
+integer                          :: ctime1(8)                  ! initial time
 character(len=64)                :: output_fileSuffix=''       ! suffix for the output file
 character(len=256)               :: summaFileManagerFile=''    ! path/name of file defining directories and files
 character(len=256)               :: fileout=''                 ! output filename
@@ -222,8 +222,8 @@ character(len=1024)              :: message=''                 ! error message
 ! *****************************************************************************
 print*, 'start'
 ! get the initial time
-call date_and_time(cdate1,ctime1)
-print*,ctime1
+call date_and_time(values=ctime1)
+print "(I2,':',I2,':',I2)",ctime1(5:7)
 ! get command-line arguments for the output file suffix
 call getarg(1,output_fileSuffix)
 if (len_trim(output_fileSuffix) == 0) then
@@ -727,7 +727,7 @@ do istep=1,numtim
     LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
    endif
    
-   write(*,*) 'iGRU',iGRU,'iHRU',iHRU,'type',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) 
+   write(*,'(4(A5,I10))') 'STEP',istep,'GRU',iGRU,'HRU',iHRU,'TYPE',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) 
    ! cycle water pixel
    if (typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) == isWater) cycle
  
@@ -947,20 +947,52 @@ contains
  character(*),intent(in)::message
  ! define the local variables
  integer(i4b),parameter :: outunit=6               ! write to screen
- character(len=8)       :: cdate2                  ! final date
- character(len=10)      :: ctime2                  ! final time
- ! get the final date and time
- call date_and_time(cdate2,ctime2)
+ !character(len=8)       :: cdate2                  ! final date
+ integer                :: ctime2(8)               ! final time
+ real                   :: elp_s                    ! elapsed time in seconds
+ integer                :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ integer                :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ integer                :: yy
+ integer                :: elp_d
+! get the final date and time
+ call date_and_time(values=ctime2)
+
+ ! calculate the elapsed time (wall clock time)
+ elp_s = (ctime2(8)-ctime1(8))*.001 + (ctime2(7)-ctime1(7)) + (ctime2(6)-ctime1(6))*60. + (ctime2(5)-ctime1(5))*3600.
+
+
+ if (ctime2(1) > ctime1(1) .or. ctime2(2) > ctime1(2) .or. ctime2(3) > ctime1(3)) then
+
+  elp_d = 0
+  do yy = ctime1(1), ctime2(1) - 1
+   elp_d = elp_d + 365
+   if ((mod(yy,4)==0 .and. .not. mod(yy,100)==0) .or. (mod(yy,400)==0)) elp_d = elp_d + 1
+  end do
+
+  if ((mod(ctime1(1),4)==0 .and. .not. mod(ctime1(1),100)==0) .or. (mod(ctime1(1),400)==0)) days1(2) = 29
+  if ((mod(ctime2(1),4)==0 .and. .not. mod(ctime2(1),100)==0) .or. (mod(ctime2(1),400)==0)) days2(2) = 29
+
+  if (ctime1(1) > 1) elp_d = elp_d - sum(days1(1:(ctime1(2)-1)))
+  elp_d = elp_d - ctime1(3) + 1
+
+  if (ctime2(1) > 1) elp_d = elp_d + sum(days2(1:(ctime2(2)-1)))
+  elp_d = elp_d + ctime2(3)
+
+  elp_s = elp_s + elp_d * 86400.
+ end if
+
+
  ! print initial and final date and time
- write(outunit,*) 'initial date/time = '//'ccyy='//cdate1(1:4)//' - mm='//cdate1(5:6)//' - dd='//cdate1(7:8), &
-                                         ' - hh='//ctime1(1:2)//' - mi='//ctime1(3:4)//' - ss='//ctime1(5:10)
- write(outunit,*) 'final date/time   = '//'ccyy='//cdate2(1:4)//' - mm='//cdate2(5:6)//' - dd='//cdate2(7:8), &
-                                         ' - hh='//ctime2(1:2)//' - mi='//ctime2(3:4)//' - ss='//ctime2(5:10)
- ! stop with message
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,4x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,4x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
+ ! print elapsed time
+ write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elp_s, ' s'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elp_s/60., ' m'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elp_s/3600., ' h'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elp_s/86400., ' d'
  print*,'FORTRAN STOP: '//trim(message)
  stop
  end subroutine
-
 end program multi_driver
 
 

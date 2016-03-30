@@ -101,30 +101,29 @@ if(trim(temp)/=summaFileManagerHeader)then
   err=20; return
 endif
 ! read information from file
-ierr=0  ! initialize errors
-read(unt,'(a)')temp
-read(unt,'(a)')temp
-read(unt,*)SETNGS_PATH     ; call checkLineRead(SETNGS_PATH,      err,message); if(err/=0)return
-read(unt,*)INPUT_PATH      ; call checkLineRead(INPUT_PATH,       err,message); if(err/=0)return
-read(unt,*)OUTPUT_PATH     ; call checkLineRead(OUTPUT_PATH,      err,message); if(err/=0)return
-read(unt,'(a)')temp
-read(unt,*)M_DECISIONS     ; call checkLineRead(M_DECISIONS,      err,message); if(err/=0)return
-read(unt,*)META_TIME       ; call checkLineRead(META_TIME,        err,message); if(err/=0)return
-read(unt,*)META_ATTR       ; call checkLineRead(META_ATTR,        err,message); if(err/=0)return
-read(unt,*)META_TYPE       ; call checkLineRead(META_TYPE,        err,message); if(err/=0)return
-read(unt,*)META_FORCE      ; call checkLineRead(META_FORCE,       err,message); if(err/=0)return
-read(unt,*)META_LOCALPARAM ; call checkLineRead(META_LOCALPARAM,  err,message); if(err/=0)return
-read(unt,*)META_LOCALMVAR  ; call checkLineRead(META_LOCALMVAR,   err,message); if(err/=0)return
-read(unt,*)META_LOCALINDEX ; call checkLineRead(META_LOCALINDEX,  err,message); if(err/=0)return
-read(unt,*)META_BASINPARAM ; call checkLineRead(META_BASINPARAM,  err,message); if(err/=0)return
-read(unt,*)META_BASINMVAR  ; call checkLineRead(META_BASINMVAR,   err,message); if(err/=0)return
-read(unt,*)LOCAL_ATTRIBUTES; call checkLineRead(LOCAL_ATTRIBUTES, err,message); if(err/=0)return
-read(unt,*)LOCALPARAM_INFO ; call checkLineRead(LOCALPARAM_INFO,  err,message); if(err/=0)return
-read(unt,*)BASINPARAM_INFO ; call checkLineRead(BASINPARAM_INFO,  err,message); if(err/=0)return
-read(unt,*)FORCING_FILELIST; call checkLineRead(FORCING_FILELIST, err,message); if(err/=0)return
-read(unt,*)MODEL_INITCOND  ; call checkLineRead(MODEL_INITCOND,   err,message); if(err/=0)return
-read(unt,*)PARAMETER_TRIAL ; call checkLineRead(PARAMETER_TRIAL,  err,message); if(err/=0)return
-read(unt,*)OUTPUT_PREFIX   ; call checkLineRead(OUTPUT_PREFIX,    err,message); if(err/=0)return
+ierr=0 ! initialize errors
+
+call readLine(unt,SETNGS_PATH,      err,message)
+call readLine(unt,INPUT_PATH,       err,message)
+call readLine(unt,OUTPUT_PATH,      err,message)
+
+call readLine(unt,M_DECISIONS ,     err,message)
+call readLine(unt,META_TIME ,       err,message)
+call readLine(unt,META_ATTR,        err,message)
+call readLine(unt,META_TYPE,        err,message)
+call readLine(unt,META_FORCE,       err,message)
+call readLine(unt,META_LOCALPARAM,  err,message)
+call readLine(unt,META_LOCALMVAR ,  err,message)
+call readLine(unt,META_LOCALINDEX,  err,message)
+call readLine(unt,META_BASINPARAM,  err,message)
+call readLine(unt,META_BASINMVAR,   err,message)
+call readLine(unt,LOCAL_ATTRIBUTES, err,message)
+call readLine(unt,LOCALPARAM_INFO,  err,message)
+call readLine(unt,BASINPARAM_INFO,  err,message)
+call readLine(unt,FORCING_FILELIST, err,message)
+call readLine(unt,MODEL_INITCOND,   err,message)
+call readLine(unt,PARAMETER_TRIAL,  err,message)
+call readLine(unt,OUTPUT_PREFIX,    err,message)
 close(unt)
 ! check that the output directory exists and write the date and time to a log file
 open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)
@@ -137,18 +136,33 @@ close(runinfo_fileunit)
 end subroutine summa_SetDirsUndPhiles
 
 
+
 ! *************************************************************************************************
-! public subroutine checkLineRead: check if there is a space in the character string
+! public subroutine readLine: read the first string to a string variable
 ! *************************************************************************************************
-subroutine checkLineRead(stringInput,err,message)
+subroutine readLine(funt,str,err,message)
 implicit none
-character(*),intent(in)   :: stringInput
+integer(i4b),intent(in)   :: funt
+character(*),intent(inout):: str
 integer(i4b),intent(inout):: err
 character(*),intent(inout):: message
-if(index(trim(stringInput),' ')/=0) then
- err=30; message="f-summaSetDirsUndPhiles/spaceInString[string="//trim(stringInput)//"]"
+
+
+
+
+do
+ ! read line that is not comment
+ read(funt,*) str
+ if (str(1:1) /= '!') exit
+end do
+
+! check if there is a space in the character string
+if(index(trim(str),' ')/=0) then
+ err=30; message="f-summaSetDirsUndPhiles/spaceInString[string="//trim(str)//"]"
 endif
-end subroutine checkLineRead
+end subroutine readLine
+
 
 
 END MODULE summafilemanager
+
