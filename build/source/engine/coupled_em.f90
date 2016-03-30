@@ -75,7 +75,14 @@ contains
                      var_dlength            ! x%var(:)%dat        (dp)
  ! named variables for parent structures
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- USE var_lookup,only:iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX ! named variables for structure elements
+ USE var_lookup,only:iLookATTR              ! named variables for structure elements
+ USE var_lookup,only:iLookTYPE              ! named variables for structure elements
+ USE var_lookup,only:iLookPROG              ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG              ! named variables for structure elements
+ USE var_lookup,only:iLookFLUX              ! named variables for structure elements
+ USE var_lookup,only:iLookFORCE             ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM             ! named variables for structure elements
+ USE var_lookup,only:iLookINDEX             ! named variables for structure elements
  USE globalData,only:ix_soil,ix_snow        ! named variables for snow and soil
  ! named variables for child structures
  USE var_lookup,only:childFLUX_MEAN
@@ -181,7 +188,7 @@ contains
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
  logical(lgt)                         :: rejectedStep           ! flag to denote if the sub-step is rejected (convergence problem, etc.)
  logical(lgt),parameter               :: checkTimeStepping=.false.      ! flag to denote a desire to check the time stepping 
- logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility 
+ logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
  ! balance checks
  integer(i4b)                         :: iVar                   ! loop through model variables
  real(dp)                             :: totalSoilCompress      ! change in storage associated with compression of the soil matrix (kg m-2)

@@ -68,6 +68,7 @@ contains
  real(dp),parameter              :: azimuth=0._dp            ! terrain azimuth (assume zero)
  real(dp)                        :: hri                      ! average radiation index over time step DT
  ! local variables
+ integer(i4b),parameter          :: nBands=2                 ! number of spectral bands
  real(dp),parameter              :: valueMissing=-9999._dp   ! missing value
  real(dp),parameter              :: co2Factor=355.e-6_dp     ! empirical factor to obtain partial pressure of co2
  real(dp),parameter              :: o2Factor=0.209_dp        ! empirical factor to obtain partial pressure of o2
@@ -137,8 +138,9 @@ contains
  err=0; message="derivforce/"
 
  ! check spectral dimension
- if(size(spectralIncomingDirect) /= 2 .or. size(spectralIncomingDiffuse) /= 2)then
-  err=20; message=trim(message)//'expect two spectral classes for radiation'; return
+ if(size(spectralIncomingDirect) /= nBands .or. size(spectralIncomingDiffuse) /= nBands)then
+  write(message,'(a,i0,a)') trim(message)//'expect ', nBands, 'spectral classes for radiation'
+  err=20; return
  endif
 
  ! compute the partial pressure of o2 and co2

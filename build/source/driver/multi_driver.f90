@@ -170,7 +170,6 @@ integer(i4b),allocatable  :: nSoil(:)                       ! number of soil lay
 integer(i4b)              :: nLayers                        ! total number of layers
 real(dp),allocatable      :: dt_init(:)                     ! used to initialize the length of the sub-step for each HRU
 logical(lgt),allocatable  :: computeVegFlux(:)              ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow) 
-real(dp)                  :: totalArea                      ! total basin area (m2)
 ! exfiltration
 real(dp),parameter        :: supersatScale=0.001_dp         ! scaling factor for the logistic function (-)
 real(dp),parameter        :: xMatch = 0.99999_dp            ! point where x-value and function value match (-)
@@ -229,8 +228,13 @@ call popMetadat(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! create the averageFlux metadata structure
+! define the mask to identify the subset of variables in the "child" data structure
+! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
+!       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
+!        and soil drainage (at interface=nSoil)
 flux_mask = (flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
+
+! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
 call handle_err(err,message)
 
@@ -357,20 +361,14 @@ select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
  case default; call handle_err(30,'unable to identify vegetation category')
 end select
 
-! allocate space for default model parameters
-if(allocated(dparStruct%hru))then
- call handle_err(20,'dparStruct is unexpectedly allocated')
-else
- ! allocate the spatial dimension
- allocate(dparStruct%hru(nHRU),stat=err)
- if(err/=0) call handle_err(20,'problem allocating dparStruct')
-endif
+! allocate space for default model parameters (allocate the spatial dimension)
+if(allocated(dparStruct%hru))            call handle_err(20,'dparStruct is unexpectedly allocated')
+allocate(dparStruct%hru(nHRU),stat=err); call handle_err(err,'problem allocating the spatial dimension for dparStruct')
 
 ! set default model parameters
 do iHRU=1,nHRU
  ! allocate the variable dimension for a given HRU
- call allocLocal(mpar_meta,dparStruct%hru(iHRU),err=err,message=message)
- call handle_err(err,message)
+ call allocLocal(mpar_meta,dparStruct%hru(iHRU),err=err,message=message); call handle_err(err,message)
  ! set parmameters to their default value
  dparStruct%hru(iHRU)%var(:) = localParFallback(:)%default_val         ! x%hru(:)%var(:)
  ! overwrite default model parameters with information from the Noah-MP tables
@@ -451,19 +449,9 @@ do iHRU=1,nHRU
                  err,message)               ! error control
  call handle_err(err,message)
 
- ! overwrite the vegetation height
- HVT(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%hru(iHRU)%var(iLookPARAM%heightCanopyTop)
- HVB(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)
-
- ! overwrite the tables for LAI and SAI
- if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
-  SAIM(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%hru(iHRU)%var(iLookPARAM%winterSAI)
-  LAIM(typeStruct%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
- endif
-
  ! initialize canopy drip
  ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
- fluxStruct%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
+ fluxStruct%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp 
 
  ! define the file if the first HRU
  if(iHRU==1) then
@@ -481,10 +469,9 @@ end do  ! (looping through HRUs)
 allocate(upArea(nHRU),stat=err); call handle_err(err,'problem allocating space for upArea')
 
 ! identify the total basin area (m2)
-totalArea = bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1)
-totalArea = 0._dp
+bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1) = 0._dp ! total basin area (m2)
 do iHRU=1,nHRU
- totalArea = totalArea + attrStruct%hru(iHRU)%var(iLookATTR%HRUarea)
+ bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1) = bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1) + attrStruct%hru(iHRU)%var(iLookATTR%HRUarea)
 end do
 
 ! compute total area of the upstream HRUS that flow into each HRU
@@ -500,13 +487,21 @@ end do  ! iHRU
 
 ! initialize aquifer storage
 ! NOTE: this is ugly: need to add capabilities to initialize basin-wide state variables
+! There are two options for groundwater:
+!  (1) where groundwater is included in the local column (i.e., the HRUs); and
+!  (2) where groundwater is included for the single basin (i.e., the GRUS, where multiple HRUS drain into a GRU).
+! For water balance calculations it is important to ensure that the local aquifer storage is zero if groundwater is treated as a basin-average state variable (singleBasin); 
+!  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
 select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
  case(localColumn)
-  bvarStruct%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp  ! not used
+  ! the basin-average aquifer storage is not used if the groundwater is included in the local column
+  bvarStruct%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp  ! set to zero to be clear that there is no basin-average aquifer storage in this configuration 
  case(singleBasin)
   bvarStruct%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._dp
+  ! NOTE: the local column aquifer storage is not used if the groundwater is basin-average
+  ! (i.e., where multiple HRUs drain to a basin-average aquifer)
   do iHRU=1,nHRU
-   progStruct%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! not used
+   progStruct%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! set to zero to be clear that there is no local aquifer storage in this configuration 
   end do
  case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
 endselect
@@ -537,13 +532,14 @@ do istep=1,numtim
  end do  ! (end looping through HRUs)
 
  ! print progress
- !if(globalPrintFlag)then
-  !if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-  write(*,'(i4,1x,5(i2,1x))') timeStruct%var
- !endif
+ if(globalPrintFlag)then
+  if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+ endif
 
- ! compute the exposed LAI and SAI and whether veg is buried by snow
- if(istep==1)then  ! (call phenology here because we need the time information)
+ ! call vegetation phenology here to see if we compute the vegetation flux on the first time step
+ ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
+ !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
+ if(istep==1)then  ! all we are doing is initializing the computeVegFlux flag
   do iHRU=1,nHRU
    ! get vegetation phenology
    call vegPhenlgy(&
@@ -615,7 +611,7 @@ do istep=1,numtim
  ! ****************************************************************************
  do iHRU=1,nHRU
 
-  ! identify the area covered by the current HRU
+  ! identify the fraction of the total basin area covered by the current HRU
   fracHRU =  attrStruct%hru(iHRU)%var(iLookATTR%HRUarea) / bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1)
 
   ! assign model layers
@@ -637,6 +633,8 @@ do istep=1,numtim
               urbanVegCategory)                                                  ! vegetation category for urban areas
 
   ! overwrite the minimum resistance
+  ! NOTE: This provides flexibility to do some runs with a specific minimum resistance. The "overwrtieRSMIN flag provides backwards compatibility.
+  !       Ultimately this should be encoded as a specific modeling decision, though this is "on hold" while we work to get the spatial parameter fields organized.
   if(overwriteRSMIN) RSMIN = mparStruct%hru(iHRU)%var(iLookPARAM%minStomatalResistance)
 
   ! overwrite the vegetation height
@@ -760,12 +758,15 @@ do istep=1,numtim
   call handle_err(20,'multi_driver/bigBucket groundwater code not transferred from old code base yet')
  endif
 
+ ! associate total area with the information in the data structure
+ associate(totalArea => bvarStruct%var(iLookBVAR%basin__totalArea)%dat(1) ) 
+
  ! perform the routing
  call qOverland(&
                 ! input
                 model_decisions(iLookDECISIONS%subRouting)%iDecision,            &  ! intent(in): index for routing method
                 bvarStruct%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),           &  ! intent(in): surface runoff (m s-1)
-                bvarStruct%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea, &  ! intent(in): outflow from all "outlet" HRUs (those with no downstream HRU)
+                bvarStruct%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea, &  ! intent(in): outflow from all "outlet" HRUs (m3 s-1 -> m s-1)
                 bvarStruct%var(iLookBVAR%basin__AquiferBaseflow)%dat(1),         &  ! intent(in): baseflow from the aquifer (m s-1)
                 bvarStruct%var(iLookBVAR%routingFractionFuture)%dat,             &  ! intent(in): fraction of runoff in future time steps (m s-1)
                 bvarStruct%var(iLookBVAR%routingRunoffFuture)%dat,               &  ! intent(in): runoff in future time steps (m s-1)
@@ -774,6 +775,7 @@ do istep=1,numtim
                 bvarStruct%var(iLookBVAR%averageRoutedRunoff)%dat(1),            &  ! intent(out): routed runoff (m s-1)
                 err,message)                                                        ! intent(out): error control
  call handle_err(err,message)
+ end associate ! association of total area with the information in the data structure
 
  ! write basin-average variables
  call writeBasin(fileout,bvarStruct,jstep,err,message); call handle_err(err,message)

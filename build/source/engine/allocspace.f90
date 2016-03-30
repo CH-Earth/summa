@@ -159,6 +159,7 @@ contains
    type is (spatial_intVec);    if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
    type is (spatial_double);    if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
    type is (spatial_doubleVec); if(allocated(dataStruct%hru))then; check=.true.; else; allocate(dataStruct%hru(nHRU),stat=err); endif
+   class default  ! do nothing: It is acceptable to not be any of these specified cases
   end select
 
   ! check errors
@@ -220,7 +221,7 @@ contains
   if(.not.present(nSnow))then; err=20; message=trim(message)//'expect nSnow to be present when nSoil is present'; return; endif
   nLayers = nSnow+nSoil
 
- ! check that nSnow and nSoil are not needed
+ ! It is possible that nSnow and nSoil are actually needed here, so we return an error if the optional arguments are missing when needed
  else
   do iVar=1,size(metaStruct)  ! loop through variables in the metadata structure
    select case(trim(metaStruct(iVar)%vartype))
@@ -297,7 +298,7 @@ contains
     case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
    endselect
    ! check error
@@ -350,7 +351,7 @@ contains
     case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
    endselect
    ! check error
