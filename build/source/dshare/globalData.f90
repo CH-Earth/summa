@@ -47,6 +47,10 @@ MODULE globalData
  implicit none
  private
 
+ ! define missing values
+ real(dp),parameter,public                   :: realMissing=-9999._dp   ! missing real number
+ integer(i4b),parameter,public               :: integerMissing=-9999    ! missing integer 
+
  ! Define the model decisions
  type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
 

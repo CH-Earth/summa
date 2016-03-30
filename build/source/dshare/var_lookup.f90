@@ -494,6 +494,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerLiqFluxSnow               = imiss ! net liquid water flux for each snow layer (s-1)
   ! liquid water fluxes for the soil domain
   integer(i4b)    :: scalarRainPlusMelt              = imiss ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  integer(i4b)    :: scalarMaxInfilRate              = imiss ! maximum infiltration rate (m s-1)
   integer(i4b)    :: scalarInfiltration              = imiss ! infiltration of water into the soil profile (m s-1)
   integer(i4b)    :: scalarExfiltration              = imiss ! exfiltration of water from the top of the soil profile (m s-1)
   integer(i4b)    :: scalarSurfaceRunoff             = imiss ! surface runoff (m s-1)
@@ -706,7 +707,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84)
+                                                                         81, 82, 83, 84, 85)
 
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

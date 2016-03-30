@@ -64,14 +64,18 @@ USE mDecisions_module,only:  &
  freeDrainage,               & ! free drainage
  liquidFlux,                 & ! liquid water flux
  zeroFlux                      ! zero flux
+
+! safety: set private unless specified otherwise
 implicit none
 private
 public::systemSolv
+
 ! control parameters
 real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
 real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
 real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
 real(dp),parameter  :: dx = 1.e-8_dp             ! finite difference increment
+
 contains
 
 
@@ -122,6 +126,11 @@ contains
  USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
  ! provide access to the numerical recipes utility modules
  USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
+ ! structure allocations
+ USE globalData,only:deriv_meta                       ! metadata on the model derivatives
+ USE allocspace_module,only:allocLocal                ! allocate local data structures
+ ! simulation of fluxes and residuals given a trial state vector
+ USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
  ! provide access to utility modules
  USE soil_utils_module,only:volFracLiq                ! compute volumetric fraction of liquid water
  USE snow_utils_module,only:fracliquid                ! compute the fraction of liquid water at a given temperature (snow)
@@ -240,6 +249,11 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial value for volumetric fraction of ice (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracWatInit         ! initial value for volumetric fraction of total water (-)
  ! energy fluxes and derivatives for the vegetation domain
+
+ type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
+
+
+
  real(dp)                        :: canairNetNrgFlux             ! net energy flux for the canopy air space (W m-2)
  real(dp)                        :: canopyNetNrgFlux             ! net energy flux for the vegetation canopy (W m-2)
  real(dp)                        :: groundNetNrgFlux             ! net energy flux for the ground surface (W m-2)
@@ -482,6 +496,11 @@ contains
   print*, 'ixSub1, ixSub2, ixSub3         = ', ixSub1, ixSub2, ixSub3
  endif
 
+ ! allocate space for the derivatives
+ call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+
  ! -----
  ! * initialize decisions/states and run initial checks...
  ! -------------------------------------------------------
@@ -623,27 +642,26 @@ contains
  ! extract variables from the model state vector
  call varExtract(&
                  ! input
-                 stateVecTrial,                 & ! intent(in):    model state vector (mixed units)
-                 mpar_data,                     & ! intent(in):    model parameters
-                 prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
-                 diag_data,                     & ! intent(in):    model diagnostic variables for a local HRU
-                 indx_data,                     & ! intent(in):    indices defining model states and layers
+                 stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
+                 indx_data,                                 & ! intent(in):    indices defining model states and layers
+                 snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
+                 vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters
                  ! output: variables for the vegetation canopy
-                 fracLiqVeg,                    & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
-                 scalarCanairTempTrial,         & ! intent(out):   trial value of canopy air temperature (K)
-                 scalarCanopyTempTrial,         & ! intent(out):   trial value of canopy temperature (K)
-                 scalarCanopyWatTrial,          & ! intent(out):   trial value of canopy total water (kg m-2)
-                 scalarCanopyLiqTrial,          & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,          & ! intent(out):   trial value of canopy ice content (kg m-2)
+                 fracLiqVeg,                                & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                 scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
+                 scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial,                      & ! intent(out):   trial value of canopy ice content (kg m-2)
                  ! output: variables for the snow-soil domain
-                 fracLiqSnow,                   & ! intent(out):   volumetric fraction of water in each snow layer (-)
-                 mLayerTempTrial,               & ! intent(out):   trial vector of layer temperature (K)
-                 mLayerVolFracWatTrial,         & ! intent(out):   trial vector of volumetric total water content (-)
-                 mLayerVolFracLiqTrial,         & ! intent(out):   trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,         & ! intent(out):   trial vector of volumetric ice water content (-)
-                 mLayerMatricHeadTrial,         & ! intent(out):   trial vector of matric head (m)
+                 fracLiqSnow,                               & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                 mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial,                     & ! intent(out):   trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
                  ! output: error control
-                 err,cmessage)                    ! intent(out):   error control
+                 err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
 
@@ -667,6 +685,44 @@ contains
 
  ! compute the function evaluation
  fOld=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
+
+ write(*,'(a,1x,10(e17.6,1x))') 'fluxVec0(iJac1:iJac2) = ', fluxVec0(iJac1:iJac2)
+
+ ! compute the residual vector and Jacobian matrix for a given flux vector
+ call eval8summa(&
+                 ! input: model control
+                 dt,                      & ! intent(in):    length of the time step (seconds)
+                 nSnow,                   & ! intent(in):    number of snow layers
+                 nSoil,                   & ! intent(in):    number of soil layers
+                 nLayers,                 & ! intent(in):    total number of layers
+                 firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                 firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                 computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                 ! input: state vectors
+                 stateVecTrial,           & ! intent(in):    model state vector
+                 sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                 ! input: data structures
+                 model_decisions,         & ! intent(in):    model decisions
+                 type_data,               & ! intent(in):    type of vegetation and soil
+                 attr_data,               & ! intent(in):    spatial attributes
+                 mpar_data,               & ! intent(in):    model parameters
+                 forc_data,               & ! intent(in):    model forcing data
+                 bvar_data,               & ! intent(in):    average model variables for the entire basin
+                 prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                 indx_data,               & ! intent(in):    index data
+                 ! input-output: data structures
+                 diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                 flux_data,               & ! intent(inout): model fluxes for a local HRU
+                 deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                 ! output
+                 fluxVec0,                & ! intent(out):   flux vector
+                 rVec,                    & ! intent(out):   residual vector
+                 err,cmessage)              ! intent(out):   error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+ write(*,'(a,1x,10(e17.6,1x))') 'fluxVec0(iJac1:iJac2) = ', fluxVec0(iJac1:iJac2)
+ pause
+
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================

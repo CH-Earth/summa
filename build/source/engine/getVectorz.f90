@@ -19,33 +19,45 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module getVectorz_module
+
 ! data types
 USE nrtype
+
+! missing values
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
+
+! layer types
+USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
+
 ! constants
 USE multiconst,only:&
                     Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
                     iden_air,     & ! intrinsic density of air             (kg m-3)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
-! layer types
-USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (dp)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength     ! data vector with variable length dimension (dp)
+
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+
 implicit none
 private
 public::popStateVec
 public::varExtract
+
 ! common variables
 real(dp),parameter :: valueMissing=-9999._dp ! missing value
+
 contains
 
 
@@ -210,27 +222,26 @@ contains
  ! **********************************************************************************************************
  subroutine varExtract(&
                        ! input
-                       stateVec,                             & ! intent(in):    model state vector (mixed units)
-                       mpar_data,                            & ! intent(in):    model parameters
-                       prog_data,                            & ! intent(in):    model prognostic variables for a local HRU
-                       diag_data,                            & ! intent(in):    model diagnostic variables for a local HRU
-                       indx_data,                            & ! intent(in):    indices defining model states and layers
+                       stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                       indx_data,                                 & ! intent(in):    indices defining model states and layers
+                       snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
+                       vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters
                        ! output: variables for the vegetation canopy
-                       fracLiqVeg,                           & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
-                       scalarCanairTempTrial,                & ! intent(out):   trial value of canopy air temperature (K)
-                       scalarCanopyTempTrial,                & ! intent(out):   trial value of canopy temperature (K)
-                       scalarCanopyWatTrial,                 & ! intent(out):   trial value of canopy total water (kg m-2)
-                       scalarCanopyLiqTrial,                 & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                       scalarCanopyIceTrial,                 & ! intent(out):   trial value of canopy ice content (kg m-2)
+                       fracLiqVeg,                                & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                       scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
+                       scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
+                       scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
+                       scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                       scalarCanopyIceTrial,                      & ! intent(out):   trial value of canopy ice content (kg m-2)
                        ! output: variables for the snow-soil domain
-                       fracLiqSnow,                          & ! intent(out):   volumetric fraction of water in each snow layer (-)
-                       mLayerTempTrial,                      & ! intent(out):   trial vector of layer temperature (K)
-                       mLayerVolFracWatTrial,                & ! intent(out):   trial vector of volumetric total water content (-) 
-                       mLayerVolFracLiqTrial,                & ! intent(out):   trial vector of volumetric liquid water content (-) 
-                       mLayerVolFracIceTrial,                & ! intent(out):   trial vector of volumetric ice water content (-) 
-                       mLayerMatricHeadTrial,                & ! intent(out):   trial vector of matric head (m)
+                       fracLiqSnow,                               & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                       mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
+                       mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-) 
+                       mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-) 
+                       mLayerVolFracIceTrial,                     & ! intent(out):   trial vector of volumetric ice water content (-) 
+                       mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
                        ! output: error control 
-                       err,message)                            ! intent(out):   error control
+                       err,message)                                 ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  USE snow_utils_module,only:fracliquid                         ! compute the fraction of liquid water at a given temperature (snow)
  USE updatState_module,only:updateSnow                         ! update snow states
@@ -239,10 +250,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
  real(dp),intent(in)             :: stateVec(:)                ! model state vector (mixed units)
- type(var_d),intent(in)          :: mpar_data                  ! model parameters for a local HRU
- type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
- type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data                  ! indices defining model states and layers                 
+ real(dp),intent(in)             :: snowfrz_scale              ! scaling parameter for the snow freezing curve (K-1)
+ real(dp),intent(in)             :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m  ! van Genutchen soil parameters
  ! output: variables for the vegetation canopy
  real(dp),intent(out)            :: fracLiqVeg                 ! fraction of liquid water on the vegetation canopy (-)
  real(dp),intent(out)            :: scalarCanairTempTrial      ! trial value of canopy air temperature (K)
@@ -267,18 +277,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&
- ! snow and soil parameters
- vGn_m             => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
- vGn_n             => mpar_data%var(iLookPARAM%vGn_n)                        ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)                    ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
- theta_sat         => mpar_data%var(iLookPARAM%theta_sat)                    ,&  ! intent(in): [dp] soil porosity (-)
- theta_res         => mpar_data%var(iLookPARAM%theta_res)                    ,&  ! intent(in): [dp] soil residual volumetric water content (-)
- snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
- ! model states for the vegetation canopy
- scalarCanairTemp  => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the canopy air space (K)
- scalarCanopyTemp  => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the vegetation canopy (K)
- scalarCanopyIce   => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiq   => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in): [dp] mass of liquid water on the vegetation canopy (kg m-2)
  ! number of model layers, and layer type
  nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in): [i4b]    total number of snow layers
  nLayers           => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in): [i4b]    total number of snow and soil layers
@@ -308,13 +306,13 @@ contains
   scalarCanopyIceTrial = (1._dp - fracLiqVeg)*scalarCanopyWatTrial   ! mass of ice on the canopy (kg m-2)
  elseif(nVegState==0)then ! vegetation buried by snow
   ! (state variables)
-  scalarCanairTempTrial = scalarCanairTemp
-  scalarCanopyTempTrial = scalarCanopyTemp
-  scalarCanopyWatTrial  = scalarCanopyLiq + scalarCanopyIce
+  scalarCanairTempTrial = realMissing
+  scalarCanopyTempTrial = realMissing
+  scalarCanopyWatTrial  = realMissing
   ! (diagnostic variables)
-  fracLiqVeg            = valueMissing
-  scalarCanopyLiqTrial  = scalarCanopyLiq
-  scalarCanopyIceTrial  = scalarCanopyIce
+  fracLiqVeg            = realMissing
+  scalarCanopyLiqTrial  = realMissing
+  scalarCanopyIceTrial  = realMissing
  else  ! unexpected
   message=trim(message)//'unexpected number of vegetation state variables'
   err=20; return

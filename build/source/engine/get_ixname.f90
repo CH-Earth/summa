@@ -624,6 +624,7 @@ contains
   case('mLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%mLayerLiqFluxSnow                ! net liquid water flux for each snow layer (s-1)
   ! liquid water fluxes for the soil domain 
   case('scalarRainPlusMelt'             ); get_ixflux = iLookFLUX%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  case('scalarMaxInfilRate'             ); get_ixflux = iLookFLUX%scalarMaxInfilRate               ! maximum infiltration rate (m s-1)
   case('scalarInfiltration'             ); get_ixflux = iLookFLUX%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
   case('scalarExfiltration'             ); get_ixflux = iLookFLUX%scalarExfiltration               ! exfiltration of water from the top of the soil profile (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixflux = iLookFLUX%scalarSurfaceRunoff              ! surface runoff (m s-1)
