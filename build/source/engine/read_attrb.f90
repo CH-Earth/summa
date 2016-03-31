@@ -28,31 +28,34 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(nHRU,err,message)
+ subroutine read_attrb(nHRU,attrStruct,typeStruct,err,message)
  ! provide access to subroutines
  USE ascii_util_module,only:file_open              ! open ascii file
  USE ascii_util_module,only:split_line             ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines             ! read a vector of non-comment lines from an ASCII file
- USE allocspace_module,only:alloc_attr             ! module to allocate space for local attributes
- USE allocspace_module,only:alloc_type             ! module to allocate space for categorical data
- ! provide access to data
+ ! provide access to derived data types
+ USE data_types,only:spatial_int                   ! x%hru(:)%var(:)     (i4b)
+ USE data_types,only:spatial_double                ! x%hru(:)%var(:)     (dp)
+ ! provide access to global data
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
- USE data_struc,only:attr_meta,type_meta           ! metadata structures
- USE data_struc,only:attr_hru,type_hru             ! data structures
+ USE globalData,only:attr_meta,type_meta           ! metadata structures
  USE var_lookup,only:iLookATTR,iLookTYPE           ! named variables for elements of the data structures
  USE get_ixname_module,only:get_ixAttr,get_ixType  ! access function to find index of elements in structure
  implicit none
+ ! define input
+ integer(i4b),intent(in)              :: nHRU            ! number of hydrologic response units
  ! define output
- integer(i4b),intent(out)             :: nHRU        ! number of hydrologic response units
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
+ type(spatial_double),intent(inout)   :: attrStruct      ! local attributes for each HRU
+ type(spatial_int),intent(inout)      :: typeStruct      ! local classification of soil veg etc. for each HRU
+ integer(i4b),intent(out)             :: err             ! error code
+ character(*),intent(out)             :: message         ! error message
  ! define general variables
  real(dp),parameter                   :: missingDouble=-9999._dp  ! missing data
  integer(i4b),parameter               :: missingInteger=-9999     ! missing data
  character(len=256)                   :: cmessage        ! error message for downwind routine
  character(LEN=256)                   :: infile          ! input filename
- integer(i4b),parameter               :: unt=99          ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b)                         :: unt             ! file unit (free unit output from file_open)
  integer(i4b)                         :: iline           ! loop through lines in the file
  integer(i4b),parameter               :: maxLines=1000   ! maximum lines in the file
  character(LEN=256)                   :: temp            ! single lime of information
@@ -79,10 +82,6 @@ contains
  ! **********************************************************************************************
  ! (0) get number of variables in each data structure
  ! **********************************************************************************************
- ! check that metadata structures are initialized
- if(.not.associated(attr_meta) .or. .not.associated(type_meta))then
-  err=10; message=trim(message)//"metadataNotInitialized"; return
- endif
  nVar_attr = size(attr_meta)
  nVar_type = size(type_meta)
  ! allocate space for the check vectors
@@ -176,12 +175,11 @@ contains
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,dataLines,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- ! get the number of HRUs
- nHRU = size(dataLines)
- ! allocate space
- call alloc_attr(nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- call alloc_type(nHRU,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! close the file unit
+ close(unt)
 
+ ! check the number of HRUs
+ if(size(dataLines)/=nHRU)then; err=20; message=trim(message)//'unexpected number of HRUs'; return; endif
 
  ! **********************************************************************************************
  ! (4) put data in the structures
@@ -195,8 +193,8 @@ contains
   ! put attributes in the appropriate structures
   do iAtt=1,nAtt
    select case(varType(iAtt))
-    case(numerical);   read(attData(iAtt),*,iostat=err) attr_hru(iHRU)%var(varIndx(iAtt))
-    case(categorical); read(attData(iAtt),*,iostat=err) type_hru(iHRU)%var(varIndx(iAtt))
+    case(numerical);   read(attData(iAtt),*,iostat=err) attrStruct%hru(iHRU)%var(varIndx(iAtt))
+    case(categorical); read(attData(iAtt),*,iostat=err) typeStruct%hru(iHRU)%var(varIndx(iAtt))
     case default; err=20; message=trim(message)//'unable to find type of attribute (categorical or numerical)'; return
    end select
    if(err/=0)then; err=20; message=trim(message)//'problem with internal read of attribute data'; return; endif
@@ -208,21 +206,6 @@ contains
  ! **********************************************************************************************
  deallocate(attNames,attData,dataLines,varType,varIndx,checkType,checkAttr, stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem deallocating space'; return; endif
-
- ! test
- !do iHRU=1,nHRU
- ! print*, '*****'
- ! print*, 'hruIndex       = ', type_hru(iHRU)%var(iLookTYPE%hruIndex)
- ! print*, 'latitude       = ', attr_hru(iHRU)%var(iLookATTR%latitude)
- ! print*, 'longitude      = ', attr_hru(iHRU)%var(iLookATTR%longitude)
- ! print*, 'elevation      = ', attr_hru(iHRU)%var(iLookATTR%elevation)
- ! print*, 'mHeight        = ', attr_hru(iHRU)%var(iLookATTR%mHeight)
- ! print*, 'vegTypeIndex   = ', type_hru(iHRU)%var(iLookTYPE%vegTypeIndex)
- ! print*, 'soilTypeIndex  = ', type_hru(iHRU)%var(iLookTYPE%soilTypeIndex)
- ! print*, 'slopeTypeIndex = ', type_hru(iHRU)%var(iLookTYPE%slopeTypeIndex)
- !end do ! (looping through HRUs)
- !pause
-
 
  end subroutine read_attrb
 

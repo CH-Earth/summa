@@ -35,14 +35,14 @@ contains
  ! ************************************************************************************************************************
  ! public subroutine E2T_lookup: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
  ! ************************************************************************************************************************
- subroutine E2T_lookup(err,message)
+ subroutine E2T_lookup(parData,err,message)
  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
  USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
  USE multiconst,only:Tfreeze                           ! freezing point (K)
- USE data_struc,only:mpar_data                         ! model parameter structures (use snowfrz_scale)
  USE var_lookup,only:iLookPARAM                        ! named variables to define structure element
  implicit none
  ! declare dummy variables
+ real(dp),intent(in)           :: parData(:)           ! vector of model parameters
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! declare local variables
@@ -58,7 +58,7 @@ contains
  err=0; message="E2T_lookup/"
  ! associate
  associate(&
-  snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale) &
+  snowfrz_scale => parData(iLookPARAM%snowfrz_scale) &
  )
  ! define initial temperature vector
  T_incr = (Tfreeze - T_start) / real(nlook-1, kind(dp))  ! temperature increment

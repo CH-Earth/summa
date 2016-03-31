@@ -28,17 +28,12 @@ USE mDecisions_module,only:  &
  qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
  bigBucket,                  & ! a big bucket (lumped aquifer model)
  noExplicit                    ! no explicit groundwater parameterization
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,     & ! number of snow layers
-                    nSoil,     & ! number of soil layers
-                    nLayers      ! total number of layers
 ! provide access to the derived types to define the data structures
-USE data_struc,only:&
+USE data_types,only:&
                     var_d,     & ! data vector (dp)
                     var_dlength  ! data vector with variable length dimension (dp)
 ! provide access to named variables defining elements in the data structures
-USE var_lookup,only:iLookATTR,iLookPARAM,iLookMVAR
+USE var_lookup,only:iLookATTR,iLookPARAM,iLookPROG,iLookFLUX
  ! utility modules
 implicit none
 ! constant parameters
@@ -76,6 +71,9 @@ contains
  subroutine groundwatr(&
 
                        ! input: model control
+                       nSnow,                                  & ! intent(in): number of snow layers
+                       nSoil,                                  & ! intent(in): number of soil layers
+                       nLayers,                                & ! intent(in): total number of layers
                        getSatDepth,                            & ! intent(in): logical flag to compute index of the lowest saturated layer
 
                        ! input: state and diagnostic variables
@@ -87,7 +85,9 @@ contains
                        ! input/output: data structures
                        attr_data,                              & ! intent(in):    spatial attributes
                        mpar_data,                              & ! intent(in):    model parameters
-                       mvar_data,                              & ! intent(inout): model variables for a local HRU
+                       prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,                              & ! intent(in):    model diagnostic variables for a local HRU
+                       flux_data,                              & ! intent(inout): model fluxes for a local HRU
 
                        ! output: baseflow
                        ixSaturation,                           & ! intent(inout) index of lowest saturated layer (NOTE: only computed on the first iteration)
@@ -98,11 +98,15 @@ contains
                        err,message)                              ! intent(out): error control
  ! ---------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_dlength         ! data vector with variable length dimension (dp)
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookATTR,iLookPARAM,iLookMVAR              ! named variables for structure elements
+ USE var_lookup,only:iLookATTR           ! named variables for structure elements
+ USE var_lookup,only:iLookPROG           ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+ USE var_lookup,only:iLookFLUX           ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM          ! named variables for structure elements
  ! utility modules
  USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water as a function of matric head
  USE soil_utils_module,only:hydCond_psi         ! compute hydraulic conductivity as a function of matric head
@@ -111,6 +115,9 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
+ integer(i4b),intent(in)          :: nSnow                        ! number of snow layers
+ integer(i4b),intent(in)          :: nSoil                        ! number of soil layers
+ integer(i4b),intent(in)          :: nLayers                      ! total number of layers
  logical(lgt),intent(in)          :: getSatDepth                  ! logical flag to compute index of the lowest saturated layer
  ! input: state and diagnostic variables
  real(dp),intent(in)              :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
@@ -120,7 +127,9 @@ contains
  ! input/output: data structures
  type(var_d),intent(in)           :: attr_data                    ! spatial attributes
  type(var_d),intent(in)           :: mpar_data                    ! model parameters
- type(var_dlength),intent(inout)  :: mvar_data                    ! model variables for a local HRU
+ type(var_dlength),intent(in)     :: prog_data                    ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)     :: diag_data                    ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)  :: flux_data                    ! model fluxes for a local HRU
  ! output: baseflow
  integer(i4b),intent(inout)       :: ixSaturation                 ! index of lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)             :: mLayerBaseflow(:)            ! baseflow from each soil layer (m s-1)
@@ -157,11 +166,11 @@ contains
  ! input: van Genuchten soil parametrers
  vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha),                    & ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
  vGn_n                   => mpar_data%var(iLookPARAM%vGn_n),                        & ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_m                   => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1),            & ! intent(in): [dp] van Genutchen "m" parameter (-)
+ vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),            & ! intent(in): [dp] van Genutchen "m" parameter (-)
 
  ! output: diagnostic variables
- scalarExfiltration      => mvar_data%var(iLookMVAR%scalarExfiltration)%dat(1),     & ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
- mLayerColumnOutflow     => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat        & ! intent(out):[dp(:)] column outflow from each soil layer (m3 s-1)
+ scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),     & ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
+ mLayerColumnOutflow     => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat        & ! intent(out):[dp(:)] column outflow from each soil layer (m3 s-1)
 
  )  ! end association to variables in data structures
 
@@ -194,14 +203,18 @@ contains
  ! use private subroutine to compute baseflow (for multiple calls for numerical Jacobian)
  call computeBaseflow(&
                       ! input: control and state variables
-                      .true.,                  & ! intent(in): .true. if derivatives are desired
+                      nSnow,                   & ! intent(in): number of snow layers
+                      nSoil,                   & ! intent(in): number of soil layers
+                      nLayers,                 & ! intent(in): total number of layers
+                      .true.,                  & ! intent(in): .true. if analytical derivatives are desired
                       ixSaturation,            & ! intent(in): index of upper-most "saturated" layer
                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in each soil layer (-)
                       ! input/output: data structures
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
-                      mvar_data,               & ! intent(inout): model variables for a local HRU
+                      prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                      flux_data,               & ! intent(inout): model fluxes for a local HRU
                       ! output: fluxes and derivatives
                       mLayerBaseflow,          & ! intent(out): baseflow flux in each soil layer (m s-1)
                       dBaseflow_dVolLiq)         ! intent(out): derivative in baseflow w.r.t. volumetric liquid water content (s-1)
@@ -236,16 +249,23 @@ contains
    mLayerVolFracLiqPerturbed(iLayer) = volFracLiq(mLayerMatricHeadPerturbed(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
    ! compute baseflow flux
+   ! NOTE: This is an optional second call to computeBaseflow that is invoked when computing numerical derivatives.
+   !       Since the purpose here is to compute the numerical derivatives, we do not need to compute analytical derivatives also.
+   !       Hence, analytical derivatives are not desired
    call computeBaseflow(&
                         ! input: control and state variables
-                        .false.,                   & ! intent(in): .true. if derivatives are desired
+                        nSnow,                     & ! intent(in): number of snow layers
+                        nSoil,                     & ! intent(in): number of soil layers
+                        nLayers,                   & ! intent(in): total number of layers
+                        .false.,                   & ! intent(in): .true. if analytical derivatives are desired
                         ixSaturation,              & ! intent(in): index of upper-most "saturated" layer
                         mLayerVolFracLiqPerturbed, & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                         mLayerVolFracIce,          & ! intent(in): volumetric fraction of ice in each soil layer (-)
                         ! input/output: data structures
                         attr_data,                 & ! intent(in):    spatial attributes
                         mpar_data,                 & ! intent(in):    model parameters
-                        mvar_data,                 & ! intent(inout): model variables for a local HRU
+                        prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
+                        flux_data,                 & ! intent(inout): model fluxes for a local HRU
                         ! output: fluxes and derivatives
                         mLayerBaseflowPerturbed,   & ! intent(out): baseflow flux in each soil layer (m s-1)
                         dBaseflow_dVolLiq)           ! intent(out): ** NOT USED ** derivative in baseflow w.r.t. volumetric liquid water content (s-1)
@@ -278,6 +298,9 @@ contains
  ! ***********************************************************************************************************************
  subroutine computeBaseflow(&
                             ! input: control and state variables
+                            nSnow,                         & ! intent(in): number of snow layers
+                            nSoil,                         & ! intent(in): number of soil layers
+                            nLayers,                       & ! intent(in): total number of layers
                             derivDesired,                  & ! intent(in): .true. if derivatives are desired
                             ixSaturation,                  & ! intent(in): index of upper-most "saturated" layer
                             mLayerVolFracLiq,              & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
@@ -285,7 +308,8 @@ contains
                             ! input/output: data structures
                             attr_data,                     & ! intent(in):    spatial attributes
                             mpar_data,                     & ! intent(in):    model parameters
-                            mvar_data,                     & ! intent(inout): model variables for a local HRU
+                            prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
+                            flux_data,                     & ! intent(inout): model fluxes for a local HRU
                             ! output: fluxes and derivatives
                             mLayerBaseflow,                & ! intent(out): baseflow flux in each soil layer (m s-1)
                             dBaseflow_dVolLiq)               ! intent(out): derivative in baseflow w.r.t. volumetric liquid water content (s-1)
@@ -294,6 +318,9 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: control and state variables
+ integer(i4b),intent(in)          :: nSnow                   ! number of snow layers
+ integer(i4b),intent(in)          :: nSoil                   ! number of soil layers
+ integer(i4b),intent(in)          :: nLayers                 ! total number of layers
  logical(lgt),intent(in)          :: derivDesired            ! .true. if derivatives are desired
  integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
  real(dp),intent(in)              :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
@@ -301,7 +328,8 @@ contains
  ! input/output: data structures
  type(var_d),intent(in)           :: attr_data               ! spatial attributes
  type(var_d),intent(in)           :: mpar_data               ! model parameters
- type(var_dlength),intent(inout)  :: mvar_data               ! model variables for a local HRU
+ type(var_dlength),intent(in)     :: prog_data               ! prognostic variables for a local HRU
+ type(var_dlength),intent(inout)  :: flux_data               ! model fluxes for a local HRU
  ! output: baseflow
  real(dp),intent(out)             :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
  real(dp),intent(out)             :: dBaseflow_dVolLiq(:,:)  ! derivative in baseflow w.r.t. matric head (s-1)
@@ -345,12 +373,12 @@ contains
  associate(&
 
  ! input: coordinate variables
- soilDepth               => mvar_data%var(iLookMVAR%iLayerHeight)%dat(nLayers),       & ! intent(in): [dp]    total soil depth (m)
- mLayerDepth             => mvar_data%var(iLookMVAR%mLayerDepth)%dat(nSnow+1:nLayers),& ! intent(in): [dp(:)] depth of each soil layer (m)
+ soilDepth               => prog_data%var(iLookPROG%iLayerHeight)%dat(nLayers),       & ! intent(in): [dp]    total soil depth (m)
+ mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers),& ! intent(in): [dp(:)] depth of each soil layer (m)
 
  ! input: diagnostic variables
- surfaceHydCond          => mvar_data%var(iLookMVAR%mLayerSatHydCondMP)%dat(1),       & ! intent(in): [dp]    saturated hydraulic conductivity at the surface (m s-1)
- mLayerColumnInflow      => mvar_data%var(iLookMVAR%mLayerColumnInflow)%dat,          & ! intent(in): [dp(:)] inflow into each soil layer (m3/s)
+ surfaceHydCond          => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat(1),       & ! intent(in): [dp]    saturated hydraulic conductivity at the surface (m s-1)
+ mLayerColumnInflow      => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,          & ! intent(in): [dp(:)] inflow into each soil layer (m3/s)
 
  ! input: local attributes
  HRUarea                 => attr_data%var(iLookATTR%HRUarea),                         & ! intent(in): [dp] HRU area (m2)
@@ -364,8 +392,8 @@ contains
  theta_sat               => mpar_data%var(iLookPARAM%theta_sat),                      & ! intent(in): [dp] soil porosity (-)
 
  ! output: diagnostic variables
- scalarExfiltration      => mvar_data%var(iLookMVAR%scalarExfiltration)%dat(1),       & ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
- mLayerColumnOutflow     => mvar_data%var(iLookMVAR%mLayerColumnOutflow)%dat          & ! intent(out):[dp(:)] column outflow from each soil layer (m3 s-1)
+ scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),       & ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
+ mLayerColumnOutflow     => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat          & ! intent(out):[dp(:)] column outflow from each soil layer (m3 s-1)
 
  )  ! end association to variables in data structures
  ! ***********************************************************************************************************************

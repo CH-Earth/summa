@@ -21,13 +21,8 @@
 module layerMerge_module
 ! data types
 USE nrtype
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,   & ! number of snow layers
-                    nSoil,   & ! number of soil layers
-                    nLayers    ! total number of layers
 ! access named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow            ! named variables for snow and soil
+USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
 ! physical constants
 USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
@@ -41,10 +36,13 @@ USE var_derive_module,only:calcHeight ! module to calculate height at layer inte
 implicit none
 private
 public::layerMerge
-interface removeOneLayer
- module procedure removeOneLayer_rv, removeOneLayer_iv
-end interface removeOneLayer
-
+! provide access to the number layers throughout the module
+integer(i4b)          :: nSnow                    ! number of snow layers
+integer(i4b)          :: nSoil                    ! number of soil layers
+integer(i4b)          :: nLayers                  ! total number of layers
+! define missing values
+real(dp)              :: missingDouble=-9999._dp  ! missing value (double precision)
+integer(i4b)          :: missingInteger=-9999     ! missing value (integer)
 contains
 
 
@@ -56,39 +54,38 @@ contains
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
-                       mvar_data,                   & ! intent(inout): model variables for a local HRU
-                       ! output: error control
+                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                       diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                       ! output
+                       mergedLayers,                & ! intent(out): flag to denote that layers were merged
                        err,message)                   ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! access the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,            & ! data vector (dp)
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
+ ! access metadata
+ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookMVAR,iLookBVAR,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
- type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
- ! output: error control
+ type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data           ! model flux variables
+ ! output
+ logical(lgt),intent(out)        :: mergedLayers        ! flag to denote that layers were merged
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
- ! --------------------------------------------------------------------------------------------------------
- ! model index variables
- ! NOTE: use pointers because the dimension length changes
- integer(i4b),pointer            :: layerType(:)        ! type of the layer (ix_soil or ix_snow)
- ! model state variables
- ! NOTE: use pointers because the dimension length changes
- real(dp),pointer                :: mLayerDepth(:)      ! depth of each layer (m)
- real(dp),pointer                :: mLayerVolFracIce(:) ! volumetric fraction of ice in each layer (-)
- real(dp),pointer                :: mLayerVolFracLiq(:) ! volumetric fraction of liquid water in each layer (-)
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
@@ -116,22 +113,22 @@ contains
  zminLayer5       => mpar_data%var(iLookPARAM%zminLayer5),                 & ! minimum layer depth for the 5th (bottom) layer (m)
 
  ! diagnostic scalar variables
- scalarSnowDepth  => mvar_data%var(iLookMVAR%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
- scalarSWE        => mvar_data%var(iLookMVAR%scalarSWE)%dat(1)             & ! SWE (kg m-2)
+ scalarSnowDepth  => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
+ scalarSWE        => prog_data%var(iLookPROG%scalarSWE)%dat(1)             & ! SWE (kg m-2)
 
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------
 
- ! point to the model index structures
- layerType        => indx_data%var(iLookINDEX%layerType)%dat                 ! layer type (ix_soil or ix_snow)
-
- ! point to the model state variables
- mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat                ! depth of each layer (m)
- mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat           ! volumetric fraction of ice in each layer  (-)
- mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat           ! volumetric fraction of liquid water in each layer (-)
-
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
+
+ ! intialize the modified layers flag
+ mergedLayers=.false.
+
+ ! initialize the number of snow layers
+ nSnow = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  kSnow=0 ! initialize first layer to test (top layer)
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
@@ -146,6 +143,14 @@ contains
   ! loop through snow layers
   do iSnow=kSnow+1,nCheck
 
+   ! associate local variables with the information in the data structures
+   ! NOTE: do this here, since the layer variables are re-defined
+   associate(&
+   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat         , &    ! depth of each layer (m)
+   mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat    , &    ! volumetric fraction of ice in each layer  (-)
+   mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat      &    ! volumetric fraction of liquid water in each layer (-)
+   ) ! (associating local variables with the information in the data structures)
+
    ! check if the layer depth is less than the depth threshold
    select case(ix_snowLayers)
     case(sameRulesAllLayers);    removeLayer = (mLayerDepth(iSnow) < zmin)
@@ -156,6 +161,9 @@ contains
    ! check if need to remove a layer
    if(removeLayer)then
 
+    ! flag that we modified a layer
+    mergedLayers=.true.
+
     ! ***** handle special case of a single layer
     if(nSnow==1)then
      ! set the variables defining "snow without a layer"
@@ -164,7 +172,10 @@ contains
      scalarSWE       = (mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water)*mLayerDepth(1)
      ! remove the top layer from all model variable vectors
      ! NOTE: nSnow-1 = 0, so routine removes layer #1
-     call rmLyAllVars(mvar_data,indx_data,nSnow-1,err,cmessage)
+     call rmLyAllVars(prog_data,prog_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call rmLyAllVars(diag_data,diag_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call rmLyAllVars(flux_data,flux_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call rmLyAllVars(indx_data,indx_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
      if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
      ! update the total number of layers
      nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
@@ -178,13 +189,13 @@ contains
      call calcHeight(&
                      ! input/output: data structures
                      indx_data,   & ! intent(in): layer type
-                     mvar_data,   & ! intent(inout): model variables for a local HRU
+                     prog_data,   & ! intent(inout): model variables for a local HRU
                      ! output: error control
                      err,cmessage)
      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
      ! exit the do loop (no more snow layers to remove)
      return
-    endif
+    endif  ! (special case of 1 layer --> snow without a layer)
 
     ! ***** identify the layer to combine
     if(iSnow==1)then
@@ -199,13 +210,8 @@ contains
     ! identify the layer closest to the surface
     kSnow=min(iSnow,jSnow)
     ! combine layer with identified neighbor
-    call layer_combine(mpar_data,mvar_data,indx_data,kSnow,err,cmessage)
+    call layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,kSnow,err,cmessage)
     if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
-
-    ! re-assign pointers to the layer depth
-    mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
-    !print*, 'removed layer: mLayerDepth = ', mLayerDepth
-    !pause
 
     ! exit the loop to try again
     exit
@@ -213,6 +219,9 @@ contains
    endif  ! (if layer is below the mass threshold)
 
    kSnow=iSnow ! ksnow is used for completion test, so include here
+
+   ! end association of local variables with the information in the data structures
+   end associate
 
   end do ! (looping through snow layers)
 
@@ -225,15 +234,14 @@ contains
 
  ! handle special case of > 5 layers in the CLM option
  if(nSnow > 5 .and. ix_snowLayers == rulesDependLayerIndex)then
+  ! flag that layers were merged
+  mergedLayers=.true.
   ! initial check to ensure everything is wonderful in the universe
   if(nSnow /= 6)then; err=5; message=trim(message)//'special case of > 5 layers: expect only six layers'; return; endif
   ! combine 5th layer with layer below
-  call layer_combine(mpar_data,mvar_data,indx_data,5,err,cmessage)
+  call layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,5,err,cmessage)
   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
-  ! re-assign pointers to the layer depth
-  mLayerDepth => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
-  !print*, 'removed layer: mLayerDepth = ', mLayerDepth
-  !pause
+  ! another check
   if(nSnow /= 5)then; err=5; message=trim(message)//'special case of > 5 layers: expect to reduced layers to exactly 5'; return; endif
  endif
 
@@ -256,32 +264,28 @@ contains
  ! ***********************************************************************************************************
  ! combines layer iSnow with iSnow+1
  ! ***********************************************************************************************************
- subroutine layer_combine(mpar_data,mvar_data,indx_data,iSnow,err,message)
+ subroutine layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,iSnow,err,message)
  ! provide access to variables in the data structures
- USE data_struc,only:var_d                    ! data structures with fixed dimension
- USE data_struc,only:var_ilength,var_dlength  ! data vectors with variable length dimension
- USE var_lookup,only:iLookPARAM,iLookMVAR,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
+ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
+ USE data_types,only:var_ilength,var_dlength                   ! data vectors with variable length dimension
+ USE data_types,only:var_d                                     ! data structures with fixed dimension
  ! provide access to external modules
- USE snow_utils_module,only:fracliquid                                          ! compute fraction of liquid water
- USE convE2Temp_module,only:E2T_nosoil,temp2ethpy                               ! convert temperature to enthalpy
+ USE snow_utils_module,only:fracliquid                         ! compute fraction of liquid water
+ USE convE2Temp_module,only:E2T_nosoil,temp2ethpy              ! convert temperature to enthalpy
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures
  type(var_d),intent(in)          :: mpar_data ! model parameters
- type(var_dlength),intent(inout) :: mvar_data ! model variables for a local HRU
+ type(var_dlength),intent(inout) :: prog_data ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data ! model flux variables
  type(var_ilength),intent(inout) :: indx_data ! type of model layer
  ! input: snow layer indices
  integer(i4b),intent(in)         :: iSnow     ! index of top layer to combine
  ! output: error control
  integer(i4b),intent(out)        :: err       ! error code
  character(*),intent(out)        :: message   ! error message
- ! ------------------------------------------------------------------------------------------------------------
- ! model state variables
- ! NOTE: these are defined as pointers because the length of the data dimension changes
- real(dp),pointer                :: mLayerTemp(:)            ! temperature of each layer (K)
- real(dp),pointer                :: mLayerDepth(:)           ! depth of each layer (m)
- real(dp),pointer                :: mLayerVolFracIce(:)      ! volumetric fraction of ice in each layer (-)
- real(dp),pointer                :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water in each layer (-)
  ! ------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
@@ -297,20 +301,20 @@ contains
  real(dp)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
  real(dp)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
  real(dp),parameter              :: eTol=1.e-4_dp            ! tolerance for the enthalpy-->temperature conversion (J m-3)
+
  ! initialize error control
  err=0; message="layer_combine/"
 
- ! associate variables with information in the data structures
+ ! associate local variables with information in the data structures
  associate(&
- snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)      & ! scaling parameter for the freezing curve for snow (K-1)
- ) ! end associate block
-
- ! ***** compute combined model state variables
- ! assign pointers to model state variables
- mLayerTemp       => mvar_data%var(iLookMVAR%mLayerTemp)%dat           ! temperature of each layer (K)
- mLayerDepth      => mvar_data%var(iLookMVAR%mLayerDepth)%dat          ! depth of each layer (m)
- mLayerVolFracIce => mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat     ! volumetric fraction of ice in each layer  (-)
- mLayerVolFracLiq => mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat     ! volumetric fraction of liquid water in each layer (-)
+ ! model parameters
+ snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)       , & ! scaling parameter for the freezing curve for snow (K-1)
+ ! model state variables
+ mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat       , & ! temperature of each layer (K)
+ mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat      , & ! depth of each layer (m)
+ mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat , & ! volumetric fraction of ice in each layer  (-)
+ mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat   & ! volumetric fraction of liquid water in each layer (-)
+ ) ! (association of local variables with information in the data structures)
 
  ! compute combined depth
  cDepth       = mLayerDepth(isnow) + mLayerDepth(isnow+1)
@@ -352,9 +356,14 @@ contains
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water
  cVolFracIce = (1._dp - fLiq)*cBulkDenWat/iden_ice
 
+ ! end association of local variables with information in the data structures
+ end associate
+
  ! remove a model layer from all model variable vectors
- call rmLyAllVars(mvar_data,indx_data,iSnow,err,cmessage)
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ call rmLyAllVars(prog_data,prog_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call rmLyAllVars(diag_data,diag_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call rmLyAllVars(flux_data,flux_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call rmLyAllVars(indx_data,indx_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define the combined layer as snow
  indx_data%var(iLookINDEX%layerType)%dat(iSnow) = ix_snow
@@ -370,22 +379,19 @@ contains
  indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
  ! ***** put state variables for the combined layer in the appropriate place
- mvar_data%var(iLookMVAR%mLayerTemp)%dat(iSnow)       = cTemp
- mvar_data%var(iLookMVAR%mLayerDepth)%dat(iSnow)      = cDepth
- mvar_data%var(iLookMVAR%mLayerVolFracIce)%dat(iSnow) = cVolFracIce
- mvar_data%var(iLookMVAR%mLayerVolFracLiq)%dat(iSnow) = cVolFracLiq
+ prog_data%var(iLookPROG%mLayerTemp)%dat(iSnow)       = cTemp
+ prog_data%var(iLookPROG%mLayerDepth)%dat(iSnow)      = cDepth
+ prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iSnow) = cVolFracIce
+ prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iSnow) = cVolFracLiq
 
  ! ***** adjust coordinate variables
  call calcHeight(&
                  ! input/output: data structures
                  indx_data,   & ! intent(in): layer type
-                 mvar_data,   & ! intent(inout): model variables for a local HRU
+                 prog_data,   & ! intent(inout): model variables for a local HRU
                  ! output: error control
                  err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
- ! end association to data structures
- end associate
 
  end subroutine layer_combine
 
@@ -396,120 +402,94 @@ contains
  ! removes layer "iSnow+1" and sets layer "iSnow" to a missing value
  ! (layer "iSnow" will be filled with a combined layer later)
  ! ***********************************************************************************************************
- subroutine rmLyAllVars(mvar_data,indx_data,iSnow,err,message)
- USE data_struc,only:mvar_meta                ! metadata
- USE data_struc,only:var_ilength,var_dlength  ! data vectors with variable length dimension
- USE var_lookup,only:iLookMVAR,iLookINDEX     ! named variables for structure elements
+ subroutine rmLyAllVars(dataStruct,metaStruct,iSnow,err,message)
+ USE f2008funcs_module,only:cloneStruc            ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
+ USE data_types,only:var_ilength,var_dlength      ! data vectors with variable length dimension
+ USE data_types,only:var_info                     ! metadata structure
  implicit none
+ ! ---------------------------------------------------------------------------------------------
  ! input/output: data structures
- type(var_ilength),intent(inout) :: indx_data ! type of model layer
- type(var_dlength),intent(inout) :: mvar_data ! model variables for a local HRU
+ class(*),intent(inout)          :: dataStruct     ! data structure
+ type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! input: snow layer indices
- integer(i4b),intent(in)         :: iSnow     ! new layer
+ integer(i4b),intent(in)         :: iSnow          ! new layer
  ! output: error control
- integer(i4b),intent(out)        :: err       ! error code
- character(*),intent(out)        :: message   ! error message
+ integer(i4b),intent(out)        :: err            ! error code
+ character(*),intent(out)        :: message        ! error message
  ! locals
- character(len=256)              :: cmessage  ! error message for downwind routine
- integer(i4b)                    :: ix_lower  ! lower bound of the vector
- integer(i4b)                    :: ix_upper  ! upper bound of the vector
- integer(i4b)                    :: ivar
+ integer(i4b)                    :: ivar           ! variable index
+ integer(i4b)                    :: ix_lower       ! lower bound of the vector
+ integer(i4b)                    :: ix_upper       ! upper bound of the vector
+ real(dp),allocatable            :: tempVec_dp(:)  ! temporary vector (double precision)
+ integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
+ character(LEN=256)              :: cmessage       ! error message of downwind routine
  ! initialize error control
  err=0; message="rmLyAllVars/"
+
  ! ***** loop through model variables and remove one layer
- do ivar=1,size(mvar_data%var)
+ do ivar=1,size(metaStruct)
+
   ! define bounds
-  select case(trim(mvar_meta(ivar)%vartype))
+  select case(trim(metaStruct(ivar)%vartype))
    case('midSnow'); ix_lower=1; ix_upper=nSnow
    case('midToto'); ix_lower=1; ix_upper=nLayers
    case('ifcSnow'); ix_lower=0; ix_upper=nSnow
    case('ifcToto'); ix_lower=0; ix_upper=nLayers
    case default; cycle  ! no need to remove soil layers or scalar variables
   end select
-  ! remove a layer for a model variable vector
-  call removeOneLayer(mvar_data%var(ivar)%dat,ix_lower,ix_upper,iSnow,err,cmessage)
-  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
- end do
- ! adjust the layer type (ix_soil or ix_snow) accordingly
- call removeOneLayer(indx_data%var(iLookINDEX%layerType)%dat,1,nLayers,iSnow,err,cmessage)
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+
+  ! remove layers
+  select type(dataStruct)
+
+   ! ** double precision
+   type is (var_dlength)
+    ! check allocated
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    ! allocate the temporary vector
+    allocate(tempVec_dp(ix_lower:ix_upper-1), stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    ! copy elements across to the temporary vector
+    if(iSnow>=ix_lower)  tempVec_dp(iSnow)              = missingDouble ! set merged layer to missing (fill in later)
+    if(iSnow>ix_lower)   tempVec_dp(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
+    if(iSnow+1<ix_upper) tempVec_dp(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
+    ! deallocate the data vector: strictly not necessary, but include to be safe 
+    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    if(err/=0)then; err=20; message='problem deallocating data vector'; return; endif
+    ! create the new data structure using the temporary vector as the source
+    call cloneStruc(dataStruct%var(ivar)%dat, source=tempVec_dp, err=err, message=cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! deallocate the temporary data vector: strictly not necessary, but include to be safe
+    deallocate(tempVec_dp,stat=err)
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+
+   ! ** integer
+   type is (var_ilength)
+    ! check allocated
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    ! allocate the temporary vector
+    allocate(tempVec_i4b(ix_lower:ix_upper-1), stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    ! copy elements across to the temporary vector
+    if(iSnow>=ix_lower)  tempVec_i4b(iSnow)              = missingInteger ! set merged layer to missing (fill in later)
+    if(iSnow>ix_lower)   tempVec_i4b(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
+    if(iSnow+1<ix_upper) tempVec_i4b(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
+    ! deallocate the data vector: strictly not necessary, but include to be safe
+    deallocate(dataStruct%var(ivar)%dat,stat=err)
+    if(err/=0)then; err=20; message='problem deallocating data vector'; return; endif
+    ! create the new data structure using the temporary vector as the source
+    call cloneStruc(dataStruct%var(ivar)%dat, source=tempVec_i4b, err=err, message=cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! deallocate the temporary data vector: strictly not necessary, but include to be safe
+    deallocate(tempVec_i4b,stat=err)
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+
+   ! check that we found the data type
+   class default; err=20; message=trim(message)//'unable to identify the data type'; return
+
+  end select ! dependence on data types
+
+ end do  ! looping through variables
+
  end subroutine rmLyAllVars
-
-
- ! *****************************************************************************************************************
- ! private subroutine removeOneLayer: combine snow layers and reduce the length of the vectors in data structures
- ! *****************************************************************************************************************
- ! double precision
- ! Removes layer iSnow+1 from the input vector, set layer iSnow to a missing value,
- ! and reduce size of the vector by 1 element
- ! *****************************************************************************************************************
- subroutine removeOneLayer_rv(datavec,ix_lower,ix_upper,iSnow,err,message)
- implicit none
- ! dummies
- real(dp),pointer,intent(inout)     :: datavec(:)  ! the original and the new vector
- integer(i4b),intent(in)            :: ix_lower    ! lower bound of the old vector
- integer(i4b),intent(in)            :: ix_upper    ! upper bound of the old vector
- integer(i4b),intent(in)            :: iSnow       ! new layer
- integer(i4b),intent(out)           :: err         ! error code
- character(*),intent(out)           :: message     ! error message
- ! locals
- real(dp)                           :: tempvec(ix_lower:ix_upper-1)  ! temporary vector
- real(dp),parameter                 :: missingDouble=-9999._dp
- ! initialize error control
- err=0; message='RemoveOneLayer_rv/'
- ! check the data vector is associated
- if(.not.associated(datavec))then; err=20; message='data vector is not associated'; return; endif
- ! copy elements across to the temporary vector
- if(iSnow>ix_lower) tempvec(ix_lower:iSnow-1) = datavec(ix_lower:iSnow-1)
- if(iSnow+1<ix_upper) tempvec(iSnow+1:ix_upper-1) = datavec(iSnow+2:ix_upper)  ! skip iSnow+1
- ! set the iSnow value to a stupid number -- fill in later
- if(iSnow>=ix_lower) tempvec(iSnow) = missingDouble
- ! adjust size of the data vector (one less element)
- deallocate(datavec,stat=err)
- if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
- allocate(datavec(ix_lower:ix_upper-1),stat=err)
- if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
- ! copy elements across to the data vector
- datavec=tempvec
- end subroutine RemoveOneLayer_rv
-
-
- ! *****************************************************************************************************************
- ! private subroutine RemoveOneLayer_iv: combine snow layers and reduce the length of the vectors in data structures
- ! *****************************************************************************************************************
- ! integer
- ! Removes layer iSnow+1 from the input vector, set layer iSnow to a missing value,
- ! and reduce size of the vector by 1 element
- ! *****************************************************************************************************************
- subroutine RemoveOneLayer_iv(datavec,ix_lower,ix_upper,iSnow,err,message)
- implicit none
- ! dummies
- integer(i4b),pointer,intent(inout) :: datavec(:)  ! the original and the new vector
- integer(i4b),intent(in)            :: ix_lower    ! lower bound of the old vector
- integer(i4b),intent(in)            :: ix_upper    ! upper bound of the old vector
- integer(i4b),intent(in)            :: iSnow       ! new layer
- integer(i4b),intent(out)           :: err         ! error code
- character(*),intent(out)           :: message     ! error message
- ! locals
- integer(i4b)                       :: tempvec(ix_lower:ix_upper-1)  ! temporary vector
- integer(i4b),parameter             :: missingInteger=-9999
- ! initialize error control
- err=0; message='RemoveOneLayer_iv/'
- ! check the data vector is associated
- if(.not.associated(datavec))then; err=20; message='data vector is not associated'; return; endif
- ! copy elements across to the temporary vector
- if(iSnow>ix_lower) tempvec(ix_lower:iSnow-1) = datavec(ix_lower:iSnow-1)
- if(iSnow+1<ix_upper) tempvec(iSnow+1:ix_upper-1) = datavec(iSnow+2:ix_upper)  ! skip iSnow+1
- ! set the iSnow value to a stupid number -- fill in later
- if(iSnow>=ix_lower) tempvec(iSnow) = missingInteger
- ! adjust size of the data vector (one less element)
- deallocate(datavec,stat=err)
- if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
- allocate(datavec(ix_lower:ix_upper-1),stat=err)
- if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
- ! copy elements across to the data vector
- datavec=tempvec
- end subroutine RemoveOneLayer_iv
-
 
 end module layerMerge_module

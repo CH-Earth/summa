@@ -24,8 +24,6 @@ USE multiconst,only:&
                     Tfreeze,    &     ! freezing point of pure water (K)
                     iden_ice,   &     ! intrinsic density of ice (kg m-3)
                     iden_water        ! intrinsic density of liquid water (kg m-3)
-! access the number of snow layers
-USE data_struc,only:nSnow             ! number of snow layers
 implicit none
 private
 public::snwDensify
@@ -37,7 +35,8 @@ contains
  subroutine snwDensify(&
 
                        ! intent(in): variables
-                       dt,                             & ! intent(in) time step (s)
+                       dt,                             & ! intent(in): time step (s)
+                       nSnow,                          & ! intent(in): number of snow layers
                        mLayerTemp,                     & ! intent(in): temperature of each layer (K)
                        mLayerMeltFreeze,               & ! intent(in): volumnetric melt in each layer (kg m-3)
                        scalarSnowSublimation,          & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
@@ -62,6 +61,7 @@ contains
  implicit none
  ! intent(in): variables
  real(dp),intent(in)                 :: dt                       ! time step (seconds)
+ integer(i4b),intent(in)             :: nSnow                    ! number of snow layers
  real(dp),intent(in)                 :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
  real(dp),intent(in)                 :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
  real(dp),intent(in)                 :: scalarSnowSublimation    ! sublimation from the snow surface (kg m-2 s-1)

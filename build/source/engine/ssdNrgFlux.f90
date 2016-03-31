@@ -21,11 +21,6 @@
 module ssdNrgFlux_module
 ! numerical recipes data types
 USE nrtype
-! access the number of snow and soil layers
-USE data_struc,only:&
-                    nSnow,        & ! number of snow layers
-                    nSoil,        & ! number of soil layers
-                    nLayers         ! total number of layers
 ! physical constants
 USE multiconst,only:&
                     sb,          & ! Stefan Boltzman constant      (W m-2 K-4)
@@ -41,7 +36,7 @@ USE multiconst,only:&
                     iden_ice,    & ! intrinsic density of ice      (kg m-3)
                     iden_water     ! intrinsic density of water    (kg m-3)
 ! named variables for snow and soil
-USE data_struc,only:ix_soil,ix_snow                        ! names variables for snow and soil
+USE globalData,only:ix_soil,ix_snow                        ! names variables for snow and soil
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:      &
  ! look-up values for the numerical method
@@ -72,146 +67,86 @@ contains
  ! ************************************************************************************************
  subroutine ssdNrgFlux(&
                        ! input: fluxes and derivatives at the upper boundary
-                       groundNetFlux,                      & ! intent(in): total flux at the ground surface (W m-2)
-                       dGroundNetFlux_dGroundTemp,         & ! intent(in): derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
+                       groundNetFlux,                      & ! intent(in):    total flux at the ground surface (W m-2)
+                       dGroundNetFlux_dGroundTemp,         & ! intent(in):    derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
                        ! input: liquid water fluxes
-                       iLayerLiqFluxSnow,                  & ! intent(in): liquid flux at the interface of each snow layer (m s-1)
-                       iLayerLiqFluxSoil,                  & ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+                       iLayerLiqFluxSnow,                  & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
+                       iLayerLiqFluxSoil,                  & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
                        ! input: trial value of model state variabes
-                       mLayerTempTrial,                    & ! intent(in): trial temperature at the current iteration (K)
+                       mLayerTempTrial,                    & ! intent(in):    trial temperature at the current iteration (K)
+                       ! input-output: data structures
+                       mpar_data,                          & ! intent(in):    model parameters
+                       indx_data,                          & ! intent(in):    model indices
+                       prog_data,                          & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
+                       flux_data,                          & ! intent(inout): model fluxes for a local HRU
                        ! output: fluxes and derivatives at all layer interfaces
-                       iLayerNrgFlux,                      & ! intent(out): energy flux at the layer interfaces (W m-2)
-                       dFlux_dTempAbove,                   & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
-                       dFlux_dTempBelow,                   & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
+                       iLayerNrgFlux,                      & ! intent(out):   energy flux at the layer interfaces (W m-2)
+                       dFlux_dTempAbove,                   & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
+                       dFlux_dTempBelow,                   & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
                        ! output: error control
                        err,message)                          ! intent(out): error control
  ! model decisions
- USE data_struc,only:model_decisions                         ! model decision structure
+ USE globalData,only:model_decisions                         ! model decision structure
  USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
- ! model variables, parameters, forcing data, etc.
- USE data_struc,only:mpar_data,mvar_data,indx_data    ! data structures
- USE var_lookup,only:iLookATTR,iLookTYPE,iLookPARAM,iLookFORCE,iLookMVAR,iLookINDEX ! named variables for structure elements
+ ! named variables
+ USE var_lookup,only:iLookPROG       ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+ USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+ ! data types
+ USE data_types,only:var_d           ! x%var(:)       (dp)
+ USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
+ USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
  implicit none
  ! input: fluxes and derivatives at the upper boundary
- real(dp),intent(in)           :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
- real(dp),intent(in)           :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+ real(dp),intent(in)             :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
+ real(dp),intent(in)             :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
  ! input: liquid water fluxes
- real(dp),intent(in)           :: iLayerLiqFluxSnow(0:)      ! intent(in): liquid flux at the interface of each snow layer (m s-1)
- real(dp),intent(in)           :: iLayerLiqFluxSoil(0:)      ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+ real(dp),intent(in)             :: iLayerLiqFluxSnow(0:)      ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+ real(dp),intent(in)             :: iLayerLiqFluxSoil(0:)      ! intent(in): liquid flux at the interface of each soil layer (m s-1)
  ! input: trial value of model state variables
- real(dp),intent(in)           :: mLayerTempTrial(:)         ! trial temperature of each snow/soil layer at the current iteration (K)
+ real(dp),intent(in)             :: mLayerTempTrial(:)         ! trial temperature of each snow/soil layer at the current iteration (K)
+ ! input-output: data structures
+ type(var_d),intent(in)          :: mpar_data                  ! model parameters
+ type(var_ilength),intent(in)    :: indx_data                  ! state vector geometry
+ type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                  ! model fluxes for a local HRU
  ! output: fluxes and derivatives at all layer interfaces
- real(dp),intent(out)          :: iLayerNrgFlux(0:)          ! energy flux at the layer interfaces (W m-2)
- real(dp),intent(out)          :: dFlux_dTempAbove(0:)       ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
- real(dp),intent(out)          :: dFlux_dTempBelow(0:)       ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+ real(dp),intent(out)            :: iLayerNrgFlux(0:)          ! energy flux at the layer interfaces (W m-2)
+ real(dp),intent(out)            :: dFlux_dTempAbove(0:)       ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+ real(dp),intent(out)            :: dFlux_dTempBelow(0:)       ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
  ! output: error control
- integer(i4b),intent(out)      :: err                        ! error code
- character(*),intent(out)      :: message                    ! error message
+ integer(i4b),intent(out)        :: err                        ! error code
+ character(*),intent(out)        :: message                    ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)            :: cmessage                   ! error message of downwind routine
+ integer(i4b)                    :: iLayer                     ! index of model layers
+ real(dp)                        :: qFlux                      ! liquid flux at layer interfaces (m s-1)
+ real(dp)                        :: dz                         ! height difference (m)
+ real(dp)                        :: flux0,flux1,flux2          ! fluxes used to calculate derivatives (W m-2)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
-
- ! ***** compute energy fluxes at layer interfaces and their derivatives (J m-2 s-1)
- call iLayer_nrg(&
-                 ! input: model control variables
-                 model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,          & ! intent(in): method used to calculate flux derivatives
-                 model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision,          & ! intent(in): method used to calculate the lower boundary condition for thermodynamics
-                 ! input: model fluxes from other routines
-                 groundNetFlux,                                                 & ! intent(in): total energy flux at the ground surface (W m-2)
-                 iLayerLiqFluxSnow,                                             & ! intent(in): liquid flux at the interface of each snow layer (m s-1)
-                 iLayerLiqFluxSoil,                                             & ! intent(in): liquid flux at the interface of each soil layer (m s-1)
-                 ! input: derivatives in input fluxes from other routines
-                 dGroundNetFlux_dGroundTemp,                                    & ! intent(in): derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
-                 ! input: model state variables
-                 mLayerTempTrial,                                               & ! intent(in): trial temperature at the current iteration (K)
-                 ! input: model coordinates and thermal properties
-                 indx_data%var(iLookINDEX%layerType)%dat,                       & ! intent(in): layer type (ix_soil or ix_snow)
-                 mvar_data%var(iLookMVAR%mLayerDepth)%dat,                      & ! intent(in): depth of each layer (m)
-                 mvar_data%var(iLookMVAR%mLayerHeight)%dat,                     & ! intent(in): height at the mid-point of each layer (m)
-                 mvar_data%var(iLookMVAR%iLayerThermalC)%dat,                   & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
-                 mpar_data%var(iLookPARAM%lowerBoundTemp),                      & ! intent(in): temperature of the lower boundary (K)
-                 ! output: diagnostic fluxes
-                 mvar_data%var(iLookMVAR%iLayerConductiveFlux)%dat,             & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
-                 mvar_data%var(iLookMVAR%iLayerAdvectiveFlux)%dat,              & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
-                 ! output: fluxes and derivatives
-                 iLayerNrgFlux,                                                 & ! intent(out): energy flux at the layer interfaces (W m-2)
-                 dFlux_dTempAbove,                                              & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
-                 dFlux_dTempBelow,                                              & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
-                 ! output: error control
-                 err,cmessage)                                                    ! intent(out): error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- end subroutine ssdNrgFlux
-
-
-
- ! ************************************************************************************************
- ! private subroutine iLayer_nrg: compute energy fluxes at layer interfaces, and their derivatives
- ! ************************************************************************************************
- subroutine iLayer_nrg(&
-                       ! input: model control variables
-                       ix_fDerivMeth,                      & ! intent(in): index of the method used to compute derivatives (numerical or analytical)
-                       ix_bcLowrTdyn,                      & ! intent(in): index of the method used to define the lower boundary condition for thermodynamics
-                       ! input: model fluxes from other routines
-                       groundNetFlux,                      & ! intent(in): total flux at the ground surface (W m-2)
-                       iLayerLiqFluxSnow,                  & ! intent(in): liquid flux at the interface of each snow layer (m s-1)
-                       iLayerLiqFluxSoil,                  & ! intent(in): liquid flux at the interface of each soil layer (m s-1)
-                       ! input: derivatives in input fluxes from other routines
-                       dGroundNetFlux_dGroundTemp,         & ! intent(in): derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
-                       ! input: model state variables
-                       mLayerTempTrial,                    & ! intent(in): trial temperature at the current iteration (K)
-                       ! input: model coordinates and thermal properties
-                       layerType,                          & ! intent(in): type of each layer
-                       mLayerDepth,                        & ! intent(in): depth of each layer (m)
-                       mLayerHeight,                       & ! intent(in): height of layer mid-points (m)
-                       iLayerThermalC,                     & ! intent(in): thermal conductivity at layer interfaces (W m-1)
-                       lowerBoundTemp,                     & ! intent(in): temperature of the lower boundary (K)
-                       ! output: diagnostic fluxes
-                       iLayerConductiveFlux,               & ! intent(out): conductive energy flux at layer interfaces (W m-2)
-                       iLayerAdvectiveFlux,                & ! intent(out): advective energy flux at layer interfaces (W m-2)
-                       ! output: fluxes and derivatives
-                       iLayerNrgFlux,                      & ! intent(out): energy flux at the layer interfaces (W m-2)
-                       dFlux_dTempAbove,                   & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
-                       dFlux_dTempBelow,                   & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
-                       ! output: error control
-                       err,message)                          ! intent(out): error control
- ! compute derivative in fluxes at layer interfaces w.r.t. temperature in the layer above and the layer below
- implicit none
- ! input: model control variables
- integer(i4b),intent(in)       :: ix_fDerivMeth              ! intent(in): index of the method used to calculate derivatives
- integer(i4b),intent(in)       :: ix_bcLowrTdyn              ! intent(in): index of the method used to define the lower boundary condition for thermodynamics
- ! input: model fluxes from other routines
- real(dp),intent(in)           :: groundNetFlux              ! intent(in): total flux at the ground surface (W m-2)
- real(dp),intent(in)           :: iLayerLiqFluxSnow(0:)      ! intent(in): liquid flux at the interface of each snow layer (m s-1)
- real(dp),intent(in)           :: iLayerLiqFluxSoil(0:)      ! intent(in): liquid flux at the interface of each soil layer (m s-1)
- ! input: derivatives in input fluxes from other routines
- real(dp),intent(in)           :: dGroundNetFlux_dGroundTemp ! intent(in): derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
- ! input: model state variables
- real(dp),intent(in)           :: mLayerTempTrial(:)         ! intent(in): trial temperature at the current iteration (K)
- ! input: model coordinates and thermal properties
- integer(i4b),intent(in)       :: layerType(:)               ! intent(in): type of the layer (ix_soil or ix_snow)
- real(dp),intent(in)           :: mLayerDepth(:)             ! intent(in): depth of each layer (m)
- real(dp),intent(in)           :: mLayerHeight(:)            ! intent(in): height of layer mid-points (m)
- real(dp),intent(in)           :: iLayerThermalC(0:)         ! intent(in): thermal conductivity at layer interfaces (W m-1)
- real(dp),intent(in)           :: lowerBoundTemp             ! intent(in): temperature of the lower boundary (K)
- ! output: diagnostic fluxes
- real(dp),intent(out)          :: iLayerConductiveFlux(0:)   ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
- real(dp),intent(out)          :: iLayerAdvectiveFlux(0:)    ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
- ! output: fluxes and derivatives
- real(dp),intent(out)          :: iLayerNrgFlux(0:)          ! intent(out): energy flux at the layer interfaces (W m-2)
- real(dp),intent(out)          :: dFlux_dTempAbove(0:)       ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
- real(dp),intent(out)          :: dFlux_dTempBelow(0:)       ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
- ! output: error control
- integer(i4b),intent(out)      :: err                        ! intent(out): error code
- character(*),intent(out)      :: message                    ! intent(out): error message
- ! local variables
- integer(i4b)                  :: iLayer                     ! index of model layers
- real(dp)                      :: qFlux                      ! liquid flux at layer interfaces (m s-1)
- real(dp)                      :: dz                         ! height difference (m)
- real(dp)                      :: flux0,flux1,flux2          ! fluxes used to calculate derivatives (W m-2)
+ ! make association of local variables with information in the data structures
+ associate(&
+  ix_fDerivMeth        => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision, & ! intent(in): method used to calculate flux derivatives
+  ix_bcLowrTdyn        => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in): method used to calculate the lower boundary condition for thermodynamics
+  ! input: model coordinates and thermal properties
+  nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in): number of snow layers 
+  nLayers              => indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in): total number of layers 
+  layerType            => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in): layer type (ix_soil or ix_snow)
+  mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
+  mLayerHeight         => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
+  iLayerThermalC       => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
+  lowerBoundTemp       => mpar_data%var(iLookPARAM%lowerBoundTemp),             & ! intent(in): temperature of the lower boundary (K)
+  ! output: diagnostic fluxes
+  iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,    & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
+  iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat      & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
+ )  ! association of local variables with information in the data structures 
+ ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='iLayer_nrg/'
+ err=0; message='ssdNrgFlux/'
 
  ! set conductive and advective fluxes to missing in the upper boundary
  ! NOTE: advective flux at the upper boundary is included in the ground heat flux
@@ -326,8 +261,10 @@ contains
 
  end do  ! (looping through layers)
 
- end subroutine iLayer_nrg
+ ! end association of local variables with information in the data structures
+ end associate
 
+ end subroutine ssdNrgFlux
 
 end module ssdNrgFlux_module
 
