@@ -528,7 +528,8 @@ do iGRU=1,nGRU
 
   ! define the file if the first HRU
   if(iGRU==1 .and. iHRU==1) then
-   write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
+   write(fileout,'(a,i0,a,i0,a,i0,a,i0,a)')&
+    trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix),strtHRU,'-',strtHRU+nHRU-1,'.nc'
    call def_output(nHRU,gru_struc(iGRU)%hruInfo(iHRU)%nSoil,fileout,err,message); call handle_err(err,message)
   endif
 
@@ -667,7 +668,7 @@ do istep=1,numtim
                                  trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
                                  trim(output_fileSuffix),strtHRU,'-',strtHRU+nHRU-1,'.nc'
-
+  print *, 'Output write to File '//trim(fileout)
   ! define the file
   call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
@@ -713,6 +714,8 @@ do istep=1,numtim
 
   ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
+   
+   write(*,'(4(A5,I10))') 'STEP',istep,'GRU',gru_struc(iGRU)%gru_id,'HRU',gru_struc(iGRU)%hruInfo(iHRU)%hru_id,'TYPE',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)
 
    ! write the forcing data to the model output file
    call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
@@ -751,7 +754,6 @@ do istep=1,numtim
     LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
    endif
 
-   write(*,'(4(A5,I10))') 'STEP',istep,'GRU',iGRU,'HRU',iHRU,'TYPE',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)
    ! cycle water pixel
    if (typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) == isWater) cycle
 

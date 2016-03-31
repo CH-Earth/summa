@@ -62,7 +62,7 @@ contains
  character(LEN=64),allocatable      :: varnames(:)      ! vector of variable names
  character(LEN=64),allocatable      :: chardata(:)      ! vector of character data
  logical(lgt)                       :: checkHRU(nHRU)   ! vector of flags to check that an HRU will be populated with parameter data
- integer(i4b)                       :: hruIndex         ! HRU identifier
+ integer(i4b)                       :: hruID,hruID1     ! HRU identifier
  integer(i4b)                       :: iHRU             ! index of HRU within data vector
  integer(i4b)                       :: kHRU,kGRU        ! index of HRU and GRU within data structure
  integer(i4b)                       :: ipar,jpar        ! index of model parameter
@@ -130,29 +130,29 @@ contains
 
  ! loop through the data lines (maybe it's better to locate HRU in the data file)
 
-  ! identify the HRU index
-  do iHRU=1,nHRU
-   kGRU=index_map(iHRU)%gru_ix
-   kHRU=index_map(iHRU)%ihru
-   
-   do iRow=1,nRow
-    ! get the vector of parameters for a given layer, and the HRU index
-    read(charline(iRow),*,iostat=err) chardata
-    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iRow))//"']"; return; endif
+ ! identify the HRU index
+ hruLoop: do iHRU=1,nHRU
+  kGRU=index_map(iHRU)%gru_ix
+  kHRU=index_map(iHRU)%ihru
+  hruID=typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex) 
+  dataLoop: do iRow=1,nRow
+   ! get the vector of parameters for a given layer, and the HRU index
+   read(charline(iRow),*,iostat=err) chardata
+   if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iRow))//"']"; return; endif
 
-    ! get the HRU index
-    read(chardata(1),*,iostat=err) hruIndex
-    if(err/=0)then;err=41;message=trim(message)//"problemInternalRead [data='"//trim(chardata(1))//"']"; return; endif
+   ! get the HRU index
+   read(chardata(1),*,iostat=err) hruID1
+   if(err/=0)then;err=41;message=trim(message)//"problemInternalRead [data='"//trim(chardata(1))//"']"; return; endif
 
-    if(hruIndex == typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex))then
-     checkHRU(iHRU) = .true.
-     exit
-    endif
-  end do
+   if(hruID == hruID1 )then
+    checkHRU(iHRU) = .true.
+    exit dataLoop
+   endif
+  end do dataLoop
 
   ! check if the HRU is found in the data
-  if(iRow > nRow)then ! we get to here if we have tested the last HRU and have not exited the loop
-   write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',hruIndex,'; file='//trim(infile)//']'
+  if(.not. checkHRU(iHRU))then ! we get to here if we have tested the last HRU and have not exited the loop
+   write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',hruID,'; file='//trim(infile)//']'
    err=20; return
   endif
 
@@ -166,7 +166,7 @@ contains
    if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
   end do    ! (looping through model parameters)
 
- end do    ! (looping through HRUs)
+ end do hruLoop    ! (looping through HRUs)
 
 
 
