@@ -229,10 +229,10 @@ print "(A,I2,':',I2,':',I2)", 'start at ',ctime1(5:7)
 ! check numbers of command-line arguments
 select case (iargc())
  case (2)
-  !do nothing
+  !do nothing; this is a full run
   strtHRU=0
  case (4)
-  !get the starting and ending hru indices
+  !get the starting hru and count
   call getarg(3,strTMP); read(strTMP,*) strtHRU
   call getarg(4,strTMP); read(strTMP,*) nHRU
   if (strtHRU<1 .or. nHRU<1) then
@@ -663,9 +663,10 @@ do istep=1,numtim
     timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 
   ! define the filename
-  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
+  write(fileout,'(a,i0,a,i0,a,i0,a,i0,a)') &
+                                 trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
-                                 trim(output_fileSuffix)//'.nc'
+                                 trim(output_fileSuffix),strtHRU,'-',strtHRU+nHRU-1,'.nc'
 
   ! define the file
   call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
