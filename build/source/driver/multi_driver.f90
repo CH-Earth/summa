@@ -218,8 +218,8 @@ integer(i4b)                     :: err=0                      ! error code
 character(len=1024)              :: message=''                 ! error message
 
 ! subsetting the model run
-integer(i4b)                     :: strtHRU,endHRU             ! index of the starting and ending hru for a subset run
-character(len=10)                :: strTMP                     ! parse HRU index
+integer(i4b)                     :: strtHRU                    ! index of the starting hru for a subset run
+character(len=10)                :: strTMP                     ! local temp string
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
@@ -230,19 +230,20 @@ print "(A,I2,':',I2,':',I2)", 'start at ',ctime1(5:7)
 select case (iargc())
  case (2)
   !do nothing
+  strtHRU=0
  case (4)
-  !get the starting and ending hru index
+  !get the starting and ending hru indices
   call getarg(3,strTMP); read(strTMP,*) strtHRU
-  call getarg(4,strTMP); read(strTMP,*) endHRU
-  if (endHRU<strtHRU) then
+  call getarg(4,strTMP); read(strTMP,*) nHRU
+  if (strtHRU<1 .or. nHRU<1) then
    err = 1
-   message = 'endHRU is smaller than startHRU'
+   message = ' illegal startHRU or countHRU specification.'
   else
-   print '(A,I0,A,I0,A)', 'HRUs from ',strtHRU,' to ', endHRU, ' are selected for simulation.'
+   print '(x,I0,A)', nHRU,' HRUs are selected for simulation.'
   end if
  case default
   err = 1
-  message = 'Usage: summa.exe _simualtion_name_ master_file <startHRU endHRU>'
+  message = 'Usage: summa.exe _simualtion_name_ master_file <startHRU countHRU>'
 end select
 call handle_err(err,message)
 ! get command-line arguments for the output file suffix
@@ -288,7 +289,7 @@ call handle_err(err,message)
 ! nGRU-is the total number of GRUs of the simulation domain
 ! nHRU-is the total number of HRUs of the simulation domain
 ! hruCount-is a local variable for the total number of HRUs in a GRU
-call allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
+call allocate_gru_struc(nGRU,nHRU,strtHRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3b) read the number of snow and soil layers
@@ -375,7 +376,7 @@ do iGRU=1,nGRU
 end do
 
 ! read local attributes for each HRU
-call read_attrb(nGRU,nHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
+call read_attrb(nGRU,nHRU,strtHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
@@ -582,6 +583,7 @@ jstep=1
 ! ****************************************************************************
 ! (6) loop through time
 ! ****************************************************************************
+if (strtHRU < 1) strtHRU = 1
 do istep=1,numtim
 
  ! set print flag
@@ -600,7 +602,7 @@ do istep=1,numtim
                   istep,                                  & ! intent(in):    time step index
                   ix_gru,                                 & ! intent(in):    index of gru
                   ix_hru,                                 & ! intent(in):    index of LOCAL hru
-                  iHRU,                                   & ! intent(in):    index of GLOBAL hru
+                  iHRU+strtHRU-1,                         & ! intent(in):    index of GLOBAL hru
                   ! input-output
                   iFile,                                  & ! intent(inout): index of current forcing file in forcing file list
                   forcingStep,                            & ! intent(inout): index of read position in time dimension in current netcdf file
