@@ -297,6 +297,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
 
  ! initialize canopy variables
+ ! NOTE: Currently we expect three vegetation state variables (canopy air space temperature, canopy temperature, and intercepted water).
+ !       The code here assumes that there are no other vegetation states, hence the check.
  if(nVegState==3)then
   ! (extract state variables)
   scalarCanairTempTrial = stateVec(ixCasNrg)

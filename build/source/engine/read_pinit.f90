@@ -65,7 +65,7 @@ contains
  character(LEN=256)                     :: ffmt           ! file format
  character(LEN=32)                      :: varname        ! name of variable
  type(par_info)                         :: parTemp        ! temporary parameter structure
- character(len=2)                       :: dLim           ! column delimiter
+ character(LEN=2)                       :: dLim           ! column delimiter
  integer(i4b)                           :: ivar           ! index of model variable
  ! Start procedure here
  err=0; message="read_pinit/"

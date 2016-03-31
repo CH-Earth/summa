@@ -89,6 +89,7 @@ contains
   case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (36) choice of albedo representation
   case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (37) choice of method for spatial representation of groundwater
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (38) choice of method for sub-grid routing
+  case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! (39) choice of method for new snow density
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = imiss
@@ -247,13 +248,19 @@ contains
   case('newSnowDenMin'            ); get_ixparam = iLookPARAM%newSnowDenMin          ! minimum new snow density (kg m-3)
   case('newSnowDenMult'           ); get_ixparam = iLookPARAM%newSnowDenMult         ! multiplier for new snow density (kg m-3)
   case('newSnowDenScal'           ); get_ixparam = iLookPARAM%newSnowDenScal         ! scaling factor for new snow density (K)
+  case('constSnowDen'             ); get_ixparam = iLookPARAM%constSnowDen           ! Constant new snow density (kg m-3)
+  case('newSnowDenAdd'            ); get_ixparam = iLookPARAM%newSnowDenAdd          ! Pahaut 1976, additive factor for new snow density (kg m-3)
+  case('newSnowDenMultTemp'       ); get_ixparam = iLookPARAM%newSnowDenMultTemp     ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
+  case('newSnowDenMultWind'       ); get_ixparam = iLookPARAM%newSnowDenMultWind     ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
+  case('newSnowDenMultAnd'        ); get_ixparam = iLookPARAM%newSnowDenMultAnd      ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
+  case('newSnowDenBase'           ); get_ixparam = iLookPARAM%newSnowDenBase         ! Anderson 1976, base value that is rasied to the (3/2) power (K)
   ! snow compaction
   case('densScalGrowth'           ); get_ixparam = iLookPARAM%densScalGrowth         ! density scaling factor for grain growth (kg-1 m3)
   case('tempScalGrowth'           ); get_ixparam = iLookPARAM%tempScalGrowth         ! temperature scaling factor for grain growth (K-1)
   case('grainGrowthRate'          ); get_ixparam = iLookPARAM%grainGrowthRate        ! rate of grain growth (s-1)
   case('densScalOvrbdn'           ); get_ixparam = iLookPARAM%densScalOvrbdn         ! density scaling factor for overburden pressure (kg-1 m3)
   case('tempScalOvrbdn'           ); get_ixparam = iLookPARAM%tempScalOvrbdn         ! temperature scaling factor for overburden pressure (K-1)
-  case('base_visc'                ); get_ixparam = iLookPARAM%base_visc              ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
+  case('baseViscosity'            ); get_ixparam = iLookPARAM%baseViscosity          ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
   ! water flow through snow
   case('Fcapil'                   ); get_ixparam = iLookPARAM%Fcapil                 ! capillary retention as a fraction of the total pore volume (-)
   case('k_snow'                   ); get_ixparam = iLookPARAM%k_snow                 ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
