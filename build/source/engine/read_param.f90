@@ -63,10 +63,11 @@ contains
  character(LEN=64),allocatable      :: chardata(:)      ! vector of character data
  logical(lgt)                       :: checkHRU(nHRU)   ! vector of flags to check that an HRU will be populated with parameter data
  integer(i4b)                       :: hruIndex         ! HRU identifier
- integer(i4b)                       :: iHRU,jHRU        ! index of HRU within data vector
+ integer(i4b)                       :: iHRU             ! index of HRU within data vector
  integer(i4b)                       :: kHRU,kGRU        ! index of HRU and GRU within data structure
  integer(i4b)                       :: ipar,jpar        ! index of model parameter
  integer(i4b)                       :: nPars            ! number of model parameters
+ integer(i4b)                       :: iRow,nRow        ! number of data lines in the file
  ! Start procedure here
  err=0; message="read_param/"
 
@@ -110,7 +111,9 @@ contains
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,charline,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- if(size(charline) /= nHRU)then
+ !check if the rows is less than desired HRUs
+ nRow = size(charline)
+ if(nRow < nHRU)then
   message=trim(message)//'incorrect number of HRUs in parameter file [file = '//trim(infile)//']'
   err=20; return
  endif
@@ -125,30 +128,33 @@ contains
  allocate(chardata(nPars),stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateChardata"; return; endif
 
- ! loop through the HRUs
- do iHRU=1,nHRU
-
-  ! get the vector of parameters for a given layer, and the HRU index
-  read(charline(iHRU),*,iostat=err) chardata
-  if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iHRU))//"']"; return; endif
-
-  ! get the HRU index
-  read(chardata(1),*,iostat=err) hruIndex
-  if(err/=0)then;err=41;message=trim(message)//"problemInternalRead [data='"//trim(chardata(1))//"']"; return; endif
+ ! loop through the data lines (maybe it's better to locate HRU in the data file)
 
   ! identify the HRU index
-  do jHRU=1,nHRU
-   kGRU=index_map(jHRU)%gru_ix
-   kHRU=index_map(jHRU)%ihru   
-   if(hruIndex == typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex))then
-    checkHRU(jHRU) = .true.
-    exit
-   endif
-   if(jHRU == nHRU)then ! we get to here if we have tested the last HRU and have not exited the loop
-    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',hruIndex,'; file='//trim(infile)//']'
-    err=20; return
-   endif
+  do iHRU=1,nHRU
+   kGRU=index_map(iHRU)%gru_ix
+   kHRU=index_map(iHRU)%ihru
+   
+   do iRow=1,nRow
+    ! get the vector of parameters for a given layer, and the HRU index
+    read(charline(iRow),*,iostat=err) chardata
+    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iRow))//"']"; return; endif
+
+    ! get the HRU index
+    read(chardata(1),*,iostat=err) hruIndex
+    if(err/=0)then;err=41;message=trim(message)//"problemInternalRead [data='"//trim(chardata(1))//"']"; return; endif
+
+    if(hruIndex == typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex))then
+     checkHRU(iHRU) = .true.
+     exit
+    endif
   end do
+
+  ! check if the HRU is found in the data
+  if(iRow > nRow)then ! we get to here if we have tested the last HRU and have not exited the loop
+   write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',hruIndex,'; file='//trim(infile)//']'
+   err=20; return
+  endif
 
   ! loop through the model parameters
   do ipar=2,nPars  ! start at #2 because the first "word" is the HRU index
@@ -162,18 +168,7 @@ contains
 
  end do    ! (looping through HRUs)
 
- ! check that all HRUs are populated
- if(count(checkHRU) /= nHRU)then
-  do iHRU=1,nHRU
-   if(.not.checkHRU(iHRU))then
-    kGRU=index_map(iHRU)%gru_ix
-    kHRU=index_map(iHRU)%ihru   
-    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',&
-                               typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex),'; file='//trim(infile)//']'
-    err=20; return
-   endif
-  end do  ! looping through HRUs
- endif   ! if some HRUs are not populated
+
 
  ! **********************************************************************************************
  deallocate(varnames,charline,chardata,stat=err)
