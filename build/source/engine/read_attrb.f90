@@ -172,7 +172,7 @@ contains
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for netcdf variable ['//trim(var_name)//']'; return; endif
 
     ! grab variable from netcdf file
-    err = nf90_get_var(ncid,ivars,categorical_var,start=max(1,strtHRU),count=nHRU)
+    err = nf90_get_var(ncid,ivars,categorical_var,start=(/max(1,strtHRU)/),count=(/nHRU/))
     if(err/=0)then; message=trim(message)//'problem reading: '//trim(var_name); return; endif
 
     ! set attribute to GRU & HRU
@@ -195,7 +195,7 @@ contains
     if(varIndx(iAtt) < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(var_name)//'] in data structure'; return; endif
 
     ! grab variable from netcdf file
-    err = nf90_get_var(ncid,ivars,numeric_var,start=max(1,strtHRU),count=nHRU)
+    err = nf90_get_var(ncid,ivars,numeric_var,start=(/max(1,strtHRU)/),count=(/nHRU/))
     if(err/=0)then; message=trim(message)//'problem reading: '//trim(var_name); return; endif
 
     ! set attribute to GRU & HRU

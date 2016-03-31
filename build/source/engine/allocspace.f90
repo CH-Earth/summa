@@ -85,7 +85,7 @@ contains
  integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
  integer(i4b)                         :: varid              ! variable id from netcdf file
  integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
- integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
+ !integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
  integer(i4b),allocatable             :: hru_id(:)          ! unique id of hru over entire domain
  integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs
  integer(i4b),allocatable             :: hru2gru_id(:)      ! unique GRU ids at each HRU
@@ -125,11 +125,13 @@ contains
  allocate(gru_id(nHRU),hru_id(nHRU),hru2gru_id(nHRU),index_map(nHRU),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
  
- err = nf90_inq_varid(ncid, "hruId", varid);                               if(err/=0)then; message=trim(message)//'problem finding hruId variable'; return; endif
- err = nf90_get_var(ncid,varid,hru_id,start=max(strtHRU,1),count=nHRU);    if(err/=0)then; message=trim(message)//'problem reading hruId variable'; return; endif  
+ err = nf90_inq_varid(ncid, "hruId", varid); if(err/=0)then; message=trim(message)//'problem finding hruId variable'; return; endif
+ err = nf90_get_var(ncid,varid,hru_id,start=(/max(strtHRU,1)/),count=(/nHRU/))
+ if(err/=0)then; message=trim(message)//'problem reading hruId variable'; return; endif  
  
- err = nf90_inq_varid(ncid, "hru2gruId", varid);                           if(err/=0)then; message=trim(message)//'problem finding hru2gruId variable'; return; endif
- err = nf90_get_var(ncid,varid,hru2gru_id,start=max(strtHRU,1),count=nHRU);if(err/=0)then; message=trim(message)//'problem reading hru2gruId variable'; return; endif
+ err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=0)then; message=trim(message)//'problem finding hru2gruId variable'; return; endif
+ err = nf90_get_var(ncid,varid,hru2gru_id,start=(/max(strtHRU,1)/),count=(/nHRU/))
+ if(err/=0)then; message=trim(message)//'problem reading hru2gruId variable'; return; endif
  
  ! extract unique GRU 
  nGRU = 1
@@ -171,8 +173,8 @@ contains
  do i=1,nHRU
   gru_struc(index_map(i)%gru_ix)%hruCount = gru_struc(index_map(i)%gru_ix)%hruCount + 1
   index_map(i)%ihru = gru_struc(index_map(i)%gru_ix)%hruCount
-  gru_struc(index_map(iHRU)%gru_ix)%hruInfo(gru_struc(index_map(iHRU)%gru_ix)%hruCount)%hru_id = hru_id(i)
-  gru_struc(index_map(iHRU)%gru_ix)%hruInfo(gru_struc(index_map(iHRU)%gru_ix)%hruCount)%hru_ix = i
+  gru_struc(index_map(i)%gru_ix)%hruInfo(gru_struc(index_map(i)%gru_ix)%hruCount)%hru_id = hru_id(i)
+  gru_struc(index_map(i)%gru_ix)%hruInfo(gru_struc(index_map(i)%gru_ix)%hruCount)%hru_ix = i
  end do
  
 
