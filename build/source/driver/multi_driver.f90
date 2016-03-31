@@ -310,8 +310,6 @@ call initStruct(&
                 ! output: error control
                 err,message)   ; call handle_err(err,message)
 
-! get the 
-
 ! read local attributes for each HRU
 call read_attrb(nHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
 
@@ -533,7 +531,7 @@ do istep=1,numtim
 
  ! print progress
  if(globalPrintFlag)then
-  if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+  if(timeStruct%var(iLookTIME%ih) >0) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
  endif
 
  ! call vegetation phenology here to see if we compute the vegetation flux on the first time step

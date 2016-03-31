@@ -403,6 +403,7 @@ contains
  ! (layer "iSnow" will be filled with a combined layer later)
  ! ***********************************************************************************************************
  subroutine rmLyAllVars(dataStruct,metaStruct,iSnow,err,message)
+ USE f2008funcs_module,only:cloneStruc            ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
  USE data_types,only:var_ilength,var_dlength      ! data vectors with variable length dimension
  USE data_types,only:var_info                     ! metadata structure
  implicit none
@@ -421,6 +422,7 @@ contains
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
  real(dp),allocatable            :: tempVec_dp(:)  ! temporary vector (double precision)
  integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
+ character(LEN=256)              :: cmessage       ! error message of downwind routine
  ! initialize error control
  err=0; message="rmLyAllVars/"
 
@@ -453,9 +455,9 @@ contains
     ! deallocate the data vector: strictly not necessary, but include to be safe 
     deallocate(dataStruct%var(ivar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; endif
-    ! create the new data structure using the temporary vector as the source 
-    allocate(dataStruct%var(ivar)%dat, source=tempVec_dp, stat=err)
-    if(err/=0)then; err=20; message='problem allocating data vector'; return; endif
+    ! create the new data structure using the temporary vector as the source
+    call cloneStruc(dataStruct%var(ivar)%dat, source=tempVec_dp, err=err, message=cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_dp,stat=err)
     if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
@@ -475,8 +477,8 @@ contains
     deallocate(dataStruct%var(ivar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; endif
     ! create the new data structure using the temporary vector as the source
-    allocate(dataStruct%var(ivar)%dat, source=tempVec_i4b, stat=err)
-    if(err/=0)then; err=20; message='problem allocating data vector'; return; endif
+    call cloneStruc(dataStruct%var(ivar)%dat, source=tempVec_i4b, err=err, message=cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_i4b,stat=err)
     if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif

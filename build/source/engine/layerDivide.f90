@@ -358,6 +358,7 @@ contains
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
  subroutine addModelLayer(dataStruct,metaStruct,ix_divide,err,message)
+ USE f2008funcs_module,only:cloneStruc             ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
  USE data_types,only:var_ilength,var_dlength       ! data vectors with variable length dimension
  USE data_types,only:var_info                      ! metadata structure
  implicit none
@@ -378,6 +379,7 @@ contains
  logical(lgt)                    :: stateVariable  ! .true. if variable is a state variable
  real(dp),allocatable            :: tempVec_dp(:)  ! temporary vector (double precision)
  integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
+ character(LEN=256)              :: cmessage       ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='addModelLayer/'
@@ -408,8 +410,8 @@ contains
     ! check allocated
     if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
     ! assign the data vector to the temporary vector
-    allocate(tempVec_dp, source=dataStruct%var(ivar)%dat)
-    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    call cloneStruc(tempVec_dp, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! reallocate space for the new vector
     deallocate(dataStruct%var(ivar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
@@ -438,8 +440,8 @@ contains
     ! check allocated
     if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
     ! assign the data vector to the temporary vector
-    allocate(tempVec_i4b, source=dataStruct%var(ivar)%dat)
-    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    call cloneStruc(tempVec_i4b, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! reallocate space for the new vector
     deallocate(dataStruct%var(ivar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
