@@ -140,6 +140,13 @@ contains
  ! close the HRU_ATTRIBUTES netCDF file
  err = nf90_close(ncid)
  if(err/=0)then; err=20; message=trim(message)//'error closing zLocalAttributes file'; return; endif
+
+ ! check allocation was successful
+ if(.not.allocated(gru_struc))then
+  message=trim(message)//'gru_struc is not allocated'
+  err=20; return
+ endif
+
  end subroutine allocate_gru_struc
 
  ! ************************************************************************************************
