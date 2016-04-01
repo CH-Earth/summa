@@ -34,21 +34,20 @@ contains
  ! ************************************************************************************************
  ! public subroutine cloneStruc_rv: clone a data structure (real vector)
  ! ************************************************************************************************
- subroutine cloneStruc_rv(dataVec,source,mold,err,message)
+ subroutine cloneStruc_rv(dataVec,lowerBound,source,mold,err,message)
  implicit none
  ! input-output: data vector for allocation/population
- real(dp),intent(inout),allocatable     :: dataVec(:)     ! data vector
- ! optional input
- class(*),intent(in),optional           :: source(:)      ! dataVec = shape of source + elements of source
- class(*),intent(in),optional           :: mold(:)        ! dataVec = shape of mold
+ real(dp),intent(inout),allocatable     :: dataVec(:)            ! data vector
+ ! input
+ integer(i4b),intent(in)                :: lowerBound            ! lower bound
+ real(dp),intent(in),optional           :: source(lowerBound:)   ! dataVec = shape of source + elements of source
+ real(dp),intent(in),optional           :: mold(lowerBound:)     ! dataVec = shape of mold
  ! error control
- integer(i4b),intent(out)               :: err            ! error code
- character(*),intent(out)               :: message        ! error message
+ integer(i4b),intent(out)               :: err                   ! error code
+ character(*),intent(out)               :: message               ! error message
  ! ----------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                           :: lowerBound     ! lower bound of the data vector
- integer(i4b)                           :: upperBound     ! upper bound of the data vector
- character(LEN=256)                     :: cmessage       ! error message from downwind routine
+ integer(i4b),dimension(1)              :: upperBound            ! upper bound of the data vector (array)
  ! -----------------------------------------------------------------------------------------------------------------------------------
  ! initialize errors
  err=0; message="cloneStruc_rv/"
@@ -65,44 +64,37 @@ contains
   err=20; return
  endif
 
- ! get the bounds of the source or the mold vector
- if(present(source)) call getVecBounds(source,lowerBound,upperBound,err,cmessage)
- if(present(mold))   call getVecBounds(mold,  lowerBound,upperBound,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! get the upper bounds of the source or the mold vector
+ if(present(source))then; upperBound=ubound(source); endif
+ if(present(mold))  then; upperBound=ubound(source); endif
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
- allocate(dataVec(lowerBound:upperBound),stat=err)
+ allocate(dataVec(lowerBound:upperBound(1)),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; endif
 
  ! copy data
- if(present(source))then
-  select type(source)
-   type is(real(dp)); dataVec(lowerBound:upperBound) = source(lowerBound:upperBound)
-   class default; err=20; message=trim(message)//'expect source to be of type real(dp)'; return
-  end select
- endif  ! if source is present
+ if(present(source)) dataVec(lowerBound:upperBound(1)) = source(lowerBound:upperBound(1))
 
  end subroutine cloneStruc_rv
 
  ! ************************************************************************************************
  ! public subroutine cloneStruc_iv: clone a data structure (integer vector)
  ! ************************************************************************************************
- subroutine cloneStruc_iv(dataVec,source,mold,err,message)
+ subroutine cloneStruc_iv(dataVec,lowerBound,source,mold,err,message)
  implicit none
  ! input-output: data vector for allocation/population
- integer(i4b),intent(inout),allocatable :: dataVec(:)     ! data vector
- ! optional input
- class(*),intent(in),optional           :: source(:)      ! dataVec = shape of source + elements of source
- class(*),intent(in),optional           :: mold(:)        ! dataVec = shape of mold
+ integer(i4b),intent(inout),allocatable :: dataVec(:)            ! data vector
+ ! input
+ integer(i4b),intent(in)                :: lowerBound            ! lower bound
+ integer(i4b),intent(in),optional       :: source(lowerBound:)   ! dataVec = shape of source + elements of source
+ integer(i4b),intent(in),optional       :: mold(lowerBound:)     ! dataVec = shape of mold
  ! error control
- integer(i4b),intent(out)               :: err            ! error code
- character(*),intent(out)               :: message        ! error message
+ integer(i4b),intent(out)               :: err                   ! error code
+ character(*),intent(out)               :: message               ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                           :: lowerBound     ! lower bound of the data vector
- integer(i4b)                           :: upperBound     ! upper bound of the data vector
- character(LEN=256)                     :: cmessage       ! error message from downwind routine
+ integer(i4b),dimension(1)              :: upperBound            ! upper bound of the data vector (array)
  ! -----------------------------------------------------------------------------------------------------------------------------------
  ! initialize errors
  err=0; message="cloneStruc_iv/"
@@ -119,51 +111,18 @@ contains
   err=20; return
  endif
 
- ! get the bounds of the source or the mold vector
- if(present(source)) call getVecBounds(source,lowerBound,upperBound,err,cmessage)
- if(present(mold))   call getVecBounds(mold,  lowerBound,upperBound,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ ! get the upper bounds of the source or the mold vector
+ if(present(source))then; upperBound=ubound(source); endif
+ if(present(mold))  then; upperBound=ubound(source); endif
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
- allocate(dataVec(lowerBound:upperBound),stat=err)
+ allocate(dataVec(lowerBound:upperBound(1)),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; endif
 
  ! copy data
- if(present(source))then
-  select type(source)
-   type is(integer(i4b)); dataVec(lowerBound:upperBound) = source(lowerBound:upperBound)
-   class default; err=20; message=trim(message)//'expect source to be of type integer(i4b)'; return
-  end select
- endif  ! if source is present
+ if(present(source)) dataVec(lowerBound:upperBound(1)) = source(lowerBound:upperBound(1))
 
  end subroutine cloneStruc_iv
-
- ! ************************************************************************************************
- ! private subroutine getVecSize: get the size of a data vector
- ! ************************************************************************************************
- subroutine getVecBounds(dataVec,lowerBound,upperBound,err,message)
- implicit none
- ! dummy variables
- class(*),intent(in)       :: dataVec(:)     ! data vector
- integer(i4b),intent(out)  :: lowerBound     ! lower bound of the data vector
- integer(i4b),intent(out)  :: upperBound     ! upper bound of the data vector
- integer(i4b),intent(out)  :: err            ! error code
- character(*),intent(out)  :: message        ! error message
- ! local variables
- integer(i4b),dimension(1) :: lowerBoundVec  ! lower bound of the data vector
- integer(i4b),dimension(1) :: upperBoundVec  ! upper bound of the data vector
- ! initialize errors
- err=0; message="getVecBounds/"
- ! get the size of the data vector
- select type(dataVec)
-  type is(real(dp)    ); lowerBoundVec= lBound(dataVec); upperBoundVec= uBound(dataVec)
-  type is(integer(i4b)); lowerBoundVec= lBound(dataVec); upperBoundVec= uBound(dataVec)
-  class default; err=20; message=trim(message)//'unable to identify data type'; return
- end select
- ! return bounds
- lowerBound = lowerBoundVec(1)
- upperBound = upperBoundVec(1)
- end subroutine getVecBounds
 
 end module f2008funcs_module

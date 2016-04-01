@@ -607,24 +607,24 @@ do istep=1,numtim
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
  ! compute the exposed LAI and SAI and whether veg is buried by snow
- if(istep==1)then  ! (call phenology here because we need the time information)
+ if(istep==1)then  
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
 
     ! get vegetation phenology
     call vegPhenlgy(&
                     ! input/output: data structures
-                    model_decisions,             & ! intent(in):    model decisions
-                    typeStruct%hru(iHRU),        & ! intent(in):    type of vegetation and soil
-                    attrStruct%hru(iHRU),        & ! intent(in):    spatial attributes
-                    mparStruct%hru(iHRU),        & ! intent(in):    model parameters
-                    progStruct%hru(iHRU),        & ! intent(in):    model prognostic variables for a local HRU
-                    diagStruct%hru(iHRU),        & ! intent(inout): model diagnostic variables for a local HRU
+                    model_decisions,                & ! intent(in):    model decisions
+                    typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    type of vegetation and soil
+                    attrStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    spatial attributes
+                    mparStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model parameters
+                    progStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model prognostic variables for a local HRU
+                    diagStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model diagnostic variables for a local HRU
                     ! output
-                    computeVegFlux(iHRU),        & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                    notUsed_canopyDepth,         & ! intent(out): NOT USED: canopy depth (m)
-                    notUsed_exposedVAI,          & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
-                    err,message)                   ! intent(out): error control
+                    computeVegFluxFlag,             & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                    notUsed_canopyDepth,            & ! intent(out): NOT USED: canopy depth (m)
+                    notUsed_exposedVAI,             & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
+                    err,message)                      ! intent(out): error control
     call handle_err(err,message)
 
     ! save the flag for computing the vegetation fluxes
@@ -909,26 +909,26 @@ contains
  print*, 'error, variable dump:'
  print*, 'istep              = ', istep
  if(iHRU<=nHRU)then
-  print*, 'HRU index          = ', typeStruct%hru(iHRU)%var(iLookTYPE%hruIndex)
-  print*, 'pptrate            = ', forcStruct%hru(iHRU)%var(iLookFORCE%pptrate)
-  print*, 'airtemp            = ', forcStruct%hru(iHRU)%var(iLookFORCE%airtemp)
-  print*, 'theta_res          = ', mparStruct%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
-  print*, 'theta_sat          = ', mparStruct%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
-  print*, 'plantWiltPsi       = ', mparStruct%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
-  print*, 'soilStressParam    = ', mparStruct%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
-  print*, 'critSoilWilting    = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
-  print*, 'critSoilTranspire  = ', mparStruct%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
-  print*, 'scalarSWE          = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
-  print*, 'scalarSnowDepth    = ', progStruct%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
-  print*, 'scalarCanopyTemp   = ', progStruct%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
-  print*, 'scalarRainPlusMelt = ', fluxStruct%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
-  write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%hru(iHRU)%var(iLookINDEX%layerType)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
-  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
-  print*, 'mLayerMatricHead   = ', progStruct%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
-  print*, 'column inflow      = ', fluxStruct%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
+  print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
+  print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
+  print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
+  print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
+  print*, 'theta_sat          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
+  print*, 'plantWiltPsi       = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
+  print*, 'soilStressParam    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
+  print*, 'critSoilWilting    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
+  print*, 'critSoilTranspire  = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
+  print*, 'scalarSWE          = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
+  print*, 'scalarSnowDepth    = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
+  print*, 'scalarCanopyTemp   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
+  print*, 'scalarRainPlusMelt = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
+  write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
+  write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
+  print*, 'mLayerMatricHead   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
+  print*, 'column inflow      = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
  endif
  print*,'error code = ', err
  print*, timeStruct%var

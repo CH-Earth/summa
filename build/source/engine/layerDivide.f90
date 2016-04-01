@@ -410,7 +410,7 @@ contains
     ! check allocated
     if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
     ! assign the data vector to the temporary vector
-    call cloneStruc(tempVec_dp, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
+    call cloneStruc(tempVec_dp, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! reallocate space for the new vector
     deallocate(dataStruct%var(ivar)%dat,stat=err)
@@ -440,7 +440,7 @@ contains
     ! check allocated
     if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
     ! assign the data vector to the temporary vector
-    call cloneStruc(tempVec_i4b, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
+    call cloneStruc(tempVec_i4b, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! reallocate space for the new vector
     deallocate(dataStruct%var(ivar)%dat,stat=err)
