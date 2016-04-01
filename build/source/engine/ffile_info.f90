@@ -36,7 +36,8 @@ contains
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE globalData,only:time_meta,forc_meta     ! model forcing metadata
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
- USE data_types,only:spatial_int             ! data type for categorical data x%hru(:)%var(:)     (i4b)
+ USE globalData,only:index_map               ! map global HRU indices to HRU and GRU indices in the data structures
+ USE data_types,only:gru_hru_int             ! data type for categorical data x%gru(:)%hru(:)%var(:)     (i4b)
  USE var_lookup,only:iLookTYPE               ! named variables to index elements of the data vectors
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
@@ -44,7 +45,7 @@ contains
  implicit none
  ! define input
  integer(i4b),intent(in)              :: nHRU           ! number of hydrologic response units
- type(spatial_int),intent(in)         :: typeStruct     ! local classification of soil veg etc. for each HRU
+ type(gru_hru_int),intent(in)         :: typeStruct     ! local classification of soil veg etc. for each HRU
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
@@ -66,6 +67,8 @@ contains
  integer(i4b)                         :: ivar           ! index of model variable
  integer(i4b)                         :: iHRU,jHRU,kHRU ! index of HRUs (position in vector)
  integer(i4b)                         :: hruIndex       ! identifier of each HRU
+ integer(i4b)                         :: ix_gru         ! index of GRU that corresponds to the global HRU
+ integer(i4b)                         :: ix_hru         ! index of local HRU that corresponds to the global HRU
  real(dp)                             :: dataStep_iHRU  ! data step for a given forcing data file
  ! Start procedure here
  err=0; message="ffile_info/"
@@ -88,12 +91,16 @@ contains
  if(size(dataLines) /= nHRU)then; err=20; message=trim(message)//'incorrect number of HRUs in file ['//trim(infile)//']'; return; endif
  ! loop through list of forcing descriptor files and put in the appropriate place in the data structure
  do iHRU=1,nHRU
-  ! split the line into "words" (expect two words: the HRU index, and the file describing forcing data for that index)
+  ! split the line into "words" (expect three words: the GRU index,the HRU index, and the file describing forcing data for that index)
   read(dataLines(iHRU),*,iostat=err) hruIndex, filenameDesc
   if(err/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; endif
-  ! identify the HRU index
+  ! identify the index in the data structure
   do jHRU=1,nHRU
-   if(hruIndex == typeStruct%hru(jHRU)%var(iLookTYPE%hruIndex))then
+   ! get the mapping to the data structure
+   ix_gru = index_map(jHRU)%gru_ix
+   ix_hru = index_map(jHRU)%ihru
+   ! identify the index
+   if(hruIndex == typeStruct%gru(ix_gru)%hru(ix_hru)%var(iLookTYPE%hruIndex))then
     kHRU=jHRU
     exit
    endif
@@ -101,7 +108,7 @@ contains
     write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in forcing file description [index = ',hruIndex,'; file='//trim(infile)//']'
     err=20; return
    endif
-  end do
+  end do ! jHRU
   ! put the filename in the structure
   forcFileInfo(kHRU)%filenmDesc = trim(filenameDesc)
   write(*,'(2(a,1x),2(i6,1x))') 'filenameDesc, hruIndex, kHRU = ', trim(filenameDesc), hruIndex, kHRU

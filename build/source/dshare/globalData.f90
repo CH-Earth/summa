@@ -21,13 +21,15 @@
 MODULE globalData
  ! data types
  USE nrtype
- USE data_types,only: model_options  ! the model decision structure
- USE data_types,only: file_info      ! metadata for model forcing datafile
- USE data_types,only: par_info       ! default parameter values and parameter bounds
- USE data_types,only: var_info       ! metadata for variables in each model structure
- USE data_types,only: extended_info  ! extended metadata for variables in each model structure
- USE data_types,only: struct_info    ! summary information on all data structures 
- USE data_types,only: var_i          ! vector of integers 
+ USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
+ USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
+ USE data_types,only:model_options   ! the model decision structure
+ USE data_types,only:file_info       ! metadata for model forcing datafile
+ USE data_types,only:par_info        ! default parameter values and parameter bounds
+ USE data_types,only:var_info        ! metadata for variables in each model structure
+ USE data_types,only:extended_info   ! extended metadata for variables in each model structure
+ USE data_types,only:struct_info     ! summary information on all data structures 
+ USE data_types,only:var_i           ! vector of integers 
  ! number of variables in each data structure
  USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
  USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
@@ -97,6 +99,10 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixWatState=2002         ! named variable defining the total water state variable
  integer(i4b),parameter,public               :: ixMatState=2003         ! named variable defining the matric head state variable
  integer(i4b),parameter,public               :: ixMassState=2004        ! named variable defining the mass of water (currently only used for the veg canopy)
+
+ ! define mapping structures
+ type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing
+ type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map ! NOTE: change variable name to be more self describing
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps

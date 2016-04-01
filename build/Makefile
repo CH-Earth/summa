@@ -177,6 +177,7 @@ SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 SUMMA_PRELIM= \
 		conv_funcs.f90 \
 		f2008funcs.f90 \
+		netcdf_util.f90 \
 		ascii_util.f90 \
 		sunGeomtry.f90 \
 		get_ixname.f90 \

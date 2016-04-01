@@ -37,15 +37,16 @@ contains
  USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
  USE get_ixname_module,only:get_ixparam              ! access function to find index of elements in structure
- USE data_types,only:spatial_int                     ! spatial integer data type: x%hru(:)%var(:)
- USE data_types,only:spatial_double                  ! spatial double data type: x%hru(:)%var(:)
+ USE data_types,only:gru_hru_int                     ! spatial integer data type: x%hru(:)%var(:)
+ USE data_types,only:gru_hru_double                  ! spatial double data type: x%hru(:)%var(:)
+ USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input
- integer(i4b),        intent(in)    :: nHRU             ! number of HRUs
- type(spatial_int),   intent(in)    :: typeStruct       ! local classification of soil veg etc. for each HRU
+ integer(i4b),        intent(in)    :: nHRU             ! number of global HRUs
+ type(gru_hru_int),   intent(in)    :: typeStruct       ! local classification of soil veg etc. for each HRU
  ! define output
- type(spatial_double),intent(inout) :: mparStruct       ! model parameters
+ type(gru_hru_double),intent(inout) :: mparStruct       ! model parameters
  integer(i4b),        intent(out)   :: err              ! error code
  character(*),        intent(out)   :: message          ! error message
  ! define local variables
@@ -62,11 +63,13 @@ contains
  character(LEN=64),allocatable      :: chardata(:)      ! vector of character data
  logical(lgt)                       :: checkHRU(nHRU)   ! vector of flags to check that an HRU will be populated with parameter data
  integer(i4b)                       :: hruIndex         ! HRU identifier
- integer(i4b)                       :: iHRU,jHRU,kHRU   ! index of HRU within data vector
+ integer(i4b)                       :: iHRU,jHRU        ! index of HRU within data vector
+ integer(i4b)                       :: kHRU,kGRU        ! index of HRU and GRU within data structure
  integer(i4b)                       :: ipar,jpar        ! index of model parameter
  integer(i4b)                       :: nPars            ! number of model parameters
  ! Start procedure here
  err=0; message="read_param/"
+
  ! **********************************************************************************************
  ! (1) open files, etc.
  ! **********************************************************************************************
@@ -75,6 +78,7 @@ contains
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  ! **********************************************************************************************
  ! (2) read the parameter names
  ! **********************************************************************************************
@@ -99,6 +103,7 @@ contains
   message=trim(message)//'expect first parameter name to be the HRU index [file = '//trim(infile)//']'
   err=20; return
  endif
+
  ! **********************************************************************************************
  ! (3) read parameter data (continue reading from previous point in the file)
  ! **********************************************************************************************
@@ -109,6 +114,7 @@ contains
   message=trim(message)//'incorrect number of HRUs in parameter file [file = '//trim(infile)//']'
   err=20; return
  endif
+
  ! **********************************************************************************************
  ! (4) populate the model parameter vectors
  ! **********************************************************************************************
@@ -119,7 +125,7 @@ contains
  allocate(chardata(nPars),stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateChardata"; return; endif
 
- ! loop through parameter sets
+ ! loop through the HRUs
  do iHRU=1,nHRU
 
   ! get the vector of parameters for a given layer, and the HRU index
@@ -132,8 +138,9 @@ contains
 
   ! identify the HRU index
   do jHRU=1,nHRU
-   if(hruIndex == typeStruct%hru(jHRU)%var(iLookTYPE%hruIndex))then
-    kHRU=jHRU
+   kGRU=index_map(jHRU)%gru_ix
+   kHRU=index_map(jHRU)%ihru   
+   if(hruIndex == typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex))then
     checkHRU(jHRU) = .true.
     exit
    endif
@@ -149,7 +156,7 @@ contains
    jpar = get_ixparam(trim(varnames(ipar)))
    if(jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
    ! populate the appropriate element of the parameter vector
-   read(chardata(ipar),*,iostat=err) mparStruct%hru(kHRU)%var(jpar)
+   read(chardata(ipar),*,iostat=err) mparStruct%gru(kGRU)%hru(kHRU)%var(jpar)
    if(err/=0)then;err=40;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
   end do    ! (looping through model parameters)
 
@@ -159,7 +166,10 @@ contains
  if(count(checkHRU) /= nHRU)then
   do iHRU=1,nHRU
    if(.not.checkHRU(iHRU))then
-    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',typeStruct%hru(iHRU)%var(iLookTYPE%hruIndex),'; file='//trim(infile)//']'
+    kGRU=index_map(iHRU)%gru_ix
+    kHRU=index_map(iHRU)%ihru   
+    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',&
+                               typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex),'; file='//trim(infile)//']'
     err=20; return
    endif
   end do  ! looping through HRUs
