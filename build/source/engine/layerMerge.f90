@@ -384,7 +384,6 @@ contains
  prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iSnow) = cVolFracIce
  prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iSnow) = cVolFracLiq
 
- print*, 'nSnow = ', nSnow
  ! ***** adjust coordinate variables
  call calcHeight(&
                  ! input/output: data structures
