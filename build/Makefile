@@ -150,7 +150,11 @@ DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
 # utility modules
 SUMMA_UTILMS= \
-		time_utils.f90
+		get_ixname.f90 \
+		time_utils.f90 \
+		ascii_util.f90 \
+		f2008funcs.f90 \
+		mDecisions.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
 # Model guts
@@ -176,12 +180,7 @@ SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 # Define routines for SUMMA preliminaries
 SUMMA_PRELIM= \
 		conv_funcs.f90 \
-		f2008funcs.f90 \
-		netcdf_util.f90 \
-		ascii_util.f90 \
 		sunGeomtry.f90 \
-		get_ixname.f90 \
-		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
 		updatState.f90 \
@@ -229,6 +228,7 @@ SUMMA_MSOLVE = \
 
 # Define NetCDF routines
 SUMMA_NETCDF = \
+		netcdf_util.f90 \
 		def_output.f90 \
 		modelwrite.f90
 NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(SUMMA_NETCDF))
@@ -237,7 +237,7 @@ NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(SUMMA_NETCDF))
 COMM_ALL = $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) $(UTILMS)
 
 # ... stitch together SUMMA programs
-SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
+SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER)
 
 # Define the driver routine
 SUMMA_DRIVER= \
