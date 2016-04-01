@@ -57,6 +57,7 @@ contains
  character(*),intent(out)           :: message        ! error message
  ! local variables
  integer(i4b)                       :: iLayer         ! loop through layers
+ integer(i4b)                       :: ixLower(1)     ! index of the lower bound
  ! ----------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='calcHeight/'
@@ -74,6 +75,7 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! initialize layer height as the top of the snowpack -- positive downward
+ ixLower=lbound(iLayerHeight); if(ixLower(1) > 0)then; err=20; message=trim(message)//'unexpected lower bound for iLayerHeight'; return; endif
  iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==ix_snow)
 
  ! loop through layers

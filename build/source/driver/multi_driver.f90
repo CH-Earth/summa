@@ -252,8 +252,13 @@ call popMetadat(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! create the averageFlux metadata structure
+! define the mask to identify the subset of variables in the "child" data structure
+! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
+!       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
+!        and soil drainage (at interface=nSoil)
 flux_mask = (flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
+
+! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
 call handle_err(err,message)
 
@@ -536,13 +541,21 @@ do iGRU=1,nGRU
 
  ! initialize aquifer storage
  ! NOTE: this is ugly: need to add capabilities to initialize basin-wide state variables
+ ! There are two options for groundwater:
+ !  (1) where groundwater is included in the local column (i.e., the HRUs); and
+ !  (2) where groundwater is included for the single basin (i.e., the GRUS, where multiple HRUS drain into a GRU).
+ ! For water balance calculations it is important to ensure that the local aquifer storage is zero if groundwater is treated as a basin-average state variable (singleBasin);
+ !  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
  select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+  ! the basin-average aquifer storage is not used if the groundwater is included in the local column
   case(localColumn)
-   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp  ! not used
+   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp ! set to zero to be clear that there is no basin-average aquifer storage in this configuration 
+  ! NOTE: the local column aquifer storage is not used if the groundwater is basin-average
+  ! (i.e., where multiple HRUs drain to a basin-average aquifer)
   case(singleBasin)
    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._dp
    do iHRU=1,gru_struc(iGRU)%hruCount
-    progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! not used
+    progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! set to zero to be clear that there is no local aquifer storage in this configuration
    end do
   case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
  end select
@@ -592,13 +605,14 @@ do istep=1,numtim
  end do  ! (end looping through global HRUs)
 
  ! print progress
- !if(globalPrintFlag)then
-  !if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-  write(*,'(i4,1x,5(i2,1x))') timeStruct%var
- !endif
+ if(globalPrintFlag)then
+  if(timeStruct%var(iLookTIME%ih) >0) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+ endif
 
+ ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
+ !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
  ! compute the exposed LAI and SAI and whether veg is buried by snow
- if(istep==1)then  ! (call phenology here because we need the time information)
+ if(istep==1)then  
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
 

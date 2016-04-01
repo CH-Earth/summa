@@ -70,6 +70,7 @@ contains
  ! loop through data structures 
  do iStruct=1,nStruct
   ! convert the lookup structures to a character string
+  ! expect the lookup structures to be a vector (1,2,3,...,n)
   select case(trim(structInfo(iStruct)%structName))
    case('time');  write(longString,*) iLookTIME
    case('forc');  write(longString,*) iLookFORCE
@@ -85,14 +86,14 @@ contains
    case('deriv'); write(longString,*) iLookDERIV
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
-  ! convert the string to a character vector
-  call split_line(longString,words,err,cmessage)
+  ! check that the length of the lookup structure matches the number of variables in the data structure
+  call split_line(longString,words,err,cmessage) ! convert the long character string to a vector of "words"
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   if(size(words)/=structInfo(iStruct)%nVar)then; err=20; message=trim(message)//'unexpected number of elements'; return; endif
-  ! check that the integer value is appropriate
+  ! check that the elements in the lookup structure are sequential integers (1,2,3,...,n)
   do ix=1,structInfo(iStruct)%nVar
    read(words(ix),*) ixTest  ! convert character to integer; store in ixTest
-   if(ixTest/=ix)then
+   if(ixTest/=ix)then ! expect that the ix-th word is equal to ix
     write(message,'(a,i0,a)')trim(message)//'problem with structure constructor iLook'//trim(structInfo(iStruct)%lookName)//' [element=',ix,']'
     err=20; return
    endif
@@ -190,6 +191,9 @@ contains
     if(jVar>0)then   ! found the variable in structure jStruct
 
      ! --> check that the variable is in the correct structure
+     ! NOTE: The call to checkPopulated includes as input the index of the data structure being tested (iStruct)
+     !       We loop through all other data structures (jStruct), and get to here (jVar>0) if the variable is in another data structure (which could be ambiguous)
+     !       We return an error if the variable is in a structure OTHER than what is expected (i.e., jStruct/=iStruct)
      if(jStruct/=iStruct)then
       message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(structInfo(jStruct)%structName)//'_meta'
       err=20; return
@@ -198,6 +202,8 @@ contains
      else
 
       ! --> check that the variable index is correct
+      ! NOTE: Return an error if the variable name in the metadata structure returns an index that is inconsistent with the variable index
+      !       This can occur because (1) the code in popMetadat is corrupt (e.g., mis-match in look-up variable); or (2) var_lookup is corrupt.
       if(jVar/=iVar)then
        write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varname)//' has index ', iVar, ' (expect index ', jVar, '); problem possible in popMetadat, get_ix'//trim(structInfo(iStruct)%structName)//', or var_lookup'
        err=20; return
@@ -209,6 +215,8 @@ contains
     else
 
      ! --> check that we found the variable
+     ! NOTE: We get to here if the variable is not found AND we are in the correct structure.
+     !       This likely means that the variable needs to be added to the get_ix* subroutine.
      if(iStruct==jStruct)then
       message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
       err=20; return
