@@ -140,6 +140,13 @@ contains
  ! close the HRU_ATTRIBUTES netCDF file
  err = nf90_close(ncid)
  if(err/=0)then; err=20; message=trim(message)//'error closing zLocalAttributes file'; return; endif
+
+ ! check allocation was successful
+ if(.not.allocated(gru_struc))then
+  message=trim(message)//'gru_struc is not allocated'
+  err=20; return
+ endif
+
  end subroutine allocate_gru_struc
 
  ! ************************************************************************************************
@@ -195,6 +202,7 @@ contains
    type is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); endif
    type is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); endif
    type is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); endif
+   class default  ! do nothing: It is acceptable to not be any of these specified cases
   end select
   ! check errors
   if(check) then; err=20; message=trim(message)//'HRU structure was unexpectedly allocated already'; return; endif
@@ -276,7 +284,7 @@ contains
   if(.not.present(nSnow))then; err=20; message=trim(message)//'expect nSnow to be present when nSoil is present'; return; endif
   nLayers = nSnow+nSoil
 
- ! check that nSnow and nSoil are not needed
+ ! It is possible that nSnow and nSoil are actually needed here, so we return an error if the optional arguments are missing when needed
  else
   select type(dataStruct)
    type is (var_ilength); err=20
@@ -351,7 +359,7 @@ contains
     case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
    endselect
    ! check error
@@ -404,7 +412,7 @@ contains
     case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=initialize with zero-length vector
+    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
    endselect
    ! check error

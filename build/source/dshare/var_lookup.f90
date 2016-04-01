@@ -70,6 +70,7 @@ MODULE var_lookup
   integer(i4b)    :: thCondSoil = imiss     ! choice of thermal conductivity representation for soil
   integer(i4b)    :: spatial_gw = imiss     ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting = imiss     ! choice of method for sub-grid routing
+  integer(i4b)    :: snowDenNew = imiss     ! choice of method for new snow density
  endtype iLook_decision
 
  ! ***********************************************************************************************************
@@ -158,13 +159,19 @@ MODULE var_lookup
   integer(i4b)    :: newSnowDenMin         = imiss    ! minimum new snow density (kg m-3)
   integer(i4b)    :: newSnowDenMult        = imiss    ! multiplier for new snow density (kg m-3)
   integer(i4b)    :: newSnowDenScal        = imiss    ! scaling factor for new snow density (K)
+  integer(i4b)    :: constSnowDen          = imiss    ! constDens, Constant new snow density (kg m-3)
+  integer(i4b)    :: newSnowDenAdd         = imiss    ! Pahaut 1976, additive factor for new snow density (kg m-3)
+  integer(i4b)    :: newSnowDenMultTemp    = imiss    ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
+  integer(i4b)    :: newSnowDenMultWind    = imiss    ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
+  integer(i4b)    :: newSnowDenMultAnd     = imiss    ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
+  integer(i4b)    :: newSnowDenBase        = imiss    ! Anderson 1976, base value that is rasied to the (3/2) power (K)
   ! snow compaction
   integer(i4b)    :: densScalGrowth        = imiss    ! density scaling factor for grain growth (kg-1 m3)
   integer(i4b)    :: tempScalGrowth        = imiss    ! temperature scaling factor for grain growth (K-1)
   integer(i4b)    :: grainGrowthRate       = imiss    ! rate of grain growth (s-1)
   integer(i4b)    :: densScalOvrbdn        = imiss    ! density scaling factor for overburden pressure (kg-1 m3)
   integer(i4b)    :: tempScalOvrbdn        = imiss    ! temperature scaling factor for overburden pressure (K-1)
-  integer(i4b)    :: base_visc             = imiss    ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
+  integer(i4b)    :: baseViscosity         = imiss    ! viscosity coefficient at T=T_frz and snow density=0  (kg s m-2)
   ! water flow within snow
   integer(i4b)    :: Fcapil                = imiss    ! capillary retention as a fraction of the total pore volume (-)
   integer(i4b)    :: k_snow                = imiss    ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
@@ -574,11 +581,11 @@ MODULE var_lookup
   integer(i4b)    :: nVegMass               = imiss ! number of hydrology state variables for vegetation (mass of water)
   integer(i4b)    :: nVegState              = imiss ! number of vegetation state variables
   integer(i4b)    :: nNrgState              = imiss ! number of energy state variables
-  integer(i4b)    :: nWatState              = imiss ! number of "total water" state variables (volumetric total water content) 
+  integer(i4b)    :: nWatState              = imiss ! number of "total water" state variables (volumetric total water content)
   integer(i4b)    :: nMatState              = imiss ! number of matric head state variables
   integer(i4b)    :: nMassState             = imiss ! number of hydrology state variables (mass of water)
   integer(i4b)    :: nState                 = imiss ! total number of model state variables
-  ! number of model layers and layer indices= imiss 
+  ! number of model layers and layer indices= imiss
   integer(i4b)    :: nSnow                  = imiss ! number of snow layers
   integer(i4b)    :: nSoil                  = imiss ! number of soil layers
   integer(i4b)    :: nLayers                = imiss ! total number of layers
@@ -655,7 +662,7 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39)
 
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5)
@@ -684,7 +691,8 @@ MODULE var_lookup
                                                                         111,112,113,114,115,116,117,118,119,120,&
                                                                         121,122,123,124,125,126,127,128,129,130,&
                                                                         131,132,133,134,135,136,137,138,139,140,&
-                                                                        141,142,143,144,145,146,147)
+                                                                        141,142,143,144,145,146,147,148,149,150,&
+                                                                        151,152,153)
 
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -742,11 +750,10 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarBvar      = storage_size(iLookBVAR)/iLength
 
  ! ***********************************************************************************************************
- ! (Y) define ancillary look-up structures 
+ ! (Y) define ancillary look-up structures
  ! ***********************************************************************************************************
 
  integer(i4b), public          :: childFLUX_MEAN(maxvarFlux)  ! index of the child data structure: mean flux
- 
 
 
 END MODULE var_lookup

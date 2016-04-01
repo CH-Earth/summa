@@ -191,11 +191,6 @@ logical(lgt)                     :: computeVegFluxFlag         ! flag to indicat
 type(hru_i),allocatable          :: computeVegFlux(:)          ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow) 
 type(hru_d),allocatable          :: dt_init(:)                 ! used to initialize the length of the sub-step for each HRU
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
-! exfiltration
-real(dp),parameter               :: supersatScale=0.001_dp     ! scaling factor for the logistic function (-)
-real(dp),parameter               :: xMatch = 0.99999_dp        ! point where x-value and function value match (-)
-real(dp),parameter               :: safety = 0.01_dp           ! safety factor to ensure logistic function is less than 1
-real(dp),parameter               :: fSmall = epsilon(xMatch)   ! smallest possible value to test
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 integer(i4b)                     :: fileUnit                   ! file unit (output from file_open; a unit not currently used)
@@ -252,8 +247,13 @@ call popMetadat(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! create the averageFlux metadata structure
+! define the mask to identify the subset of variables in the "child" data structure
+! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
+!       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
+!        and soil drainage (at interface=nSoil)
 flux_mask = (flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
+
+! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
 call handle_err(err,message)
 
@@ -276,9 +276,6 @@ call allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
 ! code will be replaced once merge with the NetCDF branch
 
 ! NOTE: currently the same initial conditions for all HRUs and GRUs; will change when shift to NetCDF
-
-! check the GRU-HRU mapping structure is allocated
-if(.not.allocated(gru_struc)) call handle_err(err,'gru_struc is not allocated')
 
 ! loop through GRUs
 do iGRU=1,nGRU
@@ -321,6 +318,7 @@ end do  ! looping through HRUs
 
 ! loop through data structures
 do iStruct=1,size(structInfo)
+
  ! allocate space
  select case(trim(structInfo(iStruct)%structName))
   case('time'); call allocGlobal(time_meta,  timeStruct,  err, message)   ! model forcing data
@@ -337,9 +335,16 @@ do iStruct=1,size(structInfo)
   case('deriv');cycle   ! model derivatives -- no need to have the GRU dimension
   case default; call handle_err(20,'unable to identify lookup structure')
  end select
+
  ! check errors
  call handle_err(err,trim(message)//'[structure =  '//trim(structInfo(iStruct)%structName)//']')
+
 end do  ! looping through data structures
+
+! allocate space for default model parameters
+! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
+call allocGlobal(mpar_meta,  dparStruct,  err, message)   ! default model parameters
+call handle_err(err,trim(message)//' [problem allocating dparStruct]')
 
 ! allocate space for the time step and computeVegFlux flags (recycled for each GRU for subsequent calls to coupled_em)
 allocate(dt_init(nGRU),upArea(nGRU),computeVegFlux(nGRU),stat=err)
@@ -401,10 +406,6 @@ select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
  case default; call handle_err(30,'unable to identify vegetation category')
 end select
 
-! allocate space for default model parameters
-call allocGlobal(mpar_meta,  dparStruct,  err, message)   ! default model parameters
-call handle_err(err,trim(message)//' [problem allocating dparStruct]')
-
 ! set default model parameters
 do iGRU=1,nGRU
  do iHRU=1,gru_struc(iGRU)%hruCount
@@ -431,6 +432,11 @@ call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
 ! *****************************************************************************
 
+! define the file
+! NOTE: currently assumes that nSoil is constant across the model domain
+write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
+call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+  
 ! loop through GRUs
 do iGRU=1,nGRU
 
@@ -443,6 +449,18 @@ do iGRU=1,nGRU
  ! loop through local HRUs
  do iHRU=1,gru_struc(iGRU)%hruCount
 
+  kHRU=0
+  ! check the network topology (only expect there to be one downslope HRU)
+  do jHRU=1,nHRU
+   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+    if(kHRU==0)then  ! check there is a unique match
+     kHRU=jHRU
+    else
+     call handle_err(20,'multi_driver: only expect there to be one downslope HRU')
+    endif  ! (check there is a unique match)
+   endif  ! (if identified a downslope HRU)
+  end do
+  
   ! check that the parameters are consistent
   call paramCheck(mparStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
   
@@ -503,12 +521,6 @@ do iGRU=1,nGRU
   ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
   
-  ! define the file if the first HRU
-  if(iGRU==1 .and. iHRU==1) then
-   write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
-   call def_output(nHRU,gru_struc(iGRU)%hruInfo(iHRU)%nSoil,fileout,err,message); call handle_err(err,message)
-  endif
-  
   ! write local model attributes and parameters to the model output file
   call writeAttrb(fileout,iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
   call writeParam(fileout,iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
@@ -520,7 +532,7 @@ do iGRU=1,nGRU
   upArea(iGRU)%hru(iHRU) = 0._dp
   do jHRU=1,nHRU
    ! check if jHRU flows into iHRU
-   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex) ==  typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex))then
+   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex))then
     upArea(iGRU)%hru(iHRU) = upArea(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
    endif   ! (if jHRU is an upstream HRU)
   end do  ! jHRU
@@ -536,13 +548,21 @@ do iGRU=1,nGRU
 
  ! initialize aquifer storage
  ! NOTE: this is ugly: need to add capabilities to initialize basin-wide state variables
+ ! There are two options for groundwater:
+ !  (1) where groundwater is included in the local column (i.e., the HRUs); and
+ !  (2) where groundwater is included for the single basin (i.e., the GRUS, where multiple HRUS drain into a GRU).
+ ! For water balance calculations it is important to ensure that the local aquifer storage is zero if groundwater is treated as a basin-average state variable (singleBasin);
+ !  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
  select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+  ! the basin-average aquifer storage is not used if the groundwater is included in the local column
   case(localColumn)
-   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp  ! not used
+   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp ! set to zero to be clear that there is no basin-average aquifer storage in this configuration 
+  ! NOTE: the local column aquifer storage is not used if the groundwater is basin-average
+  ! (i.e., where multiple HRUs drain to a basin-average aquifer)
   case(singleBasin)
    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._dp
    do iHRU=1,gru_struc(iGRU)%hruCount
-    progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! not used
+    progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! set to zero to be clear that there is no local aquifer storage in this configuration
    end do
   case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
  end select
@@ -592,13 +612,14 @@ do istep=1,numtim
  end do  ! (end looping through global HRUs)
 
  ! print progress
- !if(globalPrintFlag)then
-  !if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-  write(*,'(i4,1x,5(i2,1x))') timeStruct%var
- !endif
+ if(globalPrintFlag)then
+  if(timeStruct%var(iLookTIME%ih) >0) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+ endif
 
+ ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
+ !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
  ! compute the exposed LAI and SAI and whether veg is buried by snow
- if(istep==1)then  ! (call phenology here because we need the time information)
+ if(istep==1)then  
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
 
@@ -778,17 +799,14 @@ do istep=1,numtim
 
    kHRU = 0
    ! identify the downslope HRU
-   do jHRU=1,nHRU
+   dsHRU: do jHRU=1,nHRU
     if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
-     else
-      call handle_err(20,'multi_driver: only expect there to be one downslope HRU')
+      exit dsHRU
      endif  ! (check there is a unique match)
     endif  ! (if identified a downslope HRU)
-   end do
-  
-   !write(*,'(a,1x,i4,1x,10(f20.10,1x))') 'iHRU, averageColumnOutflow = ', iHRU, fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%averageColumnOutflow)%dat(:)
+   end do dsHRU
   
    ! add inflow to the downslope HRU
    if(kHRU > 0)then  ! if there is a downslope HRU

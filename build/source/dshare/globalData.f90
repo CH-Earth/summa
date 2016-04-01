@@ -89,7 +89,7 @@ MODULE globalData
                    struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
                    struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure
                    struct_info('indx',  'INDEX', maxvarIndx ), &        ! the model index data structure
-                   struct_info('prog',  'PROG',  maxvarProg),  &        ! the prognostic (state) variable data structure
+                   struct_info('prog',  'PROG',  maxvarProg ), &        ! the prognostic (state) variable data structure
                    struct_info('diag',  'DIAG' , maxvarDiag ), &        ! the diagnostic variable data structure
                    struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
                    struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
@@ -116,7 +116,7 @@ MODULE globalData
  real(dp),save,public                        :: dJulianStart            ! julian day of start time of simulation
  real(dp),save,public                        :: dJulianFinsh            ! julian day of end time of simulation
  integer(i4b),save,public                    :: yearLength              ! number of days in the current year
- integer(i4b),save,public                    :: urbanVegCategory=1      ! vegetation category for urban areas
+ integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
  logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
  logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
 

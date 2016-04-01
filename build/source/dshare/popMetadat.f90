@@ -3,7 +3,7 @@ implicit none
 private
 public::popMetadat
 contains
- 
+
  subroutine popMetadat(err,message)
  USE nrtype
  ! data structures
@@ -53,7 +53,7 @@ contains
  ! * model forcing data...
  ! -----------------------
  forc_meta(iLookFORCE%time)     = var_info('time'    , 'time since time reference'                         , 'seconds since 1990-1-1 0:0:0.0 -0:00', 'scalarv', .true.)
- forc_meta(iLookFORCE%pptrate)  = var_info('pptrate' , 'precipitation rate'                                , 'kg m-2 s-1'                          , 'scalarv', .true.) 
+ forc_meta(iLookFORCE%pptrate)  = var_info('pptrate' , 'precipitation rate'                                , 'kg m-2 s-1'                          , 'scalarv', .true.)
  forc_meta(iLookFORCE%SWRadAtm) = var_info('SWRadAtm', 'downward shortwave radiation at the upper boundary', 'W m-2'                               , 'scalarv', .true.)
  forc_meta(iLookFORCE%LWRadAtm) = var_info('LWRadAtm', 'downward longwave radiation at the upper boundary' , 'W m-2'                               , 'scalarv', .true.)
  forc_meta(iLookFORCE%airtemp)  = var_info('airtemp' , 'air temperature at the measurement height'         , 'K'                                   , 'scalarv', .true.)
@@ -83,7 +83,7 @@ contains
 
  ! -----
  ! * local parameter data...
- ! ------------------------- 
+ ! -------------------------
  ! boundary conditions
  mpar_meta(iLookPARAM%upperBoundHead)        = var_info('upperBoundHead'        , 'matric head at the upper boundary'                                , 'm'               , 'scalarv', .true.)
  mpar_meta(iLookPARAM%lowerBoundHead)        = var_info('lowerBoundHead'        , 'matric head at the lower boundary'                                , 'm'               , 'scalarv', .true.)
@@ -117,13 +117,19 @@ contains
  mpar_meta(iLookPARAM%newSnowDenMin)         = var_info('newSnowDenMin'         , 'minimum new snow density'                                         , 'kg m-3'          , 'scalarv', .true.)
  mpar_meta(iLookPARAM%newSnowDenMult)        = var_info('newSnowDenMult'        , 'multiplier for new snow density'                                  , 'kg m-3'          , 'scalarv', .true.)
  mpar_meta(iLookPARAM%newSnowDenScal)        = var_info('newSnowDenScal'        , 'scaling factor for new snow density'                              , 'K'               , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%constSnowDen)          = var_info('constSnowDen'          , 'Constant new snow density'                                        , 'kg m-3'          , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenAdd)         = var_info('newSnowDenAdd'         , 'Pahaut 1976, additive factor for new snow density'                , 'kg m-3'          , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenMultTemp)    = var_info('newSnowDenMultTemp'    , 'Pahaut 1976, multiplier for new snow density applied to air temperature'              , 'kg m-3 K-1'     , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenMultWind)    = var_info('newSnowDenMultWind'    , 'Pahaut 1976, multiplier for new snow density applied to wind speed'                   , 'kg m-7/2 s-1/2' , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenMultAnd)      = var_info('newSnowDenMultAnd'    , 'Anderson 1976, multiplier for new snow density for Anderson function'                 , 'K-1'            , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%newSnowDenBase)         = var_info('newSnowDenBase'       , 'Anderson 1976, base value that is rasied to the (3/2) power'                          , 'K'              , 'scalarv', .true.)
  ! snow compaction
  mpar_meta(iLookPARAM%densScalGrowth)        = var_info('densScalGrowth'        , 'density scaling factor for grain growth'                          , 'kg-1 m3'         , 'scalarv', .true.)
  mpar_meta(iLookPARAM%tempScalGrowth)        = var_info('tempScalGrowth'        , 'temperature scaling factor for grain growth'                      , 'K-1'             , 'scalarv', .true.)
  mpar_meta(iLookPARAM%grainGrowthRate)       = var_info('grainGrowthRate'       , 'rate of grain growth'                                             , 's-1'             , 'scalarv', .true.)
  mpar_meta(iLookPARAM%densScalOvrbdn)        = var_info('densScalOvrbdn'        , 'density scaling factor for overburden pressure'                   , 'kg-1 m3'         , 'scalarv', .true.)
  mpar_meta(iLookPARAM%tempScalOvrbdn)        = var_info('tempScalOvrbdn'        , 'temperature scaling factor for overburden pressure'               , 'K-1'             , 'scalarv', .true.)
- mpar_meta(iLookPARAM%base_visc)             = var_info('base_visc'             , 'viscosity coefficient at T=T_frz and snow density=0'              , 'kg s m-2'        , 'scalarv', .true.)
+ mpar_meta(iLookPARAM%baseViscosity )        = var_info('baseViscosity '         , 'viscosity coefficient at T=T_frz and snow density=0'              , 'kg s m-2'        , 'scalarv', .true.)
  ! water flow through snow
  mpar_meta(iLookPARAM%Fcapil)                = var_info('Fcapil'                , 'capillary retention (fraction of total pore volume)'              , '-'               , 'scalarv', .true.)
  mpar_meta(iLookPARAM%k_snow)                = var_info('k_snow'                , 'hydraulic conductivity of snow'                                   , 'm s-1'           , 'scalarv', .true.)
@@ -430,7 +436,7 @@ contains
  flux_meta(iLookFLUX%scalarGroundAdvectiveHeatFlux)   = var_info('scalarGroundAdvectiveHeatFlux'  , 'heat advected to the ground with throughfall + unloading/drainage', 'W m-2'           , 'scalarv', .false.)
  flux_meta(iLookFLUX%scalarCanopySublimation)         = var_info('scalarCanopySublimation'        , 'canopy sublimation/frost'                                         , 'kg m-2 s-1'      , 'scalarv', .false.)
  flux_meta(iLookFLUX%scalarSnowSublimation)           = var_info('scalarSnowSublimation'          , 'snow sublimation/frost (below canopy or non-vegetated)'           , 'kg m-2 s-1'      , 'scalarv', .false.)
- ! liquid water fluxes associated with evapotranspiration 
+ ! liquid water fluxes associated with evapotranspiration
  flux_meta(iLookFLUX%scalarStomResistSunlit)          = var_info('scalarStomResistSunlit'         , 'stomatal resistance for sunlit leaves'                            , 's m-1'           , 'scalarv', .true.)
  flux_meta(iLookFLUX%scalarStomResistShaded)          = var_info('scalarStomResistShaded'         , 'stomatal resistance for shaded leaves'                            , 's m-1'           , 'scalarv', .true.)
  flux_meta(iLookFLUX%scalarPhotosynthesisSunlit)      = var_info('scalarPhotosynthesisSunlit'     , 'sunlit photosynthesis'                                            , 'umolco2 m-2 s-1' , 'scalarv', .true.)
@@ -450,7 +456,7 @@ contains
  flux_meta(iLookFLUX%iLayerAdvectiveFlux)             = var_info('iLayerAdvectiveFlux'            , 'advective energy flux at layer interfaces'                        , 'W m-2'           , 'ifcToto', .false.)
  flux_meta(iLookFLUX%iLayerNrgFlux)                   = var_info('iLayerNrgFlux'                  , 'energy flux at layer interfaces'                                  , 'W m-2'           , 'ifcToto', .true.)
  flux_meta(iLookFLUX%mLayerNrgFlux)                   = var_info('mLayerNrgFlux'                  , 'net energy flux for each layer within the snow+soil domain'       , 'J m-3 s-1'       , 'midToto', .true.)
- ! liquid water fluxes for the snow domain 
+ ! liquid water fluxes for the snow domain
  flux_meta(iLookFLUX%iLayerLiqFluxSnow)               = var_info('iLayerLiqFluxSnow'              , 'liquid flux at snow layer interfaces'                             , 'm s-1'           , 'ifcSnow', .false.)
  flux_meta(iLookFLUX%mLayerLiqFluxSnow)               = var_info('mLayerLiqFluxSnow'              , 'net liquid water flux for each snow layer'                        , 's-1'             , 'midSnow', .false.)
  ! liquid water fluxes for the soil domain
@@ -557,9 +563,9 @@ contains
  indx_meta(iLookINDEX%nLayers)           = var_info('nLayers'          , 'total number of layers'                                          , '-', 'scalarv', .true.)
  indx_meta(iLookINDEX%layerType)         = var_info('layerType'        , 'index defining type of layer (soil or snow)'                     , '-', 'midToto', .false.)
  ! indices of model state variables
- indx_meta(iLookINDEX%ixCasNrg)          = var_info('ixCasNrg'         , 'index of canopy air space energy state variable'                 , '-', 'scalarv', .false.) 
- indx_meta(iLookINDEX%ixVegNrg)          = var_info('ixVegNrg'         , 'index of canopy energy state variable'                           , '-', 'scalarv', .false.) 
- indx_meta(iLookINDEX%ixVegWat)          = var_info('ixVegWat'         , 'index of canopy hydrology state variable (mass)'                 , '-', 'scalarv', .false.) 
+ indx_meta(iLookINDEX%ixCasNrg)          = var_info('ixCasNrg'         , 'index of canopy air space energy state variable'                 , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%ixVegNrg)          = var_info('ixVegNrg'         , 'index of canopy energy state variable'                           , '-', 'scalarv', .false.)
+ indx_meta(iLookINDEX%ixVegWat)          = var_info('ixVegWat'         , 'index of canopy hydrology state variable (mass)'                 , '-', 'scalarv', .false.)
  indx_meta(iLookINDEX%ixTopNrg)          = var_info('ixTopNrg'         , 'index of upper-most energy state in the snow-soil subdomain'     , '-', 'scalarv', .false.)
  indx_meta(iLookINDEX%ixTopWat)          = var_info('ixTopWat'         , 'index of upper-most total water state in the snow-soil subdomain', '-', 'scalarv', .false.)
  indx_meta(iLookINDEX%ixTopMat)          = var_info('ixTopMat'         , 'index of upper-most matric head state in the soil subdomain'     , '-', 'scalarv', .false.)

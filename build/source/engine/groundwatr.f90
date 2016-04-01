@@ -206,7 +206,7 @@ contains
                       nSnow,                   & ! intent(in): number of snow layers
                       nSoil,                   & ! intent(in): number of soil layers
                       nLayers,                 & ! intent(in): total number of layers
-                      .true.,                  & ! intent(in): .true. if derivatives are desired
+                      .true.,                  & ! intent(in): .true. if analytical derivatives are desired
                       ixSaturation,            & ! intent(in): index of upper-most "saturated" layer
                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice in each soil layer (-)
@@ -249,12 +249,15 @@ contains
    mLayerVolFracLiqPerturbed(iLayer) = volFracLiq(mLayerMatricHeadPerturbed(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
    ! compute baseflow flux
+   ! NOTE: This is an optional second call to computeBaseflow that is invoked when computing numerical derivatives.
+   !       Since the purpose here is to compute the numerical derivatives, we do not need to compute analytical derivatives also.
+   !       Hence, analytical derivatives are not desired
    call computeBaseflow(&
                         ! input: control and state variables
                         nSnow,                     & ! intent(in): number of snow layers
                         nSoil,                     & ! intent(in): number of soil layers
                         nLayers,                   & ! intent(in): total number of layers
-                        .false.,                   & ! intent(in): .true. if derivatives are desired
+                        .false.,                   & ! intent(in): .true. if analytical derivatives are desired
                         ixSaturation,              & ! intent(in): index of upper-most "saturated" layer
                         mLayerVolFracLiqPerturbed, & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
                         mLayerVolFracIce,          & ! intent(in): volumetric fraction of ice in each soil layer (-)
