@@ -225,12 +225,12 @@ contains
  if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; endif
 
  ! step 1
- step_1a = 4*julday+b
+ step_1a = 4*int(julday)+b
  step_1b = step_1a/146097
  step_1c = step_1b*3
  step_1d = step_1c/4
 
- f = julday+j+step_1d+c
+ f = int(julday)+j+step_1d+c
 
  ! step 2
  e = r * f + v
