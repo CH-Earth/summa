@@ -66,7 +66,7 @@ contains
 
  ! get the upper bounds of the source or the mold vector
  if(present(source))then; upperBound=ubound(source); endif
- if(present(mold))  then; upperBound=ubound(source); endif
+ if(present(mold))  then; upperBound=ubound(mold);   endif
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
@@ -113,7 +113,7 @@ contains
 
  ! get the upper bounds of the source or the mold vector
  if(present(source))then; upperBound=ubound(source); endif
- if(present(mold))  then; upperBound=ubound(source); endif
+ if(present(mold))  then; upperBound=ubound(mold);   endif
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
