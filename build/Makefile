@@ -153,6 +153,7 @@ SUMMA_UTILMS= \
 		get_ixname.f90 \
 		time_utils.f90 \
 		ascii_util.f90 \
+		f2008funcs.f90 \
 		mDecisions.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
