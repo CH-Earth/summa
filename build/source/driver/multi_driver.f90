@@ -28,6 +28,7 @@ USE nrtype                                                  ! variable types, et
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-MP parameters
+USE module_sf_noahmplsm,only:isWater                        ! parameter for water land cover type
 USE nr_utility_module,only:arth                             ! get a sequence of numbers
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
@@ -104,7 +105,7 @@ USE globalData,only:gru_struc                               ! gru-hru mapping st
 USE globalData,only:index_map                               ! hru-hru mapping structures
 USE globalData,only:localParFallback                        ! local column default parameters
 USE globalData,only:basinParFallback                        ! basin-average default parameters
-USE globalData,only:structInfo                              ! information on the data structures                  
+USE globalData,only:structInfo                              ! information on the data structures
 USE globalData,only:numtim                                  ! number of time steps
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:globalPrintFlag                         ! global print flag
@@ -120,8 +121,8 @@ USE var_lookup,only:iLookATTR                               ! look-up values for
 USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
 USE var_lookup,only:iLookINDEX                              ! look-up values for local column index variables
 USE var_lookup,only:iLookPROG                               ! look-up values for local column model prognostic (state) variables
-USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables 
-USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes 
+USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables
+USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
@@ -159,7 +160,7 @@ type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)
 ! define the ancillary data structures
 type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
 ! define indices
-integer(i4b)                     :: iVar                       ! index of a model variable 
+integer(i4b)                     :: iVar                       ! index of a model variable
 integer(i4b)                     :: iStruct                    ! loop through data structures
 integer(i4b)                     :: iGRU
 integer(i4b)                     :: iHRU,jHRU,kHRU             ! index of the hydrologic response unit
@@ -178,8 +179,8 @@ integer(i4b),parameter           :: ixRestart_id=1002          ! named variable 
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
 integer(i4b)                     :: ixRestart=ixRestart_im     ! define frequency to write restart files
 ! define output file
-character(len=8)                 :: cdate1=''                  ! initial date
-character(len=10)                :: ctime1=''                  ! initial time
+!character(len=8)                 :: cdate1=''                  ! initial date
+integer                          :: ctime1(8)                  ! initial time
 character(len=64)                :: output_fileSuffix=''       ! suffix for the output file
 character(len=256)               :: summaFileManagerFile=''    ! path/name of file defining directories and files
 character(len=256)               :: fileout=''                 ! output filename
@@ -187,10 +188,15 @@ character(len=256)               :: fileout=''                 ! output filename
 integer(i4b)                     :: nLayers                    ! total number of layers
 integer(i4b),parameter           :: no=0                       ! .false.
 integer(i4b),parameter           :: yes=1                      ! .true.
-logical(lgt)                     :: computeVegFluxFlag         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow) 
-type(hru_i),allocatable          :: computeVegFlux(:)          ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow) 
+logical(lgt)                     :: computeVegFluxFlag         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+type(hru_i),allocatable          :: computeVegFlux(:)          ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 type(hru_d),allocatable          :: dt_init(:)                 ! used to initialize the length of the sub-step for each HRU
-type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
+type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU
+! exfiltration
+real(dp),parameter               :: supersatScale=0.001_dp     ! scaling factor for the logistic function (-)
+real(dp),parameter               :: xMatch = 0.99999_dp        ! point where x-value and function value match (-)
+real(dp),parameter               :: safety = 0.01_dp           ! safety factor to ensure logistic function is less than 1
+real(dp),parameter               :: fSmall = epsilon(xMatch)   ! smallest possible value to test
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 integer(i4b)                     :: fileUnit                   ! file unit (output from file_open; a unit not currently used)
@@ -211,23 +217,39 @@ real(dp)                         :: notUsed_exposedVAI         ! NOT USED: expos
 integer(i4b)                     :: err=0                      ! error code
 character(len=1024)              :: message=''                 ! error message
 
+! subsetting the model run
+integer(i4b)                     :: strtHRU                    ! index of the starting hru for a subset run
+character(len=10)                :: strTMP                     ! local temp string
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
-print*, 'start'
 ! get the initial time
-call date_and_time(cdate1,ctime1)
-print*,ctime1
+call date_and_time(values=ctime1)
+print "(A,I2,':',I2,':',I2)", 'start at ',ctime1(5:7)
+! check numbers of command-line arguments
+select case (iargc())
+ case (2)
+  !do nothing; this is a full run
+  strtHRU=0
+ case (4)
+  !get the starting hru and count
+  call getarg(3,strTMP); read(strTMP,*) strtHRU
+  call getarg(4,strTMP); read(strTMP,*) nHRU
+  if (strtHRU<1 .or. nHRU<1) then
+   err = 1
+   message = ' illegal startHRU or countHRU specification.'
+  else
+   print '(x,I0,A)', nHRU,' HRUs are selected for simulation.'
+  end if
+ case default
+  err = 1
+  message = 'Usage: summa.exe _simualtion_name_ master_file <startHRU countHRU>'
+end select
+call handle_err(err,message)
 ! get command-line arguments for the output file suffix
 call getarg(1,output_fileSuffix)
-if (len_trim(output_fileSuffix) == 0) then
- print*,'1st command-line argument missing, expect text string defining the output file suffix'; stop
-endif
 ! get command-line argument for the muster file
 call getarg(2,summaFileManagerFile) ! path/name of file defining directories and files
-if (len_trim(summaFileManagerFile) == 0) then
- print*,'2nd command-line argument missing, expect path/name of muster file'; stop
-endif
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
 ! initialize the Jacobian flag
@@ -235,7 +257,7 @@ doJacobian=.false.
 
 ! allocate time structures
 call allocLocal(time_meta, refTime,   err=err, message=message); call handle_err(err,message)  ! reference time for the model simulation
-call allocLocal(time_meta, startTime, err=err, message=message); call handle_err(err,message)  ! start time for the model simulation 
+call allocLocal(time_meta, startTime, err=err, message=message); call handle_err(err,message)  ! start time for the model simulation
 call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err(err,message)  ! end time for the model simulation
 
 ! *****************************************************************************
@@ -266,7 +288,7 @@ call handle_err(err,message)
 ! nGRU-is the total number of GRUs of the simulation domain
 ! nHRU-is the total number of HRUs of the simulation domain
 ! hruCount-is a local variable for the total number of HRUs in a GRU
-call allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
+call allocate_gru_struc(nGRU,nHRU,strtHRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3b) read the number of snow and soil layers
@@ -280,7 +302,7 @@ call allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
 ! loop through GRUs
 do iGRU=1,nGRU
 
- ! check the GRU-HRU mapping structure is allocated 
+ ! check the GRU-HRU mapping structure is allocated
  if(.not.allocated(gru_struc(iGRU)%hruInfo)) call handle_err(err,'gru_struc(iGRU)%hruInfo is not allocated')
 
  ! loop through HRUs
@@ -290,7 +312,7 @@ do iGRU=1,nGRU
   call file_open(trim(SETNGS_PATH)//trim(MODEL_INITCOND),fileUnit,err,message); call handle_err(err,message)
   call get_vlines(fileUnit,dataLines,err,message); call handle_err(err,message)
   close(fileUnit)
-  
+
   ! get the number of snow and soil layers for each HRU
   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = 0 ! initialize the number of snow layers
   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = 0 ! initialize the number of soil layers
@@ -358,7 +380,7 @@ do iGRU=1,nGRU
 end do
 
 ! read local attributes for each HRU
-call read_attrb(nGRU,nHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
+call read_attrb(nHRU,strtHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
@@ -463,10 +485,10 @@ do iGRU=1,nGRU
   
   ! check that the parameters are consistent
   call paramCheck(mparStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
-  
-  ! calculate a look-up table for the temperature-enthalpy conversion 
+
+  ! calculate a look-up table for the temperature-enthalpy conversion
   call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
- 
+
   ! read description of model initial conditions -- also initializes model structure components
   ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
   call read_icond(gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! number of snow layers
@@ -476,7 +498,7 @@ do iGRU=1,nGRU
                   progStruct%gru(iGRU)%hru(iHRU),      & ! model prognostic (state) variables
                   err,message)                           ! error control
   call handle_err(err,message)
-  
+
   ! re-calculate height of each layer
   call calcHeight(&
                   ! input/output: data structures
@@ -484,43 +506,50 @@ do iGRU=1,nGRU
                   progStruct%gru(iGRU)%hru(iHRU),   & ! intent(inout): model prognostic (state) variables for a local HRU
                   ! output: error control
                   err,message); call handle_err(err,message)
-  
+
   ! calculate vertical distribution of root density
   call rootDensty(mparStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model parameters
                   indxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model indices
                   progStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model prognostic (state) variables
                   diagStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model diagnostic variables
                   err,message)                         ! error control
-  call handle_err(err,message) 
-  
+  call handle_err(err,message)
+
   ! calculate saturated hydraulic conductivity in each soil layer
   call satHydCond(mparStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model parameters
                   indxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model indices
                   progStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model prognostic (state) variables
-                  fluxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model fluxes 
+                  fluxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model fluxes
                   err,message)                         ! error control
   call handle_err(err,message)
-  
+
   ! calculate "short-cut" variables such as volumetric heat capacity
   call v_shortcut(mparStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model parameters
                   diagStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model diagnostic variables
                   err,message)                         ! error control
   call handle_err(err,message)
-  
+
   ! overwrite the vegetation height
   HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)
   HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)
-  
+
   ! overwrite the tables for LAI and SAI
   if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
    SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)
    LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
   endif
-  
+
   ! initialize canopy drip
   ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
-  
+
+  ! define the file if the first HRU
+  if(iGRU==1 .and. iHRU==1) then
+   write(fileout,'(a,i0,a,i0,a,i0,a,i0,a)')&
+    trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix),strtHRU,'-',strtHRU+nHRU-1,'.nc'
+   call def_output(nHRU,gru_struc(iGRU)%hruInfo(iHRU)%nSoil,fileout,err,message); call handle_err(err,message)
+  endif
+
   ! write local model attributes and parameters to the model output file
   call writeAttrb(fileout,iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
   call writeParam(fileout,iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
@@ -580,12 +609,13 @@ jstep=1
 ! ****************************************************************************
 ! (6) loop through time
 ! ****************************************************************************
+if (strtHRU < 1) strtHRU = 1
 do istep=1,numtim
 
  ! set print flag
  globalPrintFlag=.true.
 
- ! read forcing data 
+ ! read forcing data
  do iHRU=1,nHRU  ! loop through global HRUs
 
   ! get mapping
@@ -598,7 +628,7 @@ do istep=1,numtim
                   istep,                                  & ! intent(in):    time step index
                   ix_gru,                                 & ! intent(in):    index of gru
                   ix_hru,                                 & ! intent(in):    index of LOCAL hru
-                  iHRU,                                   & ! intent(in):    index of GLOBAL hru
+                  iHRU+strtHRU-1,                         & ! intent(in):    index of GLOBAL hru
                   ! input-output
                   iFile,                                  & ! intent(inout): index of current forcing file in forcing file list
                   forcingStep,                            & ! intent(inout): index of read position in time dimension in current netcdf file
@@ -660,10 +690,11 @@ do istep=1,numtim
     timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 
   ! define the filename
-  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
+  write(fileout,'(a,i0,a,i0,a,i0,a,i0,a)') &
+                                 trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
-                                 trim(output_fileSuffix)//'.nc'
-
+                                 trim(output_fileSuffix),strtHRU,'-',strtHRU+nHRU-1,'.nc'
+  print *, 'Output write to File '//trim(fileout)
   ! define the file
   call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
@@ -696,12 +727,12 @@ do istep=1,numtim
   ! initialize runoff variables
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = 0._dp  ! surface runoff (m s-1)
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__ColumnOutflow)%dat(1)    = 0._dp  ! outflow from all "outlet" HRUs (those with no downstream HRU)
-  
+
   ! initialize baseflow variables
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = 0._dp ! recharge to the aquifer (m s-1)
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
-  
+
   ! initialize total inflow for each layer in a soil column
   do iHRU=1,gru_struc(iGRU)%hruCount
    fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._dp
@@ -709,20 +740,26 @@ do istep=1,numtim
 
   ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
+   
+   ! This line is used for debugging 
+   !write(*,'(4(A5,I10))') 'STEP',istep,'GRU',gru_struc(iGRU)%gru_id,'HRU',gru_struc(iGRU)%hruInfo(iHRU)%hru_id,'TYPE',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)
+
+   ! write the forcing data to the model output file
+   call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
 
    ! identify the area covered by the current HRU
    fracHRU =  attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea) / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
-  
+
    ! assign model layers
    ! NOTE: layer structure is different for each HRU
    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
    nLayers                             = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)
-  
+
    ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
    allocate(zSoilReverseSign(gru_struc(iGRU)%hruInfo(iHRU)%nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
    zSoilReverseSign(:) = -progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1:nLayers)
-  
+
    ! get NOAH-MP parameters
    call REDPRM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex),     & ! soil type
@@ -730,21 +767,23 @@ do istep=1,numtim
                zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
                gru_struc(iGRU)%hruInfo(iHRU)%nSoil,                             & ! number of soil layers
                urbanVegCategory)                                                  ! vegetation category for urban areas
-  
+
    ! overwrite the minimum resistance
    if(overwriteRSMIN) RSMIN = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%minStomatalResistance)
-  
+
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)
    HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)
-  
+
    ! overwrite the tables for LAI and SAI
    if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
     SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)
     LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
    endif
-  
-   ! compute derived forcing variables
+
+   ! cycle water pixel
+   if (typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) == isWater) cycle
+
    call derivforce(timeStruct%var,                    & ! vector of time information
                    forcStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model forcing data
                    attrStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model attributes
@@ -753,7 +792,7 @@ do istep=1,numtim
                    fluxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model fluxes
                    err,message)                         ! error control
    call handle_err(err,message)
-  
+
    ! ****************************************************************************
    ! (9) run the model
    ! ****************************************************************************
@@ -765,10 +804,10 @@ do istep=1,numtim
     case(ixRestart_never); printRestart = .false.
     case default; call handle_err(20,'unable to identify option for the restart file')
    end select
- 
+
    ! set the flag to compute the vegetation flux
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
- 
+
    ! run the model for a single parameter set and time step
    call coupled_em(&
                    ! model control
@@ -792,7 +831,7 @@ do istep=1,numtim
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
-  
+
    ! save the flag for computing the vegetation fluxes
    if(computeVegFluxFlag)      computeVegFlux(iGRU)%hru(iHRU) = yes
    if(.not.computeVegFluxFlag) computeVegFlux(iGRU)%hru(iHRU) = no
@@ -811,35 +850,33 @@ do istep=1,numtim
    ! add inflow to the downslope HRU
    if(kHRU > 0)then  ! if there is a downslope HRU
     fluxStruct%gru(iGRU)%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxStruct%gru(iGRU)%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
-  
+
    ! increment basin column outflow (m3 s-1)
    else
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__ColumnOutflow)%dat(1)   = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
    endif
-  
+
    ! increment basin surface runoff (m s-1)
    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)     + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)    * fracHRU
-  
+
    ! increment basin-average baseflow input variables (m s-1)
    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
-  
+
    ! increment aquifer baseflow -- ONLY if baseflow is computed individually for each HRU
    ! NOTE: groundwater computed later for singleBasin
    if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn)then
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
    endif
-  
-   ! write the forcing data to the model output file
-   call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-  
+
+
    ! write the model output to the NetCDF file
    call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),indx_meta,indxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
    call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),prog_meta,progStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
    call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),diag_meta,diagStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
    call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),flux_meta,fluxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
    !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
-  
+
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow
@@ -848,7 +885,7 @@ do istep=1,numtim
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSoil+1
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) + nLayers+1
-  
+
    ! deallocate height at bottom of each soil layer(used in Noah MP)
    deallocate(zSoilReverseSign,stat=err); call handle_err(err,'problem deallocating space for zSoilReverseSign')
 
@@ -858,7 +895,7 @@ do istep=1,numtim
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
    call handle_err(20,'multi_driver/bigBucket groundwater code not transferred from old code base yet')
   endif
-  
+
   ! perform the routing
   associate(totalArea => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) )
   call qOverland(&
@@ -875,7 +912,7 @@ do istep=1,numtim
                  err,message)                                                        ! intent(out): error control
   call handle_err(err,message)
   end associate
-  
+
   ! write basin-average variables
   call writeBasin(fileout,bvarStruct%gru(iGRU),jstep,err,message); call handle_err(err,message)
 
@@ -960,20 +997,53 @@ contains
  character(*),intent(in)::message
  ! define the local variables
  integer(i4b),parameter :: outunit=6               ! write to screen
- character(len=8)       :: cdate2                  ! final date
- character(len=10)      :: ctime2                  ! final time
+ integer(i4b)           :: ctime2(8)               ! final time
+ integer(i4b)           :: yy                      ! index of year
+ integer(i4b)           :: elpDay                  ! elapsed whole days
+ real(sp)               :: elpSec                  ! elapsed seconds
+ 
+ ! number of days of each month
+ integer(i4b)           :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ integer(i4b)           :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
  ! get the final date and time
- call date_and_time(cdate2,ctime2)
+ call date_and_time(values=ctime2)
+ 
+ ! calculate the elapsed time (wall clock time)
+ elpSec = (ctime2(8)-ctime1(8))*.001_sp + (ctime2(7)-ctime1(7)) + (ctime2(6)-ctime1(6))*60_sp + (ctime2(5)-ctime1(5))*3600_sp
+
+ ! check if the run is within the same day otherwise calculate how many days
+ if (ctime2(1) > ctime1(1) .or. ctime2(2) > ctime1(2) .or. ctime2(3) > ctime1(3)) then
+
+  elpDay = 0
+  do yy = ctime1(1), ctime2(1) - 1
+   elpDay = elpDay + 365
+   if ((mod(yy,4)==0 .and. .not. mod(yy,100)==0) .or. (mod(yy,400)==0)) elpDay = elpDay + 1
+  end do
+
+  if ((mod(ctime1(1),4)==0 .and. .not. mod(ctime1(1),100)==0) .or. (mod(ctime1(1),400)==0)) days1(2) = 29
+  if ((mod(ctime2(1),4)==0 .and. .not. mod(ctime2(1),100)==0) .or. (mod(ctime2(1),400)==0)) days2(2) = 29
+
+  if (ctime1(2) > 1) elpDay = elpDay - sum(days1(1:(ctime1(2)-1)))
+  elpDay = elpDay - ctime1(3) 
+
+  if (ctime2(2) > 1) elpDay = elpDay + sum(days2(1:(ctime2(2)-1)))
+  elpDay = elpDay + ctime2(3)
+
+  elpSec = elpSec + elpDay * 86400_sp
+ end if
+ 
  ! print initial and final date and time
- write(outunit,*) 'initial date/time = '//'ccyy='//cdate1(1:4)//' - mm='//cdate1(5:6)//' - dd='//cdate1(7:8), &
-                                         ' - hh='//ctime1(1:2)//' - mi='//ctime1(3:4)//' - ss='//ctime1(5:10)
- write(outunit,*) 'final date/time   = '//'ccyy='//cdate2(1:4)//' - mm='//cdate2(5:6)//' - dd='//cdate2(7:8), &
-                                         ' - hh='//ctime2(1:2)//' - mi='//ctime2(3:4)//' - ss='//ctime2(5:10)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
+ ! print elapsed time
+ write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elpSec,          ' s'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/60_sp,    ' m'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/3600_sp,  ' h'
+ write(outunit,"(A,1PG15.7,A/)"),                                           '       or           ', elpSec/86400_sp, ' d'
  ! stop with message
  print*,'FORTRAN STOP: '//trim(message)
  stop
  end subroutine
-
 end program multi_driver
 
 

@@ -22,3 +22,5 @@ summa.exe
 .DS_Store
 *_local
 *log
+*.cbp
+*.layout

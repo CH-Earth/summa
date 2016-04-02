@@ -100,6 +100,7 @@ MODULE data_types
  ! define mapping from HRUs to the HRUs
  type, public :: gru2hru_map
   integer(i4b)                      :: gru_ix                   ! index of the gru
+  integer(i4b)                      :: gru_id                   ! id (non-sequential number) of the gru
   integer(i4b)                      :: hruCount                 ! total number of hrus in the gru
   type(hru_info), allocatable       :: hruInfo(:)               ! basic information of HRUs within the gru
  endtype gru2hru_map

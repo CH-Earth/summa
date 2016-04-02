@@ -58,7 +58,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine allocate_gru_struc: allocate space for GRU-HRU mapping structures
  ! ************************************************************************************************
- subroutine allocate_gru_struc(nGRU,nHRU,err,message)
+ subroutine allocate_gru_struc(nGRU,nHRU,strtHRU,err,message)
  USE netcdf
  USE nr_utility_module,only:arth
  ! provide access to subroutines
@@ -72,7 +72,8 @@ contains
  implicit none
  ! define output
  integer(i4b),intent(out)             :: nGRU               ! number of grouped response units
- integer(i4b),intent(out)             :: nHRU               ! number of hydrologic response units
+ integer(i4b),intent(inout)           :: nHRU               ! number of hydrologic response units
+ integer(i4b),intent(in)              :: strtHRU            ! startHRU
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  ! define general variables
@@ -84,14 +85,16 @@ contains
  integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
  integer(i4b)                         :: varid              ! variable id from netcdf file
  integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
- integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
+ !integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
  integer(i4b),allocatable             :: hru_id(:)          ! unique id of hru over entire domain
  integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs
  integer(i4b),allocatable             :: hru2gru_id(:)      ! unique GRU ids at each HRU
       
  ! define local variables
  integer(i4b)                         :: hruCount           ! number of hrus in a gru
- integer(i4b)                         :: iGRU               ! index of a GRU and HRU
+ 
+ 
+ integer(i4b)                         :: i,j                ! dummy loop index
 
  ! Start procedure here
  err=0; message="allocate_gru_hru_map/"
@@ -106,36 +109,74 @@ contains
  mode=nf90_noWrite
  call nc_file_open(trim(infile), mode, ncid, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get gru_ix dimension length
- err = nf90_inq_dimid(ncid, "ngru", gruDimID);             if(err/=0)then; message=trim(message)//'problem finding nGRU dimension'; return; endif
- err = nf90_inquire_dimension(ncid, gruDimID, len = nGRU); if(err/=0)then; message=trim(message)//'problem reading nGRU dimension'; return; endif
-
- ! get hru_dim dimension length (ie., the number of hrus in entire domain)
- err = nf90_inq_dimid(ncid, "nhru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding nHRU dimension'; return; endif
- err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU); if(err/=0)then; message=trim(message)//'problem reading nHRU dimension'; return; endif
  
- allocate(gru_struc(nGRU), index_map(nHRU), stat=err)
+ if (strtHRU>0) then
+  !this is a subset run. assuming the user know the dimemsions
+  
+ else
+  
+  ! get hru_dim dimension length (ie., the number of hrus in entire domain)
+  err = nf90_inq_dimid(ncid, "nhru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding nHRU dimension'; return; endif
+  err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU); if(err/=0)then; message=trim(message)//'problem reading nHRU dimension'; return; endif
+ 
+ end if 
+ 
+ ! read the hruID and HRU's gruID
+ allocate(gru_id(nHRU),hru_id(nHRU),hru2gru_id(nHRU),index_map(nHRU),stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
+ 
+ err = nf90_inq_varid(ncid, "hruId", varid); if(err/=0)then; message=trim(message)//'problem finding hruId variable'; return; endif
+ err = nf90_get_var(ncid,varid,hru_id,start=(/max(strtHRU,1)/),count=(/nHRU/))
+ if(err/=0)then; message=trim(message)//'problem reading hruId variable'; return; endif  
+ 
+ err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=0)then; message=trim(message)//'problem finding hru2gruId variable'; return; endif
+ err = nf90_get_var(ncid,varid,hru2gru_id,start=(/max(strtHRU,1)/),count=(/nHRU/))
+ if(err/=0)then; message=trim(message)//'problem reading hru2gruId variable'; return; endif
+ 
+ ! extract unique gruID 
+ nGRU = 1
+ gru_id(1) = hru2gru_id(1) 
+ index_map(1)%gru_ix = nGRU
+ 
+ outer: do i=2,nHRU
+  do j=1,nGRU
+   if (gru_id(j) == hru2gru_id(i)) then
+    ! skip duplicate
+    index_map(i)%gru_ix=j
+    cycle outer
+   end if
+  end do
+  ! No match found so it is a unique GRU
+  nGRU = nGRU + 1
+  gru_id(nGRU) = hru2gru_id(i)
+  index_map(i)%gru_ix=nGRU
+ end do outer
+ 
+
+ ! allocate GRU array
+ allocate(gru_struc(nGRU), stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for mapping structures'; return; endif
  
- allocate(gru_id(nGRU),hru_id(nHRU),hru2gru_id(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
-
- ! read gru_id from netcdf file
- err = nf90_inq_varid(ncid, "gruId", varid);     if(err/=0)then; message=trim(message)//'problem finding gruId variable'; return; endif
- err = nf90_get_var(ncid,varid,gru_id);          if(err/=0)then; message=trim(message)//'problem reading gruId variable'; return; endif
-
- ! read the HRU to GRU mapping
- err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=0)then; message=trim(message)//'problem finding hru2gruId variable'; return; endif
- err = nf90_get_var(ncid,varid,hru2gru_id);      if(err/=0)then; message=trim(message)//'problem reading hru2gruId variable'; return; endif
-
- ! allocate mapping array
- do iGRU=1,nGRU
-  hruCount = count(hru2gru_id==gru_id(iGRU))
-  gru_struc(iGRU)%hruCount = hruCount
-  allocate(gru_struc(iGRU)%hruInfo(hruCount),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; endif
+ ! mapping of hru and gru starts here
+ gru_struc%gru_id = gru_id 
+ ! allocate 
+ do j=1,nGRU  
+  hruCount = count(hru2gru_id==gru_id(j))
+  gru_struc(j)%hruCount = hruCount
+  
+  allocate(gru_struc(j)%hruInfo(hruCount),stat=err)  
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; endif 
  enddo
+ ! match
+ gru_struc%hruCount = 0
+ do i=1,nHRU
+  gru_struc(index_map(i)%gru_ix)%hruCount = gru_struc(index_map(i)%gru_ix)%hruCount + 1
+  index_map(i)%ihru = gru_struc(index_map(i)%gru_ix)%hruCount
+  gru_struc(index_map(i)%gru_ix)%hruInfo(gru_struc(index_map(i)%gru_ix)%hruCount)%hru_id = hru_id(i)
+  gru_struc(index_map(i)%gru_ix)%hruInfo(gru_struc(index_map(i)%gru_ix)%hruCount)%hru_ix = i
+ end do
+ ! mapping finished
+ 
 
  ! close the HRU_ATTRIBUTES netCDF file
  err = nf90_close(ncid)
@@ -148,6 +189,7 @@ contains
  endif
 
  end subroutine allocate_gru_struc
+
 
  ! ************************************************************************************************
  ! public subroutine allocGlobal: allocate space for global data structures 
