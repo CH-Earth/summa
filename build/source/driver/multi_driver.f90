@@ -844,15 +844,8 @@ do istep=1,numtim
       exit dsHRU
      endif  ! (check there is a unique match)
     endif  ! (if identified a downslope HRU)
-<<<<<<< HEAD
-   end do
-
-   !write(*,'(a,1x,i4,1x,10(f20.10,1x))') 'iHRU, averageColumnOutflow = ', iHRU, fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%averageColumnOutflow)%dat(:)
-
-=======
    end do dsHRU
   
->>>>>>> dc9a02d255e28e206cdf235f0e0df022aa8b64d1
    ! add inflow to the downslope HRU
    if(kHRU > 0)then  ! if there is a downslope HRU
     fluxStruct%gru(iGRU)%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxStruct%gru(iGRU)%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
