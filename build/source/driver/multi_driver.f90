@@ -741,7 +741,8 @@ do istep=1,numtim
   ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
    
-   write(*,'(4(A5,I10))') 'STEP',istep,'GRU',gru_struc(iGRU)%gru_id,'HRU',gru_struc(iGRU)%hruInfo(iHRU)%hru_id,'TYPE',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)
+   ! This line is used for debugging 
+   !write(*,'(4(A5,I10))') 'STEP',istep,'GRU',gru_struc(iGRU)%gru_id,'HRU',gru_struc(iGRU)%hruInfo(iHRU)%hru_id,'TYPE',typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)
 
    ! write the forcing data to the model output file
    call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
