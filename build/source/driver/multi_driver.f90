@@ -997,25 +997,51 @@ contains
  character(*),intent(in)::message
  ! define the local variables
  integer(i4b),parameter :: outunit=6               ! write to screen
- integer                :: ctime2(8)               ! final time
- real(sp),dimension(3)  :: elpSec                  ! elapsed time in seconds: (1) user component; (2) system component; (3) total
+ integer(i4b)           :: ctime2(8)               ! final time
+ integer(i4b)           :: yy                      ! index of year
+ integer(i4b)           :: elpDay                  ! elapsed whole days
+ real(sp)               :: elpSec                  ! elapsed seconds
  
- 
-! get the final date and time
+ ! number of days of each month
+ integer(i4b)           :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ integer(i4b)           :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ ! get the final date and time
  call date_and_time(values=ctime2)
-
- ! print initial and final date and time
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,4x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,4x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
  
- ! calculate and print the elapsed time 
- call etime(elpSec(1:2),elpSec(3))
+ ! calculate the elapsed time (wall clock time)
+ elp_s = (ctime2(8)-ctime1(8))*.001_sp + (ctime2(7)-ctime1(7)) + (ctime2(6)-ctime1(6))*60_sp + (ctime2(5)-ctime1(5))*3600_sp
 
- write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elpSec(3),       ' s'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec(3)/60.,   ' m'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec(3)/3600., ' h'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec(3)/86400.,' d'
- print*,'NORMAL FORTRAN STOP: '//trim(message)
+ ! check if the run is within the same day otherwise calculate how many days
+ if (ctime2(1) > ctime1(1) .or. ctime2(2) > ctime1(2) .or. ctime2(3) > ctime1(3)) then
+
+  elp_d = 0
+  do yy = ctime1(1), ctime2(1) - 1
+   elp_d = elp_d + 365
+   if ((mod(yy,4)==0 .and. .not. mod(yy,100)==0) .or. (mod(yy,400)==0)) elp_d = elp_d + 1
+  end do
+
+  if ((mod(ctime1(1),4)==0 .and. .not. mod(ctime1(1),100)==0) .or. (mod(ctime1(1),400)==0)) days1(2) = 29
+  if ((mod(ctime2(1),4)==0 .and. .not. mod(ctime2(1),100)==0) .or. (mod(ctime2(1),400)==0)) days2(2) = 29
+
+  if (ctime1(2) > 1) elp_d = elp_d - sum(days1(1:(ctime1(2)-1)))
+  elp_d = elp_d - ctime1(3) 
+
+  if (ctime2(2) > 1) elp_d = elp_d + sum(days2(1:(ctime2(2)-1)))
+  elp_d = elp_d + ctime2(3)
+
+  elp_s = elp_s + elp_d * 86400_sp
+ end if
+ 
+ ! print initial and final date and time
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,'/',I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,'/',I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
+ ! print elapsed time
+ write(outunit,"(/,A,1PG15.7,A)"),                                           '     elapsed time = ', elp_s,          ' s'
+ write(outunit,"(A,1PG15.7,A)"),                                             '       or           ', elp_s/60_sp,    ' m'
+ write(outunit,"(A,1PG15.7,A)"),                                             '       or           ', elp_s/3600_sp,  ' h'
+ write(outunit,"(A,1PG15.7,A/)"),                                            '       or           ', elp_s/86400_sp, ' d'
+ ! stop with message
+ print*,'FORTRAN STOP: '//trim(message)
  stop
  end subroutine
 end program multi_driver
