@@ -197,7 +197,7 @@ real(dp),parameter               :: supersatScale=0.001_dp     ! scaling factor 
 real(dp),parameter               :: xMatch = 0.99999_dp        ! point where x-value and function value match (-)
 real(dp),parameter               :: safety = 0.01_dp           ! safety factor to ensure logistic function is less than 1
 real(dp),parameter               :: fSmall = epsilon(xMatch)   ! smallest possible value to test
-! general local variables
+! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 integer(i4b)                     :: fileUnit                   ! file unit (output from file_open; a unit not currently used)
 character(LEN=256),allocatable   :: dataLines(:)               ! vector of character strings from non-comment lines
@@ -248,14 +248,8 @@ end select
 call handle_err(err,message)
 ! get command-line arguments for the output file suffix
 call getarg(1,output_fileSuffix)
-if (len_trim(output_fileSuffix) == 0) then
- print*,'1st command-line argument missing, expect text string defining the output file suffix'; stop
-endif
 ! get command-line argument for the muster file
 call getarg(2,summaFileManagerFile) ! path/name of file defining directories and files
-if (len_trim(summaFileManagerFile) == 0) then
- print*,'2nd command-line argument missing, expect path/name of muster file'; stop
-endif
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
 ! initialize the Jacobian flag
@@ -275,8 +269,13 @@ call popMetadat(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! create the averageFlux metadata structure
+! define the mask to identify the subset of variables in the "child" data structure
+! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
+!       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
+!        and soil drainage (at interface=nSoil)
 flux_mask = (flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
+
+! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
 call handle_err(err,message)
 
@@ -299,9 +298,6 @@ call allocate_gru_struc(nGRU,nHRU,strtHRU,err,message); call handle_err(err,mess
 ! code will be replaced once merge with the NetCDF branch
 
 ! NOTE: currently the same initial conditions for all HRUs and GRUs; will change when shift to NetCDF
-
-! check the GRU-HRU mapping structure is allocated
-if(.not.allocated(gru_struc)) call handle_err(err,'gru_struc is not allocated')
 
 ! loop through GRUs
 do iGRU=1,nGRU
@@ -344,6 +340,7 @@ end do  ! looping through HRUs
 
 ! loop through data structures
 do iStruct=1,size(structInfo)
+
  ! allocate space
  select case(trim(structInfo(iStruct)%structName))
   case('time'); call allocGlobal(time_meta,  timeStruct,  err, message)   ! model forcing data
@@ -360,9 +357,16 @@ do iStruct=1,size(structInfo)
   case('deriv');cycle   ! model derivatives -- no need to have the GRU dimension
   case default; call handle_err(20,'unable to identify lookup structure')
  end select
+
  ! check errors
  call handle_err(err,trim(message)//'[structure =  '//trim(structInfo(iStruct)%structName)//']')
+
 end do  ! looping through data structures
+
+! allocate space for default model parameters
+! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
+call allocGlobal(mpar_meta,  dparStruct,  err, message)   ! default model parameters
+call handle_err(err,trim(message)//' [problem allocating dparStruct]')
 
 ! allocate space for the time step and computeVegFlux flags (recycled for each GRU for subsequent calls to coupled_em)
 allocate(dt_init(nGRU),upArea(nGRU),computeVegFlux(nGRU),stat=err)
@@ -424,10 +428,6 @@ select case(trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision))
  case default; call handle_err(30,'unable to identify vegetation category')
 end select
 
-! allocate space for default model parameters
-call allocGlobal(mpar_meta,  dparStruct,  err, message)   ! default model parameters
-call handle_err(err,trim(message)//' [problem allocating dparStruct]')
-
 ! set default model parameters
 do iGRU=1,nGRU
  do iHRU=1,gru_struc(iGRU)%hruCount
@@ -454,6 +454,11 @@ call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
 ! *****************************************************************************
 
+! define the file
+! NOTE: currently assumes that nSoil is constant across the model domain
+write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
+call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+  
 ! loop through GRUs
 do iGRU=1,nGRU
 
@@ -466,6 +471,18 @@ do iGRU=1,nGRU
  ! loop through local HRUs
  do iHRU=1,gru_struc(iGRU)%hruCount
 
+  kHRU=0
+  ! check the network topology (only expect there to be one downslope HRU)
+  do jHRU=1,nHRU
+   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+    if(kHRU==0)then  ! check there is a unique match
+     kHRU=jHRU
+    else
+     call handle_err(20,'multi_driver: only expect there to be one downslope HRU')
+    endif  ! (check there is a unique match)
+   endif  ! (if identified a downslope HRU)
+  end do
+  
   ! check that the parameters are consistent
   call paramCheck(mparStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
 
@@ -544,7 +561,7 @@ do iGRU=1,nGRU
   upArea(iGRU)%hru(iHRU) = 0._dp
   do jHRU=1,nHRU
    ! check if jHRU flows into iHRU
-   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex) ==  typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex))then
+   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex))then
     upArea(iGRU)%hru(iHRU) = upArea(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
    endif   ! (if jHRU is an upstream HRU)
   end do  ! jHRU
@@ -560,13 +577,21 @@ do iGRU=1,nGRU
 
  ! initialize aquifer storage
  ! NOTE: this is ugly: need to add capabilities to initialize basin-wide state variables
+ ! There are two options for groundwater:
+ !  (1) where groundwater is included in the local column (i.e., the HRUs); and
+ !  (2) where groundwater is included for the single basin (i.e., the GRUS, where multiple HRUS drain into a GRU).
+ ! For water balance calculations it is important to ensure that the local aquifer storage is zero if groundwater is treated as a basin-average state variable (singleBasin);
+ !  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
  select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+  ! the basin-average aquifer storage is not used if the groundwater is included in the local column
   case(localColumn)
-   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp  ! not used
+   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp ! set to zero to be clear that there is no basin-average aquifer storage in this configuration 
+  ! NOTE: the local column aquifer storage is not used if the groundwater is basin-average
+  ! (i.e., where multiple HRUs drain to a basin-average aquifer)
   case(singleBasin)
    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._dp
    do iHRU=1,gru_struc(iGRU)%hruCount
-    progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! not used
+    progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! set to zero to be clear that there is no local aquifer storage in this configuration
    end do
   case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
  end select
@@ -617,13 +642,21 @@ do istep=1,numtim
  end do  ! (end looping through global HRUs)
 
  ! print progress
+<<<<<<< HEAD
  !if(globalPrintFlag)then
   !if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
   !write(*,'(i4,1x,5(i2,1x))') timeStruct%var
  !endif
+=======
+ if(globalPrintFlag)then
+  if(timeStruct%var(iLookTIME%ih) >0) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+ endif
+>>>>>>> dc9a02d255e28e206cdf235f0e0df022aa8b64d1
 
+ ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
+ !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
  ! compute the exposed LAI and SAI and whether veg is buried by snow
- if(istep==1)then  ! (call phenology here because we need the time information)
+ if(istep==1)then  
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
 
@@ -811,18 +844,22 @@ do istep=1,numtim
 
    kHRU = 0
    ! identify the downslope HRU
-   do jHRU=1,nHRU
+   dsHRU: do jHRU=1,nHRU
     if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
-     else
-      call handle_err(20,'multi_driver: only expect there to be one downslope HRU')
+      exit dsHRU
      endif  ! (check there is a unique match)
     endif  ! (if identified a downslope HRU)
+<<<<<<< HEAD
    end do
 
    !write(*,'(a,1x,i4,1x,10(f20.10,1x))') 'iHRU, averageColumnOutflow = ', iHRU, fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%averageColumnOutflow)%dat(:)
 
+=======
+   end do dsHRU
+  
+>>>>>>> dc9a02d255e28e206cdf235f0e0df022aa8b64d1
    ! add inflow to the downslope HRU
    if(kHRU > 0)then  ! if there is a downslope HRU
     fluxStruct%gru(iGRU)%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxStruct%gru(iGRU)%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
@@ -973,50 +1010,25 @@ contains
  character(*),intent(in)::message
  ! define the local variables
  integer(i4b),parameter :: outunit=6               ! write to screen
- !character(len=8)       :: cdate2                  ! final date
  integer                :: ctime2(8)               ! final time
- real                   :: elp_s                    ! elapsed time in seconds
- integer                :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
- integer                :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
- integer                :: yy
- integer                :: elp_d
+ real(sp),dimension(3)  :: elpSec                  ! elapsed time in seconds: (1) user component; (2) system component; (3) total
+ 
+ 
 ! get the final date and time
  call date_and_time(values=ctime2)
-
- ! calculate the elapsed time (wall clock time)
- elp_s = (ctime2(8)-ctime1(8))*.001 + (ctime2(7)-ctime1(7)) + (ctime2(6)-ctime1(6))*60. + (ctime2(5)-ctime1(5))*3600.
-
-
- if (ctime2(1) > ctime1(1) .or. ctime2(2) > ctime1(2) .or. ctime2(3) > ctime1(3)) then
-
-  elp_d = 0
-  do yy = ctime1(1), ctime2(1) - 1
-   elp_d = elp_d + 365
-   if ((mod(yy,4)==0 .and. .not. mod(yy,100)==0) .or. (mod(yy,400)==0)) elp_d = elp_d + 1
-  end do
-
-  if ((mod(ctime1(1),4)==0 .and. .not. mod(ctime1(1),100)==0) .or. (mod(ctime1(1),400)==0)) days1(2) = 29
-  if ((mod(ctime2(1),4)==0 .and. .not. mod(ctime2(1),100)==0) .or. (mod(ctime2(1),400)==0)) days2(2) = 29
-
-  if (ctime1(1) > 1) elp_d = elp_d - sum(days1(1:(ctime1(2)-1)))
-  elp_d = elp_d - ctime1(3) + 1
-
-  if (ctime2(1) > 1) elp_d = elp_d + sum(days2(1:(ctime2(2)-1)))
-  elp_d = elp_d + ctime2(3)
-
-  elp_s = elp_s + elp_d * 86400.
- end if
-
 
  ! print initial and final date and time
  write(outunit,"(A,I4,'-',I2.2,'-',I2.2,4x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
  write(outunit,"(A,I4,'-',I2.2,'-',I2.2,4x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
- ! print elapsed time
- write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elp_s, ' s'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elp_s/60., ' m'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elp_s/3600., ' h'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elp_s/86400., ' d'
- print*,'FORTRAN STOP: '//trim(message)
+ 
+ ! calculate and print the elapsed time 
+ call etime(elpSec(1:2),elpSec(3))
+
+ write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elpSec(3),       ' s'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec(3)/60.,   ' m'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec(3)/3600., ' h'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec(3)/86400.,' d'
+ print*,'NORMAL FORTRAN STOP: '//trim(message)
  stop
  end subroutine
 end program multi_driver

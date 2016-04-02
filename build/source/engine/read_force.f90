@@ -44,7 +44,7 @@ contains
  USE globalData,only:refTime,refJulday                 ! reference time
  USE globalData,only:fracJulDay                        ! fractional julian days since the start of year
  USE globalData,only:yearLength                        ! number of days in the current year
- USE globalData,only:time_meta                         ! metadata structures
+ USE globalData,only:time_meta,forc_meta               ! metadata structures
  USE globalData,only:gru_struc                         ! gru-hru mapping structure
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
@@ -371,6 +371,14 @@ contains
     yearLength = 366
    endif
   endif
+ endif
+
+ ! check to see if any of the forcing data is missing
+ ! NOTE: The 0.99 multiplier is used to avoid precision issues when comparing real numbers.
+ if(any(forc_data(:)<amiss*0.99_dp))then
+  do iline=1,size(forc_meta)
+   if(forc_data(iline)<amiss*0.99_dp)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"; return; endif
+  end do
  endif
 
  ! test

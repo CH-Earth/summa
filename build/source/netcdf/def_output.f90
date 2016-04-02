@@ -21,10 +21,12 @@
 module def_output_module
 USE nrtype
 USE netcdf
-USE netcdf_util_module,only:netcdf_err                    ! netcdf error handling function
+USE netcdf_util_module,only:netcdf_err    ! netcdf error handling function
+USE f2008funcs_module,only:cloneStruc     ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
 implicit none
 private
 public :: def_output
+
 ! define dimension names
 character(len=32),parameter :: hru_DimName='hru'                       ! dimension name for the HRUs
 character(len=32),parameter :: scalar_DimName='scalar'                 ! dimension name for scalar variables
@@ -37,6 +39,20 @@ character(len=32),parameter :: midTotoAndTime_DimName='midTotoAndTime' ! dimensi
 character(len=32),parameter :: ifcSnowAndTime_DimName='ifcSnowAndTime' ! dimension name for ifcSnow-time
 character(len=32),parameter :: ifcSoilAndTime_DimName='ifcSoilAndTime' ! dimension name for ifcSoil-time
 character(len=32),parameter :: ifcTotoAndTime_DimName='ifcTotoAndTime' ! dimension name for ifcToto-time
+
+! define the dimension IDs
+integer(i4b)                :: hru_DimID                               ! dimension name for the HRUs
+integer(i4b)                :: scalar_DimID                            ! dimension name for scalar variables
+integer(i4b)                :: wLength_dimID                           ! dimension name for the number of spectral bands
+integer(i4b)                :: timestep_DimID                          ! dimension name for the time step
+integer(i4b)                :: routing_DimID                           ! dimension name for thetime delay routing vectors
+integer(i4b)                :: midSnowAndTime_DimID                    ! dimension name for midSnow-time
+integer(i4b)                :: midSoilAndTime_DimID                    ! dimension name for midSoil-time
+integer(i4b)                :: midTotoAndTime_DimID                    ! dimension name for midToto-time
+integer(i4b)                :: ifcSnowAndTime_DimID                    ! dimension name for ifcSnow-time
+integer(i4b)                :: ifcSoilAndTime_DimID                    ! dimension name for ifcSoil-time
+integer(i4b)                :: ifcTotoAndTime_DimID                    ! dimension name for ifcToto-time
+
 ! define named variables to specify dimensions
 integer(i4b),parameter  :: needHRU=1,noHRU=2    ! define if there is an HRU dimension
 integer(i4b),parameter  :: needTime=1,noTime=2  ! define if there is a time dimension
@@ -127,7 +143,6 @@ contains
  character(*),intent(out)    :: message                    ! error message
  ! define local variables
  integer(i4b)                :: ncid                       ! NetCDF file ID
- integer(i4b)                :: dimID
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
  integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
@@ -136,6 +151,7 @@ contains
  integer(i4b)                :: maxLength                  ! maximum length of the variable vector
  ! initialize error control
  err=0;message="f-iniCreate/"
+
  ! identify length of the variable vector
  maxStepsPerFile = min(numtim, nint(366._dp * secprday/data_step) )
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
@@ -145,42 +161,24 @@ contains
  end select ! (option to combine/sub-divide snow layers)
  maxLength = maxStepsPerFile*(nSoil+1 + meanSnowLayersPerStep)
  print*, 'maxStepsPerFile, maxLength = ', maxStepsPerFile, maxLength
+
  ! create output file
  err = nf90_create(trim(infile),nf90_classic_model,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
- ! create time dimension (unlimited)
- err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, dimId)
- message='iCreate[time]'; call netcdf_err(err,message); if (err/=0) return
- ! create scalar dimension
- err = nf90_def_dim(ncid, trim(scalar_DimName), scalarLength, dimId)
- message='iCreate[scalar]'; call netcdf_err(err,message); if (err/=0) return
- ! create HRU dimension
- err = nf90_def_dim(ncid, trim(hru_DimName), nHRU, dimId)
- message='iCreate[HRU]'; call netcdf_err(err,message); if (err/=0) return
- ! create spectral band dimension
- err = nf90_def_dim(ncid, trim(wLength_DimName), maxSpectral, dimId)
- message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
- ! create dimension for the time-delay routing variables
- err = nf90_def_dim(ncid, trim(routing_DimName), maxRouting, dimId)
- message='iCreate[routing]'; call netcdf_err(err,message); if (err/=0) return
- ! create dimension for midSnow+time
- err = nf90_def_dim(ncid, trim(midSnowAndTime_DimName), maxLength, dimId)
- message='iCreate[midSnow]'; call netcdf_err(err,message); if (err/=0) return
- ! create dimension for midSoil+time
- err = nf90_def_dim(ncid, trim(midSoilAndTime_DimName), maxLength, dimId)
- message='iCreate[midSoil]'; call netcdf_err(err,message); if (err/=0) return
- ! create dimension for midToto+time
- err = nf90_def_dim(ncid, trim(midTotoAndTime_DimName), maxLength, dimId)
- message='iCreate[minToto]'; call netcdf_err(err,message); if (err/=0) return
- ! create dimension for ifcSnow+time
- err = nf90_def_dim(ncid, trim(ifcSnowAndTime_DimName), maxLength, dimId)
- message='iCreate[ifcSnow]'; call netcdf_err(err,message); if (err/=0) return
- ! create dimension for ifcSoil+time
- err = nf90_def_dim(ncid, trim(ifcSoilAndTime_DimName), maxLength, dimId)
- message='iCreate[ifcSoil]'; call netcdf_err(err,message); if (err/=0) return
- ! create dimension for ifcToto+time
- err = nf90_def_dim(ncid, trim(ifcTotoAndTime_DimName), maxLength, dimId)
- message='iCreate[ifcToto]'; call netcdf_err(err,message); if (err/=0) return
+
+ ! create dimensions
+ err = nf90_def_dim(ncid, trim(      timestep_DimName), nf90_unlimited,   timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(        scalar_DimName), scalarLength,       scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(           hru_DimName), nHRU,                  hru_DimID); message='iCreate[HRU]';      call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(       wLength_DimName), maxSpectral,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(       routing_DimName), maxRouting,        routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(midSnowAndTime_DimName), maxLength,  midSnowAndTime_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(midSoilAndTime_DimName), maxLength,  midSoilAndTime_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(midTotoAndTime_DimName), maxLength,  midTotoAndTime_DimID); message='iCreate[minToto]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(ifcSnowAndTime_DimName), maxLength,  ifcSnowAndTime_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(ifcSoilAndTime_DimName), maxLength,  ifcSoilAndTime_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(ifcTotoAndTime_DimName), maxLength,  ifcTotoAndTime_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+
  ! close NetCDF file
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
  err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
@@ -234,12 +232,10 @@ contains
  character(*),intent(out)      :: message           ! error message
  ! local
  integer(i4b)                  :: ivar              ! variable index
- character(len=32),allocatable :: dimensionNames(:) ! vector of dimension names
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
- integer(i4b)                  :: nDims             ! number of dimensions
- integer(i4b)                  :: id                ! loop through dimensions
  integer(i4b)                  :: ncid              ! NetCDF file ID
  integer(i4b)                  :: iVarId            ! variable ID
+ character(LEN=256)            :: cmessage          ! error message of downwind routine
  ! initialize error control
  err=0; message='def_variab/'
 
@@ -256,58 +252,43 @@ contains
   ! check that the variable is desired
   if (.not.metadata(ivar)%v_write .or. trim(metadata(ivar)%vartype)=='unknown') cycle
 
-  ! deallocate dimension names and IDs
-  if(allocated(dimensionNames)) deallocate(dimensionNames)
-  if(allocated(dimensionIDs))   deallocate(dimensionIDs)
-
   ! ** get variable shape
   ! special case of the time variable
   if(metadata(ivar)%varname == 'time')then
-   allocate(dimensionNames, source=(/Timestep_DimName/), stat=err)
-   if(err/=0)then; err=20; message=trim(message)//'problem allocating dimensions for variable '//trim(metadata(ivar)%varname); return; endif
+   call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metadata(ivar)%varname)//']'; return; endif
+
   ! standard case
   else
    select case(trim(metadata(ivar)%vartype))
     ! (scalar variable -- many different types)
     case('scalarv')
-     if(hruDesire==needHRU .and. timeDesire==needTime) allocate(dimensionNames, source=(/hru_DimName,Timestep_DimName/), stat=err)
-     if(hruDesire==needHRU .and. timeDesire==  noTime) allocate(dimensionNames, source=(/hru_DimName/)                 , stat=err)
-     if(hruDesire==  noHRU .and. timeDesire==needTime) allocate(dimensionNames, source=(/Timestep_DimName/)            , stat=err)
-     if(hruDesire==  noHRU .and. timeDesire==  noTime) allocate(dimensionNames, source=(/scalar_DimName/)              , stat=err)
+     if(hruDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage)
+     if(hruDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage)
+     if(hruDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/)               , err=err, message=cmessage)
+     if(hruDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage)
     ! (other variables)
-    case('wLength'); allocate(dimensionNames, source=(/hru_DimName,wLength_DimName,Timestep_DimName/), stat=err)
-    case('midSnow'); allocate(dimensionNames, source=(/hru_DimName,midSnowAndTime_DimName/)          , stat=err)
-    case('midSoil'); allocate(dimensionNames, source=(/hru_DimName,midSoilAndTime_DimName/)          , stat=err)
-    case('midToto'); allocate(dimensionNames, source=(/hru_DimName,midTotoAndTime_DimName/)          , stat=err)
-    case('ifcSnow'); allocate(dimensionNames, source=(/hru_DimName,ifcSnowAndTime_DimName/)          , stat=err)
-    case('ifcSoil'); allocate(dimensionNames, source=(/hru_DimName,ifcSoilAndTime_DimName/)          , stat=err)
-    case('ifcToto'); allocate(dimensionNames, source=(/hru_DimName,ifcTotoAndTime_DimName/)          , stat=err)
-    case('routing'); allocate(dimensionNames, source=(/routing_DimName/)                             , stat=err)
+    case('wLength'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID,        wLength_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case('midSnow'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSnowAndTime_DimID                /), err=err, message=cmessage)
+    case('midSoil'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSoilAndTime_DimID                /), err=err, message=cmessage)
+    case('midToto'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midTotoAndTime_DimID                /), err=err, message=cmessage)
+    case('ifcSnow'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSnowAndTime_DimID                /), err=err, message=cmessage)
+    case('ifcSoil'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSoilAndTime_DimID                /), err=err, message=cmessage)
+    case('ifcToto'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcTotoAndTime_DimID                /), err=err, message=cmessage)
+    case('routing'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                      /), err=err, message=cmessage)
    end select
    ! check errors
    if(err/=0)then
-    message=trim(message)//'problem allocating dimensions for variable '//trim(metadata(ivar)%varname)
+    message=trim(message)//trim(cmessage)//' [variable '//trim(metadata(ivar)%varname)//']'
     return
    endif
   endif  ! check if we are processing the time variable
   ! check that we got the shape
-  if(.not.allocated(dimensionNames))then
+  if(.not.allocated(dimensionIDs))then
    message=trim(message)//'problem defining dimensions for variable '//trim(metadata(ivar)%varname)
    err=20; return
   endif
 
-  ! create space for the dimension IDs
-  nDims = size(dimensionNames)
-  allocate(dimensionIds(nDims),stat=err)
-  if(err/=0)then; message=trim(message)//'unable to allocate space for dimension IDs'; return; endif
-
-  ! define dimension IDs
-  do id=1,nDims
-   err=nf90_inq_dimid(ncid,trim(dimensionNames(id)),dimensionIDs(id))
-   call netcdf_err(err,message)
-   if (err/=0) return
-  end do
-  
   ! define variable
   err = nf90_def_var(ncid,trim(metadata(ivar)%varname),ivtype,dimensionIDs,iVarId)
   call netcdf_err(err,message); if (err/=0) return

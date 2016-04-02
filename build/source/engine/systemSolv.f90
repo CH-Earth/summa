@@ -646,7 +646,6 @@ contains
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-
  ! -----
  ! * compute the initial function evaluation...
  ! --------------------------------------------
@@ -2867,9 +2866,11 @@ contains
    canopy_max = real(abs(rVec(ixVegWat)), dp)*iden_water
    energy_max = real(maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) ), dp)
    energy_loc =      maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
+   canopyConv = (canopy_max    < absConvTol_watbal)  ! absolute error in canopy water balance (m)
   else
    energy_max = real(maxval(abs( rVec(ixSnowSoilNrg) ) ), dp)
    energy_loc =      maxloc(abs( rVec(ixSnowSoilNrg) ) )
+   canopyConv = .true. ! don't check canopy convergence if not computing the vegetation flux (canopy is buried by snow or canopy non-existent)
   endif
 
   ! check convergence based on the residuals for volumetric liquid water content (-)
@@ -2883,7 +2884,6 @@ contains
   matric_loc = maxloc(abs( xInc(ixSoilOnlyHyd)/psiScale ) )
 
   ! convergence check
-  canopyConv = (canopy_max    < absConvTol_watbal)  ! absolute error in canopy water balance (m)
   watbalConv = (soilWatbalErr < absConvTol_watbal)  ! absolute error in total soil water balance (m)
   matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
   liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
@@ -2892,8 +2892,8 @@ contains
   ! print progress towards solution
   if(printFlag)then
    print*, 'iter, dt = ', iter, dt
-   write(*,'(a,1x,4(e15.5,1x),3(i4,1x),3(L1,1x))') 'fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv = ', &
-                                                    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv
+   write(*,'(a,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv = ', &
+                                                    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
   endif
 
   ! final convergence check
