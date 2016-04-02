@@ -642,16 +642,9 @@ do istep=1,numtim
  end do  ! (end looping through global HRUs)
 
  ! print progress
-<<<<<<< HEAD
- !if(globalPrintFlag)then
-  !if(timeStruct%var(iLookTIME%ih) == 1) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-  !write(*,'(i4,1x,5(i2,1x))') timeStruct%var
- !endif
-=======
  if(globalPrintFlag)then
   if(timeStruct%var(iLookTIME%ih) >0) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
  endif
->>>>>>> dc9a02d255e28e206cdf235f0e0df022aa8b64d1
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
