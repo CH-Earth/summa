@@ -28,7 +28,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(nGRU,nHRU,strtHRU,attrStruct,typeStruct,err,message)
+ subroutine read_attrb(nHRU,strtHRU,attrStruct,typeStruct,err,message)
  ! provide access to subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open          ! open netcdf file
@@ -43,14 +43,12 @@ contains
  ! provide access to global data
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
- USE globalData,only:gru_struc                     ! gru-hru mapping structure
  USE globalData,only:index_map                     ! hru-gru mapping structure
  USE globalData,only:attr_meta,type_meta           ! metadata structures
  USE var_lookup,only:iLookATTR,iLookTYPE           ! named variables for elements of the data structures
  USE get_ixname_module,only:get_ixAttr,get_ixType  ! access function to find index of elements in structure
  implicit none
  ! define input
- integer(i4b),intent(in)              :: nGRU            ! number of grouped response units
  integer(i4b),intent(in)              :: nHRU            ! number of global hydrologic response units
  integer(i4b),intent(in)              :: strtHRU         ! first HRU of a subset
  ! define output
@@ -69,7 +67,6 @@ contains
  integer(i4b)                         :: numDims         ! number of dimensions for netcdf variable
  integer(i4b)                         :: mode            ! netCDF file open mode
  integer(i4b)                         :: var_type        ! type of netcdf variable (e.g. integer, double, float)
- integer(i4b)                         :: varid           ! netcdf variable id
  character(LEN=nf90_max_name)         :: var_name        ! character array of netcdf variable name
  integer(i4b),parameter               :: categorical=101 ! named variable to denote categorical data
  integer(i4b),parameter               :: numerical=102   ! named variable to denote numerical data
@@ -78,7 +75,6 @@ contains
  integer(i4b)                         :: nvar            ! number of variables in netcdf local attribute file
  integer(i4b)                         :: iAtt            ! index of an attribute name
  integer(i4b)                         :: iHRU            ! index of an HRU
- integer(i4b)                         :: iGRU            ! index of an GRU
  integer(i4b)                         :: nAtt            ! number of model attributes
  integer(i4b)                         :: nVar_attr       ! number of variables in the model attribute structure
  integer(i4b)                         :: nVar_type       ! number of variables in the model category structure

@@ -380,7 +380,7 @@ do iGRU=1,nGRU
 end do
 
 ! read local attributes for each HRU
-call read_attrb(nGRU,nHRU,strtHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
+call read_attrb(nHRU,strtHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
