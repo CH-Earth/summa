@@ -191,7 +191,7 @@ integer(i4b),parameter           :: yes=1                      ! .true.
 logical(lgt)                     :: computeVegFluxFlag         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow) 
 type(hru_i),allocatable          :: computeVegFlux(:)          ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow) 
 type(hru_d),allocatable          :: dt_init(:)                 ! used to initialize the length of the sub-step for each HRU
-type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU
+type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 integer(i4b)                     :: fileUnit                   ! file unit (output from file_open; a unit not currently used)
@@ -252,7 +252,7 @@ doJacobian=.false.
 
 ! allocate time structures
 call allocLocal(time_meta, refTime,   err=err, message=message); call handle_err(err,message)  ! reference time for the model simulation
-call allocLocal(time_meta, startTime, err=err, message=message); call handle_err(err,message)  ! start time for the model simulation
+call allocLocal(time_meta, startTime, err=err, message=message); call handle_err(err,message)  ! start time for the model simulation 
 call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err(err,message)  ! end time for the model simulation
 
 ! *****************************************************************************
@@ -481,7 +481,7 @@ do iGRU=1,nGRU
   ! check that the parameters are consistent
   call paramCheck(mparStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
   
-  ! calculate a look-up table for the temperature-enthalpy conversion
+  ! calculate a look-up table for the temperature-enthalpy conversion 
   call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
  
   ! read description of model initial conditions -- also initializes model structure components
@@ -501,7 +501,7 @@ do iGRU=1,nGRU
                   progStruct%gru(iGRU)%hru(iHRU),   & ! intent(inout): model prognostic (state) variables for a local HRU
                   ! output: error control
                   err,message); call handle_err(err,message)
-
+  
   ! calculate vertical distribution of root density
   call rootDensty(mparStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model parameters
                   indxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model indices
@@ -727,12 +727,12 @@ do istep=1,numtim
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = 0._dp ! recharge to the aquifer (m s-1)
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
   bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
-
+  
   ! initialize total inflow for each layer in a soil column
   do iHRU=1,gru_struc(iGRU)%hruCount
    fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._dp
   end do
-  
+
   ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
    
@@ -765,7 +765,7 @@ do istep=1,numtim
   
    ! overwrite the minimum resistance
    if(overwriteRSMIN) RSMIN = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%minStomatalResistance)
-
+  
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)
    HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)
@@ -787,7 +787,7 @@ do istep=1,numtim
                    fluxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model fluxes
                    err,message)                         ! error control
    call handle_err(err,message)
-
+  
    ! ****************************************************************************
    ! (9) run the model
    ! ****************************************************************************
@@ -1039,6 +1039,7 @@ contains
  print*,'FORTRAN STOP: '//trim(message)
  stop
  end subroutine
+
 end program multi_driver
 
 
