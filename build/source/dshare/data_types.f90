@@ -63,11 +63,11 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define derived type for model variables, including name, decription, and units
  type,public :: var_info
-  character(len=64)                      :: varname=''       ! variable name
-  character(len=128)                     :: vardesc=''       ! variable description
-  character(len=64)                      :: varunit=''       ! variable units
-  character(len=32)                      :: vartype=''       ! variable type (scalar, model layers, etc.)
-  logical(lgt)                           :: v_write=.FALSE.  ! flag to write variable to the output file
+  character(len=64)                      :: varname='empty'         ! variable name
+  character(len=128)                     :: vardesc='empty'         ! variable description
+  character(len=64)                      :: varunit='empty'         ! variable units
+  integer(i4b)                           :: vartype=integerMissing  ! variable type (scalar, model layers, etc.)
+  logical(lgt)                           :: v_write=.FALSE.         ! flag to write variable to the output file
  endtype var_info
 
  ! define extended data type (include indices to map onto parent data type)

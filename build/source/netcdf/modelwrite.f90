@@ -202,6 +202,8 @@ contains
  ! public subroutine writeModel: write local column model variables
  ! **********************************************************************************************************
  subroutine writeModel(fileout,indx_data,metaStruct,dataStruct,iHRU,istep,err,message)
+ USE var_lookup,only:iLookVarType                ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName      ! to access type strings for error messages
  USE var_lookup,only:iLookINDEX                  ! identifies element of the index structure
  USE data_types,only:var_ilength                 ! data structure: x%var(:)%dat (i4b)
  USE data_types,only:var_dlength                 ! data structure: x%var(:)%dat (dp)
@@ -260,18 +262,18 @@ contains
    type is (var_dlength)
 
     ! write model data 
-    select case(trim(metaStruct(ivar)%vartype))
-     case('scalarv'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
-     case('wLength'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,1,istep/),count=(/1,maxSpectral,1/))
-     case('midSnow'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
-     case('midSoil'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
-     case('midToto'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
-     case('ifcSnow'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
-     case('ifcSoil'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
-     case('ifcToto'); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
+    select case(metaStruct(ivar)%vartype)
+     case(iLookVarType%scalarv); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
+     case(iLookVarType%wLength); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,1,istep/),count=(/1,maxSpectral,1/))
+     case(iLookVarType%midSnow); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
+     case(iLookVarType%midSoil); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
+     case(iLookVarType%midToto); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
+     case(iLookVarType%ifcSnow); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
+     case(iLookVarType%ifcSoil); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
+     case(iLookVarType%ifcToto); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
      case default
       err=40; message=trim(message)//"unknownVariableType[name='"//trim(metaStruct(ivar)%varname)//"'; &
-                                     &type='"//trim(metaStruct(ivar)%vartype)//"']"; return
+                                     &type='"//trim(get_varTypeName(metaStruct(ivar)%vartype))//"']"; return
     endselect ! selecting the variable type
 
    ! check that we found the data type
@@ -294,10 +296,12 @@ contains
  ! public subroutine writeBasin: write basin-average variables
  ! **********************************************************************************************************
  subroutine writeBasin(fileout,bvar_data,istep,err,message)
+ USE var_lookup,only:iLookVarType              ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName    ! to access type strings for error messages
  USE data_types,only:var_dlength               ! data structure: x%var(:)%dat (dp)
  USE globalData,only:bvar_meta                 ! metadata structures
  USE var_lookup,only:iLookINDEX                ! identifies element of the index structure
- USE globalData,only:ncid                        ! id of netcdf output file
+ USE globalData,only:ncid                      ! id of netcdf output file
  implicit none
  ! declare dummy variables
  character(*), intent(in)     :: fileout       ! output file
@@ -322,15 +326,15 @@ contains
   err = nf90_inq_varid(ncid,trim(bvar_meta(imodel)%varname),iVarId)
   call netcdf_err(err,message); if (err/=0) return
   ! write data
-  select case(trim(bvar_meta(imodel)%vartype))
-   case('scalarv'); err = nf90_put_var(ncid,iVarId,bvar_data%var(imodel)%dat,start=(/istep/),count=(/1/))
-   case('routing')
+  select case(bvar_meta(imodel)%vartype)
+   case(iLookVarType%scalarv); err = nf90_put_var(ncid,iVarId,bvar_data%var(imodel)%dat,start=(/istep/),count=(/1/))
+   case(iLookVarType%routing)
     if(istep==1)then
      err = nf90_put_var(ncid,iVarId,bvar_data%var(imodel)%dat,start=(/1/),count=(/1000/))
     endif
    case default
     err=40; message=trim(message)//"unknownVariableType[name='"//trim(bvar_meta(imodel)%varname)//"'; &
-                                   &type='"//trim(bvar_meta(imodel)%vartype)//"']"; return
+                                   &type='"//trim(get_varTypeName(bvar_meta(imodel)%vartype))//"']"; return
   endselect
   call netcdf_err(err,message); if (err/=0) return
   message="f-writeBasin/"

@@ -213,6 +213,8 @@ contains
  ! private subroutine def_variab: define variables
  ! **********************************************************************************************************
  subroutine def_variab(infile,hruDesire,timeDesire,metadata,ivtype,err,message)
+ USE var_lookup,only:iLookVarType                   ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE data_types,only:var_info                       ! derived type for metadata
  USE globalData,only:ncid                           ! netcdf variable ID
  implicit none
@@ -240,7 +242,7 @@ contains
  do ivar=1,size(metadata)
 
   ! check that the variable is desired
-  if (.not.metadata(ivar)%v_write .or. trim(metadata(ivar)%vartype)=='unknown') cycle
+  if ((.not.metadata(ivar)%v_write).or.(metadata(ivar)%vartype.eq.iLookVarType%unknown)) cycle
 
   ! ** get variable shape
   ! special case of the time variable
@@ -250,22 +252,22 @@ contains
 
   ! standard case
   else
-   select case(trim(metadata(ivar)%vartype))
+   select case(metadata(ivar)%vartype)
     ! (scalar variable -- many different types)
-    case('scalarv')
+    case(iLookVarType%scalarv)
      if(hruDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage)
      if(hruDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage)
      if(hruDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/)               , err=err, message=cmessage)
      if(hruDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage)
     ! (other variables)
-    case('wLength'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID,        wLength_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case('midSnow'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSnowAndTime_DimID                /), err=err, message=cmessage)
-    case('midSoil'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSoilAndTime_DimID                /), err=err, message=cmessage)
-    case('midToto'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midTotoAndTime_DimID                /), err=err, message=cmessage)
-    case('ifcSnow'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSnowAndTime_DimID                /), err=err, message=cmessage)
-    case('ifcSoil'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSoilAndTime_DimID                /), err=err, message=cmessage)
-    case('ifcToto'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcTotoAndTime_DimID                /), err=err, message=cmessage)
-    case('routing'); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                      /), err=err, message=cmessage)
+    case(iLookVarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID,        wLength_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookVarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSnowAndTime_DimID                /), err=err, message=cmessage)
+    case(iLookVarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSoilAndTime_DimID                /), err=err, message=cmessage)
+    case(iLookVarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midTotoAndTime_DimID                /), err=err, message=cmessage)
+    case(iLookVarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSnowAndTime_DimID                /), err=err, message=cmessage)
+    case(iLookVarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSoilAndTime_DimID                /), err=err, message=cmessage)
+    case(iLookVarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcTotoAndTime_DimID                /), err=err, message=cmessage)
+    case(iLookVarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                      /), err=err, message=cmessage)
    end select
    ! check errors
    if(err/=0)then

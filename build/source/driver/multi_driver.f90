@@ -127,6 +127,7 @@ USE var_lookup,only:iLookFLUX                               ! look-up values for
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
+USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
 ! provide access to the named variables that describe elements of child  model structures
 USE var_lookup,only:childFLUX_MEAN                          ! look-up values for timestep-average model fluxes
 ! provide access to the named variables that describe model decisions
@@ -253,7 +254,7 @@ call checkStruc(err,message); call handle_err(err,message)
 ! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
 !       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
 !        and soil drainage (at interface=nSoil)
-flux_mask = (flux_meta(:)%vartype == 'scalarv' .or. flux_meta(:)%vartype == 'ifcSoil')
+flux_mask = ((flux_meta(:)%vartype.eq.iLookVarType%scalarv).or.(flux_meta(:)%vartype.eq.iLookVarType%ifcSoil))
 
 ! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
