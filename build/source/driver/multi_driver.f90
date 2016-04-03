@@ -237,8 +237,8 @@ select case (iargc())
    print '(x,I0,A)', nHRU,' HRUs are selected for simulation.'
   end if
  case default
-  err = 1
-  message = 'Usage: summa.exe _simualtion_name_ master_file <startHRU countHRU>'
+  print*, 'Usage: summa.exe _simualtion_name_ master_file <startHRU countHRU>'
+  stop
 end select
 call handle_err(err,message)
 ! get command-line arguments for the output file suffix
