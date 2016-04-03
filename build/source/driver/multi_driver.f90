@@ -62,6 +62,7 @@ USE vegPhenlgy_module,only:vegPhenlgy                       ! module to compute 
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
 USE groundwatr_module,only:groundwatr                       ! module to simulate regional groundwater balance
 USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
+USE netcdf_util_module,only:nc_file_close                   ! module to handle netcdf stuff for inputs and outputs
 ! provide access to file paths
 USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
@@ -210,6 +211,8 @@ real(dp)                         :: notUsed_exposedVAI         ! NOT USED: expos
 ! error control
 integer(i4b)                     :: err=0                      ! error code
 character(len=1024)              :: message=''                 ! error message
+! output file control
+logical(lgt)                     :: ncOpen                     ! flag to know whether there is an open output file
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -232,6 +235,8 @@ endif
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
 ! initialize the Jacobian flag
 doJacobian=.false.
+! initialize output flag
+ncOpen = .false.
 
 ! allocate time structures
 call allocLocal(time_meta, refTime,   err=err, message=message); call handle_err(err,message)  ! reference time for the model simulation
@@ -436,6 +441,7 @@ call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 ! NOTE: currently assumes that nSoil is constant across the model domain
 write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+ncOpen = .true.
   
 ! loop through GRUs
 do iGRU=1,nGRU
@@ -659,6 +665,9 @@ do istep=1,numtim
     timeStruct%var(iLookTIME%ih)  ==1  .and. &   ! hour = 1
     timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 
+  ! close any output files that are already open
+  if ncOpen then; call nc_file_close(err,message); call handl_err(err,message); endif
+ 
   ! define the filename
   write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
@@ -892,6 +901,9 @@ do istep=1,numtim
 
 end do  ! (looping through time)
 
+! close any remaining output files
+if ncOpen then; call nc_file_close(err,message); call handl_err(err,message); endif
+ 
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
 
