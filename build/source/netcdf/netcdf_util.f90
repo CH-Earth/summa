@@ -24,7 +24,7 @@ USE netcdf
 implicit none
 private
 public::nc_file_open
-public::nc_file__close
+public::nc_file_close
 public::netcdf_err
 contains
 
@@ -65,17 +65,22 @@ contains
  ! **********************************************************************************************************
  ! private subroutine put_attrib: put global attributes as character string
  ! **********************************************************************************************************
- subroutine nc_file_close(err,message)
+ subroutine nc_file_close(ncid,err,message)
  implicit none
 
  ! declare dummy variables
+ integer(i4b),intent(in)    :: ncid         ! file id of netcdf file to close
  integer(i4b),intent(out)   :: err          ! error code
  character(*),intent(out)   :: message      ! error message
+ ! internals
+ character(64)              :: cmessage     ! netcdf error message
 
  ! initialize error control
- err=0; message = 'netcdf_close/'
+ err=0; message = 'nc_file_close/'
 
-  
+ err = nf90_close(ncid); 
+ call netcdf_err(err,cmessage);
+ message=trim(message)//trim(cmessage)
 
  end subroutine nc_file_close
 

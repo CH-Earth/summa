@@ -40,6 +40,7 @@ contains
  subroutine writeAttrb(fileout,iHRU,attr_data,type_data,err,message)
  USE globalData,only:attr_meta                   ! metadata for local attributes
  USE globalData,only:type_meta                   ! metadata for local classification of veg, soil, etc.
+ USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! declare input variables
  character(*), intent(in)    :: fileout          ! output file
@@ -50,15 +51,10 @@ contains
  integer(i4b),intent(out)    :: err              ! error code
  character(*),intent(out)    :: message          ! error message
  ! local variables
- integer(i4b)                :: ncid             ! NetCDF file ID
  integer(i4b)                :: iVar             ! loop through variables
  integer(i4b)                :: iVarId           ! variable ID
  ! initialize error control
  err=0;message="f-writeAttrb/"
-
- ! open NetCDF file
- err = nf90_open(trim(fileout),nf90_write,ncid)
- call netcdf_err(err,message); if (err/=0) return
 
  ! loop through local attributes
  do iVar=1,size(attr_meta)
@@ -92,8 +88,6 @@ contains
   message="f-writeAttrb/"
  end do  ! looping through local classification of veg, soil, etc.
 
- ! close output file
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine writeAttrb
 
 
@@ -103,6 +97,7 @@ contains
  subroutine writeParam(fileout,iHRU,mpar_data,bpar_data,err,message)
  USE globalData,only:mpar_meta                   ! metadata for local-column model parameter structures
  USE globalData,only:bpar_meta                   ! metadata for basin-average model parameter structures
+ USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! declare input variables
  character(*), intent(in)    :: fileout          ! output file
@@ -113,15 +108,10 @@ contains
  integer(i4b),intent(out)    :: err              ! error code
  character(*),intent(out)    :: message          ! error message
  ! local variables
- integer(i4b)                :: ncid             ! NetCDF file ID
  integer(i4b)                :: ipar             ! loop through model parameters
  integer(i4b)                :: iVarId           ! variable ID
  ! initialize error control
  err=0;message="f-writeParam/"
-
- ! open NetCDF file
- err = nf90_open(trim(fileout),nf90_write,ncid)
- call netcdf_err(err,message); if (err/=0) return
 
  ! loop through local column model parameters
  do ipar=1,size(mpar_meta)
@@ -155,8 +145,6 @@ contains
   message="f-writeParam/"
  end do  ! looping through basin-average model parameters
 
- ! close output file
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine writeParam
 
 
@@ -167,6 +155,7 @@ contains
  USE data_types,only:var_d                       ! data structure: x%var(:)    (dp)
  USE globalData,only:forc_meta                   ! forcing metadata
  USE var_lookup,only:iLookFORCE                  ! identifies element of the forcing structure
+ USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! declare dummy variables
  character(*), intent(in)    :: fileout          ! output file
@@ -176,15 +165,10 @@ contains
  integer(i4b),intent(out)    :: err              ! error code
  character(*),intent(out)    :: message          ! error message
  ! local variables
- integer(i4b)                :: ncid             ! NetCDF file ID
  integer(i4b)                :: iforce           ! loop through model forcing variables
  integer(i4b)                :: iVarId           ! variable ID
  ! initialize error control
  err=0;message="f-writeForce/"
-
- ! open NetCDF file
- err = nf90_open(trim(fileout),nf90_write,ncid)
- call netcdf_err(err,message); if (err/=0) return
 
  ! write the time coordinate variable
  if(iHRU == 1)then
@@ -212,9 +196,6 @@ contains
   call netcdf_err(err,message); if (err/=0) return
  end do  ! looping through forcing data variables
 
- ! close output file
- message="f-writeForce/"
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine writeForce
 
  ! **********************************************************************************************************
@@ -225,6 +206,7 @@ contains
  USE data_types,only:var_ilength                 ! data structure: x%var(:)%dat (i4b)
  USE data_types,only:var_dlength                 ! data structure: x%var(:)%dat (dp)
  USE data_types,only:var_info                    ! metadata structure
+ USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! input variables
  character(*), intent(in)      :: fileout        ! output file
@@ -237,7 +219,6 @@ contains
  integer(i4b),intent(out)      :: err            ! error code
  character(*),intent(out)      :: message        ! error message
  ! local variables
- integer(i4b)                  :: ncid           ! NetCDF file ID
  integer(i4b)                  :: ivar           ! variable index
  integer(i4b)                  :: iVarId         ! variable ID
  ! initialize error control
@@ -257,10 +238,6 @@ contains
  ifcSoilStartIndex => indx_data%var(iLookINDEX%ifcSoilStartIndex)%dat(1) ,&             
  ifcTotoStartIndex => indx_data%var(iLookINDEX%ifcTotoStartIndex)%dat(1)  &
  )  ! (associating local variables with information in the data structures)
-
- ! open NetCDF file
- err = nf90_open(trim(fileout),nf90_write,ncid)
- call netcdf_err(err,message); if (err/=0) return
 
  ! loop through model variables
  do ivar=1,size(metaStruct)
@@ -307,9 +284,6 @@ contains
 
  end do  ! looping through model variables
 
- ! close output file
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
-
  ! end associating local variables with information in the data structures
  end associate
 
@@ -323,6 +297,7 @@ contains
  USE data_types,only:var_dlength               ! data structure: x%var(:)%dat (dp)
  USE globalData,only:bvar_meta                 ! metadata structures
  USE var_lookup,only:iLookINDEX                ! identifies element of the index structure
+ USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! declare dummy variables
  character(*), intent(in)     :: fileout       ! output file
@@ -331,15 +306,10 @@ contains
  integer(i4b),intent(out)     :: err           ! error code
  character(*),intent(out)     :: message       ! error message
  ! local variables
- integer(i4b)                 :: ncid          ! NetCDF file ID
  integer(i4b)                 :: imodel        ! loop through model variables
  integer(i4b)                 :: iVarId        ! variable ID
  ! initialize error control
  err=0;message="f-writeModel/"
-
- ! open NetCDF file
- err = nf90_open(trim(fileout),nf90_write,ncid)
- call netcdf_err(err,message); if (err/=0) return
 
  ! loop through model variables
  ! ----------------------------
@@ -366,8 +336,6 @@ contains
   message="f-writeBasin/"
  end do  ! looping through model variables
 
- ! close output file
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine writeBasin
 
 end module modelwrite_module

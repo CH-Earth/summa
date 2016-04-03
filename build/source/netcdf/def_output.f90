@@ -129,6 +129,7 @@ contains
  USE globalData,only:data_step          ! time step of model forcing data (s)
  USE globalData,only:numtim             ! number of time steps
  ! model decisions
+ USE globalData,only:ncid               ! netcdf variable ID
  USE globalData,only:model_decisions    ! model decision structure
  USE var_lookup,only:iLookDECISIONS     ! named variables for elements of the decision structure
  USE mDecisions_module,only:&
@@ -142,7 +143,6 @@ contains
  integer(i4b),intent(out)    :: err                        ! error code
  character(*),intent(out)    :: message                    ! error message
  ! define local variables
- integer(i4b)                :: ncid                       ! NetCDF file ID
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
  integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
@@ -181,7 +181,6 @@ contains
 
  ! close NetCDF file
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine ini_create
 
 
@@ -189,7 +188,8 @@ contains
  ! private subroutine put_attrib: put global attributes as character string
  ! **********************************************************************************************************
  subroutine put_attrib(infile,attname,attvalue,err,message)
- USE data_types,only:var_info                              ! derived type for metadata
+ USE data_types,only:var_info              ! derived type for metadata
+ USE globalData,only:ncid                  ! netcdf variable ID
  implicit none
  ! declare dummy variables
  character(*), intent(in)   :: infile      ! filename
@@ -197,13 +197,8 @@ contains
  character(*), intent(in)   :: attvalue    ! attribute vaue
  integer(i4b),intent(out)   :: err         ! error code
  character(*),intent(out)   :: message     ! error message
- ! local variables
- integer(i4b)               :: ncid        ! NetCDF file ID
  ! initialize error control
  err=0;message="put_attrib/"//trim(attname)//"/"//trim(attvalue)//"/"
- ! open NetCDF file
- err = nf90_open(infile,nf90_write,ncid)
- call netcdf_err(err,message); if (err/=0) return
  ! allow re-definition of variables
  err = nf90_redef(ncid); call netcdf_err(err,message); if (err/=0) return
  ! put the attribute
@@ -211,7 +206,6 @@ contains
  call netcdf_err(err,message); if (err/=0) return
  ! close output file
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
  end subroutine put_attrib
 
 
@@ -220,6 +214,7 @@ contains
  ! **********************************************************************************************************
  subroutine def_variab(infile,hruDesire,timeDesire,metadata,ivtype,err,message)
  USE data_types,only:var_info                       ! derived type for metadata
+ USE globalData,only:ncid                           ! netcdf variable ID
  implicit none
  ! input
  character(*), intent(in)      :: infile            ! filename
@@ -233,15 +228,10 @@ contains
  ! local
  integer(i4b)                  :: ivar              ! variable index
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
- integer(i4b)                  :: ncid              ! NetCDF file ID
  integer(i4b)                  :: iVarId            ! variable ID
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  ! initialize error control
  err=0; message='def_variab/'
-
- ! open NetCDF file
- err = nf90_open(infile,nf90_write,ncid)
- call netcdf_err(err,message); if (err/=0) return
 
  ! allow re-definition of variables
  err = nf90_redef(ncid); call netcdf_err(err,message); if (err/=0) return
@@ -305,7 +295,6 @@ contains
   
  ! close output file
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
- err = nf90_close(ncid); call netcdf_err(err,message); if (err/=0) return
 
  end subroutine def_variab
 

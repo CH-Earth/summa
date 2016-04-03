@@ -121,4 +121,8 @@ MODULE globalData
  type(var_i),save,public                     :: startTime               ! start time for the model simulation
  type(var_i),save,public                     :: finshTime               ! end time for the model simulation
 
+ ! output file information
+ integer(i4b),save,public                    :: ncid                    ! netcdf output file id
+
+
 END MODULE globalData
