@@ -406,6 +406,7 @@ contains
   ! state variables for vegetation
   case('scalarCanopyIce'                ); get_ixprog = iLookPROG%scalarCanopyIce                  ! mass of ice on the vegetation canopy (kg m-2)
   case('scalarCanopyLiq'                ); get_ixprog = iLookPROG%scalarCanopyLiq                  ! mass of liquid water on the vegetation canopy (kg m-2)
+  case('scalarCanopyWat'                ); get_ixprog = iLookPROG%scalarCanopyWat                  ! mass of total water on the vegetation canopy (kg m-2)
   case('scalarCanairTemp'               ); get_ixprog = iLookPROG%scalarCanairTemp                 ! temperature of the canopy air space (K)
   case('scalarCanopyTemp'               ); get_ixprog = iLookPROG%scalarCanopyTemp                 ! temperature of the vegetation canopy (K)
   ! state variables for snow
@@ -418,6 +419,7 @@ contains
   case('mLayerTemp'                     ); get_ixprog = iLookPROG%mLayerTemp                       ! temperature of each layer (K)
   case('mLayerVolFracIce'               ); get_ixprog = iLookPROG%mLayerVolFracIce                 ! volumetric fraction of icein each layer (-)
   case('mLayerVolFracLiq'               ); get_ixprog = iLookPROG%mLayerVolFracLiq                 ! volumetric fraction of liquid water in each layer (-)
+  case('mLayerVolFracWat'               ); get_ixprog = iLookPROG%mLayerVolFracWat                 ! volumetric fraction of total water in each layer (-)
   case('mLayerMatricHead'               ); get_ixprog = iLookPROG%mLayerMatricHead                 ! matric head of water in the soil (m)
   ! other state variables
   case('scalarAquiferStorage'           ); get_ixprog = iLookPROG%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)

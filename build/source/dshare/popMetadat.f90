@@ -268,6 +268,7 @@ contains
  ! state variables for vegetation
  prog_meta(iLookPROG%scalarCanopyIce)                 = var_info('scalarCanopyIce'                , 'mass of ice on the vegetation canopy'                             , 'kg m-2'          , 'scalarv', .true.)
  prog_meta(iLookPROG%scalarCanopyLiq)                 = var_info('scalarCanopyLiq'                , 'mass of liquid water on the vegetation canopy'                    , 'kg m-2'          , 'scalarv', .true.)
+ prog_meta(iLookPROG%scalarCanopyWat)                 = var_info('scalarCanopyWat'                , 'mass of total water on the vegetation canopy'                     , 'kg m-2'          , 'scalarv', .true.)
  prog_meta(iLookPROG%scalarCanairTemp)                = var_info('scalarCanairTemp'               , 'temperature of the canopy air space'                              , 'K'               , 'scalarv', .true.)
  prog_meta(iLookPROG%scalarCanopyTemp)                = var_info('scalarCanopyTemp'               , 'temperature of the vegetation canopy'                             , 'K'               , 'scalarv', .true.)
  ! state variables for snow
@@ -280,6 +281,7 @@ contains
  prog_meta(iLookPROG%mLayerTemp)                      = var_info('mLayerTemp'                     , 'temperature of each layer'                                        , 'K'               , 'midToto', .true.)
  prog_meta(iLookPROG%mLayerVolFracIce)                = var_info('mLayerVolFracIce'               , 'volumetric fraction of ice in each layer'                         , '-'               , 'midToto', .false.)
  prog_meta(iLookPROG%mLayerVolFracLiq)                = var_info('mLayerVolFracLiq'               , 'volumetric fraction of liquid water in each layer'                , '-'               , 'midToto', .true.)
+ prog_meta(iLookPROG%mLayerVolFracWat)                = var_info('mLayerVolFracWat'               , 'volumetric fraction of total water in each layer'                 , '-'               , 'midToto', .true.)
  prog_meta(iLookPROG%mLayerMatricHead)                = var_info('mLayerMatricHead'               , 'matric head of water in the soil'                                 , 'm'               , 'midSoil', .false.)
  ! other state variables
  prog_meta(iLookPROG%scalarAquiferStorage)            = var_info('scalarAquiferStorage'           , 'water required to bring aquifer to the bottom of the soil profile', 'm'               , 'scalarv', .false.)

@@ -1257,6 +1257,7 @@ contains
                      stateVecTrial(ixSoilOnlyHyd(iLayer-nSnow)),& ! intent(in): matric head (m)
                      vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                      ! output
+                     mLayerVolFracWatTrial(iLayer),             & ! intent(out): volumetric fraction of total water (-)
                      mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
                      mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
                      err,cmessage)                                ! intent(out): error control
@@ -1317,7 +1318,7 @@ contains
   real(dp)                       :: scalarCanopyWatTrial      ! trial value for mass of total water on the vegetation canopy (kg m-2)
   ! trial state variables (snow and soil domains)
   real(dp),dimension(nLayers)    :: mLayerTempTrial           ! trial value for temperature of each snow/soil layer (K)
-  real(dp),dimension(nSnow)      :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
+  real(dp),dimension(nLayers)    :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
   real(dp),dimension(nSoil)      :: mLayerMatricHeadTrial     ! trial value for matric head (m)
   ! temporary vectors for the soil sub-domain
   real(dp),dimension(nSoil)      :: vThetaInit                ! liquid equivalent of total water at the start of the step

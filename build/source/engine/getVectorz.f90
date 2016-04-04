@@ -118,7 +118,7 @@ contains
  mLayerTemp        => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
  mLayerVolFracLiq  => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
  mLayerVolFracIce  => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of ice (-)
- mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)\
+ mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
  ! model diagnostic variables
  volHeatCapVeg     => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
  mLayerVolHeatCap  => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
@@ -279,6 +279,7 @@ contains
  associate(&
  ! number of model layers, and layer type
  nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in): [i4b]    total number of snow layers
+ nSoil             => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in): [i4b]    total number of soil layers
  nLayers           => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in): [i4b]    total number of snow and soil layers
  nVegState         => indx_data%var(iLookINDEX%nVegState)%dat(1)             ,& ! intent(in): [i4b]    number of vegetation state variables
  layerType         => indx_data%var(iLookINDEX%layerType)%dat                ,& ! intent(in): [i4b(:)] index defining type of layer (soil or snow)
@@ -287,7 +288,7 @@ contains
  ixVegNrg          => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
  ixVegWat          => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
  ixSnowSoilNrg     => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
- ixSnowSoilWat     => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat            ,& ! intent(in): [i4b(:)] indices for total water states in the snow-soil subdomain
+ ixSnowOnlyWat     => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat            ,& ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
  ixSoilOnlyHyd     => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat             & ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
  ) ! association with variables in the data structures
 
@@ -321,9 +322,9 @@ contains
  endif
 
  ! extract state variables for layers in the snow-soil system
- mLayerTempTrial       = stateVec(ixSnowSoilNrg)
- mLayerVolFracWatTrial = stateVec(ixSnowSoilWat)
- mLayerMatricHeadTrial = stateVec(ixSoilOnlyHyd)
+ mLayerTempTrial(1:nLayers)     = stateVec(ixSnowSoilNrg)
+ mLayerVolFracWatTrial(1:nSnow) = stateVec(ixSnowOnlyWat)
+ mLayerMatricHeadTrial(1:nSoil) = stateVec(ixSoilOnlyHyd)
 
  ! compute diagnostic variables in the snow and soil sub-domains
  do iLayer=1,nLayers
@@ -351,6 +352,7 @@ contains
                     mLayerMatricHeadTrial(iLayer-nSnow),       & ! intent(in): matric head (m)
                     vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                     ! output
+                    mLayerVolFracWatTrial(iLayer),             & ! intent(out): volumetric fraction of total water (-)
                     mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
                     mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
                     err,cmessage)                                ! intent(out): error control

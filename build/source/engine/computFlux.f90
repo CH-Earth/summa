@@ -80,6 +80,7 @@ USE mDecisions_module,only:       &
 implicit none
 private
 public::computFlux
+public::soilCmpres
 ! control parameters
 real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
 real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
@@ -196,28 +197,24 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! * local variables
  ! ---------------------------------------------------------------------------------------
-
  integer(i4b)                    :: local_ixGroundwater       ! local index for groundwater representation
  integer(i4b)                    :: iSoil                     ! index of soil layer
  integer(i4b)                    :: iLayer                    ! index of model layers
  integer(i4b)                    :: ixSaturation              ! index of lowest saturated layer (NOTE: only computed on the first iteration)
-
  real(dp)                        :: theta                     ! liquid water equivalent of total water (liquid plus ice)
-
-
- real(dp),parameter             :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
- real(dp)                       :: xNum                      ! temporary variable: numerator
- real(dp)                       :: xDen                      ! temporary variable: denominator
- real(dp)                       :: effSat                    ! effective saturation of the soil matrix (-)
- real(dp),dimension(nSoil)      :: mLayerMatricHeadLiq       ! matric head associated with liquid water (m), f(psi0, T)
- real(dp)                       :: dPsiLiq_dEffSat           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
- real(dp)                       :: dEffSat_dVolTot           ! derivative in effective saturation w.r.t. total water content (-)
- real(dp)                       :: dEffSat_dTemp             ! derivative in effective saturation w.r.t. temperature (K-1)
- real(dp),dimension(nSoil)      :: dPsiLiq_dPsi0             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
- real(dp),dimension(nSoil)      :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t matric head (s-1)
- real(dp),allocatable           :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
- real(dp)                       :: soilControl               ! soil control on infiltration (-)
- character(LEN=256)             :: cmessage                  ! error message of downwind routine
+ real(dp),parameter             :: canopyTempMax=500._dp      ! expected maximum value for the canopy temperature (K)
+ real(dp)                       :: xNum                       ! temporary variable: numerator
+ real(dp)                       :: xDen                       ! temporary variable: denominator
+ real(dp)                       :: effSat                     ! effective saturation of the soil matrix (-)
+ real(dp),dimension(nSoil)      :: mLayerMatricHeadLiq        ! matric head associated with liquid water (m), f(psi0, T)
+ real(dp)                       :: dPsiLiq_dEffSat            ! derivative in liquid water matric potential w.r.t. effective saturation (m)
+ real(dp)                       :: dEffSat_dVolTot            ! derivative in effective saturation w.r.t. total water content (-)
+ real(dp)                       :: dEffSat_dTemp              ! derivative in effective saturation w.r.t. temperature (K-1)
+ real(dp),dimension(nSoil)      :: dPsiLiq_dPsi0              ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
+ real(dp),dimension(nSoil)      :: dHydCond_dMatric           ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+ real(dp),allocatable           :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
+ real(dp)                       :: soilControl                ! soil control on infiltration (-)
+ character(LEN=256)             :: cmessage                   ! error message of downwind routine
  ! --------------------------------------------------------------
  ! initialize error control
  err=0; message='computFlux/'

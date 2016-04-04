@@ -115,8 +115,10 @@ contains
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
- USE getVectorz_module,only:varExtract            ! extract variables from the state vector
- USE computFlux_module,only:computFlux            ! compute fluxes given a state vector
+ USE getVectorz_module, only:varExtract           ! extract variables from the state vector
+ USE computFlux_module, only:soilCmpres           ! compute soil compression 
+ USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
+ USE computResid_module,only:computResid          ! compute residuals given a state vector 
  ! provide access to indices that define elements of the data structures
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
  USE var_lookup,only:iLookTYPE                    ! named variables for structure elements
@@ -181,17 +183,14 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial ! trial value for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial ! trial value for volumetric fraction of ice (-)
  ! other local variables
- real(dp),dimension(nLayers)     :: mLayerVolFracWatInit  ! initial value for volumetric fraction of total water (-)
  real(dp)                        :: canopyDepth           ! depth of the vegetationb canopy 
  character(LEN=256)              :: cmessage              ! error message of downwind routine
-
-
-
-
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  associate(&
+ ! model decisions
+ ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision   ,&  ! intent(in): [i4b] index of the form of Richards' equation
  ! vegetation parameters
  heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)              ,&  ! intent(in): [dp] height of the top of the vegetation canopy (m)
  heightCanopyBottom      => mpar_data%var(iLookPARAM%heightCanopyBottom)           ,&  ! intent(in): [dp] height of the bottom of the vegetation canopy (m)
@@ -199,6 +198,8 @@ contains
  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
  ! model state variables (ponded water)
  scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp] ponded water caused by melt of the "snow without a layer" (kg m-2)
+ mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(in): [dp(:)] matric head (m)
+ mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp] depth of each layer (m)
  ! soil parameters
  vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
  vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
@@ -296,8 +297,8 @@ contains
                  ixRichards,                             & ! intent(in): choice of option for Richards' equation
                  mLayerMatricHead(1:nSoil),              & ! intent(in): matric head at the start of the time step (m)
                  mLayerMatricHeadTrial(1:nSoil),         & ! intent(in): trial value of matric head (m)
-                 mLayerVolFracLiqLocal(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
-                 mLayerVolFracIceLocal(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
+                 mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
+                 mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
                  dVolTot_dPsi0,                          & ! intent(in): derivative in the soil water characteristic (m-1)
                  specificStorage,                        & ! intent(in): specific storage coefficient (m-1)
                  theta_sat,                              & ! intent(in): soil porosity (-)
@@ -323,11 +324,13 @@ contains
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   ! input: flux vectors
                   sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
-                  fVec,                    & ! intent(in):    flux vector
+                  fluxVec,                 & ! intent(in):    flux vector
                   ! input: state variables (already disaggregated into scalars and vectors)
                   scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
                   scalarCanopyTempTrial,   & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
+                  scalarCanopyWatTrial,    & ! intent(in):    trial value of canopy total water (kg m-2)
                   mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
+                  mLayerVolFracWatTrial,   & ! intent(in):    trial vector of volumetric total water content (-)
                   ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
                   scalarCanopyLiqTrial,    & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
                   scalarCanopyIceTrial,    & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
@@ -339,7 +342,7 @@ contains
                   flux_data,               & ! intent(in):    model fluxes for a local HRU
                   indx_data,               & ! intent(in):    index data
                   ! output
-                  rVec,                    & ! intent(out):   residual vector
+                  resVec,                  & ! intent(out):   residual vector
                   err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
