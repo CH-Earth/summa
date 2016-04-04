@@ -64,9 +64,7 @@ contains
                         mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
                         mLayerVolFracWatTrial,   & ! intent(in):    trial vector of total volumetric total water content (-)
                         ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                        scalarCanopyLiqTrial,    & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
                         scalarCanopyIceTrial,    & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
-                        mLayerVolFracLiqTrial,   & ! intent(in):    trial value for the volumetric liquid water content in each snow and soil layer (-)
                         mLayerVolFracIceTrial,   & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
                         ! input: data structures
                         prog_data,               & ! intent(in):    model prognostic variables for a local HRU
@@ -100,9 +98,7 @@ contains
  real(dp),intent(in)             :: mLayerTempTrial(:)        ! trial value for temperature of each snow/soil layer (K)
  real(dp),intent(in)             :: mLayerVolFracWatTrial(:)  ! trial vector of total volumetric total water content (-)
  ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
- real(dp),intent(in)             :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
  real(dp),intent(in)             :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(in)             :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
  real(dp),intent(in)             :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
  ! input: data structures
  type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
@@ -123,12 +119,10 @@ contains
   scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,&  ! intent(in): [dp] temperature of the canopy air space (K)
   scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,&  ! intent(in): [dp] temperature of the vegetation canopy (K)
   scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,&  ! intent(in): [dp] mass of ice on the vegetation canopy (kg m-2)
-  scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,&  ! intent(in): [dp] mass of liquid water on the vegetation canopy (kg m-2)
   scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,&  ! intent(in): [dp] mass of total water on the vegetation canopy (kg m-2)
   ! model state variables (snow and soil domains)
   mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,&  ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
   mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(in): [dp(:)] volumetric fraction of ice (-)
-  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,&  ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
   mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,&  ! intent(in): [dp(:)] volumetric fraction of total water (-)
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
@@ -146,6 +140,9 @@ contains
   ixSnowSoilWat           => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat            ,&  ! intent(in): [i4b(:)] indices for total water states in the snow+soil subdomain
   ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat             &  ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
  ) ! association to necessary variables for the residual computations
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message="computResid/"
 
  ! ---
  ! * compute sink terms...
@@ -193,6 +190,8 @@ contains
 
  ! compute the residual vector for the snow+soil sub-domain for liquid water
  rVec(ixSnowSoilWat) = mLayerVolFracWatTrial(1:nLayers) - ( (mLayerVolFracWat(1:nLayers)  + fVec(ixSnowSoilWat)*dt) + rAdd(ixSnowSoilWat) )
+ print*, 'mLayerVolFracWat(1:3) = ', mLayerVolFracWat(1:3)
+ print*, 'mLayerVolFracWatTrial(1:3) = ', mLayerVolFracWatTrial(1:3)
 
  ! print result
  if(globalPrintFlag) write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec

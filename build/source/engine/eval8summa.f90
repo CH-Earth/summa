@@ -215,6 +215,8 @@ contains
  dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat           &  ! intent(out): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message="eval8summa/"
 
  ! define canopy depth
  if(computeVegFlux)then
@@ -332,9 +334,7 @@ contains
                   mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
                   mLayerVolFracWatTrial,   & ! intent(in):    trial vector of volumetric total water content (-)
                   ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                  scalarCanopyLiqTrial,    & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
                   scalarCanopyIceTrial,    & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
-                  mLayerVolFracLiqTrial,   & ! intent(in):    trial value for the volumetric liquid water content in each snow and soil layer (-)
                   mLayerVolFracIceTrial,   & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
                   ! input: data structures
                   prog_data,               & ! intent(in):    model prognostic variables for a local HRU

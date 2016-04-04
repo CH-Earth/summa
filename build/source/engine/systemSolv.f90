@@ -198,7 +198,6 @@ contains
  logical(lgt)                    :: printFlagInit                ! initialize flag to control printing
  logical(lgt)                    :: pauseProgress                ! flag to start looking at things more carefully
  logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
- real(dp)                        :: scalarCanopyWat              ! total canopy water (kg m-2)
  real(dp)                        :: upperBoundTemp               ! temperature of the upper boundary of the snow and soil domains (K)
  real(dp),parameter              :: tempAccelerate=0.00_dp       ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
@@ -247,7 +246,6 @@ contains
  real(dp)                        :: scalarCanopyIceTrial         ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial        ! trial value for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial value for volumetric fraction of ice (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatInit         ! initial value for volumetric fraction of total water (-)
  ! energy fluxes and derivatives for the vegetation domain
 
  type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
@@ -462,11 +460,13 @@ contains
  scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,&  ! intent(inout): [dp] temperature of the vegetation canopy (K)
  scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,&  ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
  scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,&  ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,&  ! intent(inout): [dp] mass of total water on the vegetation canopy (kg m-2)
 
  ! model state variables (snow and soil domains)
  mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,&  ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of ice (-)
  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of liquid water (-)
+ mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of total water (-)
  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(inout): [dp(:)] matric head (m)
  scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)    &  ! intent(inout): [dp   ] aquifer storage (m)
 
@@ -545,10 +545,10 @@ contains
 
  ! compute the total water in snow
  if(nSnow>0)&
-  mLayerVolFracWatInit(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
+  mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
 
  ! compute the total water in soil
- mLayerVolFracWatInit(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
+ mLayerVolFracWat(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
 
  ! get an initial canopy temperature if veg just starts protruding through snow on the ground
  if(computeVegFlux)then
@@ -686,6 +686,10 @@ contains
  fOld=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
 
  write(*,'(a,1x,10(e17.6,1x))') 'fluxVec0(iJac1:iJac2) = ', fluxVec0(iJac1:iJac2)
+ write(*,'(a,1x,10(e17.6,1x))') 'rVec(iJac1:iJac2)     = ', rVec(iJac1:iJac2)
+
+ ! WARNING!!!!! TESTING!!!
+ firstFluxCall=.true.
 
  ! compute the residual vector and Jacobian matrix for a given flux vector
  call eval8summa(&
@@ -721,6 +725,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  write(*,'(a,1x,10(e17.6,1x))') 'fluxVec0(iJac1:iJac2) = ', fluxVec0(iJac1:iJac2)
+ write(*,'(a,1x,10(e17.6,1x))') 'rVec(iJac1:iJac2)     = ', rVec(iJac1:iJac2)
  pause
 
 
@@ -1367,6 +1372,7 @@ contains
   scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,&  ! intent(inout): [dp] temperature of the vegetation canopy (K)
   scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,&  ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
   scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,&  ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+  scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,&  ! intent(inout): [dp] mass of total water on the vegetation canopy (kg m-2)
 
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
@@ -1375,6 +1381,7 @@ contains
   mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,&  ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
   mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of ice (-)
   mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of liquid water (-)
+  mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of total water (-)
   mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(inout): [dp(:)] matric head (m)
   scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)    &  ! intent(inout): [dp   ] aquifer storage (m)
   )
@@ -1499,7 +1506,7 @@ contains
 
   ! compute the residual vector for the **snow** sub-domain for liquid water
   if(nSnow>0)&
-  rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(1:nSnow) - ( (mLayerVolFracWatInit(1:nSnow)  + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
+  rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(1:nSnow) - ( (mLayerVolFracWat(1:nSnow)  + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
 
   ! compute the residual vector for the **soil** sub-domain for liquid water
   vThetaInit(1:nSoil)  = mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      ! liquid equivalent of total water at the start of the step
