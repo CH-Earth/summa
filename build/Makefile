@@ -174,6 +174,7 @@ SUMMA_SOLVER= \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
 		computFlux.f90 \
+		computResid.f90 \
 		eval8summa.f90 \
 		systemSolv.f90 \
 		coupled_em.f90
