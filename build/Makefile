@@ -153,6 +153,7 @@ SUMMA_UTILMS= \
 		get_ixname.f90 \
 		time_utils.f90 \
 		ascii_util.f90 \
+		matrixOper.f90 \
 		f2008funcs.f90 \
 		mDecisions.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
@@ -176,6 +177,7 @@ SUMMA_SOLVER= \
 		computFlux.f90 \
 		computResid.f90 \
 		eval8summa.f90 \
+		stateTrial.f90 \
 		systemSolv.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))

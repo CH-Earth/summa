@@ -131,6 +131,7 @@ contains
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
  USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
+ USE stateTrial_module,only:stateTrial                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  ! provide access to utility modules
  USE soil_utils_module,only:volFracLiq                ! compute volumetric fraction of liquid water
  USE snow_utils_module,only:fracliquid                ! compute the fraction of liquid water at a given temperature (snow)
@@ -219,6 +220,7 @@ contains
  integer(i4b),parameter          :: nBands=2*kl+ku+1             ! length of the leading dimension of the band diagonal matrix
  integer(i4b),parameter          :: ixFullMatrix=1001            ! named variable for the full Jacobian matrix
  integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
+ integer(i4b)                    :: ixMatrix                     ! the type of matrix used to solve the linear system A.X=B
  integer(i4b)                    :: ixSolve                      ! the type of matrix used to solve the linear system A.X=B
  integer(i4b),parameter          :: iJac1=1                      ! first layer of the Jacobian to print
  integer(i4b),parameter          :: iJac2=10                     ! last layer of the Jacobian to print
@@ -250,6 +252,10 @@ contains
 
  type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
 
+ logical(lgt)                    :: feasible                     ! flag to define the feasibility of the solution
+
+ real(dp)                        :: fluxVecNew(nState)           ! new flux vector
+ real(qp)                        :: resVecNew(nState) ! NOTE: qp ! new residual vector
 
 
  real(dp)                        :: canairNetNrgFlux             ! net energy flux for the canopy air space (W m-2)
@@ -508,11 +514,15 @@ contains
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
  if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
-  ixSolve=ixFullMatrix   ! full Jacobian matrix
+  ixMatrix=ixFullMatrix   ! full Jacobian matrix
  else
-  ixSolve=ixBandMatrix   ! band-diagonal matrix
+  ixMatrix=ixBandMatrix   ! band-diagonal matrix
  endif
- if(printFlag) print*, '(ixSolve==ixFullMatrix) = ', (ixSolve==ixFullMatrix)
+ if(printFlag) print*, '(ixMatrix==ixFullMatrix) = ', (ixMatrix==ixFullMatrix)
+
+ ! TEMPORARY!!
+ ixSolve=ixMatrix
+
 
  ! check that dx is less that epsT
  if(dx>epsT)then
@@ -691,7 +701,7 @@ contains
  ! WARNING!!!!! TESTING!!!
  firstFluxCall=.true.
 
- ! compute the residual vector and Jacobian matrix for a given flux vector
+ ! compute the flux and the residual vector for a given state vector
  call eval8summa(&
                  ! input: model control
                  dt,                      & ! intent(in):    length of the time step (seconds)
@@ -704,6 +714,7 @@ contains
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector
+                 fScale,                  & ! intent(in):    function scaling vector
                  sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                  ! input: data structures
                  model_decisions,         & ! intent(in):    model decisions
@@ -719,10 +730,18 @@ contains
                  flux_data,               & ! intent(inout): model fluxes for a local HRU
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output
+                 feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                  fluxVec0,                & ! intent(out):   flux vector
                  rVec,                    & ! intent(out):   residual vector
+                 fOld,                    & ! intent(out):   function evaluation
                  err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+ ! check feasibility (state vector SHOULD be feasible at this point)
+ if(.not.feasible)then
+  message=trim(message)//'unfeasible state vector'
+  err=20; return
+ endif
 
  write(*,'(a,1x,10(e17.6,1x))') 'fluxVec0(iJac1:iJac2) = ', fluxVec0(iJac1:iJac2)
  write(*,'(a,1x,10(e17.6,1x))') 'rVec(iJac1:iJac2)     = ', rVec(iJac1:iJac2)
@@ -848,6 +867,52 @@ contains
   ! update function evaluation and states
   fOld          = fNew
   stateVecTrial = stateVecNew
+
+  ! calculate the iteration increment, evaluate the new state, and refine if necessary
+  call stateTrial(&
+                  ! input: model control
+                  dt,                      & ! intent(in):    length of the time step (seconds)
+                  nSnow,                   & ! intent(in):    number of snow layers
+                  nSoil,                   & ! intent(in):    number of soil layers
+                  nLayers,                 & ! intent(in):    total number of layers
+                  nState,                  & ! intent(in):    total number of state variables
+                  ixMatrix,                & ! intent(in):    type of matrix (full or band diagonal)
+                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                  firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                  ! input: state vectors
+                  stateVecTrial,           & ! intent(in):    trial state vector
+                  rVec,                    & ! intent(in):    residual vector
+                  aJac,                    & ! intent(in):    Jacobian matrix
+                  fScale,                  & ! intent(in):    function scaling vector
+                  xScale,                  & ! intent(in):    "variable" scaling vector, i.e., for state variables
+                  sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                  dMat,                    & ! intent(in):    diagonal matrix (excludes flux derivatives)
+                  fOld,                    & ! intent(in):    old function evaluation
+                  ! input: data structures
+                  model_decisions,         & ! intent(in):    model decisions
+                  type_data,               & ! intent(in):    type of vegetation and soil
+                  attr_data,               & ! intent(in):    spatial attributes
+                  mpar_data,               & ! intent(in):    model parameters
+                  forc_data,               & ! intent(in):    model forcing data
+                  bvar_data,               & ! intent(in):    average model variables for the entire basin
+                  prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                  indx_data,               & ! intent(in):    index data
+                  ! input-output: data structures
+                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                  flux_data,               & ! intent(inout): model fluxes for a local HRU
+                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  ! output
+                  stateVecNew,             & ! intent(out):   new state vector
+                  fluxVecNew,              & ! intent(out):   new flux vector
+                  resVecNew,               & ! intent(out):   new residual vector
+                  fNew,                    & ! intent(out):   new function evaluation
+                  converged,               & ! intent(out):   convergence flag
+                  err,cmessage)              ! intent(out):   error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+
+
 
   ! exit iteration loop if converged
   if(converged) exit

@@ -25,7 +25,8 @@ USE nrtype
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing real number
+USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -72,12 +73,6 @@ implicit none
 private
 public::eval8summa
 
-! control parameters
-real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
-real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
-real(dp),parameter  :: dx = 1.e-8_dp              ! finite difference increment
-
 contains
 
  ! **********************************************************************************************************
@@ -95,6 +90,7 @@ contains
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    model state vector
+                       fScale,                  & ! intent(in):    function scaling vector
                        sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
@@ -110,8 +106,10 @@ contains
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! output
+                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        fluxVec,                 & ! intent(out):   flux vector
                        resVec,                  & ! intent(out):   residual vector
+                       fEval,                   & ! intent(out):   function evaluation
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
@@ -145,6 +143,7 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux        ! flag to indicate if computing fluxes over vegetation
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)      ! model state vector 
+ real(dp),intent(in)             :: fScale(:)             ! function scaling vector
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp  ! state vector multiplier (used in the residual calculations)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)    ! model decisions
@@ -160,8 +159,10 @@ contains
  type(var_dlength),intent(inout) :: flux_data             ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data            ! derivatives in model fluxes w.r.t. relevant state variables
  ! output: flux and residual vectors
+ logical(lgt),intent(out)        :: feasible              ! flag to denote the feasibility of the solution
  real(dp),intent(out)            :: fluxVec(:)            ! flux vector
  real(qp),intent(out)            :: resVec(:) ! NOTE: qp  ! residual vector
+ real(dp),intent(out)            :: fEval                 ! function evaluation
  ! output: error control
  integer(i4b),intent(out)        :: err                   ! error code
  character(*),intent(out)        :: message               ! error message
@@ -183,7 +184,8 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial ! trial value for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial ! trial value for volumetric fraction of ice (-)
  ! other local variables
- real(dp)                        :: canopyDepth           ! depth of the vegetationb canopy 
+ real(dp)                        :: canopyDepth           ! depth of the vegetation canopy
+ real(dp),dimension(nState)      :: rVecScaled            ! scaled residual vector
  character(LEN=256)              :: cmessage              ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
@@ -212,11 +214,38 @@ contains
  mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(out): [dp(:)] change in storage associated with compression of the soil matrix (-)
  ! derivatives
  dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(out): [dp(:)] derivative in total water content w.r.t. total water matric potential
- dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat           &  ! intent(out): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
+ dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat          ,&  ! intent(out): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
+ ! indices
+ ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,&  ! intent(in): [i4b] index of canopy hydrology state variable (mass)
+ ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
+ ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat             &  ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
+
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="eval8summa/"
+
+ ! check the feasibility of the solution
+ feasible=.true.
+
+ ! check canopy liquid water is not negative
+ if(computeVegFlux)then
+  if(stateVecTrial(ixVegWat) < 0._dp) feasible=.false.
+ endif
+
+ ! check snow temperature is below freezing and snow liquid water is not negative
+ if(nSnow>0)then
+  if(any(stateVecTrial(ixSnowOnlyNrg) > Tfreeze)) feasible=.false.
+  if(any(stateVecTrial(ixSnowOnlyWat) < 0._dp)  ) feasible=.false.
+ endif
+
+ ! early return for non-feasible solutions
+ if(.not.feasible)then
+  fluxVec(:) = realMissing 
+  resVec(:)  = quadMissing 
+  fEval      = realMissing
+  return
+ endif
 
  ! define canopy depth
  if(computeVegFlux)then
@@ -345,6 +374,11 @@ contains
                   resVec,                  & ! intent(out):   residual vector
                   err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+
+ ! compute the function evaluation
+ rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+ fEval      = 0.5_dp*dot_product(rVecScaled,rVecScaled)
 
  ! end association with the information in the data structures
  end associate
