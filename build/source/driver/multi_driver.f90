@@ -449,9 +449,12 @@ call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
 ! *****************************************************************************
 
+!reset startHRU for a full simulation
+if (strtHRU < 1) strtHRU = 1
 ! define the file
 ! NOTE: currently assumes that nSoil is constant across the model domain
-write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
+write(fileout,'(a,i0,a,i0,a,i0,a,i0,a)')&
+    trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix),strtHRU,'-',strtHRU+nHRU-1,'.nc'
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
   
 ! loop through GRUs
@@ -604,7 +607,6 @@ jstep=1
 ! ****************************************************************************
 ! (6) loop through time
 ! ****************************************************************************
-if (strtHRU < 1) strtHRU = 1
 do istep=1,numtim
 
  ! set print flag
@@ -617,7 +619,7 @@ do istep=1,numtim
   ix_gru = index_map(iHRU)%gru_ix
   ix_hru = index_map(iHRU)%ihru
 
-  ! read forcing data
+  ! read forcing data 
   call read_force(&
                   ! input
                   istep,                                  & ! intent(in):    time step index
