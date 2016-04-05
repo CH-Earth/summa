@@ -619,7 +619,7 @@ do istep=1,numtim
   ix_gru = index_map(iHRU)%gru_ix
   ix_hru = index_map(iHRU)%ihru
 
-  ! read forcing data 
+  ! read forcing data
   call read_force(&
                   ! input
                   istep,                                  & ! intent(in):    time step index
