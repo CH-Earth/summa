@@ -27,12 +27,14 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
-USE globalData,only: nRHS                    ! number of unknown variables on the RHS of the linear system A.X=B
-USE globalData,only: ku                      ! number of super-diagonal bands
-USE globalData,only: kl                      ! number of sub-diagonal bands
-USE globalData,only: nBands                  ! length of the leading dimension of the band diagonal matrix
-USE globalData,only: ixFullMatrix            ! named variable for the full Jacobian matrix
-USE globalData,only: ixBandMatrix            ! named variable for the band diagonal matrix
+USE globalData,only: nRHS           ! number of unknown variables on the RHS of the linear system A.X=B
+USE globalData,only: ku             ! number of super-diagonal bands
+USE globalData,only: kl             ! number of sub-diagonal bands
+USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
+USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
+USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
+USE globalData,only: iJac1          ! first layer of the Jacobian to print
+USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
 implicit none
 private
@@ -81,11 +83,14 @@ contains
   ! * band-diagonal matrix
   case(ixBandMatrix)
 
+   ! initialize the matrix to zero (some un-used elements)
+   aJacScaled(:,:) = 0._dp
+
    ! scale the rows by the function scaling factor and the colmns by the variable scaling factor
    do jState=1,nState       ! (loop through model state variables)
     do iState=max(1,jState-ku),min(nState,jState+kl)
-     kState = ku+1+iState-jState
-     aJacScaled(kState+kl,jState) = fScale(iState)*aJac(kState,jState)*xScale(jState)
+     kState = kl+ku+1+iState-jState
+     aJacScaled(kState,jState) = fScale(iState)*aJac(kState,jState)*xScale(jState)
     end do
    end do  ! looping through state variables
 
@@ -193,7 +198,7 @@ contains
               ku,        &  ! intent(in):    [i4b]               number of superdiagonals within the band of A
               nRHS,      &  ! intent(in):    [i4b]               number of columns of the matrix B
               aJac,      &  ! intent(inout): [dp(nBands,nState)] input = the nBands-by-nState Jacobian matrix A; output = decomposed matrix
-              nBands+kl, &  ! intent(in):    [i4b]               the leading dimension of aJac
+              nBands,    &  ! intent(in):    [i4b]               the leading dimension of aJac
               iPiv,      &  ! intent(out):   [i4b(nState)]       defines if row i of the matrix was interchanged with row iPiv(i)
               rhs,       &  ! intent(inout): [dp(nState,nRHS)]   input = the nState-by-nRHS matrix of matrix B; output: the solution matrix X
               nState,    &  ! intent(in):    [i4b]               the leading dimension of matrix rhs

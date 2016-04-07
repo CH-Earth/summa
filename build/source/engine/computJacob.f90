@@ -40,6 +40,8 @@ USE globalData,only: ixSub4         ! index for the 3rd sub-diagonal band
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
+USE globalData,only: iJac1          ! first layer of the Jacobian to print
+USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
 ! constants
 USE multiconst,only:&
@@ -116,8 +118,6 @@ contains
  integer(i4b)                    :: kLayer          ! index of model layer within the snow-soil domain
  integer(i4b)                    :: mLayer          ! index of model layer within the full state vector (thermodynamics)
  integer(i4b),parameter          :: nVarSnowSoil=2  ! number of state variables in the snow and soil domain (energy and liquid water/matric head)
- integer(i4b),parameter          :: iJac1=1         ! first layer of the Jacobian to print
- integer(i4b),parameter          :: iJac2=10        ! last layer of the Jacobian to print
  ! --------------------------------------------------------------
  ! associate variables from data structures
  associate(&

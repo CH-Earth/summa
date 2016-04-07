@@ -34,6 +34,10 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
+USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
+USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
+USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
+
 ! constants
 USE multiconst,only:&
                     gravity,      & ! acceleration of gravity              (m s-2)
@@ -46,29 +50,30 @@ USE multiconst,only:&
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
-! look-up values for the choice of groundwater representation (local-column, or single-basin)
-USE mDecisions_module,only:  &
- localColumn,                & ! separate groundwater representation in each local soil column
- singleBasin                   ! single groundwater store over the entire basin
+! provide access to indices that define elements of the data structures
+USE var_lookup,only:iLookATTR       ! named variables for structure elements
+USE var_lookup,only:iLookTYPE       ! named variables for structure elements
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+USE var_lookup,only:iLookFORCE      ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
+
+! provide access to the derived types to define the data structures
+USE data_types,only:&
+                    var_i,        & ! data vector (i4b)
+                    var_d,        & ! data vector (dp)
+                    var_ilength,  & ! data vector with variable length dimension (i4b)
+                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:  &
- qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
- bigBucket,                  & ! a big bucket (lumped aquifer model)
- noExplicit                    ! no explicit groundwater parameterization
-
-! look-up values for the form of Richards' equation
-USE mDecisions_module,only:  &
- moisture,                   & ! moisture-based form of Richards' equation
- mixdform                      ! mixed form of Richards' equation
-
-! look-up values for the choice of boundary conditions for hydrology
-USE mDecisions_module,only:  &
- prescribedHead,             & ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
- funcBottomHead,             & ! function of matric head in the lower-most layer
- freeDrainage,               & ! free drainage
- liquidFlux,                 & ! liquid water flux
- zeroFlux                      ! zero flux
+USE mDecisions_module,only:      &
+ qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
+ bigBucket,                      & ! a big bucket (lumped aquifer model)
+ noExplicit                        ! no explicit groundwater parameterization
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -112,60 +117,15 @@ contains
                        niter,          & ! number of iterations taken
                        err,message)      ! error code and error message
  ! ---------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookATTR           ! named variables for structure elements
- USE var_lookup,only:iLookTYPE           ! named variables for structure elements
- USE var_lookup,only:iLookPROG           ! named variables for structure elements
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookFORCE          ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookINDEX          ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                                                 ! named variables for elements of the decision structure
- ! provide access to the numerical recipes utility modules
- USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
  ! structure allocations
  USE globalData,only:deriv_meta                       ! metadata on the model derivatives
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
  USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
- ! provide access to utility modules
- USE soil_utils_module,only:volFracLiq                ! compute volumetric fraction of liquid water
- USE snow_utils_module,only:fracliquid                ! compute the fraction of liquid water at a given temperature (snow)
- USE snow_utils_module,only:templiquid                ! compute the temperature at a given fraction of liquid water (snow)
- USE snow_utils_module,only:dFracLiq_dTk              ! differentiate the freezing curve w.r.t. temperature (snow)
- USE soil_utils_module,only:dTheta_dPsi               ! derivative in the soil water characteristic (soil)
- USE soil_utils_module,only:dPsi_dTheta               ! derivative in the soil water characteristic (soil)
- USE soil_utils_module,only:dTheta_dTk                ! differentiate the freezing curve w.r.t. temperature (soil)
- USE soil_utils_module,only:matricHead                ! compute the matric head based on volumetric water content
- USE soil_utils_module,only:iceImpede                 ! compute the ice impedance factor (soil)
- USE soil_utils_module,only:dIceImpede_dTemp          ! differentiate the ice impedance factor w.r.t. temperature (soil)
- ! provide access to the flux modules
+ ! population/extracction of state vectors
  USE getVectorz_module,only:popStateVec               ! populate the state vector
  USE getVectorz_module,only:varExtract                ! extract variables from the state vector
- USE updatState_module,only:updateSnow                ! update snow states
- USE updatState_module,only:updateSoil                ! update soil states
- USE vegnrgflux_module,only:vegnrgflux                ! compute energy fluxes over vegetation
- USE ssdnrgflux_module,only:ssdnrgflux                ! compute energy fluxes throughout the snow and soil subdomains
- USE vegliqflux_module,only:vegliqflux                ! compute liquid water fluxes through vegetation
- USE snowliqflx_module,only:snowliqflx                ! compute liquid water fluxes through snow
- USE soilliqflx_module,only:soilliqflx                ! compute liquid water fluxes through soil
- USE groundwatr_module,only:groundwatr                ! compute the baseflow flux
-
-
- USE matrixOper_module, only: lapackSolv
- USE matrixOper_module, only: scaleMatrices
-
-
-
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -202,130 +162,23 @@ contains
  character(LEN=256)              :: cmessage                     ! error message of downwind routine
  real(dp)                        :: canopyDepth                  ! depth of the vegetation canopy (m)
  integer(i4b)                    :: iter                         ! iteration index
- integer(i4b)                    :: iLayer                       ! index of model layer
- integer(i4b)                    :: jLayer                       ! index of model layer within the full state vector (hydrology)
- integer(i4b)                    :: kLayer                       ! index of model layer within the snow-soil domain
- integer(i4b)                    :: mLayer                       ! index of model layer within the full state vector (thermodynamics)
- integer(i4b)                    :: local_ixGroundwater          ! local index for groundwater representation
- logical(lgt)                    :: printFlag                    ! flag to control printing (set to false for numerical jacobian)
- logical(lgt)                    :: printFlagInit                ! initialize flag to control printing
- logical(lgt)                    :: pauseProgress                ! flag to start looking at things more carefully
- logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
- real(dp)                        :: upperBoundTemp               ! temperature of the upper boundary of the snow and soil domains (K)
  real(dp),parameter              :: tempAccelerate=0.00_dp       ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
- ! * model indices
+ ! * state variables and diagniostic variables
  ! ------------------------------------------------------------------------------------------------------
- integer(i4b),parameter          :: nVarSnowSoil=2               ! number of state variables in the snow and soil domain (energy and total water/matric head)
- integer(i4b),parameter          :: nRHS=1                       ! number of unknown variables on the RHS of the linear system A.X=B
- integer(i4b),parameter          :: ku=3                         ! number of super-diagonal bands
- integer(i4b),parameter          :: kl=4                         ! number of sub-diagonal bands
- integer(i4b),parameter          :: ixSup3=kl+1                  ! index for the 3rd super-diagonal band
- integer(i4b),parameter          :: ixSup2=kl+2                  ! index for the 2nd super-diagonal band
- integer(i4b),parameter          :: ixSup1=kl+3                  ! index for the 1st super-diagonal band
- integer(i4b),parameter          :: ixDiag=kl+4                  ! index for the diagonal band
- integer(i4b),parameter          :: ixSub1=kl+5                  ! index for the 1st sub-diagonal band
- integer(i4b),parameter          :: ixSub2=kl+6                  ! index for the 2nd sub-diagonal band
- integer(i4b),parameter          :: ixSub3=kl+7                  ! index for the 3rd sub-diagonal band
- integer(i4b),parameter          :: ixSub4=kl+8                  ! index for the 3rd sub-diagonal band
- integer(i4b),parameter          :: nBands=2*kl+ku+1             ! length of the leading dimension of the band diagonal matrix
- integer(i4b),parameter          :: ixFullMatrix=1001            ! named variable for the full Jacobian matrix
- integer(i4b),parameter          :: ixBandMatrix=1002            ! named variable for the band diagonal matrix
- integer(i4b)                    :: ixMatrix                     ! the type of matrix used to solve the linear system A.X=B
- integer(i4b),parameter          :: iJac1=1,iJac2=10             ! desired indices for printing
- ! ------------------------------------------------------------------------------------------------------
- ! * fluxes and derivatives
- ! ------------------------------------------------------------------------------------------------------
- ! ice content (need to keep track of this, but not part of the state vector)
- real(dp)                        :: theta                        ! liquid water equivalent of total water (liquid plus ice)
- real(dp),dimension(nLayers)     :: mLayerdTheta_dTk             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
- real(dp),dimension(nSoil)       :: dPsiLiq_dTemp                ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
- real(dp),dimension(nSnow)       :: fracLiqSnow                  ! fraction of liquid water in each snow layer (-)
- real(dp)                        :: fracLiqVeg                   ! fraction of liquid water on vegetation (-)
- real(dp)                        :: totalWaterVeg                ! total water on vegetation (kg m-2)
- real(dp)                        :: dTheta_dTkCanopy             ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
- real(dp)                        :: dCanLiq_dTcanopy             ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
  ! state variables
- real(dp)                        :: scalarCanairTempTrial        ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempTrial        ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatTrial         ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempTrial              ! trial value for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial        ! trial value for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial        ! trial value for matric head (m)
+ real(dp)                        :: scalarCanairTempTrial ! trial value for temperature of the canopy air space (K)
+ real(dp)                        :: scalarCanopyTempTrial ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyWatTrial  ! trial value for liquid water storage in the canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerTempTrial       ! trial value for temperature of layers in the snow and soil domains (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial ! trial value for volumetric fraction of total water (-)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial ! trial value for matric head (m)
  ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqTrial         ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial         ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial        ! trial value for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial value for volumetric fraction of ice (-)
- ! energy fluxes and derivatives for the vegetation domain
-
- type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
-
- logical(lgt)                    :: feasible                     ! flag to define the feasibility of the solution
-
- real(dp)                        :: fluxVecNew(nState)           ! new flux vector
- real(qp)                        :: resVecNew(nState) ! NOTE: qp ! new residual vector
-
-
- real(dp)                        :: canairNetNrgFlux             ! net energy flux for the canopy air space (W m-2)
- real(dp)                        :: canopyNetNrgFlux             ! net energy flux for the vegetation canopy (W m-2)
- real(dp)                        :: groundNetNrgFlux             ! net energy flux for the ground surface (W m-2)
- real(dp)                        :: dCanairNetFlux_dCanairTemp   ! derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
- real(dp)                        :: dCanairNetFlux_dCanopyTemp   ! derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
- real(dp)                        :: dCanairNetFlux_dGroundTemp   ! derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
- real(dp)                        :: dCanopyNetFlux_dCanairTemp   ! derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
- real(dp)                        :: dCanopyNetFlux_dCanopyTemp   ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
- real(dp)                        :: dCanopyNetFlux_dGroundTemp   ! derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
- real(dp)                        :: dGroundNetFlux_dCanairTemp   ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
- real(dp)                        :: dGroundNetFlux_dCanopyTemp   ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
- real(dp)                        :: dGroundNetFlux_dGroundTemp   ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
- real(dp)                        :: dCanopyNetFlux_dCanLiq       ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
- real(dp)                        :: dGroundNetFlux_dCanLiq       ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
- ! liquid water fluxes and derivatives associated with transpiration
- real(dp)                        :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
- real(dp)                        :: scalarCanopyEvaporation      ! canopy evaporation/condensation (kg m-2 s-1)
- real(dp)                        :: scalarGroundEvaporation      ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
- real(dp)                        :: dCanopyEvaporation_dCanLiq   ! derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
- real(dp)                        :: dGroundEvaporation_dCanLiq   ! derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
- ! energy fluxes and derivatives for the snow and soil domains
- real(dp),dimension(nLayers)     :: ssdNetNrgFlux                ! net energy flux for each layer (J m-3 s-1)
- real(dp),dimension(0:nLayers)   :: dNrgFlux_dTempAbove          ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
- real(dp),dimension(0:nLayers)   :: dNrgFlux_dTempBelow          ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
- ! liquid water fluxes and derivatives for the vegetation domain
- real(dp)                        :: canopyNetLiqFlux             ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
- real(dp)                        :: scalarCanopyLiqDeriv         ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
- real(dp)                        :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
- real(dp)                        :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
- real(dp)                        :: dCanopyEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
- real(dp)                        :: dCanopyEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
- real(dp)                        :: dCanopyEvaporation_dTGround  ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
- real(dp)                        :: dGroundEvaporation_dTCanair  ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
- real(dp)                        :: dGroundEvaporation_dTCanopy  ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
- real(dp)                        :: dGroundEvaporation_dTGround  ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
- ! liquid water fluxes and derivatives for the snow domain
- real(dp),dimension(0:nSnow)     :: iLayerLiqFluxSnowDeriv       ! derivative in vertical liquid water flux at layer interfaces (m s-1)
- ! liquid water fluxes and derivatives for the soil domain
- real(dp)                        :: xMaxInfilRate                ! maximum infiltration rate (m s-1)
- real(dp)                        :: scalarInfilArea              ! fraction of unfrozen area where water can infiltrate (-)
- real(dp)                        :: scalarFrozenArea             ! fraction of area that is considered impermeable due to soil ice (-)
- real(dp)                        :: soilControl                  ! soil control on infiltration (-)
- real(dp)                        :: scalarSurfaceInfiltration    ! surface infiltration rate (m s-1) -- only computed for iter==1
- real(dp),dimension(nSoil)       :: mLayerTranspire              ! transpiration loss from each soil layer (m s-1)
- real(dp),dimension(nSoil)       :: dVolTot_dPsi0                ! derivative in total water content w.r.t. total water matric potential (m-1)
- real(dp),dimension(0:nSoil)     :: dq_dHydStateAbove            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
- real(dp),dimension(0:nSoil)     :: dq_dHydStateBelow            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
- real(dp),dimension(0:nSoil)     :: dq_dNrgStateAbove            ! change in the flux in layer interfaces w.r.t. state variables in the layer above
- real(dp),dimension(0:nSoil)     :: dq_dNrgStateBelow            ! change in the flux in layer interfaces w.r.t. state variables in the layer below
- real(dp),dimension(nSoil)       :: mLayerHydCond                ! hydraulic conductivity in each soil layer (m s-1)
- real(dp),dimension(nSoil)       :: dHydCond_dMatric             ! derivative in hydraulic conductivity w.r.t matric head (s-1)
- real(dp),dimension(nSoil)       :: mLayerdTheta_dPsi            ! derivative in the soil water characteristic w.r.t. psi (m-1)
- real(dp),dimension(nSoil)       :: mLayerdPsi_dTheta            ! derivative in the soil water characteristic w.r.t. theta (m)
- real(dp),dimension(nSoil)       :: dCompress_dPsi               ! derivative in compressibility w.r.t matric head (m-1)
- real(dp),dimension(nSnow)       :: snowNetLiqFlux               ! net liquid water flux for each snow layer (s-1)
- real(dp),dimension(nSoil)       :: soilNetLiqFlux               ! net liquid water flux for each soil layer (s-1)
- real(dp),allocatable            :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
- integer(i4b)                    :: ixSaturation                 ! index of lowest saturated layer (NOTE: only computed on the first iteration)
+ real(dp)                        :: scalarCanopyLiqTrial  ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                        :: scalarCanopyIceTrial  ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial ! trial value for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial ! trial value for volumetric fraction of ice (-)
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
@@ -333,6 +186,8 @@ contains
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
  logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
+ integer(i4b)                    :: ixMatrix                     ! form of matrix (band diagonal or full matrix)
+ type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
  real(dp),dimension(nState)      :: stateVecInit                 ! initial state vector (mixed units)
  real(dp),dimension(nState)      :: stateVecTrial                ! trial state vector (mixed units)
  real(dp),dimension(nState)      :: stateVecNew                  ! new state vector (mixed units)
@@ -343,53 +198,15 @@ contains
  real(qp),dimension(nState)      :: sMul          ! NOTE: qp     ! multiplier for state vector for the residual calculations
  real(qp),dimension(nState)      :: rAdd          ! NOTE: qp     ! additional terms in the residual vector
  real(qp),dimension(nState)      :: rVec          ! NOTE: qp     ! residual vector
- real(dp),dimension(nState)      :: rVecScaled                   ! residual vector (scaled)
- real(dp),dimension(nState)      :: newtStepScaled               ! full newton step (scaled)
- real(dp),dimension(nState)      :: xInc                         ! iteration increment
- real(dp),dimension(nState)      :: grad                         ! gradient of the function vector = matmul(rVec,aJac)
- real(dp),dimension(nState,nRHS) :: rhs                          ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
- integer(i4b),dimension(nState)  :: iPiv                         ! defines if row i of the matrix was interchanged with row iPiv(i)
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
- real(dp)                        :: canopy_max                   ! absolute value of the residual in canopy water (kg m-2)
- real(dp),dimension(1)           :: energy_max                   ! maximum absolute value of the energy residual (J m-3)
- real(dp),dimension(1)           :: liquid_max                   ! maximum absolute value of the volumetric liquid water content residual (-)
- real(dp),dimension(1)           :: matric_max                   ! maximum absolute value of the matric head iteration increment (m)
- integer(i4b),dimension(1)       :: energy_loc                   ! location of maximum absolute value of the energy residual (-)
- integer(i4b),dimension(1)       :: liquid_loc                   ! location of maximum absolute value of the volumetric liquid water content residual (-)
- integer(i4b),dimension(1)       :: matric_loc                   ! location of maximum absolute value of the matric head increment (-)
- real(dp),parameter              :: absConvTol_energy=1.e-0_dp   ! convergence tolerance for energy (J m-3)
- real(dp),parameter              :: absConvTol_liquid=1.e-8_dp   ! convergence tolerance for volumetric liquid water content (-)
- real(dp),parameter              :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
- real(dp),parameter              :: absConvTol_watbal=1.e-8_dp   ! convergence tolerance for soil water balance (m)
- real(dp),parameter              :: stepMax=1._dp                ! maximum step size (K, m, -)
- real(dp)                        :: stpmax                       ! scaled maximum step size
- real(dp),parameter              :: fScaleLiq=0.01_dp            ! func eval: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: fScaleMat=10._dp             ! func eval: characteristic scale for matric head (m)
- real(dp),parameter              :: fScaleNrg=1000000._dp          ! func eval: characteristic scale for energy (J m-3)
- real(dp),parameter              :: xScaleLiq=0.1_dp             ! state var: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: xScaleMat=10._dp             ! state var: characteristic scale for matric head (m)
- real(dp),parameter              :: xScaleTemp=1._dp             ! state var: characteristic scale for temperature (K)
+ logical(lgt)                    :: feasible                     ! flag to define the feasibility of the solution
  logical(lgt)                    :: converged                    ! convergence flag
- ! ------------------------------------------------------------------------------------------------------
- ! * solution constraints
- ! ------------------------------------------------------------------------------------------------------
- real(dp),dimension(nSnow)       :: mLayerTempCheck              ! updated temperatures (K) -- used to check iteration increment for snow
- real(dp),dimension(nSnow)       :: mLayerVolFracLiqCheck        ! updated volumetric liquid water content (-) -- used to check iteration increment for snow
- real(dp)                        :: cInc                         ! constrained temperature increment (K) -- simplified bi-section
- real(dp)                        :: xIncFactor                   ! scaling factor for the iteration increment (-)
- integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
- logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
- logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
- integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
- real(dp)                        :: xPsi00                       ! matric head after applying the iteration increment (m)
- real(dp)                        :: TcSoil                       ! critical point when soil begins to freeze (K)
- real(dp)                        :: critDiff                     ! temperature difference from critical (K)
- real(dp),parameter              :: epsT=1.e-7_dp               ! small interval above/below critical (K)
+ real(dp)                        :: fluxVecNew(nState)           ! new flux vector
+ real(qp)                        :: resVecNew(nState) ! NOTE: qp ! new residual vector
  ! ------------------------------------------------------------------------------------------------------
  ! * mass balance checks
  ! ------------------------------------------------------------------------------------------------------
  logical(lgt),parameter          :: checkMassBalance=.true.      ! flag to check the mass balance
- real(dp)                        :: soilWaterBalanceError        ! water balance error for soil
  real(dp)                        :: balance0,balance1            ! storage at start and end of time step
  real(dp)                        :: vertFlux                     ! change in storage due to vertical fluxes
  real(dp)                        :: tranSink,baseSink,compSink   ! change in storage sue to sink terms
@@ -398,68 +215,22 @@ contains
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  associate(&
-
  ! model decisions
- ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision   ,&  ! intent(in): [i4b] index of the form of Richards' equation
- ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,&  ! intent(in): [i4b] groundwater parameterization
- ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,&  ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
-
+ ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in): [i4b] groundwater parameterization
  ! domain boundary conditions
- airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,&  ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
- scalarRainfall          => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)         ,&  ! intent(in): [dp] rainfall rate (kg m-2 s-1)
- scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp] ponded water caused by melt of the "snow without a layer" (kg m-2)
-
+ airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
  ! indices of model state variables
- ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)             , & ! index of canopy air space energy state variable
- ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)             , & ! index of canopy energy state variable
- ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)             , & ! index of canopy hydrology state variable (mass)
- ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)             , & ! index of upper-most energy state in the snow-soil subdomain
- ixTopWat                => indx_data%var(iLookINDEX%ixTopWat)%dat(1)             , & ! index of upper-most total water state in the snow-soil subdomain
- ixTopMat                => indx_data%var(iLookINDEX%ixTopMat)%dat(1)             , & ! index of upper-most matric head state in the soil subdomain
- ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat           , & ! indices for energy states in the snow-soil subdomain
- ixSnowSoilWat           => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat           , & ! indices for total water states in the snow-soil subdomain
- ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat           , & ! indices for energy states in the snow subdomain
- ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat           , & ! indices for total water states in the snow subdomain
- ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat           , & ! indices for energy states in the soil subdomain
- ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat           , & ! indices for hydrology states in the soil subdomain
- layerType               => indx_data%var(iLookINDEX%layerType)%dat               , & ! index defining type of layer (soil or snow)
-
- ! type of model state variables
- ixSoilState             => indx_data%var(iLookINDEX%ixSoilState)%dat             , & ! list of indices for all soil layers
- ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat            , & ! list of indices for all model layers
- ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat             , & ! indices defining the type of the state (ixNrgState...)
- ixAllState              => indx_data%var(iLookINDEX%ixAllState)%dat              , & ! list of indices for all model state variables
- ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat               , & ! list of indices for all energy states
- ixWatOnly               => indx_data%var(iLookINDEX%ixWatOnly)%dat               , & ! list of indices for all "total water" states
- ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat               , & ! list of indices for matric head state variables
- ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat              , & ! list of indices for hydrology states (mass of water)
-
- ! diagnostic variables
- mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
- scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),&  ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
- mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,&  ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
- mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat          ,&  ! intent(out): [dp(:)] melt-freeze in each snow and soil layer (kg m-3)
- mLayerThetaResid        => diag_data%var(iLookDIAG%mLayerThetaResid)%dat          ,&  ! intent(out): [dp(:)] residual volumetric liquid water content in each snow layer (-)
-
- ! model fluxes
- mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(out): [dp(:)] change in storage associated with compression of the soil matrix (-)
- iLayerLiqFluxSnow       => flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
- iLayerLiqFluxSoil       => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat         ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
- mLayerBaseflow          => flux_data%var(iLookFLUX%mLayerBaseflow)%dat            ,&  ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
- scalarSoilBaseflow      => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1)     ,&  ! intent(out): [dp] total baseflow from the soil profile (m s-1)
- scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1)     ,& ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
-
- ! sublimation (needed to check mass balance constraints)
- scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1),&  ! intent(out): [dp] sublimation of ice from the vegetation canopy (kg m-2 s-1)
- scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)  ,&  ! intent(out): [dp] sublimation of ice from the snow surface (kg m-2 s-1)
-
+ ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)             , & ! intent(in): [i4b]    index of canopy air space energy state variable
+ ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)             , & ! intent(in): [i4b]    index of canopy energy state variable
+ ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)             , & ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+ ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat           , & ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
+ ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat           , & ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
+ ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat           , & ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
  ! vegetation parameters
- heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)              ,&  ! intent(in): [dp] height of the top of the vegetation canopy (m)
- heightCanopyBottom      => mpar_data%var(iLookPARAM%heightCanopyBottom)           ,&  ! intent(in): [dp] height of the bottom of the vegetation canopy (m)
-
+ heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)              ,& ! intent(in): [dp] height of the top of the vegetation canopy (m)
+ heightCanopyBottom      => mpar_data%var(iLookPARAM%heightCanopyBottom)           ,& ! intent(in): [dp] height of the bottom of the vegetation canopy (m)
  ! snow parameters
  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
-
  ! soil parameters
  vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
  vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
@@ -467,23 +238,35 @@ contains
  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)                    ,&  ! intent(in): [dp] soil porosity (-)
  theta_res               => mpar_data%var(iLookPARAM%theta_res)                    ,&  ! intent(in): [dp] soil residual volumetric water content (-)
  specificStorage         => mpar_data%var(iLookPARAM%specificStorage)              ,&  ! intent(in): [dp] specific storage coefficient (m-1)
- fImpede                 => mpar_data%var(iLookPARAM%f_impede)                     ,&  ! intent(in): [dp] ice impedance parameter (-)
-
+ ! convergence parameters
+ absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,& ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
+ ! model diagnostic variables (fraction of liquid water)
+ scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(out): [dp]    fraction of liquid water on vegetation (-)
+ mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(out): [dp(:)] fraction of liquid water in each snow layer (-)
+ mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat          ,& ! intent(out): [dp(:)] melt-freeze in each snow and soil layer (kg m-3)
+ ! model fluxes
+ mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! intent(out): [dp(:)]  change in storage associated with compression of the soil matrix (-)
+ iLayerLiqFluxSoil       => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat         ,& ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+ mLayerTranspire         => flux_data%var(iLookFLUX%mLayerTranspire)%dat           ,& ! intent(out): [dp(:)]  transpiration loss from each soil layer (m s-1)
+ mLayerBaseflow          => flux_data%var(iLookFLUX%mLayerBaseflow)%dat            ,& ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+ scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1)     ,& ! intent(out): [dp]     exfiltration from the soil profile (m s-1)
+ ! sublimation (needed to check mass balance constraints)
+ scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1),& ! intent(out): [dp] sublimation of ice from the vegetation canopy (kg m-2 s-1)
+ scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)  ,& ! intent(out): [dp] sublimation of ice from the snow surface (kg m-2 s-1)
  ! model state variables (vegetation canopy)
- scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,&  ! intent(inout): [dp] temperature of the canopy air space (K)
- scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,&  ! intent(inout): [dp] temperature of the vegetation canopy (K)
- scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,&  ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,&  ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
- scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,&  ! intent(inout): [dp] mass of total water on the vegetation canopy (kg m-2)
-
+ mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
+ scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp] temperature of the canopy air space (K)
+ scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(inout): [dp] temperature of the vegetation canopy (K)
+ scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(inout): [dp] mass of total water on the vegetation canopy (kg m-2)
  ! model state variables (snow and soil domains)
- mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,&  ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
- mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of ice (-)
- mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of liquid water (-)
- mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,&  ! intent(inout): [dp(:)] volumetric fraction of total water (-)
- mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(inout): [dp(:)] matric head (m)
- scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)    &  ! intent(inout): [dp   ] aquifer storage (m)
-
+ mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
+ mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(inout): [dp(:)] volumetric fraction of ice (-)
+ mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(inout): [dp(:)] volumetric fraction of liquid water (-)
+ mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(inout): [dp(:)] volumetric fraction of total water (-)
+ mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(inout): [dp(:)] matric head (m)
+ scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)    & ! intent(inout): [dp   ] aquifer storage (m)
  )
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -681,7 +464,7 @@ contains
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-  !print*, 'PAUSE: iterating'; read(*,*)
+  print*, 'PAUSE: iterating'; read(*,*)
 
  end do  ! iterating
  !print*, 'PAUSE: after iterations'; read(*,*)
@@ -699,21 +482,33 @@ contains
  if(nSnow>0)&
  stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVec0(ixSnowOnlyWat)*dt + real(rAdd(ixSnowOnlyWat), dp))
 
- ! compute total baseflow from the soil zone (needed for mass balance checks)
- scalarSoilBaseflow = sum(mLayerBaseflow)
-
  ! update states: compute liquid water and ice content from total water content
- call updatState(&
-                 stateVecTrial,         & ! intent(in): full state vector (mixed units)
-                 mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
-                 mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
-                 scalarCanopyLiqTrial,  & ! intent(out): mass of canopy liquid (kg m-2)
-                 scalarCanopyIceTrial,  & ! intent(out): mass of canopy ice (kg m-2)
-                 err,cmessage)            ! intent(out): error code and error message
+ call varExtract(&
+                 ! input
+                 stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
+                 indx_data,                                 & ! intent(in):    indices defining model states and layers
+                 snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
+                 vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters
+                 ! output: variables for the vegetation canopy
+                 scalarFracLiqVeg,                          & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                 scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
+                 scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial,                      & ! intent(out):   trial value of canopy ice content (kg m-2)
+                 ! output: variables for the snow-soil domain
+                 mLayerFracLiqSnow,                         & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                 mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial,                     & ! intent(out):   trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
+                 ! output: error control
+                 err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! check the mass balance for the soil domain
- ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_watbal
+ ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
  if(checkMassBalance)then
   balance0 = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
   balance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
@@ -722,7 +517,7 @@ contains
   baseSink = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
   compSink = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
   liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
-  if(abs(liqError) > absConvTol_watbal*10._dp)then  ! *10 to avoid precision issues
+  if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
    message=trim(message)//'water balance error in the soil domain'
    err=-20; return ! negative error code forces time step reduction and another trial
   endif  ! if there is a water balance error
@@ -780,136 +575,6 @@ contains
 
  ! end associate statement
  end associate
-
- contains
-
-
-  ! *********************************************************************************************************
-  ! internal subroutine updatState: update model states
-  ! *********************************************************************************************************
-  subroutine updatState(&
-                        stateVecTrial,         & ! intent(in):  full state vector (mixed units)
-                        mLayerVolFracLiqTrial, & ! intent(out): volumetric fraction of liquid water (-)
-                        mLayerVolFracIceTrial, & ! intent(out): volumetric fraction of ice (-)
-                        scalarCanopyLiqTrial,  & ! intent(out): liquid water storage in the canopy (kg m-2)
-                        scalarCanopyIceTrial,  & ! intent(out): ice storage in the canopy (kg m-2)
-                        err,message)             ! intent(out): error code and error message
-  ! --------------------------------------------------------------
-  implicit none
-  ! input
-  real(dp),intent(in)            :: stateVecTrial(:)          ! full model state vector (mixed units)
-  real(dp),intent(out)           :: mLayerVolFracLiqTrial(:)  ! volumetric fraction of liquid water (-)
-  real(dp),intent(out)           :: mLayerVolFracIceTrial(:)  ! volumetric fraction of ice (-)
-  real(dp),intent(out)           :: scalarCanopyLiqTrial      ! liquid water storage in the canopy (kg m-2)
-  real(dp),intent(out)           :: scalarCanopyIceTrial      ! ice storage in the canopy (kg m-2)
-  ! output
-  integer(i4b),intent(out)       :: err                       ! error code
-  character(*),intent(out)       :: message                   ! error message
-  ! local
-  character(LEN=256)             :: cmessage                  ! error message of downwind routine
-  ! initialize error control
-  err=0; message='updatState/'
-
-  ! get the necessary variables from the data structures
-  associate(&
-
-  ! indices of model state variables
-  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b] index of canopy air space energy state variable
-  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b] index of canopy energy state variable
-  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,&  ! intent(in): [i4b] index of canopy hydrology state variable (mass)
-  ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,&  ! intent(in): [i4b] index of upper-most energy state in the snow-soil subdomain
-  ixTopWat                => indx_data%var(iLookINDEX%ixTopWat)%dat(1)              ,&  ! intent(in): [i4b] index of upper-most total water state in the snow-soil subdomain
-  ixTopMat                => indx_data%var(iLookINDEX%ixTopMat)%dat(1)              ,&  ! intent(in): [i4b] index of upper-most matric head state in the soil subdomain
-  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
-  ixSnowSoilWat           => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat            ,&  ! intent(in): [i4b(:)] indices for total water states in the snow-soil subdomain
-  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
-  ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat            ,&  ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
-  ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
-  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,&  ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
-  layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&  ! intent(in): [i4b(:)] type of each layer in the snow+soil domain (snow or soil)
-
-  ! model state variables (vegetation canopy)
-  scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,&  ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
-  scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,&  ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
-
-  ! layer depth
-  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp] depth of each layer (m)
-
-  ! snow parameters
-  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,&  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
-
-  ! soil parameters
-  vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
-  vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
-  vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)                    ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
-  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)                    ,&  ! intent(in): [dp] soil porosity (-)
-  theta_res               => mpar_data%var(iLookPARAM%theta_res)                     &  ! intent(in): [dp] soil residual volumetric water content (-)
-  )
-
-  ! update states for the vegetation canopy
-  if(computeVegFlux)then
-   fracLiqVeg    = fracliquid(stateVecTrial(ixVegNrg),snowfrz_scale)  ! fraction of liquid water (-)
-   totalWaterVeg = stateVecTrial(ixVegWat)                            ! total water (kg m-2)
-   scalarCanopyLiqTrial = fracLiqVeg*totalWaterVeg                    ! mass of liquid water on the canopy (kg m-2)
-   scalarCanopyIceTrial = (1._dp - fracLiqVeg)*totalWaterVeg          ! mass of ice on the canopy (kg m-2)
-
-  ! ensure that states for the veg canopy are defined
-  else
-   scalarCanopyLiqTrial = scalarCanopyLiq
-   scalarCanopyIceTrial = scalarCanopyIce
-  endif
-
-  ! loop through layers in the snow+soil sub-domain
-  do iLayer=1,nLayers
-   select case(layerType(iLayer))
-
-    !** snow
-    case(ix_snow)
-     ! update states
-     call updateSnow(&
-                     ! input
-                     stateVecTrial(ixSnowSoilNrg(iLayer)),      & ! intent(in): layer temperature (K)
-                     stateVecTrial(ixSnowSoilWat(iLayer)),      & ! intent(in): volumetric fraction of total water (-)
-                     snowfrz_scale,                             & ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                     ! output
-                     mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
-                     mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
-                     fracLiqSnow(iLayer),                       & ! intent(out): fraction of liquid water in each snow layer (-)
-                     err,cmessage)                                ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-    !** soil
-    case(ix_soil)
-
-     call updateSoil(&
-                     ! input
-                     stateVecTrial(ixSnowSoilNrg(iLayer)),      & ! intent(in): layer temperature (K)
-                     stateVecTrial(ixSoilOnlyHyd(iLayer-nSnow)),& ! intent(in): matric head (m)
-                     vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
-                     ! output
-                     mLayerVolFracWatTrial(iLayer),             & ! intent(out): volumetric fraction of total water (-)
-                     mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
-                     mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
-                     err,cmessage)                                ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-    !** check errors
-    case default; err=40; message=trim(message)//"cannot identify the layer as snow or soil"; return
-
-   endselect  ! identifying type of layer
-
-   ! sanity check
-   if(mLayerVolFracIceTrial(iLayer) < -tiny(theta_sat))then
-    write(message,'(a,i0,a,e20.10,a)')trim(message)//"volumetric ice content < 0; iLayer=",iLayer,"; mLayerVolFracIce =",mLayerVolFracIceTrial(iLayer),"]"
-    err=10; return
-   endif
-
-  end do   ! looping through layers
-
-  ! end association to the variables in the data structures
-  end associate
-
-  end subroutine updatState
 
  end subroutine systemSolv
 

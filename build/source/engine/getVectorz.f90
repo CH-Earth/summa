@@ -167,15 +167,16 @@ contains
  ! ---------------------------
 
  ! define the function scaling vector
- fScale(ixNrgOnly)      = fScaleNrg  ! (J m-3)
- fScale(ixSnowSoilWat)  = fScaleLiq  ! (-)
- if(nMassState>0) fScale(ixMassOnly) = fScaleLiq*canopyDepth*iden_water  ! (kg m-2)
+ fScale(ixNrgOnly)      = 1._dp / fScaleNrg  ! 1/(J m-3)
+ fScale(ixSnowSoilWat)  = 1._dp / fScaleLiq  ! (-)
+ if(nMassState>0) fScale(ixMassOnly) = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! 1/(kg m-2)
 
  ! define the scaling for the state vector
- xScale(ixNrgOnly) = xScaleTemp ! K
- if(nWatState>0)  xScale(ixWatOnly)  = xScaleLiq   ! (-)
- if(nMatState>0)  xScale(ixMatOnly)  = xScaleMat   ! (m)
- if(nMassState>0) xScale(ixMassOnly) = xScaleLiq*canopyDepth*iden_water  ! (kg m-2)
+ ! NOTE: temporary assignment for backwards compatibility with previous branch
+                  xScale(ixNrgOnly)  = 1._dp  ! xScaleTemp ! K
+ if(nWatState>0)  xScale(ixWatOnly)  = 1._dp  ! xScaleLiq   ! (-)
+ if(nMatState>0)  xScale(ixMatOnly)  = 1._dp  ! xScaleMat   ! (m)
+ if(nMassState>0) xScale(ixMassOnly) = 1._dp  ! xScaleLiq*canopyDepth*iden_water  ! (kg m-2)
 
  ! -----
  ! * define components of derivative matrices that are constant over a time step (substep)...

@@ -37,6 +37,8 @@ USE globalData,only: kl             ! number of sub-diagonal bands
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
+USE globalData,only: iJac1          ! first layer of the Jacobian to print
+USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -164,6 +166,8 @@ contains
  integer(i4b),parameter          :: ixTrustRegion=1002       ! step refinement = trust region
  integer(i4b),parameter          :: ixStepRefinement=ixLineSearch   ! decision for the numerical solution
  ! general
+ integer(i4b)                    :: iLayer                   ! row index
+ integer(i4b)                    :: jLayer                   ! column index
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associations to information in data structures
@@ -196,7 +200,8 @@ contains
                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
                   aJac,                           & ! intent(out):   Jacobian matrix
                   ! output: error control
-                  err,message)                      ! intent(out):   error code and error message
+                  err,cmessage)                     ! intent(out):   error code and error message
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! -----
  ! * solve linear system...
@@ -209,6 +214,14 @@ contains
  call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+ if(globalPrintFlag)then
+  print*, '** SCALED banded analytical Jacobian:'
+  write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+  do iLayer=kl+1,nBands
+   write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=iJac1,iJac2)
+  end do
+ endif
+
  ! copy the scaled matrix, since it is decomposed in lapackSolv
  aJacScaledTemp = aJacScaled
 
@@ -216,11 +229,14 @@ contains
  call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+ if(globalPrintFlag) write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
+
  ! -----
  ! * update, evaluate, and refine the state vector...
  ! --------------------------------------------------
 
- ! compute the flux vector and the residual, and refine the iteration increment
+ ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
+ ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
  select case(ixStepRefinement)
   case(ixLineSearch);  call lineSearchRefinement( stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
   case(ixTrustRegion); call trustRegionRefinement(stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
@@ -257,8 +273,8 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                 ! error message of downwind routine
-  real(dp)                       :: xIncScaled(nState)       ! scaled newton step (restricted)
   real(dp)                       :: gradScaled(nState)       ! scaled gradient
+  real(dp)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                    ! line search index
   integer(i4b),parameter         :: maxLineSearch=20         ! maximum number of backtracks
@@ -276,12 +292,24 @@ contains
   ! initialize error control
   err=0; message='lineSearchRefinement/'
 
+  ! re-scale the iteration increment
+  xInc(:) = newtStepScaled(:)*xScale(:)
+
+  ! if enthalpy, then need to convert the iteration increment to temperature
+  !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly)/dMat(ixNrgOnly)
+
+  ! impose solution constraints
+  ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on trust regions here
+  call imposeConstraints(stateVecTrial,xInc,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
   ! compute the gradient of the function vector
   call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! compute the initial slope
   slopeInit = dot_product(gradScaled,newtStepScaled)
+  print*, 'slopeInit = ', slopeInit
 
   ! initialize lambda
   xLambda=1._dp
@@ -290,16 +318,26 @@ contains
   lineSearch: do iLine=1,maxLineSearch  ! try to refine the function by shrinking the step size
 
    ! compute the iteration increment
-   xIncScaled = xLambda*newtStepScaled
+   stateVecNew = stateVecTrial + xLambda*xInc
 
    ! compute the residual vector and function
-   call eval8state(stateVecTrial,xIncScaled,stateVecNew,fluxVecNew,resVecNew,fNew,feasible,converged,err,message)
+   call eval8state(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+   if(globalPrintFlag)then
+    write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
+    write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
+    write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
+    write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(iJac1:iJac2)
+    write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(iJac1:iJac2)
+    pause
+   endif
 
    ! check feasibility
    if(.not.feasible) cycle
 
    ! check convergence
+   converged = checkConv(resVecNew,xInc,stateVecNew)
    if(converged) return
 
    ! check if the function is accepted
@@ -311,7 +349,10 @@ contains
 
    ! first backtrack: use quadratic
    if(iLine==1)then
-    xLambdaTemp = -slopeInit / 2._dp*(fNew - fOld - slopeInit)
+    xLambdaTemp = -slopeInit / (2._dp*(fNew - fOld - slopeInit) )
+    print*, 'xLambdaTemp = ', xLambdaTemp
+    print*, 'fNew, fOld, slopeInit = ', fNew, fOld, slopeInit
+    if(xLambdaTemp > 0.5_dp*xLambda) xLambdaTemp = 0.5_dp*xLambda
 
    ! subsequent backtracks: use cubic
    else
@@ -325,10 +366,13 @@ contains
     ! define rhs
     rhs1 = fNew - fOld - xLambda*slopeInit
     rhs2 = fPrev - fOld - xLambdaPrev*slopeInit
+    print*, 'rhs1, rhs2 = ', rhs1, rhs2
+
 
     ! define coefficients
     aCoef = (rhs1/(xLambda*xLambda) - rhs2*(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
     bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
+    print*, 'aCoef, bCoef = ', aCoef, bCoef
 
     ! check if a quadratic
     if(aCoef==0._dp)then
@@ -337,17 +381,16 @@ contains
     ! calculate cubic
     else
      disc = bCoef*bCoef - 3._dp*aCoef*slopeInit
+     print*, 'disc = ', disc
      if(disc < 0._dp)then
       xLambdaTemp = 0.5_dp*xLambda
-     elseif(bCoef <= 0._dp)then
-      xLambdaTemp = (-bCoef + sqrt(disc))/(3._dp*aCoef)
      else
-      xLambdaTemp = -slopeInit/(bCoef + sqrt(disc))
+      xLambdaTemp = (-bCoef + sqrt(disc))/(3._dp*aCoef)
      endif
     endif  ! calculating cubic
 
     ! constrain to <= 0.5*xLambda
-    if(xLambdaTemp < 0.5_dp*xLambda) xLambdaTemp=0.5_dp*xLambda
+    if(xLambdaTemp > 0.5_dp*xLambda) xLambdaTemp=0.5_dp*xLambda
 
    endif  ! subsequent backtracks
 
@@ -413,42 +456,24 @@ contains
   ! *********************************************************************************************************
   ! * internal subroutine eval8state: compute the right-hand-side vector
   ! *********************************************************************************************************
-  subroutine eval8state(stateVecTrial,stateVecIter,stateVecNew,fluxVecNew,resVecNew,fNew,feasible,converged,err,message)
+  subroutine eval8state(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
   USE eval8summa_module,only:eval8summa                      ! simulation of fluxes and residuals given a trial state vector
   implicit none
   ! input
-  real(dp),intent(in)            :: stateVecTrial(:)         ! trial state vector 
-  real(dp),intent(in)            :: stateVecIter(:)          ! *scaled* iteration increment in model state vector
+  real(dp),intent(in)            :: stateVecNew(:)           ! updated state vector
   ! output
-  real(dp),intent(out)           :: stateVecNew(:)           ! updated state vector
   real(dp),intent(out)           :: fluxVecNew(:)            ! updated flux vector
   real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! updated residual vector
   real(dp),intent(out)           :: fNew                     ! new function value
   logical(lgt),intent(out)       :: feasible                 ! flag to denote the feasibility of the solution
-  logical(lgt),intent(out)       :: converged                ! flag to denote the solution has converged
   integer(i4b),intent(out)       :: err                      ! error code
   character(*),intent(out)       :: message                  ! error message
   ! ----------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                 ! error message of downwind routine
-  real(dp)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   ! ----------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='eval8state/'
-
-  ! re-scale the iteration increment
-  xInc(:) = stateVecIter(:)*xScale(:)
-
-  ! if enthalpy, then need to convert the iteration increment to temperature
-  !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly)/dMat(ixNrgOnly)
-
-  ! impose solution constraints
-  ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on trust regions here
-  call imposeConstraints(stateVecTrial,xInc,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! update the state vector
-  stateVecNew = stateVecTrial + xInc
 
   ! compute the flux and the residual vector for a given state vector
   call eval8summa(&
@@ -487,8 +512,6 @@ contains
                   err,cmessage)              ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  ! check convergence
-  converged = checkConv(resVecNew,xInc,stateVecNew)
 
   end subroutine eval8state
 

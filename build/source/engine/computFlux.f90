@@ -273,10 +273,10 @@ contains
  mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat                  ,&  ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
 
  ! evaporative fluxes
- scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)       ,&  ! intent(out): [dp] canopy transpiration (kg m-2 s-1)
- scalarCanopyEvaporation      => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)         ,&  ! intent(out): [dp] canopy evaporation/condensation (kg m-2 s-1)
- scalarGroundEvaporation      => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1)         ,&  ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
- mLayerTranspire              => flux_data%var(iLookFLUX%mLayerTranspire)%dat                    ,&  ! intent(out): [dp] transpiration loss from each soil layer (m s-1)
+ scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)       ,&  ! intent(out): [dp]    canopy transpiration (kg m-2 s-1)
+ scalarCanopyEvaporation      => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)         ,&  ! intent(out): [dp]    canopy evaporation/condensation (kg m-2 s-1)
+ scalarGroundEvaporation      => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1)         ,&  ! intent(out): [dp]    ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ mLayerTranspire              => flux_data%var(iLookFLUX%mLayerTranspire)%dat                    ,&  ! intent(out): [dp(:)] transpiration loss from each soil layer (m s-1)
 
  ! fluxes for the snow+soil domain
  iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                      ,&  ! intent(out): [dp(0:)] vertical energy flux at the interface of snow and soil layers
@@ -284,6 +284,7 @@ contains
  iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat                  ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
  mLayerHydCond                => flux_data%var(iLookFLUX%mLayerHydCond)%dat                      ,&  ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
  mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                     ,&  ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+ scalarSoilBaseflow           => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1)              ,&  ! intent(out): [dp]     total baseflow from the soil profile (m s-1)
 
  ! infiltration
  scalarInfilArea              => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1)              ,&  ! intent(out): [dp] fraction of unfrozen area where water can infiltrate (-)
@@ -737,6 +738,10 @@ contains
                   err,cmessage)                              ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif  ! computing baseflow flux
+
+ ! compute total baseflow from the soil zone (needed for mass balance checks)
+ scalarSoilBaseflow = sum(mLayerBaseflow)
+
 
  ! *****
  ! (7) CALCUALTE FLUXES FOR THE DEEP AQUIFER...

@@ -109,17 +109,19 @@ MODULE globalData
  integer(i4b),parameter,public               :: nRHS=1                  ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands
  integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands
- integer(i4b),parameter,public               :: ixSup3=1                ! index for the 3rd super-diagonal band
- integer(i4b),parameter,public               :: ixSup2=2                ! index for the 2nd super-diagonal band
- integer(i4b),parameter,public               :: ixSup1=3                ! index for the 1st super-diagonal band
- integer(i4b),parameter,public               :: ixDiag=4                ! index for the diagonal band
- integer(i4b),parameter,public               :: ixSub1=5                ! index for the 1st sub-diagonal band
- integer(i4b),parameter,public               :: ixSub2=6                ! index for the 2nd sub-diagonal band
- integer(i4b),parameter,public               :: ixSub3=7                ! index for the 3rd sub-diagonal band
- integer(i4b),parameter,public               :: ixSub4=8                ! index for the 3rd sub-diagonal band
- integer(i4b),parameter,public               :: nBands=kl+ku+1          ! length of the leading dimension of the band diagonal matrix
+ integer(i4b),parameter,public               :: ixSup3=kl+1             ! index for the 3rd super-diagonal band
+ integer(i4b),parameter,public               :: ixSup2=kl+2             ! index for the 2nd super-diagonal band
+ integer(i4b),parameter,public               :: ixSup1=kl+3             ! index for the 1st super-diagonal band
+ integer(i4b),parameter,public               :: ixDiag=kl+4             ! index for the diagonal band
+ integer(i4b),parameter,public               :: ixSub1=kl+5             ! index for the 1st sub-diagonal band
+ integer(i4b),parameter,public               :: ixSub2=kl+6             ! index for the 2nd sub-diagonal band
+ integer(i4b),parameter,public               :: ixSub3=kl+7             ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter,public               :: ixSub4=kl+8             ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter,public               :: nBands=2*kl+ku+1        ! length of the leading dimension of the band diagonal matrix
  integer(i4b),parameter,public               :: ixFullMatrix=1001       ! named variable for the full Jacobian matrix
  integer(i4b),parameter,public               :: ixBandMatrix=1002       ! named variable for the band diagonal matrix
+ integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac2=10                ! last layer of the Jacobian to print
 
  ! define mapping structures
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing

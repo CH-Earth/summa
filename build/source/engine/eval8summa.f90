@@ -371,6 +371,7 @@ contains
  ! compute the function evaluation
  rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
  fEval      = 0.5_dp*dot_product(rVecScaled,rVecScaled)
+ !fEval      = 0.5_dp*norm2(rVecScaled) 
 
  ! end association with the information in the data structures
  end associate
