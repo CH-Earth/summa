@@ -26,6 +26,8 @@ MODULE var_lookup
  private
  ! local variables
  integer(i4b),parameter     :: iLength=storage_size(1)  ! size of an integer
+ integer(i4b),parameter,public     :: numStats = 7
+ integer(i4b),parameter,public     :: maxFreq = 10
 
  ! ***********************************************************************************************************
  ! (0) define model decisions
@@ -670,6 +672,19 @@ MODULE var_lookup
  endtype iLook_varType
 
  ! ***********************************************************************************************************
+ ! (11) structure for looking up statistics 
+ ! ***********************************************************************************************************
+ type, public :: iLook_stat
+  integer(i4b)    :: totl = integerMissing ! summation 
+  integer(i4b)    :: inst = integerMissing ! instantaneous 
+  integer(i4b)    :: mean = integerMissing ! mean over period
+  integer(i4b)    :: vari = integerMissing ! variance over period
+  integer(i4b)    :: mini = integerMissing ! minimum over period 
+  integer(i4b)    :: maxi = integerMissing ! maximum over period
+  integer(i4b)    :: mode = integerMissing ! mode over period
+ endtype iLook_stat
+
+ ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************
 
@@ -753,6 +768,9 @@ MODULE var_lookup
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10)
 
+ ! number of possible output statistics
+ type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
+
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions = storage_size(iLookDECISIONS)/iLength
  integer(i4b),parameter,public :: maxvarTime      = storage_size(iLookTIME)/iLength
@@ -768,6 +786,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarBpar      = storage_size(iLookBPAR)/iLength
  integer(i4b),parameter,public :: maxvarBvar      = storage_size(iLookBVAR)/iLength
  integer(i4b),parameter,public :: maxvarVarType   = storage_size(iLookVarType)/iLength
+ integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookStat)/iLength
 
  ! ***********************************************************************************************************
  ! (Y) define ancillary look-up structures

@@ -140,11 +140,17 @@ USE mDecisions_module,only:&                                ! look-up values for
 USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
+USE output_stats,only:allocStat                             ! module for compiling output statistics
 implicit none
 
 ! *****************************************************************************
 ! (0) variable definitions
 ! *****************************************************************************
+type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
+type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (sta     te) variables
+type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic vari     ables
+type(gru_hru_doubleVec)          :: fluxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat        -- basin-average variabl
 ! define the primary data structures (scalars)
 type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
 type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:)     -- model forcing data
@@ -372,6 +378,16 @@ call ffile_info(nHRU,err,message); call handle_err(err,message)
 ! (4b) read model decisions
 ! *****************************************************************************
 call mDecisions(err,message); call handle_err(err,message)
+
+! *****************************************************************************
+! (3c) allocate space for output statistics data structures
+! *****************************************************************************
+! allocate space
+call allocStat(forc_meta, forcStat, err, message)   ! model forcing data
+call allocStat(prog_meta, progStat, err, message)   ! model prognostic (state) variables
+call allocStat(diag_meta, diagStat, err, message)   ! model diagnostic variables
+call allocStat(flux_meta, fluxStat, err, message)   ! model fluxes
+call allocStat(bvar_meta, bvarStat, err, message)   ! basin-average variables
 
 ! *****************************************************************************
 ! (5a) read default model parameters
@@ -835,7 +851,7 @@ do istep=1,numtim
    if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn)then
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
    endif
-  
+ 
    ! write the forcing data to the model output file
    call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
   

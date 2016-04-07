@@ -44,6 +44,7 @@ MODULE globalData
  USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
  USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
  USE var_lookup,only:maxvarDecisions ! maximum number of decisions
+ USE var_lookup,only:maxFreq         ! maximum number of output files
  implicit none
  private
 
@@ -123,6 +124,9 @@ MODULE globalData
 
  ! output file information
  integer(i4b),save,public                    :: ncid                    ! netcdf output file id
+ integer(i4b),save,public                    :: nFreq                   ! actual number of output files
+ integer(i4b),dimension(maxFreq),save,public :: outFreq                 ! frequency of all output files
+
 
 
 END MODULE globalData
