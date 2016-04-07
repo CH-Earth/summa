@@ -361,7 +361,7 @@ contains
  diag_meta(iLookDIAG%scalarSnowAge)                   = var_info('scalarSnowAge'                  , 'non-dimensional snow age'                                         , '-'               , 'scalarv', .false.)
  diag_meta(iLookDIAG%scalarGroundSnowFraction)        = var_info('scalarGroundSnowFraction'       , 'fraction ground that is covered with snow'                        , '-'               , 'scalarv', .true.)
  diag_meta(iLookDIAG%spectralSnowAlbedoDirect)        = var_info('spectralSnowAlbedoDirect'       , 'direct snow albedo for individual spectral bands'                 , '-'               , 'wLength', .false.)
- diag_meta(iLookDIAG%scalarFracLiqSnow)               = var_info('scalarFracLiqSnow'              , 'fraction of liquid water in each snow layer'                      , '-'               , 'scalarv', .false.)
+ diag_meta(iLookDIAG%mLayerFracLiqSnow)               = var_info('mLayerFracLiqSnow'              , 'fraction of liquid water in each snow layer'                      , '-'               , 'midSnow', .false.)
  diag_meta(iLookDIAG%mLayerThetaResid)                = var_info('mLayerThetaResid'               , 'residual volumetric water content in each snow layer'             , '-'               , 'midSnow', .false.)
  diag_meta(iLookDIAG%mLayerPoreSpace)                 = var_info('mLayerPoreSpace'                , 'total pore space in each snow layer'                              , '-'               , 'midSnow', .false.)
  diag_meta(iLookDIAG%mLayerMeltFreeze)                = var_info('mLayerMeltFreeze'               , 'ice content change from melt/freeze in each layer'                , 'kg m-3'          , 'midToto', .false.)

@@ -112,12 +112,10 @@ contains
  ! model states for the vegetation canopy
  scalarCanairTemp  => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the canopy air space (K)
  scalarCanopyTemp  => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the vegetation canopy (K)
- scalarCanopyIce   => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiq   => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyWat   => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in): [dp] mass of total water on the vegetation canopy (kg m-2)
  ! model state variable vectors for the snow-soil layers
  mLayerTemp        => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
- mLayerVolFracLiq  => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
- mLayerVolFracIce  => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of ice (-)
+ mLayerVolFracWat  => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of total water (-)
  mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
  ! model diagnostic variables
  volHeatCapVeg     => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
@@ -155,14 +153,14 @@ contains
  if(computeVegFlux)then
   stateVec(ixCasNrg) = scalarCanairTemp
   stateVec(ixVegNrg) = scalarCanopyTemp
-  stateVec(ixVegWat) = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
+  stateVec(ixVegWat) = scalarCanopyWat  ! kg m-2
  endif
 
  ! build the state vector for the snow and soil domain
  stateVec(ixSnowSoilNrg) = mLayerTemp(1:nLayers)
  stateVec(ixSoilOnlyHyd) = mLayerMatricHead(1:nSoil)
  if(nSnow>0)&
- stateVec(ixSnowOnlyWat) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*(iden_ice/iden_water)
+ stateVec(ixSnowOnlyWat) = mLayerVolFracWat(1:nSnow)
 
  ! -----
  ! * define scaling vectors...

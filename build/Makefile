@@ -176,8 +176,9 @@ SUMMA_SOLVER= \
 		soilLiqFlx.f90 \
 		computFlux.f90 \
 		computResid.f90 \
+		computJacob.f90 \
 		eval8summa.f90 \
-		stateTrial.f90 \
+		summaSolve.f90 \
 		systemSolv.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))

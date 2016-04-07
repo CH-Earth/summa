@@ -515,7 +515,7 @@ contains
   case('scalarSnowAge'                  ); get_ixdiag = iLookDIAG%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarGroundSnowFraction'       ); get_ixdiag = iLookDIAG%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   case('spectralSnowAlbedoDirect'       ); get_ixdiag = iLookDIAG%spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
-  case('scalarFracLiqSnow'              ); get_ixdiag = iLookDIAG%scalarFracLiqSnow                ! fraction of liquid water in each snow layer (-) 
+  case('mLayerFracLiqSnow'              ); get_ixdiag = iLookDIAG%mLayerFracLiqSnow                ! fraction of liquid water in each snow layer (-) 
   case('mLayerThetaResid'               ); get_ixdiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixdiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixdiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)

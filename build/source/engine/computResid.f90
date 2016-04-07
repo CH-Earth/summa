@@ -43,7 +43,7 @@ public::computResid
 contains
 
  ! **********************************************************************************************************
- ! public subroutine computResid: compute the residual vector and the Jacobian matrix
+ ! public subroutine computResid: compute the residual vector
  ! **********************************************************************************************************
  subroutine computResid(&
                         ! input: model control
