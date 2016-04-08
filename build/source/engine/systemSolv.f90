@@ -34,6 +34,7 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
+! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
@@ -196,13 +197,14 @@ contains
  real(dp),dimension(nState)      :: xScale                       ! characteristic scale of the state vector (mixed units)
  real(dp),dimension(nState)      :: dMat                         ! diagonal matrix (excludes flux derivatives)
  real(qp),dimension(nState)      :: sMul          ! NOTE: qp     ! multiplier for state vector for the residual calculations
- real(qp),dimension(nState)      :: rAdd          ! NOTE: qp     ! additional terms in the residual vector
  real(qp),dimension(nState)      :: rVec          ! NOTE: qp     ! residual vector
+ real(dp),dimension(nState)      :: rAdd                         ! additional terms in the residual vector
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                     ! flag to define the feasibility of the solution
  logical(lgt)                    :: converged                    ! convergence flag
- real(dp)                        :: fluxVecNew(nState)           ! new flux vector
- real(qp)                        :: resVecNew(nState) ! NOTE: qp ! new residual vector
+ real(dp),dimension(nState)      :: resSinkNew                   ! additional terms in the residual vector
+ real(dp),dimension(nState)      :: fluxVecNew                   ! new flux vector
+ real(qp),dimension(nState)      :: resVecNew     ! NOTE: qp     ! new residual vector
  ! ------------------------------------------------------------------------------------------------------
  ! * mass balance checks
  ! ------------------------------------------------------------------------------------------------------
@@ -380,6 +382,7 @@ contains
                  ! output
                  feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                  fluxVec0,                & ! intent(out):   flux vector
+                 rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
                  rVec,                    & ! intent(out):   residual vector
                  fOld,                    & ! intent(out):   function evaluation
                  err,cmessage)              ! intent(out):   error control
@@ -446,6 +449,7 @@ contains
                   ! output
                   stateVecNew,             & ! intent(out):   new state vector
                   fluxVecNew,              & ! intent(out):   new flux vector
+                  resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                   resVecNew,               & ! intent(out):   new residual vector
                   fNew,                    & ! intent(out):   new function evaluation
                   converged,               & ! intent(out):   convergence flag
@@ -464,7 +468,7 @@ contains
 
   ! check convergence
   if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-  print*, 'PAUSE: iterating'; read(*,*)
+  !print*, 'PAUSE: iterating'; read(*,*)
 
  end do  ! iterating
  !print*, 'PAUSE: after iterations'; read(*,*)
@@ -475,12 +479,12 @@ contains
  ! ----------------------------------------------------
 
  ! update temperatures (ensure new temperature is consistent with the fluxes)
- stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVec0(ixSnowSoilNrg)*dt + real(rAdd(ixSnowSoilNrg), dp))/real(sMul(ixSnowSoilNrg), dp)
+ stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVecNew(ixSnowSoilNrg)*dt + resSinkNew(ixSnowSoilNrg))/real(sMul(ixSnowSoilNrg), dp)
 
  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
  ! NOTE: for soil water balance is constrained within the iteration loop
  if(nSnow>0)&
- stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVec0(ixSnowOnlyWat)*dt + real(rAdd(ixSnowOnlyWat), dp))
+ stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVecNew(ixSnowOnlyWat)*dt + resSinkNew(ixSnowOnlyWat))
 
  ! update states: compute liquid water and ice content from total water content
  call varExtract(&

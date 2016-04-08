@@ -51,7 +51,6 @@ contains
                         nSnow,                   & ! intent(in):    number of snow layers
                         nSoil,                   & ! intent(in):    number of soil layers
                         nLayers,                 & ! intent(in):    total number of layers
-                        nState,                  & ! intent(in):    total number of state variables
                         canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                         computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                         ! input: flux vectors
@@ -72,6 +71,7 @@ contains
                         flux_data,               & ! intent(in):    model fluxes for a local HRU
                         indx_data,               & ! intent(in):    index data
                         ! output
+                        rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
                         rVec,                    & ! intent(out):   residual vector
                         err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -85,7 +85,6 @@ contains
  integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
- integer(i4b),intent(in)         :: nState                    ! total number of state variables
  real(dp),intent(in)             :: canopyDepth               ! depth of the vegetation canopy (m)
  logical(lgt),intent(in)         :: computeVegFlux            ! flag to indicate if computing fluxes over vegetation
  ! input: flux vectors
@@ -106,12 +105,12 @@ contains
  type(var_dlength),intent(in)    :: flux_data                 ! model fluxes for a local HRU
  type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
  ! output
+ real(dp),intent(out)            :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
  real(qp),intent(out)            :: rVec(:)   ! NOTE: qp      ! residual vector
  integer(i4b),intent(out)        :: err                       ! error code
  character(*),intent(out)        :: message                   ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- real(dp)                        :: rAdd(nState)              ! additional (sink) terms on the RHS of the state equation
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! link to the necessary variables for the residual computations
  associate(&
@@ -190,8 +189,6 @@ contains
 
  ! compute the residual vector for the snow+soil sub-domain for liquid water
  rVec(ixSnowSoilWat) = mLayerVolFracWatTrial(1:nLayers) - ( (mLayerVolFracWat(1:nLayers)  + fVec(ixSnowSoilWat)*dt) + rAdd(ixSnowSoilWat) )
- print*, 'mLayerVolFracWat(1:3) = ', mLayerVolFracWat(1:3)
- print*, 'mLayerVolFracWatTrial(1:3) = ', mLayerVolFracWatTrial(1:3)
 
  ! print result
  if(globalPrintFlag) write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec

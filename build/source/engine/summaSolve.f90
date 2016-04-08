@@ -99,6 +99,7 @@ contains
                        ! output
                        stateVecNew,             & ! intent(out):   new state vector
                        fluxVecNew,              & ! intent(out):   new flux vector
+                       resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
                        fNew,                    & ! intent(out):   new function evaluation
                        converged,               & ! intent(out):   convergence flag
@@ -145,6 +146,7 @@ contains
  ! output: flux and residual vectors
  real(dp),intent(out)            :: stateVecNew(:)           ! new state vector
  real(dp),intent(out)            :: fluxVecNew(:)            ! new flux vector
+ real(dp),intent(out)            :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
  real(dp),intent(out)            :: fNew                     ! new function evaluation
  logical(lgt),intent(out)        :: converged                ! convergence flag
@@ -162,6 +164,7 @@ contains
  real(dp),dimension(nState)      :: rVecScaled               ! residual vector (scaled)
  real(dp),dimension(nState)      :: newtStepScaled           ! full newton step (scaled)
  ! step size refinement
+ logical(lgt)                    :: doRefine                 ! flag for step refinement
  integer(i4b),parameter          :: ixLineSearch=1001        ! step refinement = line search
  integer(i4b),parameter          :: ixTrustRegion=1002       ! step refinement = trust region
  integer(i4b),parameter          :: ixStepRefinement=ixLineSearch   ! decision for the numerical solution
@@ -235,13 +238,24 @@ contains
  ! * update, evaluate, and refine the state vector...
  ! --------------------------------------------------
 
+ ! initialize the flag for step refinement
+ doRefine=.true.
+
  ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
  ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
  select case(ixStepRefinement)
-  case(ixLineSearch);  call lineSearchRefinement( stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
-  case(ixTrustRegion); call trustRegionRefinement(stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+  case(ixLineSearch);  call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+  case(ixTrustRegion); call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
   case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
  end select
+
+ ! check warnings: negative error code = warning; in this case back-tracked to the original value
+ ! NOTE: Accept the full newton step
+ if(err<0)then
+  doRefine=.false.;    call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+ endif
+
+ ! check errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! end association to info in data structures
@@ -252,11 +266,12 @@ contains
   ! *********************************************************************************************************
   ! * internal subroutine lineSearchRefinement: refine the iteration increment using line searches
   ! *********************************************************************************************************
-  subroutine lineSearchRefinement(stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
+  subroutine lineSearchRefinement(doLineSearch,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
   ! provide access to the matrix routines
   USE matrixOper_module, only: computeGradient
   implicit none
   ! input
+  logical(lgt),intent(in)        :: doLineSearch             ! flag to do the line search
   real(dp),intent(in)            :: stateVecTrial(:)         ! trial state vector
   real(dp),intent(in)            :: newtStepScaled(:)        ! scaled newton step
   real(dp),intent(in)            :: aJacScaled(:,:)          ! scaled jacobian matrix
@@ -303,13 +318,17 @@ contains
   call imposeConstraints(stateVecTrial,xInc,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  ! compute the gradient of the function vector
-  call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  ! check the need to compute the line search
+  if(doLineSearch)then
 
-  ! compute the initial slope
-  slopeInit = dot_product(gradScaled,newtStepScaled)
-  print*, 'slopeInit = ', slopeInit
+   ! compute the gradient of the function vector
+   call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  
+   ! compute the initial slope
+   slopeInit = dot_product(gradScaled,newtStepScaled)
+
+  endif  ! if computing the line search
 
   ! initialize lambda
   xLambda=1._dp
@@ -324,13 +343,13 @@ contains
    call eval8state(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+   ! check line search
    if(globalPrintFlag)then
     write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
     write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
     write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
     write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(iJac1:iJac2)
     write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(iJac1:iJac2)
-    pause
    endif
 
    ! check feasibility
@@ -339,6 +358,9 @@ contains
    ! check convergence
    converged = checkConv(resVecNew,xInc,stateVecNew)
    if(converged) return
+
+   ! early return if not computing the line search
+   if(.not.doLineSearch) return
 
    ! check if the function is accepted
    if(fNew < fold + alpha*slopeInit*xLambda) return
@@ -350,8 +372,6 @@ contains
    ! first backtrack: use quadratic
    if(iLine==1)then
     xLambdaTemp = -slopeInit / (2._dp*(fNew - fOld - slopeInit) )
-    print*, 'xLambdaTemp = ', xLambdaTemp
-    print*, 'fNew, fOld, slopeInit = ', fNew, fOld, slopeInit
     if(xLambdaTemp > 0.5_dp*xLambda) xLambdaTemp = 0.5_dp*xLambda
 
    ! subsequent backtracks: use cubic
@@ -366,13 +386,10 @@ contains
     ! define rhs
     rhs1 = fNew - fOld - xLambda*slopeInit
     rhs2 = fPrev - fOld - xLambdaPrev*slopeInit
-    print*, 'rhs1, rhs2 = ', rhs1, rhs2
-
 
     ! define coefficients
     aCoef = (rhs1/(xLambda*xLambda) - rhs2*(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
     bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
-    print*, 'aCoef, bCoef = ', aCoef, bCoef
 
     ! check if a quadratic
     if(aCoef==0._dp)then
@@ -381,7 +398,6 @@ contains
     ! calculate cubic
     else
      disc = bCoef*bCoef - 3._dp*aCoef*slopeInit
-     print*, 'disc = ', disc
      if(disc < 0._dp)then
       xLambdaTemp = 0.5_dp*xLambda
      else
@@ -409,12 +425,13 @@ contains
   ! *********************************************************************************************************
   ! * internal subroutine trustRegionRefinement: refine the iteration increment using trust regions
   ! *********************************************************************************************************
-  subroutine trustRegionRefinement(stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
+  subroutine trustRegionRefinement(doTrustRefinement,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
   ! provide access to the matrix routines
   USE matrixOper_module, only: lapackSolv
   USE matrixOper_module, only: computeGradient
   implicit none
   ! input
+  logical(lgt),intent(in)        :: doTrustRefinement        ! flag to refine using trust regions
   real(dp),intent(in)            :: stateVecTrial(:)         ! trial state vector
   real(dp),intent(in)            :: newtStepScaled(:)        ! scaled newton step
   real(dp),intent(in)            :: aJacScaled(:,:)          ! scaled jacobian matrix
@@ -507,6 +524,7 @@ contains
                   ! output
                   feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                   fluxVecNew,              & ! intent(out):   new flux vector
+                  resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                   resVecNew,               & ! intent(out):   new residual vector
                   fNew,                    & ! intent(out):   new function evaluation
                   err,cmessage)              ! intent(out):   error control
@@ -600,6 +618,12 @@ contains
 
   ! final convergence check
   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv)
+
+  ! print progress towards solution
+  if(globalPrintFlag)then
+   write(*,'(a,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv = ', &
+                                                    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
+  endif
 
   ! end associations with variables in the data structures
   end associate

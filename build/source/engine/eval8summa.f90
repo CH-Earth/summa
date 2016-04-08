@@ -109,6 +109,7 @@ contains
                        ! output
                        feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        fluxVec,                 & ! intent(out):   flux vector
+                       resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVec,                  & ! intent(out):   residual vector
                        fEval,                   & ! intent(out):   function evaluation
                        err,message)               ! intent(out):   error control
@@ -163,6 +164,7 @@ contains
  ! output: flux and residual vectors
  logical(lgt),intent(out)        :: feasible              ! flag to denote the feasibility of the solution
  real(dp),intent(out)            :: fluxVec(:)            ! flux vector
+ real(dp),intent(out)            :: resSink(:)            ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVec(:) ! NOTE: qp  ! residual vector
  real(dp),intent(out)            :: fEval                 ! function evaluation
  ! output: error control
@@ -342,7 +344,6 @@ contains
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    total number of layers
-                  nState,                  & ! intent(in):    total number of state variables
                   canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   ! input: flux vectors
@@ -363,6 +364,7 @@ contains
                   flux_data,               & ! intent(in):    model fluxes for a local HRU
                   indx_data,               & ! intent(in):    index data
                   ! output
+                  resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                   resVec,                  & ! intent(out):   residual vector
                   err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
@@ -371,7 +373,6 @@ contains
  ! compute the function evaluation
  rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
  fEval      = 0.5_dp*dot_product(rVecScaled,rVecScaled)
- !fEval      = 0.5_dp*norm2(rVecScaled) 
 
  ! end association with the information in the data structures
  end associate
