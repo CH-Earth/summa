@@ -107,7 +107,7 @@ contains
  implicit none
 
  ! dummy variables
- type(dlength) ,intent(out)     :: stat(:)          ! statistics
+ type(dlength) ,intent(inout)   :: stat(:)          ! statistics
  class(*)      ,intent(in)      :: dat(:)           ! data
  type(var_info),intent(in)      :: meta(:)          ! metadata
  integer(i4b)  ,intent(in)      :: iStep            ! timestep index to compare with oFreq of each variable
@@ -121,7 +121,7 @@ contains
  real(dp)                       :: tdata            ! dummy for pulling info from dat structure
 
  ! initialize error control
- err=0; message='compileStats/'
+ err=0; message='calcStats/'
 
  do iVar = 1,size(meta)                             ! model variables
   if (meta(iVar)%varType.eq.iLookVarType%scalarv) then
@@ -166,7 +166,6 @@ contains
  err=0; message='calc_stats/'
 
  iFreq = meta%outFreq
-
  ! ---------------------------------------------
  ! reset statistics at new frequenncy period 
  ! ---------------------------------------------

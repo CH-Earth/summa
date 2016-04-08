@@ -535,7 +535,7 @@ contains
  ! -----
  ! * basin-wide runoff and aquifer fluxes...
  ! -----------------------------------------
- bvar_meta(iLookBVAR%basin__totalArea)        = var_info('basin__totalArea'       , 'total basin area'                                       , 'm2'    , get_ixVarType('scalarv'), .true., .false., integerMissing, integerMissing)
+ bvar_meta(iLookBVAR%basin__totalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                       , 'm2'    , get_ixVarType('scalarv'), .true., .false., integerMissing, integerMissing)
  bvar_meta(iLookBVAR%basin__SurfaceRunoff)    = var_info('basin__SurfaceRunoff'   , 'surface runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), .true., .false., integerMissing, integerMissing)
  bvar_meta(iLookBVAR%basin__ColumnOutflow)    = var_info('basin__ColumnOutflow'   , 'outflow from all "outlet" HRUs (with no downstream HRU)', 'm3 s-1', get_ixVarType('scalarv'), .true., .false., integerMissing, integerMissing)
  bvar_meta(iLookBVAR%basin__AquiferStorage)   = var_info('basin__AquiferStorage'  , 'aquifer storage'                                        , 'm'     , get_ixVarType('scalarv'), .true., .false., integerMissing, integerMissing)
@@ -709,15 +709,15 @@ contains
 
   ! --- variables with multiple statistics options --------------------------
   call get_ixUnknown(trim(lineWords(1)),structName,vDex,err,cmessage)
-  if (err.ne.0) then; message=trim(message)//trim(cmessage); return; endif;
+  if (err.ne.0) then; message=trim(message)//trim(cmessage)//trim(linewords(1)); return; endif;
   select case (trim(structName))
-   case('time' ); if (oFreq.ne.0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modeltime ! timing data
-   case('bpar' ); if (oFreq.ne.0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modeltime ! basin parameters
-   case('attr' ); if (oFreq.ne.0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modeltime ! local attributes 
-   case('type' ); if (oFreq.ne.0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modeltime ! local classification 
-   case('mpar' ); if (oFreq.ne.0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modeltime ! model parameters
+   case('time' ); if (oFreq.ne.0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modelTime ! timing data
+   case('bpar' ); if (oFreq.ne.0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modelTime ! basin parameters
+   case('attr' ); if (oFreq.ne.0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modelTime ! local attributes 
+   case('type' ); if (oFreq.ne.0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification 
+   case('mpar' ); if (oFreq.ne.0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
    case('indx' )
-    if (oFreq.eq.modeltime)       indx_meta(vDex)%statFlag(iLookStat%inst)=.true.; indx_meta(vDex)%outFreq=modeltime      ! indexex
+    if (oFreq.eq.modelTime)       indx_meta(vDex)%statFlag(iLookStat%inst)=.true.; indx_meta(vDex)%outFreq=modelTime      ! indexex
     if (oFreq.gt.modelTime) then; err=20; message=trim(message)//'index variables can only be output at model timestep'; return; endif
    case('forc' ); call popStat(forc_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model forcing data
    case('prog' ); call popStat(prog_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model prognostics 
@@ -727,6 +727,7 @@ contains
    case('deriv'); call popStat(deriv_meta(vDex),lineWords,nWords,indexFlags,err,cmessage)    ! model derivs 
    case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
   end select
+  if (err.ne.0) then; message=trim(message)//trim(cmessage);return; endif
 
  enddo ! loop through file lines with vline
 
@@ -835,12 +836,16 @@ contains
    return
  endif
 
+ ! check to make sure there are sufficient statistics flags
  ! read output frequency
  read(lineWords(3),*) oFreq
  if (oFreq.le.0) return
 
+ ! check to make sure there are sufficient statistics flags
  ! scalar variables can have multiple statistics
  if (meta%varType.eq.iLookVarType%scalarv) then
+
+ ! check to make sure there are sufficient statistics flags
   ! check whether any of these output frequencies exist yet
   found = .false.                                        ! found flag
   do iFreq = 1,nFreq                                     ! loop through the existing frequencies

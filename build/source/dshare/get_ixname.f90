@@ -799,7 +799,7 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! derived variables
-  case('basin__totalArea'              ); get_ixbvar = iLookBVAR%basin__totalArea                ! total basin area (m2)
+  case('basin__TotalArea'              ); get_ixbvar = iLookBVAR%basin__totalArea                ! total basin area (m2)
   ! scalar variables -- basin-average runoff and aquifer fluxes
   case('basin__SurfaceRunoff'          ); get_ixbvar = iLookBVAR%basin__SurfaceRunoff            ! surface runoff (m s-1)
   case('basin__ColumnOutflow'          ); get_ixbvar = iLookBVAR%basin__ColumnOutflow            ! outflow from all "outlet" HRUs (those with no downstream HRU)
@@ -878,22 +878,22 @@ contains
  ! *******************************************************************************************************************
  subroutine get_ixUnknown(varName,typeName,vDex,err,message)
  USE nrtype
- USE globalData,only:structInfo               ! information on the data structures                  
- USE multiconst,only:integerMissing           ! missing integer value
+ USE globalData,only:structInfo        ! information on the data structures                  
+ USE multiconst,only:integerMissing    ! missing integer value
  implicit none
 
  ! dummies
- character(LEN=64),intent(in)    :: varName   ! variable name
- character(LEN=5),intent(out)    :: typeName  ! variable type name
- integer(i4b),intent(out)        :: vDex      ! variable index in structure
- integer(i4b),intent(out)        :: err       ! error code
- character(*),intent(out)        :: message   ! error message
+ character(*),intent(in)  :: varName   ! variable name
+ character(*),intent(out) :: typeName  ! variable type name
+ integer(i4b),intent(out) :: vDex      ! variable index in structure
+ integer(i4b),intent(out) :: err       ! error code
+ character(*),intent(out) :: message   ! error message
 
  ! internals
- integer(i4b)                    :: iStruc    ! index for looping through structure types
+ integer(i4b)             :: iStruc    ! index for looping through structure types
 
  ! error init
- err=20
+ err=0
  message='get_ixUnknown/'
 
  ! loop through all structure types to find the one with the given variable name
@@ -936,13 +936,12 @@ contains
    case ('deriv')
     vDex = get_ixDeriv(trim(varName))
     if (vDex.gt.0) then; typeName = 'deriv'; return; endif;
-   case default; err=20;message=trim(message)//'variable not found in any structure:'//trim(varName)
   endselect
  enddo
 
+ ! 404
+ err=20;message=trim(message)//'variable not found in any structure:'//trim(varName); return;
+
  end subroutine get_ixUnknown
-
-
-
 
 end module get_ixname_module

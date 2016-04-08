@@ -250,10 +250,9 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 ! *****************************************************************************
 ! (2) populate/check metadata structures
 ! *****************************************************************************
-
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
-! check data structures
+! check d2ta structures
 call checkStruc(err,message); call handle_err(err,message)
 
 ! define the mask to identify the subset of variables in the "child" data structure
