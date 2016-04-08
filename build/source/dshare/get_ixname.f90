@@ -39,6 +39,7 @@ public::get_ixbpar
 public::get_ixbvar
 public::get_ixVarType
 public::get_varTypeName
+public::get_ixUnknown
 contains
 
  ! *******************************************************************************************************************
@@ -870,6 +871,77 @@ contains
    get_VarTypeName = 'missing'
  endselect
  end function get_VarTypeName
+
+ ! *******************************************************************************************************************
+ ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the 
+ ! structrue that it was found in
+ ! *******************************************************************************************************************
+ subroutine get_ixUnknown(varName,typeName,vDex,err,message)
+ USE nrtype
+ USE globalData,only:structInfo               ! information on the data structures                  
+ USE multiconst,only:integerMissing           ! missing integer value
+ implicit none
+
+ ! dummies
+ character(LEN=64),intent(in)    :: varName   ! variable name
+ character(LEN=5),intent(out)    :: typeName  ! variable type name
+ integer(i4b),intent(out)        :: vDex      ! variable index in structure
+ integer(i4b),intent(out)        :: err       ! error code
+ character(*),intent(out)        :: message   ! error message
+
+ ! internals
+ integer(i4b)                    :: iStruc    ! index for looping through structure types
+
+ ! error init
+ err=20
+ message='get_ixUnknown/'
+
+ ! loop through all structure types to find the one with the given variable name
+ ! pill variable index plus return which structure it was found in
+ do iStruc = 1,size(structInfo)
+  select case(trim(structInfo(iStruc)%structName))
+   case ('time' )
+    vDex = get_ixTime(trim(varName))
+    if (vDex.gt.0) then; typeName = 'time'; return; endif;
+   case ('forc' )
+    vDex = get_ixForce(trim(varName))
+    if (vDex.gt.0) then; typeName = 'forc'; return; endif;
+   case ('attr' )
+    vDex = get_ixAttr(trim(varName))
+    if (vDex.gt.0) then; typeName = 'attr'; return; endif;
+   case ('type' )
+    vDex = get_ixType(trim(varName))
+    if (vDex.gt.0) then; typeName = 'type'; return; endif;
+   case ('mpar' )
+    vDex = get_ixParam(trim(varName))
+    if (vDex.gt.0) then; typeName = 'mpar'; return; endif;
+   case ('indx' )
+    vDex = get_ixIndex(trim(varName))
+    if (vDex.gt.0) then; typeName = 'indx'; return; endif;
+   case ('prog' )
+    vDex = get_ixProg(trim(varName))
+    if (vDex.gt.0) then; typeName = 'prog'; return; endif;
+   case ('diag' )
+    vDex = get_ixDiag(trim(varName))
+    if (vDex.gt.0) then; typeName = 'diag'; return; endif;
+   case ('flux' )
+    vDex = get_ixFlux(trim(varName))
+    if (vDex.gt.0) then; typeName = 'flux'; return; endif;
+   case ('bpar' )
+    vDex = get_ixBpar(trim(varName))
+    if (vDex.gt.0) then; typeName = 'bpar'; return; endif;
+   case ('bvar' )
+    vDex = get_ixBvar(trim(varName))
+    if (vDex.gt.0) then; typeName = 'bvar'; return; endif;
+   case ('deriv')
+    vDex = get_ixDeriv(trim(varName))
+    if (vDex.gt.0) then; typeName = 'deriv'; return; endif;
+   case default; err=20;message=trim(message)//'variable not found in any structure:'//trim(varName)
+  endselect
+ enddo
+
+ end subroutine get_ixUnknown
+
 
 
 
