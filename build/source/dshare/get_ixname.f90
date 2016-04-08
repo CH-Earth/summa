@@ -40,6 +40,7 @@ public::get_ixbvar
 public::get_ixVarType
 public::get_varTypeName
 public::get_ixUnknown
+public::get_statName
 contains
 
  ! *******************************************************************************************************************
@@ -943,5 +944,29 @@ contains
  err=20;message=trim(message)//'variable not found in any structure:'//trim(varName); return;
 
  end subroutine get_ixUnknown
+
+ ! ***************************************************************************************************************
+ ! public function get_statName: get the name of the output statistics type
+ ! ***************************************************************************************************************
+ function get_statName(istat)
+ USE var_lookup,only:iLookStat                   ! indices of the possible output statistics
+ implicit none
+ ! define dummy variables
+ integer(i4b), intent(in) :: istat               ! stat type name
+ character(LEN=4)         :: get_statName        ! index of the named variable type list
+ ! get the index of the named variables
+ select case(istat)
+  case(iLookStat%totl);get_statName='totl'
+  case(iLookStat%inst);get_statName='inst'
+  case(iLookStat%mean);get_statName='mean'
+  case(iLookStat%vari);get_statName='vari'
+  case(iLookStat%mini);get_statName='mini'
+  case(iLookStat%maxi);get_statName='maxi'
+  case(iLookStat%mode);get_statName='mode'
+  ! get to here if cannot find the variable
+  case default
+   get_statName = 'unkn'
+ endselect
+ end function get_statName
 
 end module get_ixname_module

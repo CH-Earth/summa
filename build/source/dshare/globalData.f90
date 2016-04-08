@@ -123,7 +123,7 @@ MODULE globalData
  type(var_i),save,public                     :: finshTime               ! end time for the model simulation
 
  ! output file information
- integer(i4b),save,public                    :: ncid                    ! netcdf output file id
+ integer(i4b),dimension(maxFreq),save,public :: ncid                    ! netcdf output file id
  integer(i4b),save,public                    :: nFreq                   ! actual number of output files
  integer(i4b),dimension(maxFreq),save,public :: outFreq                 ! frequency of all output files
 

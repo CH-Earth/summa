@@ -25,126 +25,71 @@ USE netcdf_util_module,only:netcdf_err                    ! netcdf error handlin
 implicit none
 private
 public::writeForce
-public::writeAttrb
-public::writeParam
+!public::writeAttrb
+public::writeParm
 public::writeModel
 public::writeBasin
 ! define dimension lengths
 integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
 contains
 
-
  ! **********************************************************************************************************
- ! public subroutine writeAttrb: write local attributes
+ ! public subroutine writeParm: write model parameters
  ! **********************************************************************************************************
- subroutine writeAttrb(iHRU,attr_data,type_data,err,message)
- USE globalData,only:attr_meta                   ! metadata for local attributes
- USE globalData,only:type_meta                   ! metadata for local classification of veg, soil, etc.
- USE globalData,only:ncid                        ! id of netcdf output file
+ subroutine writeParm(iHRU,dat,meta,err,message)
+ USE data_types,only:var_info,var_d,var_i        ! metadata structure type
+ USE var_lookup,only:iLookStat                   ! to index into write flag
+ USE multiconst,only:integerMissing
+ USE globalData,only:ncid                        ! netcdf file ids
  implicit none
+
  ! declare input variables
- integer(i4b), intent(in)    :: iHRU             ! hydrologic response unit
- real(dp),     intent(in)    :: attr_data(:)     ! local attributes
- integer(i4b), intent(in)    :: type_data(:)     ! local classification of veg, soil, etc.
- ! declare output variables
- integer(i4b),intent(out)    :: err              ! error code
- character(*),intent(out)    :: message          ! error message
+ integer(i4b)  ,intent(in)   :: iHRU             ! hydrologic response unit
+ class(*)      ,intent(in)   :: dat(:)           ! local attributes
+ type(var_info),intent(in)   :: meta(:)
+ integer(i4b)  ,intent(out)  :: err              ! error code
+ character(*)  ,intent(out)  :: message          ! error message
  ! local variables
  integer(i4b)                :: iVar             ! loop through variables
- integer(i4b)                :: iVarId           ! variable ID
+ integer(i4b)  ,parameter    :: modelTime=1      ! these particular data are only output in the timestep file
+
  ! initialize error control
- err=0;message="f-writeAttrb/"
-
- ! loop through local attributes
- do iVar=1,size(attr_meta)
-  ! check that the variable is desired
-  if (.not.attr_meta(iVar)%v_write) cycle
-  ! initialize message
-  message=trim(message)//trim(attr_meta(iVar)%varname)//'/'
-  ! get variable ID
-  err = nf90_inq_varid(ncid,trim(attr_meta(iVar)%varname),iVarId)
-  call netcdf_err(err,message); if (err/=0) return
-  ! write data
-  err = nf90_put_var(ncid,iVarId,(/attr_data(iVar)/),start=(/iHRU/),count=(/1/))
-  call netcdf_err(err,message); if (err/=0) return
-  ! re-initialize message
-  message="f-writeAttrb/"
- end do  ! looping through local attributes
-
- ! loop through local classification of veg, soil, etc.
- do iVar=1,size(type_meta)
-  ! check that the variable is desired
-  if (.not.type_meta(iVar)%v_write) cycle
-  ! initialize message
-  message=trim(message)//trim(type_meta(iVar)%varname)//'/'
-  ! get variable ID
-  err = nf90_inq_varid(ncid,trim(type_meta(iVar)%varname),iVarId)
-  call netcdf_err(err,message); if (err/=0) return
-  ! write data
-  err = nf90_put_var(ncid,iVarId,(/type_data(iVar)/),start=(/iHRU/),count=(/1/))
-  call netcdf_err(err,message); if (err/=0) return
-  ! re-initialize message
-  message="f-writeAttrb/"
- end do  ! looping through local classification of veg, soil, etc.
-
- end subroutine writeAttrb
-
-
- ! **********************************************************************************************************
- ! public subroutine writeParam: write model parameters
- ! **********************************************************************************************************
- subroutine writeParam(iHRU,mpar_data,bpar_data,err,message)
- USE globalData,only:mpar_meta                   ! metadata for local-column model parameter structures
- USE globalData,only:bpar_meta                   ! metadata for basin-average model parameter structures
- USE globalData,only:ncid                        ! id of netcdf output file
- implicit none
- ! declare input variables
- integer(i4b), intent(in)    :: iHRU             ! hydrologic response unit
- real(dp),     intent(in)    :: mpar_data(:)     ! vector of local-column model parameters
- real(dp),     intent(in)    :: bpar_data(:)     ! vector of basin-aaverage model parameters
- ! declare output variables
- integer(i4b),intent(out)    :: err              ! error code
- character(*),intent(out)    :: message          ! error message
- ! local variables
- integer(i4b)                :: ipar             ! loop through model parameters
- integer(i4b)                :: iVarId           ! variable ID
- ! initialize error control
- err=0;message="f-writeParam/"
+ err=0;message="f-writeParm/"
 
  ! loop through local column model parameters
- do ipar=1,size(mpar_meta)
+ do iVar = 1,size(meta)
+
   ! check that the variable is desired
-  if (.not.mpar_meta(ipar)%v_write) cycle
+  if (.not.meta(iVar)%statFlag(iLookStat%inst)) cycle
+
   ! initialize message
-  message=trim(message)//trim(mpar_meta(ipar)%varname)//'/'
-  ! get variable ID
-  err = nf90_inq_varid(ncid,trim(mpar_meta(ipar)%varname),iVarId)
-  call netcdf_err(err,message); if (err/=0) return
+  message=trim(message)//trim(meta(iVar)%varName)//'/'
+print*,'here',iHRU
+
   ! write data
-  err = nf90_put_var(ncid,iVarId,(/mpar_data(ipar)/),start=(/iHRU/),count=(/1/))
+  if (iHRU.ne.integerMissing) then
+   selecttype (dat)
+    typeis (integer)
+print*, 'i,HRU',(meta(iVar)%varName),dat(iVar)
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/iHRU/),count=(/1/))
+    typeis (real(dp))
+print*, 'd,HRU',(meta(iVar)%varName),dat(iVar)
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/iHRU/),count=(/1/))
+   endselect
+ else
+   selecttype (dat)
+    typeis (real(dp))
+print*, 'd,noHRU',(meta(iVar)%varName),dat(iVar)
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/1/),count=(/1/))
+   endselect
+  endif
   call netcdf_err(err,message); if (err/=0) return
+
   ! re-initialize message
-  message="f-writeParam/"
+  message="f-writeParm/"
  end do  ! looping through local column model parameters
 
- ! loop through basin-average model parameters
- do ipar=1,size(bpar_meta)
-  ! check that the variable is desired
-  if (.not.bpar_meta(ipar)%v_write) cycle
-  ! initialize message
-  message=trim(message)//trim(bpar_meta(ipar)%varname)//'/'
-  ! get variable ID
-  err = nf90_inq_varid(ncid,trim(bpar_meta(ipar)%varname),iVarId)
-  call netcdf_err(err,message); if (err/=0) return
-  ! write data
-  err = nf90_put_var(ncid,iVarId,(/bpar_data(ipar)/),start=(/1/),count=(/1/))
-  call netcdf_err(err,message); if (err/=0) return
-  ! re-initialize message
-  message="f-writeParam/"
- end do  ! looping through basin-average model parameters
-
- end subroutine writeParam
-
+ end subroutine writeParm
 
  ! **********************************************************************************************************
  ! public subroutine writeParam: write model forcing data
@@ -164,15 +109,17 @@ contains
  ! local variables
  integer(i4b)                :: iforce           ! loop through model forcing variables
  integer(i4b)                :: iVarId           ! variable ID
+ integer(i4b)                 :: nncid
  ! initialize error control
  err=0;message="f-writeForce/"
+ nncid = ncid(1)
 
  ! write the time coordinate variable
  if(iHRU == 1)then
   message=trim(message)//'writeTime/'
   !print*, 'iHRU, istep, forc_data%var(iLookFORCE%time) = ', iHRU, istep, forc_data%var(iLookFORCE%time)
-  err = nf90_inq_varid(ncid,'time',iVarId); call netcdf_err(err,message); if (err/=0) return
-  err = nf90_put_var(ncid,iVarId,(/forc_data%var(iLookFORCE%time)/),start=(/istep/),count=(/1/))
+  err = nf90_inq_varid(nncid,'time',iVarId); call netcdf_err(err,message); if (err/=0) return
+  err = nf90_put_var(nncid,iVarId,(/forc_data%var(iLookFORCE%time)/),start=(/istep/),count=(/1/))
   call netcdf_err(err,message); if (err/=0) return
   message="f-writeForce/"
  endif
@@ -186,10 +133,10 @@ contains
   ! initialize message
   message=trim(message)//trim(forc_meta(iforce)%varname)//'/'
   ! get variable ID
-  err = nf90_inq_varid(ncid,trim(forc_meta(iforce)%varname),iVarId)
+  err = nf90_inq_varid(nncid,trim(forc_meta(iforce)%varname),iVarId)
   call netcdf_err(err,message); if (err/=0) return
   ! write data
-  err = nf90_put_var(ncid,iVarId,(/forc_data%var(iforce)/),start=(/iHRU,istep/),count=(/1,1/))
+  err = nf90_put_var(nncid,iVarId,(/forc_data%var(iforce)/),start=(/iHRU,istep/),count=(/1,1/))
   call netcdf_err(err,message); if (err/=0) return
  end do  ! looping through forcing data variables
 
@@ -219,8 +166,10 @@ contains
  ! local variables
  integer(i4b)                  :: ivar           ! variable index
  integer(i4b)                  :: iVarId         ! variable ID
+ integer(i4b)                 :: nncid
  ! initialize error control
  err=0;message="writeModel/"
+ nncid = ncid(1)
 
  ! associate local variables with information in the data structures
  associate(&
@@ -244,7 +193,7 @@ contains
   if (.not.metaStruct(ivar)%v_write .or. trim(metaStruct(ivar)%varname)=='unknown') cycle
 
   ! get variable ID
-  err = nf90_inq_varid(ncid,trim(metaStruct(ivar)%varname),iVarId)
+  err = nf90_inq_varid(nncid,trim(metaStruct(ivar)%varname),iVarId)
   call netcdf_err(err,message); if (err/=0) return
 
   ! select data type
@@ -252,21 +201,21 @@ contains
 
    ! write integer data
    type is (var_ilength)
-    err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
+    err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
 
    ! write double precision data
    type is (var_dlength)
 
     ! write model data 
     select case(metaStruct(ivar)%vartype)
-     case(iLookVarType%scalarv); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
-     case(iLookVarType%wLength); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,1,istep/),count=(/1,maxSpectral,1/))
-     case(iLookVarType%midSnow); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
-     case(iLookVarType%midSoil); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
-     case(iLookVarType%midToto); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
-     case(iLookVarType%ifcSnow); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
-     case(iLookVarType%ifcSoil); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
-     case(iLookVarType%ifcToto); err = nf90_put_var(ncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
+     case(iLookVarType%scalarv); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,istep/),count=(/1,1/))
+     case(iLookVarType%wLength); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,1,istep/),count=(/1,maxSpectral,1/))
+     case(iLookVarType%midSnow); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
+     case(iLookVarType%midSoil); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
+     case(iLookVarType%midToto); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
+     case(iLookVarType%ifcSnow); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
+     case(iLookVarType%ifcSoil); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
+     case(iLookVarType%ifcToto); err = nf90_put_var(nncid,iVarId,dataStruct%var(ivar)%dat,start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
      case default
       err=40; message=trim(message)//"unknownVariableType[name='"//trim(metaStruct(ivar)%varname)//"'; &
                                      &type='"//trim(get_varTypeName(metaStruct(ivar)%vartype))//"']"; return
@@ -307,8 +256,10 @@ contains
  ! local variables
  integer(i4b)                 :: imodel        ! loop through model variables
  integer(i4b)                 :: iVarId        ! variable ID
+ integer(i4b)                 :: nncid
  ! initialize error control
  err=0;message="f-writeModel/"
+ nncid = ncid(1)
 
  ! loop through model variables
  ! ----------------------------
@@ -318,14 +269,14 @@ contains
   ! initialize message
   message=trim(message)//trim(bvar_meta(imodel)%varname)//'/'
   ! get variable ID
-  err = nf90_inq_varid(ncid,trim(bvar_meta(imodel)%varname),iVarId)
+  err = nf90_inq_varid(nncid,trim(bvar_meta(imodel)%varname),iVarId)
   call netcdf_err(err,message); if (err/=0) return
   ! write data
   select case(bvar_meta(imodel)%vartype)
-   case(iLookVarType%scalarv); err = nf90_put_var(ncid,iVarId,bvar_data%var(imodel)%dat,start=(/istep/),count=(/1/))
+   case(iLookVarType%scalarv); err = nf90_put_var(nncid,iVarId,bvar_data%var(imodel)%dat,start=(/istep/),count=(/1/))
    case(iLookVarType%routing)
     if(istep==1)then
-     err = nf90_put_var(ncid,iVarId,bvar_data%var(imodel)%dat,start=(/1/),count=(/1000/))
+     err = nf90_put_var(nncid,iVarId,bvar_data%var(imodel)%dat,start=(/1/),count=(/1000/))
     endif
    case default
     err=40; message=trim(message)//"unknownVariableType[name='"//trim(bvar_meta(imodel)%varname)//"'; &

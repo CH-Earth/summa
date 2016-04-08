@@ -25,7 +25,6 @@ program multi_driver
 ! *****************************************************************************
 USE nrtype                                                  ! variable types, etc.
 ! provide access to subroutines and functions
-USE globalData,only:ncid                                    ! file id of netcdf output file
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-MP parameters
@@ -56,7 +55,8 @@ USE var_derive_module,only:satHydCond                       ! module to calculat
 USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
 USE read_force_module,only:read_force                       ! module to read model forcing data
 USE derivforce_module,only:derivforce                       ! module to compute derived forcing data
-USE modelwrite_module,only:writeAttrb,writeParam            ! module to write model attributes and parameters
+!USE modelwrite_module,only:writeAttrb,writeParam            ! module to write model attributes and parameters
+USE modelwrite_module,only:writeParm                        ! module to write model attributes and parameters
 USE modelwrite_module,only:writeForce                       ! module to write model forcing data
 USE modelwrite_module,only:writeModel,writeBasin            ! module to write model output
 USE vegPhenlgy_module,only:vegPhenlgy                       ! module to compute vegetation phenology
@@ -141,6 +141,8 @@ USE mDecisions_module,only:&                                ! look-up values for
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
 USE output_stats,only:allocStat,calcStats                   ! module for compiling output statistics
+USE globalData,only:nFreq                                   ! model output files
+USE globalData,only:ncid                                    ! file id of netcdf output file
 implicit none
 
 ! *****************************************************************************
@@ -219,6 +221,8 @@ real(dp)                         :: notUsed_exposedVAI         ! NOT USED: expos
 ! error control
 integer(i4b)                     :: err=0                      ! error code
 character(len=1024)              :: message=''                 ! error message
+! output control 
+integer(i4b)                     :: iFreq                      ! index for looping through output files
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -450,11 +454,6 @@ call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
 ! *****************************************************************************
 
-! define the file
-! NOTE: currently assumes that nSoil is constant across the model domain
-write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)//'.nc'
-call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
-  
 ! loop through GRUs
 do iGRU=1,nGRU
 
@@ -539,10 +538,6 @@ do iGRU=1,nGRU
   ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
   
-  ! write local model attributes and parameters to the model output file
-  call writeAttrb(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
-  call writeParam(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
-
  end do  ! (looping through HRUs)
 
  ! compute total area of the upstream HRUS that flow into each HRU
@@ -592,12 +587,30 @@ do iGRU=1,nGRU
 
 end do  ! (looping through GRUs)
 
-! initialize time step index
-jstep=1
+! *****************************************************************************
+! (5e) initialize first output sequence 
+! *****************************************************************************
+! define the file
+! NOTE: currently assumes that nSoil is constant across the model domain
+write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)
+call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+ 
+! write local model attributes and parameters to the model output file
+do iGRU=1,nGRU
+ do iHRU=1,gru_struc(iGRU)%hruCount
+  call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
+  call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
+  call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
+ enddo ! HRU
+ call writeParm(integerMissing,bparStruct%gru(iGRU)%var,bpar_meta,err,message); call handle_err(err,message)
+enddo ! GRU
 
 ! ****************************************************************************
 ! (6) loop through time
 ! ****************************************************************************
+! initialize time step index
+jstep=1
+
 do istep=1,numtim
 
  ! set print flag
@@ -678,12 +691,17 @@ do istep=1,numtim
     timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 
   ! close any output files that are already open
-  if (ncid.ne.integerMissing) then; call nc_file_close(ncid,err,message); call handle_err(err,message); endif
+  do iFreq = 1,nFreq
+   if (ncid(iFreq).ne.integerMissing) then
+    call nc_file_close(ncid(iFreq),err,message)
+    call handle_err(err,message)
+   endif
+  enddo
  
   ! define the filename
   write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
-                                 trim(output_fileSuffix)//'.nc'
+                                 trim(output_fileSuffix)
 
   ! define the file
   call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
@@ -691,9 +709,9 @@ do istep=1,numtim
   ! write parameters for each HRU, and re-set indices
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
-    ! write model parameters to the model output file
-    call writeAttrb(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
-    call writeParam(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
+    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
+    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
+    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
     ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
     jStep=1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
@@ -702,8 +720,9 @@ do istep=1,numtim
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
-   end do  ! (looping through HRUs)
-  end do  ! (looping through GRUs)
+   enddo  ! (looping through HRUs)
+   call writeParm(integerMissing,bparStruct%gru(iGRU)%var,bpar_meta,err,message); call handle_err(err,message)
+  enddo  ! (looping through GRUs)
 
  endif  ! if start of a new water year, and defining a new file
 
@@ -857,15 +876,16 @@ do istep=1,numtim
    call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var(:),diagStruct%gru(iGRU)%hru(iHRU)%var(:),diag_meta,jstep,err,message)
    call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var(:),fluxStruct%gru(iGRU)%hru(iHRU)%var(:),flux_meta,jstep,err,message)
  
-   ! write the forcing data to the model output file
-   call writeForce(forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-  
    ! write the model output to the NetCDF file
-   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),indx_meta,indxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),prog_meta,progStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),diag_meta,diagStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),flux_meta,fluxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-   !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
+   do iFreq = 1,nFreq
+    if (mod(jstep,outFreq(iFreq)).eq.0) then
+     call writeForce(forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),indx_meta,indxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),prog_meta,progStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),diag_meta,diagStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),flux_meta,fluxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+    endif
+   enddo
   
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
@@ -920,7 +940,12 @@ do istep=1,numtim
 end do  ! (looping through time)
 
 ! close any remaining output files
-if (ncid.ne.integerMissing) then; call nc_file_close(ncid,err,message); call handle_err(err,message); endif
+do iFreq = 1,nFreq
+ if (ncid(iFreq).ne.integerMissing) then
+  call nc_file_close(ncid(iFreq),err,message)
+  call handle_err(err,message)
+ endif
+enddo
  
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
