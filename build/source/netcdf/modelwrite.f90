@@ -37,13 +37,12 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeAttrb: write local attributes
  ! **********************************************************************************************************
- subroutine writeAttrb(fileout,iHRU,attr_data,type_data,err,message)
+ subroutine writeAttrb(iHRU,attr_data,type_data,err,message)
  USE globalData,only:attr_meta                   ! metadata for local attributes
  USE globalData,only:type_meta                   ! metadata for local classification of veg, soil, etc.
  USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! declare input variables
- character(*), intent(in)    :: fileout          ! output file
  integer(i4b), intent(in)    :: iHRU             ! hydrologic response unit
  real(dp),     intent(in)    :: attr_data(:)     ! local attributes
  integer(i4b), intent(in)    :: type_data(:)     ! local classification of veg, soil, etc.
@@ -94,13 +93,12 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeParam: write model parameters
  ! **********************************************************************************************************
- subroutine writeParam(fileout,iHRU,mpar_data,bpar_data,err,message)
+ subroutine writeParam(iHRU,mpar_data,bpar_data,err,message)
  USE globalData,only:mpar_meta                   ! metadata for local-column model parameter structures
  USE globalData,only:bpar_meta                   ! metadata for basin-average model parameter structures
  USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! declare input variables
- character(*), intent(in)    :: fileout          ! output file
  integer(i4b), intent(in)    :: iHRU             ! hydrologic response unit
  real(dp),     intent(in)    :: mpar_data(:)     ! vector of local-column model parameters
  real(dp),     intent(in)    :: bpar_data(:)     ! vector of basin-aaverage model parameters
@@ -151,14 +149,13 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeParam: write model forcing data
  ! **********************************************************************************************************
- subroutine writeForce(fileout,forc_data,iHRU,istep,err,message)
+ subroutine writeForce(forc_data,iHRU,istep,err,message)
  USE data_types,only:var_d                       ! data structure: x%var(:)    (dp)
  USE globalData,only:forc_meta                   ! forcing metadata
  USE var_lookup,only:iLookFORCE                  ! identifies element of the forcing structure
  USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! declare dummy variables
- character(*), intent(in)    :: fileout          ! output file
  type(var_d),  intent(in)    :: forc_data        ! forcing data structure
  integer(i4b), intent(in)    :: iHRU             ! hydrologic response unit
  integer(i4b), intent(in)    :: istep            ! model time step
@@ -201,7 +198,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeModel: write local column model variables
  ! **********************************************************************************************************
- subroutine writeModel(fileout,indx_data,metaStruct,dataStruct,iHRU,istep,err,message)
+ subroutine writeModel(indx_data,metaStruct,dataStruct,iHRU,istep,err,message)
  USE var_lookup,only:iLookVarType                ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName      ! to access type strings for error messages
  USE var_lookup,only:iLookINDEX                  ! identifies element of the index structure
@@ -211,7 +208,6 @@ contains
  USE globalData,only:ncid                        ! id of netcdf output file
  implicit none
  ! input variables
- character(*), intent(in)      :: fileout        ! output file
  type(var_ilength),intent(in)  :: indx_data      ! model indices
  type(var_info),intent(in)     :: metaStruct(:)  ! metadata structure
  class(*),intent(in)           :: dataStruct     ! data structure
@@ -295,7 +291,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeBasin: write basin-average variables
  ! **********************************************************************************************************
- subroutine writeBasin(fileout,bvar_data,istep,err,message)
+ subroutine writeBasin(bvar_data,istep,err,message)
  USE var_lookup,only:iLookVarType              ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName    ! to access type strings for error messages
  USE data_types,only:var_dlength               ! data structure: x%var(:)%dat (dp)
@@ -304,7 +300,6 @@ contains
  USE globalData,only:ncid                      ! id of netcdf output file
  implicit none
  ! declare dummy variables
- character(*), intent(in)     :: fileout       ! output file
  type(var_dlength),intent(in) :: bvar_data     ! model variables for the local basin
  integer(i4b), intent(in)     :: istep         ! model time step
  integer(i4b),intent(out)     :: err           ! error code

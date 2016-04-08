@@ -540,8 +540,8 @@ do iGRU=1,nGRU
   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
   
   ! write local model attributes and parameters to the model output file
-  call writeAttrb(fileout,iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
-  call writeParam(fileout,iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
+  call writeAttrb(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
+  call writeParam(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
 
  end do  ! (looping through HRUs)
 
@@ -692,8 +692,8 @@ do istep=1,numtim
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
     ! write model parameters to the model output file
-    call writeAttrb(fileout,iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
-    call writeParam(fileout,iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
+    call writeAttrb(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,typeStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
+    call writeParam(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,bparStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
     ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
     jStep=1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
@@ -858,13 +858,13 @@ do istep=1,numtim
    call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var(:),fluxStruct%gru(iGRU)%hru(iHRU)%var(:),flux_meta,jstep,err,message)
  
    ! write the forcing data to the model output file
-   call writeForce(fileout,forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+   call writeForce(forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
   
    ! write the model output to the NetCDF file
-   call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),indx_meta,indxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-   call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),prog_meta,progStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-   call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),diag_meta,diagStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-   call writeModel(fileout,indxStruct%gru(iGRU)%hru(iHRU),flux_meta,fluxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),indx_meta,indxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),prog_meta,progStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),diag_meta,diagStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
+   call writeModel(indxStruct%gru(iGRU)%hru(iHRU),flux_meta,fluxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
    !if(istep>6) call handle_err(20,'stopping on a specified step: after call to writeModel')
   
    ! increment the model indices
@@ -904,7 +904,7 @@ do istep=1,numtim
   end associate
   
   ! write basin-average variables
-  call writeBasin(fileout,bvarStruct%gru(iGRU),jstep,err,message); call handle_err(err,message)
+  call writeBasin(bvarStruct%gru(iGRU),jstep,err,message); call handle_err(err,message)
 
  end do  ! (looping through GRUs)
 

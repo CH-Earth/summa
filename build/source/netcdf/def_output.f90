@@ -91,7 +91,7 @@ contains
  ! define model decisions
  do ivar=1,size(model_decisions)
   if(model_decisions(ivar)%iDecision /= integerMissing)then
-   call put_attrib(trim(infile),model_decisions(ivar)%cOption,model_decisions(ivar)%cDecision,err,cmessage)
+   call put_attrib(model_decisions(ivar)%cOption,model_decisions(ivar)%cDecision,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
  end do
@@ -100,17 +100,17 @@ contains
  do iStruct=1,size(structInfo)
   select case(trim(structInfo(iStruct)%structName))
    case('time'); cycle                                                                               ! model time data
-   case('forc'); call def_variab(trim(infile),needHRU,needTime,forc_meta, nf90_double,err,cmessage)  ! model forcing data
-   case('attr'); call def_variab(trim(infile),needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes for each HRU
-   case('type'); call def_variab(trim(infile),needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification of soil veg etc. for each HRU
-   case('mpar'); call def_variab(trim(infile),needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
-   case('indx'); call def_variab(trim(infile),needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
-   case('prog'); call def_variab(trim(infile),needHRU,needTime,prog_meta, nf90_double,err,cmessage)  ! model prognostic (state) variables
-   case('diag'); call def_variab(trim(infile),needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
-   case('flux'); call def_variab(trim(infile),needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
-   case('deriv');call def_variab(trim(infile),needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
-   case('bpar'); call def_variab(trim(infile),  noHRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average parameters
-   case('bvar'); call def_variab(trim(infile),  noHRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
+   case('forc'); call def_variab(needHRU,needTime,forc_meta, nf90_double,err,cmessage)  ! model forcing data
+   case('attr'); call def_variab(needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
+   case('type'); call def_variab(needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
+   case('mpar'); call def_variab(needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
+   case('indx'); call def_variab(needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
+   case('prog'); call def_variab(needHRU,needTime,prog_meta, nf90_double,err,cmessage)  ! model prognostics
+   case('diag'); call def_variab(needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
+   case('flux'); call def_variab(needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
+   case('deriv');call def_variab(needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
+   case('bpar'); call def_variab(  noHRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average parameters
+   case('bvar'); call def_variab(  noHRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   ! check errors
@@ -187,12 +187,11 @@ contains
  ! **********************************************************************************************************
  ! private subroutine put_attrib: put global attributes as character string
  ! **********************************************************************************************************
- subroutine put_attrib(infile,attname,attvalue,err,message)
+ subroutine put_attrib(attname,attvalue,err,message)
  USE data_types,only:var_info              ! derived type for metadata
  USE globalData,only:ncid                  ! netcdf variable ID
  implicit none
  ! declare dummy variables
- character(*), intent(in)   :: infile      ! filename
  character(*), intent(in)   :: attname     ! attribute name
  character(*), intent(in)   :: attvalue    ! attribute vaue
  integer(i4b),intent(out)   :: err         ! error code
@@ -212,14 +211,13 @@ contains
  ! **********************************************************************************************************
  ! private subroutine def_variab: define variables
  ! **********************************************************************************************************
- subroutine def_variab(infile,hruDesire,timeDesire,metadata,ivtype,err,message)
+ subroutine def_variab(hruDesire,timeDesire,metadata,ivtype,err,message)
  USE var_lookup,only:iLookVarType                   ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE data_types,only:var_info                       ! derived type for metadata
  USE globalData,only:ncid                           ! netcdf variable ID
  implicit none
  ! input
- character(*), intent(in)      :: infile            ! filename
  integer(i4b), intent(in)      :: hruDesire         ! variable to define if we desire the HRU dimension
  integer(i4b), intent(in)      :: timeDesire        ! variable to define if we desire the time dimension
  type(var_info),intent(in)     :: metadata(:)       ! metadata structure for a given variable
