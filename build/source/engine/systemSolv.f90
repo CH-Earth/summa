@@ -666,9 +666,6 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! compute the function evaluation
- !fOld=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
-
-
  rVecScaled = real(rVec, dp)/fScale
  fOld=0.5_dp*dot_product(rVecScaled,rVecScaled) 
 
@@ -2775,8 +2772,6 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! compute the function evaluation
-   !f=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
-
    rVecScaled = real(rVec, dp)/fScale
    f=0.5_dp*dot_product(rVecScaled,rVecScaled) 
 
