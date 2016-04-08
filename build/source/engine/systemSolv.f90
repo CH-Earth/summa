@@ -315,6 +315,7 @@ contains
  real(qp),dimension(nState)      :: sMul    ! NOTE: qp           ! multiplier for state vector for the residual calculations
  real(qp),dimension(nState)      :: rAdd    ! NOTE: qp           ! additional terms in the residual vector
  real(qp),dimension(nState)      :: rVec    ! NOTE: qp           ! residual vector
+ real(dp),dimension(nState)      :: rVecScaled                   ! scaled residual vector
  real(dp),dimension(nState)      :: xInc                         ! iteration increment
  real(dp),dimension(nState)      :: grad                         ! gradient of the function vector = matmul(rVec,aJac)
  real(dp),dimension(nState,nRHS) :: rhs                          ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
@@ -665,7 +666,8 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! compute the function evaluation
- fOld=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
+ rVecScaled = real(rVec, dp)/fScale
+ fOld=0.5_dp*dot_product(rVecScaled,rVecScaled) 
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
@@ -2770,7 +2772,8 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! compute the function evaluation
-   f=0.5_dp*norm2(real(rVec, dp)/fScale)  ! NOTE: norm2 = sqrt(sum((rVec/fScale)**2._dp))
+   rVecScaled = real(rVec, dp)/fScale
+   f=0.5_dp*dot_product(rVecScaled,rVecScaled) 
 
    ! check
    if(printFlag)then
