@@ -331,7 +331,6 @@ end do  ! looping through HRUs
 
 ! loop through data structures
 do iStruct=1,size(structInfo)
-
  ! allocate space
  select case(trim(structInfo(iStruct)%structName))
   case('time'); call allocGlobal(time_meta,  timeStruct,  err, message)   ! model forcing data
@@ -348,11 +347,9 @@ do iStruct=1,size(structInfo)
   case('deriv');cycle   ! model derivatives -- no need to have the GRU dimension
   case default; call handle_err(20,'unable to identify lookup structure')
  end select
-
  ! check errors
  call handle_err(err,trim(message)//'[structure =  '//trim(structInfo(iStruct)%structName)//']')
-
-end do  ! looping through data structures
+enddo  ! looping through data structures
 
 ! allocate space for default model parameters
 ! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
@@ -386,13 +383,21 @@ call mDecisions(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! (3c) allocate space for output statistics data structures
 ! *****************************************************************************
-! allocate space
-call allocStat(forc_meta , forcStat , err, message)   ! model forcing data
-call allocStat(prog_meta , progStat , err, message)   ! model prognostic (state) variables
-call allocStat(diag_meta , diagStat , err, message)   ! model diagnostic variables
-call allocStat(flux_meta , fluxStat , err, message)   ! model fluxes
-call allocStat(flux_meta , indxStat , err, message)   ! index vars
-call allocStat(bvar_meta , bvarStat , err, message)   ! basin-average variables
+! loop through data structures
+do iStruct=1,size(structInfo)
+ ! allocate space
+ select case(trim(structInfo(iStruct)%structName))
+  case('forc'); call allocStat(forc_meta , forcStat , err, message)   ! model forcing data
+  case('forc'); call allocStat(prog_meta , progStat , err, message)   ! model prognostic (state) variables
+  case('forc'); call allocStat(diag_meta , diagStat , err, message)   ! model diagnostic variables
+  case('forc'); call allocStat(flux_meta , fluxStat , err, message)   ! model fluxes
+  case('forc'); call allocStat(flux_meta , indxStat , err, message)   ! index vars
+  case('forc'); call allocStat(bvar_meta , bvarStat , err, message)   ! basin-average variables
+  case default; cycle;
+ endselect  
+ ! check errors
+ call handle_err(err,trim(message)//'[statistics =  '//trim(structInfo(iStruct)%structName)//']')
+enddo ! iStruct
 
 ! *****************************************************************************
 ! (5a) read default model parameters
