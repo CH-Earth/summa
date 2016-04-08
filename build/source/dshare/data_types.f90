@@ -69,7 +69,6 @@ MODULE data_types
   character(len=128)                        :: vardesc  = 'empty'         ! variable description
   character(len=64)                         :: varunit  = 'empty'         ! variable units
   integer(i4b)                              :: vartype  = integerMissing  ! variable type 
-  logical(lgt)                              :: v_write  = .false.         ! write to output
   logical(lgt),dimension(maxvarStat)        :: statFlag = .false.         ! statistic flag (on/off) 
   integer(i4b)                              :: outFreq  = integerMissing  ! file id 
   integer(i4b),dimension(maxvarStat)        :: ncVarID  = integerMissing  ! netcdf variable id 

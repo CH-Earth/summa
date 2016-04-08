@@ -55,10 +55,8 @@ USE var_derive_module,only:satHydCond                       ! module to calculat
 USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
 USE read_force_module,only:read_force                       ! module to read model forcing data
 USE derivforce_module,only:derivforce                       ! module to compute derived forcing data
-!USE modelwrite_module,only:writeAttrb,writeParam            ! module to write model attributes and parameters
 USE modelwrite_module,only:writeParm                        ! module to write model attributes and parameters
-USE modelwrite_module,only:writeForce                       ! module to write model forcing data
-USE modelwrite_module,only:writeModel,writeBasin            ! module to write model output
+USE modelwrite_module,only:writeData,writeBasin             ! module to write model output
 USE vegPhenlgy_module,only:vegPhenlgy                       ! module to compute vegetation phenology
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
 USE groundwatr_module,only:groundwatr                       ! module to simulate regional groundwater balance
@@ -141,8 +139,9 @@ USE mDecisions_module,only:&                                ! look-up values for
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
 USE output_stats,only:allocStat,calcStats                   ! module for compiling output statistics
-USE globalData,only:nFreq                                   ! model output files
+USE globalData,only:nFreq,outFreq                           ! model output files
 USE globalData,only:ncid                                    ! file id of netcdf output file
+USE var_lookup,only:maxFreq                                 ! maximum # of output files 
 implicit none
 
 ! *****************************************************************************
@@ -152,6 +151,7 @@ type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)
 type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (sta     te) variables
 type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic vari     ables
 type(gru_hru_doubleVec)          :: fluxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+type(gru_hru_intVec)             :: indxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model indices
 type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat        -- basin-average variabl
 ! define the primary data structures (scalars)
 type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
@@ -223,6 +223,7 @@ integer(i4b)                     :: err=0                      ! error code
 character(len=1024)              :: message=''                 ! error message
 ! output control 
 integer(i4b)                     :: iFreq                      ! index for looping through output files
+integer(i4b),dimension(maxFreq)  :: kStep                      ! timestep in output files
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -390,6 +391,7 @@ call allocStat(forc_meta , forcStat , err, message)   ! model forcing data
 call allocStat(prog_meta , progStat , err, message)   ! model prognostic (state) variables
 call allocStat(diag_meta , diagStat , err, message)   ! model diagnostic variables
 call allocStat(flux_meta , fluxStat , err, message)   ! model fluxes
+call allocStat(flux_meta , indxStat , err, message)   ! index vars
 call allocStat(bvar_meta , bvarStat , err, message)   ! basin-average variables
 
 ! *****************************************************************************
@@ -610,6 +612,7 @@ enddo ! GRU
 ! ****************************************************************************
 ! initialize time step index
 jstep=1
+kstep=1
 
 do istep=1,numtim
 
@@ -714,6 +717,7 @@ do istep=1,numtim
     call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
     ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
     jStep=1
+    kStep=1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
@@ -871,21 +875,19 @@ do istep=1,numtim
    endif
 
    ! calculate output Statistics
-   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var(:),forcStruct%gru(iGRU)%hru(iHRU)%var(:),forc_meta,jstep,err,message)
-   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var(:),progStruct%gru(iGRU)%hru(iHRU)%var(:),prog_meta,jstep,err,message)
-   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var(:),diagStruct%gru(iGRU)%hru(iHRU)%var(:),diag_meta,jstep,err,message)
-   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var(:),fluxStruct%gru(iGRU)%hru(iHRU)%var(:),flux_meta,jstep,err,message)
+   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forc_meta,jstep,err,message);       call handle_err(err,message)
+   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,prog_meta,jstep,err,message);       call handle_err(err,message)
+   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diag_meta,jstep,err,message);       call handle_err(err,message)
+   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,flux_meta,jstep,err,message);       call handle_err(err,message)
+   call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indx_meta,jstep,err,message);       call handle_err(err,message)
+   call calcStats(bvarStat%gru(iGRU)%var(:)          ,bvarStruct%gru(iGRU)%var(:)          ,bvar_meta,jstep,err,message); call handle_err(err,message)
  
    ! write the model output to the NetCDF file
-   do iFreq = 1,nFreq
-    if (mod(jstep,outFreq(iFreq)).eq.0) then
-     call writeForce(forcStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),indx_meta,indxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),prog_meta,progStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),diag_meta,diagStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-     call writeModel(indxStruct%gru(iGRU)%hru(iHRU),flux_meta,fluxStruct%gru(iGRU)%hru(iHRU),iHRU,jstep,err,message); call handle_err(err,message)
-    endif
-   enddo
+   call writeData(jstep,kstep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(jstep,kstep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(jstep,kstep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(jstep,kstep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(jstep,kstep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
   
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
@@ -924,9 +926,14 @@ do istep=1,numtim
   end associate
   
   ! write basin-average variables
-  call writeBasin(bvarStruct%gru(iGRU),jstep,err,message); call handle_err(err,message)
+  do iFreq = 1,nFreq
+   if (mod(jstep,outFreq(iFreq)).eq.0) then
+    call writeBasin(jstep,kstep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
+    kStep(iFreq) = kStep(iFreq) + 1
+   endif
+  enddo
 
- end do  ! (looping through GRUs)
+ enddo  ! (looping through GRUs)
 
  ! increment forcingStep
  forcingStep=forcingStep+1
