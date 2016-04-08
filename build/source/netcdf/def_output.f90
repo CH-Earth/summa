@@ -68,7 +68,7 @@ contains
  USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
- USE globalData,only:bpar_meta,bvar_meta                      ! metaData structures
+ USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
  USE globalData,only:model_decisions
  USE globalData,only:ncid
  USE globalData,only:nFreq,outFreq                            ! output frequencies
@@ -120,6 +120,8 @@ contains
   call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
   if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
   call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
+  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
+  call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta,nf90_int,    err,cmessage)  ! model derivatives
   if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
 ! case('time'); cycle (iFreq),                                                              ! model time data
   call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, nf90_double,err,cmessage)  ! model forcing data

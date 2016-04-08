@@ -55,7 +55,7 @@ USE var_derive_module,only:satHydCond                       ! module to calculat
 USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
 USE read_force_module,only:read_force                       ! module to read model forcing data
 USE derivforce_module,only:derivforce                       ! module to compute derived forcing data
-USE modelwrite_module,only:writeParm                        ! module to write model attributes and parameters
+USE modelwrite_module,only:writeParm,writeTime              ! module to write model attributes and parameters
 USE modelwrite_module,only:writeData,writeBasin             ! module to write model output
 USE vegPhenlgy_module,only:vegPhenlgy                       ! module to compute vegetation phenology
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
@@ -881,7 +881,7 @@ do istep=1,numtim
    call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,flux_meta,jstep,err,message);       call handle_err(err,message)
    call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indx_meta,jstep,err,message);       call handle_err(err,message)
    call calcStats(bvarStat%gru(iGRU)%var(:)          ,bvarStruct%gru(iGRU)%var(:)          ,bvar_meta,jstep,err,message); call handle_err(err,message)
- 
+
    ! write the model output to the NetCDF file
    call writeData(jstep,kstep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
    call writeData(jstep,kstep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
@@ -926,15 +926,20 @@ do istep=1,numtim
   end associate
   
   ! write basin-average variables
-  do iFreq = 1,nFreq
-   if (mod(jstep,outFreq(iFreq)).eq.0) then
-    call writeBasin(jstep,kstep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
-    kStep(iFreq) = kStep(iFreq) + 1
-   endif
-  enddo
+  call writeBasin(jstep,kstep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
 
  enddo  ! (looping through GRUs)
 
+ ! write current time to all files
+ call WriteTime(jstep,kstep,time_meta,timeStruct%var,err,message)
+ 
+ ! increment output file timestep
+ do iFreq = 1,nFreq
+  if (mod(jstep,outFreq(iFreq)).eq.0) then
+   kStep(iFreq) = kStep(iFreq) + 1
+  endif
+ enddo
+ 
  ! increment forcingStep
  forcingStep=forcingStep+1
 

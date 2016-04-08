@@ -27,6 +27,7 @@ private
 public::writeParm
 public::writeData
 public::writeBasin
+public::writeTime
 ! define dimension lengths
 integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
 contains
@@ -140,7 +141,7 @@ contains
  ifcTotoStartIndex = indx(iLookIndex%ifcTotoStartIndex)%dat(1)
 
  do iFreq = 1,nFreq
-  ! check that the variable is desired
+  ! check that the timestep is desired
   if (mod(mStep,outFreq(iFreq)).ne.0) cycle
 
    ! loop through model variables
@@ -265,12 +266,11 @@ contains
  integer(i4b)                  :: iVar              ! variable index
  integer(i4b)                  :: iStat             ! statistics index
  integer(i4b)                  :: iFreq             ! frequency index
- integer(i4b)                  :: ncVarID           ! used only for time
  ! initialize error control
  err=0;message="f-writeBasin/"
 
  do iFreq = 1,nFreq
-  ! check that the variable is desired
+  ! check that the timestep is desired
   if (mod(mStep,outFreq(iFreq)).ne.0) cycle
 
    ! loop through model variables
@@ -309,5 +309,53 @@ contains
   enddo ! iFreq
 
  end subroutine writeBasin
+
+ ! **************************************************************************************
+ ! public subroutine writeTime: write current time to all files 
+ ! **************************************************************************************
+ subroutine writeTime(mstep,ostep,meta,dat,err,message)
+ USE data_types,only:var_info,dlength,ilength       ! type structures for passing
+ USE var_lookup,only:maxVarStat,iLookStat           ! index into stats structure
+ USE globalData,only:outFreq,nFreq,ncid             ! output file information
+ implicit none
+
+ ! declare dummy variables
+ type(var_info),intent(in)     :: meta(:)           ! meta data
+ integer       ,intent(in)     :: dat(:)            ! timestep data
+ integer(i4b)  ,intent(in)     :: mStep             ! model time step
+ integer(i4b)  ,intent(in)     :: oStep(:)          ! output time step
+ integer(i4b)  ,intent(out)    :: err               ! error code
+ character(*)  ,intent(out)    :: message           ! error message
+ ! local variables
+ integer(i4b)                  :: iVar              ! variable index
+ integer(i4b)                  :: iFreq             ! frequency index
+ integer(i4b)                  :: ncVarID           ! used only for time
+ ! initialize error control
+ err=0;message="f-writeTime/"
+
+ do iFreq = 1,nFreq
+  ! check that the timestep is desired
+  if (mod(mStep,outFreq(iFreq)).ne.0) cycle
+
+   ! loop through model variables
+   do iVar = 1,size(meta)
+
+    ! if variable is desired
+    if (.not.meta(iVar)%statFlag(iLookStat%inst)) cycle
+
+    ! get variable id in file
+    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
+    if (err.gt.0) message=trim(message)//trim(meta(iVar)%varName)
+    call netcdf_err(err,message); if (err/=0) then; err=20; return; endif
+
+    ! add to file
+    err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/oStep(iFreq)/),count=(/1/))
+    if (err.gt.0) message=trim(message)//trim(meta(iVar)%varName)
+    call netcdf_err(err,message); if (err/=0) then; err=20; return; endif
+
+   enddo ! iVar
+  enddo ! iFreq
+
+ end subroutine writeTime 
 
 end module modelwrite_module
