@@ -237,7 +237,12 @@ select case (iargc())
    print '(x,I0,A)', nHRU,' HRUs are selected for simulation.'
   end if
  case default
-  print*, 'Usage: summa.exe _simualtion_name_ master_file <startHRU countHRU>'
+  print*, 'Usage: summa.exe file_suffix master_file <startHRU countHRU>'
+  print*, '  summa.exe   -- summa excutable'
+  print*, '  file_suffix -- text string defining the output file suffix'
+  print*, '  master_file -- path/name of muster file'
+  print*, '  startHRU    -- the index of the first HRU for a subset run'
+  print*, '  countHRU    -- the number of HRUs for a subset run'
   stop
 end select
 call handle_err(err,message)
