@@ -205,24 +205,9 @@ contains
  real(dp),dimension(nState)      :: fScale                       ! characteristic scale of the function evaluations (mixed units)
  real(dp),dimension(nState)      :: xScale                       ! characteristic scale of the state vector (mixed units)
  real(dp),dimension(nState)      :: dMat                         ! diagonal matrix (excludes flux derivatives)
-<<<<<<< HEAD
  real(qp),dimension(nState)      :: sMul          ! NOTE: qp     ! multiplier for state vector for the residual calculations
  real(qp),dimension(nState)      :: rVec          ! NOTE: qp     ! residual vector
  real(dp),dimension(nState)      :: rAdd                         ! additional terms in the residual vector
-=======
- real(qp),dimension(nState)      :: sMul    ! NOTE: qp           ! multiplier for state vector for the residual calculations
- real(qp),dimension(nState)      :: rAdd    ! NOTE: qp           ! additional terms in the residual vector
- real(qp),dimension(nState)      :: rVec    ! NOTE: qp           ! residual vector
- real(dp),dimension(nState)      :: rVecScaled                   ! scaled residual vector
- real(dp),dimension(nState)      :: xInc                         ! iteration increment
- real(dp),dimension(nState)      :: grad                         ! gradient of the function vector = matmul(rVec,aJac)
- real(dp),dimension(nState,nRHS) :: rhs                          ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
- integer(i4b),dimension(nState)  :: iPiv                         ! defines if row i of the matrix was interchanged with row iPiv(i)
- real(dp),allocatable            :: fluxVec1(:)                  ! flux vector used in the numerical Jacobian calculations (mixed units)
- real(dp),allocatable            :: aJac_test(:,:)               ! used to test the band-diagonal matrix structure
- real(dp),allocatable            :: aJac(:,:)                    ! analytical Jacobian matrix
- real(qp),allocatable            :: nJac(:,:)  ! NOTE: qp        ! numerical Jacobian matrix
->>>>>>> upstream/develop
  real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                     ! flag to define the feasibility of the solution
  logical(lgt)                    :: converged                    ! convergence flag
