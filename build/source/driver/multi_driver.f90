@@ -885,7 +885,6 @@ do modelTimeStep=1,numtim
    call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diag_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
    call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,flux_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
    call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indx_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
-   call calcStats(bvarStat%gru(iGRU)%var(:)          ,bvarStruct%gru(iGRU)%var(:)          ,bvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
 
    ! write the model output to the NetCDF file
    call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
@@ -929,7 +928,10 @@ do modelTimeStep=1,numtim
                  err,message)                                                        ! intent(out): error control
   call handle_err(err,message)
   end associate
-  
+ 
+ ! calc basin stats 
+  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),bvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
+
   ! write basin-average variables
   call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
 
