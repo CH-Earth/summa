@@ -13,11 +13,11 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /Users/grey/Dropbox/projects/summa_working/summa/
+F_MASTER = 
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 4.8 or higher
-FC = gfortran-mp-5
+FC = 
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
 # that the default paths defined are those that work for our compilers
@@ -32,7 +32,7 @@ FC = gfortran-mp-5
 
 # gfortran compiler on OS X tested with 4.8 and higher
 # (works on Mac OS X with Macports)
-ifeq "$(FC)" "gfortran-mp-5"
+ifeq "$(FC)" "gfortran-mp-4.8"
  NCDF_PATH = /opt/local
  LAPK_PATH = /opt/local
  # define the lapack libraries - on OS X you need atlas and
@@ -72,7 +72,7 @@ INCNETCDF = -I$(NCDF_PATH)/include
 # Define compiler flags. If you use a different compiler,
 # you will need to figure out what the equivalent flags are
 # and may need to update this section
-ifeq "$(FC)" "gfortran-mp-5"
+ifeq "$(FC)" "gfortran-mp-4.8"
  FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
