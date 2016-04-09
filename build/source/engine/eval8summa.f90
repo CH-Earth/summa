@@ -106,7 +106,10 @@ contains
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                       ! output
+                       ! input-output: baseflow
+                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                       ! output: flux and residual vectors
                        feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        fluxVec,                 & ! intent(out):   flux vector
                        resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
@@ -135,59 +138,62 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- real(dp),intent(in)             :: dt                    ! length of the time step (seconds)
- integer(i4b),intent(in)         :: nSnow                 ! number of snow layers
- integer(i4b),intent(in)         :: nSoil                 ! number of soil layers
- integer(i4b),intent(in)         :: nLayers               ! total number of layers
- integer(i4b),intent(in)         :: nState                ! total number of state variables
- logical(lgt),intent(in)         :: firstSubStep          ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(inout)      :: firstFluxCall         ! flag to indicate if we are processing the first flux call
- logical(lgt),intent(in)         :: computeVegFlux        ! flag to indicate if computing fluxes over vegetation
- real(dp),intent(in)             :: canopyDepth           ! depth of the vegetation canopy (m)
+ real(dp),intent(in)             :: dt                     ! length of the time step (seconds)
+ integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
+ integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
+ integer(i4b),intent(in)         :: nLayers                ! total number of layers
+ integer(i4b),intent(in)         :: nState                 ! total number of state variables
+ logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(inout)      :: firstFluxCall          ! flag to indicate if we are processing the first flux call
+ logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
+ real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input: state vectors
- real(dp),intent(in)             :: stateVecTrial(:)      ! model state vector 
- real(dp),intent(in)             :: fScale(:)             ! function scaling vector
- real(qp),intent(in)             :: sMul(:)   ! NOTE: qp  ! state vector multiplier (used in the residual calculations)
+ real(dp),intent(in)             :: stateVecTrial(:)       ! model state vector 
+ real(dp),intent(in)             :: fScale(:)              ! function scaling vector
+ real(qp),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
- type(model_options),intent(in)  :: model_decisions(:)    ! model decisions
- type(var_i),        intent(in)  :: type_data             ! type of vegetation and soil
- type(var_d),        intent(in)  :: attr_data             ! spatial attributes
- type(var_d),        intent(in)  :: mpar_data             ! model parameters
- type(var_d),        intent(in)  :: forc_data             ! model forcing data
- type(var_dlength),  intent(in)  :: bvar_data             ! model variables for the local basin
- type(var_dlength),  intent(in)  :: prog_data             ! prognostic variables for a local HRU
- type(var_ilength),  intent(in)  :: indx_data             ! indices defining model states and layers
+ type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
+ type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
+ type(var_d),        intent(in)  :: attr_data              ! spatial attributes
+ type(var_d),        intent(in)  :: mpar_data              ! model parameters
+ type(var_d),        intent(in)  :: forc_data              ! model forcing data
+ type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
+ type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
+ type(var_ilength),  intent(in)  :: indx_data              ! indices defining model states and layers
  ! output: data structures
- type(var_dlength),intent(inout) :: diag_data             ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data             ! model fluxes for a local HRU
- type(var_dlength),intent(inout) :: deriv_data            ! derivatives in model fluxes w.r.t. relevant state variables
+ type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
+ type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
+ ! input-output: baseflow
+ integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
- logical(lgt),intent(out)        :: feasible              ! flag to denote the feasibility of the solution
- real(dp),intent(out)            :: fluxVec(:)            ! flux vector
- real(dp),intent(out)            :: resSink(:)            ! sink terms on the RHS of the flux equation
- real(qp),intent(out)            :: resVec(:) ! NOTE: qp  ! residual vector
- real(dp),intent(out)            :: fEval                 ! function evaluation
+ logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
+ real(dp),intent(out)            :: fluxVec(:)             ! flux vector
+ real(dp),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
+ real(qp),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
+ real(dp),intent(out)            :: fEval                  ! function evaluation
  ! output: error control
- integer(i4b),intent(out)        :: err                   ! error code
- character(*),intent(out)        :: message               ! error message
+ integer(i4b),intent(out)        :: err                    ! error code
+ character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! state variables
- real(dp)                        :: scalarCanairTempTrial ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempTrial ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatTrial  ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempTrial       ! trial value for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial ! trial value for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial ! trial value for matric head (m)
+ real(dp)                        :: scalarCanairTempTrial  ! trial value for temperature of the canopy air space (K)
+ real(dp)                        :: scalarCanopyTempTrial  ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyWatTrial   ! trial value for liquid water storage in the canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerTempTrial        ! trial value for temperature of layers in the snow and soil domains (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial  ! trial value for volumetric fraction of total water (-)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial  ! trial value for matric head (m)
  ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqTrial  ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial  ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial ! trial value for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial ! trial value for volumetric fraction of ice (-)
+ real(dp)                        :: scalarCanopyLiqTrial   ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                        :: scalarCanopyIceTrial   ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial  ! trial value for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial  ! trial value for volumetric fraction of ice (-)
  ! other local variables
- real(dp),dimension(nState)      :: rVecScaled            ! scaled residual vector
- character(LEN=256)              :: cmessage              ! error message of downwind routine
+ real(dp),dimension(nState)      :: rVecScaled             ! scaled residual vector
+ character(LEN=256)              :: cmessage               ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -308,7 +314,9 @@ contains
                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  flux_data,               & ! intent(inout): model fluxes for a local HRU
                  deriv_data,              & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
-                 ! output: flux vector
+                 ! input-output: flux vector and baseflow derivatives
+                 ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                 dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                  fluxVec,                 & ! intent(out):   flux vector (mixed units)
                  ! output: error control
                  err,cmessage)              ! intent(out):   error code and error message

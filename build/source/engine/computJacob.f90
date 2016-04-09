@@ -80,6 +80,7 @@ contains
                         prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                         diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
                         deriv_data,               & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                        dBaseflow_dMatric,        & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                         ! input-output: Jacobian and its diagonal
                         dMat,                     & ! intent(inout): diagonal of the Jacobian matrix
                         aJac,                     & ! intent(out):   Jacobian matrix
@@ -101,10 +102,11 @@ contains
  logical(lgt),intent(in)         :: computeBaseflow ! flag to indicate if computing baseflow
  integer(i4b),intent(in)         :: ixMatrix        ! form of the Jacobian matrix
  ! input: data structures
- type(var_ilength),  intent(in)  :: indx_data       ! indices defining model states and layers
- type(var_dlength),  intent(in)  :: prog_data       ! prognostic variables for a local HRU
- type(var_dlength),  intent(in)  :: diag_data       ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
+ type(var_ilength),intent(in)    :: indx_data       ! indices defining model states and layers
+ type(var_dlength),intent(in)    :: prog_data       ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)    :: diag_data       ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)    :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
+ real(dp),intent(in)             :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! input-output: Jacobian and its diagonal
  real(dp),intent(inout)          :: dMat(:)         ! diagonal of the Jacobian matrix
  real(dp),intent(out)            :: aJac(:,:)       ! Jacobian matrix
@@ -117,6 +119,7 @@ contains
  integer(i4b)                    :: jLayer          ! index of model layer within the full state vector (hydrology)
  integer(i4b)                    :: kLayer          ! index of model layer within the snow-soil domain
  integer(i4b)                    :: mLayer          ! index of model layer within the full state vector (thermodynamics)
+  integer(i4b)                   :: pLayer,qLayer   ! indices of soil layers (used for the baseflow derivatives)
  integer(i4b),parameter          :: nVarSnowSoil=2  ! number of state variables in the snow and soil domain (energy and liquid water/matric head)
  ! --------------------------------------------------------------
  ! associate variables from data structures
@@ -459,12 +462,10 @@ contains
   
     ! include terms for baseflow
     if(computeBaseflow)then
-     message=trim(message)//'have not implemented the full Jacobian matrix yet -- need dBaseflow_dMatric'
-     err=20; return
-     !do pLayer=1,nSoil
-     ! qLayer = ixSoilOnlyHyd(pLayer)  ! layer index within the full state vector
-     ! aJac(jLayer,qLayer) = aJac(jLayer,qLayer) + (dt/mLayerDepth(kLayer))*dBaseflow_dMatric(iLayer,pLayer)
-     !end do
+     do pLayer=1,nSoil
+      qLayer = ixSoilOnlyHyd(pLayer)  ! layer index within the full state vector
+      aJac(jLayer,qLayer) = aJac(jLayer,qLayer) + (dt/mLayerDepth(kLayer))*dBaseflow_dMatric(iLayer,pLayer)
+     end do
     endif
   
    end do  ! (looping through soil layers)

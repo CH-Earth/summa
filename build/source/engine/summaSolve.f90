@@ -68,7 +68,7 @@ contains
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
-                       nBands,                  & ! intent(in):    total number of bands in the band-diagonal matrix (nBands=nState for the full matrix)
+                       nLeadDim,                & ! intent(in):    length of the leading dimension of he Jacobian matrix (either nBands or nState)
                        nState,                  & ! intent(in):    total number of state variables
                        ixMatrix,                & ! intent(in):    type of matrix (full or band diagonal)
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
@@ -96,6 +96,9 @@ contains
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                       ! input-output: baseflow
+                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                       dBaseflow_dMatric,       & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
                        ! output
                        stateVecNew,             & ! intent(out):   new state vector
                        fluxVecNew,              & ! intent(out):   new flux vector
@@ -115,7 +118,7 @@ contains
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                  ! total number of layers
- integer(i4b),intent(in)         :: nBands                   ! total number of bands in the band-diagonal matrix (nBands=nState for the full matrix)
+ integer(i4b),intent(in)         :: nLeadDim                 ! length of the leading dimension of the Jacobian matrix (nBands or nState)
  integer(i4b),intent(in)         :: nState                   ! total number of state variables
  integer(i4b),intent(in)         :: ixMatrix                 ! type of matrix (full or band diagonal) 
  logical(lgt),intent(in)         :: firstSubStep             ! flag to indicate if we are processing the first sub-step
@@ -143,6 +146,9 @@ contains
  type(var_dlength),intent(inout) :: diag_data                ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data               ! derivatives in model fluxes w.r.t. relevant state variables
+ ! input-output: baseflow
+ integer(i4b),intent(inout)      :: ixSaturation             ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ real(dp),intent(inout)          :: dBaseflow_dMatric(:,:)   ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
  real(dp),intent(out)            :: stateVecNew(:)           ! new state vector
  real(dp),intent(out)            :: fluxVecNew(:)            ! new flux vector
@@ -157,9 +163,9 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
- real(dp)                        :: aJac(nBands,nState)      ! Jacobian matrix
- real(dp)                        :: aJacScaled(nBands,nState)      ! Jacobian matrix (scaled)
- real(dp)                        :: aJacScaledTemp(nBands,nState)  ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
+ real(dp)                        :: aJac(nLeadDim,nState)      ! Jacobian matrix
+ real(dp)                        :: aJacScaled(nLeadDim,nState)      ! Jacobian matrix (scaled)
+ real(dp)                        :: aJacScaledTemp(nLeadDim,nState)  ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
  ! solution/step vectors
  real(dp),dimension(nState)      :: rVecScaled               ! residual vector (scaled)
  real(dp),dimension(nState)      :: newtStepScaled           ! full newton step (scaled)
@@ -184,6 +190,9 @@ contains
  ! --------------------------------
 
  ! compute the analytical Jacobian matrix
+ ! NOTE: The derivatives were computed in the previous call to computFlux
+ !       This occurred either at the call to eval8summa at the start of systemSolv
+ !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
  call computJacob(&
                   ! input: model control
                   dt,                             & ! intent(in):    length of the time step (seconds)
@@ -199,6 +208,7 @@ contains
                   prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
                   diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
                   deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                  dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                   ! input-output: Jacobian and its diagonal
                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
                   aJac,                           & ! intent(out):   Jacobian matrix
@@ -340,7 +350,10 @@ contains
    stateVecNew = stateVecTrial + xLambda*xInc
 
    ! compute the residual vector and function
-   call eval8state(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
+   ! NOTE: This calls eval8summa in an internal subroutine
+   !       The internal sub routine has access to all data
+   !       Hence, we only need to include the variables of interest in lineSearch
+   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! check line search
@@ -471,9 +484,11 @@ contains
 
 
   ! *********************************************************************************************************
-  ! * internal subroutine eval8state: compute the right-hand-side vector
+  ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector
   ! *********************************************************************************************************
-  subroutine eval8state(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
+  ! NOTE: This is simply a wrapper routine for eval8summa, to reduce the number of calling arguments
+  !       An internal subroutine, so have access to all data in the main subroutine
+  subroutine eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
   USE eval8summa_module,only:eval8summa                      ! simulation of fluxes and residuals given a trial state vector
   implicit none
   ! input
@@ -490,7 +505,7 @@ contains
   character(len=256)             :: cmessage                 ! error message of downwind routine
   ! ----------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message='eval8state/'
+  err=0; message='eval8summa_wrapper/'
 
   ! compute the flux and the residual vector for a given state vector
   call eval8summa(&
@@ -521,6 +536,9 @@ contains
                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                   flux_data,               & ! intent(inout): model fluxes for a local HRU
                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  ! input-output: baseflow
+                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                  dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                   ! output
                   feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                   fluxVecNew,              & ! intent(out):   new flux vector
@@ -531,7 +549,7 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
 
-  end subroutine eval8state
+  end subroutine eval8summa_wrapper
 
 
   ! *********************************************************************************************************

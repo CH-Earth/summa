@@ -123,8 +123,10 @@ contains
                        ! input-output: data structures
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
-                       deriv_data,              & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
-                       ! output: flux vector
+                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                       ! input-output: flux vector and baseflow derivatives
+                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                        fluxVec,                 & ! intent(out):   flux vector (mixed units)
                        ! output: error control
                        err,message)               ! intent(out):   error code and error message
@@ -189,7 +191,9 @@ contains
  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
- ! output: flux vector
+ ! input-output: flux vector and baseflow derivatives
+ integer(i4b),intent(inout)      :: ixSaturation              ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ real(dp),intent(out)            :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)
  real(dp),intent(out)            :: fluxVec(:)                ! model flux vector (mixed units)
  ! output: error control
  integer(i4b),intent(out)        :: err                       ! error code
@@ -200,7 +204,6 @@ contains
  integer(i4b)                    :: local_ixGroundwater       ! local index for groundwater representation
  integer(i4b)                    :: iSoil                     ! index of soil layer
  integer(i4b)                    :: iLayer                    ! index of model layers
- integer(i4b)                    :: ixSaturation              ! index of lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp)                        :: theta                     ! liquid water equivalent of total water (liquid plus ice)
  real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
  real(dp)                        :: xNum                      ! temporary variable: numerator
@@ -212,7 +215,6 @@ contains
  real(dp)                        :: dEffSat_dTemp             ! derivative in effective saturation w.r.t. temperature (K-1)
  real(dp),dimension(nSoil)       :: dPsiLiq_dPsi0             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
  real(dp),dimension(nSoil)       :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t matric head (s-1)
- real(dp),allocatable            :: dBaseflow_dMatric(:,:)    ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  ! --------------------------------------------------------------
  ! initialize error control
@@ -370,12 +372,6 @@ contains
   case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
   case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
  end select ! (modify the groundwater representation for this single-column implementation)
-
- ! allocate space for the baseflow derivatives
- if(local_ixGroundwater==qbaseTopmodel)then
-  allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; endif
- endif
 
  ! check that canopy temperature is reasonable
  if(scalarCanopyTempTrial > canopyTempMax)then
@@ -712,8 +708,16 @@ contains
   ! (variables needed for the numerical solution)
   mLayerBaseflow(:)      = 0._dp  ! baseflow from each soil layer (m s-1)
 
- ! compute the basdeflow flux
+ ! topmodel-ish shallow groundwater
  else ! local_ixGroundwater==qbaseTopmodel
+
+  ! check the derivative matrix is sized appropriately
+  if(size(dBaseflow_dMatric,1)/=nSoil .or. size(dBaseflow_dMatric,2)/=nSoil)then
+   message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
+   err=20; return
+  endif
+
+  ! compute the baseflow flux
   call groundwatr(&
                   ! input: model control
                   nSnow,                                   & ! intent(in):    number of snow layers
@@ -774,12 +778,6 @@ contains
  fluxVec(ixSoilOnlyHyd) = mLayerLiqFluxSoil(1:nSoil)
  if(nSnow>0)&
  fluxVec(ixSnowOnlyWat) = mLayerLiqFluxSnow(1:nSnow)
-
- ! deallocate space for the baseflow derivatives
- if(local_ixGroundwater==qbaseTopmodel)then
-  deallocate(dBaseflow_dMatric,stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
- endif
 
  ! set the first flux call to false
  firstFluxCall=.false.

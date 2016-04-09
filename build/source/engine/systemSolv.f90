@@ -70,6 +70,11 @@ USE data_types,only:&
                     var_dlength,  & ! data vector with variable length dimension (dp)
                     model_options   ! defines the model decisions
 
+! look-up values for the choice of groundwater representation (local-column, or single-basin)
+USE mDecisions_module,only:       &
+ localColumn,                     & ! separate groundwater representation in each local soil column
+ singleBasin                        ! single groundwater store over the entire basin
+
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:      &
  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
@@ -163,6 +168,8 @@ contains
  character(LEN=256)              :: cmessage                     ! error message of downwind routine
  real(dp)                        :: canopyDepth                  ! depth of the vegetation canopy (m)
  integer(i4b)                    :: iter                         ! iteration index
+ integer(i4b)                    :: nLeadDim                     ! length of the leading dimension of the Jacobian matrix (nBands or nState)
+ integer(i4b)                    :: local_ixGroundwater          ! local index for groundwater representation
  real(dp),parameter              :: tempAccelerate=0.00_dp       ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
@@ -189,6 +196,8 @@ contains
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  integer(i4b)                    :: ixMatrix                     ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
+ integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ real(dp),allocatable            :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  real(dp),dimension(nState)      :: stateVecInit                 ! initial state vector (mixed units)
  real(dp),dimension(nState)      :: stateVecTrial                ! trial state vector (mixed units)
  real(dp),dimension(nState)      :: stateVecNew                  ! new state vector (mixed units)
@@ -219,6 +228,7 @@ contains
  associate(&
  ! model decisions
  ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in): [i4b] groundwater parameterization
+ ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
  ! domain boundary conditions
  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
  ! indices of model state variables
@@ -304,14 +314,31 @@ contains
  ! identify the matrix solution method
  ! (the type of matrix used to solve the linear system A.X=B)
  if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
-  ixMatrix=ixFullMatrix   ! full Jacobian matrix
+  nLeadDim=nState         ! length of the leading dimension
+  ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
  else
-  ixMatrix=ixBandMatrix   ! band-diagonal matrix
+  nLeadDim=nBands         ! length of the leading dimension
+  ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
  endif
+
+ ! modify the groundwater representation for this single-column implementation
+ select case(ixSpatialGroundwater)
+  case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
+  case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
+  case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
+ end select ! (modify the groundwater representation for this single-column implementation)
 
  ! allocate space for the derivative structure
  call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! allocate space for the baseflow derivatives
+ if(ixGroundwater==qbaseTopmodel)then
+  allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
+ else
+  allocate(dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
+ endif
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; endif
 
  ! initialize state vectors
  call popStateVec(&
@@ -379,6 +406,9 @@ contains
                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  flux_data,               & ! intent(inout): model fluxes for a local HRU
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                 ! input-output: baseflow
+                 ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                 dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                  ! output
                  feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                  fluxVec0,                & ! intent(out):   flux vector
@@ -418,7 +448,7 @@ contains
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    total number of layers
-                  nBands,                  & ! intent(in):    total number of bands in the band-diagonal matrix (nBands=nState for the full matrix)
+                  nLeadDim,                & ! intent(in):    length of the leading dimension of he Jacobian matrix (either nBands or nState) 
                   nState,                  & ! intent(in):    total number of state variables
                   ixMatrix,                & ! intent(in):    type of matrix (full or band diagonal)
                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
@@ -446,6 +476,9 @@ contains
                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                   flux_data,               & ! intent(inout): model fluxes for a local HRU
                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  ! input-output: baseflow
+                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                  dBaseflow_dMatric,       & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
                   ! output
                   stateVecNew,             & ! intent(out):   new state vector
                   fluxVecNew,              & ! intent(out):   new flux vector
@@ -576,6 +609,10 @@ contains
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
+
+ ! deallocate space for the baseflow derivative matrix
+ deallocate(dBaseflow_dMatric,stat=err)
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
 
  ! end associate statement
  end associate
