@@ -177,8 +177,9 @@ integer(i4b)                     :: iHRU,jHRU,kHRU             ! index of the hy
 integer(i4b)                     :: nGRU                       ! number of grouped response units
 integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
 integer(i4b)                     :: hruCount                   ! number of local hydrologic response units
-integer(i4b)                     :: iStep=0                    ! index of model time step
-integer(i4b)                     :: jStep=0                    ! index of model output
+integer(i4b)                     :: modelTimeStep=0            ! index of model time step
+integer(i4b)                     :: waterYearTimeStep=0        ! index of water year
+integer(i4b),dimension(maxFreq)  :: outputTimeStep=0           ! timestep in output files
 integer(i4b)                     :: ix_gru                     ! index of GRU that corresponds to the global HRU
 integer(i4b)                     :: ix_hru                     ! index of local HRU that corresponds to the global HRU
 ! define the re-start file
@@ -223,7 +224,6 @@ integer(i4b)                     :: err=0                      ! error code
 character(len=1024)              :: message=''                 ! error message
 ! output control 
 integer(i4b)                     :: iFreq                      ! index for looping through output files
-integer(i4b),dimension(maxFreq)  :: kStep                      ! timestep in output files
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -396,7 +396,7 @@ do iStruct=1,size(structInfo)
   case default; cycle;
  endselect  
  ! check errors
- call handle_err(err,trim(message)//'[statistics =  '//trim(structInfo(iStruct)%structName)//']')
+ call handle_err(err,trim(message)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']')
 enddo ! iStruct
 
 ! *****************************************************************************
@@ -616,10 +616,10 @@ enddo ! GRU
 ! (6) loop through time
 ! ****************************************************************************
 ! initialize time step index
-jstep=1
-kstep=1
+waterYearTimeStep = 1
+do iFreq = 1,nFreq; outputTimeStep(iFreq) = 1; enddo
 
-do istep=1,numtim
+do modelTimeStep=1,numtim
 
  ! set print flag
  globalPrintFlag=.true.
@@ -634,7 +634,7 @@ do istep=1,numtim
   ! read forcing data
   call read_force(&
                   ! input
-                  istep,                                  & ! intent(in):    time step index
+                  modelTimeStep,                          & ! intent(in):    time step index
                   ix_gru,                                 & ! intent(in):    index of gru
                   ix_hru,                                 & ! intent(in):    index of LOCAL hru
                   iHRU,                                   & ! intent(in):    index of GLOBAL hru
@@ -658,7 +658,7 @@ do istep=1,numtim
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
  ! compute the exposed LAI and SAI and whether veg is buried by snow
- if(istep==1)then  
+ if(modelTimeStep==1)then  
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
 
@@ -721,8 +721,8 @@ do istep=1,numtim
     call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
     ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
-    jStep=1
-    kStep=1
+    waterYearTimeStep=1
+    outputTimeStep=1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
     indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
@@ -821,7 +821,7 @@ do istep=1,numtim
    ! run the model for a single parameter set and time step
    call coupled_em(&
                    ! model control
-                   istep,                          & ! intent(in):    time step index
+                   modelTimeStep,                  & ! intent(in):    time step index
                    printRestart,                   & ! intent(in):    flag to print a re-start file
                    output_fileSuffix,              & ! intent(in):    name of the experiment used in the restart file
                    dt_init(iGRU)%hru(iHRU),        & ! intent(inout): initial time step
@@ -880,19 +880,19 @@ do istep=1,numtim
    endif
 
    ! calculate output Statistics
-   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forc_meta,jstep,err,message);       call handle_err(err,message)
-   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,prog_meta,jstep,err,message);       call handle_err(err,message)
-   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diag_meta,jstep,err,message);       call handle_err(err,message)
-   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,flux_meta,jstep,err,message);       call handle_err(err,message)
-   call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indx_meta,jstep,err,message);       call handle_err(err,message)
-   call calcStats(bvarStat%gru(iGRU)%var(:)          ,bvarStruct%gru(iGRU)%var(:)          ,bvar_meta,jstep,err,message); call handle_err(err,message)
+   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forc_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,prog_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diag_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,flux_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+   call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indx_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+   call calcStats(bvarStat%gru(iGRU)%var(:)          ,bvarStruct%gru(iGRU)%var(:)          ,bvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
 
    ! write the model output to the NetCDF file
-   call writeData(jstep,kstep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(jstep,kstep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(jstep,kstep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(jstep,kstep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(jstep,kstep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
   
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
@@ -931,17 +931,17 @@ do istep=1,numtim
   end associate
   
   ! write basin-average variables
-  call writeBasin(jstep,kstep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
+  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
 
  enddo  ! (looping through GRUs)
 
  ! write current time to all files
- call WriteTime(jstep,kstep,time_meta,timeStruct%var,err,message)
+ call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
  
  ! increment output file timestep
  do iFreq = 1,nFreq
-  if (mod(jstep,outFreq(iFreq)).eq.0) then
-   kStep(iFreq) = kStep(iFreq) + 1
+  if (mod(waterYearTimeStep,outFreq(iFreq)).eq.0) then
+   outputTimeStep(iFreq) = outputTimeStep(iFreq) + 1
   endif
  enddo
  
@@ -949,7 +949,7 @@ do istep=1,numtim
  forcingStep=forcingStep+1
 
  ! increment the time index
- jstep = jstep+1
+ waterYearTimeStep = waterYearTimeStep+1
 
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
@@ -991,7 +991,7 @@ contains
  endif
  ! dump variables
  print*, 'error, variable dump:'
- print*, 'istep              = ', istep
+ print*, 'modelTimeStep        = ', modelTimeStep
  if(iGRU<=nGRU)then
   if(iHRU<=gru_struc(iGRU)%hruCount)then
    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)

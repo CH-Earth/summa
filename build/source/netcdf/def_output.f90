@@ -82,6 +82,7 @@ contains
  ! local variables
  integer(i4b)                :: iVar                          ! loop through model variables
  integer(i4b)                :: iFreq                         ! loop through output frequencies
+ integer(i4b)                :: iStruct                       ! loop through structure types 
  integer(i4b),parameter      :: modelTime=1                   ! model timestep output frequency
  character(len=5)            :: fstring                       ! string to hold model output freuqnecy
  character(len=1000)         :: fname                         ! temporary filename
@@ -109,32 +110,27 @@ contains
  enddo
 
  do iFreq = 1,nFreq
-  call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,  noHRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta,nf90_int,    err,cmessage)  ! model derivatives
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-! case('time'); cycle (iFreq),                                                              ! model time data
-  call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, nf90_double,err,cmessage)  ! model forcing data
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,needHRU,needTime,prog_meta, nf90_double,err,cmessage)  ! model prognostics
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
-  call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
-  if(err/=0)then;err=20;message=trim(message)//trim(cmessage);return;endif
- enddo 
+  do iStruct = 1,size(structInfo)
+   selectcase (trim(structInfo(iStruct)%structName))
+    case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
+    case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
+    case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
+    case('bpar' ); call def_variab(ncid(iFreq),iFreq,  noHRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
+    case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
+    case('deriv'); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
+    case('time' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta,nf90_int,    err,cmessage)  ! model derivatives
+    case('forc' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, nf90_double,err,cmessage)  ! model forcing data
+    case('prog' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,prog_meta, nf90_double,err,cmessage)  ! model prognostics
+    case('diag' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
+    case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
+    case('bvar' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
+    case default; err=20; message=trim(message)//'unable to identify lookup structure';
+   endselect
+   ! error handling
+   if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;endif
+  enddo ! iStruct 
+
+ enddo ! iFreq 
 
  end subroutine def_output
 
