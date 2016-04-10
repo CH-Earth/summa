@@ -518,6 +518,9 @@ contains
 
  ! check fluxes
  if(globalPrintFlag)then
+  write(*,'(a,1x,f30.20)') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
+  write(*,'(a,1x,f30.20)') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
+  write(*,'(a,1x,f30.20)') 'mLayerTempTrial(1)    = ',  mLayerTempTrial(1)      ! trial value of ground temperature (K)
   write(*,'(a,1x,f30.20)') 'scalarCanairNetNrgFlux = ', scalarCanairNetNrgFlux
   write(*,'(a,1x,f30.20)') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
   write(*,'(a,1x,f30.20)') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
