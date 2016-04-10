@@ -372,7 +372,11 @@ contains
  do iLayer=1,nLayers
 
   ! compute liquid water equivalent of total water (liquid plus ice)
-  scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
+  if(iLayer>nSnow)then ! soil layer = no volume expansion
+   scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
+  else ! snow layer = volume expansion allowed
+   scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
+  endif
 
   ! check that the initial volumetric fraction of liquid water and ice is reasonable
   select case(mlayerLayerType(iLayer))
@@ -452,6 +456,7 @@ contains
                     mLayerMatricHead(iLayer-nSnow),            & ! intent(in): matric head (m)
                     vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                     ! output
+                    scalarTheta,                               & ! intent(out): volumetric fraction of total water (-)
                     mLayerVolFracLiq(iLayer),                  & ! intent(out): volumetric fraction of liquid water (-)
                     mLayerVolFracIce(iLayer),                  & ! intent(out): volumetric fraction of ice (-)
                     err,cmessage)                                ! intent(out): error control

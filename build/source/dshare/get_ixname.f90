@@ -397,6 +397,7 @@ contains
   ! state variables for vegetation
   case('scalarCanopyIce'                ); get_ixprog = iLookPROG%scalarCanopyIce                  ! mass of ice on the vegetation canopy (kg m-2)
   case('scalarCanopyLiq'                ); get_ixprog = iLookPROG%scalarCanopyLiq                  ! mass of liquid water on the vegetation canopy (kg m-2)
+  case('scalarCanopyWat'                ); get_ixprog = iLookPROG%scalarCanopyWat                  ! mass of total water on the vegetation canopy (kg m-2)
   case('scalarCanairTemp'               ); get_ixprog = iLookPROG%scalarCanairTemp                 ! temperature of the canopy air space (K)
   case('scalarCanopyTemp'               ); get_ixprog = iLookPROG%scalarCanopyTemp                 ! temperature of the vegetation canopy (K)
   ! state variables for snow
@@ -409,6 +410,7 @@ contains
   case('mLayerTemp'                     ); get_ixprog = iLookPROG%mLayerTemp                       ! temperature of each layer (K)
   case('mLayerVolFracIce'               ); get_ixprog = iLookPROG%mLayerVolFracIce                 ! volumetric fraction of icein each layer (-)
   case('mLayerVolFracLiq'               ); get_ixprog = iLookPROG%mLayerVolFracLiq                 ! volumetric fraction of liquid water in each layer (-)
+  case('mLayerVolFracWat'               ); get_ixprog = iLookPROG%mLayerVolFracWat                 ! volumetric fraction of total water in each layer (-)
   case('mLayerMatricHead'               ); get_ixprog = iLookPROG%mLayerMatricHead                 ! matric head of water in the soil (m)
   ! other state variables
   case('scalarAquiferStorage'           ); get_ixprog = iLookPROG%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
@@ -502,7 +504,7 @@ contains
   case('scalarSnowAge'                  ); get_ixdiag = iLookDIAG%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarGroundSnowFraction'       ); get_ixdiag = iLookDIAG%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   case('spectralSnowAlbedoDirect'       ); get_ixdiag = iLookDIAG%spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
-  case('scalarFracLiqSnow'              ); get_ixdiag = iLookDIAG%scalarFracLiqSnow                ! fraction of liquid water in each snow layer (-) 
+  case('mLayerFracLiqSnow'              ); get_ixdiag = iLookDIAG%mLayerFracLiqSnow                ! fraction of liquid water in each snow layer (-) 
   case('mLayerThetaResid'               ); get_ixdiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixdiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixdiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
@@ -618,6 +620,7 @@ contains
   case('mLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%mLayerLiqFluxSnow                ! net liquid water flux for each snow layer (s-1)
   ! liquid water fluxes for the soil domain 
   case('scalarRainPlusMelt'             ); get_ixflux = iLookFLUX%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  case('scalarMaxInfilRate'             ); get_ixflux = iLookFLUX%scalarMaxInfilRate               ! maximum infiltration rate (m s-1)
   case('scalarInfiltration'             ); get_ixflux = iLookFLUX%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
   case('scalarExfiltration'             ); get_ixflux = iLookFLUX%scalarExfiltration               ! exfiltration of water from the top of the soil profile (m s-1)
   case('scalarSurfaceRunoff'            ); get_ixflux = iLookFLUX%scalarSurfaceRunoff              ! surface runoff (m s-1)

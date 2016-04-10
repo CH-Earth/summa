@@ -154,6 +154,8 @@ DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 # utility modules
 SUMMA_UTILMS= \
 		time_utils.f90 \
+		ascii_util.f90 \
+		matrixOper.f90 \
 		f2008funcs.f90 \
 		mDecisions.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
@@ -174,6 +176,11 @@ SUMMA_SOLVER= \
 		vegLiqFlux.f90 \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
+		computFlux.f90 \
+		computResid.f90 \
+		computJacob.f90 \
+		eval8summa.f90 \
+		summaSolve.f90 \
 		systemSolv.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
