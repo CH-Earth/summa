@@ -154,7 +154,6 @@ DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 # utility modules
 SUMMA_UTILMS= \
 		time_utils.f90 \
-		ascii_util.f90 \
 		matrixOper.f90 \
 		f2008funcs.f90 \
 		mDecisions.f90
