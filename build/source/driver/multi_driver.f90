@@ -591,7 +591,7 @@ jstep=1
 do istep=1,numtim
 
  ! set print flag
- globalPrintFlag=.true.
+ globalPrintFlag=.false.
 
  ! read forcing data 
  do iHRU=1,nHRU  ! loop through global HRUs
@@ -805,7 +805,6 @@ do istep=1,numtim
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
-   stop 'completed first time step' 
  
    ! save the flag for computing the vegetation fluxes
    if(computeVegFluxFlag)      computeVegFlux(iGRU)%hru(iHRU) = yes
