@@ -33,6 +33,11 @@ USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
+! control parameters
+USE globalData,only:verySmall       ! a very small number
+USE globalData,only:veryBig         ! a very big number
+USE globalData,only:dx              ! finite difference increment
+
 ! constants
 USE multiconst,only:&
                     gravity,      & ! acceleration of gravity              (m s-2)
@@ -81,11 +86,6 @@ implicit none
 private
 public::computFlux
 public::soilCmpres
-! control parameters
-real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
-real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
-real(dp),parameter  :: dx = 1.e-8_dp              ! finite difference increment
 contains
 
  ! *********************************************************************************************************

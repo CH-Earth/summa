@@ -52,6 +52,13 @@ MODULE globalData
  real(dp),parameter,public                   :: realMissing=-9999._dp   ! missing double precision number
  integer(i4b),parameter,public               :: integerMissing=-9999    ! missing integer 
 
+ ! define limit checks
+ real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
+ real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
+
+ ! define algorithmix control parameters
+ real(dp),parameter,public                   :: dx = 1.e-8_dp            ! finite difference increment
+
  ! Define the model decisions
  type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
 
