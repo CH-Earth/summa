@@ -40,7 +40,6 @@ USE data_types,only:&
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
 ! metadata structure
 USE data_types,only:var_info               ! data type for metadata
-USE globalData,only:gru_struc              ! gru-hru mapping structures
 implicit none
 private
 public::allocGlobal
@@ -153,6 +152,7 @@ contains
  ! public subroutine allocGlobal: allocate space for global data structures 
  ! ************************************************************************************************
  subroutine allocGlobal(metaStruct,dataStruct,err,message)
+ USE globalData,only: gru_struc                    ! gru-hru mapping structures
  implicit none
  ! input
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
@@ -210,33 +210,49 @@ contains
  end do
 
  ! * allocate local data structures where there is a spatial dimension
- do iGRU=1,nGRU
+ gruLoop: do iGRU=1,nGRU
+
   ! initialize the spatial flag
-  spatial=.true.
-  ! get the number of snow and soil layers
-  associate(&
-  nHRU  => gru_struc(iGRU)%hruCount,         & ! number of HRUs
-  nSnow => gru_struc(iGRU)%hruInfo(:)%nSnow, & ! number of snow layers for each HRU
-  nSoil => gru_struc(iGRU)%hruInfo(:)%nSoil  ) ! number of soil layers for each HRU
-  ! allocate space
+  spatial=.false.
+
+  ! loop through HRUs
+  hruLoop: do iHRU=1,gru_struc(iGRU)%hruCount
+
+   ! get the number of snow and soil layers
+   associate(&
+   nSnow => gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! number of snow layers for each HRU
+   nSoil => gru_struc(iGRU)%hruInfo(iHRU)%nSoil  ) ! number of soil layers for each HRU
+
+   ! allocate space for structures WITH an HRU dimension
+   select type(dataStruct)
+    type is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    type is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    type is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    type is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class default; exit hruLoop
+   end select
+
+   ! error check
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! end association to info in data structures
+   end associate
+
+  end do hruLoop ! loop through HRUs
+
+  ! allocate space for structures *WITHOUT* an HRU dimension
   select type(dataStruct)
-   ! structures with an HRU dimension
-   type is (gru_hru_int);       do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
-   type is (gru_hru_intVec);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
-   type is (gru_hru_double);    do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
-   type is (gru_hru_doubleVec); do iHRU=1,nHRU; call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow(iHRU),nSoil(iHRU),err,cmessage); if(err/=0)exit; end do
-   ! structures without an HRU dimension
-   type is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage)
-   type is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage)
-   class default; spatial=.false.
+   type is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+   type is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+   class default
+    if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
+    cycle gruLoop  ! can have an HRU dimension if we get to here
   end select
-  ! end association to info in data structures
-  end associate
+
   ! error check
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-  ! check that we found the structure
-  if(.not.spatial)exit
- end do  ! loop through GRUs
+
+ end do gruLoop ! loop through GRUs
 
  ! * allocate local data structures where there is no spatial dimension
  select type(dataStruct)
