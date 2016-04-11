@@ -48,11 +48,6 @@ MODULE globalData
  implicit none
  private
 
- ! define missing values
- real(dp),parameter,public                   :: quadMissing=-9999._qp   ! missing quadruple precision number
- real(dp),parameter,public                   :: realMissing=-9999._dp   ! missing double precision number
- integer(i4b),parameter,public               :: integerMissing=-9999    ! missing integer 
-
  ! Define the model decisions
  type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
 

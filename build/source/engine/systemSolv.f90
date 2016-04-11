@@ -30,9 +30,9 @@ USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
-USE globalData,only:quadMissing     ! missing quadruple precision number
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing double precision number
+USE multiconst,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix

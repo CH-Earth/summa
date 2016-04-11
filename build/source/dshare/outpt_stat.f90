@@ -126,7 +126,7 @@ contains
  implicit none
 
  ! dummy variables
- class(*)      ,intent(inout)   :: stat(:)          ! statistics
+ type(dlength) ,intent(inout)   :: stat(:)          ! statistics
  class(*)      ,intent(in)      :: dat(:)           ! data
  type(var_info),intent(in)      :: meta(:)          ! metadata
  integer(i4b)  ,intent(in)      :: iStep            ! timestep index to compare with oFreq of each variable
@@ -145,7 +145,7 @@ contains
  do iVar = 1,size(meta)                             ! model variables
 
   ! only treat stats of scalars - all others handled separately
-  if (meta(iVar)%varType.eq.iLookVarType%scalarv) then
+  if (meta(iVar)%varType==iLookVarType%scalarv) then
 
    selecttype (dat)
     typeis (real(dp)); tdata = dat(iVar)
@@ -154,18 +154,11 @@ contains
     class default;err=20;message=trim(message)//'dat type not found';return
    endselect
 
-   selecttype (stat)
-    typeis (ilength); call calc_stats(meta(iVar),stat(iVar),tdata,iStep,err,cmessage)  
-    typeis (dlength); call calc_stats(meta(iVar),stat(iVar),tdata,iStep,err,cmessage)  
-    class default;err=20;message=trim(message)//'stat type not found';return
-   endselect
-
-   if (trim(meta(iVar)%varName).eq.'time') then
-    selecttype (stat)
-     typeis (dlength)
-      stat(iVar)%dat(iLookStat%inst) = tdata
-     class default;err=20;message=trim(message)//'time stat must be dlength';return
-    endselect
+   ! claculate statistics
+   if (trim(meta(iVar)%varName)=='time') then
+    stat(iVar)%dat(iLookStat%inst) = tdata
+   else
+    call calc_stats(meta(iVar),stat(iVar),tdata,iStep,err,cmessage)  
    endif
 
    if(err/=0)then; message=trim(message)//trim(cmessage);return; endif  
@@ -215,9 +208,9 @@ contains
  endselect
 
  ! ---------------------------------------------
- ! reset statistics at new frequenncy period 
+ ! reset statistics at new frequency period 
  ! ---------------------------------------------
- if ((mod(iStep,outFreq(iFreq)).eq.1).or.(outFreq(iFreq).eq.1)) then
+ if ((mod(iStep,outFreq(iFreq))==1).or.(outFreq(iFreq)==1)) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! don't bother if output flag is off
    if (meta%varType.ne.iLookVarType%scalarv) cycle ! only calculate stats for scalars 
@@ -267,7 +260,7 @@ contains
  ! ---------------------------------------------
  ! finalize statistics at end of frequenncy period 
  ! ---------------------------------------------
- if (mod(iStep,outFreq(iFreq)).eq.0) then
+ if (mod(iStep,outFreq(iFreq))==0) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! do not bother if output flag is off
    if (meta%vartype.ne.iLookVarType%scalarv) cycle ! only calculate stats for scalars 

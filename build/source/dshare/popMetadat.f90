@@ -712,7 +712,7 @@ contains
   nWords = size(lineWords)
 
   ! user cannot control time output
-  if (trim(lineWords(1)).eq.'time') cycle
+  if (trim(lineWords(1))=='time') cycle
 
   ! read output frequency
   read(lineWords(3),*) oFreq
@@ -727,8 +727,8 @@ contains
    case('type' ); if (oFreq.ne.0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification 
    case('mpar' ); if (oFreq.ne.0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
    case('indx' )
-    if (oFreq.eq.modelTime)       indx_meta(vDex)%statFlag(iLookStat%inst)=.true.; indx_meta(vDex)%outFreq=modelTime      ! indexex
-    if (oFreq.gt.modelTime) then; err=20; message=trim(message)//'index variables can only be output at model timestep'; return; endif
+    if (oFreq==modelTime)       indx_meta(vDex)%statFlag(iLookStat%inst)=.true.; indx_meta(vDex)%outFreq=modelTime      ! indexex
+    if (oFreq>modelTime) then; err=20; message=trim(message)//'index variables can only be output at model timestep'; return; endif
    case('forc' ); call popStat(forc_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model forcing data
    case('prog' ); call popStat(prog_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model prognostics 
    case('diag' ); call popStat(diag_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model diagnostics
@@ -836,7 +836,7 @@ contains
 
  ! check to make sure there are sufficient statistics flags
  ! varName | outFreq | inst | sum | mean | var | min | max | mode
- if ((meta%varType.eq.iLookVarType%scalarv).and.(nwords.lt.3+2*maxVarStat)) then
+ if ((meta%varType==iLookVarType%scalarv).and.(nwords.lt.3+2*maxVarStat)) then
    err=-20
    message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(1))
    return
@@ -853,13 +853,13 @@ contains
 
  ! check to make sure there are sufficient statistics flags
  ! scalar variables can have multiple statistics
- if (meta%varType.eq.iLookVarType%scalarv) then
+ if (meta%varType==iLookVarType%scalarv) then
 
  ! check to make sure there are sufficient statistics flags
   ! check whether any of these output frequencies exist yet
   found = .false.                                        ! found flag
   do iFreq = 1,nFreq                                     ! loop through the existing frequencies
-   if (oFreq.eq.outFreq(iFreq)) then                     ! if frequency already exists, set current index
+   if (oFreq==outFreq(iFreq)) then                     ! if frequency already exists, set current index
     found = .true.
     cFreq = iFreq
    exit
@@ -877,14 +877,14 @@ contains
 
   ! pull the stats flags
   do iStat = 1,maxVarStat
-   if (lineWords(3+2*iStat).eq.'1') then 
+   if (lineWords(3+2*iStat)=='1') then 
     meta%statFlag(iStat)=.true.
     meta%outFreq = cFreq
    endif
   enddo
 
  ! if not a scalar variable and requested output at frequency of model timestep
- elseif (oFreq.eq.modelTime) then
+ elseif (oFreq==modelTime) then
   meta%statFlag(iLookStat%inst) = .true.
   meta%outFreq = modelTime
   ! force appropriate layer indexes 

@@ -148,10 +148,10 @@ implicit none
 ! (0) variable definitions
 ! *****************************************************************************
 type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
-type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (sta     te) variables
-type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic vari     ables
+type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
+type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
 type(gru_hru_doubleVec)          :: fluxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-type(gru_hru_intVec)             :: indxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model indices
+type(gru_hru_doubleVec)          :: indxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model indices
 type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat        -- basin-average variabl
 ! define the primary data structures (scalars)
 type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
@@ -272,7 +272,7 @@ call checkStruc(err,message); call handle_err(err,message)
 ! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
 !       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
 !        and soil drainage (at interface=nSoil)
-flux_mask = ((flux_meta(:)%vartype.eq.iLookVarType%scalarv).or.(flux_meta(:)%vartype.eq.iLookVarType%ifcSoil))
+flux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).or.(flux_meta(:)%vartype==iLookVarType%ifcSoil))
 
 ! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
@@ -625,7 +625,7 @@ enddo ! GRU
 ! ****************************************************************************
 ! initialize time step index
 waterYearTimeStep = 1
-do iFreq = 1,nFreq; outputTimeStep(iFreq) = 1; enddo
+outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
@@ -955,7 +955,7 @@ do modelTimeStep=1,numtim
  
  ! increment output file timestep
  do iFreq = 1,nFreq
-  if (mod(waterYearTimeStep,outFreq(iFreq)).eq.0) then
+  if (mod(waterYearTimeStep,outFreq(iFreq))==0) then
    outputTimeStep(iFreq) = outputTimeStep(iFreq) + 1
   endif
  enddo

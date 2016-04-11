@@ -92,6 +92,9 @@ contains
  err=0; message="def_output/"
 
  ! create initial file
+ ! each file will have a master name with a frequency appended at the end:
+ ! e.g., xxxxxxxxx_1.nc  (for output at every model timestep)
+ ! e.g., xxxxxxxxx_24.nc (for daily output with hourly model timestep)
  do iFreq = 1,nFreq
   write(fstring,'(i5)') outFreq(iFreq)
   fstring = adjustl(fstring)
@@ -259,7 +262,7 @@ contains
  do iVar = 1,size(metaData)
 
   ! check that the variable is desired
-  if (metaData(iVar)%varType.eq.iLookvarType%unknown) cycle
+  if (metaData(iVar)%varType==iLookvarType%unknown) cycle
   if ((iFreq.ne.metaData(iVar)%outFreq).and.(metaData(iVar)%varName.ne.'time')) cycle
 
   ! special case of the time variable
@@ -303,7 +306,7 @@ contains
 
    ! if requested
    if ((.not.metaData(iVar)%statFlag(iStat)).and.(metaData(iVar)%varName.ne.'time'))  cycle
-   if ((metaData(iVar)%varName.eq.'time').and.(iStat.ne.iLookStat%inst)) cycle
+   if ((metaData(iVar)%varName=='time').and.(iStat.ne.iLookStat%inst)) cycle
 
    ! create full variable name
    catName = trim(metaData(iVar)%varName)

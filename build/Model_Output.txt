@@ -1,3 +1,27 @@
+! ------------------------------------------------------------ 
+! ------------------------------------------------------------ 
+! File for specifying model outputs
+! ------------------------------------------------------------ 
+! ------------------------------------------------------------ 
+! Each file line contains the following:
+!   (1) variable name (see source/dshare/popMetadat.f90 for a list of all possible variables)
+!   (2) output frequency specified in terms of # timesteps 
+!   (3) flag for output statistics - 1=on,0=off
+!  
+! The format of each file line is:
+!   (1) | (2) | (3) | (3) | (3) | (3) | (3) | (3) | (3) |
+! Bars are used as separators, and there are seven possible output statistics for each time-dependent variable:
+!   1. Sum over outptu period
+!   2. Instantaneous value at output timestep
+!   3. Mean over output period
+!   4. Variance over output period
+!   5. Minimum over ouptut period
+!   6. Maximum over output period
+!   7. Mode over output period
+! ------------------------------------------------------------ 
+! ------------------------------------------------------------ 
+!
+!
 ! ---------
 ! time
 ! ---------

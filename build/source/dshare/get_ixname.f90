@@ -904,43 +904,20 @@ contains
  ! pill variable index plus return which structure it was found in
  do iStruc = 1,size(structInfo)
   select case(trim(structInfo(iStruc)%structName))
-   case ('time' )
-    vDex = get_ixTime(trim(varName))
-    if (vDex.gt.0) then; typeName = 'time'; return; endif;
-   case ('forc' )
-    vDex = get_ixForce(trim(varName))
-    if (vDex.gt.0) then; typeName = 'forc'; return; endif;
-   case ('attr' )
-    vDex = get_ixAttr(trim(varName))
-    if (vDex.gt.0) then; typeName = 'attr'; return; endif;
-   case ('type' )
-    vDex = get_ixType(trim(varName))
-    if (vDex.gt.0) then; typeName = 'type'; return; endif;
-   case ('mpar' )
-    vDex = get_ixParam(trim(varName))
-    if (vDex.gt.0) then; typeName = 'mpar'; return; endif;
-   case ('indx' )
-    vDex = get_ixIndex(trim(varName))
-    if (vDex.gt.0) then; typeName = 'indx'; return; endif;
-   case ('prog' )
-    vDex = get_ixProg(trim(varName))
-    if (vDex.gt.0) then; typeName = 'prog'; return; endif;
-   case ('diag' )
-    vDex = get_ixDiag(trim(varName))
-    if (vDex.gt.0) then; typeName = 'diag'; return; endif;
-   case ('flux' )
-    vDex = get_ixFlux(trim(varName))
-    if (vDex.gt.0) then; typeName = 'flux'; return; endif;
-   case ('bpar' )
-    vDex = get_ixBpar(trim(varName))
-    if (vDex.gt.0) then; typeName = 'bpar'; return; endif;
-   case ('bvar' )
-    vDex = get_ixBvar(trim(varName))
-    if (vDex.gt.0) then; typeName = 'bvar'; return; endif;
-   case ('deriv')
-    vDex = get_ixDeriv(trim(varName))
-    if (vDex.gt.0) then; typeName = 'deriv'; return; endif;
+   case ('time' ); vDex = get_ixTime(trim(varName))
+   case ('forc' ); vDex = get_ixForce(trim(varName))
+   case ('attr' ); vDex = get_ixAttr(trim(varName))
+   case ('type' ); vDex = get_ixType(trim(varName))
+   case ('mpar' ); vDex = get_ixParam(trim(varName))
+   case ('indx' ); vDex = get_ixIndex(trim(varName))
+   case ('prog' ); vDex = get_ixProg(trim(varName))
+   case ('diag' ); vDex = get_ixDiag(trim(varName))
+   case ('flux' ); vDex = get_ixFlux(trim(varName))
+   case ('bpar' ); vDex = get_ixBpar(trim(varName))
+   case ('bvar' ); vDex = get_ixBvar(trim(varName))
+   case ('deriv'); vDex = get_ixDeriv(trim(varName))
   endselect
+  if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; endif;
  enddo
 
  ! 404

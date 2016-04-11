@@ -70,7 +70,7 @@ MODULE data_types
   character(len=64)                         :: varunit  = 'empty'         ! variable units
   integer(i4b)                              :: vartype  = integerMissing  ! variable type 
   logical(lgt),dimension(maxvarStat)        :: statFlag = .false.         ! statistic flag (on/off) 
-  integer(i4b)                              :: outFreq  = integerMissing  ! file id 
+  integer(i4b)                              :: outFreq  = integerMissing  ! output file id # - each variable may be output to exaclty one of maxFreq output files 
   integer(i4b),dimension(maxvarStat)        :: ncVarID  = integerMissing  ! netcdf variable id 
  endtype var_info
 

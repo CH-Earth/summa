@@ -364,7 +364,6 @@ contains
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
      err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"
-     print*,'!!!!!!!!!!!!!!!!!!!',metadata(iVar)%vartype,metadata(iVar)%varName
      return
    endselect
    ! check error

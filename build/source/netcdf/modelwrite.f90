@@ -73,7 +73,7 @@ contains
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/iHRU/),count=(/1/))
     class default; err=20; message=trim(message)//'unkonwn dat type (with HRU)'; return
    endselect
- else
+  else
    selecttype (dat)
     typeis (real(dp))
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/1/),count=(/1/))
@@ -150,7 +150,7 @@ contains
    do iVar = 1,size(meta)
 
     ! handle time first
-    if (meta(iVar)%varName.eq.'time') then    
+    if (meta(iVar)%varName=='time') then    
      selecttype(stat)
       typeis (dlength)
        err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
@@ -171,7 +171,7 @@ contains
      if ((.not.meta(iVar)%statFlag(iStat)).or.(trim(meta(iVar)%varName)=='unknown')) cycle
 
      ! stats/dats output - select data type
-     if (meta(iVar)%varType.eq.iLookVarType%scalarv) then
+     if (meta(iVar)%varType==iLookVarType%scalarv) then
        selecttype(stat)
         typeis (ilength)
          err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/iHRU,oStep(iFreq)/),count=(/1,1/))
@@ -267,7 +267,7 @@ contains
        err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/oStep(iFreq)/),count=(/1/))
 
       case (iLookVarType%routing)
-       if (mstep.eq.1) then
+       if (mstep==1) then
         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/1/),count=(/1000/))
        endif
 
