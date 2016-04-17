@@ -112,7 +112,9 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixMatState=2003         ! named variable defining the matric head state variable
  integer(i4b),parameter,public               :: ixMassState=2004        ! named variable defining the mass of water (currently only used for the veg canopy)
 
- ! define named variables to describe the form and structure of the matrices used in the numerical solver
+ ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
+ ! NOTE: This indexing scheme provides the matrix structure expected by lapack. Specifically, lapack requires kl extra rows for additional storage.
+ !       Consequently, all indices are offset by kl and the total number of bands for storage is 2*kl+ku+1 instead of kl+ku+1.
  integer(i4b),parameter,public               :: nRHS=1                  ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands
  integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands
@@ -125,8 +127,12 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixSub3=kl+7             ! index for the 3rd sub-diagonal band
  integer(i4b),parameter,public               :: ixSub4=kl+8             ! index for the 3rd sub-diagonal band
  integer(i4b),parameter,public               :: nBands=2*kl+ku+1        ! length of the leading dimension of the band diagonal matrix
+
+ ! define named variables for the type of matrix used in the numerical solution.
  integer(i4b),parameter,public               :: ixFullMatrix=1001       ! named variable for the full Jacobian matrix
  integer(i4b),parameter,public               :: ixBandMatrix=1002       ! named variable for the band diagonal matrix
+
+ ! define indices describing the first and last layers of the Jacobian to print (for debugging)
  integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
  integer(i4b),parameter,public               :: iJac2=10                ! last layer of the Jacobian to print
 
