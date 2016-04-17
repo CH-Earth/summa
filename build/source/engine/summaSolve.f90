@@ -302,7 +302,7 @@ contains
   real(dp)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                    ! line search index
-  integer(i4b),parameter         :: maxLineSearch=20         ! maximum number of backtracks
+  integer(i4b),parameter         :: maxLineSearch=5          ! maximum number of backtracks
   real(dp),parameter             :: alpha=1.e-4_dp           ! check on gradient
   real(dp)                       :: xLambda                  ! backtrack magnitude
   real(dp)                       :: xLambdaTemp              ! temporary backtrack magnitude
@@ -317,24 +317,13 @@ contains
   ! initialize error control
   err=0; message='lineSearchRefinement/'
 
-  ! re-scale the iteration increment
-  xInc(:) = newtStepScaled(:)*xScale(:)
-
-  ! if enthalpy, then need to convert the iteration increment to temperature
-  !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly)/dMat(ixNrgOnly)
-
-  ! impose solution constraints
-  ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on trust regions here
-  call imposeConstraints(stateVecTrial,xInc,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
   ! check the need to compute the line search
   if(doLineSearch)then
 
    ! compute the gradient of the function vector
    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+ 
    ! compute the initial slope
    slopeInit = dot_product(gradScaled,newtStepScaled)
 
@@ -346,8 +335,24 @@ contains
   ! ***** LINE SEARCH LOOP...
   lineSearch: do iLine=1,maxLineSearch  ! try to refine the function by shrinking the step size
 
+   ! back-track along the search direction
+   ! NOTE: start with back-tracking the scaled step
+   xInc(:) = xLambda*newtStepScaled(:)
+
+   ! re-scale the iteration increment
+   xInc(:) = xInc(:)*xScale(:)
+
+   ! if enthalpy, then need to convert the iteration increment to temperature
+   !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
+
+   ! impose solution constraints
+   ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
+   !  (especially the feasibility check)
+   call imposeConstraints(stateVecTrial,xInc,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
    ! compute the iteration increment
-   stateVecNew = stateVecTrial + xLambda*xInc
+   stateVecNew = stateVecTrial + xInc
 
    ! compute the residual vector and function
    ! NOTE: This calls eval8summa in an internal subroutine
