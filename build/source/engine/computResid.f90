@@ -157,8 +157,9 @@ contains
 
  ! compute energy associated with melt/freeze for snow
  ! NOTE: allow expansion of ice during melt-freeze
- if(nSnow>0)&
- rAdd(ixSnowOnlyNrg) = rAdd(ixSnowOnlyNrg) + LH_fus*iden_ice*(mLayerVolFracIceTrial(1:nSnow) - mLayerVolFracIce(1:nSnow))       ! energy associated with melt/freeze (J m-3)
+ if(nSnow>0)then
+  rAdd(ixSnowOnlyNrg) = rAdd(ixSnowOnlyNrg) + LH_fus*iden_ice*(mLayerVolFracIceTrial(1:nSnow) - mLayerVolFracIce(1:nSnow))       ! energy associated with melt/freeze (J m-3)
+ endif
 
  ! compute energy associated with melt/freeze for soil
  ! NOTE: deny expansion of ice during melt-freeze
