@@ -445,6 +445,7 @@ contains
   call summaSolve(&
                   ! input: model control
                   dt,                      & ! intent(in):    length of the time step (seconds)
+                  iter,                    & ! intent(in):    iteration index
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    total number of layers

@@ -65,6 +65,7 @@ contains
  subroutine summaSolve(&
                        ! input: model control
                        dt,                      & ! intent(in):    length of the time step (seconds)
+                       iter,                    & ! intent(in):    iteration index
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
@@ -115,6 +116,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)             :: dt                       ! length of the time step (seconds)
+ integer(i4b),intent(in)         :: iter                     ! interation index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                  ! total number of layers
@@ -374,7 +376,8 @@ contains
    if(.not.feasible) cycle
 
    ! check convergence
-   converged = checkConv(resVecNew,xInc,stateVecNew)
+   ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
+   converged = checkConv(resVecNew,newtStepScaled*xScale,stateVecNew)
    if(converged) return
 
    ! early return if not computing the line search
@@ -406,7 +409,7 @@ contains
     rhs2 = fPrev - fOld - xLambdaPrev*slopeInit
 
     ! define coefficients
-    aCoef = (rhs1/(xLambda*xLambda) - rhs2*(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
+    aCoef = (rhs1/(xLambda*xLambda) - rhs2/(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
     bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
 
     ! check if a quadratic
@@ -648,8 +651,8 @@ contains
 
   ! print progress towards solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv = ', &
-                                                    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
+   write(*,'(a,1x,i4,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'check convergence: ', iter, &
+    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
   endif
 
   ! end associations with variables in the data structures
