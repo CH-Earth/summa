@@ -854,7 +854,7 @@ do modelTimeStep=1,numtim
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
-  
+ 
    ! save the flag for computing the vegetation fluxes
    if(computeVegFluxFlag)      computeVegFlux(iGRU)%hru(iHRU) = yes
    if(.not.computeVegFluxFlag) computeVegFlux(iGRU)%hru(iHRU) = no

@@ -65,6 +65,7 @@ contains
  subroutine summaSolve(&
                        ! input: model control
                        dt,                      & ! intent(in):    length of the time step (seconds)
+                       iter,                    & ! intent(in):    iteration index
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
@@ -115,6 +116,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)             :: dt                       ! length of the time step (seconds)
+ integer(i4b),intent(in)         :: iter                     ! interation index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                  ! total number of layers
@@ -302,7 +304,7 @@ contains
   real(dp)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                    ! line search index
-  integer(i4b),parameter         :: maxLineSearch=20         ! maximum number of backtracks
+  integer(i4b),parameter         :: maxLineSearch=5          ! maximum number of backtracks
   real(dp),parameter             :: alpha=1.e-4_dp           ! check on gradient
   real(dp)                       :: xLambda                  ! backtrack magnitude
   real(dp)                       :: xLambdaTemp              ! temporary backtrack magnitude
@@ -317,24 +319,13 @@ contains
   ! initialize error control
   err=0; message='lineSearchRefinement/'
 
-  ! re-scale the iteration increment
-  xInc(:) = newtStepScaled(:)*xScale(:)
-
-  ! if enthalpy, then need to convert the iteration increment to temperature
-  !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly)/dMat(ixNrgOnly)
-
-  ! impose solution constraints
-  ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on trust regions here
-  call imposeConstraints(stateVecTrial,xInc,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
   ! check the need to compute the line search
   if(doLineSearch)then
 
    ! compute the gradient of the function vector
    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+ 
    ! compute the initial slope
    slopeInit = dot_product(gradScaled,newtStepScaled)
 
@@ -346,8 +337,24 @@ contains
   ! ***** LINE SEARCH LOOP...
   lineSearch: do iLine=1,maxLineSearch  ! try to refine the function by shrinking the step size
 
+   ! back-track along the search direction
+   ! NOTE: start with back-tracking the scaled step
+   xInc(:) = xLambda*newtStepScaled(:)
+
+   ! re-scale the iteration increment
+   xInc(:) = xInc(:)*xScale(:)
+
+   ! if enthalpy, then need to convert the iteration increment to temperature
+   !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
+
+   ! impose solution constraints
+   ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
+   !  (especially the feasibility check)
+   call imposeConstraints(stateVecTrial,xInc,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
    ! compute the iteration increment
-   stateVecNew = stateVecTrial + xLambda*xInc
+   stateVecNew = stateVecTrial + xInc
 
    ! compute the residual vector and function
    ! NOTE: This calls eval8summa in an internal subroutine
@@ -369,7 +376,8 @@ contains
    if(.not.feasible) cycle
 
    ! check convergence
-   converged = checkConv(resVecNew,xInc,stateVecNew)
+   ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
+   converged = checkConv(resVecNew,newtStepScaled*xScale,stateVecNew)
    if(converged) return
 
    ! early return if not computing the line search
@@ -401,7 +409,7 @@ contains
     rhs2 = fPrev - fOld - xLambdaPrev*slopeInit
 
     ! define coefficients
-    aCoef = (rhs1/(xLambda*xLambda) - rhs2*(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
+    aCoef = (rhs1/(xLambda*xLambda) - rhs2/(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
     bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
 
     ! check if a quadratic
@@ -584,13 +592,17 @@ contains
   logical(lgt)              :: liquidConv             ! flag for residual convergence
   logical(lgt)              :: matricConv             ! flag for matric head convergence
   logical(lgt)              :: energyConv             ! flag for energy convergence
+  ! TEMPORARY CODE: use hard-coded convergence parameters
+  real(dp),parameter        :: absConvTol_energy=1.e-0_dp   ! convergence tolerance for energy (J m-3)
+  real(dp),parameter        :: absConvTol_liquid=1.e-8_dp   ! convergence tolerance for volumetric liquid water content (-)
+  real(dp),parameter        :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
   ! convergence parameters
-  absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
-  absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)            ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
-  absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)            ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
+  !absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
+  !absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)            ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
+  !absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)            ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
   ! model indices
@@ -639,8 +651,8 @@ contains
 
   ! print progress towards solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv = ', &
-                                                    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
+   write(*,'(a,1x,i4,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'check convergence: ', iter, &
+    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
   endif
 
   ! end associations with variables in the data structures

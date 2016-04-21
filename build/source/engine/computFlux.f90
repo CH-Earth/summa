@@ -33,6 +33,11 @@ USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
+! control parameters
+USE globalData,only:verySmall       ! a very small number
+USE globalData,only:veryBig         ! a very big number
+USE globalData,only:dx              ! finite difference increment
+
 ! constants
 USE multiconst,only:&
                     gravity,      & ! acceleration of gravity              (m s-2)
@@ -81,11 +86,6 @@ implicit none
 private
 public::computFlux
 public::soilCmpres
-! control parameters
-real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
-real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
-real(dp),parameter  :: dx = 1.e-8_dp              ! finite difference increment
 contains
 
  ! *********************************************************************************************************
@@ -403,7 +403,7 @@ contains
     theta = mLayerVolFracIceTrial(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiqTrial(iLayer)
     mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(mLayerTempTrial(iLayer),snowfrz_scale)*theta
    case(ix_soil) ! (soil layers)
-    if(mLayerVolFracIceTrial(iLayer)>verySmall)then
+    if(mLayerVolFracIceTrial(iLayer) > verySmall)then
      mLayerdTheta_dTk(iLayer)        = dTheta_dTk(mLayerTempTrial(iLayer),theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)  ! assume no volume expansion
     else
      mLayerdTheta_dTk(iLayer)        = 0._dp
@@ -447,9 +447,8 @@ contains
  ! initialize liquid water fluxes throughout the snow and soil domains
  ! NOTE: used in the energy routines, which is called before the hydrology routines
  if(firstFluxCall)then
-  if(nSnow > 0)&
-  iLayerLiqFluxSnow(0:nSnow) = 0._dp
-  iLayerLiqFluxSoil(0:nSoil) = 0._dp
+  if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._dp
+                iLayerLiqFluxSoil(0:nSoil) = 0._dp
  endif
 
  ! *****
@@ -518,6 +517,9 @@ contains
 
  ! check fluxes
  if(globalPrintFlag)then
+  write(*,'(a,1x,f30.20)') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
+  write(*,'(a,1x,f30.20)') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
+  write(*,'(a,1x,f30.20)') 'mLayerTempTrial(1)    = ',  mLayerTempTrial(1)      ! trial value of ground temperature (K)
   write(*,'(a,1x,f30.20)') 'scalarCanairNetNrgFlux = ', scalarCanairNetNrgFlux
   write(*,'(a,1x,f30.20)') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
   write(*,'(a,1x,f30.20)') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
@@ -693,6 +695,7 @@ contains
  endif
 
  ! expand derivatives to the total water matric potential
+ ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
  dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
  dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
 
@@ -746,14 +749,13 @@ contains
  ! compute total baseflow from the soil zone (needed for mass balance checks)
  scalarSoilBaseflow = sum(mLayerBaseflow)
 
-
  ! *****
  ! (7) CALCUALTE FLUXES FOR THE DEEP AQUIFER...
  ! ********************************************
 
  ! identify modeling decision
  if(local_ixGroundwater==bigBucket)then
-  ! deep aquifer is not yet transfered from old code structure
+  ! deep aquifer is not yet transferred from old code structure
   message=trim(message)//'bigBucket groundwater parameterization is not yet transfered from old code structure'
   err=20; return
  else
