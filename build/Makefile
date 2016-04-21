@@ -43,10 +43,10 @@ endif
 # Ubuntu gfortran compiler tested with 4.6 and higher
 # also used for the travis build
 ifeq "$(FC)" "gfortran"
- NCDF_PATH = /opt/netcdf4-gnu
- LAPK_PATH = /usr
+ NCDF_PATH = /opt/netcdf4
+ LAPK_PATH = /opt/local
  # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
 endif
 
 # Intel fortran compiler
@@ -78,9 +78,9 @@ ifeq "$(FC)" "gfortran-mp-4.8"
  FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 endif
 ifeq "$(FC)" "gfortran"
- FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 endif
 ifeq "$(FC)" "ifort"
  FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
@@ -153,6 +153,7 @@ SUMMA_UTILMS= \
 		get_ixname.f90 \
 		time_utils.f90 \
 		ascii_util.f90 \
+		matrixOper.f90 \
 		f2008funcs.f90 \
 		mDecisions.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
@@ -173,6 +174,11 @@ SUMMA_SOLVER= \
 		vegLiqFlux.f90 \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
+		computFlux.f90 \
+		computResid.f90 \
+		computJacob.f90 \
+		eval8summa.f90 \
+		summaSolve.f90 \
 		systemSolv.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))

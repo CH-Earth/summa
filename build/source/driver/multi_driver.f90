@@ -170,6 +170,13 @@ integer(i4b)                     :: iStep=0                    ! index of model 
 integer(i4b)                     :: jStep=0                    ! index of model output
 integer(i4b)                     :: ix_gru                     ! index of GRU that corresponds to the global HRU
 integer(i4b)                     :: ix_hru                     ! index of local HRU that corresponds to the global HRU
+! define the time output
+logical(lgt)                     :: printProgress              ! flag to print progress
+integer(i4b),parameter           :: ixProgress_im=1000         ! named variable to print progress once per month
+integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
+integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
+integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
+integer(i4b)                     :: ixProgress=ixProgress_ih   ! define frequency to write progress
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
@@ -194,6 +201,7 @@ type(hru_d),allocatable          :: upArea(:)                  ! area upslope of
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 integer(i4b)                     :: fileUnit                   ! file unit (output from file_open; a unit not currently used)
+logical(lgt),parameter           :: printTime=.true.           ! flag to print the time information
 character(LEN=256),allocatable   :: dataLines(:)               ! vector of character strings from non-comment lines
 character(LEN=256),allocatable   :: chardata(:)                ! vector of character data
 integer(i4b)                     :: iWord                      ! loop through words in a string
@@ -583,7 +591,7 @@ jstep=1
 do istep=1,numtim
 
  ! set print flag
- globalPrintFlag=.true.
+ globalPrintFlag=.false.
 
  ! read forcing data 
  do iHRU=1,nHRU  ! loop through global HRUs
@@ -612,9 +620,14 @@ do istep=1,numtim
  end do  ! (end looping through global HRUs)
 
  ! print progress
- if(globalPrintFlag)then
-  if(timeStruct%var(iLookTIME%ih) >0) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
- endif
+ select case(ixProgress)
+  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_never); printProgress = .false.
+  case default; call handle_err(20,'unable to identify option for the restart file')
+ end select
+ if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
@@ -792,7 +805,7 @@ do istep=1,numtim
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
-  
+ 
    ! save the flag for computing the vegetation fluxes
    if(computeVegFluxFlag)      computeVegFlux(iGRU)%hru(iHRU) = yes
    if(.not.computeVegFluxFlag) computeVegFlux(iGRU)%hru(iHRU) = no
