@@ -24,8 +24,8 @@ module getVectorz_module
 USE nrtype
 
 ! missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing real number
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing real number
 
 ! layer types
 USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil

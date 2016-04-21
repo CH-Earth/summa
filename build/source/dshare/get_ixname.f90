@@ -21,6 +21,7 @@
 module get_ixname_module
 ! used to get the index of a named variable
 USE nrtype                                          ! variable types, etc.
+USE multiconst,only:integerMissing
 implicit none
 private
 public::get_ixdecisions
@@ -36,6 +37,10 @@ public::get_ixderiv
 public::get_ixindex
 public::get_ixbpar
 public::get_ixbvar
+public::get_ixVarType
+public::get_varTypeName
+public::get_ixUnknown
+public::get_statName
 contains
 
  ! *******************************************************************************************************************
@@ -47,8 +52,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixdecisions         ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! ( 1) simulation start time
@@ -92,7 +95,7 @@ contains
   case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! (39) choice of method for new snow density
   ! get to here if cannot find the variable
   case default
-   get_ixdecisions = imiss
+   get_ixdecisions = integerMissing
  endselect
  end function get_ixdecisions
 
@@ -106,8 +109,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixtime              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   case('iyyy'            ); get_ixtime = iLookTIME%iyyy             ! year
@@ -117,7 +118,7 @@ contains
   case('imin'            ); get_ixtime = iLookTIME%imin             ! minute
   ! get to here if cannot find the variable
   case default
-   get_ixtime = imiss
+   get_ixtime = integerMissing
  endselect
  end function get_ixtime
 
@@ -131,8 +132,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixforce             ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   case('time'            ); get_ixforce = iLookFORCE%time             ! time since time reference       (s)
@@ -145,7 +144,7 @@ contains
   case('airpres'         ); get_ixforce = iLookFORCE%airpres          ! pressure                        (Pa)
   ! get to here if cannot find the variable
   case default
-   get_ixforce = imiss
+   get_ixforce = integerMissing
  endselect
  end function get_ixforce
 
@@ -159,8 +158,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixAttr              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   case('latitude'      ); get_ixAttr = iLookATTR%latitude       ! latitude (degrees north)
@@ -172,7 +169,7 @@ contains
   case('mHeight'       ); get_ixAttr = iLookATTR%mHeight        ! measurement height above bare ground (m)
   ! get to here if cannot find the variable
   case default
-   get_ixAttr = imiss
+   get_ixAttr = integerMissing
  endselect
  end function get_ixAttr
 
@@ -186,8 +183,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixType              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   case('hruIndex'       ); get_ixType = iLookTYPE%hruIndex           ! index defining HRU index
@@ -197,7 +192,7 @@ contains
   case('downHRUindex'   ); get_ixType = iLookTYPE%downHRUindex       ! index of downslope HRU (0 = basin outlet)
   ! get to here if cannot find the variable
   case default
-   get_ixType = imiss
+   get_ixType = integerMissing
  endselect
  end function get_ixType
 
@@ -211,8 +206,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixparam             ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! boundary conditions
@@ -383,7 +376,7 @@ contains
   case('zmaxLayer4_upper'         ); get_ixparam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m)
   ! get to here if cannot find the variable
   case default
-   get_ixparam = imiss
+   get_ixparam = integerMissing
  endselect
  end function get_ixparam
 
@@ -397,8 +390,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixprog              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! variables for time stepping
@@ -430,7 +421,7 @@ contains
   case('iLayerHeight'                   ); get_ixprog = iLookPROG%iLayerHeight                     ! height at the interface of each layer (m)
   ! get to here if cannot find the variable
   case default
-   get_ixprog = imiss
+   get_ixprog = integerMissing
  endselect
  end function get_ixprog
 
@@ -444,8 +435,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixdiag              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! local properties
@@ -538,7 +527,7 @@ contains
   case('scalarVolLatHt_fus'             ); get_ixdiag = iLookDIAG%scalarVolLatHt_fus               ! volumetric latent heat of fusion     (J m-3)
   ! get to here if cannot find the variable
   case default
-   get_ixdiag = imiss
+   get_ixdiag = integerMissing
  endselect
  end function get_ixdiag
 
@@ -552,8 +541,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixflux              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! net energy and mass fluxes for the vegetation domain
@@ -652,7 +639,7 @@ contains
   case('scalarAquiferTranspire'         ); get_ixflux = iLookFLUX%scalarAquiferTranspire           ! transpiration from the aquifer (m s-1)
   case('scalarAquiferBaseflow'          ); get_ixflux = iLookFLUX%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
   case default
-   get_ixflux = imiss
+   get_ixflux = integerMissing
  endselect
  end function get_ixflux
 
@@ -666,8 +653,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! parameter name
  integer(i4b)             :: get_ixderiv             ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
@@ -716,7 +701,7 @@ contains
   case('mLayerdTheta_dTk'               ); get_ixderiv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('dPsiLiq_dTemp'                  ); get_ixderiv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   case default
-   get_ixderiv = imiss
+   get_ixderiv = integerMissing
  endselect
  end function get_ixderiv
 
@@ -730,8 +715,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! parameter name
  integer(i4b)             :: get_ixINDEX             ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! number of state variables of different type
@@ -778,7 +761,7 @@ contains
   case('ifcSoilStartIndex'); get_ixindex = iLookINDEX%ifcSoilStartIndex ! start index of the ifcSoil vector for a given timestep
   case('ifcTotoStartIndex'); get_ixindex = iLookINDEX%ifcTotoStartIndex ! start index of the ifcToto vector for a given timestep
   case default
-   get_ixindex = imiss
+   get_ixindex = integerMissing
  endselect
  end function get_ixindex
 
@@ -792,8 +775,6 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! parameter name
  integer(i4b)             :: get_ixbpar              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! baseflow
@@ -805,7 +786,7 @@ contains
   case('routingGammaScale'        ); get_ixbpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
   ! get to here if cannot find the variable
   case default
-   get_ixbpar = imiss
+   get_ixbpar = integerMissing
  endselect
  end function get_ixbpar
 
@@ -819,12 +800,10 @@ contains
  ! define dummy variables
  character(*), intent(in) :: varName                 ! parameter name
  integer(i4b)             :: get_ixbvar              ! index of the named variable
- ! define local variables
- integer(i4b), parameter  :: imiss = -999            ! missing value
  ! get the index of the named variables
  select case(trim(varName))
   ! derived variables
-  case('basin__totalArea'              ); get_ixbvar = iLookBVAR%basin__totalArea                ! total basin area (m2)
+  case('basin__TotalArea'              ); get_ixbvar = iLookBVAR%basin__totalArea                ! total basin area (m2)
   ! scalar variables -- basin-average runoff and aquifer fluxes
   case('basin__SurfaceRunoff'          ); get_ixbvar = iLookBVAR%basin__SurfaceRunoff            ! surface runoff (m s-1)
   case('basin__ColumnOutflow'          ); get_ixbvar = iLookBVAR%basin__ColumnOutflow            ! outflow from all "outlet" HRUs (those with no downstream HRU)
@@ -839,9 +818,135 @@ contains
   case('averageRoutedRunoff'           ); get_ixbvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
   ! get to here if cannot find the variable
   case default
-   get_ixbvar = imiss
+   get_ixbvar = integerMissing
  endselect
  end function get_ixbvar
 
+ ! *********************************************************************************************************
+ ! public function get_ixVarType: get the index of the named variable type
+ ! *********************************************************************************************************
+ function get_ixVarType(varType)
+ USE var_lookup,only:iLookVarType                    ! indices of the named variable types
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varType                 ! variable type name
+ integer(i4b)             :: get_ixVarType          ! index of the named variable type list
+ ! get the index of the named variables
+ select case(trim(varType))
+  case('scalarv'); get_ixVarType = iLookVarType%scalarv
+  case('wLength'); get_ixVarType = iLookVarType%wLength
+  case('midSnow'); get_ixVarType = iLookVarType%midSnow
+  case('midSoil'); get_ixVarType = iLookVarType%midSoil
+  case('midToto'); get_ixVarType = iLookVarType%midToto
+  case('ifcSnow'); get_ixVarType = iLookVarType%ifcSnow
+  case('ifcSoil'); get_ixVarType = iLookVarType%ifcSoil
+  case('ifcToto'); get_ixVarType = iLookVarType%ifcToto
+  case('routing'); get_ixVarType = iLookVarType%routing
+  case('unknown'); get_ixVarType = iLookVarType%unknown
+  ! get to here if cannot find the variable
+  case default
+   get_ixVarType = integerMissing
+ endselect
+ end function get_ixVarType
+
+ ! ****************************************************************************************************************
+ ! public function get_varTypeName: get the index of the named variable type
+ ! ****************************************************************************************************************
+ function get_varTypeName(varType)
+ USE var_lookup,only:iLookVarType                    ! indices of the named variable types
+ implicit none
+ ! define dummy variables
+ integer(i4b), intent(in) :: varType                 ! variable type name
+ character(LEN=7)         :: get_varTypeName         ! index of the named variable type list
+ ! get the index of the named variables
+ select case(varType)
+  case(iLookVarType%scalarv);get_varTypeName='scalarv'
+  case(iLookVarType%wLength);get_varTypeName='wLength'
+  case(iLookVarType%midSnow);get_varTypeName='midSnow'
+  case(iLookVarType%midSoil);get_varTypeName='midSoil'
+  case(iLookVarType%midToto);get_varTypeName='midToto'
+  case(iLookVarType%ifcSnow);get_varTypeName='ifcSnow'
+  case(iLookVarType%ifcSoil);get_varTypeName='ifcSoil'
+  case(iLookVarType%ifcToto);get_varTypeName='ifcToto'
+  case(iLookVarType%routing);get_varTypeName='routing'
+  case(iLookVarType%unknown);get_varTypeName='unknown'
+  ! get to here if cannot find the variable
+  case default
+   get_VarTypeName = 'missing'
+ endselect
+ end function get_VarTypeName
+
+ ! *******************************************************************************************************************
+ ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the 
+ ! structrue that it was found in
+ ! *******************************************************************************************************************
+ subroutine get_ixUnknown(varName,typeName,vDex,err,message)
+ USE nrtype
+ USE globalData,only:structInfo        ! information on the data structures                  
+ USE multiconst,only:integerMissing    ! missing integer value
+ implicit none
+
+ ! dummies
+ character(*),intent(in)  :: varName   ! variable name
+ character(*),intent(out) :: typeName  ! variable type name
+ integer(i4b),intent(out) :: vDex      ! variable index in structure
+ integer(i4b),intent(out) :: err       ! error code
+ character(*),intent(out) :: message   ! error message
+
+ ! internals
+ integer(i4b)             :: iStruc    ! index for looping through structure types
+
+ ! error init
+ err=0
+ message='get_ixUnknown/'
+
+ ! loop through all structure types to find the one with the given variable name
+ ! pill variable index plus return which structure it was found in
+ do iStruc = 1,size(structInfo)
+  select case(trim(structInfo(iStruc)%structName))
+   case ('time' ); vDex = get_ixTime(trim(varName))
+   case ('forc' ); vDex = get_ixForce(trim(varName))
+   case ('attr' ); vDex = get_ixAttr(trim(varName))
+   case ('type' ); vDex = get_ixType(trim(varName))
+   case ('mpar' ); vDex = get_ixParam(trim(varName))
+   case ('indx' ); vDex = get_ixIndex(trim(varName))
+   case ('prog' ); vDex = get_ixProg(trim(varName))
+   case ('diag' ); vDex = get_ixDiag(trim(varName))
+   case ('flux' ); vDex = get_ixFlux(trim(varName))
+   case ('bpar' ); vDex = get_ixBpar(trim(varName))
+   case ('bvar' ); vDex = get_ixBvar(trim(varName))
+   case ('deriv'); vDex = get_ixDeriv(trim(varName))
+  endselect
+  if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; endif;
+ enddo
+
+ ! 404
+ err=20;message=trim(message)//'variable not found in any structure:'//trim(varName); return;
+
+ end subroutine get_ixUnknown
+
+ ! ***************************************************************************************************************
+ ! public function get_statName: get the name of the output statistics type
+ ! ***************************************************************************************************************
+ function get_statName(istat)
+ USE var_lookup,only:iLookStat                   ! indices of the possible output statistics
+ implicit none
+ ! define dummy variables
+ integer(i4b), intent(in) :: istat               ! stat type name
+ character(LEN=4)         :: get_statName        ! index of the named variable type list
+ ! get the index of the named variables
+ select case(istat)
+  case(iLookStat%totl);get_statName='totl'
+  case(iLookStat%inst);get_statName='inst'
+  case(iLookStat%mean);get_statName='mean'
+  case(iLookStat%vari);get_statName='vari'
+  case(iLookStat%mini);get_statName='mini'
+  case(iLookStat%maxi);get_statName='maxi'
+  case(iLookStat%mode);get_statName='mode'
+  ! get to here if cannot find the variable
+  case default
+   get_statName = 'unkn'
+ endselect
+ end function get_statName
 
 end module get_ixname_module

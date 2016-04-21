@@ -403,6 +403,8 @@ contains
  ! (layer "iSnow" will be filled with a combined layer later)
  ! ***********************************************************************************************************
  subroutine rmLyAllVars(dataStruct,metaStruct,iSnow,err,message)
+ USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  USE f2008funcs_module,only:cloneStruc            ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
  USE data_types,only:var_ilength,var_dlength      ! data vectors with variable length dimension
  USE data_types,only:var_info                     ! metadata structure
@@ -438,11 +440,11 @@ contains
  do ivar=1,size(metaStruct)
 
   ! define bounds
-  select case(trim(metaStruct(ivar)%vartype))
-   case('midSnow'); ix_lower=1; ix_upper=nSnow
-   case('midToto'); ix_lower=1; ix_upper=nLayers
-   case('ifcSnow'); ix_lower=0; ix_upper=nSnow
-   case('ifcToto'); ix_lower=0; ix_upper=nLayers
+  select case(metaStruct(ivar)%vartype)
+   case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
+   case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
+   case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
+   case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
    case default; cycle  ! no need to remove soil layers or scalar variables
   end select
 
