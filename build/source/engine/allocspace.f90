@@ -116,8 +116,8 @@ contains
  else
   
   ! get hru_dim dimension length (ie., the number of hrus in entire domain)
-  err = nf90_inq_dimid(ncid, "nhru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding nHRU dimension'; return; endif
-  err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU); if(err/=0)then; message=trim(message)//'problem reading nHRU dimension'; return; endif
+  err = nf90_inq_dimid(ncid, "hru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding hru dimension'; return; endif
+  err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU); if(err/=0)then; message=trim(message)//'problem reading hru dimension'; return; endif
  
  end if 
  

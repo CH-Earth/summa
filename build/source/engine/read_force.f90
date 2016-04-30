@@ -139,7 +139,7 @@ contains
   err = nf90_inq_varid(ncid,'time',varId);                       if(err/=0)then; message=trim(message)//'cannot find time variable'; return; endif
   err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=0)then; message=trim(message)//'cannot find time units';    return; endif
   err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=0)then; message=trim(message)//'cannot read time units';    return; endif
-  
+
   ! define the reference time for the model simulation
   call extractTime(refTimeString,                         & ! input  = units string for time data
                    refTime%var(iLookTIME%iyyy),           & ! output = year
@@ -219,11 +219,11 @@ contains
    endif  ! first time step is not in any forcing files
 
   end do ! end of search for model first time step in forcing files
-   
+
  endif  ! if the file is not yet open
 
  ! **********************************************************************************************
- ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it, 
+ ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it,
  ! *****         and open new file
  ! *****         Then read the data
  ! **********************************************************************************************
@@ -296,8 +296,8 @@ contains
   ncStart = (/iHRU_global,iRead/)
 
   ! get hruId
-  err = nf90_inq_varid(ncid,'hruId',varId);                   if(err/=0)then; message=trim(message)//'trouble finding HRUid variable'; return; endif
-  err = nf90_get_var(ncid,varId,hruId,start=(/iHRU_global/)); if(err/=0)then; message=trim(message)//'trouble reading HRUid variable'; return; endif
+  err = nf90_inq_varid(ncid,'hruId',varId);                   if(err/=0)then; message=trim(message)//'trouble finding hruId variable'; return; endif
+  err = nf90_get_var(ncid,varId,hruId,start=(/iHRU_global/)); if(err/=0)then; message=trim(message)//'trouble reading hruId variable'; return; endif
 
   ! check that the HRUid is what we expect
   ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
