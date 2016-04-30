@@ -64,7 +64,7 @@ contains
  logical(lgt)                       :: checkHRU(nHRU)   ! vector of flags to check that an HRU will be populated with parameter data
  integer(i4b)                       :: hruID,hruID1     ! HRU identifier
  integer(i4b)                       :: iHRU             ! index of HRU within data vector
- integer(i4b)                       :: kHRU,kGRU        ! index of HRU and GRU within data structure
+ integer(i4b)                       :: jHRU,jGRU        ! index of HRU and GRU within data structure
  integer(i4b)                       :: ipar,jpar        ! index of model parameter
  integer(i4b)                       :: nPars            ! number of model parameters
  integer(i4b)                       :: iRow,nRow        ! number of data lines in the file
@@ -132,9 +132,9 @@ contains
 
  ! identify the HRU index
  hruLoop: do iHRU=1,nHRU
-  kGRU=index_map(iHRU)%gru_ix
-  kHRU=index_map(iHRU)%ihru
-  hruID=typeStruct%gru(kGRU)%hru(kHRU)%var(iLookTYPE%hruIndex) 
+  jGRU=index_map(iHRU)%gru_ix
+  jHRU=index_map(iHRU)%ihru
+  hruID=typeStruct%gru(jGRU)%hru(jHRU)%var(iLookTYPE%hruIndex) 
   dataLoop: do iRow=1,nRow
    ! get the vector of parameters for a given layer, and the HRU index
    read(charline(iRow),*,iostat=err) chardata
@@ -162,7 +162,7 @@ contains
    jpar = get_ixparam(trim(varnames(ipar)))
    if(jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
    ! populate the appropriate element of the parameter vector
-   read(chardata(ipar),*,iostat=err) mparStruct%gru(kGRU)%hru(kHRU)%var(jpar)
+   read(chardata(ipar),*,iostat=err) mparStruct%gru(jGRU)%hru(jHRU)%var(jpar)
    if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
   end do    ! (looping through model parameters)
 

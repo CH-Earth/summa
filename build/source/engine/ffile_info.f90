@@ -142,12 +142,12 @@ contains
   ! set nVar attribute
   forcFileInfo(iFile)%nVars = nVar
 
-  ! inquire nhru dimension size (maybe we need to check the HRU indices are all included instead?)
-  err = nf90_inq_dimid(ncid,'nHRU',dimId);                if(err/=0)then; message=trim(message)//'cannot find dimension nHRU'; return; endif
-  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension nHRU'; return; endif 
+  ! inquire nhru dimension size
+  err = nf90_inq_dimid(ncid,'hru',dimId);                 if(err/=0)then; message=trim(message)//'cannot find dimension hru'; return; endif
+  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif 
 
   ! check if HRUs are less than expected 
-  if(file_nHRU < nHRU)then
+  if (file_nHRU < nHRU) then
    write(message,'(a,i0,a,i0)') trim(message)//'File HRU dimension: ',file_nHRU ,'is smaller than nHRU: ',nHRU
    err=20; return
   endif

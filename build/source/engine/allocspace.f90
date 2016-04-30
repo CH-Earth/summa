@@ -85,16 +85,13 @@ contains
  integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
  integer(i4b)                         :: varid              ! variable id from netcdf file
  integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
- !integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
  integer(i4b),allocatable             :: hru_id(:)          ! unique id of hru over entire domain
  integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs
  integer(i4b),allocatable             :: hru2gru_id(:)      ! unique GRU ids at each HRU
       
  ! define local variables
  integer(i4b)                         :: hruCount           ! number of hrus in a gru
- 
- 
- integer(i4b)                         :: i,j                ! dummy loop index
+ integer(i4b)                         :: iHRU,iGRU          ! loop index of HRU and GRU
 
  ! Start procedure here
  err=0; message="allocate_gru_hru_map/"
@@ -110,17 +107,13 @@ contains
  call nc_file_open(trim(infile), mode, ncid, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
- if (strtHRU>0) then
-  !this is a subset run. assuming the user know the dimemsions
-  
- else
-  
+ if (strtHRU<=0) then
+  ! this is a full run. 
   ! get hru_dim dimension length (ie., the number of hrus in entire domain)
   err = nf90_inq_dimid(ncid, "hru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding hru dimension'; return; endif
   err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU); if(err/=0)then; message=trim(message)//'problem reading hru dimension'; return; endif
  
  end if 
- 
  ! read the hruID and HRU's gruID
  allocate(gru_id(nHRU),hru_id(nHRU),hru2gru_id(nHRU),index_map(nHRU),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
@@ -138,44 +131,45 @@ contains
  gru_id(1) = hru2gru_id(1) 
  index_map(1)%gru_ix = nGRU
  
- outer: do i=2,nHRU
-  do j=1,nGRU
-   if (gru_id(j) == hru2gru_id(i)) then
+ hruLoop: do iHRU=2,nHRU
+  do iGRU=1,nGRU
+   if (gru_id(iGRU) == hru2gru_id(iHRU)) then
+    index_map(iHRU)%gru_ix=iGRU
     ! skip duplicate
-    index_map(i)%gru_ix=j
-    cycle outer
+    cycle hruLoop
    end if
   end do
-  ! No match found so it is a unique GRU
+  ! No match found so it is a unique GRU. add the GRU to the GRU list
   nGRU = nGRU + 1
-  gru_id(nGRU) = hru2gru_id(i)
-  index_map(i)%gru_ix=nGRU
- end do outer
+  gru_id(nGRU) = hru2gru_id(iHRU)
+  index_map(iHRU)%gru_ix=nGRU
+ end do hruLoop
  
 
  ! allocate GRU array
  allocate(gru_struc(nGRU), stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for mapping structures'; return; endif
- 
- ! mapping of hru and gru starts here
- gru_struc%gru_id = gru_id 
- ! allocate 
- do j=1,nGRU  
-  hruCount = count(hru2gru_id==gru_id(j))
-  gru_struc(j)%hruCount = hruCount
-  
-  allocate(gru_struc(j)%hruInfo(hruCount),stat=err)  
+
+ gru_struc%gru_id = gru_id(1:nGRU)
+ ! calculate the HRU number of each GRU and then allocate HRU spaces of each GRU
+ do iGRU=1,nGRU  
+  hruCount = count(hru2gru_id==gru_id(iGRU))
+  gru_struc(iGRU)%hruCount = hruCount
+  allocate(gru_struc(iGRU)%hruInfo(hruCount),stat=err)  
   if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; endif 
  enddo
- ! match
+ 
+ ! mapping the GRU and HRU and save the mapping index
  gru_struc%hruCount = 0
- do i=1,nHRU
-  gru_struc(index_map(i)%gru_ix)%hruCount = gru_struc(index_map(i)%gru_ix)%hruCount + 1
-  index_map(i)%ihru = gru_struc(index_map(i)%gru_ix)%hruCount
-  gru_struc(index_map(i)%gru_ix)%hruInfo(gru_struc(index_map(i)%gru_ix)%hruCount)%hru_id = hru_id(i)
-  gru_struc(index_map(i)%gru_ix)%hruInfo(gru_struc(index_map(i)%gru_ix)%hruCount)%hru_ix = i
+ do iHRU=1,nHRU
+  associate(jHRU => gru_struc(index_map(iHRU)%gru_ix)%hruCount, &
+            jGRU => index_map(iHRU)%gru_ix)  
+   jHRU = jHRU + 1
+   index_map(iHRU)%ihru = jHRU
+   gru_struc(jGRU)%hruInfo(jHRU)%hru_id = hru_id(iHRU)
+   gru_struc(jGRU)%hruInfo(jHRU)%hru_ix = iHRU
+  end associate
  end do
- ! mapping finished
  
 
  ! close the HRU_ATTRIBUTES netCDF file

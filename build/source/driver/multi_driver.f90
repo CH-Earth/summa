@@ -179,7 +179,6 @@ integer(i4b),parameter           :: ixRestart_id=1002          ! named variable 
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
 integer(i4b)                     :: ixRestart=ixRestart_im     ! define frequency to write restart files
 ! define output file
-!character(len=8)                 :: cdate1=''                  ! initial date
 integer(i4b)                     :: ctime1(8)                  ! initial time
 character(len=64)                :: output_fileSuffix=''       ! suffix for the output file
 character(len=256)               :: summaFileManagerFile=''    ! path/name of file defining directories and files
@@ -240,7 +239,7 @@ select case (iargc())
   print*, 'Usage: summa.exe file_suffix master_file <startHRU countHRU>'
   print*, '  summa.exe   -- summa excutable'
   print*, '  file_suffix -- text string defining the output file suffix'
-  print*, '  master_file -- path/name of muster file'
+  print*, '  master_file -- path/name of master file'
   print*, '  startHRU    -- the index of the first HRU for a subset run'
   print*, '  countHRU    -- the number of HRUs for a subset run'
   stop
@@ -696,7 +695,7 @@ do istep=1,numtim
                                  trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
                                  trim(output_fileSuffix),strtHRU,'-',strtHRU+nHRU-1,'.nc'
-  !print *, 'Output write to File '//trim(fileout)
+                                 
   ! define the file
   call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
