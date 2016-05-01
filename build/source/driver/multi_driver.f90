@@ -816,23 +816,24 @@ do istep=1,numtim
    ! run the model for a single parameter set and time step
    call coupled_em(&
                    ! model control
-                   istep,                          & ! intent(in):    time step index
-                   printRestart,                   & ! intent(in):    flag to print a re-start file
-                   output_fileSuffix,              & ! intent(in):    name of the experiment used in the restart file
-                   dt_init(iGRU)%hru(iHRU),        & ! intent(inout): initial time step
-                   computeVegFluxFlag,             & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                   istep,                                   & ! intent(in):    time step index
+                   gru_struc(iGRU)%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
+                   printRestart,                            & ! intent(in):    flag to print a re-start file
+                   output_fileSuffix,                       & ! intent(in):    name of the experiment used in the restart file
+                   dt_init(iGRU)%hru(iHRU),                 & ! intent(inout): initial time step
+                   computeVegFluxFlag,                      & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                    ! data structures (input)
-                   timeStruct,                     & ! intent(in):    model time data
-                   typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    local classification of soil veg etc. for each HRU
-                   attrStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    local attributes for each HRU
-                   forcStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model forcing data
-                   mparStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model parameters
-                   bvarStruct%gru(iGRU),           & ! intent(in):    basin-average model variables
+                   timeStruct,                              & ! intent(in):    model time data
+                   typeStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local classification of soil veg etc. for each HRU
+                   attrStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local attributes for each HRU
+                   forcStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    model forcing data
+                   mparStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    model parameters
+                   bvarStruct%gru(iGRU),                    & ! intent(in):    basin-average model variables
                    ! data structures (input-output)
-                   indxStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model indices
-                   progStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model prognostic variables for a local HRU
-                   diagStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model diagnostic variables for a local HRU
-                   fluxStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model fluxes for a local HRU
+                   indxStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model indices
+                   progStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model prognostic variables for a local HRU
+                   diagStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model diagnostic variables for a local HRU
+                   fluxStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model fluxes for a local HRU
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)

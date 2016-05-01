@@ -49,6 +49,7 @@ contains
  subroutine coupled_em(&
                        ! model control
                        istep,             & ! intent(in):    index of the model time step
+                       hruId,             & ! intent(in):    hruId
                        printRestart,      & ! intent(in):    flag to print a re-start file
                        output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
@@ -120,6 +121,7 @@ contains
  implicit none
  ! model control
  integer(i4b),intent(in)              :: istep                  ! index of model time step
+ integer(i4b),intent(in)              :: hruId                  ! hruId
  logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
  character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
@@ -687,7 +689,7 @@ contains
    if(err<0)then
     ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
-    write(*,'(a,1x,2(f13.3,1x))') trim(cmessage), dt_temp, minstep
+    write(*,'(a,1x,2(f13.3,1x),A,I0)') trim(cmessage), dt_temp, minstep,' at HRU ',hruId
     rejectedStep=.true.
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then
