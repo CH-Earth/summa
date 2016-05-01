@@ -91,6 +91,7 @@ contains
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
+ real(dp)                          :: varTime          ! time variable of current forcing data step being read
  integer(i4b)                      :: nFiles           ! number of forcing files
  real(dp),allocatable              :: fileTime(:)      ! array of time from netcdf file
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
@@ -267,10 +268,10 @@ contains
 
   ! read time data from iRead location in netcdf file
   err = nf90_inq_varid(ncid,'time',varId);                   if(err/=0)then; message=trim(message)//'trouble finding time variable'; return; endif
-  err = nf90_get_var(ncid,varId,dataJulDay,start=(/iRead/)); if(err/=0)then; message=trim(message)//'trouble reading time variable'; return; endif
+  err = nf90_get_var(ncid,varId,varTime,start=(/iRead/)); if(err/=0)then; message=trim(message)//'trouble reading time variable'; return; endif
 
   ! check that the compted julian day matches the time information in the NetCDF file
-  dataJulDay = dataJulDay + refJulday
+  dataJulDay = varTime + refJulday
   if(abs(currentJulday - dataJulDay) > verySmall)then
    write(message,'(a,i0,f18.8,a,f18.8,a)') trim(message)//'date for time step: ',iStep,dataJulDay,' differs from the expected date: ',currentJulDay,' in file: '//trim(infile)
    err=40; return
@@ -309,6 +310,9 @@ contains
   endif
 
   ! read data into forcing structure
+  ! assign the time var, convert days since reference to seconds since reference
+  forc_data(get_ixforce('time')) = varTime*secprday
+  ! other forcing var
   do iNC=1,forcFileInfo(iFile)%nVars
 
    ! inqure about current variable name
@@ -328,9 +332,6 @@ contains
 
    ! get forcing data
    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forc_data(ivar),start=ncStart)
-
-   ! for time, convert days since reference to seconds since reference
-   if(trim(varName)=='time') forc_data(ivar) = forc_data(ivar)*secprday
 
   end do  ! loop through forcing variables
 
