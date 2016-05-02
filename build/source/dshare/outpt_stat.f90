@@ -49,7 +49,7 @@ contains
  character(*)  ,intent(out) :: message  ! error message
 
  ! locals
- character(64)              :: cmessage ! error message
+ character(1024)            :: cmessage ! error message
  integer(i4b)               :: iVar     ! index var_info array 
  integer(i4b)               :: iGRU     ! loop through GRUs
  integer(i4b)               :: iHRU     ! loop through HRUs
@@ -59,6 +59,7 @@ contains
 
  ! loop through grus
  do iGRU = 1,size(gru_struc)
+
   ! take different action ndepending on whether the type has HRUs
   select type(stat)   
    type is (gru_hru_intVec)
@@ -78,6 +79,7 @@ contains
       if (err.ne.0) then; message=trim(message)//'STAT allocate error'; return; endif;
      enddo ! ivar
     enddo ! iHRU
+
    type is (gru_hru_doubleVec)
     ! (1) allocate the GRU level structure
     allocate(stat%gru(size(gru_struc))                           ,stat=err)
@@ -95,6 +97,7 @@ contains
       if (err.ne.0) then; message=trim(message)//'STAT allocate error'; return; endif;
      enddo ! ivar
     enddo ! iHRU
+
    type is (gru_doubleVec)
     ! (1) allocate the GRU level structure
     allocate(stat%gru(size(gru_struc))                ,stat=err)
@@ -108,10 +111,12 @@ contains
      if (err.ne.0) then; message=trim(message)//'STAT allocate error (no HRU)'; return; endif;
     enddo ! ivar
   endselect
+
  enddo ! GRU
 
  return
  end subroutine allocStat
+
 
  ! ******************************************************************************************************
  ! public subroutine calcStats is called at every model timestep to update/store output statistics 
@@ -167,6 +172,7 @@ contains
 
  return
  end subroutine calcStats
+
 
  ! ***********************************************************************************
  ! Private subroutine calc_stats is a generic fucntion to deal with any variable type.

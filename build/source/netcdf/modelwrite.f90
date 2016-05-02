@@ -45,7 +45,7 @@ contains
  ! declare input variables
  integer(i4b)  ,intent(in)   :: iHRU             ! hydrologic response unit
  class(*)      ,intent(in)   :: dat(:)           ! local attributes
- type(var_info),intent(in)   :: meta(:)
+ type(var_info),intent(in)   :: meta(:)          ! metadata structure
  integer(i4b)  ,intent(out)  :: err              ! error code
  character(*)  ,intent(out)  :: message          ! error message
  ! local variables
@@ -91,7 +91,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data
  ! **************************************************************************************
- subroutine writeData(mstep,ostep,meta,stat,dat,indx,iHRU,err,message)
+ subroutine writeData(modelTimestep,outputTimestep,meta,stat,dat,indx,iHRU,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -108,8 +108,8 @@ contains
  class(*)      ,intent(in)     :: dat(:)            ! timestep data
  type(ilength) ,intent(in)     :: indx(:)           ! index data
  integer(i4b)  ,intent(in)     :: iHRU              ! hydrologic response unit
- integer(i4b)  ,intent(in)     :: mStep             ! model time step
- integer(i4b)  ,intent(in)     :: oStep(:)          ! output time step
+ integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
+ integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(out)    :: err               ! error code
  character(*)  ,intent(out)    :: message           ! error message
  ! local variables
@@ -144,7 +144,7 @@ contains
 
  do iFreq = 1,nFreq
   ! check that the timestep is desired
-  if (mod(mStep,outFreq(iFreq)).ne.0) cycle
+  if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
 
    ! loop through model variables
    do iVar = 1,size(meta)
@@ -155,7 +155,7 @@ contains
       typeis (dlength)
        err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
        call netcdf_err(err,message); if (err/=0) return
-       err = nf90_put_var(ncid(iFreq),ncVarID,(/stat(iVar)%dat(iLookStat%inst)/),start=(/oStep(iFreq)/),count=(/1,1/))
+       err = nf90_put_var(ncid(iFreq),ncVarID,(/stat(iVar)%dat(iLookStat%inst)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
        call netcdf_err(err,message); if (err/=0) return
        cycle
      class default; err=20; message=trim(message)//'time variable must be of type dlength'; return; 
@@ -174,16 +174,16 @@ contains
      if (meta(iVar)%varType==iLookVarType%scalarv) then
        selecttype(stat)
         typeis (ilength)
-         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/iHRU,oStep(iFreq)/),count=(/1,1/))
+         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
         typeis (dlength)
-         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/iHRU,oStep(iFreq)/),count=(/1,1/))
+         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
         class default; err=20; message=trim(message)//'stats must be scalarv and either ilength of dlength'; return
        endselect  ! stat 
      else
       selecttype (dat)
        typeis (dlength)
         selectcase (meta(iVar)%varType)
-         case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,oStep(iFreq)/),count=(/1,maxSpectral,1/))
+         case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
          case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
          case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
          case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
@@ -193,7 +193,7 @@ contains
         endselect ! vartype
        typeis (ilength)
         selectcase (meta(iVar)%varType)
-         case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,oStep(iFreq)/),count=(/1,maxSpectral,1/))
+         case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
          case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
          case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
          case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
@@ -205,7 +205,6 @@ contains
      endif ! sacalarv
 
      ! process error code
-     if (err.ne.0) print*, meta(iVar)%ncVarID(iStat)
      if (err.ne.0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
      call netcdf_err(err,message); if (err/=0) return
 
@@ -218,7 +217,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeBasin: write basin-average variables
  ! **************************************************************************************
- subroutine writeBasin(mstep,ostep,meta,stat,dat,indx,err,message)
+ subroutine writeBasin(modelTimestep,outputTimestep,meta,stat,dat,indx,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -234,8 +233,8 @@ contains
  type(dlength) ,intent(in)     :: stat(:)           ! stats data
  type(dlength) ,intent(in)     :: dat(:)            ! timestep data
  type(ilength) ,intent(in)     :: indx(:)           ! index data
- integer(i4b)  ,intent(in)     :: mStep             ! model time step
- integer(i4b)  ,intent(in)     :: oStep(:)          ! output time step
+ integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
+ integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(out)    :: err               ! error code
  character(*)  ,intent(out)    :: message           ! error message
  ! local variables
@@ -247,7 +246,7 @@ contains
 
  do iFreq = 1,nFreq
   ! check that the timestep is desired
-  if (mod(mStep,outFreq(iFreq)).ne.0) cycle
+  if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
 
    ! loop through model variables
    do iVar = 1,size(meta)
@@ -264,10 +263,10 @@ contains
      selectcase (meta(iVar)%varType)
 
       case (iLookVarType%scalarv)
-       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/oStep(iFreq)/),count=(/1/))
+       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/outputTimestep(iFreq)/),count=(/1/))
 
       case (iLookVarType%routing)
-       if (mstep==1) then
+       if (modelTimestep==1) then
         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/1/),count=(/1000/))
        endif
 
@@ -276,7 +275,6 @@ contains
       endselect ! variable type
 
      ! process error code
-     if (err.ne.0) print*, meta(iVar)%ncVarID(iStat)
      if (err.ne.0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName    (iStat))
      call netcdf_err(err,message); if (err/=0) return
 
@@ -289,7 +287,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeTime: write current time to all files 
  ! **************************************************************************************
- subroutine writeTime(mstep,ostep,meta,dat,err,message)
+ subroutine writeTime(modelTimestep,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat,iLookStat           ! index into stats structure
  USE globalData,only:outFreq,nFreq,ncid             ! output file information
@@ -298,8 +296,8 @@ contains
  ! declare dummy variables
  type(var_info),intent(in)     :: meta(:)           ! meta data
  integer       ,intent(in)     :: dat(:)            ! timestep data
- integer(i4b)  ,intent(in)     :: mStep             ! model time step
- integer(i4b)  ,intent(in)     :: oStep(:)          ! output time step
+ integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
+ integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(out)    :: err               ! error code
  character(*)  ,intent(out)    :: message           ! error message
  ! local variables
@@ -311,7 +309,7 @@ contains
 
  do iFreq = 1,nFreq
   ! check that the timestep is desired
-  if (mod(mStep,outFreq(iFreq)).ne.0) cycle
+  if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
 
    ! loop through model variables
    do iVar = 1,size(meta)
@@ -325,7 +323,7 @@ contains
     call netcdf_err(err,message); if (err/=0) then; err=20; return; endif
 
     ! add to file
-    err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/oStep(iFreq)/),count=(/1/))
+    err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
     if (err.gt.0) message=trim(message)//trim(meta(iVar)%varName)
     call netcdf_err(err,message); if (err/=0) then; err=20; return; endif
 

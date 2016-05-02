@@ -395,12 +395,12 @@ call mDecisions(err,message); call handle_err(err,message)
 do iStruct=1,size(structInfo)
  ! allocate space
  select case(trim(structInfo(iStruct)%structName))
-  case('forc'); call allocStat(forc_meta , forcStat , err, message)   ! model forcing data
-  case('prog'); call allocStat(prog_meta , progStat , err, message)   ! model prognostic (state) variables
-  case('diag'); call allocStat(diag_meta , diagStat , err, message)   ! model diagnostic variables
-  case('flux'); call allocStat(flux_meta , fluxStat , err, message)   ! model fluxes
-  case('indx'); call allocStat(flux_meta , indxStat , err, message)   ! index vars
-  case('bvar'); call allocStat(bvar_meta , bvarStat , err, message)   ! basin-average variables
+  case('forc'); call allocStat(forc_meta,forcStat,err,message)   ! model forcing data
+  case('prog'); call allocStat(prog_meta,progStat,err,message)   ! model prognostic (state) variables
+  case('diag'); call allocStat(diag_meta,diagStat,err,message)   ! model diagnostic variables
+  case('flux'); call allocStat(flux_meta,fluxStat,err,message)   ! model fluxes
+  case('indx'); call allocStat(flux_meta,indxStat,err,message)   ! index vars
+  case('bvar'); call allocStat(bvar_meta,bvarStat,err,message)   ! basin-average variables
   case default; cycle;
  endselect  
  ! check errors

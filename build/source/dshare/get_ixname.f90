@@ -933,19 +933,19 @@ contains
  implicit none
  ! define dummy variables
  integer(i4b), intent(in) :: istat               ! stat type name
- character(LEN=4)         :: get_statName        ! index of the named variable type list
+ character(LEN=10)         :: get_statName        ! index of the named variable type list
  ! get the index of the named variables
  select case(istat)
-  case(iLookStat%totl);get_statName='totl'
-  case(iLookStat%inst);get_statName='inst'
+  case(iLookStat%totl);get_statName='total'
+  case(iLookStat%inst);get_statName='instant'
   case(iLookStat%mean);get_statName='mean'
-  case(iLookStat%vari);get_statName='vari'
-  case(iLookStat%mini);get_statName='mini'
-  case(iLookStat%maxi);get_statName='maxi'
+  case(iLookStat%vari);get_statName='variance'
+  case(iLookStat%mini);get_statName='minimum'
+  case(iLookStat%maxi);get_statName='maximum'
   case(iLookStat%mode);get_statName='mode'
   ! get to here if cannot find the variable
   case default
-   get_statName = 'unkn'
+   get_statName = 'unknown'
  endselect
  end function get_statName
 
