@@ -70,7 +70,7 @@ integer(i4b),intent(out)::err
 character(*),intent(out)::message
 ! locals
 logical(lgt)::xist
-integer(i4b),parameter::unt=99 !DK: need to either define units globally, or use getSpareUnit
+integer(i4b),parameter::fileUnit=99 !DK: need to either define units globally, or use getSpareUnit
 character(*),parameter::summaFileManagerHeader="SUMMA_FILE_MANAGER_V1.0"
 character(LEN=100)::temp
 integer(i4b)::ierr ! temporary error code
@@ -88,13 +88,13 @@ if(.not.xist)then
   err=-10; return
 endif
 ! open file manager file
-open(unt,file=summaFileManagerIn,status="old",action="read",iostat=err)
+open(fileUnit,file=summaFileManagerIn,status="old",action="read",iostat=err)
 if(err/=0)then
   message=trim(message)//"fileManagerOpenError['"//trim(summaFileManagerIn)//"']"
   err=10; return
 endif
 ! check the header matches the code
-read(unt,*)temp
+read(fileUnit,*)temp
 if(trim(temp)/=summaFileManagerHeader)then
   message=trim(message)//"unknownHeader&[file='"//trim(summaFileManagerIn)//"']&&
     &[header="//trim(temp)//"]"
@@ -103,28 +103,28 @@ endif
 ! read information from file
 ierr=0 ! initialize errors
 
-call readLine(unt,SETNGS_PATH,      err,message)
-call readLine(unt,INPUT_PATH,       err,message)
-call readLine(unt,OUTPUT_PATH,      err,message)
+call readLine(fileUnit,SETNGS_PATH,err,message); if(err>0) return
+call readLine(fileUnit,INPUT_PATH,err,message); if(err>0) return
+call readLine(fileUnit,OUTPUT_PATH,err,message); if(err>0) return
 
-call readLine(unt,M_DECISIONS ,     err,message)
-call readLine(unt,META_TIME ,       err,message)
-call readLine(unt,META_ATTR,        err,message)
-call readLine(unt,META_TYPE,        err,message)
-call readLine(unt,META_FORCE,       err,message)
-call readLine(unt,META_LOCALPARAM,  err,message)
-call readLine(unt,META_LOCALMVAR ,  err,message)
-call readLine(unt,META_LOCALINDEX,  err,message)
-call readLine(unt,META_BASINPARAM,  err,message)
-call readLine(unt,META_BASINMVAR,   err,message)
-call readLine(unt,LOCAL_ATTRIBUTES, err,message)
-call readLine(unt,LOCALPARAM_INFO,  err,message)
-call readLine(unt,BASINPARAM_INFO,  err,message)
-call readLine(unt,FORCING_FILELIST, err,message)
-call readLine(unt,MODEL_INITCOND,   err,message)
-call readLine(unt,PARAMETER_TRIAL,  err,message)
-call readLine(unt,OUTPUT_PREFIX,    err,message)
-close(unt)
+call readLine(fileUnit,M_DECISIONS,err,message); if(err>0) return
+call readLine(fileUnit,META_TIME,err,message); if(err>0) return
+call readLine(fileUnit,META_ATTR,err,message); if(err>0) return
+call readLine(fileUnit,META_TYPE,err,message); if(err>0) return
+call readLine(fileUnit,META_FORCE,err,message); if(err>0) return
+call readLine(fileUnit,META_LOCALPARAM,err,message); if(err>0) return
+call readLine(fileUnit,META_LOCALMVAR,err,message); if(err>0) return
+call readLine(fileUnit,META_LOCALINDEX,err,message); if(err>0) return
+call readLine(fileUnit,META_BASINPARAM,err,message); if(err>0) return
+call readLine(fileUnit,META_BASINMVAR,err,message); if(err>0) return
+call readLine(fileUnit,LOCAL_ATTRIBUTES,err,message); if(err>0) return
+call readLine(fileUnit,LOCALPARAM_INFO,err,message); if(err>0) return
+call readLine(fileUnit,BASINPARAM_INFO,err,message); if(err>0) return
+call readLine(fileUnit,FORCING_FILELIST,err,message); if(err>0) return
+call readLine(fileUnit,MODEL_INITCOND,err,message); if(err>0) return
+call readLine(fileUnit,PARAMETER_TRIAL,err,message); if(err>0) return
+call readLine(fileUnit,OUTPUT_PREFIX,err,message); if(err>0) return
+close(fileUnit)
 ! check that the output directory exists and write the date and time to a log file
 open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)
 if(err/=0)then; err=10; message=trim(message)//"cannot write to directory '"//trim(OUTPUT_PATH)//"'"; return; endif
@@ -135,34 +135,28 @@ close(runinfo_fileunit)
 ! End procedure here
 end subroutine summa_SetDirsUndPhiles
 
-
-
 ! *************************************************************************************************
 ! public subroutine readLine: read the first string to a string variable
 ! *************************************************************************************************
-subroutine readLine(funt,str,err,message)
+subroutine readLine(fileUnit,inputString,err,message)
 implicit none
-integer(i4b),intent(in)   :: funt
-character(*),intent(inout):: str
+integer(i4b),intent(in)   :: fileUnit
+character(*),intent(inout):: inputString
 integer(i4b),intent(inout):: err
 character(*),intent(inout):: message
 
-
-
-
 do
  ! read line that is not comment
- read(funt,*) str
- if (str(1:1) /= '!') exit
+ read(fileUnit,*) inputString
+ if (inputString(1:1) /= '!') exit
 end do
 
 ! check if there is a space in the character string
-if(index(trim(str),' ')/=0) then
- err=30; message="f-summaSetDirsUndPhiles/spaceInString[string="//trim(str)//"]"
+if(index(trim(inputString),' ')/=0) then
+ err=30; message="f-summaSetDirsUndPhiles/spaceInString[string="//trim(inputString)//"]"
+ return
 endif
 end subroutine readLine
-
-
 
 END MODULE summafilemanager
 

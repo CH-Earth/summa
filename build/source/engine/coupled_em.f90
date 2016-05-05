@@ -454,7 +454,6 @@ contains
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
   !print*, 'canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
 
-  !print*, 'before tempAdjust: canopyDepth = ', canopyDepth
   ! adjust canopy temperature to account for new snow
   call tempAdjust(&
                   ! input: derived parameters

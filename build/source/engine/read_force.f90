@@ -140,7 +140,7 @@ contains
   err = nf90_inq_varid(ncid,'time',varId);                       if(err/=0)then; message=trim(message)//'cannot find time variable'; return; endif
   err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=0)then; message=trim(message)//'cannot find time units';    return; endif
   err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=0)then; message=trim(message)//'cannot read time units';    return; endif
-
+  
   ! define the reference time for the model simulation
   call extractTime(refTimeString,                         & ! input  = units string for time data
                    refTime%var(iLookTIME%iyyy),           & ! output = year
@@ -220,11 +220,11 @@ contains
    endif  ! first time step is not in any forcing files
 
   end do ! end of search for model first time step in forcing files
-
+   
  endif  ! if the file is not yet open
 
  ! **********************************************************************************************
- ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it,
+ ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it, 
  ! *****         and open new file
  ! *****         Then read the data
  ! **********************************************************************************************
@@ -300,15 +300,6 @@ contains
   err = nf90_inq_varid(ncid,'hruId',varId);                   if(err/=0)then; message=trim(message)//'trouble finding hruId variable'; return; endif
   err = nf90_get_var(ncid,varId,hruId,start=(/iHRU_global/)); if(err/=0)then; message=trim(message)//'trouble reading hruId variable'; return; endif
 
-  ! check that the HRUid is what we expect
-  ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
-  if(gru_struc(iGRU)%hruInfo(iHRU_local)%hru_id /= hruId)then
-   write(message,'(a,i0,i0,a,i0,a)') trim(message)//'hruId for global HRU: ', iHRU_global, hruId, 'differs from the expected:',     &
-                                                     gru_struc(iGRU)%hruInfo(iHRU_local)%hru_id, 'in file', trim(infile)
-   write(message,'(a)') trim(message)//'order of hruId in forcing file needs to match order in zLocalAttributes.nc'
-   err=40; return
-  endif
-
   ! read data into forcing structure
   ! assign the time var, convert days since reference to seconds since reference
   forc_data(get_ixforce('time')) = varTime*secprday
@@ -321,7 +312,7 @@ contains
 
    ! make sure the variable name is one desired
    select case(trim(varname))
-    case('time','pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
+    case('pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
     case default; cycle
    end select
 
