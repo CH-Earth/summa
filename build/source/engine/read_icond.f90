@@ -46,6 +46,8 @@ contains
                        gravity,   &  ! gravitational acceleration           (m s-2)
                        Tfreeze       ! freezing point of pure water         (K)
  ! modules
+ USE var_lookup,only:iLookVarType                  ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName        ! to access type strings for error messages
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:MODEL_INITCOND          ! model initial conditions file
  USE snow_utils_module,only:fracliquid             ! compute volumetric fraction of liquid water in snow based on temperature
@@ -277,13 +279,13 @@ contains
     jvar = get_ixprog(trim(varnames(ivar)))
     if(jvar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ivar))//"']"; return; endif
     ! ***** populate the data variable *****
-    select case(trim(prog_meta(jvar)%vartype))
-     case('midSoil'); if(layerType==ix_soil) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil)
-     case('midSnow'); if(layerType==ix_snow) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow)
-     case('midToto');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto)
-     case('ifcSnow');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow-1)  ! IC = top interface
-     case('ifcSoil');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil-1)  ! IC = top interface
-     case('ifcToto');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto-1)  ! IC = top interface
+    select case(prog_meta(jvar)%vartype)
+     case(iLookVarType%midSoil); if(layerType==ix_soil) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil)
+     case(iLookVarType%midSnow); if(layerType==ix_snow) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow)
+     case(iLookVarType%midToto);                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto)
+     case(iLookVarType%ifcSnow);                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow-1)  ! IC = top interf
+     case(iLookVarType%ifcSoil);                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil-1)  ! IC = top interf
+     case(iLookVarType%ifcToto);                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto-1)  ! IC = top interf
      case default
      err=40; message=trim(message)//"unknownInitCondType[name='"//trim(prog_meta(jvar)%varname)//"']"; return
     endselect

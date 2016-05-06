@@ -22,7 +22,9 @@ MODULE data_types
  ! used to define model data structures
  USE nrtype
  USE multiconst,only:integerMissing
+ USE var_lookup,only:maxvarStat
  implicit none
+ ! constants necessary for variable defs
  private
 
  ! ***********************************************************************************************************
@@ -30,9 +32,9 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! the model decision structure
  type,public  :: model_options
-  character(len=64)                      :: cOption='notPopulatedYet'
-  character(len=64)                      :: cDecision='notPopulatedYet'
-  integer(i4b)                           :: iDecision=integerMissing
+  character(len=64)                      :: cOption   = 'notPopulatedYet'
+  character(len=64)                      :: cDecision = 'notPopulatedYet'
+  integer(i4b)                           :: iDecision = integerMissing
  end type model_options
 
  ! ***********************************************************************************************************
@@ -63,11 +65,13 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define derived type for model variables, including name, decription, and units
  type,public :: var_info
-  character(len=64)                      :: varname=''       ! variable name
-  character(len=128)                     :: vardesc=''       ! variable description
-  character(len=64)                      :: varunit=''       ! variable units
-  character(len=32)                      :: vartype=''       ! variable type (scalar, model layers, etc.)
-  logical(lgt)                           :: v_write=.FALSE.  ! flag to write variable to the output file
+  character(len=64)                         :: varname  = 'empty'         ! variable name
+  character(len=128)                        :: vardesc  = 'empty'         ! variable description
+  character(len=64)                         :: varunit  = 'empty'         ! variable units
+  integer(i4b)                              :: vartype  = integerMissing  ! variable type 
+  logical(lgt),dimension(maxvarStat)        :: statFlag = .false.         ! statistic flag (on/off) 
+  integer(i4b)                              :: outFreq  = integerMissing  ! output file id # - each variable may be output to exaclty one of maxFreq output files 
+  integer(i4b),dimension(maxvarStat)        :: ncVarID  = integerMissing  ! netcdf variable id 
  endtype var_info
 
  ! define extended data type (include indices to map onto parent data type)

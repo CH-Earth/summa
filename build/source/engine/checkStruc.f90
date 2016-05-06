@@ -135,18 +135,8 @@ contains
   ! access the data type for the metadata structures
   USE data_types,only:var_info 
   ! get index from character string
-  USE get_ixname_module,only: get_ixtime
-  USE get_ixname_module,only: get_ixattr
-  USE get_ixname_module,only: get_ixtype
-  USE get_ixname_module,only: get_ixforce
-  USE get_ixname_module,only: get_ixparam
-  USE get_ixname_module,only: get_ixindex
-  USE get_ixname_module,only: get_ixbpar
-  USE get_ixname_module,only: get_ixbvar
-  USE get_ixname_module,only: get_ixprog
-  USE get_ixname_module,only: get_ixdiag
-  USE get_ixname_module,only: get_ixflux
-  USE get_ixname_module,only: get_ixderiv
+  USE get_ixname_module,only: get_ixUnknown! variable lookup structure
+  USE multiconst,only:integerMissing       ! missing integer value
   implicit none
   ! dummy variables
   integer(i4b),intent(in)   :: iStruct     ! index of data structure
@@ -156,75 +146,40 @@ contains
   ! local variables
   integer(i4b)              :: iVar        ! index of variable within a data structure
   integer(i4b)              :: jVar        ! index of variable within a data structure (returned from the variable name)
-  integer(i4b)              :: jStruct     ! index of data structure
+  character(LEN=100)        :: typeName    ! name of variable type to be returned by get_ixUnknown
   ! initialize error control
   err=0; message='checkPopulated/'
  
   ! loop through variables
   do iVar=1,size(metadata)
 
-   ! check that the variable is populated
-   if(len(trim(metadata(iVar)%varname))==0)then
+   ! check that this variable is populated 
+   if (trim(metadata(iVar)%varname)=='empty') then
     write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar, ' in structure iLook'//trim(structInfo(iStruct)%lookName)
     err=20; return
    endif
 
-   ! check that the index-from-name lookup returns the correct variable
-   do jStruct=1,nStruct
+   ! look for the populated variable
+   call get_ixUnknown(trim(metadata(iVar)%varname),typeName,jVar,err,message)
 
-    ! (identify if the variable exists in a given structure)
-    select case(trim(structInfo(jStruct)%structName))
-     case('time');  jVar = get_ixtime(trim(metadata(iVar)%varname))
-     case('forc');  jVar = get_ixforce(trim(metadata(iVar)%varname))  
-     case('attr');  jVar = get_ixattr(trim(metadata(iVar)%varname)) 
-     case('type');  jVar = get_ixtype(trim(metadata(iVar)%varname)) 
-     case('mpar');  jVar = get_ixparam(trim(metadata(iVar)%varname))  
-     case('bpar');  jVar = get_ixbpar(trim(metadata(iVar)%varname)) 
-     case('bvar');  jVar = get_ixbvar(trim(metadata(iVar)%varname)) 
-     case('indx');  jVar = get_ixindex(trim(metadata(iVar)%varname)) 
-     case('prog');  jVar = get_ixprog(trim(metadata(iVar)%varname)) 
-     case('diag');  jVar = get_ixdiag(trim(metadata(iVar)%varname)) 
-     case('flux');  jVar = get_ixflux(trim(metadata(iVar)%varname)) 
-     case('deriv'); jVar = get_ixderiv(trim(metadata(iVar)%varname)) 
-     case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
-    end select
-    if(jVar>0)then   ! found the variable in structure jStruct
+   ! check that the variable was found at all
+   if (jVar==integerMissing) then
+    message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
+    err=20; return
+   endif
+   
+   ! check that the variable was found in the correct structure
+   if (trim(structInfo(iStruct)%structName)/=typeName) then
+    message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(typeName)//'_meta'
+    err=20; return
+   endif
 
-     ! --> check that the variable is in the correct structure
-     ! NOTE: The call to checkPopulated includes as input the index of the data structure being tested (iStruct)
-     !       We loop through all other data structures (jStruct), and get to here (jVar>0) if the variable is in another data structure (which could be ambiguous)
-     !       We return an error if the variable is in a structure OTHER than what is expected (i.e., jStruct/=iStruct)
-     if(jStruct/=iStruct)then
-      message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(structInfo(jStruct)%structName)//'_meta'
-      err=20; return
-
-     ! in the correct structure
-     else
-
-      ! --> check that the variable index is correct
-      ! NOTE: Return an error if the variable name in the metadata structure returns an index that is inconsistent with the variable index
-      !       This can occur because (1) the code in popMetadat is corrupt (e.g., mis-match in look-up variable); or (2) var_lookup is corrupt.
-      if(jVar/=iVar)then
-       write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varname)//' has index ', iVar, ' (expect index ', jVar, '); problem possible in popMetadat, get_ix'//trim(structInfo(iStruct)%structName)//', or var_lookup'
-       err=20; return
-      endif
-
-     endif  ! variable found in the correct structure
-
-    ! variable does not exist in structure jStruct
-    else
-
-     ! --> check that we found the variable
-     ! NOTE: We get to here if the variable is not found AND we are in the correct structure.
-     !       This likely means that the variable needs to be added to the get_ix* subroutine.
-     if(iStruct==jStruct)then
-      message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
-      err=20; return
-     endif
-
-    endif  ! if the variable exists in structure jStruct
-
-   end do  ! looping through data structures
+   ! check that the variable index is correct
+   ! This can occur because (1) the code in popMetadat is corrupt (e.g., mis-match in look-up variable); or (2) var_lookup is corrupt.
+   if (jVar/=iVar) then
+    write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varname)//' has index ', iVar, ' (expect index ', jVar, '); problem possible in popMetadat, get_ix'//trim(structInfo(iStruct)%structName)//', or var_lookup'
+    err=20; return
+   endif
 
   end do  ! looping through variables in structure iStruct
 
