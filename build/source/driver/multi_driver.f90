@@ -672,7 +672,6 @@ do modelTimeStep=1,numtim
  globalPrintFlag=.false.
 
  ! read forcing data 
-<<<<<<< HEAD
  do iGRU=1,nGRU
   do localHRU=1,gru_struc(iGRU)%hruCount
    
