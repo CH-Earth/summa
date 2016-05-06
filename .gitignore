@@ -24,3 +24,7 @@ summa.exe
 *log
 *.cbp
 *.layout
+# makefile
+*-local
+make.out
+summa.exe.dSYM*

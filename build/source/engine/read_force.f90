@@ -352,6 +352,8 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! compute the time since the start of the year (in fractional days)
  fracJulday = currentJulday - startJulDay
+ ! set timing of current forcing vector (in seconds since reference day)
+ forc_data(iLookFORCE%time) = (currentJulday-refJulday)*secprday
 
  ! compute the number of days in the current year
  yearLength = 365

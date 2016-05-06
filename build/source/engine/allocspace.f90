@@ -362,6 +362,8 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_dp(metadata,nSnow,nSoil,nLayers, & ! input
                            varData,err,message)            ! output
+ USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
  type(var_info),intent(in)         :: metadata(:) ! metadata structure
@@ -387,18 +389,20 @@ contains
 
   ! allocate structures
   else
-   select case(trim(metadata(iVar)%vartype))
-    case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err)
-    case('wLength'); allocate(varData%var(iVar)%dat(nBand),stat=err)
-    case('midSnow'); allocate(varData%var(iVar)%dat(nSnow),stat=err)
-    case('midSoil'); allocate(varData%var(iVar)%dat(nSoil),stat=err)
-    case('midToto'); allocate(varData%var(iVar)%dat(nLayers),stat=err)
-    case('ifcSnow'); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
-    case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
-    case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
-    case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
-    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
+   select case(metadata(iVar)%vartype)
+    case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
+    case(iLookVarType%wLength); allocate(varData%var(iVar)%dat(nBand),stat=err)
+    case(iLookVarType%midSnow); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case(iLookVarType%midSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case(iLookVarType%midToto); allocate(varData%var(iVar)%dat(nLayers),stat=err)
+    case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
+    case default
+     err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"
+     return
    endselect
    ! check error
    if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
@@ -415,6 +419,8 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
                             varData,err,message)            ! output
+ USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
  type(var_info),intent(in)         :: metadata(:) ! metadata structure
@@ -441,18 +447,18 @@ contains
 
   ! allocate structures
   else
-   select case(trim(metadata(iVar)%vartype))
-    case('scalarv'); allocate(varData%var(iVar)%dat(1),stat=err,errmsg=cmessage)
-    case('wLength'); allocate(varData%var(iVar)%dat(nBand),stat=err,errmsg=cmessage)
-    case('midSnow'); allocate(varData%var(iVar)%dat(nSnow),stat=err,errmsg=cmessage)
-    case('midSoil'); allocate(varData%var(iVar)%dat(nSoil),stat=err,errmsg=cmessage)
-    case('midToto'); allocate(varData%var(iVar)%dat(nLayers),stat=err,errmsg=cmessage)
-    case('ifcSnow'); allocate(varData%var(iVar)%dat(0:nSnow),stat=err,errmsg=cmessage)
-    case('ifcSoil'); allocate(varData%var(iVar)%dat(0:nSoil),stat=err,errmsg=cmessage)
-    case('ifcToto'); allocate(varData%var(iVar)%dat(0:nLayers),stat=err,errmsg=cmessage)
-    case('routing'); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err,errmsg=cmessage)
-    case('unknown'); allocate(varData%var(iVar)%dat(0),stat=err,errmsg=cmessage)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
-    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
+   select case(metadata(iVar)%vartype)
+    case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err,errmsg=cmessage)
+    case(iLookVarType%wLength); allocate(varData%var(iVar)%dat(nBand),stat=err,errmsg=cmessage)
+    case(iLookVarType%midSnow); allocate(varData%var(iVar)%dat(nSnow),stat=err,errmsg=cmessage)
+    case(iLookVarType%midSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err,errmsg=cmessage)
+    case(iLookVarType%midToto); allocate(varData%var(iVar)%dat(nLayers),stat=err,errmsg=cmessage)
+    case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err,errmsg=cmessage)
+    case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err,errmsg=cmessage)
+    case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err,errmsg=cmessage)
+    case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err,errmsg=cmessage)
+    case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err,errmsg=cmessage)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; print*,metadata(iVar)%vartype,metadata(iVar)%varName; return
    endselect
    ! check error
    if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname)//new_line('A')//trim(cmessage); return; endif
