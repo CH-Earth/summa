@@ -103,27 +103,27 @@ endif
 ! read information from file
 ierr=0 ! initialize errors
 
-call readLine(fileUnit,SETNGS_PATH,err,message); if(err>0) return
-call readLine(fileUnit,INPUT_PATH,err,message); if(err>0) return
-call readLine(fileUnit,OUTPUT_PATH,err,message); if(err>0) return
+call readLine(fileUnit,SETNGS_PATH,     err,message); if(err/=0)return
+call readLine(fileUnit,INPUT_PATH,      err,message); if(err/=0)return
+call readLine(fileUnit,OUTPUT_PATH,     err,message); if(err/=0)return
 
-call readLine(fileUnit,M_DECISIONS,err,message); if(err>0) return
-call readLine(fileUnit,META_TIME,err,message); if(err>0) return
-call readLine(fileUnit,META_ATTR,err,message); if(err>0) return
-call readLine(fileUnit,META_TYPE,err,message); if(err>0) return
-call readLine(fileUnit,META_FORCE,err,message); if(err>0) return
-call readLine(fileUnit,META_LOCALPARAM,err,message); if(err>0) return
-call readLine(fileUnit,META_LOCALMVAR,err,message); if(err>0) return
-call readLine(fileUnit,META_LOCALINDEX,err,message); if(err>0) return
-call readLine(fileUnit,META_BASINPARAM,err,message); if(err>0) return
-call readLine(fileUnit,META_BASINMVAR,err,message); if(err>0) return
-call readLine(fileUnit,LOCAL_ATTRIBUTES,err,message); if(err>0) return
-call readLine(fileUnit,LOCALPARAM_INFO,err,message); if(err>0) return
-call readLine(fileUnit,BASINPARAM_INFO,err,message); if(err>0) return
-call readLine(fileUnit,FORCING_FILELIST,err,message); if(err>0) return
-call readLine(fileUnit,MODEL_INITCOND,err,message); if(err>0) return
-call readLine(fileUnit,PARAMETER_TRIAL,err,message); if(err>0) return
-call readLine(fileUnit,OUTPUT_PREFIX,err,message); if(err>0) return
+call readLine(fileUnit,M_DECISIONS,     err,message); if(err/=0)return
+call readLine(fileUnit,META_TIME,       err,message); if(err/=0)return
+call readLine(fileUnit,META_ATTR,       err,message); if(err/=0)return
+call readLine(fileUnit,META_TYPE,       err,message); if(err/=0)return
+call readLine(fileUnit,META_FORCE,      err,message); if(err/=0)return
+call readLine(fileUnit,META_LOCALPARAM, err,message); if(err/=0)return
+call readLine(fileUnit,META_LOCALMVAR,  err,message); if(err/=0)return
+call readLine(fileUnit,META_LOCALINDEX, err,message); if(err/=0)return
+call readLine(fileUnit,META_BASINPARAM, err,message); if(err/=0)return
+call readLine(fileUnit,META_BASINMVAR,  err,message); if(err/=0)return
+call readLine(fileUnit,LOCAL_ATTRIBUTES,err,message); if(err/=0)return
+call readLine(fileUnit,LOCALPARAM_INFO, err,message); if(err/=0)return
+call readLine(fileUnit,BASINPARAM_INFO, err,message); if(err/=0)return
+call readLine(fileUnit,FORCING_FILELIST,err,message); if(err/=0)return
+call readLine(fileUnit,MODEL_INITCOND,  err,message); if(err/=0)return
+call readLine(fileUnit,PARAMETER_TRIAL, err,message); if(err/=0)return
+call readLine(fileUnit,OUTPUT_PREFIX,   err,message); if(err/=0)return
 close(fileUnit)
 ! check that the output directory exists and write the date and time to a log file
 open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)

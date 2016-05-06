@@ -65,6 +65,7 @@ contains
  ! provide access to data
  USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
+ USE globalData,only: index_map                    ! relating different indexing system
  USE globalData,only: gru_struc                    ! gru-hru mapping structures
  use multiconst,only: integerMissing               ! value for missing integer
  
@@ -98,6 +99,7 @@ contains
 
  ! check that gru_struc structure is initialized
  if(allocated(gru_struc)) deallocate(gru_struc)
+ if(allocated(index_map)) deallocate(index_map)
 
  ! build filename
  infile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
@@ -105,18 +107,18 @@ contains
  mode=nf90_noWrite
  call nc_file_open(trim(infile), mode, ncid, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- 
+
  ! get gru_ix dimension length
- err = nf90_inq_dimid(ncid, "gru", gruDimID);             if(err/=0)then; message=trim(message)//'problem finding gru dimension'; return; endif
- err = nf90_inquire_dimension(ncid, gruDimID, len = maxGRU); if(err/=0)then; message=trim(message)//'problem reading gru dimension'; return; endif
+ err = nf90_inq_dimid(ncid, "gru", gruDimID);                if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; endif
+ err = nf90_inquire_dimension(ncid, gruDimID, len = maxGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; endif
   
  if (nGRU == integerMissing) then
   ! this is a full run
   nGRU = maxGRU
  else
-  ! check startGRU and nGRU
+  ! this is a parallelization run; check startGRU and nGRU
   if (startGRU+nGRU-1>maxGRU) then 
-   ! try to reduce nGRU
+   ! try to reduce nGRU for incorrect parallelization specification
    if (startGRU<=maxGRU) then 
     nGRU=maxGRU-startGRU+1
    else
@@ -126,22 +128,22 @@ contains
  end if 
  
  ! get hru_dim dimension length (ie., the number of hrus in entire domain)
- err = nf90_inq_dimid(ncid, "hru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding hru dimension'; return; endif
- err = nf90_inquire_dimension(ncid, hruDimID, len = maxHRU); if(err/=0)then; message=trim(message)//'problem reading hru dimension'; return; endif  
+ err = nf90_inq_dimid(ncid, "hru", hruDimID);                if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; endif
+ err = nf90_inquire_dimension(ncid, hruDimID, len = maxHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; endif  
  
  ! read the HRU to GRU mapping
  allocate(hru2gru_id(maxHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; endif
- err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=0)then; message=trim(message)//'problem finding hru2gruId variable'; return; endif
- err = nf90_get_var(ncid,varid,hru2gru_id);      if(err/=0)then; message=trim(message)//'problem reading hru2gruId variable'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors/'//trim(nf90_strerror(err)); return; endif
+ err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru2gruId variable/'//trim(nf90_strerror(err)); return; endif
+ err = nf90_get_var(ncid,varid,hru2gru_id);      if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru2gruId variable/'//trim(nf90_strerror(err)); return; endif
  
  ! allocate mapping array 
  allocate(gru_struc(nGRU))  
  if (nHRU == integerMissing) then
   ! get GRU Id
   allocate(gru_id(nGRU))  
-  err = nf90_inq_varid(ncid, "gruId", varid);     if(err/=0)then; message=trim(message)//'problem finding gruId variable'; return; endif
-  err = nf90_get_var(ncid,varid,gru_id,start=(/startGRU/),count=(/nGRU/));          if(err/=0)then; message=trim(message)//'problem reading gruId variable'; return; endif  
+  err = nf90_inq_varid(ncid, "gruId", varid);                              if(err/=nf90_noerr)then; message=trim(message)//'problem finding gruId variable/'//trim(nf90_strerror(err)); return; endif
+  err = nf90_get_var(ncid,varid,gru_id,start=(/startGRU/),count=(/nGRU/)); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gruId variable/'//trim(nf90_strerror(err)); return; endif  
   ! allocate HRUs for each GRU 
   do iGRU=1,nGRU
    hruCount = count(hru2gru_id==gru_id(iGRU))
@@ -155,7 +157,7 @@ contains
   gru_struc(1)%hruCount=1
   allocate(gru_struc(1)%hruInfo(1))
  endif
- 
+ allocate(index_map(nHRU))
  ! close the HRU_ATTRIBUTES netCDF file
  err = nf90_close(ncid)
  if(err/=0)then; err=20; message=trim(message)//'error closing zLocalAttributes file'; return; endif
@@ -453,7 +455,7 @@ contains
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(metadata(iVar)%vartype)//"']"; return
    endselect
    ! check error
-   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname)//NEW_LINE('A')//trim(cmessage); return; endif
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname)//new_line('A')//trim(cmessage); return; endif
    ! set to missing
    varData%var(iVar)%dat(:) = missingInteger
   endif  ! if not allocated

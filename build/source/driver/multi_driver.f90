@@ -102,6 +102,7 @@ USE globalData,only:startTime                               ! start time
 USE globalData,only:finshTime                               ! end time
 USE globalData,only:doJacobian                              ! flag to compute the Jacobian
 USE globalData,only:gru_struc                               ! gru-hru mapping structures
+USE globalData,only:index_map                               ! hru-hru mapping structures
 USE globalData,only:localParFallback                        ! local column default parameters
 USE globalData,only:basinParFallback                        ! basin-average default parameters
 USE globalData,only:structInfo                              ! information on the data structures                  
@@ -482,8 +483,8 @@ do iGRU=1,nGRU
  ! loop through local HRUs
  do localHRU=1,gru_struc(iGRU)%hruCount
   kHRU=0
-  ! check the network topology (only expect there to be one downslope HRU) ! this section looks like checking duplicate hruId
-  do jHRU=1,nHRU
+  ! check the network topology (only expect there to be one downslope HRU) ! multiple downslope HRUs only occur if there are multiple var(iLookTYPE%downHRUindex). this section looks like checking duplicate hruId (multiple hruIndex == current downHRUindex)?
+  do jHRU=1,gru_struc(iGRU)%hruCount
    if(typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
     if(kHRU==0)then  ! check there is a unique match
      kHRU=jHRU
@@ -569,8 +570,8 @@ do iGRU=1,nGRU
  ! compute total area of the upstream HRUS that flow into each HRU
  do localHRU=1,gru_struc(iGRU)%hruCount
   upArea(iGRU)%hru(localHRU) = 0._dp
-  do jHRU=1,nHRU
-   ! check if jHRU flows into localHRU
+  do jHRU=1,gru_struc(iGRU)%hruCount
+   ! check if jHRU flows into localHRU; assume no exchange between GRUs
    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
     upArea(iGRU)%hru(localHRU) = upArea(iGRU)%hru(localHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
    endif   ! (if jHRU is an upstream HRU)
@@ -607,7 +608,7 @@ do iGRU=1,nGRU
  end select
 
  ! initialize time step length for each HRU
- do localHRU=1,nHRU
+ do localHRU=1,gru_struc(iGRU)%hruCount
   dt_init(iGRU)%hru(localHRU) = progStruct%gru(iGRU)%hru(localHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
  end do
 
@@ -760,7 +761,7 @@ do istep=1,numtim
    ! NOTE: layer structure is different for each HRU
    gru_struc(iGRU)%hruInfo(localHRU)%nSnow = indxStruct%gru(iGRU)%hru(localHRU)%var(iLookINDEX%nSnow)%dat(1)
    gru_struc(iGRU)%hruInfo(localHRU)%nSoil = indxStruct%gru(iGRU)%hru(localHRU)%var(iLookINDEX%nSoil)%dat(1)
-   nLayers                             = indxStruct%gru(iGRU)%hru(localHRU)%var(iLookINDEX%nLayers)%dat(1)
+   nLayers                                 = indxStruct%gru(iGRU)%hru(localHRU)%var(iLookINDEX%nLayers)%dat(1)
   
    ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
    allocate(zSoilReverseSign(gru_struc(iGRU)%hruInfo(localHRU)%nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
@@ -849,7 +850,7 @@ do istep=1,numtim
 
    kHRU = 0
    ! identify the downslope HRU
-   dsHRU: do jHRU=1,nHRU
+   dsHRU: do jHRU=1,gru_struc(iGRU)%hruCount
     if(typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
@@ -941,7 +942,7 @@ end do  ! (looping through time)
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
 
-call stop_program('simulation finished successfully.')
+call stop_program('finished simulation successfully.')
 
 contains
 

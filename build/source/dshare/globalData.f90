@@ -22,6 +22,7 @@ MODULE globalData
  ! data types
  USE nrtype
  USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
+ USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
  USE data_types,only:model_options   ! the model decision structure
  USE data_types,only:file_info       ! metadata for model forcing datafile
  USE data_types,only:par_info        ! default parameter values and parameter bounds
@@ -101,6 +102,7 @@ MODULE globalData
 
  ! define mapping structures
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing
+ type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map ! NOTE: change variable name to be more self describing
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps

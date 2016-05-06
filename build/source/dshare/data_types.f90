@@ -105,6 +105,12 @@ MODULE data_types
   type(hru_info), allocatable       :: hruInfo(:)               ! basic information of HRUs within the gru
  endtype gru2hru_map
 
+ ! define the mapping from the HRUs to the GRUs
+ type, public :: hru2gru_map
+  integer(i4b)                      :: gru_ix                   ! index of gru which the hru belongs to 
+  integer(i4b)                      :: localHRU                 ! index of a hru within a gru
+ endtype hru2gru_map
+
  ! ***********************************************************************************************************
  ! Define hierarchal derived data types
  ! ***********************************************************************************************************
