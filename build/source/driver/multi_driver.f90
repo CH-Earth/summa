@@ -250,7 +250,7 @@ integer(i4b),parameter           :: iArgumentStartHRU=3        ! index of the ar
 ! *****************************************************************************
 ! get the initial time
 call date_and_time(values=ctime1)
-print "(A,I2,':',I2,':',I2)", 'start at ',ctime1(5:7)
+print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
 ! check numbers of command-line arguments
 select case (getCommandArguments(argString))
  case (defaultArguments)
@@ -506,11 +506,6 @@ call read_param(nGRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
 ! *****************************************************************************
 
-! define the file
-! NOTE: currently assumes that nSoil is constant across the model domain
-write(fileout,'(a,i0,a,i0,a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix),startGRU,'-',startGRU+nGRU-1,'.nc'
-call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
-
 ! loop through GRUs
 do iGRU=1,nGRU
  ! calculate the fraction of runoff in future time steps
@@ -646,15 +641,15 @@ end do  ! (looping through GRUs)
 ! *****************************************************************************
 ! define the file
 ! NOTE: currently assumes that nSoil is constant across the model domain
-write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)
+write(fileout,'(a,i0,a,i0,a,i0,a,i0)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix),startGRU,'-',startGRU+nGRU-1
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
- 
+
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
- do iHRU=1,gru_struc(iGRU)%hruCount
-  call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
-  call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
-  call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
+ do localHRU=1,gru_struc(iGRU)%hruCount
+  call writeParm(gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,attrStruct%gru(iGRU)%hru(localHRU)%var,attr_meta,err,message); call handle_err(err,message)
+  call writeParm(gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,typeStruct%gru(iGRU)%hru(localHRU)%var,type_meta,err,message); call handle_err(err,message)
+  call writeParm(gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,mparStruct%gru(iGRU)%hru(localHRU)%var,mpar_meta,err,message); call handle_err(err,message)
  enddo ! HRU
  call writeParm(integerMissing,bparStruct%gru(iGRU)%var,bpar_meta,err,message); call handle_err(err,message)
 enddo ! GRU
@@ -812,9 +807,6 @@ do modelTimeStep=1,numtim
    ! This line is used for debugging 
    !write(*,'(4(A5,I10))') 'STEP',istep,'GRU',gru_struc(iGRU)%gru_id,'HRU',gru_struc(iGRU)%hruInfo(localHRU)%hru_id,'TYPE',typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%vegTypeIndex)
 
-   ! write the forcing data to the model output file
-   call writeForce(fileout,forcStruct%gru(iGRU)%hru(localHRU),gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,jstep,err,message); call handle_err(err,message)
-
    ! identify the area covered by the current HRU
    fracHRU =  attrStruct%gru(iGRU)%hru(localHRU)%var(iLookATTR%HRUarea) / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
   
@@ -951,11 +943,11 @@ do modelTimeStep=1,numtim
    call calcStats(indxStat%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,indx_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
 
    ! write the model output to the NetCDF file
-   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(localHRU)%var,forcStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(localHRU)%var,progStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(localHRU)%var,diagStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(localHRU)%var,fluxStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(localHRU)%var,forcStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(localHRU)%var,progStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(localHRU)%var,diagStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(localHRU)%var,fluxStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
   
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(localHRU)%nSnow + gru_struc(iGRU)%hruInfo(localHRU)%nSoil
@@ -995,7 +987,7 @@ do modelTimeStep=1,numtim
   call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),bvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
 
   ! write basin-average variables
-  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
+  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,err,message); call handle_err(err,message)
 
  enddo  ! (looping through GRUs)
 

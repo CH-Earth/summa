@@ -11,7 +11,7 @@
 ! The format of each file line is:
 !   (1) | (2) | (3) | (3) | (3) | (3) | (3) | (3) | (3) |
 ! Bars are used as separators, and there are seven possible output statistics for each time-dependent variable:
-!   1. Sum over outptu period
+!   1. Sum over output period
 !   2. Instantaneous value at output timestep
 !   3. Mean over output period
 !   4. Variance over output period

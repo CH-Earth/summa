@@ -53,66 +53,74 @@ contains
  integer(i4b)               :: iVar     ! index var_info array 
  integer(i4b)               :: iGRU     ! loop through GRUs
  integer(i4b)               :: iHRU     ! loop through HRUs
+ integer(i4b)               :: nGRU     ! number of GRUs
 
  ! initialize error control
  err=0; message='allocStat/'
 
- ! loop through grus
- do iGRU = 1,size(gru_struc)
 
-  ! take different action ndepending on whether the type has HRUs
-  select type(stat)   
-   type is (gru_hru_intVec)
-    ! (1) allocate the GRU level structure
-    allocate(stat%gru(size(gru_struc))                           ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'GUR allocate error'; return; endif;
+ ! take different action depending on whether the type has HRUs
+ nGRU = size(gru_struc)
+ select type(stat)   
+  type is (gru_hru_intVec)
+   ! (1) allocate the GRU level structure
+   allocate(stat%gru(nGRU)                           ,stat=err,errmsg=cmessage)
+   if (err.ne.0) then; message=trim(message)//'gru_hru_intVec: GRU allocate error/'//trim(cmessage); return; endif;       
+   ! loop through grus
+   do iGRU = 1,nGRU
     ! (2) allocate the HRU level structure
-    allocate(stat%gru(iGRU)%hru(gru_struc(iGRU)%hruCount)        ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'HRU allocate error'; return; endif;
+    allocate(stat%gru(iGRU)%hru(gru_struc(iGRU)%hruCount)        ,stat=err,errmsg=cmessage)
+    if (err.ne.0) then; message=trim(message)//'gru_hru_intVec: HRU allocate error/'//trim(cmessage); return; endif;
     ! (3) allocate the variable level structure
     do iHRU = 1,gru_struc(iGRU)%hruCount
-     allocate(stat%gru(iGRU)%hru(iHRU)%var(size(meta))           ,stat=err)
-     if (err.ne.0) then; message=trim(message)//'VAR allocate error'; return; endif;
+     allocate(stat%gru(iGRU)%hru(iHRU)%var(size(meta))           ,stat=err,errmsg=cmessage)
+     if (err.ne.0) then; message=trim(message)//'gru_hru_intVec: VAR allocate error/'//trim(cmessage); return; endif;
+     ! (4) allocate the data (statistics) level structure
+     do iVar = 1,size(meta)
+      allocate(stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(maxvarStat+1),stat=err,errmsg=cmessage)
+      if (err.ne.0) then; message=trim(message)//'gru_hru_intVec: STAT allocate error/'//trim(cmessage); return; endif;
+     enddo ! ivar
+    enddo ! iHRU
+   enddo ! iGRU
+
+  type is (gru_hru_doubleVec)
+   ! (1) allocate the GRU level structure
+   allocate(stat%gru(nGRU)                           ,stat=err,errmsg=cmessage)
+   if (err.ne.0) then; message=trim(message)//'gru_hru_doubleVec: GRU allocate error/'//trim(cmessage); return; endif;       
+   ! loop through grus
+   do iGRU = 1,nGRU
+    ! (2) allocate the HRU level structure
+    allocate(stat%gru(iGRU)%hru(gru_struc(iGRU)%hruCount)        ,stat=err,errmsg=cmessage)
+    if (err.ne.0) then; message=trim(message)//'gru_hru_doubleVec: HRU allocate error/'//trim(cmessage); return; endif;
+    ! (3) allocate the variable level structure
+    do iHRU = 1,gru_struc(iGRU)%hruCount
+     allocate(stat%gru(iGRU)%hru(iHRU)%var(size(meta))           ,stat=err,errmsg=cmessage)
+     if (err.ne.0) then; message=trim(message)//'gru_hru_doubleVec: VAR allocate error/'//trim(cmessage); return; endif;
      ! (4) allocate the data (statistics) level structure
      do iVar = 1,size(meta)
       allocate(stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(maxvarStat+1),stat=err)
-      if (err.ne.0) then; message=trim(message)//'STAT allocate error'; return; endif;
+      if (err.ne.0) then; message=trim(message)//'gru_hru_doubleVec: STAT allocate error/'//trim(cmessage); return; endif;
      enddo ! ivar
     enddo ! iHRU
+   enddo ! iGRU
 
-   type is (gru_hru_doubleVec)
-    ! (1) allocate the GRU level structure
-    allocate(stat%gru(size(gru_struc))                           ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'GUR allocate error'; return; endif;
-    ! (2) allocate the HRU level structure
-    allocate(stat%gru(iGRU)%hru(gru_struc(iGRU)%hruCount)        ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'HRU allocate error'; return; endif;
+  type is (gru_doubleVec)
+   ! (1) allocate the GRU level structure
+   allocate(stat%gru(nGRU)                ,stat=err,errmsg=cmessage)
+   if (err.ne.0) then; message=trim(message)//'gru_doubleVec: GRU allocate error (no GRU)/'//trim(cmessage); return; endif;       
+   ! loop through grus
+   do iGRU = 1,nGRU
     ! (3) allocate the variable level structure
-    do iHRU = 1,gru_struc(iGRU)%hruCount
-     allocate(stat%gru(iGRU)%hru(iHRU)%var(size(meta))           ,stat=err)
-     if (err.ne.0) then; message=trim(message)//'VAR allocate error'; return; endif;
-     ! (4) allocate the data (statistics) level structure
-     do iVar = 1,size(meta)
-      allocate(stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(maxvarStat+1),stat=err)
-      if (err.ne.0) then; message=trim(message)//'STAT allocate error'; return; endif;
-     enddo ! ivar
-    enddo ! iHRU
-
-   type is (gru_doubleVec)
-    ! (1) allocate the GRU level structure
-    allocate(stat%gru(size(gru_struc))                ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'GRU allocate error (no GRU)'; return; endif;
-    ! (3) allocate the variable level structure
-    allocate(stat%gru(iGRU)%var(size(meta))           ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'VAR allocate error (no HRU)'; return; endif;
+    allocate(stat%gru(iGRU)%var(size(meta))           ,stat=err,errmsg=cmessage)
+    if (err.ne.0) then; message=trim(message)//'gru_doubleVec: VAR allocate error (no HRU)/'//trim(cmessage); return; endif;
     ! (4) allocate the data (statistics) level structure
     do iVar = 1,size(meta)
-     allocate(stat%gru(iGRU)%var(iVar)%dat(maxvarStat+1),stat=err)
-     if (err.ne.0) then; message=trim(message)//'STAT allocate error (no HRU)'; return; endif;
+     allocate(stat%gru(iGRU)%var(iVar)%dat(maxvarStat+1),stat=err,errmsg=cmessage)
+     if (err.ne.0) then; message=trim(message)//'gru_doubleVec: STAT allocate error (no HRU)/'//trim(cmessage); return; endif;
     enddo ! ivar
-  endselect
+   enddo ! GRU
+ endselect
 
- enddo ! GRU
 
  return
  end subroutine allocStat
