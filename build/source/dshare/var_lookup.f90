@@ -24,8 +24,9 @@ MODULE var_lookup
  implicit none
  private
  ! local variables
- integer(i4b),parameter     :: imiss = -999             ! missing value: used to initialize named variables
- integer(i4b),parameter     :: iLength=storage_size(1)  ! size of an integer
+ integer(i4b),parameter     :: imiss = -999                 ! missing value: used to initialize named variables
+ integer(i4b),parameter     :: ixVal=1                      ! an example integer
+ integer(i4b),parameter     :: iLength=storage_size(ixVal)  ! size of the example integer
 
 
  ! ***********************************************************************************************************
@@ -304,6 +305,7 @@ MODULE var_lookup
   ! state variables for vegetation
   integer(i4b)    :: scalarCanopyIce             = imiss    ! mass of ice on the vegetation canopy (kg m-2)
   integer(i4b)    :: scalarCanopyLiq             = imiss    ! mass of liquid water on the vegetation canopy (kg m-2)
+  integer(i4b)    :: scalarCanopyWat             = imiss    ! mass of total water on the vegetation canopy (kg m-2)
   integer(i4b)    :: scalarCanairTemp            = imiss    ! temperature of the canopy air space (Pa)
   integer(i4b)    :: scalarCanopyTemp            = imiss    ! temperature of the vegetation canopy (K)
   ! state variables for snow
@@ -314,8 +316,9 @@ MODULE var_lookup
   integer(i4b)    :: scalarSfcMeltPond           = imiss    ! ponded water caused by melt of the "snow without a layer" (kg m-2)
   ! state variables for the snow+soil domain
   integer(i4b)    :: mLayerTemp                  = imiss    ! temperature of each layer (K)
-  integer(i4b)    :: mLayerVolFracIce            = imiss    ! volumetric fraction of ice water in each layer (-)
+  integer(i4b)    :: mLayerVolFracIce            = imiss    ! volumetric fraction of ice in each layer (-)
   integer(i4b)    :: mLayerVolFracLiq            = imiss    ! volumetric fraction of liquid water in each layer (-)
+  integer(i4b)    :: mLayerVolFracWat            = imiss    ! volumetric fraction of total water in each layer (-)
   integer(i4b)    :: mLayerMatricHead            = imiss    ! matric head of water in the soil (m)
   ! other state variables
   integer(i4b)    :: scalarAquiferStorage        = imiss    ! relative aquifer storage -- above bottom of the soil profile (m)
@@ -397,7 +400,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarSnowAge                   = imiss ! non-dimensional snow age (-)
   integer(i4b)    :: scalarGroundSnowFraction        = imiss ! fraction of ground that is covered with snow (-)
   integer(i4b)    :: spectralSnowAlbedoDirect        = imiss ! direct snow albedo for individual spectral bands (-)
-  integer(i4b)    :: scalarFracLiqSnow               = imiss ! fraction of liquid water in each snow layer (-)
+  integer(i4b)    :: mLayerFracLiqSnow               = imiss ! fraction of liquid water in each snow layer (-)
   integer(i4b)    :: mLayerThetaResid                = imiss ! residual volumetric water content in each snow layer (-)
   integer(i4b)    :: mLayerPoreSpace                 = imiss ! total pore space in each snow layer (-)
   integer(i4b)    :: mLayerMeltFreeze                = imiss ! change in ice content due to melt/freeze in each layer (kg m-3)
@@ -501,6 +504,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerLiqFluxSnow               = imiss ! net liquid water flux for each snow layer (s-1)
   ! liquid water fluxes for the soil domain
   integer(i4b)    :: scalarRainPlusMelt              = imiss ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
+  integer(i4b)    :: scalarMaxInfilRate              = imiss ! maximum infiltration rate (m s-1)
   integer(i4b)    :: scalarInfiltration              = imiss ! infiltration of water into the soil profile (m s-1)
   integer(i4b)    :: scalarExfiltration              = imiss ! exfiltration of water from the top of the soil profile (m s-1)
   integer(i4b)    :: scalarSurfaceRunoff             = imiss ! surface runoff (m s-1)
@@ -695,7 +699,9 @@ MODULE var_lookup
 
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19)
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
+                                                                         21)
+
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -714,7 +720,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84)
+                                                                         81, 82, 83, 84, 85)
 
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

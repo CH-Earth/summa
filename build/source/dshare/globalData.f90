@@ -47,6 +47,18 @@ MODULE globalData
  implicit none
  private
 
+ ! define missing values
+ real(dp),parameter,public                   :: quadMissing=-9999._qp   ! missing quadruple precision number
+ real(dp),parameter,public                   :: realMissing=-9999._dp   ! missing double precision number
+ integer(i4b),parameter,public               :: integerMissing=-9999    ! missing integer 
+
+ ! define limit checks
+ real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
+ real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
+
+ ! define algorithmix control parameters
+ real(dp),parameter,public                   :: dx = 1.e-8_dp            ! finite difference increment
+
  ! Define the model decisions
  type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
 
@@ -99,6 +111,30 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixWatState=2002         ! named variable defining the total water state variable
  integer(i4b),parameter,public               :: ixMatState=2003         ! named variable defining the matric head state variable
  integer(i4b),parameter,public               :: ixMassState=2004        ! named variable defining the mass of water (currently only used for the veg canopy)
+
+ ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
+ ! NOTE: This indexing scheme provides the matrix structure expected by lapack. Specifically, lapack requires kl extra rows for additional storage.
+ !       Consequently, all indices are offset by kl and the total number of bands for storage is 2*kl+ku+1 instead of kl+ku+1.
+ integer(i4b),parameter,public               :: nRHS=1                  ! number of unknown variables on the RHS of the linear system A.X=B
+ integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands
+ integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands
+ integer(i4b),parameter,public               :: ixSup3=kl+1             ! index for the 3rd super-diagonal band
+ integer(i4b),parameter,public               :: ixSup2=kl+2             ! index for the 2nd super-diagonal band
+ integer(i4b),parameter,public               :: ixSup1=kl+3             ! index for the 1st super-diagonal band
+ integer(i4b),parameter,public               :: ixDiag=kl+4             ! index for the diagonal band
+ integer(i4b),parameter,public               :: ixSub1=kl+5             ! index for the 1st sub-diagonal band
+ integer(i4b),parameter,public               :: ixSub2=kl+6             ! index for the 2nd sub-diagonal band
+ integer(i4b),parameter,public               :: ixSub3=kl+7             ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter,public               :: ixSub4=kl+8             ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter,public               :: nBands=2*kl+ku+1        ! length of the leading dimension of the band diagonal matrix
+
+ ! define named variables for the type of matrix used in the numerical solution.
+ integer(i4b),parameter,public               :: ixFullMatrix=1001       ! named variable for the full Jacobian matrix
+ integer(i4b),parameter,public               :: ixBandMatrix=1002       ! named variable for the band diagonal matrix
+
+ ! define indices describing the first and last layers of the Jacobian to print (for debugging)
+ integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac2=10                ! last layer of the Jacobian to print
 
  ! define mapping structures
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing

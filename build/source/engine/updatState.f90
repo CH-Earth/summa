@@ -92,6 +92,7 @@ contains
                        theta_res        ,& ! intent(in): soil residual volumetric water content (-)
                        vGn_m            ,& ! intent(in): van Genutchen "m" parameter (-)
                        ! output
+                       mLayerVolFracWat ,& ! intent(out): volumetric fraction of total water (-)
                        mLayerVolFracLiq ,& ! intent(out): volumetric fraction of liquid water (-)
                        mLayerVolFracIce ,& ! intent(out): volumetric fraction of ice (-)
                        err,message)        ! intent(out): error control
@@ -108,12 +109,12 @@ contains
  real(dp),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
  real(dp),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
  ! output variables
+ real(dp),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
  real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
  real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
- real(dp)                      :: vTheta               ! fractional volume of total water (-)
  real(dp)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
  real(dp)                      :: xConst               ! constant in the freezing curve function (m K-1)
  real(dp)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
@@ -121,8 +122,8 @@ contains
  err=0; message="updateSoil/"
 
  ! compute fractional **volume** of total water (liquid plus ice)
- vTheta = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
- if(vTheta > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; endif
+ mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+ if(mLayerVolFracWat > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; endif
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
@@ -137,14 +138,14 @@ contains
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
   ! - volumetric ice content (-)
-  mLayerVolFracIce = vTheta - mLayerVolFracLiq
+  mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
 
  ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
  else
 
   ! all water is unfrozen
   mLayerPsiLiq     = mLayerMatricHead
-  mLayerVolFracLiq = vTheta
+  mLayerVolFracLiq = mLayerVolFracWat
   mLayerVolFracIce = 0._dp
 
  endif  ! (check if soil is partially frozen)
