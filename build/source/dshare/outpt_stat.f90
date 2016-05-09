@@ -119,7 +119,7 @@ contains
      if (err.ne.0) then; message=trim(message)//'gru_doubleVec: STAT allocate error (no HRU)/'//trim(cmessage); return; endif;
     enddo ! ivar
    enddo ! GRU
- endselect
+ end select
 
 
  return
@@ -160,12 +160,12 @@ contains
   ! only treat stats of scalars - all others handled separately
   if (meta(iVar)%varType==iLookVarType%scalarv) then
 
-   selecttype (dat)
-    typeis (real(dp)); tdata = dat(iVar)
-    typeis (dlength) ; tdata = dat(iVar)%dat(1)
-    typeis (ilength) ; tdata = real(dat(iVar)%dat(1))
+   select type (dat)
+    type is (real(dp)); tdata = dat(iVar)
+    type is (dlength) ; tdata = dat(iVar)%dat(1)
+    type is (ilength) ; tdata = real(dat(iVar)%dat(1))
     class default;err=20;message=trim(message)//'dat type not found';return
-   endselect
+   end select
 
    ! claculate statistics
    if (trim(meta(iVar)%varName)=='time') then
@@ -215,11 +215,11 @@ contains
  iFreq = meta%outFreq
 
  ! pack back into struc
- selecttype (stat)
-  typeis (ilength); tstat = real(stat%dat)
-  typeis (dlength); tstat = stat%dat
+ select type (stat)
+  type is (ilength); tstat = real(stat%dat)
+  type is (dlength); tstat = stat%dat
   class default;err=20;message=trim(message)//'stat type not found';return
- endselect
+ end select
 
  ! ---------------------------------------------
  ! reset statistics at new frequency period 
@@ -242,7 +242,7 @@ contains
      tstat(iStat) = -huge(tstat(iStat))            ! resets stat at beginning of period
     case (iLookStat%mode)                          ! mode over period (does not work)
      tstat(iStat) = -9999.
-   endselect
+   end select
   enddo ! iStat 
  endif
 
@@ -268,7 +268,7 @@ contains
     if (tdata.ge.tstat(iStat)) tstat(iStat) = tdata! overwrites maximum iff 
    case (iLookStat%mode)                           ! (does not work)
     tstat(iStat) = -9999. 
-  endselect
+  end select
  enddo ! iStat 
 
  ! ---------------------------------------------
@@ -284,16 +284,16 @@ contains
     case (iLookStat%vari)                          ! variance over period
      tstat(maxVarStat+1) = tstat(maxVarStat+1)/outFreq(iFreq) ! E[X] term
      tstat(iStat) = tstat(iStat)/outFreq(iFreq) - tstat(maxVarStat+1)**2 ! full variance
-   endselect
+   end select
   enddo ! iStat 
  endif
 
  ! pack back into struc
- selecttype (stat)
-  typeis (ilength); stat%dat = int(tstat)
-  typeis (dlength); stat%dat = tstat
+ select type (stat)
+  type is (ilength); stat%dat = int(tstat)
+  type is (dlength); stat%dat = tstat
   class default;err=20;message=trim(message)//'stat type not found';return
- endselect
+ end select
 
  return
  end subroutine calc_stats

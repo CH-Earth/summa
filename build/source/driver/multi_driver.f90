@@ -237,11 +237,11 @@ integer(i4b)                     :: iFreq                      ! index for loopi
 integer(i4b)                     :: startGRU                   ! index of the starting GRU for parallelization run
 integer(i4b)                     :: startHRU                   ! index of the HRU for a single HRU run
 character(len=256),allocatable   :: argString(:)               ! string to store command line arguments
-integer(i4b),parameter           :: defaultArguments=2         ! number of command arguments for a  run
-integer(i4b),parameter           :: hruParallelization=3
-integer(i4b),parameter           :: gruParallelization=4
-integer(i4b),parameter           :: iArgumentFileSuffix=1        ! index of the argument of output_fileSuffix
-integer(i4b),parameter           :: iArgumentFileMan=2        ! index of the argument of summaFileManagerFile
+integer(i4b),parameter           :: defaultArguments=2         ! number of command arguments for a full run
+integer(i4b),parameter           :: hruParallelization=3       ! number of command arguments for a single-HRU run
+integer(i4b),parameter           :: gruParallelization=4       ! number of command arguments for a  run
+integer(i4b),parameter           :: iArgumentFileSuffix=1      ! index of the argument of output_fileSuffix
+integer(i4b),parameter           :: iArgumentFileMan=2         ! index of the argument of summaFileManagerFile
 integer(i4b),parameter           :: iArgumentStartGRU=3        ! index of the argument of startGRU
 integer(i4b),parameter           :: iArgumentCountGRU=4        ! index of the argument of countGRU
 integer(i4b),parameter           :: iArgumentStartHRU=3        ! index of the argument of startHRU
@@ -273,13 +273,13 @@ select case (getCommandArguments(argString))
    print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgumentCountGRU))//' GRUs are selected for simulation.'
   end if
  case default
-  print*, 'Usage: summa.exe file_suffix master_file <startGRU countGRU> <hruId>'
+  print*, 'Usage: summa.exe file_suffix master_file [startGRU countGRU] [startHRU]'
   print*, '  summa.exe   -- summa executable'
   print*, '  file_suffix -- text string defining the output file suffix'
   print*, '  master_file -- path/name of master file'
   print*, '  startGRU    -- the index of the first GRU for a parallelization run'
   print*, '  countGRU    -- the number of GRUs for a parallelization run'
-  print*, '  hruId       -- the hruId for a single HRU run'
+  print*, '  startHRU    -- the index of the HRU for a single HRU run'
   stop
 end select
 call handle_err(err,message)
@@ -751,10 +751,10 @@ do modelTimeStep=1,numtim
   enddo
  
   ! define the filename
-  write(fileout,'(a,i0,a,i0,a,i0,a,i0,a)') &
+  write(fileout,'(a,i0,a,i0,a,i0,a,i0)') &
                                  trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
-                                 trim(output_fileSuffix),startGRU,'-',startGRU+nGRU-1,'.nc'
+                                 trim(output_fileSuffix),startGRU,'-',startGRU+nGRU-1
 
   ! define the file
   call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
