@@ -152,11 +152,11 @@ contains
   ! only treat stats of scalars - all others handled separately
   if (meta(iVar)%varType==iLookVarType%scalarv) then
 
-   selecttype (dat)
-    typeis (real(dp)); tdata = dat(iVar)
-    typeis (dlength) ; tdata = dat(iVar)%dat(1)
-    typeis (ilength) ; tdata = real(dat(iVar)%dat(1))
-    class default;err=20;message=trim(message)//'dat type not found';return
+   select type (dat)
+    type is (real(dp)); tdata = dat(iVar)
+    type is (dlength) ; tdata = dat(iVar)%dat(1)
+    type is (ilength) ; tdata = real(dat(iVar)%dat(1))
+    class default; err=20; message=trim(message)//'dat type not found';return
    endselect
 
    ! claculate statistics
@@ -207,9 +207,9 @@ contains
  iFreq = meta%outFreq
 
  ! pack back into struc
- selecttype (stat)
-  typeis (ilength); tstat = real(stat%dat)
-  typeis (dlength); tstat = stat%dat
+ select type (stat)
+  type is (ilength); tstat = real(stat%dat)
+  type is (dlength); tstat = stat%dat
   class default;err=20;message=trim(message)//'stat type not found';return
  endselect
 
@@ -281,9 +281,9 @@ contains
  endif
 
  ! pack back into struc
- selecttype (stat)
-  typeis (ilength); stat%dat = int(tstat)
-  typeis (dlength); stat%dat = tstat
+ select type (stat)
+  type is (ilength); stat%dat = int(tstat)
+  type is (dlength); stat%dat = tstat
   class default;err=20;message=trim(message)//'stat type not found';return
  endselect
 
