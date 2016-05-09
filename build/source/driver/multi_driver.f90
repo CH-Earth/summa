@@ -33,6 +33,7 @@ USE nr_utility_module,only:arth                             ! get a sequence of 
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
 USE ascii_util_module,only:split_line                       ! extract the list of variable names from the character string
+use time_utils_module,only:elapsedSec                       ! calculate the elapsed time
 USE allocspace_module,only:allocate_gru_struc               ! read/allocate space for gru-hru mask structures
 USE allocspace_module,only:allocGlobal                      ! module to allocate space for global data structures
 USE allocspace_module,only:allocLocal                       ! module to allocate space for local data structures
@@ -1089,39 +1090,12 @@ contains
  ! define the local variables
  integer(i4b),parameter :: outunit=6               ! write to screen
  integer(i4b)           :: ctime2(8)               ! final time
- integer(i4b)           :: yy                      ! index of year
- integer(i4b)           :: elpDay                  ! elapsed whole days
- real(sp)               :: elpSec                  ! elapsed seconds
+ real(dp)               :: elpSec                  ! elapsed seconds
  
- ! number of days of each month
- integer(i4b)           :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
- integer(i4b)           :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
  ! get the final date and time
  call date_and_time(values=ctime2)
  
- ! calculate the elapsed time (wall clock time)
- elpSec = (ctime2(8)-ctime1(8))*.001_sp + (ctime2(7)-ctime1(7)) + (ctime2(6)-ctime1(6))*60_sp + (ctime2(5)-ctime1(5))*3600_sp
-
- ! check if the run is within the same day otherwise calculate how many days
- if (ctime2(1) > ctime1(1) .or. ctime2(2) > ctime1(2) .or. ctime2(3) > ctime1(3)) then
-
-  elpDay = 0
-  do yy = ctime1(1), ctime2(1) - 1
-   elpDay = elpDay + 365
-   if ((mod(yy,4)==0 .and. .not. mod(yy,100)==0) .or. (mod(yy,400)==0)) elpDay = elpDay + 1
-  end do
-
-  if ((mod(ctime1(1),4)==0 .and. .not. mod(ctime1(1),100)==0) .or. (mod(ctime1(1),400)==0)) days1(2) = 29
-  if ((mod(ctime2(1),4)==0 .and. .not. mod(ctime2(1),100)==0) .or. (mod(ctime2(1),400)==0)) days2(2) = 29
-
-  if (ctime1(2) > 1) elpDay = elpDay - sum(days1(1:(ctime1(2)-1)))
-  elpDay = elpDay - ctime1(3) 
-
-  if (ctime2(2) > 1) elpDay = elpDay + sum(days2(1:(ctime2(2)-1)))
-  elpDay = elpDay + ctime2(3)
-
-  elpSec = elpSec + elpDay * 86400_sp
- end if
+ elpSec = elapsedSec(ctime1,ctime2)
  
  ! print initial and final date and time
  write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
