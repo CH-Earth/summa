@@ -135,7 +135,11 @@ contains
    iGRU=index_map(iHRU)%gru_ix
    localHRU=index_map(iHRU)%localHRU  
    if(hruIndex == typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then    
-    checkHRU(iHRU) = .true.    
+    if (checkHRU(iHRU)) then
+      err=51;message=trim(message)//"duplicate HRU found in the parameter file at line: "//new_line(' ')//charline(iline); return
+    else
+     checkHRU(iHRU) = .true. 
+    end if 
     exit hruLoop
    endif
   end do hruLoop
