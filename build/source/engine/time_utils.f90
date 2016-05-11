@@ -267,7 +267,7 @@ contains
  
  function elapsedSec(startTime, endTime)
  USE multiconst,only            :  secprday,secprhour,secprmin        ! seconds in an (day, hour, minute)
- integer(i4b),intent(in)        :: startTime(1),endTime(2)            ! state time and end time
+ integer(i4b),intent(in)        :: startTime(8),endTime(8)            ! state time and end time
  real(dp)                       :: elapsedSec                         ! elapsed time in seconds
  ! local variables
  integer(i4b)                   :: elapsedDay                         ! elapsed full days

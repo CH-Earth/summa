@@ -136,7 +136,7 @@ contains
    localHRU=index_map(iHRU)%localHRU  
    if(hruIndex == typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then    
     if (checkHRU(iHRU)) then
-      err=51;message=trim(message)//"duplicate HRU found in the parameter file at line: "//new_line(' ')//charline(iline); return
+     err=51;message=trim(message)//"duplicate HRU found in the parameter file at line: "//new_line(' ')//charline(iline); return
     else
      checkHRU(iHRU) = .true. 
     end if 
