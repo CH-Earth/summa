@@ -36,14 +36,14 @@ contains
  ! data structures
  USE globalData,only:gru_struc          ! gru struct 
  USE var_lookup,only:maxvarStat         ! number of different output statistics
- USE data_types,only:var_info           ! meta type
+ USE data_types,only:extended_info      ! meta type
  USE data_types,only:gru_doubleVec,  &  ! x%gru(:)%var(:)%dat (dp)
                      gru_hru_intVec, &  ! x%gru(:)%var(:)%dat (dp)
                      gru_hru_doubleVec  ! x%gru(:)%hru(:)%var(:)%dat (dp)
  implicit none
 
  ! dummies
- type(var_info),intent(in)  :: meta(:)  ! meta structure
+ type(extended_info),intent(in)  :: meta(:)  ! meta structure
  class(*)      ,intent(out) :: stat     ! stats structure 
  integer(i4b)  ,intent(out) :: err      ! error code
  character(*)  ,intent(out) :: message  ! error message
@@ -124,7 +124,7 @@ contains
  ! ******************************************************************************************************
  subroutine calcStats(stat,dat,meta,iStep,err,message)
  USE nrtype
- USE data_types,only:var_info,dlength,ilength       ! metadata structure type
+ USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE globalData,only:nFreq                          ! output frequencies
  USE var_lookup,only:iLookVarType                   ! named variables for variable types 
  USE var_lookup,only:iLookStat                      ! named variables for output statistics types 
@@ -133,7 +133,7 @@ contains
  ! dummy variables
  type(dlength) ,intent(inout)   :: stat(:)          ! statistics
  class(*)      ,intent(in)      :: dat(:)           ! data
- type(var_info),intent(in)      :: meta(:)          ! metadata
+ type(extended_info),intent(in) :: meta(:)          ! metadata
  integer(i4b)  ,intent(in)      :: iStep            ! timestep index to compare with oFreq of each variable
  integer(i4b)  ,intent(out)     :: err              ! error code
  character(*)  ,intent(out)     :: message          ! error message
@@ -150,12 +150,12 @@ contains
  do iVar = 1,size(meta)                             ! model variables
 
   ! only treat stats of scalars - all others handled separately
-  if (meta(iVar)%varType==iLookVarType%scalarv) then
+  if (meta(iVar)%varType==iLookVarType%outstat) then
 
    selecttype (dat)
-    typeis (real(dp)); tdata = dat(iVar)
-    typeis (dlength) ; tdata = dat(iVar)%dat(1)
-    typeis (ilength) ; tdata = real(dat(iVar)%dat(1))
+    typeis (real(dp)); tdata = dat(meta(iVar)%ixParent)
+    typeis (dlength) ; tdata = dat(meta(iVar)%ixParent)%dat(1)
+    typeis (ilength) ; tdata = real(dat(meta(iVar)%ixParent)%dat(1))
     class default;err=20;message=trim(message)//'dat type not found';return
    endselect
 
@@ -219,7 +219,7 @@ contains
  if ((mod(iStep,outFreq(iFreq))==1).or.(outFreq(iFreq)==1)) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! don't bother if output flag is off
-   if (meta%varType.ne.iLookVarType%scalarv) cycle ! only calculate stats for scalars 
+   if (meta%varType.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars 
    select case(iStat)                              ! act depending on the statistic 
     case (iLookStat%totl)                          ! summation over period
      tstat(iStat) = 0                              ! resets stat at beginning of period
@@ -243,7 +243,7 @@ contains
  ! ---------------------------------------------
  do iStat = 1,maxVarStat                           ! loop through output statistics
   if (.not.meta%statFlag(iStat)) cycle             ! do not bother if output flag is off
-  if (meta%varType.ne.iLookVarType%scalarv) cycle  ! only calculate stats for scalars 
+  if (meta%varType.ne.iLookVarType%outstat) cycle  ! only calculate stats for scalars 
   select case(iStat)                               ! act depending on the statistic 
    case (iLookStat%totl)                           ! summation over period
     tstat(iStat) = tstat(iStat) + tdata            ! into summation
@@ -269,7 +269,7 @@ contains
  if (mod(iStep,outFreq(iFreq))==0) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! do not bother if output flag is off
-   if (meta%vartype.ne.iLookVarType%scalarv) cycle ! only calculate stats for scalars 
+   if (meta%vartype.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars 
    select case(iStat)                              ! act depending on the statistic 
     case (iLookStat%mean)                          ! mean over period
      tstat(iStat) = tstat(iStat)/outFreq(iFreq)    ! normalize sum into mean
