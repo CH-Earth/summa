@@ -501,7 +501,7 @@ end do  ! looping through GRUs
 ! *****************************************************************************
 ! (5c) read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
-call read_param(nGRU,typeStruct,mparStruct,err,message); call handle_err(err,message)
+call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
