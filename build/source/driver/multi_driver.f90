@@ -413,12 +413,12 @@ call mDecisions(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! child metadata structures - so that we do not carry full stats structures around everywhere
 ! only carry stats for scalar varaible
-statForc_mask = (forc_meta(:)%vartype==iLookVarType%scalarv)
-statProg_mask = (prog_meta(:)%vartype==iLookVarType%scalarv)
-statDiag_mask = (diag_meta(:)%vartype==iLookVarType%scalarv)
-statFlux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv)
-statIndx_mask = (indx_meta(:)%vartype==iLookVarType%scalarv)
-statBvar_mask = (bvar_meta(:)%vartype==iLookVarType%scalarv)
+statForc_mask = ((forc_meta(:)%vartype==iLookVarType%scalarv).and.(forc_meta(:)%outfreq>0))
+statProg_mask = ((prog_meta(:)%vartype==iLookVarType%scalarv).and.(prog_meta(:)%outfreq>0)) 
+statDiag_mask = ((diag_meta(:)%vartype==iLookVarType%scalarv).and.(diag_meta(:)%outfreq>0)) 
+statFlux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).and.(flux_meta(:)%outfreq>0)) 
+statIndx_mask = ((indx_meta(:)%vartype==iLookVarType%scalarv).and.(indx_meta(:)%outfreq>0)) 
+statBvar_mask = ((bvar_meta(:)%vartype==iLookVarType%scalarv).and.(bvar_meta(:)%outfreq>0)) 
 
 ! create the stats metadata structures
 do iStruct=1,size(structInfo)
@@ -446,19 +446,13 @@ statBvar_meta(:)%vartype = iLookVarType%outstat
 do iStruct=1,size(structInfo)
  ! allocate space
  select case(trim(structInfo(iStruct)%structName))
-!  case('forc'); call allocStat(statForc_meta,forcStat,err,message)   ! model forcing data
-!  case('prog'); call allocStat(statProg_meta,progStat,err,message)   ! model prognostic (state) variables
-!  case('diag'); call allocStat(statDiag_meta,diagStat,err,message)   ! model diagnostic variables
-!  case('flux'); call allocStat(statFlux_meta,fluxStat,err,message)   ! model fluxes
-!  case('indx'); call allocStat(statFlux_meta,indxStat,err,message)   ! index vars
-!  case('bvar'); call allocStat(statBvar_meta,bvarStat,err,message)   ! basin-average variables
   case('forc'); call allocGlobal(statForc_meta(:)%var_info,forcStat,err,message)   ! model forcing data
   case('prog'); call allocGlobal(statProg_meta(:)%var_info,progStat,err,message)   ! model prognostic (state) variables
   case('diag'); call allocGlobal(statDiag_meta(:)%var_info,diagStat,err,message)   ! model diagnostic variables
   case('flux'); call allocGlobal(statFlux_meta(:)%var_info,fluxStat,err,message)   ! model fluxes
   case('indx'); call allocGlobal(statFlux_meta(:)%var_info,indxStat,err,message)   ! index vars
   case('bvar'); call allocGlobal(statBvar_meta(:)%var_info,bvarStat,err,message)   ! basin-average variables
-  case default; cycle;
+  case default; cycle
  endselect  
  ! check errors
  call handle_err(err,trim(message)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']')
@@ -957,6 +951,9 @@ do modelTimeStep=1,numtim
    call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
 
    ! write the model output to the NetCDF file
+   ! Passes the full metadata structure rather than the stats metadata structure because 
+   !  we have the option to write out data of types other than statistics. 
+   !  Thus, we must also pass the stats parent->child maps from childStruct.
    call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
    call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
    call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
@@ -1003,7 +1000,7 @@ do modelTimeStep=1,numtim
   call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
 
   ! write basin-average variables
-  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
+  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
 
  enddo  ! (looping through GRUs)
 
