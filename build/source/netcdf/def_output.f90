@@ -101,7 +101,7 @@ contains
   fname = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  print*,'Created output file:',trim(fname)
+  print "(A,A)",'Created output file:',trim(fname)
  enddo
 
  ! define model decisions

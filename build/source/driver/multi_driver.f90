@@ -236,58 +236,84 @@ integer(i4b)                     :: iFreq                      ! index for loopi
 
 ! parallelize the model run
 integer(i4b)                     :: startGRU                   ! index of the starting GRU for parallelization run
-integer(i4b)                     :: startHRU                   ! index of the HRU for a single HRU run
+integer(i4b)                     :: checkHRU                   ! index of the HRU for a single HRU run
 character(len=256),allocatable   :: argString(:)               ! string to store command line arguments
-integer(i4b),parameter           :: defaultArguments=2         ! number of command arguments for a full run
-integer(i4b),parameter           :: hruParallelization=3       ! number of command arguments for a single-HRU run
-integer(i4b),parameter           :: gruParallelization=4       ! number of command arguments for a  run
-integer(i4b),parameter           :: iArgumentFileSuffix=1      ! index of the argument of output_fileSuffix
-integer(i4b),parameter           :: iArgumentFileMan=2         ! index of the argument of summaFileManagerFile
-integer(i4b),parameter           :: iArgumentStartGRU=3        ! index of the argument of startGRU
-integer(i4b),parameter           :: iArgumentCountGRU=4        ! index of the argument of countGRU
-integer(i4b),parameter           :: iArgumentStartHRU=3        ! index of the argument of startHRU
+integer(i4b)                     :: nArgument                  ! number of command line arguments
+integer(i4b)                     :: skipArgument               ! number of command line arguments to skip
+integer(i4b)                     :: iArgument                  ! index of command line argument
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
 ! get the initial time
 call date_and_time(values=ctime1)
 print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
-! check numbers of command-line arguments
-select case (getCommandArguments(argString))
- case (defaultArguments)
-  ! this is a full run; nGRU is unknown
-  startGRU=1; nGRU=integerMissing; startHRU=integerMissing;nHRU=integerMissing
- case (hruParallelization)
-  ! this is a single HRU run
-  startGRU=0; nGRU=1; read(argString(iArgumentStartHRU),*) startHRU;nHRU=1
-  if (startHRU<1) then
-   err = 1; message = ' illegal startHRU specification.'
-  else
-   print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgumentStartHRU))//' is selected for simulation.'
-  end if
- case (gruParallelization)
-  ! this is a GRU parallelization run; get the starting GRU and count
-  read(argString(iArgumentStartGRU),*) startGRU; read(argString(iArgumentCountGRU),*) nGRU; startHRU=integerMissing; nHRU=integerMissing
-  if (startGRU<1 .or. nGRU<1) then
-   err = 2; message = ' illegal startGRU or countGRU specification.'
-  else
-   print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgumentCountGRU))//' GRUs are selected for simulation.'
-  end if
- case default
-  print*, 'Usage: summa.exe file_suffix master_file [startGRU countGRU] [startHRU]'
-  print*, '  summa.exe   -- summa executable'
-  print*, '  file_suffix -- text string defining the output file suffix'
-  print*, '  master_file -- path/name of master file'
-  print*, '  startGRU    -- the index of the first GRU for a parallelization run'
-  print*, '  countGRU    -- the number of GRUs for a parallelization run'
-  print*, '  startHRU    -- the index of the HRU for a single HRU run'
-  stop
-end select
-call handle_err(err,message)
-! get command-line arguments for the output file suffix
-output_fileSuffix=trim(argString(iArgumentFileSuffix))
-! get command-line argument for the master file
-summaFileManagerFile=trim(argString(iArgumentFileMan)) ! path/name of file defining directories and files
+
+! check numbers of command-line arguments and obtain all arguments 
+nArgument = getCommandArguments(argString)
+
+if (nArgument < 1) then 
+ call printCommandHelp()
+end if
+
+! initialize command line argument variables
+startGRU=integerMissing; nGRU=integerMissing; checkHRU=integerMissing; nHRU=integerMissing
+summaFileManagerFile = ''; output_fileSuffix = ''
+
+! loop through all command arguments
+skipArgument = 0
+do iArgument= 1, nArgument
+ if (skipArgument>0) then; skipArgument = skipArgument -1; cycle; end if ! skip the arguments have been read 
+ select case (trim(argString(iArgument)))
+  case ('-s', '--suffix')
+   ! define file suffix
+   skipArgument = 1
+   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument file_suffix; type 'summa.exe --help' for correct usage")   ! check if the number of command line arguments is correct
+   output_fileSuffix=trim(argString(iArgument+1))
+   print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
+  case ('-h', '--hru')
+   ! define a single HRU run
+   skipArgument = 1
+   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument checkHRU; type 'summa.exe --help' for correct usage")   ! check if the number of command line arguments is correct
+   read(argString(iArgument+1),*) checkHRU ! read the index of the HRU for a single HRU run 
+   nHRU=1; nGRU=1                          ! nHRU and nGRU are both one in this case
+   ! examines the checkHRU is correct 
+   if (checkHRU<1) then
+    call handle_err(1,"illegal checkHRU specification; type 'summa.exe --help' for correct usage") 
+   else
+    print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgument+1))//' is selected for simulation.'
+   end if
+  case ('-g','--gru')
+   ! define a GRU parallelization run; get the starting GRU and countGRU
+   skipArgument = 2
+   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument startGRU or countGRU; type 'summa.exe --help' for correct usage")   ! check if the number of command line arguments is correct
+   read(argString(iArgument+1),*) startGRU ! read the argument of startGRU
+   read(argString(iArgument+2),*) nGRU     ! read the argument of countGRU 
+   if (startGRU<1 .or. nGRU<1) then
+    call handle_err(1,'startGRU and countGRU must be larger than 1.') 
+   else
+    print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
+   end if
+  case ('--help')
+   call printCommandHelp
+  case default
+   ! this is the master file argument, the file will be opened in subroutine summa_SetDirsUndPhiles
+   if (len(trim(summaFileManagerFile))>0) then
+    ! check if summaFileManagerFile has been defined
+    print "(A)", "master_file has been set to '"//trim(summaFileManagerFile)//"'. Argument '"//trim(argString(iArgument))//"' is ignored."
+   else
+    summaFileManagerFile=trim(argString(iArgument))
+    print "(A)", "master_file is '"//trim(summaFileManagerFile)//"'."
+   end if           
+ end select
+end do 
+! check if master_file has been received.
+if (len(trim(summaFileManagerFile))==0) then
+ call handle_err(1,"master_file is not received; type 'summa.exe --help' for correct usage")
+end if
+if (startGRU/=integerMissing .and. checkHRU/=integerMissing) then 
+ call handle_err(1,"single-HRU run and GRU-parallelization run cannot be both selected.")
+end if
+
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
 ! initialize the Jacobian flag
@@ -414,7 +440,7 @@ do iGRU=1,nGRU
 end do
 
 ! read local attributes for each HRU
-call read_attrb(nGRU,startGRU,startHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
+call read_attrb(nGRU,startGRU,checkHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
@@ -518,7 +544,7 @@ do iGRU=1,nGRU
  ! loop through local HRUs
  do localHRU=1,gru_struc(iGRU)%hruCount
   kHRU=0
-  ! check the network topology (only expect there to be one downslope HRU) ! multiple downslope HRUs only occur if there are multiple var(iLookTYPE%downHRUindex). this section looks like checking duplicate hruId (multiple hruIndex == current downHRUindex)?
+  ! check the network topology (only expect there to be one downslope HRU)
   do jHRU=1,gru_struc(iGRU)%hruCount
    if(typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
     if(kHRU==0)then  ! check there is a unique match
@@ -988,7 +1014,7 @@ do modelTimeStep=1,numtim
   call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),bvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
 
   ! write basin-average variables
-  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,err,message); call handle_err(err,message)
+  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,err,message); call handle_err(err,message)
 
  enddo  ! (looping through GRUs)
 
@@ -1046,11 +1072,11 @@ contains
  else
   write(*,'(a)') 'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
  endif
- ! dump variables
- print*, 'error, variable dump:'
- print*, 'modelTimeStep        = ', modelTimeStep
- if(iGRU<=nGRU)then
-  if(localHRU<=gru_struc(iGRU)%hruCount)then
+ if(iGRU>=1 .and. iGRU<=nGRU)then
+  if(localHRU>=1 .and. localHRU<=gru_struc(iGRU)%hruCount)then
+   ! dump variables
+   print*, 'error, variable dump:'
+   print*, 'modelTimeStep      = ', modelTimeStep
    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex)
    print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(localHRU)%var(iLookFORCE%pptrate)
    print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(localHRU)%var(iLookFORCE%airtemp)
@@ -1075,7 +1101,7 @@ contains
  endif  ! if GRU is valid
  print*,'error code = ', err
  if(allocated(timeStruct%var)) print*, timeStruct%var
- write(*,'(a)') trim(message)
+ !write(*,'(a)') trim(message)
  stop
  end subroutine handle_err
 
@@ -1127,6 +1153,18 @@ contains
   end if
   return
  end function getCommandArguments
+ 
+ subroutine printCommandHelp()  
+  print "(A)", 'Usage: summa.exe master_file [-s file_suffix] [-g startGRU countGRU] [-h checkHRU]'
+  print "(A)", '  summa.exe   -- summa executable'
+  print "(A)", '  file_suffix -- text string defining the output file suffix'
+  print "(A)", '  master_file -- path/name of master file'
+  print "(A)", '  startGRU    -- the index of the first GRU for a parallelization run'
+  print "(A)", '  countGRU    -- the number of GRUs for a parallelization run'
+  print "(A)", '  checkHRU    -- the index of the HRU for a single HRU run'
+  stop 
+ end subroutine printCommandHelp
+
 end program multi_driver
 
 

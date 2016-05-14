@@ -217,7 +217,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeBasin: write basin-average variables
  ! **************************************************************************************
- subroutine writeBasin(modelTimestep,outputTimestep,meta,stat,dat,indx,err,message)
+ subroutine writeBasin(modelTimestep,outputTimestep,meta,stat,dat,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -232,7 +232,6 @@ contains
  type(var_info),intent(in)     :: meta(:)           ! meta data
  type(dlength) ,intent(in)     :: stat(:)           ! stats data
  type(dlength) ,intent(in)     :: dat(:)            ! timestep data
- type(ilength) ,intent(in)     :: indx(:)           ! index data
  integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
  integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(out)    :: err               ! error code

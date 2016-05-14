@@ -73,7 +73,7 @@ contains
  ! define output
  integer(i4b),intent(inout)           :: nGRU               ! number of grouped response units
  integer(i4b),intent(inout)           :: nHRU               ! number of hydrologic response units
- integer(i4b),intent(in)              :: startGRU           ! index of the starting GRU for parallelization run
+ integer(i4b),intent(inout)           :: startGRU           ! index of the starting GRU for parallelization run
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  ! define general variables
@@ -114,10 +114,11 @@ contains
   
  if (nGRU == integerMissing) then
   ! this is a full run
+  startGRU = 1
   nGRU = maxGRU
  else
-  ! this is a parallelization run; check startGRU and nGRU
-  if (startGRU+nGRU-1>maxGRU) then 
+  ! this is a GRU parallelization run; check startGRU and nGRU
+  if (nHRU == integerMissing .and. startGRU+nGRU-1>maxGRU) then 
    ! try to reduce nGRU for incorrect parallelization specification
    if (startGRU<=maxGRU) then 
     nGRU=maxGRU-startGRU+1
@@ -140,7 +141,9 @@ contains
  ! allocate mapping array 
  allocate(gru_struc(nGRU))  
  if (nHRU == integerMissing) then
-  ! get GRU Id
+  ! for full run or GRU parallelization run (looping over a set of GRUs),
+  ! GRU Ids are retrieved from gruId in the local attribute file; 
+  ! otherwise for single HRU run, gruId is retrieved from hru2gru.
   allocate(gru_id(nGRU))  
   err = nf90_inq_varid(ncid, "gruId", varid);                              if(err/=nf90_noerr)then; message=trim(message)//'problem finding gruId variable/'//trim(nf90_strerror(err)); return; endif
   err = nf90_get_var(ncid,varid,gru_id,start=(/startGRU/),count=(/nGRU/)); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gruId variable/'//trim(nf90_strerror(err)); return; endif  

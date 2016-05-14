@@ -63,14 +63,14 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! Define variable metadata
  ! ***********************************************************************************************************
- ! define derived type for model variables, including name, decription, and units
+ ! define derived type for model variables, including name, description, and units
  type,public :: var_info
   character(len=64)                         :: varname  = 'empty'         ! variable name
   character(len=128)                        :: vardesc  = 'empty'         ! variable description
   character(len=64)                         :: varunit  = 'empty'         ! variable units
   integer(i4b)                              :: vartype  = integerMissing  ! variable type 
   logical(lgt),dimension(maxvarStat)        :: statFlag = .false.         ! statistic flag (on/off) 
-  integer(i4b)                              :: outFreq  = integerMissing  ! output file id # - each variable may be output to exaclty one of maxFreq output files 
+  integer(i4b)                              :: outFreq  = integerMissing  ! output file id # - each variable may be output to exactly one of maxFreq output files 
   integer(i4b),dimension(maxvarStat)        :: ncVarID  = integerMissing  ! netcdf variable id 
  endtype var_info
 

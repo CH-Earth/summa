@@ -28,7 +28,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(nGRU,startGRU,startHRU,attrStruct,typeStruct,err,message)
+ subroutine read_attrb(nGRU,startGRU,checkHRU,attrStruct,typeStruct,err,message)
  ! provide access to subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open          ! open netcdf file
@@ -52,7 +52,7 @@ contains
  ! define input
  integer(i4b),intent(in)              :: nGRU            ! number of grouped response units
  integer(i4b),intent(in)              :: startGRU        ! index of the starting GRU for parallelization run
- integer(i4b),intent(in)              :: startHRU        ! index of the HRU for single-HRU run
+ integer(i4b),intent(in)              :: checkHRU        ! index of the HRU for single-HRU run
  ! define output
  type(gru_hru_double),intent(inout)   :: attrStruct      ! local attributes for each HRU
  type(gru_hru_int),intent(inout)      :: typeStruct      ! local classification of soil veg etc. for each HRU
@@ -152,7 +152,7 @@ contains
 
  ! fill global mapping structures
  ! gru_struc contains the HRU index for HRUs in GRUs and the unique HRU id for each HRU in each GRU
- if (startHRU == missingInteger) then   
+ if (checkHRU == missingInteger) then   
   ! non single-HRU run 
   
   ! read gru_id from netcdf file
@@ -176,10 +176,10 @@ contains
   end do
  else 
   ! single-HRU run 
-  if (startHRU>maxHRU) then; err=21; message=trim(message)//'StartHRU is larger than the HRU dimension in the input files.'; return; endif 
-  gru_struc(1)%hruInfo(1)%hru_id = hru_id(startHRU)
+  if (checkHRU>maxHRU) then; err=21; message=trim(message)//'checkHRU is larger than the HRU dimension in the input files.'; return; endif 
+  gru_struc(1)%hruInfo(1)%hru_id = hru_id(checkHRU)
   gru_struc(1)%hruInfo(1)%hru_ix = 1
-  gru_struc(1)%hruInfo(1)%hru_ncdf = startHRU
+  gru_struc(1)%hruInfo(1)%hru_ncdf = checkHRU
   index_map(1)%gru_ix   = 1      ! GRU index for each HRU
   index_map(1)%localHRU = 1      ! localHRU index for each HRU
  end if
