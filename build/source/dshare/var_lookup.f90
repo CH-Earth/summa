@@ -334,6 +334,7 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public :: iLook_diag
   ! local properties
+  integer(i4b)    :: scalarCanopyDepth               = imiss ! canopy depth (m)
   integer(i4b)    :: scalarGreenVegFraction          = imiss ! green vegetation fraction used to compute LAI (-)
   integer(i4b)    :: scalarBulkVolHeatCapVeg         = imiss ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
   integer(i4b)    :: scalarCanopyEmissivity          = imiss ! effective canopy emissivity (-)
@@ -710,7 +711,7 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72, 73, 74, 75, 76, 77, 78)
+                                                                         71, 72, 73, 74, 75, 76, 77, 78, 79)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

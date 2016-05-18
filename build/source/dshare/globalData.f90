@@ -107,10 +107,12 @@ MODULE globalData
  integer(i4b),parameter,public               :: ix_snow=1002            ! named variable to denote a snow layer
 
  ! define named variables to describe the state varible type            
- integer(i4b),parameter,public               :: ixNrgState=2001         ! named variable defining the energy state variable
- integer(i4b),parameter,public               :: ixWatState=2002         ! named variable defining the total water state variable
- integer(i4b),parameter,public               :: ixMatState=2003         ! named variable defining the matric head state variable
- integer(i4b),parameter,public               :: ixMassState=2004        ! named variable defining the mass of water (currently only used for the veg canopy)
+ integer(i4b),parameter,public               :: iname_nrgCanair=2001    ! named variable defining the energy of the canopy air space
+ integer(i4b),parameter,public               :: iname_nrgCanopy=2002    ! named variable defining the energy of the vegetation canopy
+ integer(i4b),parameter,public               :: iname_watCanopy=2003    ! named variable defining the mass of water on the vegetation canopy
+ integer(i4b),parameter,public               :: iname_nrgLayer=3001     ! named variable defining the energy state variable for snow+soil layers
+ integer(i4b),parameter,public               :: iname_watLayer=3002     ! named variable defining the total water state variable for snow+soil layers
+ integer(i4b),parameter,public               :: iname_matLayer=3003     ! named variable defining the matric head state variable for soil layers
 
  ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
  ! NOTE: This indexing scheme provides the matrix structure expected by lapack. Specifically, lapack requires kl extra rows for additional storage.

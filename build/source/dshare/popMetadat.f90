@@ -295,6 +295,7 @@ contains
  ! * local model diagnostic variables...
  ! -------------------------------------
  ! local properties
+ diag_meta(iLookDIAG%scalarCanopyDepth)               = var_info('scalarCanopyDepth'              , 'canopy depth'                                                     , 'm'               , 'scalarv', .false.)
  diag_meta(iLookDIAG%scalarGreenVegFraction)          = var_info('scalarGreenVegFraction'         , 'green vegetation fraction (used to compute LAI)'                  , '-'               , 'scalarv', .false.)
  diag_meta(iLookDIAG%scalarBulkVolHeatCapVeg)         = var_info('scalarBulkVolHeatCapVeg'        , 'bulk volumetric heat capacity of vegetation'                      , 'J m-3 K-1'       , 'scalarv', .false.)
  diag_meta(iLookDIAG%scalarCanopyEmissivity)          = var_info('scalarCanopyEmissivity'         , 'effective canopy emissivity'                                      , '-'               , 'scalarv', .false.)

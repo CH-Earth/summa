@@ -51,7 +51,6 @@ contains
                         nSnow,                   & ! intent(in):    number of snow layers
                         nSoil,                   & ! intent(in):    number of soil layers
                         nLayers,                 & ! intent(in):    total number of layers
-                        canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                         computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                         ! input: flux vectors
                         sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
@@ -85,7 +84,6 @@ contains
  integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
- real(dp),intent(in)             :: canopyDepth               ! depth of the vegetation canopy (m)
  logical(lgt),intent(in)         :: computeVegFlux            ! flag to indicate if computing fluxes over vegetation
  ! input: flux vectors
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
@@ -123,7 +121,8 @@ contains
   mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,&  ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
   mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(in): [dp(:)] volumetric fraction of ice (-)
   mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,&  ! intent(in): [dp(:)] volumetric fraction of total water (-)
-  ! layer depth
+  ! canopy and layer depth
+  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp   ]  canopy depth (m)
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
   ! model fluxes (sink terms in the soil domain)
   mLayerTranspire         => flux_data%var(iLookFLUX%mLayerTranspire)%dat           ,&  ! intent(in): [dp] transpiration loss from each soil layer (m s-1)

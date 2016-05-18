@@ -30,6 +30,14 @@ USE globalData,only:realMissing     ! missing real number
 ! layer types
 USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 
+! named variables to describe the state variable type
+USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
+USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
+USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
+USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
+
 ! constants
 USE multiconst,only:&
                     Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
@@ -65,12 +73,14 @@ contains
  ! public subroutine popStateVec: populate model state vectors 
  ! **********************************************************************************************************
  subroutine popStateVec(&
-                        ! input
+                        ! input: model control
                         computeVegFlux,          & ! intent(in):    flag to denote if computing energy flux over vegetation
-                        canopyDepth,             & ! intent(in):    canopy depth (m)
+                        stateType,               & ! intent(in):    type of desired model state variables
+                        nState,                  & ! intent(in):    number of desired state variables
+                        ! input-output: data structures
                         prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                         diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
-                        indx_data,               & ! intent(in):    indices defining model states and layers
+                        indx_data,               & ! intent(inout): indices defining model states and layers
                         ! output
                         stateVec,                & ! intent(out):   model state vector
                         fScale,                  & ! intent(out):   function scaling vector (mixed units)
@@ -80,12 +90,14 @@ contains
                         err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
- ! input
+ ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- real(dp),intent(in)             :: canopyDepth            ! canopy depth (m)
+ integer(i4b),intent(in)         :: stateType(:)           ! type of desired model state variables
+ integer(i4b),intent(in)         :: nState                 ! number of desired state variables
+ ! input-output: data structures
  type(var_dlength),intent(in)    :: prog_data              ! prognostic variables for a local HRU
  type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
- type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
+ type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
  ! output: state vectors
  real(dp),intent(out)            :: stateVec(:)            ! model state vector (mixed units)
  real(dp),intent(out)            :: fScale(:)              ! function scaling vector (mixed units)
@@ -105,6 +117,8 @@ contains
  real(dp),parameter              :: xScaleLiq=0.1_dp       ! state var: characteristic scale for volumetric liquid water content (-)
  real(dp),parameter              :: xScaleMat=10._dp       ! state var: characteristic scale for matric head (m)
  real(dp),parameter              :: xScaleTemp=1._dp       ! state var: characteristic scale for temperature (K)
+ ! temporary vectors
+ integer(i4b),dimension(nState)  :: ixSequence             ! sequential index in model state vector
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
@@ -118,12 +132,19 @@ contains
  mLayerVolFracWat  => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of total water (-)
  mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
  ! model diagnostic variables
+ canopyDepth       => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in): [dp   ] canopy depth (m)
  volHeatCapVeg     => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
  mLayerVolHeatCap  => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
  ! indices defining model states and layers
- ixCasNrg          => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy air space energy state variable
- ixVegNrg          => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
- ixVegWat          => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
+ ixCasNrg          => indx_data%var(iLookINDEX%ixCasNrg)%dat                 ,& ! intent(in): [i4b] index of canopy air space energy state variable
+ ixVegNrg          => indx_data%var(iLookINDEX%ixVegNrg)%dat                 ,& ! intent(in): [i4b] index of canopy energy state variable
+ ixVegWat          => indx_data%var(iLookINDEX%ixVegWat)%dat                 ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
+ ixTopNrg          => indx_data%var(iLookINDEX%ixTopNrg)%dat                 ,& ! intent(in): [i4b] index of upper-most energy state in the snow-soil subdomain
+ ixTopWat          => indx_data%var(iLookINDEX%ixTopWat)%dat                 ,& ! intent(in): [i4b] index of upper-most total water state in the snow-soil subdomain
+ ixTopMat          => indx_data%var(iLookINDEX%ixTopMat)%dat                 ,& ! intent(in): [i4b] index of upper-most matric head state in the soil subdomain
+
+
+
  ixSnowSoilNrg     => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
  ixSnowOnlyWat     => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat            ,& ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
  ixSnowSoilWat     => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat            ,& ! intent(in): [i4b(:)] indices for total water states in the snow-soil subdomain
@@ -146,37 +167,97 @@ contains
  err=0; message='popStateVec/'
 
  ! -----
+ ! * identify position in the state vector for specific variables...
+ ! -----------------------------------------------------------------
+
+ print*, 'stateType = ', stateType 
+ print*, 'merge = ', merge(1, 0, stateType==iname_watCanopy)
+
+ ! initialize indices
+ ixCasNrg = integerMissing ! energy in the canopy air space
+ ixVegNrg = integerMissing ! energy of the vegetation canopy
+ ixVegWat = integerMissing ! mass of water in the vegetation canopy
+ ixTopNrg = integerMissing ! upper-most energy state variable in the snow+soil domain
+ ixTopWat = integerMissing ! upper-most hydrology state variable in the snow+soil domain
+ ixTopMat = integerMissing ! upper-most matric head state variable in the snow+soil domain
+
+ ! get the number of state variables
+ nCasNrg = count(stateType==iname_nrgCanair)
+ nVegNrg = count(stateType==iname_nrgCanopy)
+ nVegWat = count(stateType==iname_watCanopy)
+ nLayWat = count(stateType==iname_watLayer)
+ nLayMat = count(stateType==iname_matLayer)
+
+ ! define indices for vegetation variables
+ ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc -- merge provides a vector with 1s where mask is true and 0s otherwise
+ if(nCasNrg==1) ixCasNrg = maxloc( merge(1, 0, stateType==iname_nrgCanair) )
+ if(nVegNrg==1) ixVegNrg = maxloc( merge(1, 0, stateType==iname_nrgCanopy) )
+ if(nVegWat==1) ixVegWat = maxloc( merge(1, 0, stateType==iname_watCanopy) )
+
+ ! define index for the upper-most energy state variable in the snow+soil domain
+ ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc -- merge provides a vector with 1s where mask is true and 0s otherwise
+ ixTopNrg = maxloc( merge(1, 0, stateType==iname_nrgLayer) )
+
+ ! define index for the upper-most matric head state variable
+ ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc -- merge provides a vector with 1s where mask is true and 0s otherwise
+ if(nLayMat>0) ixTopMat = maxloc( merge(1, 0, stateType==iname_matLayer) )
+
+ ! define index for the upper-most water state variable
+ ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc -- merge provides a vector with 1s where mask is true and 0s otherwise
+ if(nLayWat>0)then
+  ixTopWat = maxloc( merge(1, 0, stateType==iname_watLayer) )
+ else
+  ixTopWat = ixTopMat ! no water state variables, then upper-most water variable is the upper-most matric head variable
+ endif
+
+ print*, 'ixCasNrg = ', ixCasNrg
+ print*, 'ixVegNrg = ', ixVegNrg
+ print*, 'ixVegWat = ', ixVegWat
+
+ ! -----
  ! * initialize state vectors...
  ! -----------------------------
 
- ! build the state vector for the vegetation canopy
- if(computeVegFlux)then
-  stateVec(ixCasNrg) = scalarCanairTemp
-  stateVec(ixVegNrg) = scalarCanopyTemp
-  stateVec(ixVegWat) = scalarCanopyWat  ! kg m-2
- endif
+ ! define index in full state vector
+ ixSequence = arth(1,1,nState)
+
+ ! build elements of the state vector for the vegetation canopy
+ if(ixCasNrg(1)/=integerMissing) stateVec(ixCasNrg) = scalarCanairTemp
+ if(ixVegNrg(1)/=integerMissing) stateVec(ixVegNrg) = scalarCanopyTemp
+ if(ixVegWat(1)/=integerMissing) stateVec(ixVegWat) = scalarCanopyWat  ! kg m-2
 
  ! build the state vector for the snow and soil domain
- stateVec(ixSnowSoilNrg) = mLayerTemp(1:nLayers)
- stateVec(ixSoilOnlyHyd) = mLayerMatricHead(1:nSoil)
- if(nSnow>0)&
- stateVec(ixSnowOnlyWat) = mLayerVolFracWat(1:nSnow)
+ if(nLayNrg>0) stateVec( pack(ixSequence, stateType==iname_nrgLayer) ) = mLayerTemp(1:nLayers)
+ if(nLayWat>0) stateVec( pack(ixSequence, stateType==iname_watLayer) ) = mLayerVolFracWat(1:nSnow)
+ if(nLayMat>0) stateVec( pack(ixSequence, stateType==iname_matLayer) ) = mLayerMatricHead(1:nSoil)
 
  ! -----
  ! * define scaling vectors...
  ! ---------------------------
 
- ! define the function scaling vector
- fScale(ixNrgOnly)      = 1._dp / fScaleNrg  ! 1/(J m-3)
- fScale(ixSnowSoilWat)  = 1._dp / fScaleLiq  ! (-)
- if(nMassState>0) fScale(ixMassOnly) = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! 1/(kg m-2)
+ ! define the function and variable scaling factors for energy
+ where(stateType==iname_nrgCanair .or. stateType==iname_nrgCanopy .or. stateType==iname_nrgLayer)
+  fScale = 1._dp / fScaleNrg  ! 1/(J m-3)
+  xScale = 1._dp  ! K
+ endwhere
 
- ! define the scaling for the state vector
- ! NOTE: temporary assignment for backwards compatibility with previous branch
-                  xScale(ixNrgOnly)  = 1._dp  ! xScaleTemp ! K
- if(nWatState>0)  xScale(ixWatOnly)  = 1._dp  ! xScaleLiq   ! (-)
- if(nMatState>0)  xScale(ixMatOnly)  = 1._dp  ! xScaleMat   ! (m)
- if(nMassState>0) xScale(ixMassOnly) = 1._dp  ! xScaleLiq*canopyDepth*iden_water  ! (kg m-2)
+ ! define the function and variable scaling factors for water on the vegetation canopy
+ where(stateType==iname_watCanopy)
+  fScale = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! 1/(kg m-2)
+  xScale = 1._dp  ! (kg m-2)
+ endwhere
+
+ ! define the function and variable scaling factors for water in the snow+soil domain
+ where(stateType==iname_watLayer)
+  fScale = 1._dp / fScaleLiq  ! (-)
+  xScale = 1._dp  ! (-)
+ end where
+ 
+ ! define the function and variable scaling factors for water in the snow+soil domain
+ where(stateType==iname_matLayer)
+  fScale = 1._dp / fScaleLiq  ! (-)
+  xScale = 1._dp  ! (m)
+ end where
 
  ! -----
  ! * define components of derivative matrices that are constant over a time step (substep)...

@@ -169,7 +169,6 @@ contains
  logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
  type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
- real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
  real(dp)                             :: dt_wght                ! weight applied to each sub-step, to compute time step average
  real(dp)                             :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -213,6 +212,9 @@ contains
  err=0; message="coupled_em/"
 
  ! This is the start of a data step for a local HRU
+
+ ! link canopy depth to the information in the data structure
+ canopy: associate(canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1) )  ! intent(out): [dp] canopy depth (m)
 
  ! define the first step
  firstStep = (istep==1)
@@ -658,7 +660,7 @@ contains
                    attr_data,                              & ! intent(in):    spatial attributes
                    forc_data,                              & ! intent(in):    model forcing data
                    mpar_data,                              & ! intent(in):    model parameters
-                   indx_data,                              & ! intent(in):    index data
+                   indx_data,                              & ! intent(inout): index data
                    prog_data,                              & ! intent(inout): model prognostic variables for a local HRU
                    diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
                    flux_data,                              & ! intent(inout): model fluxes for a local HRU
@@ -1011,6 +1013,9 @@ contains
 
  ! end association of local variables with information in the data structures
  end associate
+
+ ! end association to canopy depth
+ end associate canopy
 
  ! save the surface temperature (just to make things easier to visualize)
  prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)

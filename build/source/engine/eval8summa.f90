@@ -88,7 +88,6 @@ contains
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                       canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    model state vector
                        fScale,                  & ! intent(in):    function scaling vector
@@ -146,7 +145,6 @@ contains
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall          ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
- real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)       ! model state vector 
  real(dp),intent(in)             :: fScale(:)              ! function scaling vector
@@ -209,10 +207,12 @@ contains
  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)                    ,&  ! intent(in): [dp] soil porosity (-)
  theta_res               => mpar_data%var(iLookPARAM%theta_res)                    ,&  ! intent(in): [dp] soil residual volumetric water content (-)
  specificStorage         => mpar_data%var(iLookPARAM%specificStorage)              ,&  ! intent(in): [dp] specific storage coefficient (m-1)
+ ! canopy and layer depth
+ canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in): [dp   ] canopy depth (m)
+ mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
  ! model state variables (ponded water)
  scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp]     ponded water caused by melt of the "snow without a layer" (kg m-2)
  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(in): [dp(:)]  matric head (m)
- mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)]  depth of each layer (m)
  ! model diagnostic variables (fraction of liquid water)
  scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(out): [dp]    fraction of liquid water on vegetation (-)
  mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(out): [dp(:)] fraction of liquid water in each snow layer (-)
@@ -289,7 +289,6 @@ contains
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  firstFluxCall,           & ! intent(inout): flag to denote the first flux call
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                 canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                  scalarSfcMeltPond/dt,    & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
                  scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
@@ -352,7 +351,6 @@ contains
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    total number of layers
-                  canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   ! input: flux vectors
                   sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)

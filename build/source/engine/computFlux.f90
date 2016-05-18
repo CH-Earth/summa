@@ -99,7 +99,6 @@ contains
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to denote the first flux call
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                       canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                        drainageMeltPond,        & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
                        scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
@@ -166,7 +165,6 @@ contains
  logical(lgt),intent(in)         :: firstSubStep              ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall             ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux            ! flag to indicate if computing fluxes over vegetation
- real(dp),intent(in)             :: canopyDepth               ! depth of the vegetation canopy (m)
  real(dp),intent(in)             :: drainageMeltPond          ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
  real(dp),intent(in)             :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
@@ -235,7 +233,8 @@ contains
  upperBoundTemp               => forc_data%var(iLookFORCE%airtemp)                               ,&  ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
  scalarRainfall               => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)                  ,&  ! intent(in): [dp] rainfall rate (kg m-2 s-1)
 
- ! layer depth
+ ! canopy and layer depth
+ canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)               ,&  ! intent(in): [dp   ] canopy depth (m)
  mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                        ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
 
  ! indices of model state variables

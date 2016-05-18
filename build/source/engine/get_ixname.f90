@@ -449,6 +449,7 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! local properties
+  case('scalarCanopyDepth'              ); get_ixdiag = iLookDIAG%scalarCanopyDepth                ! canopy depth (m)
   case('scalarGreenVegFraction'         ); get_ixdiag = iLookDIAG%scalarGreenVegFraction           ! green vegetation fraction used to compute LAI (-)
   case('scalarBulkVolHeatCapVeg'        ); get_ixdiag = iLookDIAG%scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
   case('scalarCanopyEmissivity'         ); get_ixdiag = iLookDIAG%scalarCanopyEmissivity           ! effective canopy emissivity (-)

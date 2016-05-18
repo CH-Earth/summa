@@ -71,7 +71,6 @@ contains
                         nSnow,                    & ! intent(in):    number of snow layers
                         nSoil,                    & ! intent(in):    number of soil layers
                         nLayers,                  & ! intent(in):    total number of layers
-                        canopyDepth,              & ! intent(in):    depth of the vegetation canopy (m)
                         computeVegFlux,           & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                         computeBaseflow,          & ! intent(in):    flag to indicate if we need to compute baseflow
                         ixMatrix,                 & ! intent(in):    form of the Jacobian matrix
@@ -97,7 +96,6 @@ contains
  integer(i4b),intent(in)         :: nSnow           ! number of snow layers
  integer(i4b),intent(in)         :: nSoil           ! number of soil layers
  integer(i4b),intent(in)         :: nLayers         ! total number of layers in the snow+soil domain
- real(dp),intent(in)             :: canopyDepth     ! depth of the vegetation canopy (m)
  logical(lgt),intent(in)         :: computeVegFlux  ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: computeBaseflow ! flag to indicate if computing baseflow
  integer(i4b),intent(in)         :: ixMatrix        ! form of the Jacobian matrix
@@ -182,7 +180,8 @@ contains
  mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat                  ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow layer (-)
  mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat                 ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)          
  scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1)               ,& ! intent(in): [dp]     soil control on infiltration, zero or one
- ! layer depth
+ ! canopy and layer depth
+ canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)               ,& ! intent(in): [dp   ]  canopy depth (m)
  mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                         & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ) ! making association with data in structures
  ! --------------------------------------------------------------

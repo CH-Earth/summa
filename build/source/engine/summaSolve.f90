@@ -75,7 +75,6 @@ contains
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                       canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
                        fScale,                  & ! intent(in):    function scaling vector
@@ -126,7 +125,6 @@ contains
  logical(lgt),intent(in)         :: firstSubStep             ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
- real(dp),intent(in)             :: canopyDepth              ! depth of the vegetation canopy (m)
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)         ! trial state vector
  real(dp),intent(in)             :: fScale(:)                ! function scaling vector
@@ -201,7 +199,6 @@ contains
                   nSnow,                          & ! intent(in):    number of snow layers
                   nSoil,                          & ! intent(in):    number of soil layers
                   nLayers,                        & ! intent(in):    total number of layers
-                  canopyDepth,                    & ! intent(in):    depth of the vegetation canopy (m)
                   computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
                   ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
@@ -526,7 +523,6 @@ contains
                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                  canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                   ! input: state vectors
                   stateVecNew,             & ! intent(in):    updated model state vector
                   fScale,                  & ! intent(in):    function scaling vector
