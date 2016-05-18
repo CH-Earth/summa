@@ -23,100 +23,9 @@ module output_stats
 USE nrtype
 implicit none
 private
-public :: allocStat
 public :: calcStats
 !public :: compileBasinStats
 contains
-
- ! ******************************************************************************************************
- ! public subroutine allocStat is called at beginning of simulation to allocate space for output statistics 
- ! ******************************************************************************************************
- subroutine allocStat(meta,stat,err,message)
- USE nrtype
- ! data structures
- USE globalData,only:gru_struc          ! gru struct 
- USE var_lookup,only:maxvarStat         ! number of different output statistics
- USE data_types,only:var_info           ! meta type
- USE data_types,only:gru_doubleVec,  &  ! x%gru(:)%var(:)%dat (dp)
-                     gru_hru_intVec, &  ! x%gru(:)%var(:)%dat (dp)
-                     gru_hru_doubleVec  ! x%gru(:)%hru(:)%var(:)%dat (dp)
- implicit none
-
- ! dummies
- type(var_info),intent(in)  :: meta(:)  ! meta structure
- class(*)      ,intent(out) :: stat     ! stats structure 
- integer(i4b)  ,intent(out) :: err      ! error code
- character(*)  ,intent(out) :: message  ! error message
-
- ! locals
- character(1024)            :: cmessage ! error message
- integer(i4b)               :: iVar     ! index var_info array 
- integer(i4b)               :: iGRU     ! loop through GRUs
- integer(i4b)               :: iHRU     ! loop through HRUs
-
- ! initialize error control
- err=0; message='allocStat/'
-
- ! loop through grus
- do iGRU = 1,size(gru_struc)
-
-  ! take different action ndepending on whether the type has HRUs
-  select type(stat)   
-   type is (gru_hru_intVec)
-    ! (1) allocate the GRU level structure
-    allocate(stat%gru(size(gru_struc))                           ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'GUR allocate error'; return; endif;
-    ! (2) allocate the HRU level structure
-    allocate(stat%gru(iGRU)%hru(gru_struc(iGRU)%hruCount)        ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'HRU allocate error'; return; endif;
-    ! (3) allocate the variable level structure
-    do iHRU = 1,gru_struc(iGRU)%hruCount
-     allocate(stat%gru(iGRU)%hru(iHRU)%var(size(meta))           ,stat=err)
-     if (err.ne.0) then; message=trim(message)//'VAR allocate error'; return; endif;
-     ! (4) allocate the data (statistics) level structure
-     do iVar = 1,size(meta)
-      allocate(stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(maxvarStat+1),stat=err)
-      if (err.ne.0) then; message=trim(message)//'STAT allocate error'; return; endif;
-     enddo ! ivar
-    enddo ! iHRU
-
-   type is (gru_hru_doubleVec)
-    ! (1) allocate the GRU level structure
-    allocate(stat%gru(size(gru_struc))                           ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'GUR allocate error'; return; endif;
-    ! (2) allocate the HRU level structure
-    allocate(stat%gru(iGRU)%hru(gru_struc(iGRU)%hruCount)        ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'HRU allocate error'; return; endif;
-    ! (3) allocate the variable level structure
-    do iHRU = 1,gru_struc(iGRU)%hruCount
-     allocate(stat%gru(iGRU)%hru(iHRU)%var(size(meta))           ,stat=err)
-     if (err.ne.0) then; message=trim(message)//'VAR allocate error'; return; endif;
-     ! (4) allocate the data (statistics) level structure
-     do iVar = 1,size(meta)
-      allocate(stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(maxvarStat+1),stat=err)
-      if (err.ne.0) then; message=trim(message)//'STAT allocate error'; return; endif;
-     enddo ! ivar
-    enddo ! iHRU
-
-   type is (gru_doubleVec)
-    ! (1) allocate the GRU level structure
-    allocate(stat%gru(size(gru_struc))                ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'GRU allocate error (no GRU)'; return; endif;
-    ! (3) allocate the variable level structure
-    allocate(stat%gru(iGRU)%var(size(meta))           ,stat=err)
-    if (err.ne.0) then; message=trim(message)//'VAR allocate error (no HRU)'; return; endif;
-    ! (4) allocate the data (statistics) level structure
-    do iVar = 1,size(meta)
-     allocate(stat%gru(iGRU)%var(iVar)%dat(maxvarStat+1),stat=err)
-     if (err.ne.0) then; message=trim(message)//'STAT allocate error (no HRU)'; return; endif;
-    enddo ! ivar
-  endselect
-
- enddo ! GRU
-
- return
- end subroutine allocStat
-
 
  ! ******************************************************************************************************
  ! public subroutine calcStats is called at every model timestep to update/store output statistics 
@@ -124,7 +33,7 @@ contains
  ! ******************************************************************************************************
  subroutine calcStats(stat,dat,meta,iStep,err,message)
  USE nrtype
- USE data_types,only:var_info,dlength,ilength       ! metadata structure type
+ USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE globalData,only:nFreq                          ! output frequencies
  USE var_lookup,only:iLookVarType                   ! named variables for variable types 
  USE var_lookup,only:iLookStat                      ! named variables for output statistics types 
@@ -133,7 +42,7 @@ contains
  ! dummy variables
  type(dlength) ,intent(inout)   :: stat(:)          ! statistics
  class(*)      ,intent(in)      :: dat(:)           ! data
- type(var_info),intent(in)      :: meta(:)          ! metadata
+ type(extended_info),intent(in) :: meta(:)          ! metadata
  integer(i4b)  ,intent(in)      :: iStep            ! timestep index to compare with oFreq of each variable
  integer(i4b)  ,intent(out)     :: err              ! error code
  character(*)  ,intent(out)     :: message          ! error message
@@ -141,6 +50,7 @@ contains
  ! internals
  character(256)                 :: cmessage         ! error message
  integer(i4b)                   :: iVar             ! index for varaiable loop
+ integer(i4b)                   :: pVar             ! index into parent structure
  integer(i4b)                   :: iFreq            ! index for frequency loop
  real(dp)                       :: tdata            ! dummy for pulling info from dat structure
 
@@ -150,12 +60,18 @@ contains
  do iVar = 1,size(meta)                             ! model variables
 
   ! only treat stats of scalars - all others handled separately
-  if (meta(iVar)%varType==iLookVarType%scalarv) then
+  if (meta(iVar)%varType==iLookVarType%outstat) then
 
-   selecttype (dat)
-    typeis (real(dp)); tdata = dat(iVar)
-    typeis (dlength) ; tdata = dat(iVar)%dat(1)
-    typeis (ilength) ; tdata = real(dat(iVar)%dat(1))
+   ! don't do anything if var is not requested
+   if (meta(iVar)%outFreq<0) cycle
+
+   ! index into parent structure
+   pVar = meta(iVar)%ixParent
+
+   select type (dat)
+    type is (real(dp)); tdata = dat(pVar)
+    type is (dlength) ; tdata = dat(pVar)%dat(1)
+    type is (ilength) ; tdata = real(dat(pVar)%dat(1))
     class default;err=20;message=trim(message)//'dat type not found';return
    endselect
 
@@ -205,11 +121,12 @@ contains
 
  ! pull current frequency for normalization
  iFreq = meta%outFreq
+ if (iFreq<0) then; err=-20; message=trim(message)//'bad output file id# (outfreq)'; return; endif
 
  ! pack back into struc
- selecttype (stat)
-  typeis (ilength); tstat = real(stat%dat)
-  typeis (dlength); tstat = stat%dat
+ select type (stat)
+  type is (ilength); tstat = real(stat%dat)
+  type is (dlength); tstat = stat%dat
   class default;err=20;message=trim(message)//'stat type not found';return
  endselect
 
@@ -219,7 +136,7 @@ contains
  if ((mod(iStep,outFreq(iFreq))==1).or.(outFreq(iFreq)==1)) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! don't bother if output flag is off
-   if (meta%varType.ne.iLookVarType%scalarv) cycle ! only calculate stats for scalars 
+   if (meta%varType.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars 
    select case(iStat)                              ! act depending on the statistic 
     case (iLookStat%totl)                          ! summation over period
      tstat(iStat) = 0                              ! resets stat at beginning of period
@@ -243,7 +160,7 @@ contains
  ! ---------------------------------------------
  do iStat = 1,maxVarStat                           ! loop through output statistics
   if (.not.meta%statFlag(iStat)) cycle             ! do not bother if output flag is off
-  if (meta%varType.ne.iLookVarType%scalarv) cycle  ! only calculate stats for scalars 
+  if (meta%varType.ne.iLookVarType%outstat) cycle  ! only calculate stats for scalars 
   select case(iStat)                               ! act depending on the statistic 
    case (iLookStat%totl)                           ! summation over period
     tstat(iStat) = tstat(iStat) + tdata            ! into summation
@@ -269,7 +186,7 @@ contains
  if (mod(iStep,outFreq(iFreq))==0) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! do not bother if output flag is off
-   if (meta%vartype.ne.iLookVarType%scalarv) cycle ! only calculate stats for scalars 
+   if (meta%vartype.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars 
    select case(iStat)                              ! act depending on the statistic 
     case (iLookStat%mean)                          ! mean over period
      tstat(iStat) = tstat(iStat)/outFreq(iFreq)    ! normalize sum into mean
@@ -281,9 +198,9 @@ contains
  endif
 
  ! pack back into struc
- selecttype (stat)
-  typeis (ilength); stat%dat = int(tstat)
-  typeis (dlength); stat%dat = tstat
+ select type (stat)
+  type is (ilength); stat%dat = int(tstat)
+  type is (dlength); stat%dat = tstat
   class default;err=20;message=trim(message)//'stat type not found';return
  endselect
 

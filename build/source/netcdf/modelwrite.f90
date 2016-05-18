@@ -66,16 +66,16 @@ contains
 
   ! write data
   if (iHRU.ne.integerMissing) then
-   selecttype (dat)
-    typeis (integer)
+   select type (dat)
+    type is (integer)
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/iHRU/),count=(/1/))
-    typeis (real(dp))
+    type is (real(dp))
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/iHRU/),count=(/1/))
     class default; err=20; message=trim(message)//'unkonwn dat type (with HRU)'; return
    endselect
   else
-   selecttype (dat)
-    typeis (real(dp))
+   select type (dat)
+    type is (real(dp))
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/1/),count=(/1/))
     class default; err=20; message=trim(message)//'unkonwn dat type (no HRU)'; return
    endselect
@@ -91,7 +91,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data
  ! **************************************************************************************
- subroutine writeData(modelTimestep,outputTimestep,meta,stat,dat,indx,iHRU,err,message)
+ subroutine writeData(modelTimestep,outputTimestep,meta,stat,dat,map,indx,iHRU,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -107,6 +107,7 @@ contains
  class(*)      ,intent(in)     :: stat(:)           ! stats data
  class(*)      ,intent(in)     :: dat(:)            ! timestep data
  type(ilength) ,intent(in)     :: indx(:)           ! index data
+ integer(i4b)  ,intent(in)     :: map(:)            ! map into stats child struct
  integer(i4b)  ,intent(in)     :: iHRU              ! hydrologic response unit
  integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
  integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
@@ -151,8 +152,8 @@ contains
 
     ! handle time first
     if (meta(iVar)%varName=='time') then    
-     selecttype(stat)
-      typeis (dlength)
+     select type(stat)
+      type is (dlength)
        err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
        call netcdf_err(err,message); if (err/=0) return
        err = nf90_put_var(ncid(iFreq),ncVarID,(/stat(iVar)%dat(iLookStat%inst)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
@@ -172,16 +173,16 @@ contains
 
      ! stats/dats output - select data type
      if (meta(iVar)%varType==iLookVarType%scalarv) then
-       selecttype(stat)
-        typeis (ilength)
-         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
-        typeis (dlength)
-         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
+       select type(stat)
+        type is (ilength)
+         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
+        type is (dlength)
+         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
         class default; err=20; message=trim(message)//'stats must be scalarv and either ilength of dlength'; return
        endselect  ! stat 
      else
-      selecttype (dat)
-       typeis (dlength)
+      select type (dat)
+       type is (dlength)
         selectcase (meta(iVar)%varType)
          case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
          case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
@@ -191,7 +192,7 @@ contains
          case(iLookVarType%ifcSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow/))
          case(iLookVarType%ifcSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil/))
         endselect ! vartype
-       typeis (ilength)
+       type is (ilength)
         selectcase (meta(iVar)%varType)
          case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
          case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
@@ -217,7 +218,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeBasin: write basin-average variables
  ! **************************************************************************************
- subroutine writeBasin(modelTimestep,outputTimestep,meta,stat,dat,indx,err,message)
+ subroutine writeBasin(modelTimestep,outputTimestep,meta,stat,dat,map,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -232,7 +233,7 @@ contains
  type(var_info),intent(in)     :: meta(:)           ! meta data
  type(dlength) ,intent(in)     :: stat(:)           ! stats data
  type(dlength) ,intent(in)     :: dat(:)            ! timestep data
- type(ilength) ,intent(in)     :: indx(:)           ! index data
+ integer(i4b)  ,intent(in)     :: map(:)            ! map into stats child struct
  integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
  integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(out)    :: err               ! error code
@@ -263,11 +264,11 @@ contains
      selectcase (meta(iVar)%varType)
 
       case (iLookVarType%scalarv)
-       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(iVar)%dat(iStat)/),start=(/outputTimestep(iFreq)/),count=(/1/))
+       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/outputTimestep(iFreq)/),count=(/1/))
 
       case (iLookVarType%routing)
        if (modelTimestep==1) then
-        err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/1/),count=(/1000/))
+        err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(map(iVar))%dat/),start=(/1/),count=(/1000/))
        endif
 
       case default
