@@ -140,7 +140,7 @@ USE mDecisions_module,only:&                                ! look-up values for
 USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
-USE output_stats,only:allocStat,calcStats                   ! module for compiling output statistics
+USE output_stats,only:calcStats                             ! module for compiling output statistics
 USE globalData,only:nFreq,outFreq                           ! model output files
 USE globalData,only:ncid                                    ! file id of netcdf output file
 USE var_lookup,only:maxFreq                                 ! maximum # of output files 
@@ -450,7 +450,7 @@ do iStruct=1,size(structInfo)
   case('prog'); call allocGlobal(statProg_meta(:)%var_info,progStat,err,message)   ! model prognostic (state) variables
   case('diag'); call allocGlobal(statDiag_meta(:)%var_info,diagStat,err,message)   ! model diagnostic variables
   case('flux'); call allocGlobal(statFlux_meta(:)%var_info,fluxStat,err,message)   ! model fluxes
-  case('indx'); call allocGlobal(statFlux_meta(:)%var_info,indxStat,err,message)   ! index vars
+  case('indx'); call allocGlobal(statIndx_meta(:)%var_info,indxStat,err,message)   ! index vars
   case('bvar'); call allocGlobal(statBvar_meta(:)%var_info,bvarStat,err,message)   ! basin-average variables
   case default; cycle
  endselect  
@@ -996,7 +996,7 @@ do modelTimeStep=1,numtim
   call handle_err(err,message)
   end associate
  
- ! calc basin stats 
+  ! calc basin stats 
   call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
 
   ! write basin-average variables

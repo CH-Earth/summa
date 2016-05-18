@@ -22,7 +22,7 @@ summa.exe
 .DS_Store
 *_local
 *log
-# makefile
-*-local
-make.out
 summa.exe.dSYM*
+# makefile
+make.out
+Makefile-*
