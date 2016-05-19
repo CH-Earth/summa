@@ -124,7 +124,7 @@ contains
  if(err/=0)then;err=30;message=trim(message)//"problemAllocateChardata"; return; endif
 
  ! loop through the HRUs
- fileLineLoop: do iline=1,nDataLine
+ dataLineLoop: do iline=1,nDataLine
 
   ! get the HRU index
   read(charline(iline),*,iostat=err) hruIndex
@@ -139,27 +139,23 @@ contains
      err=51;message=trim(message)//"duplicate HRU found in the parameter file at line: "//new_line(' ')//charline(iline); return
     else
      checkHRU(iHRU) = .true. 
+     ! get the vector of parameters for a given layer, and the HRU index                                                            
+     read(charline(iline),*,iostat=err) chardata
+     if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iline))//"']"; return; endif                                                                                                                                  
+     ! loop through the model parameters
+     do ipar=2,nPars  ! start at #2 because the first "word" is the HRU index
+      ! get the variable index
+      jpar = get_ixparam(trim(varnames(ipar)))
+      if(jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
+      ! populate the appropriate element of the parameter vector
+      read(chardata(ipar),*,iostat=err) mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)
+      if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
+     end do    ! (looping through model parameters)
     end if 
     exit hruLoop
    endif
   end do hruLoop
-  
-  if (checkHRU(iHRU)) then 
-   ! get the vector of parameters for a given layer, and the HRU index
-   read(charline(iline),*,iostat=err) chardata
-   if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iline))//"']"; return; endif
-
-   ! loop through the model parameters
-   do ipar=2,nPars  ! start at #2 because the first "word" is the HRU index
-   ! get the variable index
-   jpar = get_ixparam(trim(varnames(ipar)))
-   if(jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
-   ! populate the appropriate element of the parameter vector
-   read(chardata(ipar),*,iostat=err) mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)
-   if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
-   end do    ! (looping through model parameters)
-  end if 
- end do fileLineLoop    ! (looping through HRUs)
+ end do dataLineLoop    ! (looping through HRUs)
 
  ! check that all HRUs are populated
  if(count(checkHRU) /= nHRU)then

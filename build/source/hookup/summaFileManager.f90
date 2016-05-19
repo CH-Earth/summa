@@ -158,5 +158,5 @@ if(index(trim(inputString),' ')/=0) then
 endif
 end subroutine readLine
 
-END MODULE summafilemanager
 
+END MODULE summafilemanager

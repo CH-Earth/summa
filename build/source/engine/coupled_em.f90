@@ -1154,7 +1154,7 @@ contains
  write(timeString,'(a,i4,3(a,i2.2))') '_',time_data%var(iLookTIME%iyyy),'-',time_data%var(iLookTIME%im),'-',time_data%var(iLookTIME%id),'-',time_data%var(iLookTIME%ih)
 
  ! define the file name
- filename = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_'//trim(filepref)//trim(timeString)//trim(output_fileSuffix)//'.txt'
+ filename = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(filepref)//trim(timeString)//trim(output_fileSuffix)//'.txt'
  !print*, trim(filename)
  !pause
 

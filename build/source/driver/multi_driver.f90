@@ -200,7 +200,7 @@ integer(i4b),parameter           :: ixRestart_never=1003       ! named variable 
 integer(i4b)                     :: ixRestart=ixRestart_im     ! define frequency to write restart files
 ! define output file
 integer(i4b)                     :: ctime1(8)                  ! initial time
-character(len=64)                :: output_fileSuffix=''       ! suffix for the output file
+character(len=256)               :: output_fileSuffix=''       ! suffix for the output file
 character(len=256)               :: summaFileManagerFile=''    ! path/name of file defining directories and files
 character(len=256)               :: fileout=''                 ! output filename
 ! define model control structures
@@ -241,6 +241,8 @@ character(len=256),allocatable   :: argString(:)               ! string to store
 integer(i4b)                     :: nArgument                  ! number of command line arguments
 integer(i4b)                     :: skipArgument               ! number of command line arguments to skip
 integer(i4b)                     :: iArgument                  ! index of command line argument
+integer(i4b)                     :: maxGRU                     ! maximum number of GRUs in the input file
+character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
@@ -257,7 +259,6 @@ end if
 
 ! initialize command line argument variables
 startGRU=integerMissing; nGRU=integerMissing; checkHRU=integerMissing; nHRU=integerMissing
-summaFileManagerFile = ''; output_fileSuffix = ''
 
 ! loop through all command arguments
 skipArgument = 0
@@ -267,13 +268,15 @@ do iArgument= 1, nArgument
   case ('-s', '--suffix')
    ! define file suffix
    skipArgument = 1
-   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument file_suffix; type 'summa.exe --help' for correct usage")   ! check if the number of command line arguments is correct
+   ! check if the number of command line arguments is correct
+   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument file_suffix; type 'summa.exe --help' for correct usage")   
    output_fileSuffix=trim(argString(iArgument+1))
    print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
   case ('-h', '--hru')
    ! define a single HRU run
    skipArgument = 1
-   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument checkHRU; type 'summa.exe --help' for correct usage")   ! check if the number of command line arguments is correct
+   ! check if the number of command line arguments is correct
+   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument checkHRU; type 'summa.exe --help' for correct usage")   
    read(argString(iArgument+1),*) checkHRU ! read the index of the HRU for a single HRU run 
    nHRU=1; nGRU=1                          ! nHRU and nGRU are both one in this case
    ! examines the checkHRU is correct 
@@ -285,7 +288,8 @@ do iArgument= 1, nArgument
   case ('-g','--gru')
    ! define a GRU parallelization run; get the starting GRU and countGRU
    skipArgument = 2
-   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument startGRU or countGRU; type 'summa.exe --help' for correct usage")   ! check if the number of command line arguments is correct
+   ! check if the number of command line arguments is correct
+   if (iArgument+skipArgument>nArgument) call handle_err(1,"missing argument startGRU or countGRU; type 'summa.exe --help' for correct usage")   
    read(argString(iArgument+1),*) startGRU ! read the argument of startGRU
    read(argString(iArgument+2),*) nGRU     ! read the argument of countGRU 
    if (startGRU<1 .or. nGRU<1) then
@@ -307,12 +311,9 @@ do iArgument= 1, nArgument
  end select
 end do 
 ! check if master_file has been received.
-if (len(trim(summaFileManagerFile))==0) then
- call handle_err(1,"master_file is not received; type 'summa.exe --help' for correct usage")
-end if
-if (startGRU/=integerMissing .and. checkHRU/=integerMissing) then 
- call handle_err(1,"single-HRU run and GRU-parallelization run cannot be both selected.")
-end if
+if (len(trim(summaFileManagerFile))==0) call handle_err(1,"master_file is not received; type 'summa.exe --help' for correct usage")
+! check if single-HRU run and GRU-parallelization are both used
+if (startGRU/=integerMissing .and. checkHRU/=integerMissing) call handle_err(1,"single-HRU run and GRU-parallelization run cannot be both selected.")
 
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
@@ -351,7 +352,7 @@ call handle_err(err,message)
 ! nGRU-is the total number of GRUs of the simulation domain
 ! nHRU-is the total number of HRUs of the simulation domain
 ! hruCount-is a local variable for the total number of HRUs in a GRU
-call allocate_gru_struc(nGRU,startGRU,nHRU,err,message); call handle_err(err,message)
+call allocate_gru_struc(nGRU,startGRU,nHRU,maxGRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3b) read the number of snow and soil layers
@@ -535,6 +536,7 @@ call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 
 ! loop through GRUs
 do iGRU=1,nGRU
+
  ! calculate the fraction of runoff in future time steps
  call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
                  bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
@@ -543,6 +545,7 @@ do iGRU=1,nGRU
 
  ! loop through local HRUs
  do localHRU=1,gru_struc(iGRU)%hruCount
+
   kHRU=0
   ! check the network topology (only expect there to be one downslope HRU)
   do jHRU=1,gru_struc(iGRU)%hruCount
@@ -585,7 +588,7 @@ do iGRU=1,nGRU
                   progStruct%gru(iGRU)%hru(localHRU),    & ! data structure of model prognostic (state) variables
                   diagStruct%gru(iGRU)%hru(localHRU),    & ! data structure of model diagnostic variables
                   err,message)                         ! error control
-  call handle_err(err,message)
+  call handle_err(err,message) 
   
   ! calculate saturated hydraulic conductivity in each soil layer
   call satHydCond(mparStruct%gru(iGRU)%hru(localHRU)%var,& ! vector of model parameters
@@ -666,9 +669,20 @@ end do  ! (looping through GRUs)
 ! *****************************************************************************
 ! (5e) initialize first output sequence 
 ! *****************************************************************************
-! define the file
+! define the output file
 ! NOTE: currently assumes that nSoil is constant across the model domain
-write(fileout,'(a,i0,a,i0,a,i0,a,i0)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix),startGRU,'-',startGRU+nGRU-1
+
+! set up the output file names as: OUTPUT_PREFIX_spinup|waterYear_[output_fileSuffix_]startGRU-endGRU_outfreq.nc; 
+if (OUTPUT_PREFIX(len_trim(OUTPUT_PREFIX):len_trim(OUTPUT_PREFIX)) /= '_') OUTPUT_PREFIX=trim(OUTPUT_PREFIX)//'_' ! separate OUTPUT_PREFIX from others by underscore
+if (output_fileSuffix(1:1) /= '_') output_fileSuffix='_'//trim(output_fileSuffix)                                 ! separate output_fileSuffix from others by underscores 
+if (output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) /= '_') output_fileSuffix=trim(output_fileSuffix)//'_'
+! left zero padding for startGRU and endGRU
+write(fmtGruOutput,"(i0)") ceiling(log10(real(maxGRU)+0.1))               ! maximum width of startGRU and endGRU
+fmtGruOutput = "i"//trim(fmtGruOutput)//"."//trim(fmtGruOutput)           ! construct the format string for startGRU and endGRU
+fmtGruOutput = "("//trim(fmtGruOutput)//",'-',"//trim(fmtGruOutput)//")"
+write(output_fileSuffix((len_trim(output_fileSuffix)+1):256),fmtGruOutput) startGRU,startGRU+nGRU-1
+
+fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
 ! write local model attributes and parameters to the model output file
@@ -714,7 +728,7 @@ do modelTimeStep=1,numtim
                    err, message)                               ! intent(out):   error control
    call handle_err(err,message)
   end do 
- end do  ! (end looping through global HRUs)
+ end do  ! (end looping through global GRUs)
 
  ! print progress
  select case(ixProgress)
@@ -778,10 +792,10 @@ do modelTimeStep=1,numtim
   enddo
  
   ! define the filename
-  write(fileout,'(a,i0,a,i0,a,i0,a,i0)') &
-                                 trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
+  write(fileout,'(a,i0,a,i0,a)') &
+                                 trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
-                                 trim(output_fileSuffix),startGRU,'-',startGRU+nGRU-1
+                                 trim(output_fileSuffix)
 
   ! define the file
   call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
@@ -830,9 +844,6 @@ do modelTimeStep=1,numtim
 
   ! loop through HRUs
   do localHRU=1,gru_struc(iGRU)%hruCount
-   
-   ! This line is used for debugging 
-   !write(*,'(4(A5,I10))') 'STEP',istep,'GRU',gru_struc(iGRU)%gru_id,'HRU',gru_struc(iGRU)%hruInfo(localHRU)%hru_id,'TYPE',typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%vegTypeIndex)
 
    ! identify the area covered by the current HRU
    fracHRU =  attrStruct%gru(iGRU)%hru(localHRU)%var(iLookATTR%HRUarea) / bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
@@ -961,7 +972,6 @@ do modelTimeStep=1,numtim
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxStruct%gru(iGRU)%hru(localHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
    endif
 
-
    ! calculate output Statistics
    call calcStats(forcStat%gru(iGRU)%hru(localHRU)%var,forcStruct%gru(iGRU)%hru(localHRU)%var,forc_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
    call calcStats(progStat%gru(iGRU)%hru(localHRU)%var,progStruct%gru(iGRU)%hru(localHRU)%var,prog_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
@@ -1068,9 +1078,9 @@ contains
  if(err==0) return
  ! process error messages
  if (err>0) then
-  write(*,'(a)') 'FATAL ERROR: '//trim(message)
+  write(*,'(//a/)') 'FATAL ERROR: '//trim(message)
  else
-  write(*,'(a)') 'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
+  write(*,'(//a/)') 'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
  endif
  if(iGRU>=1 .and. iGRU<=nGRU)then
   if(localHRU>=1 .and. localHRU<=gru_struc(iGRU)%hruCount)then
@@ -1153,7 +1163,10 @@ contains
   end if
   return
  end function getCommandArguments
- 
+
+ ! **************************************************************************************************
+ ! private subroutine to print the correct command line usage of SUMMA
+ ! ************************************************************************************************** 
  subroutine printCommandHelp()  
   print "(A)", 'Usage: summa.exe master_file [-s file_suffix] [-g startGRU countGRU] [-h checkHRU]'
   print "(A)", '  summa.exe   -- summa executable'

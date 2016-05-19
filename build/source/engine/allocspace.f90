@@ -57,7 +57,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine allocate_gru_struc: allocate space for GRU-HRU mapping structures
  ! ************************************************************************************************
- subroutine allocate_gru_struc(nGRU,startGRU,nHRU,err,message)
+ subroutine allocate_gru_struc(nGRU,startGRU,nHRU,maxGRU,err,message)
  USE netcdf
  USE nr_utility_module,only:arth
  ! provide access to subroutines
@@ -74,6 +74,7 @@ contains
  integer(i4b),intent(inout)           :: nGRU               ! number of grouped response units
  integer(i4b),intent(inout)           :: nHRU               ! number of hydrologic response units
  integer(i4b),intent(inout)           :: startGRU           ! index of the starting GRU for parallelization run
+ integer(i4b),intent(out)             :: maxGRU             ! maximum number of GRUs in the input file
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  ! define general variables
@@ -84,7 +85,7 @@ contains
  integer(i4b)                         :: mode               ! netCDF file open mode
  integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
  integer(i4b)                         :: varid              ! variable id from netcdf file
- integer(i4b)                         :: maxHRU,maxGRU      ! total numbers of HRUs and GRUs in the netCDF file
+ integer(i4b)                         :: maxHRU             ! total numbers of HRUs and GRUs in the netCDF file
  integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
  integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
  integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs stored in the netCDF file
