@@ -28,8 +28,6 @@ USE multiconst,only:&
                     iden_water,  & ! intrinsic density of water    (kg m-3)
                     gravity,     & ! gravitational acceleteration  (m s-2)
                     LH_fus         ! latent heat of fusion         (J kg-1)
-! named variables
-USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
 implicit none
 private
 public::updateSnow

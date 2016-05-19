@@ -21,8 +21,6 @@
 module vegSWavRad_module
 ! Numerical recipes data types
 USE nrtype
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:         &
                       noah_mp,      & ! full Noah-MP implementation (including albedo)

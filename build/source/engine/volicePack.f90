@@ -21,8 +21,6 @@
 module volicePack_module
 ! numerical recipes data types
 USE nrtype
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,  & ! freezing point              (K)

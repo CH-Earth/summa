@@ -69,8 +69,6 @@ USE mDecisions_module,only:  &
 USE mDecisions_module,only:  &
  localColumn,                & ! separate groundwater representation in each local soil column
  singleBasin                   ! single groundwater store over the entire basin
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private

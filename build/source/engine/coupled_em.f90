@@ -83,7 +83,8 @@ contains
  USE var_lookup,only:iLookFORCE             ! named variables for structure elements
  USE var_lookup,only:iLookPARAM             ! named variables for structure elements
  USE var_lookup,only:iLookINDEX             ! named variables for structure elements
- USE globalData,only:ix_soil,ix_snow        ! named variables for snow and soil
+ USE globalData,only:iname_snow             ! named variables for snow
+ USE globalData,only:iname_soil             ! named variables for soil
  ! named variables for child structures
  USE var_lookup,only:childFLUX_MEAN
  ! global data
@@ -222,8 +223,8 @@ contains
  ! count the number of snow and soil layers
  ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
  !         (nSnow and nSoil are shared in the data structure)
- nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+ nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+ nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
 
  ! compute the total number of snow and soil layers
  nLayers = nSnow + nSoil
@@ -558,8 +559,8 @@ contains
 
     ! recompute the number of snow and soil layers
     ! NOTE: do this here for greater visibility
-    nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-    nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+    nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+    nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
     nLayers = nSnow+nSoil
 
     ! put the data in the structures
@@ -570,6 +571,7 @@ contains
     ! compute the indices for the model state variables
     if(firstStep .or. modifiedVegState .or. modifiedLayers)then
      call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                     nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
                      indx_data,               & ! intent(inout): indices defining model states and layers
                      err,cmessage)              ! intent(out):   error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

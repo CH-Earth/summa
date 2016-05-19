@@ -743,34 +743,41 @@ contains
   case('nWatState'        ); get_ixindex = iLookINDEX%nWatState         ! number of "total water" states (vol. total water content)
   case('nMatState'        ); get_ixindex = iLookINDEX%nMatState         ! number of matric head state variables
   case('nMassState'       ); get_ixindex = iLookINDEX%nMassState        ! number of hydrology state variables (mass of water)
-  ! number of model layers, and layer indices
   case('nState'           ); get_ixindex = iLookINDEX%nState            ! total number of model state variables
+  ! number of model layers, and layer indices
   case('nSnow'            ); get_ixindex = iLookINDEX%nSnow             ! number of snow layers
   case('nSoil'            ); get_ixindex = iLookINDEX%nSoil             ! number of soil layers
   case('nLayers'          ); get_ixindex = iLookINDEX%nLayers           ! total number of layers
-  case('layerType'        ); get_ixindex = iLookINDEX%layerType         ! index defining type of layer (soil or snow)
-  ! indices of model state variables
+  case('layerType'        ); get_ixindex = iLookINDEX%layerType         ! index defining type of layer (snow or soil)
+  ! type of model state variables
+  case('ixDomainType'     ); get_ixindex = iLookINDEX%ixDomainType      ! type of domain (iname_veg, iname_snow, or iname_soil) 
+  case('ixStateType'      ); get_ixindex = iLookINDEX%ixStateType       ! indices defining the type of every state variable (iname_nrgCanair, iname_nrgLayer, iname_watLayer, etc.)
+  case('ixHydType'        ); get_ixindex = iLookINDEX%ixHydType         ! indices defining the type of hydrology states in the snow+soil domain (iname_watLayer, iname_matLayer)
+  ! indices of model specific state variables
   case('ixCasNrg'         ); get_ixindex = iLookINDEX%ixCasNrg          ! index of canopy air space energy state variable
   case('ixVegNrg'         ); get_ixindex = iLookINDEX%ixVegNrg          ! index of canopy energy state variable
   case('ixVegWat'         ); get_ixindex = iLookINDEX%ixVegWat          ! index of canopy hydrology state variable (mass)
   case('ixTopNrg'         ); get_ixindex = iLookINDEX%ixTopNrg          ! index of upper-most energy state in the snow-soil subdomain
   case('ixTopWat'         ); get_ixindex = iLookINDEX%ixTopWat          ! index of upper-most total water state in the snow-soil subdomain
   case('ixTopMat'         ); get_ixindex = iLookINDEX%ixTopMat          ! index of upper-most matric head state in the soil subdomain
-  case('ixSnowSoilNrg'    ); get_ixindex = iLookINDEX%ixSnowSoilNrg     ! indices for energy states in the snow-soil subdomain
-  case('ixSnowSoilWat'    ); get_ixindex = iLookINDEX%ixSnowSoilWat     ! indices for total water states in the snow-soil subdomain
-  case('ixSnowOnlyNrg'    ); get_ixindex = iLookINDEX%ixSnowOnlyNrg     ! indices for energy states in the snow subdomain
-  case('ixSnowOnlyWat'    ); get_ixindex = iLookINDEX%ixSnowOnlyWat     ! indices for total water states in the snow subdomain
-  case('ixSoilOnlyNrg'    ); get_ixindex = iLookINDEX%ixSoilOnlyNrg     ! indices for energy states in the soil subdomain
-  case('ixSoilOnlyHyd'    ); get_ixindex = iLookINDEX%ixSoilOnlyHyd     ! indices for hydrology states in the soil subdomain
-  ! type of model state variables
-  case('ixStateType'      ); get_ixindex = iLookINDEX%ixStateType       ! indices defining the type of the state (ixNrgState...)
-  case('ixAllState'       ); get_ixindex = iLookINDEX%ixAllState        ! list of indices for all model state variables
-  case('ixSoilState'      ); get_ixindex = iLookINDEX%ixSoilState       ! list of indices for all soil layers
-  case('ixLayerState'     ); get_ixindex = iLookINDEX%ixLayerState      ! list of indices for all model layers
+  ! vectors of indices for specific state types
   case('ixNrgOnly'        ); get_ixindex = iLookINDEX%ixNrgOnly         ! list of indices for all energy states
   case('ixWatOnly'        ); get_ixindex = iLookINDEX%ixWatOnly         ! list of indices for all "total water" states
   case('ixMatOnly'        ); get_ixindex = iLookINDEX%ixMatOnly         ! list of indices for matric head state variables
   case('ixMassOnly'       ); get_ixindex = iLookINDEX%ixMassOnly        ! list of indices for hydrology states (mass of water)
+  ! vectors of indices for specific state types within specific sub-domains
+  case('ixSnowSoilNrg'    ); get_ixindex = iLookINDEX%ixSnowSoilNrg     ! indices IN THE FULL VECTOR for energy states in the snow-soil subdomain
+  case('ixSnowSoilWat'    ); get_ixindex = iLookINDEX%ixSnowSoilWat     ! indices IN THE FULL VECTOR for total water states in the snow-soil subdomain
+  case('ixSnowOnlyNrg'    ); get_ixindex = iLookINDEX%ixSnowOnlyNrg     ! indices IN THE FULL VECTOR for energy states in the snow subdomain
+  case('ixSnowOnlyWat'    ); get_ixindex = iLookINDEX%ixSnowOnlyWat     ! indices IN THE FULL VECTOR for total water states in the snow subdomain
+  case('ixSoilOnlyNrg'    ); get_ixindex = iLookINDEX%ixSoilOnlyNrg     ! indices IN THE FULL VECTOR for energy states in the soil subdomain
+  case('ixSoilOnlyHyd'    ); get_ixindex = iLookINDEX%ixSoilOnlyHyd     ! indices IN THE FULL VECTOR for hydrology states in the soil subdomain
+  case('ixVolFracWat'     ); get_ixindex = iLookINDEX%ixVolFracWat      ! indices IN THE SNOW+SOIL VECTOR for hyd states in the soil domain
+  case('ixMatricHead'     ); get_ixindex = iLookINDEX%ixMatricHead      ! indices IN THE SOIL VECTOR for hyd states in the soil domain
+  ! indices within state vectors
+  case('ixAllState'       ); get_ixindex = iLookINDEX%ixAllState        ! list of indices for all model state variables
+  case('ixSoilState'      ); get_ixindex = iLookINDEX%ixSoilState       ! list of indices for all soil layers
+  case('ixLayerState'     ); get_ixindex = iLookINDEX%ixLayerState      ! list of indices for all model layers
   ! indices for the model output files
   case('midSnowStartIndex'); get_ixindex = iLookINDEX%midSnowStartIndex ! start index of the midSnow vector for a given timestep
   case('midSoilStartIndex'); get_ixindex = iLookINDEX%midSoilStartIndex ! start index of the midSoil vector for a given timestep

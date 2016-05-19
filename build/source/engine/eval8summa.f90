@@ -42,9 +42,6 @@ USE multiconst,only:&
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
-! layer types
-USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
-
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
@@ -236,13 +233,17 @@ contains
  feasible=.true.
 
  ! check canopy liquid water is not negative
- if(computeVegFlux)then
+ if(ixVegWat/=integerMissing)then
   if(stateVecTrial(ixVegWat) < 0._dp) feasible=.false.
  endif
 
- ! check snow temperature is below freezing and snow liquid water is not negative
- if(nSnow>0)then
+ ! check snow temperature is below freezing
+ if(size(ixSnowOnlyNrg)>0)then
   if(any(stateVecTrial(ixSnowOnlyNrg) > Tfreeze)) feasible=.false.
+ endif
+
+ ! check snow liquid water is not negative
+ if(size(ixSnowOnlyWat)>0)then
   if(any(stateVecTrial(ixSnowOnlyWat) < 0._dp)  ) feasible=.false.
  endif
 
@@ -258,6 +259,7 @@ contains
  call varExtract(&
                  ! input
                  stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
+                 prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU         
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                  vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters
@@ -279,6 +281,9 @@ contains
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+ print*, 'stateVecTrial = ', stateVecTrial
+ print*, 'mLayerTempTrial = ', mLayerTempTrial
+ print*, 'mLayerMatricHeadTrial = ', mLayerMatricHeadTrial
 
  ! compute the fluxes for a given state vector
  call computFlux(&
@@ -342,6 +347,9 @@ contains
 
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
+
+ print*, 'fluxVec = ', fluxVec
+ pause 'in eval8summa'
 
 
  ! compute the residual vector

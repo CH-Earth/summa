@@ -65,7 +65,7 @@ contains
  USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG ! named variables to describe structure elements
  ! metadata
  USE globaldata,only:prog_meta                     ! metadata for model prognostic (state) variables
- USE globaldata,only:ix_soil,ix_snow               ! named variables to describe the type of layer
+ USE globaldata,only:iname_soil,iname_snow         ! named variables to describe the type of layer
  ! data types
  USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
  USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
@@ -98,7 +98,7 @@ contains
  character(LEN=256),allocatable    :: varnames(:)     ! vector of variable names
  character(LEN=256),allocatable    :: chardata(:)     ! vector of character data
  integer(i4b)                      :: ivar,jvar       ! index of model variable
- integer(i4b)                      :: layerType       ! ix_snow or ix_soil
+ integer(i4b)                      :: layerType       ! iname_snow or iname_soil
  integer(i4b)                      :: nVars           ! number of model variables
  integer(i4b)                      :: iSnow           ! index of snow model layers
  integer(i4b)                      :: iSoil           ! index of soil model layers
@@ -122,8 +122,8 @@ contains
  err=0; message="read_icond/"
 
  ! check the missing data flag is OK
- if(ix_miss==ix_snow .or. ix_miss==ix_soil)then; err=20; message=trim(message)//&
-  'missing value index is the same as ix_snow or ix_soil'; return; endif
+ if(ix_miss==iname_snow .or. ix_miss==iname_soil)then; err=20; message=trim(message)//&
+  'missing value index is the same as iname_snow or iname_soil'; return; endif
 
  ! allocate space for the variable check vector
  allocate(checkGotVars(size(prog_meta)),stat=err)
@@ -256,14 +256,14 @@ contains
    ! identify the layer type (snow or soil)
    layerType=ix_miss
    do iword=1,size(chardata)
-    if(chardata(iword)=='snow') layerType = ix_snow
-    if(chardata(iword)=='soil') layerType = ix_soil
+    if(chardata(iword)=='snow') layerType = iname_snow
+    if(chardata(iword)=='soil') layerType = iname_soil
     if(chardata(iword)=='snow' .or. chardata(iword)=='soil') exit ! exit once read the layer type
    end do
    if(layerType==ix_miss)then; err=40; message=trim(message)//"cannot identify the layer type"; return; endif
    ! increment the index of the snow or soil Layer
-   if(layerType==ix_soil) iSoil = iSoil+1
-   if(layerType==ix_snow) iSnow = iSnow+1
+   if(layerType==iname_soil) iSoil = iSoil+1
+   if(layerType==iname_snow) iSnow = iSnow+1
    ! increment the index of the concatanated vector
    iToto = iToto+1
    ! loop through initial conditions variables
@@ -278,12 +278,12 @@ contains
     if(jvar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ivar))//"']"; return; endif
     ! ***** populate the data variable *****
     select case(trim(prog_meta(jvar)%vartype))
-     case('midSoil'); if(layerType==ix_soil) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil)
-     case('midSnow'); if(layerType==ix_snow) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow)
-     case('midToto');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto)
-     case('ifcSnow');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow-1)  ! IC = top interface
-     case('ifcSoil');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil-1)  ! IC = top interface
-     case('ifcToto');                        read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto-1)  ! IC = top interface
+     case('midSoil'); if(layerType==iname_soil) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil)
+     case('midSnow'); if(layerType==iname_snow) read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow)
+     case('midToto');                           read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto)
+     case('ifcSnow');                           read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSnow-1)  ! IC = top interface
+     case('ifcSoil');                           read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iSoil-1)  ! IC = top interface
+     case('ifcToto');                           read(chardata(ivar),*,iostat=err) prog_data%var(jvar)%dat(iToto-1)  ! IC = top interface
      case default
      err=40; message=trim(message)//"unknownInitCondType[name='"//trim(prog_meta(jvar)%varname)//"']"; return
     endselect
@@ -336,7 +336,7 @@ contains
  mLayerVolFracLiq  => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat    , & ! volumetric fraction of liquid water in each snow layer (-)
  mLayerVolFracIce  => prog_data%var(iLookPROG%mLayerVolFracIce)%dat    , & ! volumetric fraction of ice in each snow layer (-)
  mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat    , & ! matric head (m)
- mLayerLayerType   => indx_data%var(iLookINDEX%layerType)%dat          , & ! type of layer (ix_soil or ix_snow)
+ mLayerLayerType   => indx_data%var(iLookINDEX%layerType)%dat          , & ! type of layer (iname_soil or iname_snow)
  ! model parameters
  vGn_alpha         => parData(iLookPARAM%vGn_alpha)                    , & ! van Genutchen "alpha" parameter (m-1)
  vGn_n             => parData(iLookPARAM%vGn_n)                        , & ! van Genutchen "n" parameter (-)
@@ -380,7 +380,7 @@ contains
   select case(mlayerLayerType(iLayer))
 
    ! ***** snow
-   case(ix_snow)
+   case(iname_snow)
     ! (check liquid water)
     if(mLayerVolFracLiq(iLayer) < 0._dp .or. mLayerVolFracLiq(iLayer) > 1._dp)then
      write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0 or > 1: layer = ',iLayer
@@ -398,7 +398,7 @@ contains
     endif
 
    ! ***** soil
-   case(ix_soil)
+   case(iname_soil)
     ! (check liquid water)
     if(mLayerVolFracLiq(iLayer) < theta_res .or. mLayerVolFracLiq(iLayer) > theta_sat)then
      write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res or > theta_sat: layer = ',iLayer
@@ -423,7 +423,7 @@ contains
   select case(mLayerLayerType(iLayer))
 
    ! ** snow
-   case(ix_snow)
+   case(iname_snow)
 
     ! check that snow temperature is less than freezing
     if(mLayerTemp(iLayer) > Tfreeze)then
@@ -445,7 +445,7 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
    ! ** soil
-   case(ix_soil)
+   case(iname_soil)
 
     ! ensure consistency among state variables
     call updateSoil(&

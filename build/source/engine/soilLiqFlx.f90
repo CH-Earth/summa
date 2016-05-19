@@ -32,8 +32,6 @@ USE multiconst,only:&
                     iden_air,& ! intrinsic density of air      (kg m-3)
                     iden_ice,& ! intrinsic density of ice      (kg m-3)
                     iden_water ! intrinsic density of water    (kg m-3)
-! provide access to layer types
-USE globalData,only:ix_soil,ix_snow  ! named variables for snow and soil
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:  &
  ! look-up values for method used to compute derivative

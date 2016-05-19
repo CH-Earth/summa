@@ -23,9 +23,6 @@ module systemSolv_module
 ! data types
 USE nrtype
 
-! layer types
-USE globalData,only:ix_soil,ix_snow ! named variables for snow and soil
-
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
@@ -200,6 +197,7 @@ contains
  integer(i4b),parameter          :: fullyImplicit=1001           ! named variable for the fully implicit solution
  integer(i4b),parameter          :: strangSplitting=1002         ! named variable for the Strang splitting solution
  integer(i4b)                    :: ixSplitOption=strangSplitting  ! selected operator splitting method
+ !integer(i4b)                    :: ixSplitOption=fullyImplicit  ! selected operator splitting method
  integer(i4b)                    :: nOperSplit                   ! number of splitting operations
  integer(i4b)                    :: iSplit                       ! index of splitting operation
  integer(i4b),parameter          :: halfMass1=1                  ! order in sequence for the 1st mass operation
@@ -258,6 +256,7 @@ contains
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat           , & ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
  ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat           , & ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat           , & ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+ ixDomainType            => indx_data%var(iLookINDEX%ixDomainType)%dat            , & ! intent(in): [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat             , & ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
  ! vegetation parameters
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp] canopy depth (m)
@@ -393,39 +392,41 @@ contains
   ! initialize state vectors
   call popStateVec(&
                    ! input
-                   computeVegFlux,              & ! intent(in):    flag to denote if computing energy flux over vegetation
-                   pack(ixStateType,stateMask), & ! intent(in):    type of desired model state variables
-                   nSubset,                     & ! intent(in):    number of desired state variables
+                   computeVegFlux,               & ! intent(in):    flag to denote if computing energy flux over vegetation
+                   pack(ixDomainType,stateMask), & ! intent(in):    domain for desired model state variables
+                   pack(ixStateType,stateMask),  & ! intent(in):    type of desired model state variables
+                   nSubset,                      & ! intent(in):    number of desired state variables
                    ! input-output: data structures
-                   prog_data,                   & ! intent(in):    model prognostic variables for a local HRU
-                   diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
-                   indx_data,                   & ! intent(in):    indices defining model states and layers
+                   prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
+                   diag_data,                    & ! intent(in):    model diagnostic variables for a local HRU
+                   indx_data,                    & ! intent(in):    indices defining model states and layers
                    ! output
-                   stateVecInit,                & ! intent(out):   initial model state vector (mixed units)
-                   fScale,                      & ! intent(out):   function scaling vector (mixed units)
-                   xScale,                      & ! intent(out):   variable scaling vector (mixed units)
-                   sMul,                        & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                   dMat,                        & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
-                   err,cmessage)                  ! intent(out):   error control
+                   stateVecInit,                 & ! intent(out):   initial model state vector (mixed units)
+                   fScale,                       & ! intent(out):   function scaling vector (mixed units)
+                   xScale,                       & ! intent(out):   variable scaling vector (mixed units)
+                   sMul,                         & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                   dMat,                         & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
+                   err,cmessage)                   ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+
+  print*, 'pack(ixStateType,stateMask) = ', pack(ixStateType,stateMask)
+  print*, 'stateVecInit = ', stateVecInit 
+ 
   ! -----
   ! * compute the initial function evaluation...
   ! --------------------------------------------
   
   ! initialize the trial state vectors
   stateVecTrial = stateVecInit
-  
+
   ! need to intialize canopy water at a positive value
-  if(computeVegFlux)then
+  if(ixVegWat/=integerMissing)then
    if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
   endif
   
   ! try to accelerate solution for energy
-  if(computeVegFlux)then
-   stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
-   stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
-  endif
+  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
+  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
   
   ! compute the flux and the residual vector for a given state vector
   ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
@@ -579,6 +580,7 @@ contains
  call varExtract(&
                  ! input
                  stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
+                 prog_data,                                 & ! intent(inout): model prognostic variables for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                  vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters

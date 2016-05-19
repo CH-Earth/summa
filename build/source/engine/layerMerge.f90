@@ -22,7 +22,8 @@ module layerMerge_module
 ! data types
 USE nrtype
 ! access named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
+USE globalData,only:iname_snow        ! named variables for snow
+USE globalData,only:iname_soil        ! named variables for soil
 ! physical constants
 USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
@@ -178,8 +179,8 @@ contains
      call rmLyAllVars(indx_data,indx_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
      if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
      ! update the total number of layers
-     nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-     nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+     nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+     nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
      nLayers = nSnow + nSoil
      ! save the number of layers
      indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
@@ -366,11 +367,11 @@ contains
  call rmLyAllVars(indx_data,indx_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define the combined layer as snow
- indx_data%var(iLookINDEX%layerType)%dat(iSnow) = ix_snow
+ indx_data%var(iLookINDEX%layerType)%dat(iSnow) = iname_snow
 
  ! update the total number of layers
- nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+ nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+ nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
  nLayers = nSnow + nSoil
 
  ! save the number of layers in the data structures
