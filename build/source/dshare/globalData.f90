@@ -103,9 +103,10 @@ MODULE globalData
                    struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
 
  ! define named variables to describe the domain type
- integer(i4b),parameter,public               :: iname_veg =1000         ! named variable to denote a vegetation state variable
- integer(i4b),parameter,public               :: iname_soil=1001         ! named variable to denote a soil layer
- integer(i4b),parameter,public               :: iname_snow=1002         ! named variable to denote a snow layer
+ integer(i4b),parameter,public               :: iname_cas =1000         ! named variable to denote a vegetation state variable
+ integer(i4b),parameter,public               :: iname_veg =1001         ! named variable to denote a vegetation state variable
+ integer(i4b),parameter,public               :: iname_soil=1002         ! named variable to denote a soil layer
+ integer(i4b),parameter,public               :: iname_snow=1003         ! named variable to denote a snow layer
 
  ! define named variables to describe the state varible type            
  integer(i4b),parameter,public               :: iname_nrgCanair=2001    ! named variable defining the energy of the canopy air space

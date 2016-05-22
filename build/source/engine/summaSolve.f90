@@ -215,6 +215,9 @@ contains
                   err,cmessage)                     ! intent(out):   error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+ pause ' after computJacob'
+
+
  ! -----
  ! * solve linear system...
  ! ------------------------

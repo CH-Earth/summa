@@ -210,7 +210,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
- logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
+ logical(lgt),parameter          :: forceFullMatrix=.true.      ! flag to force the use of the full Jacobian matrix
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  integer(i4b)                    :: ixMatrix                     ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
@@ -392,21 +392,21 @@ contains
   ! initialize state vectors
   call popStateVec(&
                    ! input
-                   computeVegFlux,               & ! intent(in):    flag to denote if computing energy flux over vegetation
-                   pack(ixDomainType,stateMask), & ! intent(in):    domain for desired model state variables
-                   pack(ixStateType,stateMask),  & ! intent(in):    type of desired model state variables
-                   nSubset,                      & ! intent(in):    number of desired state variables
+                   computeVegFlux,                   & ! intent(in):    flag to denote if computing energy flux over vegetation
+                   pack(ixDomainType,stateMask),     & ! intent(in):    id of domain for desired model state variables
+                   pack(ixStateType,stateMask),      & ! intent(in):    type of desired model state variables
+                   nSubset,                          & ! intent(in):    number of desired state variables
                    ! input-output: data structures
-                   prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
-                   diag_data,                    & ! intent(in):    model diagnostic variables for a local HRU
-                   indx_data,                    & ! intent(in):    indices defining model states and layers
+                   prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
+                   diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                   indx_data,                        & ! intent(in):    indices defining model states and layers
                    ! output
-                   stateVecInit,                 & ! intent(out):   initial model state vector (mixed units)
-                   fScale,                       & ! intent(out):   function scaling vector (mixed units)
-                   xScale,                       & ! intent(out):   variable scaling vector (mixed units)
-                   sMul,                         & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                   dMat,                         & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
-                   err,cmessage)                   ! intent(out):   error control
+                   stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
+                   fScale,                           & ! intent(out):   function scaling vector (mixed units)
+                   xScale,                           & ! intent(out):   variable scaling vector (mixed units)
+                   sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                   dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
+                   err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   print*, 'pack(ixStateType,stateMask) = ', pack(ixStateType,stateMask)
@@ -436,8 +436,8 @@ contains
                   dt,                      & ! intent(in):    length of the time step (seconds)
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
-                  nLayers,                 & ! intent(in):    total number of layers
-                  nState,                  & ! intent(in):    total number of state variables
+                  nLayers,                 & ! intent(in):    number of layers
+                  nSubset,                 & ! intent(in):    number of state variables in the current subset
                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation

@@ -22,6 +22,7 @@ module indexState_module
 ! data types
 USE nrtype
 ! domain types
+USE globalData,only:iname_cas       ! canopy air space
 USE globalData,only:iname_veg       ! vegetation
 USE globalData,only:iname_snow      ! snow
 USE globalData,only:iname_soil      ! soil
@@ -94,10 +95,6 @@ contains
  nMatState     => indx_data%var(iLookINDEX%nMatState)%dat(1) , & ! number of matric head state variables
  nMassState    => indx_data%var(iLookINDEX%nMassState)%dat(1), & ! number of hydrology state variables (mass of water)
  nState        => indx_data%var(iLookINDEX%nState)%dat(1)    , & ! total number of model state variables
- ! number of model layers, and layer indices
- nSnow         => indx_data%var(iLookINDEX%nSnow)%dat(1)     , & ! number of snow layers
- nSoil         => indx_data%var(iLookINDEX%nSoil)%dat(1)     , & ! number of soil layers
- nLayers       => indx_data%var(iLookINDEX%nLayers)%dat(1)   , & ! total number of layers
  ! type of model state variables
  ixSoilState   => indx_data%var(iLookINDEX%ixSoilState)%dat  , & ! list of indices for all soil layers
  ixLayerState  => indx_data%var(iLookINDEX%ixLayerState)%dat , & ! list of indices for all model layers
@@ -177,9 +174,10 @@ contains
 
   ! get the length of the desired variable
   select case(iVar)
-   case(iLookINDEX%ixDomainType); nVec=nState
-   case(iLookINDEX%ixStateType);  nVec=nState
-   case(iLookINDEX%ixAllState);   nVec=nState
+   case(iLookINDEX%ixControlVolume); nVec=nState
+   case(iLookINDEX%ixDomainType);    nVec=nState
+   case(iLookINDEX%ixStateType);     nVec=nState
+   case(iLookINDEX%ixAllState);      nVec=nState
    case default; cycle ! only need to process the above variables
   end select  ! iVar
 
@@ -209,10 +207,16 @@ contains
  ! make an association to the ALLOCATABLE variables in the data structures
  ! NOTE: we need to do this here since the size may have changed above
  associate(&
- ixDomainType => indx_data%var(iLookINDEX%ixDomainType)%dat , & ! indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
- ixStateType  => indx_data%var(iLookINDEX%ixStateType)%dat  , & ! indices defining the type of the state (iname_nrgLayer...)
- ixAllState   => indx_data%var(iLookINDEX%ixAllState)%dat     & ! list of indices for all model state variables
+ ixControlVolume => indx_data%var(iLookINDEX%ixControlVolume)%dat , & ! indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
+ ixDomainType    => indx_data%var(iLookINDEX%ixDomainType)%dat    , & ! indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
+ ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat     , & ! indices defining the type of the state (iname_nrgLayer...)
+ ixAllState      => indx_data%var(iLookINDEX%ixAllState)%dat        & ! list of indices for all model state variables
  )  ! making an association to variables in the data structures
+
+ ! define indices for state variables
+ ixAllState   = arth(1,1,nState)
+ ixSoilState  = arth(1,1,nSoil)
+ ixLayerState = arth(1,1,nLayers)
 
  ! define the state type for the vegetation canopy
  if(computeVegFlux)then
@@ -228,7 +232,7 @@ contains
 
  ! define the domain type for vegetation
  if(computeVegFlux)then
-  ixDomainType(ixCasNrg) = iname_veg
+  ixDomainType(ixCasNrg) = iname_cas
   ixDomainType(ixVegNrg) = iname_veg
   ixDomainType(ixVegWat) = iname_veg
  endif
@@ -243,13 +247,25 @@ contains
  ixDomainType(ixSoilOnlyNrg) = iname_soil
  ixDomainType(ixSoilOnlyHyd) = iname_soil
 
+ ! define the index of each control volume in the vegetation domains
+ if(computeVegFlux)then
+  ixControlVolume(ixCasNrg) = 1
+  ixControlVolume(ixVegNrg) = 1
+  ixControlVolume(ixVegWat) = 1
+ endif
+
+ ! define the index of the each control volume in the snow domain
+ if(size(ixSnowOnlyNrg)>0) ixControlVolume(ixSnowOnlyNrg) = ixLayerState(1:nSnow)
+ if(size(ixSnowOnlyWat)>0) ixControlVolume(ixSnowOnlyWat) = ixLayerState(1:nSnow)
+
+ ! define the index of the each control volume in the soil domain
+ if(size(ixSoilOnlyNrg)>0) ixControlVolume(ixSoilOnlyNrg) = ixSoilState(1:nSoil)
+ if(size(ixSoilOnlyHyd)>0) ixControlVolume(ixSoilOnlyHyd) = ixSoilState(1:nSoil)
+
  ! define the type of variable in the soil domain
  ixHydType(1:nLayers) = ixStateType(ixSnowSoilWat)
 
- ! define indices for state variables
- ixAllState   = arth(1,1,nState)
- ixSoilState  = arth(1,1,nSoil)
- ixLayerState = arth(1,1,nLayers)
+ print*, 'ixControlVolume = ', ixControlVolume
 
  ! end association to the ALLOCATABLE variables in the data structures
  end associate 

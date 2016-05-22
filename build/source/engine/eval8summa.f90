@@ -349,7 +349,6 @@ contains
  scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
  print*, 'fluxVec = ', fluxVec
- pause 'in eval8summa'
 
 
  ! compute the residual vector
@@ -359,7 +358,6 @@ contains
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    total number of layers
-                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   ! input: flux vectors
                   sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                   fluxVec,                 & ! intent(in):    flux vector
@@ -383,6 +381,12 @@ contains
                   err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+ print*, 'fScale(:)  = ', fScale(:)
+ print*, 'resSink(:) = ', resSink(:)
+ print*, 'resVec(:)  = ', resVec(:)
+ print*, 'size(rVecScaled) = ', size(rVecScaled)
+ print*, 'size(resVec) = ', size(resVec)
+ print*, 'size(fScale) = ', size(fScale)
 
  ! compute the function evaluation
  rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)

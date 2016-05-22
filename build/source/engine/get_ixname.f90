@@ -749,7 +749,8 @@ contains
   case('nSoil'            ); get_ixindex = iLookINDEX%nSoil             ! number of soil layers
   case('nLayers'          ); get_ixindex = iLookINDEX%nLayers           ! total number of layers
   case('layerType'        ); get_ixindex = iLookINDEX%layerType         ! index defining type of layer (snow or soil)
-  ! type of model state variables
+  ! definition of model state variables
+  case('ixControlVolume'  ); get_ixindex = iLookINDEX%ixControlVolume   ! index of control volume for different domains (veg, snow, soil)
   case('ixDomainType'     ); get_ixindex = iLookINDEX%ixDomainType      ! type of domain (iname_veg, iname_snow, or iname_soil) 
   case('ixStateType'      ); get_ixindex = iLookINDEX%ixStateType       ! indices defining the type of every state variable (iname_nrgCanair, iname_nrgLayer, iname_watLayer, etc.)
   case('ixHydType'        ); get_ixindex = iLookINDEX%ixHydType         ! indices defining the type of hydrology states in the snow+soil domain (iname_watLayer, iname_matLayer)
@@ -775,6 +776,7 @@ contains
   case('ixVolFracWat'     ); get_ixindex = iLookINDEX%ixVolFracWat      ! indices IN THE SNOW+SOIL VECTOR for hyd states in the soil domain
   case('ixMatricHead'     ); get_ixindex = iLookINDEX%ixMatricHead      ! indices IN THE SOIL VECTOR for hyd states in the soil domain
   ! indices within state vectors
+  case('ixMapState'       ); get_ixindex = iLookINDEX%ixMapState        ! list of indices of the state subset in the full state vector
   case('ixAllState'       ); get_ixindex = iLookINDEX%ixAllState        ! list of indices for all model state variables
   case('ixSoilState'      ); get_ixindex = iLookINDEX%ixSoilState       ! list of indices for all soil layers
   case('ixLayerState'     ); get_ixindex = iLookINDEX%ixLayerState      ! list of indices for all model layers

@@ -80,7 +80,7 @@ contains
  subroutine popStateVec(&
                         ! input: model control
                         computeVegFlux,          & ! intent(in):    flag to denote if computing energy flux over vegetation
-                        domainType,              & ! intent(in):    domain for desired model state variables
+                        domainType,              & ! intent(in):    id of domain for desired model state variables
                         stateType,               & ! intent(in):    type of desired model state variables
                         nState,                  & ! intent(in):    number of desired state variables
                         ! input-output: data structures
@@ -99,7 +99,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- integer(i4b),intent(in)         :: domainType(:)          ! domain for desired model state variables
+ integer(i4b),intent(in)         :: domainType(:)          ! id of domain for desired model state variables
  integer(i4b),intent(in)         :: stateType(:)           ! type of desired model state variables
  integer(i4b),intent(in)         :: nState                 ! number of desired state variables
  ! input-output: data structures
@@ -260,6 +260,10 @@ contains
 
  end do  ! looping through variables in the data structure
 
+ ! get the indices of the state subset in the full state vector
+ call indxSubset(indx_data%var(iLookINDEX%ixMapState)%dat, ixAllState, ixHydType==iname_watLayer, err, cmessage)
+ if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(iLookINDEX%ixVolFracWat)%varname)//']'; return; endif
+
  ! get the subset of indices in the snow+soil domain layers where the state variable is volumetric total water
  call indxSubset(indx_data%var(iLookINDEX%ixVolFracWat)%dat, ixLayerState, ixHydType==iname_watLayer, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(iLookINDEX%ixVolFracWat)%varname)//']'; return; endif
@@ -276,8 +280,8 @@ contains
  ixSnowOnlyWat     => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat            ,& ! intent(in): [i4b] indices IN THE FULL VECTOR for total water states in the snow subdomain
  ixSoilOnlyNrg     => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,& ! intent(in): [i4b] indices IN THE FULL VECTOR for energy states in the soil subdomain
  ixSoilOnlyHyd     => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b] indices IN THE FULL VECTOR for hydrology states in the soil subdomain
- ixVolFracWat      => indx_data%var(iLookINDEX%ixVolFracWat)%dat             ,& ! intent(in): [i4b] indices IN THE SNOW+SOIL VECTOR for hydrology states in the soil subdomain
- ixMatricHead      => indx_data%var(iLookINDEX%ixMatricHead)%dat              & ! intent(in): [i4b] indices IN THE SOIL VECTOR for hydrology states in the soil subdomain
+ ixVolFracWat      => indx_data%var(iLookINDEX%ixVolFracWat)%dat             ,& ! intent(in): [i4b] indices IN THE SNOW+SOIL VECTOR for hydrology states
+ ixMatricHead      => indx_data%var(iLookINDEX%ixMatricHead)%dat              & ! intent(in): [i4b] indices IN THE SOIL VECTOR for hydrology states
  )
 
  ! -----

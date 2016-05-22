@@ -26,6 +26,10 @@ USE nrtype
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
+! access missing values
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
+
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
@@ -51,7 +55,6 @@ contains
                         nSnow,                   & ! intent(in):    number of snow layers
                         nSoil,                   & ! intent(in):    number of soil layers
                         nLayers,                 & ! intent(in):    total number of layers
-                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                         ! input: flux vectors
                         sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                         fVec,                    & ! intent(in):    flux vector
@@ -84,7 +87,6 @@ contains
  integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
- logical(lgt),intent(in)         :: computeVegFlux            ! flag to indicate if computing fluxes over vegetation
  ! input: flux vectors
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
  real(dp),intent(in)             :: fVec(:)                   ! flux vector
@@ -136,6 +138,7 @@ contains
   ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
   ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
   ixSnowSoilWat           => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat            ,&  ! intent(in): [i4b(:)] indices for total water states in the snow+soil subdomain
+  ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat            ,&  ! intent(in): [i4b(:)] indices for hydrology states in the snow subdomain
   ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat             &  ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
  ) ! association to necessary variables for the residual computations
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -150,25 +153,21 @@ contains
  rAdd(:) = 0._dp
 
  ! compute energy associated with melt freeze for the vegetation canopy
- if(computeVegFlux)then
-  rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*(scalarCanopyIceTrial - scalarCanopyIce)/canopyDepth   ! energy associated with melt/freeze (J m-3)
- endif
+ if(ixVegNrg/=integerMissing) rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*(scalarCanopyIceTrial - scalarCanopyIce)/canopyDepth   ! energy associated with melt/freeze (J m-3)
 
  ! compute energy associated with melt/freeze for snow
  ! NOTE: allow expansion of ice during melt-freeze
- if(nSnow>0)then
-  rAdd(ixSnowOnlyNrg) = rAdd(ixSnowOnlyNrg) + LH_fus*iden_ice*(mLayerVolFracIceTrial(1:nSnow) - mLayerVolFracIce(1:nSnow))       ! energy associated with melt/freeze (J m-3)
- endif
+ if(size(ixSnowOnlyNrg)>0) rAdd(ixSnowOnlyNrg) = rAdd(ixSnowOnlyNrg) + LH_fus*iden_ice*(mLayerVolFracIceTrial(1:nSnow) - mLayerVolFracIce(1:nSnow))       ! energy associated with melt/freeze (J m-3)
 
  ! compute energy associated with melt/freeze for soil
  ! NOTE: deny expansion of ice during melt-freeze
- rAdd(ixSoilOnlyNrg) = rAdd(ixSoilOnlyNrg) + LH_fus*iden_water*(mLayerVolFracIceTrial(nSnow+1:nLayers) - mLayerVolFracIce(nSnow+1:nLayers))     ! energy associated with melt/freeze (J m-3)
+ if(size(ixSoilOnlyNrg)>0) rAdd(ixSoilOnlyNrg) = rAdd(ixSoilOnlyNrg) + LH_fus*iden_water*(mLayerVolFracIceTrial(nSnow+1:nLayers) - mLayerVolFracIce(nSnow+1:nLayers))     ! energy associated with melt/freeze (J m-3)
 
  ! sink terms soil hydrology (-)
  ! NOTE: state variable is volumetric water content, so melt-freeze is not included
  ! NOTE: ground evaporation was already included in the flux at the upper boundary
  ! NOTE: rAdd(ixSnowOnlyWat)=0, and is defined in the initialization above
- rAdd(ixSoilOnlyHyd)    = rAdd(ixSoilOnlyHyd) + dt*(mLayerTranspire(1:nSoil) - mLayerBaseflow(1:nSoil) )/mLayerDepth(nSnow+1:nLayers) - mLayerCompress(1:nSoil)
+ if(size(ixSoilOnlyHyd)>0) rAdd(ixSoilOnlyHyd)    = rAdd(ixSoilOnlyHyd) + dt*(mLayerTranspire(1:nSoil) - mLayerBaseflow(1:nSoil) )/mLayerDepth(nSnow+1:nLayers) - mLayerCompress(1:nSoil)
 
  ! ---
  ! * compute the residual vector...
@@ -176,19 +175,22 @@ contains
 
  ! compute the residual vector for the vegetation canopy
  ! NOTE: sMul(ixVegWat) = 1, but include as it converts all variables to quadruple precision
- if(computeVegFlux)then   !  vegetation state variables (if they exist)
-  ! --> energy balance
-  rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
-  rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
-  ! --> mass balance
-  rVec(ixVegWat) = sMul(ixVegWat)*scalarCanopyWatTrial  - ( (sMul(ixVegWat)*scalarCanopyWat  + fVec(ixVegWat)*dt) + rAdd(ixVegWat) )
- endif
+ ! --> energy balance
+ if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
+ if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
+ ! --> mass balance
+ if(ixVegWat/=integerMissing) rVec(ixVegWat) = sMul(ixVegWat)*scalarCanopyWatTrial  - ( (sMul(ixVegWat)*scalarCanopyWat  + fVec(ixVegWat)*dt) + rAdd(ixVegWat) )
 
  ! compute the residual vector for the snow and soil sub-domains for energy
- rVec(ixSnowSoilNrg) = sMul(ixSnowSoilNrg)*mLayerTempTrial(1:nLayers) - ( (sMul(ixSnowSoilNrg)*mLayerTemp(1:nLayers)  + fVec(ixSnowSoilNrg)*dt) + rAdd(ixSnowSoilNrg) )
+ if(size(ixSnowSoilNrg)>0) rVec(ixSnowSoilNrg) = sMul(ixSnowSoilNrg)*mLayerTempTrial(1:nLayers) - ( (sMul(ixSnowSoilNrg)*mLayerTemp(1:nLayers)  + fVec(ixSnowSoilNrg)*dt) + rAdd(ixSnowSoilNrg) )
 
  ! compute the residual vector for the snow+soil sub-domain for liquid water
- rVec(ixSnowSoilWat) = mLayerVolFracWatTrial(1:nLayers) - ( (mLayerVolFracWat(1:nLayers)  + fVec(ixSnowSoilWat)*dt) + rAdd(ixSnowSoilWat) )
+ if(size(ixSnowOnlyWat)>0) rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(      1:nSnow)   - ( (mLayerVolFracWat(      1:nSnow)    + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
+ if(size(ixSoilOnlyHyd)>0) rVec(ixSoilOnlyHyd) = mLayerVolFracWatTrial(nSnow+1:nLayers) - ( (mLayerVolFracWat(nSnow+1:nLayers)  + fVec(ixSoilOnlyHyd)*dt) + rAdd(ixSoilOnlyHyd) )
+
+ print*, 'ixSnowSoilWat = ', ixSnowSoilWat
+ print*, 'mLayerVolFracWat(1:nLayers) = ', mLayerVolFracWat(1:nLayers)
+ print*, 'fVec(ixSnowSoilWat) = ', fVec(ixSnowSoilWat)
 
  ! print result
  if(globalPrintFlag) write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec
