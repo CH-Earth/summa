@@ -49,12 +49,12 @@ contains
  subroutine coupled_em(&
                        ! model control
                        istep,             & ! intent(in):    index of the model time step
-                       printRestart,      & ! intent(in):    flag to print a re-start file
-                       output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
+!                       printRestart,      & ! intent(in):    flag to print a re-start file
+!                       output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                        computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                        ! data structures (input)
-                       time_data,         & ! intent(in):    model time data
+!                       time_data,         & ! intent(in):    model time data
                        type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
                        attr_data,         & ! intent(in):    local attributes for each HRU
                        forc_data,         & ! intent(in):    model forcing data
@@ -120,12 +120,12 @@ contains
  implicit none
  ! model control
  integer(i4b),intent(in)              :: istep                  ! index of model time step
- logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
- character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
+! logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
+! character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! data structures (input)
- type(var_i),intent(in)               :: time_data              ! time information
+! type(var_i),intent(in)               :: time_data              ! time information
  type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
  type(var_d),intent(in)               :: attr_data              ! spatial attributes
  type(var_d),intent(in)               :: forc_data              ! model forcing data
@@ -265,11 +265,11 @@ contains
  end associate
 
  ! print re-start file
- if(printRestart)then
-  call printRestartFile(output_fileSuffix,dt_init,time_data,prog_data,err,cmessage)
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-  !pause
- endif
+! if(printRestart)then
+!  call printRestartFile(output_fileSuffix,dt_init,time_data,prog_data,err,cmessage)
+!  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+!  !pause
+! endif
 
  ! short-cut to the algorithmic control parameters
  minstep = mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
@@ -1097,125 +1097,125 @@ contains
 
  end subroutine implctMelt
 
- ! *********************************************************************************************************
- ! private subroutine printRestartFile: print a re-start file
- ! *********************************************************************************************************
- subroutine printRestartFile(&
-                             output_fileSuffix,& ! intent(in): suffix defining the model experiment
-                             dt_init,          & ! intent(in): time step length (s)
-                             time_data,        & ! intent(in): model time structures
-                             prog_data,        & ! intent(in): model prognostic variables for a local HRU
-                             err,message)        ! intent(out): error control
- ! --------------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------------
- ! access the derived types to define the data structures
- USE data_types,only:var_i                  ! data vector (i4b)
- USE data_types,only:var_dlength            ! data vector with variable length dimension (dp)
- ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookPROG,iLookTIME    ! named variables for structure elements
- ! access file paths
- USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX      ! define output file
- ! access desired modules
- USE ascii_util_module,only:file_open       ! open file
- implicit none
- ! --------------------------------------------------------------------------------------------------------
- ! input
- character(*),intent(in)         :: output_fileSuffix   ! suffix defining the model experiment
- real(dp),intent(in)             :: dt_init             ! time step length (s)
- type(var_i),intent(in)          :: time_data           ! model time structures
- type(var_dlength),intent(in)    :: prog_data           ! model prognostic variables for a local HRU
- ! output: error control
- integer(i4b),intent(out)        :: err                 ! error code
- character(*),intent(out)        :: message             ! error message
- ! --------------------------------------------------------------------------------------------------------
- ! local variables
- integer(i4b),parameter          :: ixUnit=64           ! file unit
- logical(lgt)                    :: fileOpen            ! flag to denote if the file unit is already used
- character(len=256),parameter    :: filepref='summaRestart'  ! prefix for the restart filename
- character(len=256)              :: timeString          ! string to define the time
- character(len=256)              :: filename            ! name of the restart file
- integer(i4b)                    :: iLayer              ! index of the model layer
- real(dp),parameter              :: valueMissing=-999._dp  ! missing value
- ! --------------------------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message='printRestartFile/'
-
- ! define the time string
- write(timeString,'(a,i4,3(a,i2.2))') '_',time_data%var(iLookTIME%iyyy),'-',time_data%var(iLookTIME%im),'-',time_data%var(iLookTIME%id),'-',time_data%var(iLookTIME%ih)
-
- ! define the file name
- filename = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_'//trim(filepref)//trim(timeString)//trim(output_fileSuffix)//'.txt'
- !print*, trim(filename)
- !pause
-
- ! check if file unit is open already
- inquire(unit=ixUnit,opened=fileOpen)
- if(fileOpen)then; err=20; message=trim(message)//'file ixUnit is open'; return; endif
-
- ! open file for writing
- open(ixUnit,file=trim(filename),status="unknown",action="write",iostat=err)
- if(err/=0)then
-  message=trim(message)//"OpenError['"//trim(filename)//"']"
-  err=20; return
- endif
-
- ! write a header
- write(ixUnit,'(a)') '! This is a summa re-start file'
- write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
-
- ! write scalar state variables
- write(ixUnit,'(a)') '<start_scalar_icond>'
- write(ixUnit,'(a25,1x,e20.10)') 'dt_init                 ', dt_init                                              ! time step length (s)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyIce         ', prog_data%var(iLookPROG%scalarCanopyIce     )%dat(1) ! canopy ice content (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyLiq         ', prog_data%var(iLookPROG%scalarCanopyLiq     )%dat(1) ! canopy liquid water content (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanairTemp        ', prog_data%var(iLookPROG%scalarCanairTemp    )%dat(1) ! temperature of the canopy air space (K)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyTemp        ', prog_data%var(iLookPROG%scalarCanopyTemp    )%dat(1) ! temperature of the vegetation canopy (K)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowAlbedo        ', prog_data%var(iLookPROG%scalarSnowAlbedo    )%dat(1) ! snow albedo (-)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSWE               ', prog_data%var(iLookPROG%scalarSWE           )%dat(1) ! snow water equivalent (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowDepth         ', prog_data%var(iLookPROG%scalarSnowDepth     )%dat(1) ! snow depth (m)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarSfcMeltPond       ', prog_data%var(iLookPROG%scalarSfcMeltPond   )%dat(1) ! surface melt pond (kg m-2)
- write(ixUnit,'(a25,1x,e20.10)') 'scalarAquiferStorage    ', prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1) ! aquifer storage (m)
- write(ixUnit,'(a)') '<end_scalar_icond>'
-
- ! make the file easier to read
- write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
- write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
-
- ! write layer state variables
- write(ixUnit,'(a)') '<start_layer_icond>'
- write(ixUnit,'(a)') ' layerType            iLayerHeight             mLayerDepth            mLayerTemp     mLayerVolFracIce     mLayerVolFracLiq     mLayerMatricHead'
-
- ! write state variables for each snow layer
- if(nSnow>0)then
-  do iLayer=1,nSnow  ! loop through snow layers
-   write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      snow',                                            &
-                                                                     prog_data%var(iLookPROG%iLayerHeight    )%dat(iLayer-1), &  ! height at the top of the layer (m)
-                                                                     prog_data%var(iLookPROG%mLayerDepth     )%dat(iLayer),   &  ! depth of each layer (m)
-                                                                     prog_data%var(iLookPROG%mLayerTemp      )%dat(iLayer),   &  ! temperature of each layer (K)
-                                                                     prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer),   &  ! volumetric ice content (-)
-                                                                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer),   &  ! volumetric liquid water content (-)
-                                                                     valueMissing                                                ! matric head (missing for snow)
-  end do  ! looping through snow layers
- endif  ! if snow layers exist
-
- ! write state variables for each soil layer
- do iLayer=1,nSoil  ! loop through snow layers
-  write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      soil',                                             &
-                                                                     prog_data%var(iLookPROG%iLayerHeight    )%dat(nSnow+iLayer-1), &  ! height at the top of the layer (m)
-                                                                     prog_data%var(iLookPROG%mLayerDepth     )%dat(nSnow+iLayer),   &  ! depth of each layer (m)
-                                                                     prog_data%var(iLookPROG%mLayerTemp      )%dat(nSnow+iLayer),   &  ! temperature of each layer (K)
-                                                                     prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+iLayer),   &  ! volumetric ice content (-)
-                                                                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+iLayer),   &  ! volumetric liquid water content (-)
-                                                                     prog_data%var(iLookPROG%mLayerMatricHead)%dat(iLayer)             ! matric head (m)
- end do  ! looping through soil layers
-
- ! end definition of layer variables
- write(ixUnit,'(a)') '<end_layer_icond>'
-
- ! close file
- close(ixUnit)
-
- end subroutine printRestartFile
-
-
+! ! *********************************************************************************************************
+! ! private subroutine printRestartFile: print a re-start file
+! ! *********************************************************************************************************
+! subroutine printRestartFile(&
+!                             output_fileSuffix,& ! intent(in): suffix defining the model experiment
+!                             dt_init,          & ! intent(in): time step length (s)
+!                             time_data,        & ! intent(in): model time structures
+!                             prog_data,        & ! intent(in): model prognostic variables for a local HRU
+!                             err,message)        ! intent(out): error control
+! ! --------------------------------------------------------------------------------------------------------
+! ! --------------------------------------------------------------------------------------------------------
+! ! access the derived types to define the data structures
+! USE data_types,only:var_i                  ! data vector (i4b)
+! USE data_types,only:var_dlength            ! data vector with variable length dimension (dp)
+! ! access named variables defining elements in the data structures
+! USE var_lookup,only:iLookPROG,iLookTIME    ! named variables for structure elements
+! ! access file paths
+! USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX      ! define output file
+! ! access desired modules
+! USE ascii_util_module,only:file_open       ! open file
+! implicit none
+! ! --------------------------------------------------------------------------------------------------------
+! ! input
+! character(*),intent(in)         :: output_fileSuffix   ! suffix defining the model experiment
+! real(dp),intent(in)             :: dt_init             ! time step length (s)
+! type(var_i),intent(in)          :: time_data           ! model time structures
+! type(var_dlength),intent(in)    :: prog_data           ! model prognostic variables for a local HRU
+! ! output: error control
+! integer(i4b),intent(out)        :: err                 ! error code
+! character(*),intent(out)        :: message             ! error message
+! ! --------------------------------------------------------------------------------------------------------
+! ! local variables
+! integer(i4b),parameter          :: ixUnit=64           ! file unit
+! logical(lgt)                    :: fileOpen            ! flag to denote if the file unit is already used
+! character(len=256),parameter    :: filepref='summaRestart'  ! prefix for the restart filename
+! character(len=256)              :: timeString          ! string to define the time
+! character(len=256)              :: filename            ! name of the restart file
+! integer(i4b)                    :: iLayer              ! index of the model layer
+! real(dp),parameter              :: valueMissing=-999._dp  ! missing value
+! ! --------------------------------------------------------------------------------------------------------
+! ! initialize error control
+! err=0; message='printRestartFile/'
+!
+! ! define the time string
+! write(timeString,'(a,i4,3(a,i2.2))') '_',time_data%var(iLookTIME%iyyy),'-',time_data%var(iLookTIME%im),'-',time_data%var(iLookTIME%id),'-',time_data%var(iLookTIME%ih)
+!
+! ! define the file name
+! filename = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_'//trim(filepref)//trim(timeString)//trim(output_fileSuffix)//'.txt'
+! !print*, trim(filename)
+! !pause
+!
+! ! check if file unit is open already
+! inquire(unit=ixUnit,opened=fileOpen)
+! if(fileOpen)then; err=20; message=trim(message)//'file ixUnit is open'; return; endif
+!
+! ! open file for writing
+! open(ixUnit,file=trim(filename),status="unknown",action="write",iostat=err)
+! if(err/=0)then
+!  message=trim(message)//"OpenError['"//trim(filename)//"']"
+!  err=20; return
+! endif
+!
+! ! write a header
+! write(ixUnit,'(a)') '! This is a summa re-start file'
+! write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
+!
+! ! write scalar state variables
+! write(ixUnit,'(a)') '<start_scalar_icond>'
+! write(ixUnit,'(a25,1x,e20.10)') 'dt_init                 ', dt_init                                              ! time step length (s)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyIce         ', prog_data%var(iLookPROG%scalarCanopyIce     )%dat(1) ! canopy ice content (kg m-2)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyLiq         ', prog_data%var(iLookPROG%scalarCanopyLiq     )%dat(1) ! canopy liquid water content (kg m-2)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarCanairTemp        ', prog_data%var(iLookPROG%scalarCanairTemp    )%dat(1) ! temperature of the canopy air space (K)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarCanopyTemp        ', prog_data%var(iLookPROG%scalarCanopyTemp    )%dat(1) ! temperature of the vegetation canopy (K)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowAlbedo        ', prog_data%var(iLookPROG%scalarSnowAlbedo    )%dat(1) ! snow albedo (-)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarSWE               ', prog_data%var(iLookPROG%scalarSWE           )%dat(1) ! snow water equivalent (kg m-2)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarSnowDepth         ', prog_data%var(iLookPROG%scalarSnowDepth     )%dat(1) ! snow depth (m)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarSfcMeltPond       ', prog_data%var(iLookPROG%scalarSfcMeltPond   )%dat(1) ! surface melt pond (kg m-2)
+! write(ixUnit,'(a25,1x,e20.10)') 'scalarAquiferStorage    ', prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1) ! aquifer storage (m)
+! write(ixUnit,'(a)') '<end_scalar_icond>'
+!
+! ! make the file easier to read
+! write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
+! write(ixUnit,'(a)') '! ---------------------------------------------------------------------------------------------------------------------'
+!
+! ! write layer state variables
+! write(ixUnit,'(a)') '<start_layer_icond>'
+! write(ixUnit,'(a)') ' layerType            iLayerHeight             mLayerDepth            mLayerTemp     mLayerVolFracIce     mLayerVolFracLiq     mLayerMatricHead'
+!
+! ! write state variables for each snow layer
+! if(nSnow>0)then
+!  do iLayer=1,nSnow  ! loop through snow layers
+!   write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      snow',                                            &
+!                                                                     prog_data%var(iLookPROG%iLayerHeight    )%dat(iLayer-1), &  ! height at the top of the layer (m)
+!                                                                     prog_data%var(iLookPROG%mLayerDepth     )%dat(iLayer),   &  ! depth of each layer (m)
+!                                                                     prog_data%var(iLookPROG%mLayerTemp      )%dat(iLayer),   &  ! temperature of each layer (K)
+!                                                                     prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer),   &  ! volumetric ice content (-)
+!                                                                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer),   &  ! volumetric liquid water content (-)
+!                                                                     valueMissing                                                ! matric head (missing for snow)
+!  end do  ! looping through snow layers
+! endif  ! if snow layers exist
+!
+! ! write state variables for each soil layer
+! do iLayer=1,nSoil  ! loop through snow layers
+!  write(ixUnit,'(a10,2x,2(e22.15,2x),4(e20.10,1x))') '      soil',                                             &
+!                                                                     prog_data%var(iLookPROG%iLayerHeight    )%dat(nSnow+iLayer-1), &  ! height at the top of the layer (m)
+!                                                                     prog_data%var(iLookPROG%mLayerDepth     )%dat(nSnow+iLayer),   &  ! depth of each layer (m)
+!                                                                     prog_data%var(iLookPROG%mLayerTemp      )%dat(nSnow+iLayer),   &  ! temperature of each layer (K)
+!                                                                     prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+iLayer),   &  ! volumetric ice content (-)
+!                                                                     prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+iLayer),   &  ! volumetric liquid water content (-)
+!                                                                     prog_data%var(iLookPROG%mLayerMatricHead)%dat(iLayer)             ! matric head (m)
+! end do  ! looping through soil layers
+!
+! ! end definition of layer variables
+! write(ixUnit,'(a)') '<end_layer_icond>'
+!
+! ! close file
+! close(ixUnit)
+!
+! end subroutine printRestartFile
+!
+!
 end module coupled_em_module

@@ -45,6 +45,7 @@ USE read_attrb_module,only:read_attrb                       ! module to read loc
 USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
 USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
 USE read_icond_module,only:read_icond                       ! module to read initial conditions
+USE read_icond_module,only:read_icond_layers                ! module to read initial conditions
 USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
 USE read_param_module,only:read_param                       ! module to read model parameter sets
 USE ConvE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
@@ -57,6 +58,7 @@ USE read_force_module,only:read_force                       ! module to read mod
 USE derivforce_module,only:derivforce                       ! module to compute derived forcing data
 USE modelwrite_module,only:writeParm,writeTime              ! module to write model attributes and parameters
 USE modelwrite_module,only:writeData,writeBasin             ! module to write model output
+USE modelwrite_module,only:writeRestart                     ! module to write model Restart
 USE vegPhenlgy_module,only:vegPhenlgy                       ! module to compute vegetation phenology
 USE coupled_em_module,only:coupled_em                       ! module to run the coupled energy and mass model
 USE groundwatr_module,only:groundwatr                       ! module to simulate regional groundwater balance
@@ -197,7 +199,7 @@ integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable 
 integer(i4b),parameter           :: ixRestart_im=1001          ! named variable to print a re-start file once per month
 integer(i4b),parameter           :: ixRestart_id=1002          ! named variable to print a re-start file once per day
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
-integer(i4b)                     :: ixRestart=ixRestart_im     ! define frequency to write restart files
+integer(i4b)                     :: ixRestart=ixRestart_id     ! define frequency to write restart files
 ! define output file
 character(len=8)                 :: cdate1=''                  ! initial date
 character(len=10)                :: ctime1=''                  ! initial time
@@ -246,32 +248,40 @@ integer(i4b),allocatable         :: diagChild_map(:)  ! index of the child data 
 integer(i4b),allocatable         :: fluxChild_map(:)  ! index of the child data structure: stats flux
 integer(i4b),allocatable         :: indxChild_map(:)  ! index of the child data structure: stats indx
 integer(i4b),allocatable         :: bvarChild_map(:)  ! index of the child data structure: stats bvar
-type(extended_info),allocatable  :: statForc_meta(:)           ! child metadata for stats 
-type(extended_info),allocatable  :: statProg_meta(:)           ! child metadata for stats 
-type(extended_info),allocatable  :: statDiag_meta(:)           ! child metadata for stats 
-type(extended_info),allocatable  :: statFlux_meta(:)           ! child metadata for stats 
-type(extended_info),allocatable  :: statIndx_meta(:)           ! child metadata for stats 
-type(extended_info),allocatable  :: statBvar_meta(:)           ! child metadata for stats 
+type(extended_info),allocatable  :: statForc_meta(:)  ! child metadata for stats 
+type(extended_info),allocatable  :: statProg_meta(:)  ! child metadata for stats 
+type(extended_info),allocatable  :: statDiag_meta(:)  ! child metadata for stats 
+type(extended_info),allocatable  :: statFlux_meta(:)  ! child metadata for stats 
+type(extended_info),allocatable  :: statIndx_meta(:)  ! child metadata for stats 
+type(extended_info),allocatable  :: statBvar_meta(:)  ! child metadata for stats 
+! stuff for restart file
+character(len=256)               :: timeString        ! protion of restart file name that contains the write-out time
+character(len=256)               :: restartFile       ! restart file name
 
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
 print*, 'start'
+
 ! get the initial time
 call date_and_time(cdate1,ctime1)
 print*,ctime1
+
 ! get command-line arguments for the output file suffix
 call getarg(1,output_fileSuffix)
 if (len_trim(output_fileSuffix) == 0) then
  print*,'1st command-line argument missing, expect text string defining the output file suffix'; stop
 endif
+
 ! get command-line argument for the muster file
 call getarg(2,summaFileManagerFile) ! path/name of file defining directories and files
 if (len_trim(summaFileManagerFile) == 0) then
  print*,'2nd command-line argument missing, expect path/name of muster file'; stop
 endif
+
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
+
 ! initialize the Jacobian flag
 doJacobian=.false.
 
@@ -312,51 +322,13 @@ call allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! (3b) read the number of snow and soil layers
 ! *****************************************************************************
-
-! *** TEMPORARY CODE ***
-! code will be replaced once merge with the NetCDF branch
-
-! NOTE: currently the same initial conditions for all HRUs and GRUs; will change when shift to NetCDF
-
-! loop through GRUs
-do iGRU=1,nGRU
-
- ! check the GRU-HRU mapping structure is allocated 
- if(.not.allocated(gru_struc(iGRU)%hruInfo)) call handle_err(err,'gru_struc(iGRU)%hruInfo is not allocated')
-
- ! loop through HRUs
- do iHRU=1,gru_struc(iGRU)%hruCount  ! loop through HRUs within a given GRU
-
-  ! get a vector of non-commented lines
-  call file_open(trim(SETNGS_PATH)//trim(MODEL_INITCOND),fileUnit,err,message); call handle_err(err,message)
-  call get_vlines(fileUnit,dataLines,err,message); call handle_err(err,message)
-  close(fileUnit)
-  
-  ! get the number of snow and soil layers for each HRU
-  gru_struc(iGRU)%hruInfo(iHRU)%nSnow = 0 ! initialize the number of snow layers
-  gru_struc(iGRU)%hruInfo(iHRU)%nSoil = 0 ! initialize the number of soil layers
-  do iVar=1,size(dataLines)
-   ! split the line into an array of words
-   call split_line(dataLines(iVar),chardata,err,message); call handle_err(err,message)
-   ! check if the line contains initial conditions data (contains the word "snow" or "soil")
-   do iword=1,size(chardata)
-    if(chardata(iword)=='snow') gru_struc(iGRU)%hruInfo(iHRU)%nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1
-    if(chardata(iword)=='soil') gru_struc(iGRU)%hruInfo(iHRU)%nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil+1
-    if(chardata(iword)=='snow' .or. chardata(iword)=='soil') exit ! exit once read the layer type
-   end do
-   deallocate(chardata)
-  end do
-  deallocate(dataLines)
-
- end do  ! looping through HRUs
-end do  ! looping through HRUs
-
-! **** END OF TEMPORARY CODE ***
+restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
+call read_icond_layers(trim(restartFile),nGRU,nHRU,indx_meta,err,message)
+call handle_err(err,message)
 
 ! *****************************************************************************
-! (3b) allocate space for data structures
+! (3c) allocate space for data structures
 ! *****************************************************************************
-
 ! loop through data structures
 do iStruct=1,size(structInfo)
  ! allocate space
@@ -409,7 +381,7 @@ call ffile_info(nHRU,err,message); call handle_err(err,message)
 call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (3c) allocate space for output statistics data structures
+! (4c) allocate space for output statistics data structures
 ! *****************************************************************************
 ! child metadata structures - so that we do not carry full stats structures around everywhere
 ! only carry stats for scalar varaible
@@ -519,7 +491,6 @@ call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,mes
 ! *****************************************************************************
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
 ! *****************************************************************************
-
 ! loop through GRUs
 do iGRU=1,nGRU
 
@@ -549,17 +520,26 @@ do iGRU=1,nGRU
   
   ! calculate a look-up table for the temperature-enthalpy conversion 
   call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU)%var,err,message); call handle_err(err,message)
+
+ enddo ! HRU
+enddo ! GRU
  
-  ! read description of model initial conditions -- also initializes model structure components
-  ! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
-  call read_icond(gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! number of snow layers
-                  gru_struc(iGRU)%hruInfo(iHRU)%nSoil, & ! number of soil layers
-                  mparStruct%gru(iGRU)%hru(iHRU)%var,  & ! vector of model parameters
-                  indxStruct%gru(iGRU)%hru(iHRU),      & ! data structure of model indices
-                  progStruct%gru(iGRU)%hru(iHRU),      & ! model prognostic (state) variables
-                  err,message)                           ! error control
-  call handle_err(err,message)
-  
+! read description of model initial conditions -- also initializes model structure components
+! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
+call read_icond(restartFile,                   & ! name of initial conditions file
+                nGRU,nHRU,                     & ! number of response units
+                prog_meta,                     & ! metadata
+                progStruct,                    & ! model prognostic (state) variables
+                mparStruct,                    & ! model parameters
+                indxStruct,                    & ! layer indexes
+                err,message)                     ! error control
+call handle_err(err,message)
+
+! loop through GRUs
+do iGRU=1,nGRU
+ ! loop through local HRUs
+ do iHRU=1,gru_struc(iGRU)%hruCount
+
   ! re-calculate height of each layer
   call calcHeight(&
                   ! input/output: data structures
@@ -870,15 +850,6 @@ do modelTimeStep=1,numtim
    ! ****************************************************************************
    ! (9) run the model
    ! ****************************************************************************
-   ! define the need to calculate the re-start file
-   select case(ixRestart)
-    case(ixRestart_iy);    printRestart = (timeStruct%var(iLookTIME%im) == 1 .and. timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0  .and. timeStruct%var(iLookTIME%imin) == 0)
-    case(ixRestart_im);    printRestart = (timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-    case(ixRestart_id);    printRestart = (timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-    case(ixRestart_never); printRestart = .false.
-    case default; call handle_err(20,'unable to identify option for the restart file')
-   end select
- 
    ! set the flag to compute the vegetation flux
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
  
@@ -886,12 +857,9 @@ do modelTimeStep=1,numtim
    call coupled_em(&
                    ! model control
                    modelTimeStep,                  & ! intent(in):    time step index
-                   printRestart,                   & ! intent(in):    flag to print a re-start file
-                   output_fileSuffix,              & ! intent(in):    name of the experiment used in the restart file
                    dt_init(iGRU)%hru(iHRU),        & ! intent(inout): initial time step
                    computeVegFluxFlag,             & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
                    ! data structures (input)
-                   timeStruct,                     & ! intent(in):    model time data
                    typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    local classification of soil veg etc. for each HRU
                    attrStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    local attributes for each HRU
                    forcStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model forcing data
@@ -1023,6 +991,30 @@ do modelTimeStep=1,numtim
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
 
+ ! quesry whether this timestep requires a re-start file
+ select case(ixRestart)
+  case(ixRestart_iy);    printRestart = (timeStruct%var(iLookTIME%im) == 1 .and. timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0  .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixRestart_im);    printRestart = (timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixRestart_id);    printRestart = (timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixRestart_never); printRestart = .false.
+  case default; call handle_err(20,'unable to identify option for the restart file')
+ end select
+
+ ! print a restart file if requested
+ if(printRestart)then
+  write(timeString,'(a,i4,3(a,i2.2))') '_',timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%im),'-',timeStruct%var(iLookTIME%id),'-',timeStruct%var(iLookTIME%ih)
+  print*,trim(timeString)
+  restartFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_'//trim('summaRestart')//trim(timeString)//trim(output_fileSuffix)//'.nc'
+  print*,trim(restartFile)
+  call writeRestart(restartFile,nGRU,nHRU,prog_meta,progStruct,indx_meta,indxStruct,err,message)
+  call handle_err(err,message) 
+!if (gru_struc(1)%hruInfo(1)%nSnow.gt.1) then
+! print*,gru_struc(1)%hruInfo(1)%nSnow
+! print*,indxStruct%gru(1)%hru(1)%var(iLookIndex%nSnow)%dat
+! pause
+!endif
+ endif
+
 end do  ! (looping through time)
 
 ! close any remaining output files
@@ -1032,7 +1024,7 @@ do iFreq = 1,nFreq
   call handle_err(err,message)
  endif
 enddo
- 
+
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
 

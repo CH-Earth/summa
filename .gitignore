@@ -26,3 +26,5 @@ summa.exe.dSYM*
 # makefile
 make.out
 Makefile-*
+# backup files
+*.backup
