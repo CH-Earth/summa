@@ -163,6 +163,8 @@ MODULE globalData
  integer(i4b),save,public                    :: nFreq                   ! actual number of output files
  integer(i4b),dimension(maxFreq),save,public :: outFreq                 ! frequency of all output files
 
-
-
+ ! running mode 
+ integer(i4b),parameter,public               :: iRunModeFull=1          ! named variable defining running mode as full run (all GRUs)
+ integer(i4b),parameter,public               :: iRunModeGRU=2           ! named variable defining running mode as GRU-parallelization run (GRU subset)
+ integer(i4b),parameter,public               :: iRunModeHRU=3           ! named variable defining running mode as single-HRU run (ONE HRU)
 END MODULE globalData

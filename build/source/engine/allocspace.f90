@@ -57,7 +57,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine allocate_gru_struc: allocate space for GRU-HRU mapping structures
  ! ************************************************************************************************
- subroutine allocate_gru_struc(nGRU,startGRU,nHRU,maxGRU,err,message)
+ subroutine allocate_gru_struc(nGRU,nHRU,maxGRU,maxHRU,err,message,startGRU,checkHRU)
  USE netcdf
  USE nr_utility_module,only:arth
  ! provide access to subroutines
@@ -67,16 +67,21 @@ contains
  USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
  USE globalData,only: index_map                    ! relating different indexing system
  USE globalData,only: gru_struc                    ! gru-hru mapping structures
+ USE globalData,only: iRunModeFull                 ! named variable to define running mode as full run
+ USE globalData,only: iRunModeGRU                  ! named variable to define running mode as GRU parallelization run
+ USE globalData,only: iRunModeHRU                  ! named variable to define running mode as single HRU run
  use multiconst,only: integerMissing               ! value for missing integer
  
  implicit none
  ! define output
  integer(i4b),intent(inout)           :: nGRU               ! number of grouped response units
  integer(i4b),intent(inout)           :: nHRU               ! number of hydrologic response units
- integer(i4b),intent(inout)           :: startGRU           ! index of the starting GRU for parallelization run
- integer(i4b),intent(out)             :: maxGRU             ! maximum number of GRUs in the input file
+ integer(i4b),intent(in)              :: maxGRU             ! maximum number of GRUs in the input file
+ integer(i4b),intent(in)              :: maxHRU             ! maximum number of HRUs in the input file
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
+ integer(i4b),intent(in),optional     :: startGRU           ! index of the starting GRU for parallelization run
+ integer(i4b),intent(in),optional     :: checkHRU           ! index of the HRU for a single HRU run
  ! define general variables
  character(len=256)                   :: cmessage           ! error message for downwind routine
  character(LEN=256)                   :: infile             ! input filename
@@ -85,7 +90,6 @@ contains
  integer(i4b)                         :: mode               ! netCDF file open mode
  integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
  integer(i4b)                         :: varid              ! variable id from netcdf file
- integer(i4b)                         :: maxHRU             ! total numbers of HRUs and GRUs in the netCDF file
  integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
  integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
  integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs stored in the netCDF file
@@ -98,6 +102,24 @@ contains
  ! Start procedure here
  err=0; message="allocate_gru_hru_map/"
 
+ if (present(startGRU)) then
+  ! check the startGRU and CheckHRU for GRU-parallelization run
+  if (startGRU+nGRU-1>maxGRU) then 
+   ! try to reduce nGRU for incorrect parallelization specification
+   if (startGRU<=maxGRU) then 
+    nGRU=maxGRU-startGRU+1
+   else
+    err=1; message=trim(message)//'startGRU is larger than then the GRU dimension'; return
+   end if
+  end if  
+ elseif (present(checkHRU)) then
+  !check CheckHRU is smaller than maxHRU for single-HRU run
+  if (checkHRU>maxHRU) then; err=1; message=trim(message)//'checkHRU is larger than then the HRU dimension'; return; end if
+ else
+  ! define nGRU and nHRU for full run
+  nGRU = maxGRU; nHRU = maxHRU
+ end if
+
  ! check that gru_struc structure is initialized
  if(allocated(gru_struc)) deallocate(gru_struc)
  if(allocated(index_map)) deallocate(index_map)
@@ -108,30 +130,6 @@ contains
  mode=nf90_noWrite
  call nc_file_open(trim(infile), mode, ncid, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! get gru_ix dimension length
- err = nf90_inq_dimid(ncid, "gru", gruDimID);                if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; endif
- err = nf90_inquire_dimension(ncid, gruDimID, len = maxGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; endif
-  
- if (nGRU == integerMissing) then
-  ! this is a full run
-  startGRU = 1
-  nGRU = maxGRU
- else
-  ! this is a GRU parallelization run; check startGRU and nGRU
-  if (nHRU == integerMissing .and. startGRU+nGRU-1>maxGRU) then 
-   ! try to reduce nGRU for incorrect parallelization specification
-   if (startGRU<=maxGRU) then 
-    nGRU=maxGRU-startGRU+1
-   else
-    err=1; message=trim(message)//'startGRU is larger than then GRU dimension'; return
-   end if
-  end if 
- end if 
- 
- ! get hru_dim dimension length (ie., the number of hrus in entire domain)
- err = nf90_inq_dimid(ncid, "hru", hruDimID);                if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; endif
- err = nf90_inquire_dimension(ncid, hruDimID, len = maxHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; endif  
  
  ! read the HRU to GRU mapping
  allocate(hru2gru_id(maxHRU),stat=err)
@@ -139,27 +137,35 @@ contains
  err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru2gruId variable/'//trim(nf90_strerror(err)); return; endif
  err = nf90_get_var(ncid,varid,hru2gru_id);      if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru2gruId variable/'//trim(nf90_strerror(err)); return; endif
  
- ! allocate mapping array 
+ ! allocate mapping array  
+ ! for full run or GRU parallelization run (looping over a set of GRUs),
+ ! GRU Ids are retrieved from gruId in the local attribute file; 
+ ! otherwise for single HRU run, gruId is retrieved from hru2gru.
  allocate(gru_struc(nGRU))  
- if (nHRU == integerMissing) then
-  ! for full run or GRU parallelization run (looping over a set of GRUs),
-  ! GRU Ids are retrieved from gruId in the local attribute file; 
-  ! otherwise for single HRU run, gruId is retrieved from hru2gru.
-  allocate(gru_id(nGRU))  
-  err = nf90_inq_varid(ncid, "gruId", varid);                              if(err/=nf90_noerr)then; message=trim(message)//'problem finding gruId variable/'//trim(nf90_strerror(err)); return; endif
-  err = nf90_get_var(ncid,varid,gru_id,start=(/startGRU/),count=(/nGRU/)); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gruId variable/'//trim(nf90_strerror(err)); return; endif  
+ if (present(checkHRU)) then  
+  ! allocate space for single-HRU run
+  gru_struc(1)%gruId=hru2gru_id(checkHRU)
+  gru_struc(1)%hruCount=1
+  allocate(gru_struc(1)%hruInfo(1))  
+ else    
+  ! read gru_Id  
+  allocate(gru_id(maxGRU),stat=err)  
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; endif
+  err = nf90_inq_varid(ncid, "gruId", varid);    if(err/=nf90_noerr)then; message=trim(message)//'problem finding gruId variable/'//trim(nf90_strerror(err)); return; endif
+  err = nf90_get_var(ncid,varid,gru_id);         if(err/=nf90_noerr)then; message=trim(message)//'problem reading gruId variable/'//trim(nf90_strerror(err)); return; endif    
   ! allocate HRUs for each GRU 
   do iGRU=1,nGRU
-   hruCount = count(hru2gru_id==gru_id(iGRU))
+   if (present(startGRU)) then 
+    gru_struc(iGRU)%gruId=gru_id(iGRU+startGRU-1)
+   else
+    gru_struc(iGRU)%gruId=gru_id(iGRU)    
+   end if
+   hruCount = count(hru2gru_id==gru_struc(iGRU)%gruId)
+   if (hruCount<1) then; err=20; write(message((len_trim(message)+1):len(message)),"(A,I0)") ' problem finding HRUs belong to GRU ', gru_struc(iGRU)%gruId; return; endif
    gru_struc(iGRU)%hruCount = hruCount
    allocate(gru_struc(iGRU)%hruInfo(hruCount),stat=err)
-   if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; endif
   end do
-  nHRU = sum(gru_struc%hruCount)
- else  
-  ! allocate space for single-HRU run
-  gru_struc(1)%hruCount=1
-  allocate(gru_struc(1)%hruInfo(1))
+  if (present(startGRU)) nHRU = sum(gru_struc%hruCount)
  endif
  allocate(index_map(nHRU))
  ! close the HRU_ATTRIBUTES netCDF file
