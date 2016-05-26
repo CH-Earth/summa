@@ -155,6 +155,7 @@ contains
  USE globalData,only: gru_struc                    ! gru-hru mapping structures
  implicit none
  ! input
+! class(*),intent(in)             :: metaStruct(:)  ! metadata structure
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! output
  class(*),intent(out)            :: dataStruct     ! data structure
@@ -255,14 +256,15 @@ contains
  end do gruLoop ! loop through GRUs
 
  ! * allocate local data structures where there is no spatial dimension
- select type(dataStruct)
-  type is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
-  type is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  type is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  type is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  ! check identified the data type
-  class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; endif
- end select
+  select type(dataStruct)
+   type is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
+   type is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+   type is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+   type is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+   ! check identified the data type
+   class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; endif
+  end select
+ 
  ! error check
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
@@ -330,6 +332,7 @@ contains
   type is (var_dlength); call allocateDat_dp( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
+ 
  ! check errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -341,6 +344,7 @@ contains
  subroutine allocateDat_dp(metadata,nSnow,nSoil,nLayers, & ! input
                            varData,err,message)            ! output
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
+ USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -354,11 +358,15 @@ contains
  character(*),intent(out)          :: message     ! error message
  ! local variables
  integer(i4b)                      :: iVar        ! variable index
+ integer(i4b)                      :: nVars       ! number of variables in the metadata structure
  ! initialize error control
  err=0; message='allocateDat_dp/'
 
+ ! get the number of variables in the metadata structure
+ nVars = size(metadata)
+
  ! loop through variables in the data structure
- do iVar=1,size(metadata)
+ do iVar=1,nVars
 
   ! check allocated
   if(allocated(varData%var(iVar)%dat))then
@@ -377,9 +385,10 @@ contains
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err) ! maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
-     err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"
+     err=40; message=trim(message)//"1. unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"
      return
    endselect
    ! check error
@@ -398,6 +407,7 @@ contains
  subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
                             varData,err,message)            ! output
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
+ USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -411,11 +421,15 @@ contains
  character(*),intent(out)          :: message     ! error message
  ! local variables
  integer(i4b)                      :: iVar        ! variable index
+ integer(i4b)                      :: nVars       ! number of variables in the metadata structure
  ! initialize error control
  err=0; message='allocateDat_int/'
 
+ ! get the number of variables in the metadata structure
+ nVars = size(metadata)
+
  ! loop through variables in the data structure
- do iVar=1,size(metadata)
+ do iVar=1,nVars
 
   ! check allocated
   if(allocated(varData%var(iVar)%dat))then
@@ -434,8 +448,9 @@ contains
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
-    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; print*,metadata(iVar)%vartype,metadata(iVar)%varName; return
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
    endselect
    ! check error
    if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
