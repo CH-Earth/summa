@@ -104,10 +104,10 @@ contains
  if(size(mLayerVolFracLiqTrial)/=nSnow .or. size(mLayerVolFracIce)/=nSnow .or. &
     size(iLayerLiqFluxSnow)/=nSnow+1 .or. size(iLayerLiqFluxSnowDeriv)/=nSnow+1) then
   err=20; message=trim(message)//'size mismatch of input/output vectors'; return
- endif
+ end if
 
  ! check the meltwater exponent is >=1
- if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; endif
+ if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
 
  ! define the liquid flux at the upper boundary (m s-1)
  iLayerLiqFluxSnow(0)      = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
@@ -124,7 +124,7 @@ contains
    ! compute the residual volumetric liquid water content (-)
    mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
   end do  ! (looping through snow layers)
- endif  ! (if the first flux call)
+ end if  ! (if the first flux call)
 
  ! compute fluxes
  do iLayer=1,nSnow  ! (loop through snow layers)
@@ -153,8 +153,8 @@ contains
    else  ! flow does not ocur
     iLayerLiqFluxSnow(iLayer)      = 0._dp
     iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
-   endif  ! storage above residual content
-  endif  ! check for very high density
+   end if  ! storage above residual content
+  end if  ! check for very high density
  end do  ! loop through snow layers
 
  ! end association of local variables with information in the data structures

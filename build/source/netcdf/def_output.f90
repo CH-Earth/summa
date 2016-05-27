@@ -100,21 +100,21 @@ contains
   fstring = adjustl(fstring)
   fname = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print*,'Created output file:',trim(fname)
- enddo
+ end do
 
  ! define model decisions
  do iVar = 1,size(model_decisions)
   if(model_decisions(iVar)%iDecision.ne.integerMissing)then
    call put_attrib(ncid(modelTime),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
- enddo
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  end if
+ end do
 
  do iFreq = 1,nFreq
   do iStruct = 1,size(structInfo)
-   selectcase (trim(structInfo(iStruct)%structName))
+   select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
     case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
     case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
@@ -128,12 +128,12 @@ contains
     case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
     case('bvar' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
-   endselect
+   end select
    ! error handling
-   if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;endif
-  enddo ! iStruct 
+   if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
+  end do ! iStruct 
 
- enddo ! iFreq 
+ end do ! iFreq 
 
  end subroutine def_output
 
@@ -268,7 +268,7 @@ contains
   ! special case of the time variable
   if(metaData(iVar)%varName == 'time')then
    call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'; return; endif
+   if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'; return; end if
 
   ! standard case
   else
@@ -293,13 +293,13 @@ contains
    if(err/=0)then
     message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'
     return
-   endif
-  endif  ! check if we are processing the time variable
+   end if
+  end if  ! check if we are processing the time variable
   ! check that we got the shape
   if(.not.allocated(dimensionIDs))then
    message=trim(message)//'problem defining dimensions for variable '//trim(metaData(iVar)%varName)
    err=20; return
-  endif
+  end if
 
   ! loop through statistics
   do iStat = 1,maxvarStat
@@ -327,8 +327,8 @@ contains
    ! add file info to metadata structure
    metaData(iVar)%ncVarID(iStat) = iVarID
 
-  enddo ! looping through statistics
- enddo  ! looping through variables
+  end do ! looping through statistics
+ end do  ! looping through variables
   
  ! close output file
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return

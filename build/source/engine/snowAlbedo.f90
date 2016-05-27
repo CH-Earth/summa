@@ -144,7 +144,7 @@ contains
   spectralSnowAlbedoDirect(:)  = valueMissing
   spectralSnowAlbedoDiffuse(:) = valueMissing
   return
- endif
+ end if
 
  ! compute fractional increase in albedo associated with snowfall
  refreshFactor = dt*snowfallRate/albedoRefresh
@@ -163,7 +163,7 @@ contains
     albedoMin = albedoMinSpring
    else
     albedoMin = albedoMinWinter
-   endif
+   end if
    ! compute average albedo
    call computeAlbedo(scalarSnowAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
    ! assume albedo is the same in visible and near infra-red bands, and for direct and diffuse radiation
@@ -188,7 +188,7 @@ contains
     fZen = (1._dp/bPar)*( ((1._dp + bPar)/(1._dp + 2._dp*bPar*cosZenith)) - 1._dp)
    else
     fZen = 0._dp
-   endif
+   end if
    ! compute direct albedo
    spectralSnowAlbedoDirect(ixVisible) = spectralSnowAlbedoDiffuse(ixVisible) + 0.4_dp*fZen*(1._dp - spectralSnowAlbedoDiffuse(ixVisible))
    spectralSnowAlbedoDirect(ixNearIR)  = spectralSnowAlbedoDiffuse(ixNearIR)  + 0.4_dp*fZen*(1._dp - spectralSnowAlbedoDiffuse(ixNearIR))
@@ -203,7 +203,7 @@ contains
  end select  ! identify option for snow albedo
 
  ! check
- if(scalarSnowAlbedo < 0._dp)then; err=20; message=trim(message)//'unable to identify option for snow albedo'; return; endif
+ if(scalarSnowAlbedo < 0._dp)then; err=20; message=trim(message)//'unable to identify option for snow albedo'; return; end if
 
  ! end association to data structures
  end associate

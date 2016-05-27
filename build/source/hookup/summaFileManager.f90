@@ -86,20 +86,20 @@ if(.not.xist)then
   message=trim(message)//"FileNotFound['"//trim(summaFileManagerIn)//"']"&
                        //'/ProceedingWithDefaults'
   err=-10; return
-endif
+end if
 ! open file manager file
 open(unt,file=summaFileManagerIn,status="old",action="read",iostat=err)
 if(err/=0)then
   message=trim(message)//"fileManagerOpenError['"//trim(summaFileManagerIn)//"']"
   err=10; return
-endif
+end if
 ! check the header matches the code
 read(unt,*)temp
 if(trim(temp)/=summaFileManagerHeader)then
   message=trim(message)//"unknownHeader&[file='"//trim(summaFileManagerIn)//"']&&
     &[header="//trim(temp)//"]"
   err=20; return
-endif
+end if
 ! read information from file
 ierr=0  ! initialize errors
 read(unt,'(a)')temp
@@ -128,7 +128,7 @@ read(unt,*)OUTPUT_PREFIX   ; call checkLineRead(OUTPUT_PREFIX,    err,message); 
 close(unt)
 ! check that the output directory exists and write the date and time to a log file
 open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)
-if(err/=0)then; err=10; message=trim(message)//"cannot write to directory '"//trim(OUTPUT_PATH)//"'"; return; endif
+if(err/=0)then; err=10; message=trim(message)//"cannot write to directory '"//trim(OUTPUT_PATH)//"'"; return; end if
 call date_and_time(cdate,ctime)
 write(runinfo_fileunit,*) 'ccyy='//cdate(1:4)//' - mm='//cdate(5:6)//' - dd='//cdate(7:8), &
                          ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
@@ -147,7 +147,7 @@ integer(i4b),intent(inout):: err
 character(*),intent(inout):: message
 if(index(trim(stringInput),' ')/=0) then
  err=30; message="f-summaSetDirsUndPhiles/spaceInString[string="//trim(stringInput)//"]"
-endif
+end if
 end subroutine checkLineRead
 
 

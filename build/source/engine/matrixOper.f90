@@ -218,8 +218,8 @@ contains
   else
    write(message,'(a,i0,a,i0,a)') trim(message)//'U(',err,',',err,') is exactly zero - factorization complete, but U is singular so the solution could not be completed'
    err=-20; return
-  endif
- endif
+  end if
+ end if
 
  ! extract the iteration increment
  xInc(1:nState) = rhs(1:nState,1)

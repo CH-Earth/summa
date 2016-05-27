@@ -59,6 +59,9 @@ contains
 
  do iVar = 1,size(meta)                             ! model variables
 
+  ! don't do anything if var is not requested
+  if (meta(iVar)%outFreq<0) cycle 
+
   ! only treat stats of scalars - all others handled separately
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
@@ -73,18 +76,18 @@ contains
     type is (dlength) ; tdata = dat(pVar)%dat(1)
     type is (ilength) ; tdata = real(dat(pVar)%dat(1))
     class default;err=20;message=trim(message)//'dat type not found';return
-   endselect
+   end select
 
    ! claculate statistics
    if (trim(meta(iVar)%varName)=='time') then
     stat(iVar)%dat(iLookStat%inst) = tdata
    else
     call calc_stats(meta(iVar),stat(iVar),tdata,iStep,err,cmessage)  
-   endif
+   end if
 
-   if(err/=0)then; message=trim(message)//trim(cmessage);return; endif  
-  endif
- enddo                                             ! model variables
+   if(err/=0)then; message=trim(message)//trim(cmessage);return; end if  
+  end if
+ end do                                             ! model variables
 
  return
  end subroutine calcStats
@@ -121,14 +124,14 @@ contains
 
  ! pull current frequency for normalization
  iFreq = meta%outFreq
- if (iFreq<0) then; err=-20; message=trim(message)//'bad output file id# (outfreq)'; return; endif
+ if (iFreq<0) then; err=-20; message=trim(message)//'bad output file id# (outfreq)'; return; end if
 
  ! pack back into struc
  select type (stat)
   type is (ilength); tstat = real(stat%dat)
   type is (dlength); tstat = stat%dat
   class default;err=20;message=trim(message)//'stat type not found';return
- endselect
+ end select
 
  ! ---------------------------------------------
  ! reset statistics at new frequency period 
@@ -151,9 +154,9 @@ contains
      tstat(iStat) = -huge(tstat(iStat))            ! resets stat at beginning of period
     case (iLookStat%mode)                          ! mode over period (does not work)
      tstat(iStat) = -9999.
-   endselect
-  enddo ! iStat 
- endif
+   end select
+  end do ! iStat 
+ end if
 
  ! ---------------------------------------------
  ! Calculate each statistic that is requested by user
@@ -177,8 +180,8 @@ contains
     if (tdata.ge.tstat(iStat)) tstat(iStat) = tdata! overwrites maximum iff 
    case (iLookStat%mode)                           ! (does not work)
     tstat(iStat) = -9999. 
-  endselect
- enddo ! iStat 
+  end select
+ end do ! iStat 
 
  ! ---------------------------------------------
  ! finalize statistics at end of frequenncy period 
@@ -193,16 +196,16 @@ contains
     case (iLookStat%vari)                          ! variance over period
      tstat(maxVarStat+1) = tstat(maxVarStat+1)/outFreq(iFreq) ! E[X] term
      tstat(iStat) = tstat(iStat)/outFreq(iFreq) - tstat(maxVarStat+1)**2 ! full variance
-   endselect
-  enddo ! iStat 
- endif
+   end select
+  end do ! iStat 
+ end if
 
  ! pack back into struc
  select type (stat)
   type is (ilength); stat%dat = int(tstat)
   type is (dlength); stat%dat = tstat
   class default;err=20;message=trim(message)//'stat type not found';return
- endselect
+ end select
 
  return
  end subroutine calc_stats

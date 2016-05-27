@@ -42,7 +42,7 @@ if(T > Tfreeze)then
  getLatentHeatValue = LH_vap     ! latent heat of vaporization          (J kg-1)
 else
  getLatentHeatValue = LH_sub     ! latent heat of sublimation           (J kg-1)
-endif
+end if
 end function getLatentHeatValue
 
 
@@ -340,7 +340,7 @@ do iter=1,maxiter
  if(abs(f0) < Xtol) exit
  ! check convergence
  if(iter==maxiter)stop 'failed to converge in WETBULBTMP'
-enddo  ! (iterating)
+end do  ! (iterating)
 
 ! return value in K
 WETBULBTMP = TWcel + TFREEZE

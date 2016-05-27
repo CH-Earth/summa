@@ -65,7 +65,7 @@ contains
    if(mpar_data(iLookPARAM%zmax)/mpar_data(iLookPARAM%zmin) < 2.5_dp)then
     message=trim(message)//'zmax must be at least 2.5 times larger than zmin: this avoids merging layers that have just been divided'
     err=20; return
-   endif
+   end if
   ! CLM option
   case(rulesDependLayerIndex)
    ! (build vectors of min/max)
@@ -90,7 +90,7 @@ contains
                                   iLayer,' layer(s) is greater than the maximum threshold for sub-division in the case where there are > ',&
                                   iLayer,' layer(s)'
      err=20; return
-    endif
+    end if
     ! ensure that the maximum thickness is 3 times greater than the minimum thickness
     if(zmaxLayer_upper(iLayer)/zminLayer(iLayer) < 2.5_dp .or. zmaxLayer_upper(iLayer)/zminLayer(iLayer+1) < 2.5_dp)then
      write(*,'(a,1x,3(f20.10,1x))') 'zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1) = ', &
@@ -98,7 +98,7 @@ contains
      write(message,'(a,3(i0,a))') trim(message)//'zmaxLayer_upper for layer ',iLayer,' must be 2.5 times larger than zminLayer for layers ',&
                                   iLayer,' and ',iLayer+1,': this avoids merging layers that have just been divided'
      err=20; return
-    endif
+    end if
    end do  ! loop through layers
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
@@ -115,7 +115,7 @@ contains
   message=trim(message)//'critSoilTranspire parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
- endif
+ end if
 
  ! check that the soil wilting point is within bounds
  if(mpar_data(iLookPARAM%critSoilWilting)>mpar_data(iLookPARAM%theta_sat) .or. &
@@ -125,7 +125,7 @@ contains
   message=trim(message)//'critSoilWilting parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
- endif
+ end if
 
  ! check that the field capacity is within bounds
  if(mpar_data(iLookPARAM%fieldCapacity)>mpar_data(iLookPARAM%theta_sat) .or. &
@@ -134,7 +134,7 @@ contains
   message=trim(message)//'fieldCapacity parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
- endif
+ end if
 
  end subroutine paramCheck
 

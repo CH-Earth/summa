@@ -177,7 +177,7 @@ contains
   ! determine if need to include vegetation in the energy flux routines
   computeVegFlux  = (exposedVAI > 0.05_dp .and. heightAboveSnow > 0.05_dp)
 
- endif  ! (check if the snow-soil column is isolated)
+ end if  ! (check if the snow-soil column is isolated)
 
  ! end association to variables in the data structure
  end associate

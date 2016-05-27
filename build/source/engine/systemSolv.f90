@@ -300,7 +300,7 @@ contains
   canopyDepth = heightCanopyTop - heightCanopyBottom
  else
   canopyDepth = realMissing
- endif
+ end if
 
  ! compute the total water content in the vegetation canopy
  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
@@ -319,7 +319,7 @@ contains
  else
   nLeadDim=nBands         ! length of the leading dimension
   ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
- endif
+ end if
 
  ! modify the groundwater representation for this single-column implementation
  select case(ixSpatialGroundwater)
@@ -330,15 +330,15 @@ contains
 
  ! allocate space for the derivative structure
  call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! allocate space for the baseflow derivatives
  if(ixGroundwater==qbaseTopmodel)then
   allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
  else
   allocate(dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
- endif
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; endif
+ end if
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
 
  ! initialize state vectors
  call popStateVec(&
@@ -355,7 +355,7 @@ contains
                   sMul,                    & ! intent(out):   multiplier for state vector (used in the residual calculations)
                   dMat,                    & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
                   err,cmessage)              ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! -----
  ! * compute the initial function evaluation...
@@ -367,13 +367,13 @@ contains
  ! need to intialize canopy water at a positive value
  if(computeVegFlux)then
   if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
- endif
+ end if
 
  ! try to accelerate solution for energy
  if(computeVegFlux)then
   stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
   stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
- endif
+ end if
 
  ! compute the flux and the residual vector for a given state vector
  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
@@ -416,13 +416,13 @@ contains
                  rVec,                    & ! intent(out):   residual vector
                  fOld,                    & ! intent(out):   function evaluation
                  err,cmessage)              ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! check feasibility (state vector SHOULD be feasible at this point)
  if(.not.feasible)then
   message=trim(message)//'unfeasible state vector'
   err=20; return
- endif
+ end if
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
@@ -488,7 +488,7 @@ contains
                   fNew,                    & ! intent(out):   new function evaluation
                   converged,               & ! intent(out):   convergence flag
                   err,cmessage)              ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
   ! update function evaluation, residual vector, and states
   ! NOTE 1: The derivatives computed in summaSolve are used to calculate the Jacobian matrix at the next iteration
@@ -501,7 +501,7 @@ contains
   if(converged) exit
 
   ! check convergence
-  if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
+  if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; end if
   !print*, 'PAUSE: iterating'; read(*,*)
 
  end do  ! iterating
@@ -543,7 +543,7 @@ contains
                  mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! check the mass balance for the soil domain
  ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
@@ -558,8 +558,8 @@ contains
   if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
    message=trim(message)//'water balance error in the soil domain'
    err=-20; return ! negative error code forces time step reduction and another trial
-  endif  ! if there is a water balance error
- endif  ! checking mass balance
+  end if  ! if there is a water balance error
+ end if  ! checking mass balance
 
  ! compute the melt in each snow and soil layer
  if(nSnow>0) mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIceTrial(      1:nSnow  ) - mLayerVolFracIce(      1:nSnow  ))*iden_ice
@@ -574,16 +574,16 @@ contains
   if(-dt*scalarCanopySublimation > scalarCanopyLiqTrial + scalarCanopyIceTrial)then  ! try again
    message=trim(message)//'insufficient water to support converged canopy sublimation rate'
    err=-20; return  ! negative error code means "try again"
-  endif  ! if insufficient water for sublimation
- endif  ! if computing the veg flux
+  end if  ! if insufficient water for sublimation
+ end if  ! if computing the veg flux
 
  ! check that sublimation does not exceed the available ice in the top snow layer
  if(nSnow > 0)then ! snow layers exist
   if(-dt*(scalarSnowSublimation/mLayerDepth(1))/iden_ice > mLayerVolFracIceTrial(1))then  ! try again
    message=trim(message)//'insufficient water to support converged surface sublimation rate'
    err=-20; return  ! negative error code means "try again"
-  endif  ! if insufficient water for sublimation
- endif  ! if computing the veg flux
+  end if  ! if insufficient water for sublimation
+ end if  ! if computing the veg flux
 
 
  ! -----
@@ -596,7 +596,7 @@ contains
   scalarCanopyTemp = stateVecTrial(ixVegNrg)
   scalarCanopyLiq  = scalarCanopyLiqTrial
   scalarCanopyIce  = scalarCanopyIceTrial
- endif
+ end if
 
  ! extract state variables for the snow and soil domain
  mLayerTemp(1:nLayers)     = stateVecTrial(ixSnowSoilNrg)
@@ -613,7 +613,7 @@ contains
 
  ! deallocate space for the baseflow derivative matrix
  deallocate(dBaseflow_dMatric,stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; end if
 
  ! end associate statement
  end associate

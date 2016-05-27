@@ -48,19 +48,19 @@ contains
  if(.not.xist)then
    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
    err=10; return
- endif
+ end if
  ! check if the file is already open
  inquire(file=trim(infile),opened=xopn) ! Check if the file is open
  if(xopn)then
   message=trim(message)//"FileAlreadyOpen['"//trim(infile)//"']"
   err=20; return
- endif
+ end if
  ! open file
  open(newunit=unt,file=trim(infile),status="old",action="read",iostat=err)
  if(err/=0)then
    message=trim(message)//"OpenError['"//trim(infile)//"']"
    err=20; return
- endif
+ end if
  end subroutine file_open
 
 
@@ -109,14 +109,14 @@ contains
   else
    allocate(current%next); current%next=node(cword,iword,null())
    current=>current%next
-  endif
+  end if
   ! check that the line has fewer words than maxWords
-  if (iword==maxWords)then; err=20; message=trim(message)//"exceedMaxWords [line = "//trim(inline)//"]"; return; endif
+  if (iword==maxWords)then; err=20; message=trim(message)//"exceedMaxWords [line = "//trim(inline)//"]"; return; end if
  end do
  ! ***** allocate space for the list of words
  nWords = current%ix
  allocate(words(nWords),stat=err)
- if(err/=0)then; err=30; message=trim(message)//"problemAllocateWords"; return; endif
+ if(err/=0)then; err=30; message=trim(message)//"problemAllocateWords"; return; end if
  ! ***** save the list in a vector, and deallocate space as we go...
  current=>list
  do while(associated(current))
@@ -169,12 +169,12 @@ contains
    allocate(current%next)
    current%next=node(temp,icount,null())
    current=>current%next
-  endif
-  if (iline==maxLines)then; err=20; message=trim(message)//"exceedMaxLines"; return; endif
+  end if
+  if (iline==maxLines)then; err=20; message=trim(message)//"exceedMaxLines"; return; end if
  end do  ! looping through the lines in the file (exit clause above will kick in)
  ! ***** allocate space for the valid lines *****
  allocate(vlines(icount),stat=err)
- if(err/=0)then; err=30; message=trim(message)//"problemAllocateVlines"; return; endif
+ if(err/=0)then; err=30; message=trim(message)//"problemAllocateVlines"; return; end if
  ! ***** save the list in a vector, and deallocate space as we go... *****
  current=>list
  do while(associated(current))

@@ -100,7 +100,7 @@ contains
                   ! output
                   divideLayer,                 & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
- if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
 
  ! merge snow layers if they are too thin
  call layerMerge(&
@@ -114,7 +114,7 @@ contains
                  ! output
                  mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
- if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
 
  ! flag if layers were modified
  modifiedLayers = (mergedLayers .or. divideLayer)
@@ -232,9 +232,9 @@ contains
    write(*,'(a,1x,f20.10)') 'SWE mass balance = ', xMassBalance
    message=trim(message)//'mass balance problem'
    err=20; return
-  endif
+  end if
 
- endif  ! if snow layers already exist
+ end if  ! if snow layers already exist
 
  end subroutine newsnwfall
 

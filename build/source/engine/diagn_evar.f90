@@ -159,7 +159,7 @@ contains
                             Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
  else
   scalarBulkVolHeatCapVeg = valueMissing
- endif
+ end if
  !print*, 'diagn_evar: scalarBulkVolHeatCapVeg = ', scalarBulkVolHeatCapVeg
 
  ! compute the thermal conductivity of dry and wet soils (W m-1)
@@ -168,7 +168,7 @@ contains
   bulkden_soil   = iden_soil*(1._dp - theta_sat)
   lambda_drysoil = (0.135_dp*bulkden_soil + 64.7_dp) / (iden_soil - 0.947_dp*bulkden_soil)
   lambda_wetsoil = (8.80_dp*frac_sand + 2.92_dp*frac_clay) / (frac_sand + frac_clay)
- endif
+ end if
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -242,7 +242,7 @@ contains
    ! ***** snow
    case(ix_snow)
     call tcond_snow(mLayerVolFracIce(iLayer)*iden_ice,mLayerThermalC(iLayer),err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
    ! * error check
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
   end select
@@ -268,7 +268,7 @@ contains
   iLayerThermalC(0) = 28._dp*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
  else
   iLayerThermalC(0) = mLayerThermalC(1)
- endif
+ end if
 
  ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
  iLayerThermalC(nLayers) = mLayerThermalC(nLayers)

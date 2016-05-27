@@ -216,7 +216,7 @@ contains
                   aJac,                           & ! intent(out):   Jacobian matrix
                   ! output: error control
                   err,cmessage)                     ! intent(out):   error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! -----
  ! * solve linear system...
@@ -227,7 +227,7 @@ contains
 
  ! scale matrices
  call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  if(globalPrintFlag)then
   print*, '** SCALED banded analytical Jacobian:'
@@ -235,14 +235,14 @@ contains
   do iLayer=kl+1,nBands
    write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=iJac1,iJac2)
   end do
- endif
+ end if
 
  ! copy the scaled matrix, since it is decomposed in lapackSolv
  aJacScaledTemp = aJacScaled
 
  ! compute the newton step: use the lapack routines to solve the linear system A.X=B
  call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  if(globalPrintFlag) write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
 
@@ -265,10 +265,10 @@ contains
  ! NOTE: Accept the full newton step
  if(err<0)then
   doRefine=.false.;    call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
- endif
+ end if
 
  ! check errors
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! end association to info in data structures
  end associate
@@ -324,12 +324,12 @@ contains
 
    ! compute the gradient of the function vector
    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
    ! compute the initial slope
    slopeInit = dot_product(gradScaled,newtStepScaled)
 
-  endif  ! if computing the line search
+  end if  ! if computing the line search
 
   ! initialize lambda
   xLambda=1._dp
@@ -351,7 +351,7 @@ contains
    ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
    !  (especially the feasibility check)
    call imposeConstraints(stateVecTrial,xInc,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
@@ -361,7 +361,7 @@ contains
    !       The internal sub routine has access to all data
    !       Hence, we only need to include the variables of interest in lineSearch
    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check line search
    if(globalPrintFlag)then
@@ -370,7 +370,7 @@ contains
     write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
     write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(iJac1:iJac2)
     write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(iJac1:iJac2)
-   endif
+   end if
 
    ! check feasibility
    if(.not.feasible) cycle
@@ -402,7 +402,7 @@ contains
     if(iLine==maxLineSearch)then
      message=trim(message)//'backtracked all the way back to the original value'
      err=-20; return
-    endif
+    end if
 
     ! define rhs
     rhs1 = fNew - fOld - xLambda*slopeInit
@@ -423,13 +423,13 @@ contains
       xLambdaTemp = 0.5_dp*xLambda
      else
       xLambdaTemp = (-bCoef + sqrt(disc))/(3._dp*aCoef)
-     endif
-    endif  ! calculating cubic
+     end if
+    end if  ! calculating cubic
 
     ! constrain to <= 0.5*xLambda
     if(xLambdaTemp > 0.5_dp*xLambda) xLambdaTemp=0.5_dp*xLambda
 
-   endif  ! subsequent backtracks
+   end if  ! subsequent backtracks
 
    ! save results
    xLambdaPrev = xLambda
@@ -554,7 +554,7 @@ contains
                   resVecNew,               & ! intent(out):   new residual vector
                   fNew,                    & ! intent(out):   new function evaluation
                   err,cmessage)              ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
 
   end subroutine eval8summa_wrapper
@@ -625,7 +625,7 @@ contains
    energy_max = real(maxval(abs( rVec(ixSnowSoilNrg) ) ), dp)
    energy_loc =      maxloc(abs( rVec(ixSnowSoilNrg) ) )
    canopyConv = .true. ! disable check for canopy convergence when there is no canopy
-  endif
+  end if
 
   ! check convergence based on the residuals for volumetric liquid water content (-)
   liquid_max = real(maxval(abs( rVec(ixSnowSoilWat) ) ), dp)
@@ -653,7 +653,7 @@ contains
   if(globalPrintFlag)then
    write(*,'(a,1x,i4,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'check convergence: ', iter, &
     fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
-  endif
+  end if
 
   ! end associations with variables in the data structures
   end associate
@@ -718,22 +718,22 @@ contains
   ! iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
   ! xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
   ! xInc       = xIncFactor*xInc
-  !endif
+  !end if
   
   ! vegetation
   if(computeVegFlux)then
    if(abs(xInc(ixVegNrg)) > 1._dp)then
     xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
     xInc       = xIncFactor*xInc            ! scale iteration increments
-   endif
-  endif
+   end if
+  end if
   
   ! snow and soil
   if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
    iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
    xIncFactor = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
-  endif
+  end if
   
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
@@ -751,22 +751,22 @@ contains
     if(xInc(ixVegNrg) > critDiff)then
      crosTempVeg = .true.
      cInc        = critDiff + epsT  ! constrained temperature increment (K)
-    endif
+    end if
   
    ! initially unfrozen (T > Tfreeze)
    else
     if(xInc(ixVegNrg) < critDiff)then
      crosTempVeg = .true.
      cInc        = critDiff - epsT  ! constrained temperature increment (K)
-    endif
+    end if
   
-   endif  ! switch between frozen and unfrozen
+   end if  ! switch between frozen and unfrozen
   
    ! scale iterations
    if(crosTempVeg)then
     xIncFactor  = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
     xInc        = xIncFactor*xInc      ! scale iteration increments
-   endif
+   end if
   
    ! --------------------------------------------------------------------------------------------------------------------
    ! canopy liquid water
@@ -777,9 +777,9 @@ contains
     cInc       = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
     xIncFactor = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
     xInc       = xIncFactor*xInc                                                  ! new iteration increment
-   endif
+   end if
   
-  endif  ! if computing fluxes through vegetation
+  end if  ! if computing fluxes through vegetation
   
   ! ** impose solution constraints for snow
   if(nSnow > 0)then
@@ -798,7 +798,7 @@ contains
      xInc       = xIncFactor*xInc
    ! else    ! if snow temperature > freezing
    !  exit checkSnow
-    endif   ! if snow temperature > freezing
+    end if   ! if snow temperature > freezing
    !end do checkSnow
   
    ! --------------------------------------------------------------------------------------------------------------------
@@ -813,10 +813,10 @@ contains
     if(mLayerVolFracLiqCheck(iLayer) < 0._dp)then
      drainFlag(iLayer) = .true.
      xInc(ixSnowOnlyWat(iLayer)) = -0.5_dp*stateVecTrial(ixSnowOnlyWat(iLayer) )
-    endif
+    end if
    end do
   
-  endif   ! if snow layers exist
+  end if   ! if snow layers exist
   
   ! --------------------------------------------------------------------------------------------------------------------
   ! ** impose solution constraints for soil
@@ -843,7 +843,7 @@ contains
     if(xInc(ixNrg) > critDiff)then
      crosFlag(iLayer) = .true.
      xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
-    endif
+    end if
   
    ! * initially unfrozen (T > TcSoil)
    else
@@ -852,14 +852,14 @@ contains
     if(xInc(ixNrg) < critDiff)then
      crosFlag(iLayer) = .true.
      xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
-    endif
+    end if
   
-   endif  ! (switch between initially frozen and initially unfrozen)
+   end if  ! (switch between initially frozen and initially unfrozen)
   
    ! place constraint for matric head
    if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
     xInc(ixLiq) = 1._dp
-   endif  ! if constraining matric head
+   end if  ! if constraining matric head
   
   end do  ! (loop through soil layers)
   

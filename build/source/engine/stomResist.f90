@@ -186,7 +186,7 @@ contains
   ! simple resistance formulation
   case(simpleResistance)
    ! check that we don't divide by zero -- should be set to minimum of tiny in routine soilResist
-   if(scalarTranspireLim < tiny(airpres))then; err=20; message=trim(message)//'soil moisture stress factor is < tiny -- this will cause problems'; return; endif
+   if(scalarTranspireLim < tiny(airpres))then; err=20; message=trim(message)//'soil moisture stress factor is < tiny -- this will cause problems'; return; end if
    ! compute stomatal resistance (assume equal for sunlit and shaded leaves)
    scalarStomResistSunlit = minStomatalResistance/scalarTranspireLim
    scalarStomResistShaded = scalarStomResistSunlit
@@ -236,7 +236,7 @@ contains
                          scalarPhotosynthesis,                & ! intent(out): photosynthesis (umol CO2 m-2 s-1)
                          ! output: error control
                          err,cmessage)                          ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! assign output variables
     select case(iSunShade)
@@ -288,7 +288,7 @@ contains
                           scalarPhotosynthesisSunlit,        & ! intent(out): sunlit photosynthesis (umolco2 m-2 s-1)
                           scalarPhotosynthesisShaded,        & ! intent(out): shaded photosynthesis (umolco2 m-2 s-1)
                           err,cmessage                       ) ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! *******************************************************************************************************************************************
 
@@ -498,7 +498,7 @@ contains
   scalarPhotosynthesis = 0._dp
   ci                   = 0._dp 
  return
- endif
+ end if
 
  ! scale vcmax from the leaves to the canopy
  ! exponential function of LAI is described in Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9]
@@ -621,7 +621,7 @@ contains
   if(ci < co2compPt) ci = 0.7_dp*scalarCO2air
  else
   ci = 0.7_dp*scalarCO2air  ! always initialize if not NR
- endif
+ end if
  !write(*,'(a,1x,10(f20.10,1x))') 'Kc25, Kc_qFac, Ko25, Ko_qFac = ', Kc25, Kc_qFac, Ko25, Ko_qFac
  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCO2air, ci, co2compPt, Kc, Ko = ', scalarCO2air, ci, co2compPt, Kc, Ko
 
@@ -662,7 +662,7 @@ contains
    csx = cs
   else
    csx = cs - co2compPt
-  endif
+  end if
 
   ! compute conductance in the absence of humidity
   g0     = cond2photo_slope*airpres*psn/csx 
@@ -679,14 +679,14 @@ contains
   !if(ix_bbNumerics==NoahMPsolution)then
   ! write(*,'(a,1x,10(f20.10,1x))') 'psn, rs, ci, cs, scalarVegetationTemp, vcmax, Js = ', &
   !                                  psn, rs, ci, cs, scalarVegetationTemp, vcmax, Js
-  !endif
+  !end if
 
   ! final derivative
   if(ci > tiny(ci))then
    dci_dc = -x1*dA_dc - x2*(psn*drs_dc + rs*dA_dc)
   else
    dci_dc = 0._dp
-  endif
+  end if
 
   ! test derivatives
   if(testDerivs)then
@@ -694,7 +694,7 @@ contains
    func2 = testFunc(ci_old+dx, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
    write(*,'(a,1x,20(e20.10,1x))') '(func2 - func1)/dx, dci_dc = ', &
                                     (func2 - func1)/dx, dci_dc
-  endif  ! if testing the derivatives
+  end if  ! if testing the derivatives
 
   ! *****
   ! * iterative solution...
@@ -704,7 +704,7 @@ contains
   if(ix_bbNumerics==NoahMPsolution)then
    if(iter==maxiter_NoahMP) exit ! exit after a specified number of iterations (normally 3)
    cycle  ! fixed-point iteration
-  endif
+  end if
 
   ! CLM4 and Noah-MP use fixed point iteration, continuing the next iteration from this point
   ! here we try and improve matters by using the derivatives
@@ -714,7 +714,7 @@ contains
    cMax = ci_old
   else
    cMin = ci_old
-  endif
+  end if
 
   ! compute iteration increment (Pa)
   xInc = (ci - ci_old)/(1._dp - dci_dc)
@@ -725,7 +725,7 @@ contains
   ! ensure that we stay within brackets
   if(ci > cMax .or. ci < cMin)then
    ci = 0.5_dp * (cMin + cMax)
-  endif
+  end if
 
   ! print progress
   !write(*,'(a,1x,i4,1x,20(f12.7,1x))') 'iter, psn, rs, ci, cs, cMin, cMax, co2compPt, scalarCO2air, xInc = ', &
@@ -736,7 +736,7 @@ contains
   if(iter==maxIter)then
    message=trim(message)//'did not converge in stomatal conductance iteration'
    err=20; return
-  endif
+  end if
 
  end do  ! iterating
  !pause 'iterating'
@@ -772,7 +772,7 @@ contains
    csx = cs
   else
    csx = cs - co2compPt
-  endif
+  end if
 
   ! compute conductance in the absence of humidity
   g0 = cond2photo_slope*airpres*psn/csx
@@ -826,7 +826,7 @@ contains
  ciDiff = max(0._dp, ci - co2compPt)
 
  ! impose constraints (NOTE: derivative is zero if constraints are imposed)
- if(ci < co2compPt)then; ciDer = 0._dp; else; ciDer = 1._dp; endif
+ if(ci < co2compPt)then; ciDer = 0._dp; else; ciDer = 1._dp; end if
 
  ! compute Rubisco-limited assimilation
  xFac(ixRubi) = vcmax/(ci + awb)      ! umol co2 m-2 s-1 Pa-1
@@ -865,12 +865,12 @@ contains
      case(ixRubi);   dA_dc = x0*ciDer - ciDiff*x0*x0/vcmax  ! Rubisco-limited assimilation
      case(ixLight);  dA_dc = x0*ciDer - ciDiff*x0*x0/Js     ! light-limited assimilation
      case(ixExport); dA_dc = 0._dp                          ! export-limited assimilation
-    endselect
+    end select
 
    ! derivatives are not desired
    else
     dA_dc = 0._dp
-   endif
+   end if
 
   ! colimitation (Collatz et al., 1991; Sellers et al., 1996; Bonan et al., 2011)
   case(colimitation)
@@ -884,7 +884,7 @@ contains
     dAc_dc = 0._dp
     dAj_dc = 0._dp
     dAe_dc = 0._dp
-   endif
+   end if
  
    ! smooth Rubisco-limitation and light limitation
    if(ciDiff > tiny(ciDiff))then
@@ -892,7 +892,7 @@ contains
    else
     xsPSN  = 0._dp
     dAi_dc = 0._dp
-   endif
+   end if
 
    ! smooth intermediate-limitation and export limitation
    call quadSmooth(desireDeriv, xsPSN, xPSN(ixExport), theta_ie, dAi_dc, dAe_dc, psn, dA_dc)
@@ -900,7 +900,7 @@ contains
   ! check case is identified
   case default; stop 'unknown option for carbon assimilation' ! abrupt stop: need to fix later
 
- endselect  ! option for carbon assimilation
+ end select  ! option for carbon assimilation
 
  end subroutine photosynthesis
 
@@ -966,7 +966,7 @@ contains
    bQuad = (g0 + gMin)*rlb - fHum - 1._dp
    cQuad = -rlb
 
- endselect
+ end select
 
  ! compute the q term in the quadratic
  bSign = abs(bQuad)/bQuad
@@ -1001,12 +1001,12 @@ contains
    end select
   else
    drs_dc = -root2*dqq_dc/qQuad
-  endif
+  end if
 
  ! derivatives not desired
  else
   drs_dc = 0._dp
- endif
+ end if
 
  end subroutine quadResist
 
@@ -1065,12 +1065,12 @@ contains
    dxs_dc = dqq_dc/aQuad
   else
    dxs_dc = (dcq_dc - root2*dqq_dc)/qQuad
-  endif
+  end if
 
  ! derivatives not required
  else
   dxs_dc = 0._dp
- endif
+ end if
 
  end subroutine quadSmooth
 
