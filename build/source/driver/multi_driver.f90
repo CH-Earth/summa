@@ -111,7 +111,6 @@ USE globalData,only:structInfo                              ! information on the
 USE globalData,only:numtim                                  ! number of time steps
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:globalPrintFlag                         ! global print flag
-USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU    ! named variable to define running mode
 USE multiconst,only:integerMissing                          ! missing integer value
 ! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
@@ -241,6 +240,9 @@ integer(i4b)                     :: checkHRU                   ! index of the HR
 integer(i4b)                     :: maxGRU                     ! maximum number of GRUs in the input file
 integer(i4b)                     :: maxHRU                     ! maximum number of HRUs in the input file
 integer(i4b)                     :: iRunMode                   ! define the current running mode
+integer(i4b),parameter           :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
+integer(i4b),parameter           :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
+integer(i4b),parameter           :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
@@ -638,7 +640,7 @@ select case (iRunMode)
 end select
 fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
-
+ 
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
  do localHRU=1,gru_struc(iGRU)%hruCount
@@ -746,8 +748,7 @@ do modelTimeStep=1,numtim
   enddo
  
   ! define the filename
-  write(fileout,'(a,i0,a,i0,a)') &
-                                 trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
+  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
                                  trim(output_fileSuffix)
 
@@ -1089,11 +1090,11 @@ contains
     ! this is the master file argument, the file will be opened in subroutine summa_SetDirsUndPhiles
     if (len(trim(summaFileManagerFile))>0) then
      ! check if summaFileManagerFile has been defined
-     print "(A)", "master_file has been set to '"//trim(summaFileManagerFile)//"'. Argument '"//trim(argString(iArgument))//"' is ignored."
+     print "(A)", "master_file is set to '"//trim(argString(iArgument))//"'. Argument '"//trim(summaFileManagerFile)//"' is ignored."
     else
-     summaFileManagerFile=trim(argString(iArgument))
-     print "(A)", "master_file is '"//trim(summaFileManagerFile)//"'."
+     print "(A)", "master_file is set to '"//trim(summaFileManagerFile)//"'."
     end if           
+    summaFileManagerFile=trim(argString(iArgument))
   end select
  end do 
  ! check if master_file has been received.
@@ -1115,25 +1116,6 @@ contains
  print "(A)", '  startGRU    -- the index of the first GRU for a parallelization run'
  print "(A)", '  countGRU    -- the number of GRUs for a parallelization run'
  print "(A)", '  checkHRU    -- the index of the HRU for a single HRU run'
- 
- ! reference information
- print "(/A)", "SUMMA's initial implementation is described in two papers published in Water Resources Research.  &
-                If you use SUMMA, please credit these two publications."
-
- print "(/A)",   "  - Martyn P. Clark, Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, &
- Andrew W. Wood, Levi D. Brekke, Jeffrey R. Arnold, David J. Gochis, Roy M. Rasmussen, 2015: A unified approach for process-based hydrologic modeling.  & 
- Part 1: Modeling concept. Water Resources Research, doi:10.1002/2015WR017198."
-
- print "(/A)",   "  - Martyn P. Clark, Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, &
- Andrew W. Wood, David J. Gochis, Roy M. Rasmussen, David G. Tarboton, Vinod Mahat, Gerald N. Flerchinger, Danny G. Marks, 2015: A unified approach for process-based hydrologic modeling: &
- Part 2. Model implementation and example applications. Water Resources Research, doi:10.1002/2015WR017200."
-
- print "(/A)",   "In addition, an NCAR technical note describes the SUMMA implementation in detail:"
-
- print "(/A)",   "  - Martyn P. Clark, Bart Nijssen, Jessica D. Lundquist, Dmitri Kavetski, David E. Rupp, Ross A. Woods, Jim E. Freer, Ethan D. Gutmann, &
- Andy W. Wood, Levi D. Brekke, Jeffrey R. Arnold, David J. Gochis, Roy M. Rasmussen, David G. Tarboton, Vinod Mahat, Gerald N. Flerchinger, and Danny G. Marks, 2015: &
- The structure for unifying multiple modeling alternatives (SUMMA), Version 1.0: Technical Description. NCAR Technical Note NCAR/TN-514+STR, 50 pp., doi:10.5065/D6WQ01TD."
-
  stop 
  end subroutine printCommandHelp
 

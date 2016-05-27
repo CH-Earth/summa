@@ -61,8 +61,8 @@ contains
  character(LEN=sLen),allocatable    :: charline(:)      ! vector of character strings
  character(LEN=64),allocatable      :: varnames(:)      ! vector of variable names
  character(LEN=64),allocatable      :: chardata(:)      ! vector of character data
- logical(lgt)                       :: checkHRU(nHRU)   ! vector of flags to check that an HRU will be populated with parameter data
- integer(i4b)                       :: hruIndex         ! HRU identifier
+ logical(lgt)                       :: foundHRU(nHRU)   ! vector of flags to check that an HRU has been found in parameter data
+ integer(i4b)                       :: hruIndex         ! HRU identifier in the file
  integer(i4b)                       :: iHRU             ! index of HRU within data vector
  integer(i4b)                       :: localHRU,iGRU    ! index of HRU and GRU within data structure
  integer(i4b)                       :: ipar,jpar        ! index of model parameter
@@ -100,8 +100,8 @@ contains
   err=20; return
  endif
  ! check that the first parameter is the HRU index
- if(varnames(1) /= 'hruIndex')then
-  message=trim(message)//'expect first parameter name to be the HRU index [file = '//trim(infile)//']'
+ if(varnames(1) /= 'hruIndex' .and. varnames(1) /= 'hruId')then
+  message=trim(message)//'expect first parameter name to be '//"'hruIndex' or 'hruId' [file = "//trim(infile)//']'
   err=20; return
  endif
 
@@ -117,7 +117,7 @@ contains
  ! (4) populate the model parameter vectors
  ! **********************************************************************************************
  ! initialize the check HRU vector
- checkHRU(:) = .false. ! logical array to ensure that all HRUs are populated
+ foundHRU(:) = .false. ! logical array to ensure that all HRUs are populated
 
  ! allocate space for the character data
  allocate(chardata(nPars),stat=err)
@@ -135,10 +135,10 @@ contains
    iGRU=index_map(iHRU)%gru_ix
    localHRU=index_map(iHRU)%localHRU  
    if(hruIndex == typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then    
-    if (checkHRU(iHRU)) then
+    if (foundHRU(iHRU)) then
      err=51;message=trim(message)//"duplicate HRU found in the parameter file at line: "//new_line(' ')//charline(iline); return
     else
-     checkHRU(iHRU) = .true. 
+     foundHRU(iHRU) = .true. 
      ! get the vector of parameters for a given layer, and the HRU index                                                            
      read(charline(iline),*,iostat=err) chardata
      if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iline))//"']"; return; endif                                                                                                                                  
@@ -158,9 +158,9 @@ contains
  end do dataLineLoop    ! (looping through HRUs)
 
  ! check that all HRUs are populated
- if(count(checkHRU) /= nHRU)then
+ if(count(foundHRU) /= nHRU)then
   do iHRU=1,nHRU
-   if(.not.checkHRU(iHRU))then
+   if(.not.foundHRU(iHRU))then
     iGRU=index_map(iHRU)%gru_ix
     localHRU=index_map(iHRU)%localHRU   
     write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',&

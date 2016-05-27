@@ -85,7 +85,6 @@ contains
  integer(i4b)                      :: iNC              ! loop through variables in forcing file
  integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
  integer(i4b)                      :: iFFile           ! forcing file counter
- integer(i4b)                      :: hruId            ! unique hru id
  real(dp)                          :: dsec             ! double precision seconds (not used)
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
@@ -295,10 +294,6 @@ contains
 
   ! setup count,start arrays
   ncStart = (/iHRU_global,iRead/)
-
-  ! get hruId
-  err = nf90_inq_varid(ncid,'hruId',varId);                   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding hruId variable/'//trim(nf90_strerror(err)); return; endif
-  err = nf90_get_var(ncid,varId,hruId,start=(/iHRU_global/)); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading hruId variable/'//trim(nf90_strerror(err)); return; endif
 
   ! read data into forcing structure
   ! assign the time var, convert days since reference to seconds since reference

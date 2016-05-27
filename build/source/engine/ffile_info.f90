@@ -73,7 +73,7 @@ contains
  integer(i4b)                         :: file_nHRU      ! number of HRUs in current forcing file
  integer(i4b)                         :: nForcing       ! number of forcing variables
  integer(i4b)                         :: iGRU,localHRU  ! index of GRU and HRU
- integer(i4b)                         :: ncHruID(1)     ! hruID from the forcing files
+ integer(i4b)                         :: ncHruId(1)     ! hruID from the forcing files
  real(dp)                             :: dataStep_iFile ! data step for a given forcing data file
  ! Start procedure here
  err=0; message="ffile_info/"
@@ -208,13 +208,13 @@ contains
      ! check to see if hruId exists as a variable, this is a required variable
      err = nf90_inq_varid(ncid,trim(varname),varId)
      if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
-     ! check that the HRUid is what we expect
+     ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
      do iGRU=1,nGRU
       do localHRU=1,gru_struc(iGRU)%hruCount
-       err = nf90_get_var(ncid,varId,ncHruID,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
-       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruID(1))then
-        write(message,'(a,i0,i0,a,i0,a)') trim(message)//'hruId for global HRU: ', gru_struc(iGRU)%hruInfo(localHRU)%hru_nc, ncHruID(1), 'differs from the expected:',     &
+       err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
+       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
+        write(message,'(a,i0,i0,a,i0,a)') trim(message)//'hruId for global HRU: ', gru_struc(iGRU)%hruInfo(localHRU)%hru_nc, ncHruId(1), 'differs from the expected:',     &
                                                           gru_struc(iGRU)%hruInfo(localHRU)%hru_id, 'in file', trim(infile)
         write(message,'(a)') trim(message)//'order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return

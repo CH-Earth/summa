@@ -264,7 +264,9 @@ contains
 
  end subroutine compcalday
  
- 
+ ! ***************************************************************************************
+ ! public function elapsedSec: calculate difference of two time marks obtained by date_and_time()
+ ! *************************************************************************************** 
  function elapsedSec(startTime, endTime)
  USE multiconst,only            :  secprday,secprhour,secprmin        ! seconds in an (day, hour, minute)
  integer(i4b),intent(in)        :: startTime(8),endTime(8)            ! state time and end time
@@ -283,24 +285,22 @@ contains
  if (endTime(1) > startTime(1) .or. endTime(2) > startTime(2) .or. endTime(3) > startTime(3)) then
 
   elapsedDay = 0
+  ! diffenece in year
   do yy = startTime(1), endTime(1) - 1
    elapsedDay = elapsedDay + 365
    if ((mod(yy,4)==0 .and. .not. mod(yy,100)==0) .or. (mod(yy,400)==0)) elapsedDay = elapsedDay + 1
   end do
-
   if ((mod(startTime(1),4)==0 .and. .not. mod(startTime(1),100)==0) .or. (mod(startTime(1),400)==0)) days1(2) = 29
   if ((mod(endTime(1),4)==0 .and. .not. mod(endTime(1),100)==0) .or. (mod(endTime(1),400)==0)) days2(2) = 29
-
+  ! difference in month 
   if (startTime(2) > 1) elapsedDay = elapsedDay - sum(days1(1:(startTime(2)-1)))
   elapsedDay = elapsedDay - startTime(3) 
-
+  ! difference in day
   if (endTime(2) > 1) elapsedDay = elapsedDay + sum(days2(1:(endTime(2)-1)))
   elapsedDay = elapsedDay + endTime(3)
-
+  ! convert to seconds
   elapsedSec = elapsedSec + elapsedDay * secprday
- end if
- 
- end function
-  
+ end if 
+ end function  
 
 end module time_utils_module
