@@ -264,13 +264,6 @@ contains
  ! end association of local variables with information in the data structures
  end associate
 
- ! print re-start file
-! if(printRestart)then
-!  call printRestartFile(output_fileSuffix,dt_init,time_data,prog_data,err,cmessage)
-!  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-!  !pause
-! end if
-
  ! short-cut to the algorithmic control parameters
  minstep = mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
  maxstep = mpar_data%var(iLookPARAM%maxstep)  ! maximum time step (s)

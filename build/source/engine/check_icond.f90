@@ -269,12 +269,12 @@ contains
   
    ! if snow layers exist, compute snow depth and SWE
    if(nSnow > 0)then
-    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1) =      -progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(0)
+!    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1) =      -progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(0)
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)       = sum( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
                                                                                progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice)        * &
                                                                                progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
    end if  ! if snow layers exist
- 
+
    ! check that the layering is consistent
    do iLayer=1,nLayers
     h1 = sum(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(1:iLayer)) ! sum of the depths up to the current layer

@@ -85,6 +85,8 @@ contains
   end do
  end do
 
+print*,'(1.3)'
+
  ! close file
  call nc_file_close(ncid,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
@@ -141,6 +143,8 @@ contains
  integer(i4b)                           :: varLen       ! data dimensions
  integer(i4b)                           :: ncID         ! netcdf file ID
  real(dp)    ,allocatable               :: varData(:,:) ! variable data storage        
+ integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
+
 
  character(len=32),parameter            :: hruDimName    ='hru'      ! dimension name for HRUs
  character(len=32),parameter            :: specDimName   ='spectral' ! dimension name for spectral bands
@@ -203,22 +207,27 @@ contains
 
   ! get data
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message) 
- 
+
   ! store data in prognostics structure 
   ! loop through GRUs
   do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
 
+    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow 
+    nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil 
+    nToto = nSnow + nSoil 
+   
     select case (prog_meta(iVar)%varType)
-     case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen)   = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
-     case (iLookVarType%wlength); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen)   = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
-     case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen)   = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
-     case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen)   = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
-     case (iLookVarType%midSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen)   = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
-     case (iLookVarType%ifcSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:dimLen-1) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
-     case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:dimLen-1) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
-     case (iLookVarType%ifcSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:dimLen-1) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:) 
+     case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1        ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1        ) 
+     case (iLookVarType%wlength); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:        ) 
+     case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSoil  ) 
+     case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nToto  ) 
+     case (iLookVarType%midSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSnow  ) 
+     case (iLookVarType%ifcSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSoil+1) 
+     case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nToto+1) 
+     case (iLookVarType%ifcSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSnow+1) 
     end select
+
    end do ! iHRU
   end do ! iGRU
 
@@ -226,6 +235,9 @@ contains
   deallocate(varData)
 
  end do ! iVar 
+
+print*,'read_icond',progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
+print*,'read_icond',progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat
 
  ! --------------------------------------------------------------------------------------------------------
  ! (2) set number of layers 
@@ -248,7 +260,7 @@ contains
 
    ! set layer type
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:gru_struc(iGRU)%hruInfo(iHRU)%nSnow) = ix_snow
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:gru_struc(iGRU)%hruInfo(iHRU)%nSoil) = ix_soil
+   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1):(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)) = ix_soil
 
   end do
  end do

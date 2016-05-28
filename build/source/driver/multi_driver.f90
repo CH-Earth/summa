@@ -194,14 +194,14 @@ integer(i4b),parameter           :: ixProgress_im=1000         ! named variable 
 integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
 integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
 integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
-integer(i4b)                     :: ixProgress=ixProgress_ih   ! define frequency to write progress
+integer(i4b)                     :: ixProgress=ixProgress_id   ! define frequency to write progress
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
 integer(i4b),parameter           :: ixRestart_im=1001          ! named variable to print a re-start file once per month
 integer(i4b),parameter           :: ixRestart_id=1002          ! named variable to print a re-start file once per day
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
-integer(i4b)                     :: ixRestart=ixRestart_id     ! define frequency to write restart files
+integer(i4b)                     :: ixRestart=ixRestart_iy     ! define frequency to write restart files
 ! define output file
 character(len=8)                 :: cdate1=''                  ! initial date
 character(len=10)                :: ctime1=''                  ! initial time
@@ -642,8 +642,10 @@ do iGRU=1,nGRU
   case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
  end select
 
+
  ! initialize time step length for each HRU
- do iHRU=1,nHRU
+ do iHRU=1,gru_struc(iGRU)%hruCount
+
   dt_init(iGRU)%hru(iHRU) = progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
  end do
 
@@ -889,6 +891,14 @@ do modelTimeStep=1,numtim
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
+
+!   ! check feasibiility of certain states
+!   call check_icond(nGRU,nHRU,                     & ! number of response units
+!                    progStruct,                    & ! model prognostic (state) variables
+!                    mparStruct,                    & ! model parameters
+!                    indxStruct,                    & ! layer indexes
+!                    err,message)                     ! error control
+!   call handle_err(err,message)
  
    ! save the flag for computing the vegetation fluxes
    if(computeVegFluxFlag)      computeVegFlux(iGRU)%hru(iHRU) = yes
@@ -1019,16 +1029,9 @@ do modelTimeStep=1,numtim
  ! print a restart file if requested
  if(printRestart)then
   write(timeString,'(a,i4,3(a,i2.2))') '_',timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%im),'-',timeStruct%var(iLookTIME%id),'-',timeStruct%var(iLookTIME%ih)
-  print*,trim(timeString)
   restartFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_'//trim('summaRestart')//trim(timeString)//trim(output_fileSuffix)//'.nc'
-  print*,trim(restartFile)
   call writeRestart(restartFile,nGRU,nHRU,prog_meta,progStruct,indx_meta,indxStruct,err,message)
   call handle_err(err,message) 
-!if (gru_struc(1)%hruInfo(1)%nSnow.gt.1) then
-! print*,gru_struc(1)%hruInfo(1)%nSnow
-! print*,indxStruct%gru(1)%hru(1)%var(iLookIndex%nSnow)%dat
-! pause
-!end if
  end if
 
 end do  ! (looping through time)
