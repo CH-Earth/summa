@@ -20,11 +20,15 @@ summa.exe
 .tags*
 # OS X .DS_Store files
 .DS_Store
+*-local
 *_local
 *log
+<<<<<<< HEAD
 *.cbp
 *.layout
-# makefile
-*-local
-make.out
+=======
 summa.exe.dSYM*
+>>>>>>> upstream/develop
+# makefile
+make.out
+Makefile-*
