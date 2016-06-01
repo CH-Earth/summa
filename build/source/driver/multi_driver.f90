@@ -223,7 +223,7 @@ character(LEN=256),allocatable   :: chardata(:)                ! vector of chara
 integer(i4b)                     :: iWord                      ! loop through words in a string
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
-integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file lists
+integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
 integer(i4b)                     :: forcingStep=-999           ! index of current time step in current forcing file
 real(dp),allocatable             :: zSoilReverseSign(:)        ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)           :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
@@ -236,17 +236,6 @@ integer(i4b)                     :: err=0                      ! error code
 character(len=1024)              :: message=''                 ! error message
 ! output control 
 integer(i4b)                     :: iFreq                      ! index for looping through output files
-! parallelize the model run
-integer(i4b)                     :: startGRU                   ! index of the starting GRU for parallelization run
-integer(i4b)                     :: checkHRU                   ! index of the HRU for a single HRU run
-integer(i4b)                     :: maxGRU                     ! maximum number of GRUs in the input file
-integer(i4b)                     :: maxHRU                     ! maximum number of HRUs in the input file
-integer(i4b)                     :: iRunMode                   ! define the current running mode
-integer(i4b),parameter           :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
-integer(i4b),parameter           :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
-integer(i4b),parameter           :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
-character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
-! statistics outputs
 logical(lgt)                     :: statForc_mask(maxvarForc)  ! mask defining forc stats
 logical(lgt)                     :: statProg_mask(maxvarProg)  ! mask defining prog stats
 logical(lgt)                     :: statDiag_mask(maxvarDiag)  ! mask defining diag stats
@@ -265,7 +254,16 @@ type(extended_info),allocatable  :: statDiag_meta(:)           ! child metadata 
 type(extended_info),allocatable  :: statFlux_meta(:)           ! child metadata for stats 
 type(extended_info),allocatable  :: statIndx_meta(:)           ! child metadata for stats 
 type(extended_info),allocatable  :: statBvar_meta(:)           ! child metadata for stats 
-
+! parallelize the model run
+integer(i4b)                     :: startGRU                   ! index of the starting GRU for parallelization run
+integer(i4b)                     :: checkHRU                   ! index of the HRU for a single HRU run
+integer(i4b)                     :: maxGRU                     ! maximum number of GRUs in the input file
+integer(i4b)                     :: maxHRU                     ! maximum number of HRUs in the input file
+integer(i4b)                     :: iRunMode                   ! define the current running mode
+integer(i4b),parameter           :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
+integer(i4b),parameter           :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
+integer(i4b),parameter           :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
+character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
@@ -1148,7 +1146,7 @@ contains
      ! check if summaFileManagerFile has been defined
      print "(A)", "master_file is set to '"//trim(argString(iArgument))//"'. Argument '"//trim(summaFileManagerFile)//"' is ignored."
     else
-     print "(A)", "master_file is set to '"//trim(summaFileManagerFile)//"'."
+     print "(A)", "master_file is set to '"//trim(argString(iArgument))//"'."
     end if           
     summaFileManagerFile=trim(argString(iArgument))
   end select

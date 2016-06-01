@@ -23,12 +23,10 @@ summa.exe
 *-local
 *_local
 *log
-<<<<<<< HEAD
 *.cbp
 *.layout
-=======
+gmon.out
 summa.exe.dSYM*
->>>>>>> upstream/develop
 # makefile
 make.out
 Makefile-*

@@ -480,7 +480,7 @@ contains
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
    endselect
    ! check error
-   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname)//new_line('A')//trim(cmessage); return; endif
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; endif
    ! set to missing
    varData%var(iVar)%dat(:) = missingInteger
   endif  ! if not allocated
