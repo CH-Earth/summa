@@ -598,6 +598,7 @@ MODULE var_lookup
   integer(i4b)    :: ixControlVolume        = imiss ! index of control volume for different domains (veg, snow, soil)
   integer(i4b)    :: ixDomainType           = imiss ! type of domain (iname_veg, iname_snow, or iname_soil)
   integer(i4b)    :: ixStateType            = imiss ! indices defining the type of every state variable (iname_nrgCanair, iname_nrgLayer, iname_watLayer, etc.)
+  integer(i4b)    :: ixStateMap             = imiss ! list of indices of the state subset in the full state vector 
   integer(i4b)    :: ixHydType              = imiss ! indices defining the type of hydrology states in the snow+soil domain (iname_watLayer, iname_matLayer)
   ! indices of specific model state variables
   integer(i4b)    :: ixCasNrg               = imiss ! index of the canopy air space state variable
@@ -621,7 +622,6 @@ MODULE var_lookup
   integer(i4b)    :: ixVolFracWat           = imiss ! indices IN THE SNOW+SOIL VECTOR for hydrology states in the soil subdomain
   integer(i4b)    :: ixMatricHead           = imiss ! indices IN THE SOIL VECTOR for hydrology states in the soil subdomain 
   ! indices within state vectors
-  integer(i4b)    :: ixMapState             = imiss ! list of indices of the state subset in the full state vector 
   integer(i4b)    :: ixAllState             = imiss ! list of indices for all model state variables
   integer(i4b)    :: ixSoilState            = imiss ! list of indices for all soil layers
   integer(i4b)    :: ixLayerState           = imiss ! list of indices for all model layers

@@ -207,7 +207,7 @@ contains
  ! make an association to the ALLOCATABLE variables in the data structures
  ! NOTE: we need to do this here since the size may have changed above
  associate(&
- ixControlVolume => indx_data%var(iLookINDEX%ixControlVolume)%dat , & ! indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
+ ixControlVolume => indx_data%var(iLookINDEX%ixControlVolume)%dat , & ! index of control volume for different domains (veg, snow, soil)
  ixDomainType    => indx_data%var(iLookINDEX%ixDomainType)%dat    , & ! indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
  ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat     , & ! indices defining the type of the state (iname_nrgLayer...)
  ixAllState      => indx_data%var(iLookINDEX%ixAllState)%dat        & ! list of indices for all model state variables

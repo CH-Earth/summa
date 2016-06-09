@@ -112,6 +112,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
+ integer(i4b)                    :: iState                    ! state index
  ! link to the necessary variables for the residual computations
  associate(&
   ! model state variables (vegetation canopy)
@@ -190,7 +191,7 @@ contains
 
  print*, 'ixSnowSoilWat = ', ixSnowSoilWat
  print*, 'mLayerVolFracWat(1:nLayers) = ', mLayerVolFracWat(1:nLayers)
- print*, 'fVec(ixSnowSoilWat) = ', fVec(ixSnowSoilWat)
+ print*, 'fVec(ixSnowSoilWat) = ', (fVec(ixSnowSoilWat(iState)),iState=1,size(ixSnowSoilWat))
 
  ! print result
  if(globalPrintFlag) write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec

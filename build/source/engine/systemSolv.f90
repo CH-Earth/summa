@@ -258,6 +258,7 @@ contains
  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat           , & ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
  ixDomainType            => indx_data%var(iLookINDEX%ixDomainType)%dat            , & ! intent(in): [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat             , & ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
+ ixAllState              => indx_data%var(iLookINDEX%ixAllState)%dat              , & ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
  ! vegetation parameters
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp] canopy depth (m)
  ! snow parameters
@@ -330,16 +331,6 @@ contains
   case default; err=20; message=trim(message)//'unable to identify operator splitting strategy'; return
  end select
 
- ! identify the matrix solution method
- ! (the type of matrix used to solve the linear system A.X=B)
- if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
-  nLeadDim=nState         ! length of the leading dimension
-  ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
- else
-  nLeadDim=nBands         ! length of the leading dimension
-  ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
- endif
-
  ! modify the groundwater representation for this single-column implementation
  select case(ixSpatialGroundwater)
   case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
@@ -381,6 +372,16 @@ contains
   ! get the number of selected state variables
   nSubset = count(stateMask)
 
+  ! identify the matrix solution method
+  ! (the type of matrix used to solve the linear system A.X=B)
+  if(ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
+   nLeadDim=nSubset        ! length of the leading dimension
+   ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
+  else
+   nLeadDim=nBands         ! length of the leading dimension
+   ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
+  endif
+
   ! allocate space for solution and scaling vectors
   allocate(stateVecInit(nSubset), stateVecTrial(nSubset), stateVecNew(nSubset), fluxVec0(nSubset), fluxVecNew(nSubset), fScale(nSubset), xScale(nSubset), stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution and scaling vectors'; return; endif
@@ -395,6 +396,7 @@ contains
                    computeVegFlux,                   & ! intent(in):    flag to denote if computing energy flux over vegetation
                    pack(ixDomainType,stateMask),     & ! intent(in):    id of domain for desired model state variables
                    pack(ixStateType,stateMask),      & ! intent(in):    type of desired model state variables
+                   pack(ixAllState,stateMask),       & ! intent(in):    list of indices of the state subset in the full state vector
                    nSubset,                          & ! intent(in):    number of desired state variables
                    ! input-output: data structures
                    prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
@@ -501,8 +503,8 @@ contains
                    nSnow,                   & ! intent(in):    number of snow layers
                    nSoil,                   & ! intent(in):    number of soil layers
                    nLayers,                 & ! intent(in):    total number of layers
-                   nLeadDim,                & ! intent(in):    length of the leading dimension of he Jacobian matrix (either nBands or nState) 
-                   nState,                  & ! intent(in):    total number of state variables
+                   nLeadDim,                & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState) 
+                   nSubset,                 & ! intent(in):    total number of state variables
                    ixMatrix,                & ! intent(in):    type of matrix (full or band diagonal)
                    firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                    firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call

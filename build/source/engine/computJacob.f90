@@ -118,7 +118,8 @@ contains
  ! --------------------------------------------------------------
  ! local variables
  integer(i4b)                    :: iState,jState   ! state indices
- integer(i4b)                    :: nSnowSoilNrg    ! number of state variables in the snow+soil domain
+ integer(i4b)                    :: nSnowSoilNrg    ! number of energy state variables in the snow+soil domain
+ integer(i4b)                    :: nSnowOnlyWat    ! number of total water state variables in the snow domain
 
  integer(i4b)                    :: iLayer          ! index of model layer
  integer(i4b)                    :: jLayer          ! index of model layer within the full state vector (hydrology)
@@ -142,6 +143,10 @@ contains
  ixSnowOnlyWat                => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat                     ,& ! intent(in): [i4b]    indices for total water states in the snow subdomain
  ixSoilOnlyNrg                => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat                     ,& ! intent(in): [i4b]    indices for energy states in the soil subdomain
  ixSoilOnlyHyd                => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                     ,& ! intent(in): [i4b]    indices for hydrology states in the soil subdomain
+ ! mapping between states and model layers
+ ixStateMap                   => indx_data%var(iLookINDEX%ixStateMap)%dat                        ,& ! intent(in): [i4b(:)] mapping between the state subset and the full state vector
+ ixDomainType                 => indx_data%var(iLookINDEX%ixDomainType)%dat                      ,& ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
+ ixControlVolume              => indx_data%var(iLookINDEX%ixControlVolume)%dat                   ,& ! intent(in): [i4b(:)] index of the control volume for specific model domains
  ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
  dCanairNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanairTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy air space flux w.r.t. canopy air temperature
  dCanairNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanopyTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy air space flux w.r.t. canopy temperature
@@ -203,6 +208,8 @@ contains
 
  ! get size of index vectorz
  nSnowSoilNrg = size(ixSnowSoilNrg)
+ nSnowOnlyWat = size(ixSnowOnlyWat)
+
 
  ! initialize the Jacobian
  ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver
@@ -436,37 +443,51 @@ contains
    ! -------------------------------------------
    if(nSnowSoilNrg>0)then
     do iState=1,nSnowSoilNrg  ! loop through energy state variables in the snow-soil domain
-     ! - define layer indices
-     jState = ixSnowSoilNrg(iState)  ! index within the state vector
+     ! - define indices within the state subset and the full state vector
+     jState = ixSnowSoilNrg(iState)  ! index within the state subset
+     kState = ixStateMap(jState)     ! index within the full state vector
+     ! - define indices of the snow and soil layers
+     select case(ixDomainType(kState))
+      case(iname_snow); iLayer = ixControlVolume(kState)
+      case(iname_soil); iLayer = ixControlVolume(kState) + nSnow
+      case default; err=20; message=trim(message)//'unexpected domain'; return
+     end select
      ! - diagonal
-     aJac(jLayer,jLayer)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(jLayer)
+     aJac(jState,jState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(jState)
      ! - lower-diagonal
-     if(iState > 1)            aJac(ixSnowSoilNrg(iState-1),jLayer) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dTempBelow(iLayer-1) )
-     if(iState < nSnowSoilNrg) aJac(ixSnowSoilNrg(iState+1),jLayer) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dTempAbove(iLayer  ) )
+     if(iLayer > 1)       aJac(ixSnowSoilNrg(iState-1),jState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dTempBelow(iLayer-1) )
+     if(iLayer < nLayers) aJac(ixSnowSoilNrg(iState+1),jState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dTempAbove(iLayer  ) )
     end do  ! (looping through layers in the snow-soil system)
    endif 
   
    ! -----
    ! * liquid water fluxes for the snow domain...
    ! --------------------------------------------
-   do iLayer=1,nSnow
-    ! - define layer indices
-    jLayer = ixSnowOnlyWat(iLayer)   ! hydrology layer index within the full state vector
-    mLayer = ixSnowSoilNrg(iLayer)   ! energy layer index within the full state vector
-    ! - compute the Jacobian
-    aJac(jLayer,jLayer) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer) + dMat(jLayer)
-    if(iLayer > 1)     aJac(jLayer-nVarSnowSoil,jLayer) = 0._dp  ! sub-diagonal: no dependence on other layers
-    ! - compute cross-derivative terms for the current layer
-    ! NOTE: increase in volumetric liquid water content balanced by a decrease in volumetric ice content
-    aJac(mLayer,jLayer) = -(1._dp - mLayerFracLiqSnow(iLayer))*LH_fus*iden_water     ! (dF/dLiq)
-    aJac(jLayer,mLayer) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
-    ! - compute cross-derivative terms for the layer below (w.r.t. state in the current layer)
-    if(iLayer < nSnow)then
-     aJac(jLayer+nVarSnowSoil,mLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
-     aJac(jLayer+nVarSnowSoil,jLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer)             ! dVol(below)/dLiq(above) -- (-)
-    endif
-   end do
-  
+   if(nSnowOnlyWat>0)then
+    do iState=1,nSnowOnlyWat
+     ! - define state indices
+     watState = ixSnowOnlyWat(iState)   ! hydrology layer index within the state subset
+
+     ! - compute the Jacobian
+     aJac(,jLayer) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer) + dMat(jLayer)
+     if(iLayer > 1)     aJac(jLayer-nVarSnowSoil,jLayer) = 0._dp  ! sub-diagonal: no dependence on other layers
+
+
+
+
+     jLayer = ixSnowOnlyWat(iLayer)   ! hydrology layer index within the full state vector
+     mLayer = ixSnowSoilNrg(iLayer)   ! energy layer index within the full state vector
+     ! - compute cross-derivative terms for the current layer
+     ! NOTE: increase in volumetric liquid water content balanced by a decrease in volumetric ice content
+     aJac(mLayer,jLayer) = -(1._dp - mLayerFracLiqSnow(iLayer))*LH_fus*iden_water     ! (dF/dLiq)
+     aJac(jLayer,mLayer) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
+     ! - compute cross-derivative terms for the layer below (w.r.t. state in the current layer)
+     if(iLayer < nSnow)then
+      aJac(jLayer+nVarSnowSoil,mLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
+      aJac(jLayer+nVarSnowSoil,jLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer)             ! dVol(below)/dLiq(above) -- (-)
+     endif
+    end do
+   
    ! -----
    ! * liquid water fluxes for the soil domain...
    ! --------------------------------------------

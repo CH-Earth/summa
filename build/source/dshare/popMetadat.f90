@@ -569,6 +569,7 @@ contains
  indx_meta(iLookINDEX%ixControlVolume)   = var_info('ixControlVolume'  , 'index of the control volume for different domains (veg, snow, soil)'  , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixDomainType)      = var_info('ixDomainType'     , 'index of the type of domain (iname_veg, iname_snow, iname_soil)'      , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixStateType)       = var_info('ixStateType'      , 'index of the type of every state variable (iname_nrgCanair, ...)'     , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixStateMap)        = var_info('ixStateMap'       , 'list of indices of the state subset in the full state vector'         , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixHydType)         = var_info('ixHydType'        , 'index of the type of hydrology states in snow+soil domain'            , '-', 'midToto', .false.)
  ! indices of model specific state variables
  indx_meta(iLookINDEX%ixCasNrg)          = var_info('ixCasNrg'         , 'index of canopy air space energy state variable'                      , '-', 'scalarv', .false.)
@@ -592,7 +593,6 @@ contains
  indx_meta(iLookINDEX%ixVolFracWat)      = var_info('ixVolFracWat'     , 'indices IN THE SNOW+SOIL VECTOR for hyd states in the soil domain'    , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixMatricHead)      = var_info('ixMatricHead'     , 'indices IN THE SOIL VECTOR for hyd states in the soil domain'         , '-', 'unknown', .false.)
  ! indices within state vectors
- indx_meta(iLookINDEX%ixMapState)        = var_info('ixMapState'       , 'list of indices of the state subset in the full state vector'         , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixAllState)        = var_info('ixAllState'       , 'list of indices for all model state variables'                        , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixSoilState)       = var_info('ixSoilState'      , 'list of indices for all soil layers'                                  , '-', 'midSoil', .false.)
  indx_meta(iLookINDEX%ixLayerState)      = var_info('ixLayerState'     , 'list of indices for all model layers'                                 , '-', 'midToto', .false.)
