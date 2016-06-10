@@ -112,7 +112,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
- integer(i4b)                    :: iState                    ! state index
  ! link to the necessary variables for the residual computations
  associate(&
   ! model state variables (vegetation canopy)
@@ -188,13 +187,6 @@ contains
  ! compute the residual vector for the snow+soil sub-domain for liquid water
  if(size(ixSnowOnlyWat)>0) rVec(ixSnowOnlyWat) = mLayerVolFracWatTrial(      1:nSnow)   - ( (mLayerVolFracWat(      1:nSnow)    + fVec(ixSnowOnlyWat)*dt) + rAdd(ixSnowOnlyWat) )
  if(size(ixSoilOnlyHyd)>0) rVec(ixSoilOnlyHyd) = mLayerVolFracWatTrial(nSnow+1:nLayers) - ( (mLayerVolFracWat(nSnow+1:nLayers)  + fVec(ixSoilOnlyHyd)*dt) + rAdd(ixSoilOnlyHyd) )
-
- print*, 'ixSnowSoilWat = ', ixSnowSoilWat
- print*, 'ixSnowOnlyWat = ', ixSnowOnlyWat
- print*, 'ixSoilOnlyHyd = ', ixSoilOnlyHyd
- print*, 'mLayerVolFracWat(1:nLayers)      = ', mLayerVolFracWat(1:nLayers)
- print*, 'mLayerVolFracWatTrial(1:nLayers) = ', mLayerVolFracWatTrial(1:nLayers)
- print*, 'fVec(ixSnowSoilWat) = ', (fVec(ixSnowSoilWat(iState)),iState=1,size(ixSnowSoilWat))
 
  ! print result
  if(globalPrintFlag) write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec

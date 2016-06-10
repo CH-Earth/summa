@@ -181,9 +181,6 @@ contains
  ! * identify position in the state vector for specific variables...
  ! -----------------------------------------------------------------
 
- print*, 'stateType = ', stateType 
- print*, 'merge = ', merge(1, 0, stateType==iname_watCanopy)
-
  ! initialize indices
  ixCasNrg = integerMissing ! energy in the canopy air space
  ixVegNrg = integerMissing ! energy of the vegetation canopy
@@ -224,10 +221,6 @@ contains
   ixTopWat = ixTopMat ! no water state variables, then upper-most water variable is the upper-most matric head variable
  endif
 
- print*, 'ixCasNrg = ', ixCasNrg
- print*, 'ixVegNrg = ', ixVegNrg
- print*, 'ixVegWat = ', ixVegWat
-
  ! -----
  ! * define vectors of specific variable types...
  ! ----------------------------------------------
@@ -262,10 +255,6 @@ contains
   ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
   call indxSubset(indx_data%var(iVar)%dat,ixSequence,stateMask,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(ivar)%varname)//']'; return; endif
-
-  print*, trim(indx_meta(ivar)%varname)
-  print*, 'stateMask = ', stateMask
-  print*, 'indx_data%var(iVar)%dat = ', indx_data%var(iVar)%dat
 
  end do  ! looping through variables in the data structure
 
@@ -312,10 +301,6 @@ contains
  ! NOTE: This enables primary variable switching and can use volFracWat as the state variable for soil layers
  if(nLayWat>0) stateVec(ixSnowSoilWat) = mLayerVolFracWat(ixVolFracWat)
  if(nLayMat>0) stateVec(ixSoilOnlyHyd) = mLayerMatricHead(ixMatricHead)
-
- print*, 'nLayMat = ', nLayMat
- print*, 'ixSoilOnlyHyd = ', ixSoilOnlyHyd
- print*, 'ixMatricHead = ', ixMatricHead
 
  ! -----
  ! * define scaling vectors...

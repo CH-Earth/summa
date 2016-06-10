@@ -281,10 +281,6 @@ contains
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
- print*, 'stateVecTrial = ', stateVecTrial
- print*, 'mLayerTempTrial = ', mLayerTempTrial
- print*, 'mLayerMatricHeadTrial = ', mLayerMatricHeadTrial
-
  ! compute the fluxes for a given state vector
  call computFlux(&
                  ! input-output: model control
@@ -348,9 +344,6 @@ contains
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
- print*, 'fluxVec = ', fluxVec
-
-
  ! compute the residual vector
  call computResid(&
                   ! input: model control
@@ -380,13 +373,6 @@ contains
                   resVec,                  & ! intent(out):   residual vector
                   err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
- print*, 'fScale(:)  = ', fScale(:)
- print*, 'resSink(:) = ', resSink(:)
- print*, 'resVec(:)  = ', resVec(:)
- print*, 'size(rVecScaled) = ', size(rVecScaled)
- print*, 'size(resVec) = ', size(resVec)
- print*, 'size(fScale) = ', size(fScale)
 
  ! compute the function evaluation
  rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)

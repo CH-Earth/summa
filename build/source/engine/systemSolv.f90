@@ -356,9 +356,6 @@ contains
  ! operator splitting loop
  do iSplit=1,nOperSplit 
 
-  print*, 'iSplit,nOperSplit = ', iSplit,nOperSplit
-  pause
-
   ! define mask for the strang splitting
   if(ixSplitOption==strangSplitting)then
    select case(iSplit)
@@ -383,8 +380,6 @@ contains
   ! get the mapping between the full state vector and the state subset
   ixMapFull2Subset( pack(ixAllState,      stateMask) ) = arth(1,1,nSubset)  ! indices in the state subset
   ixMapFull2Subset( pack(ixAllState, .not.stateMask) ) = integerMissing
-
-  print*, 'ixMapFull2Subset = ', ixMapFull2Subset
 
   ! identify the matrix solution method
   ! (the type of matrix used to solve the linear system A.X=B)
@@ -425,9 +420,7 @@ contains
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  print*, 'pack(ixStateType,stateMask) = ', pack(ixStateType,stateMask)
-  print*, 'stateVecInit = ', stateVecInit 
- 
+  ! make association with model indices
   stateSubset: associate(&
   ixCasNrg      => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)  , & ! intent(in): [i4b]    index of canopy air space energy state variable
   ixVegNrg      => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)  , & ! intent(in): [i4b]    index of canopy energy state variable
@@ -578,10 +571,10 @@ contains
   
    ! check convergence
    if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-   print*, 'PAUSE: iterating'; read(*,*)
+   !print*, 'PAUSE: iterating'; read(*,*)
   
   end do  ! iterating
-  print*, 'PAUSE: after iterations'; read(*,*)
+  !print*, 'PAUSE: after iterations'; read(*,*)
 
   ! -----
   ! * update states and compute total volumetric melt...
@@ -622,8 +615,6 @@ contains
                   err,cmessage)                                ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  print*, 'mass balance'
-  
   ! check the mass balance for the soil domain
   ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
   if(checkMassBalance .and. size(ixSoilOnlyHyd)>0)then
@@ -648,8 +639,6 @@ contains
   ! * check that there is sufficient ice content to support the converged sublimation rate...
   ! -----------------------------------------------------------------------------------------
 
-  print*, 'sublimation'
-  
   ! check that sublimation does not exceed the available water on the canopy
   if(computeVegFlux)then
    if(-dtSplit*scalarCanopySublimation > scalarCanopyLiqTrial + scalarCanopyIceTrial)then  ! try again
@@ -670,8 +659,6 @@ contains
   ! * extract state variables for the start of the next time step...
   ! ----------------------------------------------------------------
 
-  print*, 'hello'
-
   ! if energy vector exists then check that we have all layers
   if(size(ixSnowSoilNrg)>0 .and. size(ixSnowSoilNrg)/=nLayers)then
    message=trim(message)//'expect energy variable subset to be for all layers'
@@ -684,8 +671,6 @@ contains
    err=20; return
   endif
   
-  print*, 'hello'
-
   ! extract the vegetation states from the state vector
   if(ixCasNrg/=integerMissing) scalarCanairTemp = stateVecTrial(ixCasNrg)
   if(ixVegNrg/=integerMissing) scalarCanopyTemp = stateVecTrial(ixVegNrg)
@@ -704,6 +689,9 @@ contains
   mLayerVolFracLiq = mLayerVolFracLiqTrial  ! computed in updatState
   mLayerVolFracIce = mLayerVolFracIceTrial  ! computed in updatState
 
+  ! compute the total water content in the vegetation canopy
+  if(computeVegFlux) scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
+
   ! compute the total water content in snow and soil
   ! NOTE: no ice expansion allowed for soil
   if(nSnow>0)& 
@@ -717,7 +705,7 @@ contains
   ! end associations with variables for the state update
   end associate stateSubset
  
-  print*, 'PAUSE: end of splitting loop'; read(*,*)
+  !print*, 'PAUSE: end of splitting loop'; read(*,*)
 
  end do  ! operator splitting loop 
 

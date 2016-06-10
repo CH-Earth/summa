@@ -611,11 +611,11 @@ contains
    endif   ! (if there are state variables for both water and energy in the soil domain)
   
    ! print the Jacobian
-   !if(globalPrintFlag)then
+   if(globalPrintFlag)then
     print*, '** analytical Jacobian:'
     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
-   !endif
+   endif
 
   ! ***
   ! check

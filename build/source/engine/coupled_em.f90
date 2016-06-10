@@ -675,9 +675,7 @@ contains
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-   print*, trim(message)//trim(cmessage)
-   print*, '*** substep complete!'
-   pause
+   pause 'completed step!'
 
    ! update first step
    firstStep=.false.

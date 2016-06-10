@@ -215,30 +215,16 @@ contains
                   err,cmessage)                     ! intent(out):   error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
- print*, 'size(aJac,1) = ', size(aJac,1)
- print*, 'size(aJac,2) = ', size(aJac,2)
-
  ! -----
  ! * solve linear system...
  ! ------------------------
 
- print*, 'rVec = ', rVec
-
  ! scale the residual vector
  rVecScaled(1:nState) = fScale(:)*real(rVec(:), dp)   ! NOTE: residual vector is in quadruple precision
-
- print*, 'fScale = ', fScale
- print*, 'xScale = ', xScale
-
- print*, 'rVecScaled = ', rVecScaled
 
  ! scale matrices
  call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
- print*, '** analytical Jacobian:'
- write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
- do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJacScaled(iJac1:iJac2,iLayer); end do
 
  if(globalPrintFlag)then
   print*, '** SCALED banded analytical Jacobian:'
@@ -255,7 +241,7 @@ contains
  call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
- !if(globalPrintFlag)&
+ if(globalPrintFlag)&
  write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
 
  ! -----
@@ -684,10 +670,10 @@ contains
   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv)
 
   ! print progress towards solution
-  !if(globalPrintFlag)then
+  if(globalPrintFlag)then
    write(*,'(a,1x,i4,1x,4(e15.5,1x),5(L1,1x))') 'check convergence: ', iter, &
     fNew, matric_max(1), liquid_max(1), energy_max(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
-  !endif
+  endif
 
   ! end associations with variables in the data structures
   end associate

@@ -262,8 +262,6 @@ contains
  ! define the type of variable in the snow+soil domain
  ixHydType(1:nLayers) = ixStateType( ixHydLayer(1:nLayers) )
 
- print*, 'ixControlVolume = ', ixControlVolume
-
  ! end association to the ALLOCATABLE variables in the data structures
  end associate 
 
