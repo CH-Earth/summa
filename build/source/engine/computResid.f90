@@ -190,7 +190,10 @@ contains
  if(size(ixSoilOnlyHyd)>0) rVec(ixSoilOnlyHyd) = mLayerVolFracWatTrial(nSnow+1:nLayers) - ( (mLayerVolFracWat(nSnow+1:nLayers)  + fVec(ixSoilOnlyHyd)*dt) + rAdd(ixSoilOnlyHyd) )
 
  print*, 'ixSnowSoilWat = ', ixSnowSoilWat
- print*, 'mLayerVolFracWat(1:nLayers) = ', mLayerVolFracWat(1:nLayers)
+ print*, 'ixSnowOnlyWat = ', ixSnowOnlyWat
+ print*, 'ixSoilOnlyHyd = ', ixSoilOnlyHyd
+ print*, 'mLayerVolFracWat(1:nLayers)      = ', mLayerVolFracWat(1:nLayers)
+ print*, 'mLayerVolFracWatTrial(1:nLayers) = ', mLayerVolFracWatTrial(1:nLayers)
  print*, 'fVec(ixSnowSoilWat) = ', (fVec(ixSnowSoilWat(iState)),iState=1,size(ixSnowSoilWat))
 
  ! print result

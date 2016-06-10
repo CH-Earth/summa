@@ -82,6 +82,7 @@ contains
                         computeVegFlux,          & ! intent(in):    flag to denote if computing energy flux over vegetation
                         domainType,              & ! intent(in):    id of domain for desired model state variables
                         stateType,               & ! intent(in):    type of desired model state variables
+                        stateIndx,               & ! intent(in):    indices for the desired state variables
                         nState,                  & ! intent(in):    number of desired state variables
                         ! input-output: data structures
                         prog_data,               & ! intent(in):    model prognostic variables for a local HRU
@@ -101,6 +102,7 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  integer(i4b),intent(in)         :: domainType(:)          ! id of domain for desired model state variables
  integer(i4b),intent(in)         :: stateType(:)           ! type of desired model state variables
+ integer(i4b),intent(in)         :: stateIndx(:)           ! indices for the desired model state variables
  integer(i4b),intent(in)         :: nState                 ! number of desired state variables
  ! input-output: data structures
  type(var_dlength),intent(in)    :: prog_data              ! prognostic variables for a local HRU
@@ -150,7 +152,7 @@ contains
  mLayerVolFracWat  => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of total water (-)
  mLayerMatricHead  => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
  ! model diagnostic variables
- canopyDepth       => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in): [dp   ] canopy depth (m)
+ canopyDepth       => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp   ] canopy depth (m)
  volHeatCapVeg     => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in): [dp   ] bulk volumetric heat capacity of vegetation (J m-3 K-1)
  mLayerVolHeatCap  => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in): [dp(:)] bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
  ! indices defining specific model states
@@ -161,10 +163,11 @@ contains
  ixTopWat          => indx_data%var(iLookINDEX%ixTopWat)%dat                 ,& ! intent(in): [i4b] index of upper-most total water state in the snow-soil subdomain
  ixTopMat          => indx_data%var(iLookINDEX%ixTopMat)%dat                 ,& ! intent(in): [i4b] index of upper-most matric head state in the soil subdomain
  ! indices of the entire state vector, all model layers, and soil layers
- ixSoilState       => indx_data%var(iLookINDEX%ixSoilState)%dat              ,& ! intent(in): [i4b] list of indices for all soil layers
- ixLayerState      => indx_data%var(iLookINDEX%ixLayerState)%dat             ,& ! intent(in): [i4b] list of indices for all model layers
+ ixSoilState       => indx_data%var(iLookINDEX%ixSoilState)%dat              ,& ! intent(in): [i4b(:)] list of indices for all soil layers
+ ixLayerState      => indx_data%var(iLookINDEX%ixLayerState)%dat             ,& ! intent(in): [i4b(:)] list of indices for all model layers
+ ixMapSubset2Full  => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat         ,& ! intent(in): [i4b(:)] list of indices in the full state vector that are in the state subset
  ! type of hydrology states in the snow+soil domain
- ixHydType         => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in): [i4b] index of the type of hydrology states in snow+soil domain
+ ixHydType         => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
  ! number of layers
  nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in): [i4b] number of snow layers
  nSoil             => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in): [i4b] number of soil layers
@@ -238,19 +241,25 @@ contains
   ! define the mask
   select case(iVar)
    ! snow+soil domain
-   case(iLookINDEX%ixSnowSoilNrg); stateMask = (stateType==iname_nrgLayer)      ! indices for energy states in the snow-soil subdomain
-   case(iLookINDEX%ixSnowSoilWat); stateMask = (stateType==iname_watLayer)      ! indices for total water states in the snow-soil subdomain
+   case(iLookINDEX%ixSnowSoilNrg); stateMask = (stateType==iname_nrgLayer)                                 ! indices for energy states in the snow-soil subdomain
+   case(iLookINDEX%ixSnowSoilWat); stateMask = (stateType==iname_watLayer .or.  stateType==iname_matLayer) ! indices for total water states in the snow-soil subdomain
    ! snow only domain
-   case(iLookINDEX%ixSnowOnlyNrg); stateMask = (stateType==iname_nrgLayer .and. domainType==iname_snow)   ! indices for energy states in the snow subdomain
-   case(iLookINDEX%ixSnowOnlyWat); stateMask = (stateType==iname_watLayer .and. domainType==iname_snow)   ! indices for total water states in the snow subdomain
+   case(iLookINDEX%ixSnowOnlyNrg); stateMask = (stateType==iname_nrgLayer .and. domainType==iname_snow)    ! indices for energy states in the snow subdomain
+   case(iLookINDEX%ixSnowOnlyWat); stateMask = (stateType==iname_watLayer .and. domainType==iname_snow)    ! indices for total water states in the snow subdomain
    ! soil only domain
-   case(iLookINDEX%ixSoilOnlyNrg); stateMask = (stateType==iname_nrgLayer .and. domainType==iname_soil)   ! indices for energy states in the soil subdomain
-   case(iLookINDEX%ixSoilOnlyHyd); stateMask = (stateType==iname_matLayer .and. domainType==iname_soil)   ! indices for hydrology states in the soil subdomain
+   case(iLookINDEX%ixSoilOnlyNrg); stateMask = (stateType==iname_nrgLayer .and. domainType==iname_soil)    ! indices for energy states in the soil subdomain
+   case(iLookINDEX%ixSoilOnlyHyd); stateMask = (stateType==iname_matLayer .and. domainType==iname_soil)    ! indices for hydrology states in the soil subdomain
+   ! vectors defining specific model states
+   case(iLookINDEX%ixNrgOnly);     stateMask = (stateType==iname_nrgCanair .or. stateType==iname_nrgCanopy .or. stateType==iname_nrgLayer)  ! list of indices for all energy states
+   case(iLookINDEX%ixWatOnly);     stateMask = (stateType==iname_watLayer )   ! list of indices for all "total water" states
+   case(iLookINDEX%ixMatOnly);     stateMask = (stateType==iname_matLayer )   ! list of indices for matric head state variables
+   case(iLookINDEX%ixMassOnly);    stateMask = (stateType==iname_watCanopy)   ! list of indices for hydrology states (mass of water)
    ! ** ignore all other variables
    case default; cycle ! only need to process the above variables
   end select  ! iVar
 
   ! get the subset of indices
+  ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
   call indxSubset(indx_data%var(iVar)%dat,ixSequence,stateMask,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(ivar)%varname)//']'; return; endif
 
@@ -261,14 +270,17 @@ contains
  end do  ! looping through variables in the data structure
 
  ! get the indices of the state subset in the full state vector
- call indxSubset(indx_data%var(iLookINDEX%ixMapState)%dat, ixAllState, ixHydType==iname_watLayer, err, cmessage)
+ ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
+ call indxSubset(indx_data%var(iLookINDEX%ixMapSubset2Full)%dat, stateIndx, stateIndx/=integerMissing, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(iLookINDEX%ixVolFracWat)%varname)//']'; return; endif
 
  ! get the subset of indices in the snow+soil domain layers where the state variable is volumetric total water
+ ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
  call indxSubset(indx_data%var(iLookINDEX%ixVolFracWat)%dat, ixLayerState, ixHydType==iname_watLayer, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(iLookINDEX%ixVolFracWat)%varname)//']'; return; endif
 
  ! get the subset of indices in the soil domain layers where the state variable is matric head
+ ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
  call indxSubset(indx_data%var(iLookINDEX%ixMatricHead)%dat, ixSoilState, ixHydType(nSnow+1:nLayers)==iname_matLayer, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage)//'[varname='//trim(indx_meta(iLookINDEX%ixVolFracWat)%varname)//']'; return; endif
 
@@ -358,7 +370,7 @@ contains
  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
  if(computeVegFlux)then
   if(ixCasNrg(1)/=integerMissing) dMat(ixCasNrg) = Cp_air*iden_air          ! volumetric heat capacity of air (J m-3 K-1)
-  if(ixCasNrg(1)/=integerMissing) dMat(ixVegWat) = 1._dp                    ! nothing else on the left hand side
+  if(ixVegWat(1)/=integerMissing) dMat(ixVegWat) = 1._dp                    ! nothing else on the left hand side
  endif
 
  ! compute terms in the Jacobian for the snow domain (excluding fluxes)

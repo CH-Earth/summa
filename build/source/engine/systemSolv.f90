@@ -137,6 +137,8 @@ contains
  ! population/extracction of state vectors
  USE getVectorz_module,only:popStateVec               ! populate the state vector
  USE getVectorz_module,only:varExtract                ! extract variables from the state vector
+ ! numerical recipes utility modules
+ USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -194,6 +196,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * operator splitting
  ! ------------------------------------------------------------------------------------------------------
+ real(dp)                        :: dtSplit                      ! time step for a given operator-splitting operation
  integer(i4b),parameter          :: fullyImplicit=1001           ! named variable for the fully implicit solution
  integer(i4b),parameter          :: strangSplitting=1002         ! named variable for the Strang splitting solution
  integer(i4b)                    :: ixSplitOption=strangSplitting  ! selected operator splitting method
@@ -243,19 +246,14 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
- associate(&
+ globalVars: associate(&
  ! model decisions
  ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in): [i4b] groundwater parameterization
  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
  ! domain boundary conditions
  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
  ! indices of model state variables
- ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)             , & ! intent(in): [i4b]    index of canopy air space energy state variable
- ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)             , & ! intent(in): [i4b]    index of canopy energy state variable
- ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)             , & ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
- ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat           , & ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
- ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat           , & ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
- ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat           , & ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+ ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat        , & ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector
  ixDomainType            => indx_data%var(iLookINDEX%ixDomainType)%dat            , & ! intent(in): [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat             , & ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
  ixAllState              => indx_data%var(iLookINDEX%ixAllState)%dat              , & ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
@@ -358,6 +356,9 @@ contains
  ! operator splitting loop
  do iSplit=1,nOperSplit 
 
+  print*, 'iSplit,nOperSplit = ', iSplit,nOperSplit
+  pause
+
   ! define mask for the strang splitting
   if(ixSplitOption==strangSplitting)then
    select case(iSplit)
@@ -369,8 +370,21 @@ contains
    stateMask(:) = .true.  ! use all state variables
   endif
 
+  ! get the time step for strang splitting
+  if(ixSplitOption==strangSplitting .and. (iSplit==halfMass1 .or. iSplit==halfMass2))then
+   dtSplit = dt*0.5_dp
+  else
+   dtSplit = dt
+  endif
+
   ! get the number of selected state variables
   nSubset = count(stateMask)
+
+  ! get the mapping between the full state vector and the state subset
+  ixMapFull2Subset( pack(ixAllState,      stateMask) ) = arth(1,1,nSubset)  ! indices in the state subset
+  ixMapFull2Subset( pack(ixAllState, .not.stateMask) ) = integerMissing
+
+  print*, 'ixMapFull2Subset = ', ixMapFull2Subset
 
   ! identify the matrix solution method
   ! (the type of matrix used to solve the linear system A.X=B)
@@ -414,6 +428,15 @@ contains
   print*, 'pack(ixStateType,stateMask) = ', pack(ixStateType,stateMask)
   print*, 'stateVecInit = ', stateVecInit 
  
+  stateSubset: associate(&
+  ixCasNrg      => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)  , & ! intent(in): [i4b]    index of canopy air space energy state variable
+  ixVegNrg      => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)  , & ! intent(in): [i4b]    index of canopy energy state variable
+  ixVegWat      => indx_data%var(iLookINDEX%ixVegWat)%dat(1)  , & ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+  ixSnowSoilNrg => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat, & ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
+  ixSnowOnlyWat => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat, & ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
+  ixSoilOnlyHyd => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat  & ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+  ) ! associations
+
   ! -----
   ! * compute the initial function evaluation...
   ! --------------------------------------------
@@ -435,7 +458,7 @@ contains
   ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
   call eval8summa(&
                   ! input: model control
-                  dt,                      & ! intent(in):    length of the time step (seconds)
+                  dtSplit,                 & ! intent(in):    length of the time step (seconds)
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    number of layers
@@ -498,7 +521,7 @@ contains
    !  3) Computes new fluxes and derivatives, new residuals, and (if necessary) refines the state vector
    call summaSolve(&
                    ! input: model control
-                   dt,                      & ! intent(in):    length of the time step (seconds)
+                   dtSplit,                 & ! intent(in):    length of the time step (seconds)
                    iter,                    & ! intent(in):    iteration index
                    nSnow,                   & ! intent(in):    number of snow layers
                    nSoil,                   & ! intent(in):    number of soil layers
@@ -555,115 +578,148 @@ contains
   
    ! check convergence
    if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-   !print*, 'PAUSE: iterating'; read(*,*)
+   print*, 'PAUSE: iterating'; read(*,*)
   
   end do  ! iterating
-  !print*, 'PAUSE: after iterations'; read(*,*)
+  print*, 'PAUSE: after iterations'; read(*,*)
+
+  ! -----
+  ! * update states and compute total volumetric melt...
+  ! ----------------------------------------------------
+
+  ! update temperatures (ensure new temperature is consistent with the fluxes)
+  if(size(ixSnowSoilNrg)>0)&
+   stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVecNew(ixSnowSoilNrg)*dtSplit + resSinkNew(ixSnowSoilNrg))/real(sMul(ixSnowSoilNrg), dp)
+
+  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
+  ! NOTE: for soil water balance is constrained within the iteration loop
+  if(size(ixSnowOnlyWat)>0)&
+  stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVecNew(ixSnowOnlyWat)*dtSplit + resSinkNew(ixSnowOnlyWat))
+  
+  ! update states: compute liquid water and ice content from total water content
+  call varExtract(&
+                  ! input
+                  stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
+                  prog_data,                                 & ! intent(inout): model prognostic variables for a local HRU
+                  indx_data,                                 & ! intent(in):    indices defining model states and layers
+                  snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
+                  vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters
+                  ! output: variables for the vegetation canopy
+                  scalarFracLiqVeg,                          & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                  scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
+                  scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
+                  scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
+                  scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                  scalarCanopyIceTrial,                      & ! intent(out):   trial value of canopy ice content (kg m-2)
+                  ! output: variables for the snow-soil domain
+                  mLayerFracLiqSnow,                         & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                  mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
+                  mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-)
+                  mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-)
+                  mLayerVolFracIceTrial,                     & ! intent(out):   trial vector of volumetric ice water content (-)
+                  mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
+                  ! output: error control
+                  err,cmessage)                                ! intent(out):   error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  print*, 'mass balance'
+  
+  ! check the mass balance for the soil domain
+  ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
+  if(checkMassBalance .and. size(ixSoilOnlyHyd)>0)then
+   balance0 = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
+   balance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
+   vertFlux = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dtSplit  ! m s-1 --> m
+   tranSink = sum(mLayerTranspire)*dtSplit                                ! m s-1 --> m
+   baseSink = sum(mLayerBaseflow)*dtSplit                                 ! m s-1 --> m
+   compSink = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
+   liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
+   if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
+    message=trim(message)//'water balance error in the soil domain'
+    err=-20; return ! negative error code forces time step reduction and another trial
+   endif  ! if there is a water balance error
+  endif  ! checking mass balance
+  
+  ! compute the melt in each snow and soil layer
+  if(nSnow>0) mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIceTrial(      1:nSnow  ) - mLayerVolFracIce(      1:nSnow  ))*iden_ice
+              mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIceTrial(nSnow+1:nLayers) - mLayerVolFracIce(nSnow+1:nLayers))*iden_water
+  
+  ! -----
+  ! * check that there is sufficient ice content to support the converged sublimation rate...
+  ! -----------------------------------------------------------------------------------------
+
+  print*, 'sublimation'
+  
+  ! check that sublimation does not exceed the available water on the canopy
+  if(computeVegFlux)then
+   if(-dtSplit*scalarCanopySublimation > scalarCanopyLiqTrial + scalarCanopyIceTrial)then  ! try again
+    message=trim(message)//'insufficient water to support converged canopy sublimation rate'
+    err=-20; return  ! negative error code means "try again"
+   endif  ! if insufficient water for sublimation
+  endif  ! if computing the veg flux
+  
+  ! check that sublimation does not exceed the available ice in the top snow layer
+  if(nSnow > 0)then ! snow layers exist
+   if(-dtSplit*(scalarSnowSublimation/mLayerDepth(1))/iden_ice > mLayerVolFracIceTrial(1))then  ! try again
+    message=trim(message)//'insufficient water to support converged surface sublimation rate'
+    err=-20; return  ! negative error code means "try again"
+   endif  ! if insufficient water for sublimation
+  endif  ! if computing the veg flux
+  
+  ! -----
+  ! * extract state variables for the start of the next time step...
+  ! ----------------------------------------------------------------
+
+  print*, 'hello'
+
+  ! if energy vector exists then check that we have all layers
+  if(size(ixSnowSoilNrg)>0 .and. size(ixSnowSoilNrg)/=nLayers)then
+   message=trim(message)//'expect energy variable subset to be for all layers'
+   err=20; return
+  endif
+
+  ! if hydrology vector exists then check that we have all layers
+  if(size(ixSoilOnlyHyd)>0 .and. size(ixSoilOnlyHyd)/=nSoil)then
+   message=trim(message)//'expect hydrology variable subset to be for all soil layers'
+   err=20; return
+  endif
+  
+  print*, 'hello'
+
+  ! extract the vegetation states from the state vector
+  if(ixCasNrg/=integerMissing) scalarCanairTemp = stateVecTrial(ixCasNrg)
+  if(ixVegNrg/=integerMissing) scalarCanopyTemp = stateVecTrial(ixVegNrg)
+
+  ! extract diagnostic variables for vegetation
+  if(computeVegFlux)then
+   scalarCanopyLiq  = scalarCanopyLiqTrial
+   scalarCanopyIce  = scalarCanopyIceTrial
+  endif
+  
+  ! extract state variables for the snow and soil domain
+  if(size(ixSnowSoilNrg)>0) mLayerTemp(1:nLayers)     = stateVecTrial(ixSnowSoilNrg)
+  if(size(ixSoilOnlyHyd)>0) mLayerMatricHead(1:nSoil) = stateVecTrial(ixSoilOnlyHyd)
+  
+  ! save the volumetric liquid water and ice content
+  mLayerVolFracLiq = mLayerVolFracLiqTrial  ! computed in updatState
+  mLayerVolFracIce = mLayerVolFracIceTrial  ! computed in updatState
+
+  ! compute the total water content in snow and soil
+  ! NOTE: no ice expansion allowed for soil
+  if(nSnow>0)& 
+  mLayerVolFracWat(1:      nSnow)   = mLayerVolFracLiq(1:      nSnow)   + mLayerVolFracIce(1:      nSnow)*(iden_ice/iden_water)
+  mLayerVolFracWat(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
 
   ! deallocate space for temporary vectors
   deallocate(stateVecInit, stateVecTrial, stateVecNew, fluxVec0, fluxVecNew, fScale, xScale, dMat, sMul, rVec, rAdd, resSinkNew, resVecNew, stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for temporary vectors'; return; endif
+
+  ! end associations with variables for the state update
+  end associate stateSubset
  
+  print*, 'PAUSE: end of splitting loop'; read(*,*)
+
  end do  ! operator splitting loop 
-
- ! -----
- ! * update states and compute total volumetric melt...
- ! ----------------------------------------------------
-
- ! update temperatures (ensure new temperature is consistent with the fluxes)
- stateVecTrial(ixSnowSoilNrg) = stateVecInit(ixSnowSoilNrg) + (fluxVecNew(ixSnowSoilNrg)*dt + resSinkNew(ixSnowSoilNrg))/real(sMul(ixSnowSoilNrg), dp)
-
- ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
- ! NOTE: for soil water balance is constrained within the iteration loop
- if(nSnow>0)&
- stateVecTrial(ixSnowOnlyWat) = stateVecInit(ixSnowOnlyWat) + (fluxVecNew(ixSnowOnlyWat)*dt + resSinkNew(ixSnowOnlyWat))
-
- ! update states: compute liquid water and ice content from total water content
- call varExtract(&
-                 ! input
-                 stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
-                 prog_data,                                 & ! intent(inout): model prognostic variables for a local HRU
-                 indx_data,                                 & ! intent(in):    indices defining model states and layers
-                 snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
-                 vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters
-                 ! output: variables for the vegetation canopy
-                 scalarFracLiqVeg,                          & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
-                 scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
-                 scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
-                 scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
-                 scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,                      & ! intent(out):   trial value of canopy ice content (kg m-2)
-                 ! output: variables for the snow-soil domain
-                 mLayerFracLiqSnow,                         & ! intent(out):   volumetric fraction of water in each snow layer (-)
-                 mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
-                 mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-)
-                 mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,                     & ! intent(out):   trial vector of volumetric ice water content (-)
-                 mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
-                 ! output: error control
-                 err,cmessage)                                ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
- ! check the mass balance for the soil domain
- ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
- if(checkMassBalance)then
-  balance0 = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
-  balance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
-  vertFlux = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt  ! m s-1 --> m
-  tranSink = sum(mLayerTranspire)*dt                                ! m s-1 --> m
-  baseSink = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
-  compSink = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
-  liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
-  if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
-   message=trim(message)//'water balance error in the soil domain'
-   err=-20; return ! negative error code forces time step reduction and another trial
-  endif  ! if there is a water balance error
- endif  ! checking mass balance
-
- ! compute the melt in each snow and soil layer
- if(nSnow>0) mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIceTrial(      1:nSnow  ) - mLayerVolFracIce(      1:nSnow  ))*iden_ice
-             mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIceTrial(nSnow+1:nLayers) - mLayerVolFracIce(nSnow+1:nLayers))*iden_water
-
- ! -----
- ! * check that there is sufficient ice content to support the converged sublimation rate...
- ! -----------------------------------------------------------------------------------------
-
- ! check that sublimation does not exceed the available water on the canopy
- if(computeVegFlux)then
-  if(-dt*scalarCanopySublimation > scalarCanopyLiqTrial + scalarCanopyIceTrial)then  ! try again
-   message=trim(message)//'insufficient water to support converged canopy sublimation rate'
-   err=-20; return  ! negative error code means "try again"
-  endif  ! if insufficient water for sublimation
- endif  ! if computing the veg flux
-
- ! check that sublimation does not exceed the available ice in the top snow layer
- if(nSnow > 0)then ! snow layers exist
-  if(-dt*(scalarSnowSublimation/mLayerDepth(1))/iden_ice > mLayerVolFracIceTrial(1))then  ! try again
-   message=trim(message)//'insufficient water to support converged surface sublimation rate'
-   err=-20; return  ! negative error code means "try again"
-  endif  ! if insufficient water for sublimation
- endif  ! if computing the veg flux
-
-
- ! -----
- ! * extract state variables for the start of the next time step...
- ! ----------------------------------------------------------------
-
- ! extract the vegetation states from the state vector
- if(computeVegFlux)then
-  scalarCanairTemp = stateVecTrial(ixCasNrg)
-  scalarCanopyTemp = stateVecTrial(ixVegNrg)
-  scalarCanopyLiq  = scalarCanopyLiqTrial
-  scalarCanopyIce  = scalarCanopyIceTrial
- endif
-
- ! extract state variables for the snow and soil domain
- mLayerTemp(1:nLayers)     = stateVecTrial(ixSnowSoilNrg)
- mLayerMatricHead(1:nSoil) = stateVecTrial(ixSoilOnlyHyd)
-
- ! save the volumetric liquid water and ice content
- mLayerVolFracLiq = mLayerVolFracLiqTrial  ! computed in updatState
- mLayerVolFracIce = mLayerVolFracIceTrial  ! computed in updatState
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
@@ -675,7 +731,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
 
  ! end associate statement
- end associate
+ end associate globalVars
 
  end subroutine systemSolv
 

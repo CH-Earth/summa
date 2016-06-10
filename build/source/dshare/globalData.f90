@@ -138,7 +138,7 @@ MODULE globalData
 
  ! define indices describing the first and last layers of the Jacobian to print (for debugging)
  integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
- integer(i4b),parameter,public               :: iJac2=10                ! last layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac2=9                 ! last layer of the Jacobian to print
 
  ! define mapping structures
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing

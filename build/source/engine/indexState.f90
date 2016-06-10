@@ -21,6 +21,8 @@
 module indexState_module
 ! data types
 USE nrtype
+! missing data
+USE globalData,only:integerMissing  ! missing integer
 ! domain types
 USE globalData,only:iname_cas       ! canopy air space
 USE globalData,only:iname_veg       ! vegetation
@@ -77,12 +79,6 @@ contains
  integer(i4b)                    :: ixTopNrg       ! index of upper-most energy state in the snow-soil subdomain
  integer(i4b)                    :: ixTopWat       ! index of upper-most total water state in the snow-soil subdomain
  integer(i4b)                    :: ixTopMat       ! index of upper-most matric head state in the soil subdomain
- integer(i4b),dimension(nLayers) :: ixSnowSoilNrg  ! indices for energy states in the snow-soil subdomain
- integer(i4b),dimension(nLayers) :: ixSnowSoilWat  ! indices for total water states in the snow-soil subdomain
- integer(i4b),dimension(nSnow)   :: ixSnowOnlyNrg  ! indices for energy states in the snow subdomain
- integer(i4b),dimension(nSnow)   :: ixSnowOnlyWat  ! indices for total water states in the snow subdomain
- integer(i4b),dimension(nSoil)   :: ixSoilOnlyNrg  ! indices for energy states in the soil subdomain
- integer(i4b),dimension(nSoil)   :: ixSoilOnlyHyd  ! indices for hydrology states in the soil subdomain
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&
@@ -95,7 +91,10 @@ contains
  nMatState     => indx_data%var(iLookINDEX%nMatState)%dat(1) , & ! number of matric head state variables
  nMassState    => indx_data%var(iLookINDEX%nMassState)%dat(1), & ! number of hydrology state variables (mass of water)
  nState        => indx_data%var(iLookINDEX%nState)%dat(1)    , & ! total number of model state variables
- ! type of model state variables
+ ! vectors of indices for specfic state types within specific sub-domains IN THE FULL STATE VECTOR
+ ixNrgLayer    => indx_data%var(iLookINDEX%ixNrgLayer)%dat   , & ! indices IN THE FULL VECTOR for energy states in the snow+soil domain
+ ixHydLayer    => indx_data%var(iLookINDEX%ixHydLayer)%dat   , & ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+ ! indices for model state variables
  ixSoilState   => indx_data%var(iLookINDEX%ixSoilState)%dat  , & ! list of indices for all soil layers
  ixLayerState  => indx_data%var(iLookINDEX%ixLayerState)%dat , & ! list of indices for all model layers
  ! type of hydrology state variables in the snow+soil domains
@@ -152,18 +151,8 @@ contains
  ixTopMat = nVegState + nSnow*nVarSnowSoil + 2  ! matric head (only soil)
 
  ! define the indices within the snow+soil domain
- ixSnowSoilNrg = arth(ixTopNrg,nVarSnowSoil,nLayers)  ! energy
- ixSnowSoilWat = arth(ixTopWat,nVarSnowSoil,nLayers)  ! total water
-
- ! define indices just for the soil domains
- ixSoilOnlyNrg = arth(ixTopNrg + nSnow*nVarSnowSoil,nVarSnowSoil,nSoil)    ! energy
- ixSoilOnlyHyd = arth(ixTopMat,nVarSnowSoil,nSoil)                         ! soil hydrology states (matric head or total water)
-
- ! define indices just for the snow domain
- if(nSnow>0)then  ! (total water in snow only defined if snow layers exist)
-  ixSnowOnlyNrg = arth(ixTopNrg,nVarSnowSoil,nSnow)    ! energy
-  ixSnowOnlyWat = arth(ixTopWat,nVarSnowSoil,nSnow)    ! total water
- endif
+ ixNrgLayer = arth(ixTopNrg,nVarSnowSoil,nLayers)  ! energy
+ ixHydLayer = arth(ixTopWat,nVarSnowSoil,nLayers)  ! total water
 
  ! -----
  ! * re-allocate index vectors (if needed)...
@@ -174,10 +163,11 @@ contains
 
   ! get the length of the desired variable
   select case(iVar)
-   case(iLookINDEX%ixControlVolume); nVec=nState
-   case(iLookINDEX%ixDomainType);    nVec=nState
-   case(iLookINDEX%ixStateType);     nVec=nState
-   case(iLookINDEX%ixAllState);      nVec=nState
+   case(iLookINDEX%ixMapFull2Subset); nVec=nState  
+   case(iLookINDEX%ixControlVolume);  nVec=nState
+   case(iLookINDEX%ixDomainType);     nVec=nState
+   case(iLookINDEX%ixStateType);      nVec=nState
+   case(iLookINDEX%ixAllState);       nVec=nState
    case default; cycle ! only need to process the above variables
   end select  ! iVar
 
@@ -197,6 +187,9 @@ contains
    message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(ivar)%varname)
    err=20; return
   endif
+
+  ! set to missing
+  indx_data%var(iVar)%dat = integerMissing
 
  end do  ! looping through variables
 
@@ -225,10 +218,12 @@ contains
   ixStateType(ixVegWat) = iname_watCanopy
  endif
 
- ! define the state type for the snow-soil domain
- ixStateType(ixSnowSoilNrg) = iname_nrgLayer
- ixStateType(ixSoilOnlyHyd) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
- if(nSnow>0) ixStateType(ixSnowOnlyWat) = iname_watLayer
+ ! define the state type for the snow+soil domain (energy)
+ ixStateType(ixNrgLayer) = iname_nrgLayer
+
+ ! define the state type for the snow+soil domain (hydrology)
+ if(nSnow>0) ixStateType( ixHydLayer(      1:nSnow)   ) = iname_watLayer
+             ixStateType( ixHydLayer(nSnow+1:nLayers) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
  ! define the domain type for vegetation
  if(computeVegFlux)then
@@ -239,13 +234,13 @@ contains
 
  ! define the domain type for snow
  if(nSnow>0)then
-  ixDomainType(ixSnowOnlyNrg) = iname_snow
-  ixDomainType(ixSnowOnlyWat) = iname_snow
+  ixDomainType( ixNrgLayer(1:nSnow) ) = iname_snow
+  ixDomainType( ixHydLayer(1:nSnow) ) = iname_snow
  endif
 
  ! define the domain type for soil
- ixDomainType(ixSoilOnlyNrg) = iname_soil
- ixDomainType(ixSoilOnlyHyd) = iname_soil
+ ixDomainType( ixNrgLayer(nSnow+1:nLayers) ) = iname_soil
+ ixDomainType( ixHydLayer(nSnow+1:nLayers) ) = iname_soil
 
  ! define the index of each control volume in the vegetation domains
  if(computeVegFlux)then
@@ -255,15 +250,17 @@ contains
  endif
 
  ! define the index of the each control volume in the snow domain
- if(size(ixSnowOnlyNrg)>0) ixControlVolume(ixSnowOnlyNrg) = ixLayerState(1:nSnow)
- if(size(ixSnowOnlyWat)>0) ixControlVolume(ixSnowOnlyWat) = ixLayerState(1:nSnow)
+ if(nSnow>0)then
+  ixControlVolume( ixNrgLayer(1:nSnow) ) = ixLayerState(1:nSnow)
+  ixControlVolume( ixHydLayer(1:nSnow) ) = ixLayerState(1:nSnow)
+ endif
 
  ! define the index of the each control volume in the soil domain
- if(size(ixSoilOnlyNrg)>0) ixControlVolume(ixSoilOnlyNrg) = ixSoilState(1:nSoil)
- if(size(ixSoilOnlyHyd)>0) ixControlVolume(ixSoilOnlyHyd) = ixSoilState(1:nSoil)
+ ixControlVolume( ixNrgLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
+ ixControlVolume( ixHydLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
 
- ! define the type of variable in the soil domain
- ixHydType(1:nLayers) = ixStateType(ixSnowSoilWat)
+ ! define the type of variable in the snow+soil domain
+ ixHydType(1:nLayers) = ixStateType( ixHydLayer(1:nLayers) )
 
  print*, 'ixControlVolume = ', ixControlVolume
 

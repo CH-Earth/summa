@@ -598,8 +598,10 @@ MODULE var_lookup
   integer(i4b)    :: ixControlVolume        = imiss ! index of control volume for different domains (veg, snow, soil)
   integer(i4b)    :: ixDomainType           = imiss ! type of domain (iname_veg, iname_snow, or iname_soil)
   integer(i4b)    :: ixStateType            = imiss ! indices defining the type of every state variable (iname_nrgCanair, iname_nrgLayer, iname_watLayer, etc.)
-  integer(i4b)    :: ixStateMap             = imiss ! list of indices of the state subset in the full state vector 
   integer(i4b)    :: ixHydType              = imiss ! indices defining the type of hydrology states in the snow+soil domain (iname_watLayer, iname_matLayer)
+  ! mapping between state subset and the full state vector
+  integer(i4b)    :: ixMapFull2Subset       = imiss ! list of indices of the state subset in the full state vector 
+  integer(i4b)    :: ixMapSubset2Full       = imiss ! list of indices of the full state vector in the state subset
   ! indices of specific model state variables
   integer(i4b)    :: ixCasNrg               = imiss ! index of the canopy air space state variable
   integer(i4b)    :: ixVegNrg               = imiss ! index of the canopy energy state variable
@@ -612,13 +614,17 @@ MODULE var_lookup
   integer(i4b)    :: ixWatOnly              = imiss ! list of indices for all "total water" state variables (volumetric total water content)
   integer(i4b)    :: ixMatOnly              = imiss ! list of indices for matric head state variables
   integer(i4b)    :: ixMassOnly             = imiss ! list of indices for hydrology state variables (mass of water)
-  ! vectors of indices for specific state types within specific sub-domains
-  integer(i4b)    :: ixSnowSoilNrg          = imiss ! indices IN THE FULL VECTOR for energy state variables in the snow-soil subdomain
-  integer(i4b)    :: ixSnowSoilWat          = imiss ! indices IN THE FULL VECTOR for total water state variables in the snow-soil subdomain
-  integer(i4b)    :: ixSnowOnlyNrg          = imiss ! indices IN THE FULL VECTOR for energy state variables in the snow subdomain
-  integer(i4b)    :: ixSnowOnlyWat          = imiss ! indices IN THE FULL VECTOR for total water state variables in the snow subdomain
-  integer(i4b)    :: ixSoilOnlyNrg          = imiss ! indices IN THE FULL VECTOR for energy state variables in the soil subdomain
-  integer(i4b)    :: ixSoilOnlyHyd          = imiss ! indices IN THE FULL VECTOR for hydrology state variables in the soil subdomain
+  ! vectors of indices for specific state types within specific sub-domains IN THE STATE SUBSET
+  integer(i4b)    :: ixSnowSoilNrg          = imiss ! indices IN THE STATE SUBSET for energy state variables in the snow-soil subdomain
+  integer(i4b)    :: ixSnowSoilWat          = imiss ! indices IN THE STATE SUBSET for total water state variables in the snow-soil subdomain
+  integer(i4b)    :: ixSnowOnlyNrg          = imiss ! indices IN THE STATE SUBSET for energy state variables in the snow subdomain
+  integer(i4b)    :: ixSnowOnlyWat          = imiss ! indices IN THE STATE SUBSET for total water state variables in the snow subdomain
+  integer(i4b)    :: ixSoilOnlyNrg          = imiss ! indices IN THE STATE SUBSET for energy state variables in the soil subdomain
+  integer(i4b)    :: ixSoilOnlyHyd          = imiss ! indices IN THE STATE SUBSET for hydrology state variables in the soil subdomain
+  ! vectors of indices for specfic state types within specific sub-domains IN THE FULL STATE VECTOR
+  integer(i4b)    :: ixNrgLayer             = imiss ! indices IN THE FULL VECTOR for energy states in the snow+soil domain
+  integer(i4b)    :: ixHydLayer             = imiss ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
   integer(i4b)    :: ixVolFracWat           = imiss ! indices IN THE SNOW+SOIL VECTOR for hydrology states in the soil subdomain
   integer(i4b)    :: ixMatricHead           = imiss ! indices IN THE SOIL VECTOR for hydrology states in the soil subdomain 
   ! indices within state vectors
@@ -743,7 +749,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
-                                                                         41, 42, 43, 44)
+                                                                         41, 42, 43, 44, 45, 46, 47)
 
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)

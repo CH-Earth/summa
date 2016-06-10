@@ -753,8 +753,10 @@ contains
   case('ixControlVolume'  ); get_ixindex = iLookINDEX%ixControlVolume   ! index of control volume for different domains (veg, snow, soil)
   case('ixDomainType'     ); get_ixindex = iLookINDEX%ixDomainType      ! type of domain (iname_veg, iname_snow, or iname_soil) 
   case('ixStateType'      ); get_ixindex = iLookINDEX%ixStateType       ! indices defining the type of every state variable (iname_nrgCanair, iname_nrgLayer, iname_watLayer, etc.)
-  case('ixStateMap'       ); get_ixindex = iLookINDEX%ixStateMap        ! list of indices of the state subset in the full state vector
   case('ixHydType'        ); get_ixindex = iLookINDEX%ixHydType         ! indices defining the type of hydrology states in the snow+soil domain (iname_watLayer, iname_matLayer)
+  ! mapping between state subset and the full state vector
+  case('ixMapFull2Subset' ); get_ixindex = iLookINDEX%ixMapFull2Subset  ! list of indices of the state subset in the full state vector
+  case('ixMapSubset2Full' ); get_ixindex = iLookINDEX%ixMapSubset2Full  ! list of indices of the full state vector in the state subset
   ! indices of model specific state variables
   case('ixCasNrg'         ); get_ixindex = iLookINDEX%ixCasNrg          ! index of canopy air space energy state variable
   case('ixVegNrg'         ); get_ixindex = iLookINDEX%ixVegNrg          ! index of canopy energy state variable
@@ -767,13 +769,17 @@ contains
   case('ixWatOnly'        ); get_ixindex = iLookINDEX%ixWatOnly         ! list of indices for all "total water" states
   case('ixMatOnly'        ); get_ixindex = iLookINDEX%ixMatOnly         ! list of indices for matric head state variables
   case('ixMassOnly'       ); get_ixindex = iLookINDEX%ixMassOnly        ! list of indices for hydrology states (mass of water)
-  ! vectors of indices for specific state types within specific sub-domains
+  ! vectors of indices for specific state types within specific sub-domains IN THE STATE SUBSET
   case('ixSnowSoilNrg'    ); get_ixindex = iLookINDEX%ixSnowSoilNrg     ! indices IN THE FULL VECTOR for energy states in the snow-soil subdomain
   case('ixSnowSoilWat'    ); get_ixindex = iLookINDEX%ixSnowSoilWat     ! indices IN THE FULL VECTOR for total water states in the snow-soil subdomain
   case('ixSnowOnlyNrg'    ); get_ixindex = iLookINDEX%ixSnowOnlyNrg     ! indices IN THE FULL VECTOR for energy states in the snow subdomain
   case('ixSnowOnlyWat'    ); get_ixindex = iLookINDEX%ixSnowOnlyWat     ! indices IN THE FULL VECTOR for total water states in the snow subdomain
   case('ixSoilOnlyNrg'    ); get_ixindex = iLookINDEX%ixSoilOnlyNrg     ! indices IN THE FULL VECTOR for energy states in the soil subdomain
   case('ixSoilOnlyHyd'    ); get_ixindex = iLookINDEX%ixSoilOnlyHyd     ! indices IN THE FULL VECTOR for hydrology states in the soil subdomain
+  ! vectors of indices for specfic state types within specific sub-domains IN THE FULL STATE VECTOR
+  case('ixNrgLayer'       ); get_ixindex = iLookINDEX%ixNrgLayer        ! indices IN THE FULL VECTOR for energy states in the snow+soil domain
+  case('ixHydLayer'       ); get_ixindex = iLookINDEX%ixHydLayer        ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
   case('ixVolFracWat'     ); get_ixindex = iLookINDEX%ixVolFracWat      ! indices IN THE SNOW+SOIL VECTOR for hyd states in the soil domain
   case('ixMatricHead'     ); get_ixindex = iLookINDEX%ixMatricHead      ! indices IN THE SOIL VECTOR for hyd states in the soil domain
   ! indices within state vectors
