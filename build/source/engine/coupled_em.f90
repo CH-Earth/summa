@@ -54,6 +54,7 @@ contains
                        output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                        computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                       resumeFailSolver,  & ! flag to resume solver when it failed (not converged)
                        ! data structures (input)
                        time_data,         & ! intent(in):    model time data
                        type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
@@ -126,6 +127,7 @@ contains
  character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ logical(lgt),intent(in)              :: resumeFailSolver       ! flag to indicate continue simulation even solver does not converge
  ! data structures (input)
  type(var_i),intent(in)               :: time_data              ! time information
  type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
@@ -154,6 +156,7 @@ contains
  real(dp),parameter                   :: F_inc = 1.25_dp        ! factor used to increase time step
  real(dp),parameter                   :: F_dec = 0.90_dp        ! factor used to decrease time step
  integer(i4b)                         :: maxiter                ! maxiumum number of iterations
+ logical(lgt)                         :: resumeSubStepSolver    ! a flag to resume the simulation by using the last iteration solution when solver is not converged
  ! check SWE
  real(dp)                             :: oldSWE                 ! SWE at the start of the substep
  real(dp)                             :: newSWE                 ! SWE at the end of the substep
@@ -539,7 +542,7 @@ contains
 
   ! initialize the rejected step
   rejectedStep=.false.  ! always try the first time
-
+  resumeSubStepSolver=.false. 
   ! ** continuous do loop to handle any non-convergence or mass balance issues that arise
   do  ! (multiple attempts for non-convergence etc.; minstep check to avoid excessive iteration)
 
@@ -676,6 +679,7 @@ contains
                    model_decisions,                        & ! intent(in):    model decisions
                    ! output: model control
                    niter,                                  & ! intent(out): number of iterations
+                   resumeSubStepSolver,                    & ! intent(in):  resume the solver even it is not 
                    err,cmessage)                             ! intent(out): error code and error message
 
    ! check for fatal errors
@@ -692,8 +696,13 @@ contains
     rejectedStep=.true.
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then
-     message=trim(message)//'dt_temp is below the minimum time step'
-     err=20; return
+     if (resumeFailSolver) then 
+      resumeSubStepSolver = .true.
+      write(*,'(a,i0,a)') 'Solver fails convergence with minimum time step at HRU ',hruId,' but proceeds intentionally.'
+     else
+      message=trim(message)//'dt_temp is below the minimum time step'
+      err=20; return
+     end if 
     endif
     !pause 'failed step'
     ! (try again)

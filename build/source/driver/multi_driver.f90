@@ -264,15 +264,17 @@ integer(i4b),parameter           :: iRunModeFull=1             ! named variable 
 integer(i4b),parameter           :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
 integer(i4b),parameter           :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
+! option to resume simulation even solver fails
+logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
+! get the command line arguments
+call getCommandArguments()
+
 ! get the initial time
 call date_and_time(values=ctime1)
 print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
-
-! get the command line arguments
-call getCommandArguments()
 
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
@@ -925,6 +927,7 @@ do modelTimeStep=1,numtim
                    output_fileSuffix,                           & ! intent(in):    name of the experiment used in the restart file
                    dt_init(iGRU)%hru(localHRU),                 & ! intent(inout): initial time step
                    computeVegFluxFlag,                          & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                   resumeFailSolver,                            & ! flag whether simulation continues if solver does not converge 
                    ! data structures (input)
                    timeStruct,                                  & ! intent(in):    model time data
                    typeStruct%gru(iGRU)%hru(localHRU),          & ! intent(in):    local classification of soil veg etc. for each HRU
@@ -1102,6 +1105,11 @@ contains
  do iArgument= 1, nArgument
   if (nLocalArgument>0) then; nLocalArgument = nLocalArgument -1; cycle; end if ! skip the arguments have been read 
   select case (trim(argString(iArgument)))
+   case ('-r', '--resume')
+    ! define file suffix
+    nLocalArgument = 0
+    resumeFailSolver = .true.
+    print "(A)", "Simulation will continue even if the solver does NOT converge."
    case ('-s', '--suffix')
     ! define file suffix
     nLocalArgument = 1
@@ -1163,13 +1171,14 @@ contains
  subroutine printCommandHelp()  
  implicit none
  ! command line usage
- print "(A)", 'Usage: summa.exe master_file [-s file_suffix] [-g startGRU countGRU] [-c checkHRU]'
- print "(A)", '  summa.exe   -- summa executable'
- print "(A)", '  file_suffix -- text string defining the output file suffix'
- print "(A)", '  master_file -- path/name of master file'
- print "(A)", '  startGRU    -- the index of the first GRU for a parallelization run'
- print "(A)", '  countGRU    -- the number of GRUs for a parallelization run'
- print "(A)", '  checkHRU    -- the index of the HRU for a single HRU run'
+ print "(//A)",'Usage: summa.exe master_file [-r] [-s file_suffix] [-g startGRU countGRU] [-c checkHRU]'
+ print "(A)",  ' summa.exe          summa executable'
+ print "(A,/)",' master_file        path/name of master file'
+ print "(A)",  'Running options:'
+ print "(A)",  ' -r --resume        Continue simulation when solver failed convergence'
+ print "(A)",  ' -s --suffix        Add file_suffix to the output files'
+ print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
+ print "(A)",  ' -c --checkhru      Run a single HRU with index of checkHRU'
  stop 
  end subroutine printCommandHelp
 
@@ -1247,9 +1256,9 @@ contains
  write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
  ! print elapsed time
  write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elpSec,          ' s'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/60_sp,    ' m'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/3600_sp,  ' h'
- write(outunit,"(A,1PG15.7,A/)"),                                           '       or           ', elpSec/86400_sp, ' d'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/60_dp,    ' m'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/3600_dp,  ' h'
+ write(outunit,"(A,1PG15.7,A/)"),                                           '       or           ', elpSec/86400_dp, ' d'
  ! stop with message
  print*,'FORTRAN STOP: '//trim(message)
  stop
