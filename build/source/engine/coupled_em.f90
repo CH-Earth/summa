@@ -49,6 +49,7 @@ contains
  subroutine coupled_em(&
                        ! model control
                        istep,             & ! intent(in):    index of the model time step
+                       hruId,             & ! intent(in):    hruId
                        printRestart,      & ! intent(in):    flag to print a re-start file
                        output_fileSuffix, & ! intent(in):    suffix for the output file (used to write re-start files)
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
@@ -120,6 +121,7 @@ contains
  implicit none
  ! model control
  integer(i4b),intent(in)              :: istep                  ! index of model time step
+ integer(i4b),intent(in)              :: hruId                  ! hruId
  logical(lgt),intent(in)              :: printRestart           ! flag to print a re-start file
  character(*),intent(in)              :: output_fileSuffix      ! suffix for the output file (used to write re-start files)
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
@@ -335,6 +337,14 @@ contains
                   exposedVAI,                  & ! intent(out): exposed vegetation area index (m2 m-2)
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+  ! check
+  if(computeVegFlux)then
+   if(canopyDepth < epsilon(canopyDepth))then
+    message=trim(message)//'canopy depth is zero when computeVegFlux flag is .true.'
+    err=20; return
+   endif
+  endif
 
   ! flag the case where number of vegetation states has changed
   modifiedVegState = (computeVegFlux.neqv.computeVegFluxOld)
@@ -678,7 +688,7 @@ contains
    if(err<0)then
     ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
-    write(*,'(a,1x,2(f13.3,1x))') trim(cmessage), dt_temp, minstep
+    write(*,'(a,1x,2(f13.3,1x),A,I0)') trim(cmessage), dt_temp, minstep,' at HRU ',hruId
     rejectedStep=.true.
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then
@@ -1144,7 +1154,7 @@ contains
  write(timeString,'(a,i4,3(a,i2.2))') '_',time_data%var(iLookTIME%iyyy),'-',time_data%var(iLookTIME%im),'-',time_data%var(iLookTIME%id),'-',time_data%var(iLookTIME%ih)
 
  ! define the file name
- filename = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_'//trim(filepref)//trim(timeString)//trim(output_fileSuffix)//'.txt'
+ filename = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(filepref)//trim(timeString)//trim(output_fileSuffix)//'.txt'
  !print*, trim(filename)
  !pause
 

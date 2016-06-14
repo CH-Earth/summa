@@ -78,7 +78,7 @@ contains
  if(allocated(parent2child_map)) then; err=20; message=trim(message)//'child map already allocated'; return; endif; 
  allocate(parent2child_map(nParent))
  parent2child_map(:) = integerMissing
- parent2child_map(metaChild(:)%ixParent) = arth(1,1,nChild)
+ if (nChild>0) parent2child_map(metaChild(:)%ixParent) = arth(1,1,nChild)
 
  end subroutine childStruc
 

@@ -85,12 +85,12 @@ contains
  integer(i4b)                      :: iNC              ! loop through variables in forcing file
  integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
  integer(i4b)                      :: iFFile           ! forcing file counter
- integer(i4b)                      :: hruId            ! unique hru id
  real(dp)                          :: dsec             ! double precision seconds (not used)
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
+ real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
  integer(i4b)                      :: nFiles           ! number of forcing files
  real(dp),allocatable              :: fileTime(:)      ! array of time from netcdf file
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
@@ -136,9 +136,9 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get definition of time data
-  err = nf90_inq_varid(ncid,'time',varId);                       if(err/=0)then; message=trim(message)//'cannot find time variable'; return; endif
-  err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=0)then; message=trim(message)//'cannot find time units';    return; endif
-  err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=0)then; message=trim(message)//'cannot read time units';    return; endif
+  err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
+  err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=nf90_noerr)then; message=trim(message)//'cannot find time units/'//trim(nf90_strerror(err));    return; endif
+  err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
   
   ! define the reference time for the model simulation
   call extractTime(refTimeString,                         & ! input  = units string for time data
@@ -161,7 +161,7 @@ contains
 
   ! close netCDF file
   err = nf90_close(ncid)
-  if(err/=0)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
+  if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
   ! ***
   ! * find first timestep in any of the forcing files...
@@ -183,8 +183,8 @@ contains
    call nc_file_open(trim(infile),mode,ncid,err,cmessage)
 
    ! how many time steps in current file?
-   err = nf90_inq_dimid(ncid,'time',dimId);             if(err/=0)then; message=trim(message)//'trouble finding time dimension'; return; endif
-   err = nf90_inquire_dimension(ncid,dimId,len=dimLen); if(err/=0)then; message=trim(message)//'trouble reading time dimension size'; return; endif
+   err = nf90_inq_dimid(ncid,'time',dimId);             if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time dimension/'//trim(nf90_strerror(err)); return; endif
+   err = nf90_inquire_dimension(ncid,dimId,len=dimLen); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time dimension size/'//trim(nf90_strerror(err)); return; endif
 
    ! allocate space for time vectors
    if(allocated(fileTime)) deallocate(fileTime)
@@ -195,7 +195,7 @@ contains
    ! read time vector from current file
    ! NOTE: This could be faster by checking just the start and the end times
    err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
-   if(err/=0)then; message=trim(message)//'trouble reading time vector'; return; endif
+   if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
    fileTime=fileTime+refJulday ! add reference julian day
 
    ! find difference of fileTime from currentJulday
@@ -211,7 +211,7 @@ contains
 
     ! close file
     err = nf90_close(ncid)
-    if(err/=0)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
+    if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
     ! check that it is not the last file
     if(iFFile==nFiles)then; err=99; message=trim(message)//'first requested simulation timestep not in any forcing file'; return; endif
@@ -234,7 +234,7 @@ contains
 
    ! close the NetCDF file
    err = nf90_close(ncid)
-   if(err/=0)then; message=trim(message)//'problem closing file ['//trim(infile)//']'; return; endif
+   if(err/=nf90_noerr)then; message=trim(message)//'problem closing file ['//trim(infile)//']'; return; endif
 
    ! increment iFile so we open next forcing file
    iFile = iFile+1
@@ -250,7 +250,7 @@ contains
    ! open forcing data file
    mode=nf90_NoWrite
    call nc_file_open(trim(infile),mode,ncid,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; endif
 
    ! reset iRead since we opened a new file
    iRead=1
@@ -266,11 +266,11 @@ contains
   forc_data(:) = amiss
 
   ! read time data from iRead location in netcdf file
-  err = nf90_inq_varid(ncid,'time',varId);                   if(err/=0)then; message=trim(message)//'trouble finding time variable'; return; endif
-  err = nf90_get_var(ncid,varId,dataJulDay,start=(/iRead/)); if(err/=0)then; message=trim(message)//'trouble reading time variable'; return; endif
+  err = nf90_inq_varid(ncid,'time',varId);                   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time variable/'//trim(nf90_strerror(err)); return; endif
+  err = nf90_get_var(ncid,varId,varTime,start=(/iRead/));    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time variable/'//trim(nf90_strerror(err)); return; endif
 
   ! check that the compted julian day matches the time information in the NetCDF file
-  dataJulDay = dataJulDay + refJulday
+  dataJulDay = varTime(1) + refJulday
   if(abs(currentJulday - dataJulDay) > verySmall)then
    write(message,'(a,i0,f18.8,a,f18.8,a)') trim(message)//'date for time step: ',iStep,dataJulDay,' differs from the expected date: ',currentJulDay,' in file: '//trim(infile)
    err=40; return
@@ -295,43 +295,30 @@ contains
   ! setup count,start arrays
   ncStart = (/iHRU_global,iRead/)
 
-  ! get hruId
-  err = nf90_inq_varid(ncid,'hruId',varId);                   if(err/=0)then; message=trim(message)//'trouble finding HRUid variable'; return; endif
-  err = nf90_get_var(ncid,varId,hruId,start=(/iHRU_global/)); if(err/=0)then; message=trim(message)//'trouble reading HRUid variable'; return; endif
-
-  ! check that the HRUid is what we expect
-  ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
-  if(gru_struc(iGRU)%hruInfo(iHRU_local)%hru_id /= hruId)then
-   write(message,'(a,i0,i0,a,i0,a)') trim(message)//'hruId for global HRU: ', iHRU_global, hruId, 'differs from the expected:',     &
-                                                     gru_struc(iGRU)%hruInfo(iHRU_local)%hru_id, 'in file', trim(infile)
-   write(message,'(a)') trim(message)//'order of hruId in forcing file needs to match order in zLocalAttributes.nc'
-   err=40; return
-  endif
-
   ! read data into forcing structure
+  ! assign the time var, convert days since reference to seconds since reference
+  forc_data(get_ixforce('time')) = varTime(1)*secprday
+  ! other forcing var
   do iNC=1,forcFileInfo(iFile)%nVars
 
    ! inqure about current variable name
    err = nf90_inquire_variable(ncid,iNC,name=varName)
-   if(err/=0)then; message=trim(message)//'problem inquiring variable: '//trim(varName); return; endif
+   if(err/=nf90_noerr)then; message=trim(message)//'problem finding variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
 
    ! make sure the variable name is one desired
    select case(trim(varname))
-    case('time','pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
+    case('pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
     case default; cycle
    end select
 
    ! get index of forcing variable in forcing data vector
    ivar = get_ixforce(trim(varname))
-   if(ivar < 0)then;                                 err=40; message=trim(message)//"variableNotFound [var="//trim(varname)//"]"; return; endif
-   if(ivar > size(forcFileInfo(iFile)%data_id))then; err=40; message=trim(message)//"indexOutOfRange  [var="//trim(varname)//"]"; return; endif
+   if(ivar < 0)then;                                 err=40; message=trim(message)//"variableNotFound [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
+   if(ivar > size(forcFileInfo(iFile)%data_id))then; err=40; message=trim(message)//"indexOutOfRange  [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
 
    ! get forcing data
    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forc_data(ivar),start=ncStart)
-
-   ! for time, convert days since reference to seconds since reference
-   if(trim(varName)=='time') forc_data(ivar) = forc_data(ivar)*secprday
-
+   if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
   end do  ! loop through forcing variables
 
  ! check that the file was in fact open

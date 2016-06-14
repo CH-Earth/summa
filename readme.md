@@ -71,8 +71,13 @@ Once you have all the above, you can compile SUMMA using the following steps:
  1. Run `summa.exe`. If all goes well, you should get an error message that looks something like:
 
     ```
-    231714.555
-    1st command-line argument missing, expect text string defining the output file suffix
+    Usage: summa.exe master_file [-s file_suffix] [-g startGRU countGRU] [-c checkHRU]
+      summa.exe   -- summa executable
+      file_suffix -- text string defining the output file suffix
+      master_file -- path/name of master file
+      startGRU    -- the index of the first GRU for a parallelization run
+      countGRU    -- the number of GRUs for a parallelization run
+      checkHRU    -- the index of the HRU for a single HRU run
     ```
 
 If you get this far then SUMMA is installed correctly and functional.

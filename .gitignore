@@ -23,6 +23,9 @@ summa.exe
 *-local
 *_local
 *log
+*.cbp
+*.layout
+gmon.out
 summa.exe.dSYM*
 # makefile
 make.out

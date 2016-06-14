@@ -59,6 +59,9 @@ contains
 
  do iVar = 1,size(meta)                             ! model variables
 
+  ! don't do anything if var is not requested
+  if (meta(iVar)%outFreq<0) cycle
+  
   ! only treat stats of scalars - all others handled separately
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
@@ -73,7 +76,7 @@ contains
     type is (dlength) ; tdata = dat(pVar)%dat(1)
     type is (ilength) ; tdata = real(dat(pVar)%dat(1))
     class default;err=20;message=trim(message)//'dat type not found';return
-   endselect
+   end select
 
    ! claculate statistics
    if (trim(meta(iVar)%varName)=='time') then
@@ -128,7 +131,7 @@ contains
   type is (ilength); tstat = real(stat%dat)
   type is (dlength); tstat = stat%dat
   class default;err=20;message=trim(message)//'stat type not found';return
- endselect
+ end select
 
  ! ---------------------------------------------
  ! reset statistics at new frequency period 
@@ -151,7 +154,7 @@ contains
      tstat(iStat) = -huge(tstat(iStat))            ! resets stat at beginning of period
     case (iLookStat%mode)                          ! mode over period (does not work)
      tstat(iStat) = -9999.
-   endselect
+   end select
   enddo ! iStat 
  endif
 
@@ -177,7 +180,7 @@ contains
     if (tdata.ge.tstat(iStat)) tstat(iStat) = tdata! overwrites maximum iff 
    case (iLookStat%mode)                           ! (does not work)
     tstat(iStat) = -9999. 
-  endselect
+  end select
  enddo ! iStat 
 
  ! ---------------------------------------------
@@ -193,7 +196,7 @@ contains
     case (iLookStat%vari)                          ! variance over period
      tstat(maxVarStat+1) = tstat(maxVarStat+1)/outFreq(iFreq) ! E[X] term
      tstat(iStat) = tstat(iStat)/outFreq(iFreq) - tstat(maxVarStat+1)**2 ! full variance
-   endselect
+   end select
   enddo ! iStat 
  endif
 
@@ -202,7 +205,7 @@ contains
   type is (ilength); stat%dat = int(tstat)
   type is (dlength); stat%dat = tstat
   class default;err=20;message=trim(message)//'stat type not found';return
- endselect
+ end select
 
  return
  end subroutine calc_stats
