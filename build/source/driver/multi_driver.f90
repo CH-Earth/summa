@@ -313,7 +313,6 @@ call handle_err(err,message)
 ! *****************************************************************************
 ! (3a) read the number of GRUs and HRUs, and allocate the gru-hru mapping structures
 ! *****************************************************************************
-
 ! read and allocate for gru-hru mapping structures and get global variables, e.g, nGRU, nHRU,
 ! needed in the consequent allocations
 ! nGRU-is the total number of GRUs of the simulation domain

@@ -103,6 +103,8 @@ contains
  USE data_types,only:var_info,ilength,dlength ! type dec for meta data structures 
  USE var_lookup,only:maxVarStat       ! # of output statistics 
  USE globalData,only:outFreq          ! output frequencies 
+ ! global variables 
+ USE globalData,only:data_step        ! forcing timestep
  ! structures of named variables
  USE var_lookup,only:iLookVarType     ! named variables for variable types 
  USE var_lookup,only:iLookStat        ! named variables for output statistics types 
@@ -191,6 +193,8 @@ contains
    if (.not.meta%statFlag(iStat)) cycle            ! do not bother if output flag is off
    if (meta%vartype.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars 
    select case(iStat)                              ! act depending on the statistic 
+    case (iLookStat%totl)                          ! summation over period
+     tstat(iStat) = tstat(iStat)*data_step         ! scale by seconds per timestep
     case (iLookStat%mean)                          ! mean over period
      tstat(iStat) = tstat(iStat)/outFreq(iFreq)    ! normalize sum into mean
     case (iLookStat%vari)                          ! variance over period

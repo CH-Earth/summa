@@ -85,8 +85,6 @@ contains
   end do
  end do
 
-print*,'(1.3)'
-
  ! close file
  call nc_file_close(ncid,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
@@ -235,9 +233,6 @@ print*,'(1.3)'
   deallocate(varData)
 
  end do ! iVar 
-
-print*,'read_icond',progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
-print*,'read_icond',progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat
 
  ! --------------------------------------------------------------------------------------------------------
  ! (2) set number of layers 

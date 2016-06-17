@@ -250,6 +250,8 @@ contains
  integer(i4b)                  :: iStat             ! stat index
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
  integer(i4b)                  :: iVarId            ! variable ID
+! integer                       :: index             ! intrinsic function to find substring index
+ integer(i4b)                  :: timePosition      ! extrinsic variable to hold substring index
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  character(LEN=256)            :: catName           ! full variable name
  ! initialize error control
@@ -317,11 +319,33 @@ contains
    call netcdf_err(err,message); if (err/=0) return
 
    ! add parameter description
-   err = nf90_put_att(ncid,iVarId,'long_name',trim(metaData(iVar)%vardesc))
+   catName = trim(metaData(iVar)%vardesc)//' ('//trim(get_statName(iStat))
+   catName = trim(catName)//')' 
+   err = nf90_put_att(ncid,iVarId,'long_name',trim(catName))
    call netcdf_err(err,message); if (err/=0) return
 
    ! add parameter units
-   err = nf90_put_att(ncid,iVarId,'units',trim(metaData(iVar)%varunit))
+   catName = trim(metaData(iVar)%varunit) 
+   if (iStat==iLookStat%totl) then
+    ! make sure that the units of this varaible allow for integration
+    if ((index(catName,'s-1')<=0).and.(index(catName,'s-2')<=0).and.(index(catName,'W m-2')<=0)) then 
+     err=20
+     message=trim(message)//'trying to integrate a non-time variable: '//trim(metaData(iVar)%varName)//' - units: '//trim(catName)
+     return
+    endif
+    ! change to integrated units
+    if (index(catName,'s-1')>0)       then 
+     timePosition = index(catName,'s-1')
+     catName(timePosition:(timePosition+3)) = '   '
+    elseif (index(catName,'s-2')>0)   then 
+     timePosition = index(catName,'s-2')
+     catName(timePosition:(timePosition+3)) = 's-1'
+    elseif (index(catName,'W m-2')>0) then 
+     timePosition = index(catName,'W') 
+     catName(timePosition:(timePosition+1)) = 'J'
+    end if
+   end if
+   err = nf90_put_att(ncid,iVarId,'units',trim(catName))
    call netcdf_err(err,message); if (err/=0) return
 
    ! add file info to metadata structure
