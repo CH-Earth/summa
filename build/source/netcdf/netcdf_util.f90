@@ -51,14 +51,14 @@ contains
  if(.not.xist)then
    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
    err=10; return
- endif
+ end if
 
  ! open file
  err=nf90_open(infile, mode, ncid) 
  if(err/=nf90_noerr) then
    message=trim(message)//"OpenError['"//trim(infile)//"']"//trim(nf90_strerror(err))
    err=20; return
- endif
+ end if
 
  end subroutine nc_file_open
 
@@ -98,7 +98,7 @@ contains
   if (err/=nf90_noerr) then
    message=trim(message)//"["//trim(nf90_strerror(err))//"]"
    err=200
-  endif
+  end if
  end subroutine netcdf_err
 
 end module netcdf_util_module

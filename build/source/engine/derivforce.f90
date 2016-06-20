@@ -141,7 +141,7 @@ contains
  if(size(spectralIncomingDirect) /= nBands .or. size(spectralIncomingDiffuse) /= nBands)then
   write(message,'(a,i0,a)') trim(message)//'expect ', nBands, 'spectral classes for radiation'
   err=20; return
- endif
+ end if
 
  ! compute the partial pressure of o2 and co2
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
@@ -164,7 +164,7 @@ contains
   scalarFractionDirect = Frad_direct*cosZenith/(cosZenith + directScale)
  else
   scalarFractionDirect = 0._dp
- endif
+ end if
  ! compute direct shortwave radiation, in the visible and near-infra-red part of the spectrum
  spectralIncomingDirect(1) = SWRadAtm*scalarFractionDirect*Frad_vis                         ! (direct vis)
  spectralIncomingDirect(2) = SWRadAtm*scalarFractionDirect*(1._dp - Frad_vis)               ! (direct nir)
@@ -181,7 +181,7 @@ contains
  if(relhum > 1._dp)then
   relhum  = 1._dp
   spechum = RELHM2SPHM(relhum, airpres, airtemp)
- endif
+ end if
 
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
  VPair = vapPress(spechum,airpres)
@@ -205,7 +205,7 @@ contains
  else
   fracrain     = (Tmax - tempCritRain)/(Tmax - Tmin)
   snowfallTemp = 0.5_dp*(Tmin + maxFrozenSnowTemp)
- endif
+ end if
  !write(*,'(a,1x,10(f20.10,1x))') 'Tmin, twetbulb, tempRangeTimestep, tempCritRain = ', &
  !                                 Tmin, twetbulb, tempRangeTimestep, tempCritRain
 
@@ -221,7 +221,7 @@ contains
   ! compute rainfall and snowfall
   rainfall = fracrain*pptrate
   snowfall = (1._dp - fracrain)*pptrate*frozenPrecipMultip
- endif
+ end if
 
  !print*, 'tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp = '
  !print*, tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp
@@ -244,7 +244,7 @@ contains
      newSnowDensity = newSnowDenMin ! new snow density (kg m-3)
     else
      newSnowDensity = newSnowDenMin + newSnowDenMultAnd*(airtemp-Tfreeze+newSnowDenBase)**(andersonDenScal) ! new snow density (kg m-3)
-    endif
+    end if
    ! Constant new snow density
    case(constDens)
     newSnowDensity = constSnowDen; ! new snow density (kg m-3)
@@ -254,7 +254,7 @@ contains
   newSnowDensity = valueMissing
   rainfall = rainfall + snowfall ! in most cases snowfall will be zero here
   snowfall = 0._dp
- endif
+ end if
 
  ! end association of local variables with the information in the data structures
  end associate

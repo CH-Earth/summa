@@ -56,22 +56,22 @@ contains
  if(.not.present(source) .and. .not.present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (neither given)'
   err=20; return
- endif
+ end if
 
  ! check that source and mold are not both present
  if(present(source) .and. present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (both given)'
   err=20; return
- endif
+ end if
 
  ! get the upper bounds of the source or the mold vector
- if(present(source))then; upperBound=ubound(source); endif
- if(present(mold))  then; upperBound=ubound(mold);   endif
+ if(present(source))then; upperBound=ubound(source); end if
+ if(present(mold))  then; upperBound=ubound(mold);   end if
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
  allocate(dataVec(lowerBound:upperBound(1)),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; end if
 
  ! copy data
  if(present(source)) dataVec(lowerBound:upperBound(1)) = source(lowerBound:upperBound(1))
@@ -103,22 +103,22 @@ contains
  if(.not.present(source) .and. .not.present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (neither given)'
   err=20; return
- endif
+ end if
 
  ! check that source and mold are not both present
  if(present(source) .and. present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (both given)'
   err=20; return
- endif
+ end if
 
  ! get the upper bounds of the source or the mold vector
- if(present(source))then; upperBound=ubound(source); endif
- if(present(mold))  then; upperBound=ubound(mold);   endif
+ if(present(source))then; upperBound=ubound(source); end if
+ if(present(mold))  then; upperBound=ubound(mold);   end if
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
  allocate(dataVec(lowerBound:upperBound(1)),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; end if
 
  ! copy data
  if(present(source)) dataVec(lowerBound:upperBound(1)) = source(lowerBound:upperBound(1))

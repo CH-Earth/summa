@@ -75,7 +75,7 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! initialize layer height as the top of the snowpack -- positive downward
- ixLower=lbound(iLayerHeight); if(ixLower(1) > 0)then; err=20; message=trim(message)//'unexpected lower bound for iLayerHeight'; return; endif
+ ixLower=lbound(iLayerHeight); if(ixLower(1) > 0)then; err=20; message=trim(message)//'unexpected lower bound for iLayerHeight'; return; end if
  iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==ix_snow)
 
  ! loop through layers
@@ -132,8 +132,10 @@ contains
  integer(i4b)                    :: iLayer          ! loop through layers
  real(dp)                        :: fracRootLower   ! fraction of the rooting depth at the lower interface
  real(dp)                        :: fracRootUpper   ! fraction of the rooting depth at the upper interface
+
  ! initialize error control
  err=0; message='rootDensty/'
+
  ! ----------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
@@ -170,14 +172,14 @@ contains
       fracRootLower = 0._dp
      else
       fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
-     endif
+     end if
      fracRootUpper = iLayerHeight(iLayer)/rootingDepth
      if(fracRootUpper>1._dp) fracRootUpper=1._dp
      ! compute the root density
      mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
    else
     mLayerRootDensity(iLayer-nSnow) = 0._dp
-   endif
+   end if
 
    ! ** option 2: double expoential profile of Zeng et al. (JHM 2001)
    case(doubleExp)
@@ -200,14 +202,14 @@ contains
  if(sum(mLayerRootDensity) > 1._dp + epsilon(rootingDepth))then
   message=trim(message)//'problem with the root density calaculation'
   err=20; return
- endif
+ end if
 
  ! compute fraction of roots in the aquifer
  if(sum(mLayerRootDensity) < 1._dp)then
   scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
  else
   scalarAquiferRootFrac = 0._dp
- endif
+ end if
  
  ! check that roots in the aquifer are appropriate
  if(scalarAquiferRootFrac > epsilon(rootingDepth))then
@@ -217,8 +219,8 @@ contains
     case(doubleExp); message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: increase soil depth to alow for exponential roots'
    end select
    err=10; return
-  endif  ! if not the big bucket
- endif  ! if roots in the aquifer
+  end if  ! if not the big bucket
+ end if  ! if roots in the aquifer
 
  end associate
 
@@ -287,7 +289,7 @@ contains
     if(iLayer > nSnow)then ! avoid layer 0
      mLayerSatHydCond(iLayer-nSnow)   = k_soil
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore
-    endif  ! if the mid-point of a layer
+    end if  ! if the mid-point of a layer
    ! power-law profile
    case(powerLaw_profile)
     ! (saturated hydraulic conductivity at layer interfaces)
@@ -306,7 +308,7 @@ contains
      !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
      !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
      !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
-    endif  ! if the mid-point of a layer
+    end if  ! if the mid-point of a layer
    ! error check (errors checked earlier also, so should not get here)
    case default
     message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
@@ -398,7 +400,7 @@ contains
    if(routingGammaShape <= 0._dp .or. aLambda < 0._dp)then
     message=trim(message)//'bad arguments for the Gamma distribution'
     err=20; return
-   endif
+   end if
    ! loop through time steps and compute fraction of runoff in future steps
    do iFuture = 1,nTDH
     tFuture = real(iFuture, kind(dt))*dt                  ! future time (end of step)
@@ -408,7 +410,7 @@ contains
     if(fractionFuture(iFuture) < tiny(dt))then
      fractionFuture(iFuture:nTDH) = 0._dp
      exit
-    endif
+    end if
     !write(*,'(a,1x,i4,1x,3(f20.10,1x))') trim(message), iFuture, tFuture, cumProb, fractionFuture(iFuture)
    end do ! (looping through future time steps)
    ! check that we have enough bins
@@ -416,7 +418,7 @@ contains
    if(abs(1._dp - sumFrac) > tolerFrac)then
     message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in alloc_bvar'
     err=20; return
-   endif
+   end if
    ! ensure the fraction sums to one
    fractionFuture = fractionFuture/sumFrac
 

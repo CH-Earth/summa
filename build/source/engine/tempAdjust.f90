@@ -154,9 +154,9 @@ contains
    if(iter==maxiter)then
     message=trim(message)//'unable to bracket the root'
     err=20; return
-   endif
+   end if
   end do ! trying to bracket the root
- endif  ! first check that we bracketed the root
+ end if  ! first check that we bracketed the root
  !print*, 'x1, x2 = ', x1, x2
  !print*, 'f1, f2 = ', f1, f2
 
@@ -167,7 +167,7 @@ contains
  else
   tempMin = x2
   tempMax = x1
- endif
+ end if
  !print*, 'tempMin, tempMax = ', tempMin, tempMax
 
  ! get starting trial
@@ -198,7 +198,7 @@ contains
    xTry = xTry + xInc
    fBis = .false.
 
-  endif  ! (switch between bi-section and newton)
+  end if  ! (switch between bi-section and newton)
 
   ! compute new function and derivative
   fTry = resNrgFunc(xTry,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
@@ -210,7 +210,7 @@ contains
    tempMax = min(xTry,tempMax)
   else
    tempMin = max(tempMin,xTry)
-  endif
+  end if
 
   ! check the functions at the limits (should be of opposing sign)
   !f1 = resNrgFunc(tempMax,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
@@ -234,7 +234,7 @@ contains
    ! (return with error)
    message=trim(message)//'unable to converge'
    err=20; return
-  endif
+  end if
 
  end do  ! iterating
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------

@@ -72,10 +72,10 @@ contains
  E_lookup = arth(Ey(1),E_incr,nlook)
  ! use cubic spline interpolation to obtain temperature values at the desired values of enthalpy
  call spline(Ey,Tk,1.e30_dp,1.e30_dp,T2deriv,err,cmessage)  ! get the second derivatives
- if(err/=0) then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
  do ilook=1,nlook
   call splint(Ey,Tk,T2deriv,E_lookup(ilook),T_lookup(ilook),err,cmessage)
-  if(err/=0) then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
   !write(*,'(i6,1x,2(f20.4,1x))') ilook, E_lookup(ilook), T_lookup(ilook)
  end do
  end associate
@@ -139,14 +139,14 @@ contains
   if(E_spec < E_lookup(i0) .or. E_spec > E_lookup(i0+1) .or. &
      i0 < 1 .or. i0+1 > nlook)then
    err=10; message=trim(message)//'problem finding appropriate value in lookup table'; return
-  endif
+  end if
   ! get temperature guess
   Tg0 = T_lookup(i0)
   Tg1 = T_lookup(i0+1)
   ! compute function evaluations
   f0  = E_lookup(i0) - E_spec
   f1  = E_lookup(i0+1) - E_spec
- endif
+ end if
 
  ! compute initial derivative
  dh  = (f1 - f0) / (Tg1 - Tg0)
@@ -157,7 +157,7 @@ contains
  if(abs(dT)<atol)then
   Tk = Tg0+dT
   return
- endif
+ end if
 
  ! **** iterate a little
  do iter=1,niter
@@ -176,13 +176,13 @@ contains
   if(abs(dT)<atol)then
    Tk = Tg1+dT
    return
-  endif
+  end if
   ! get ready for next iteration -- save old function evaluation and temperature
   f0  = f1
   Tg0 = Tg1
   ! and check for convergence
-  if(iter==niter)then; err=20; message=trim(message)//"failedToConverge"; return; endif
- enddo  ! (iteration loop)
+  if(iter==niter)then; err=20; message=trim(message)//"failedToConverge"; return; end if
+ end do  ! (iteration loop)
  end subroutine E2T_nosoil
 
 

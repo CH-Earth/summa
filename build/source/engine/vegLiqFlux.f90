@@ -90,7 +90,7 @@ contains
   scalarThroughfallRainDeriv   = 0._dp
   scalarCanopyLiqDrainageDeriv = 0._dp
   return
- endif
+ end if
 
  ! compute throughfall
  select case(ixCanopyInterception)
@@ -118,7 +118,7 @@ contains
    else
     scalarThroughfallRain      = scalarRainfall
     scalarThroughfallRainDeriv = 0._dp
-   endif
+   end if
 
   case default; err=20; message=trim(message)//'unable to identify option for canopy interception'; return
 
@@ -131,7 +131,7 @@ contains
  else
   scalarCanopyLiqDrainage       = 0._dp
   scalarCanopyLiqDrainageDeriv  = 0._dp
- endif
+ end if
 
  !write(*,'(a,1x,f25.15)') 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
 

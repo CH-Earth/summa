@@ -153,13 +153,13 @@ contains
  ! compute energy associated with melt freeze for the vegetation canopy
  if(computeVegFlux)then
   rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*(scalarCanopyIceTrial - scalarCanopyIce)/canopyDepth   ! energy associated with melt/freeze (J m-3)
- endif
+ end if
 
  ! compute energy associated with melt/freeze for snow
  ! NOTE: allow expansion of ice during melt-freeze
  if(nSnow>0)then
   rAdd(ixSnowOnlyNrg) = rAdd(ixSnowOnlyNrg) + LH_fus*iden_ice*(mLayerVolFracIceTrial(1:nSnow) - mLayerVolFracIce(1:nSnow))       ! energy associated with melt/freeze (J m-3)
- endif
+ end if
 
  ! compute energy associated with melt/freeze for soil
  ! NOTE: deny expansion of ice during melt-freeze
@@ -183,7 +183,7 @@ contains
   rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
   ! --> mass balance
   rVec(ixVegWat) = sMul(ixVegWat)*scalarCanopyWatTrial  - ( (sMul(ixVegWat)*scalarCanopyWat  + fVec(ixVegWat)*dt) + rAdd(ixVegWat) )
- endif
+ end if
 
  ! compute the residual vector for the snow and soil sub-domains for energy
  rVec(ixSnowSoilNrg) = sMul(ixSnowSoilNrg)*mLayerTempTrial(1:nLayers) - ( (sMul(ixSnowSoilNrg)*mLayerTemp(1:nLayers)  + fVec(ixSnowSoilNrg)*dt) + rAdd(ixSnowSoilNrg) )

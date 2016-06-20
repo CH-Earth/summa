@@ -57,7 +57,7 @@ contains
  if(size(mask)/=nParent)then
   message=trim(message)//'size of mask vector does not match the size of the parent structure'
   err=20; return
- endif
+ end if
 
  ! allocate space for the child metadata structure
  nChild = count(mask)
@@ -66,7 +66,7 @@ contains
  if(err/=0)then
   message=trim(message)//'problem allocating space for the child metadata structure'
   err=20; return
- endif
+ end if
 
  ! define mapping with the parent data structure
  metaChild(:)%ixParent = pack(arth(1,1,nParent), mask)
@@ -75,10 +75,10 @@ contains
  metaChild(:)%var_info = metaParent(metaChild(:)%ixParent)
 
  ! allows to map from the parent to the child - must carry this around outside
- if(allocated(parent2child_map)) then; err=20; message=trim(message)//'child map already allocated'; return; endif; 
+ if(allocated(parent2child_map)) then; err=20; message=trim(message)//'child map already allocated'; return; end if; 
  allocate(parent2child_map(nParent))
  parent2child_map(:) = integerMissing
- if (nChild>0) parent2child_map(metaChild(:)%ixParent) = arth(1,1,nChild)
+ if(nChild>0) parent2child_map(metaChild(:)%ixParent) = arth(1,1,nChild)
 
  end subroutine childStruc
 
