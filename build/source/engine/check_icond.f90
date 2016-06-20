@@ -83,11 +83,11 @@ contains
  real(dp)                          :: tWat                ! total water on the vegetation canopy (kg m-2)
  real(dp)                          :: scalarTheta         ! liquid water equivalent of total water [liquid water + ice] (-)
  real(dp)                          :: h1,h2               ! used to check depth and height are consistent
- integer(i4b)                      :: nLayers         ! total number of layers
+ integer(i4b)                      :: nLayers             ! total number of layers
  real(dp)                          :: kappa               ! constant in the freezing curve function (m K-1)
  real(dp)                          :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
- integer(i4b)                      :: nSnow           ! number of snow layers
- integer(i4b)                      :: nSoil           ! number of soil layers
+ integer(i4b)                      :: nSnow               ! number of snow layers
+ integer(i4b)                      :: nSoil               ! number of soil layers
 
  ! --------------------------------------------------------------------------------------------------------
 
