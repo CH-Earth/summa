@@ -28,11 +28,12 @@ USE nrtype                                                  ! variable types, et
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:redprm                         ! module to assign more Noah-MP parameters
+USE module_sf_noahmplsm,only:isWater                        ! parameter for water land cover type
 USE nr_utility_module,only:arth                             ! get a sequence of numbers
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
 USE ascii_util_module,only:split_line                       ! extract the list of variable names from the character string
-USE allocspace_module,only:allocate_gru_struc               ! read/allocate space for gru-hru mask structures
+use time_utils_module,only:elapsedSec                       ! calculate the elapsed time
 USE allocspace_module,only:allocGlobal                      ! module to allocate space for global data structures
 USE allocspace_module,only:allocLocal                       ! module to allocate space for local data structures
 USE childStruc_module,only:childStruc                       ! module to create a child data structure
@@ -41,8 +42,8 @@ USE popMetadat_module,only:popMetadat                       ! module to populate
 USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
 USE def_output_module,only:def_output                       ! module to define model output
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
+USE read_attrb_module,only:read_dimension                   ! module to read dimensions of GRU and HRU
 USE read_attrb_module,only:read_attrb                       ! module to read local attributes
-USE read_attrb_module,only:read_gru2hru_mapping             ! module to read local attributes
 USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
 USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
 USE check_icond_module,only:check_icond                     ! module to check initial conditions
@@ -69,6 +70,7 @@ USE netcdf_util_module,only:nc_file_close                   ! module to handle n
 ! provide access to file paths
 USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
+USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model initial attributes file
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
 ! provide access to the derived types to define the data structures
@@ -179,7 +181,7 @@ type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)
 integer(i4b)                     :: iVar                       ! index of a model variable 
 integer(i4b)                     :: iStruct                    ! loop through data structures
 integer(i4b)                     :: iGRU
-integer(i4b)                     :: iHRU,jHRU,kHRU             ! index of the hydrologic response unit
+integer(i4b)                     :: iHRU,jHRU,kHRU         ! index of the hydrologic response unit
 integer(i4b)                     :: nGRU                       ! number of grouped response units
 integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
 integer(i4b)                     :: hruCount                   ! number of local hydrologic response units
@@ -201,11 +203,10 @@ integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable 
 integer(i4b),parameter           :: ixRestart_im=1001          ! named variable to print a re-start file once per month
 integer(i4b),parameter           :: ixRestart_id=1002          ! named variable to print a re-start file once per day
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
-integer(i4b)                     :: ixRestart=ixRestart_iy     ! define frequency to write restart files
+integer(i4b)                     :: ixRestart=ixRestart_id     ! define frequency to write restart files
 ! define output file
-character(len=8)                 :: cdate1=''                  ! initial date
-character(len=10)                :: ctime1=''                  ! initial time
-character(len=64)                :: output_fileSuffix=''       ! suffix for the output file
+integer(i4b)                     :: ctime1(8)                  ! initial time
+character(len=256)               :: output_fileSuffix=''       ! suffix for the output file
 character(len=256)               :: summaFileManagerFile=''    ! path/name of file defining directories and files
 character(len=256)               :: fileout=''                 ! output filename
 ! define model control structures
@@ -244,42 +245,43 @@ logical(lgt)                     :: statDiag_mask(maxvarDiag)  ! mask defining d
 logical(lgt)                     :: statFlux_mask(maxvarFlux)  ! mask defining flux stats
 logical(lgt)                     :: statIndx_mask(maxvarIndx)  ! mask defining indx stats
 logical(lgt)                     :: statBvar_mask(maxvarBvar)  ! mask defining bvar stats
-integer(i4b),allocatable         :: forcChild_map(:)  ! index of the child data structure: stats forc
-integer(i4b),allocatable         :: progChild_map(:)  ! index of the child data structure: stats prog
-integer(i4b),allocatable         :: diagChild_map(:)  ! index of the child data structure: stats diag
-integer(i4b),allocatable         :: fluxChild_map(:)  ! index of the child data structure: stats flux
-integer(i4b),allocatable         :: indxChild_map(:)  ! index of the child data structure: stats indx
-integer(i4b),allocatable         :: bvarChild_map(:)  ! index of the child data structure: stats bvar
-type(extended_info),allocatable  :: statForc_meta(:)  ! child metadata for stats 
-type(extended_info),allocatable  :: statProg_meta(:)  ! child metadata for stats 
-type(extended_info),allocatable  :: statDiag_meta(:)  ! child metadata for stats 
-type(extended_info),allocatable  :: statFlux_meta(:)  ! child metadata for stats 
-type(extended_info),allocatable  :: statIndx_meta(:)  ! child metadata for stats 
-type(extended_info),allocatable  :: statBvar_meta(:)  ! child metadata for stats 
+integer(i4b),allocatable         :: forcChild_map(:)           ! index of the child data structure: stats forc
+integer(i4b),allocatable         :: progChild_map(:)           ! index of the child data structure: stats prog
+integer(i4b),allocatable         :: diagChild_map(:)           ! index of the child data structure: stats diag
+integer(i4b),allocatable         :: fluxChild_map(:)           ! index of the child data structure: stats flux
+integer(i4b),allocatable         :: indxChild_map(:)           ! index of the child data structure: stats indx
+integer(i4b),allocatable         :: bvarChild_map(:)           ! index of the child data structure: stats bvar
+type(extended_info),allocatable  :: statForc_meta(:)           ! child metadata for stats 
+type(extended_info),allocatable  :: statProg_meta(:)           ! child metadata for stats 
+type(extended_info),allocatable  :: statDiag_meta(:)           ! child metadata for stats 
+type(extended_info),allocatable  :: statFlux_meta(:)           ! child metadata for stats 
+type(extended_info),allocatable  :: statIndx_meta(:)           ! child metadata for stats 
+type(extended_info),allocatable  :: statBvar_meta(:)           ! child metadata for stats 
 ! stuff for restart file
-character(len=256)               :: timeString        ! protion of restart file name that contains the write-out time
-character(len=256)               :: restartFile       ! restart file name
-
+character(len=256)               :: timeString                 ! protion of restart file name that contains the write-out time
+character(len=256)               :: restartFile                ! restart file name
+character(len=256)               :: attrFile                   ! attributes file name
+! parallelize the model run
+integer(i4b)                     :: startGRU                   ! index of the starting GRU for parallelization run
+integer(i4b)                     :: checkHRU                   ! index of the HRU for a single HRU run
+integer(i4b)                     :: fileGRU                    ! number of GRUs in the input file
+integer(i4b)                     :: fileHRU                    ! number of HRUs in the input file
+integer(i4b)                     :: iRunMode                   ! define the current running mode
+integer(i4b),parameter           :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
+integer(i4b),parameter           :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
+integer(i4b),parameter           :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
+character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
+! option to resume simulation even solver fails
+logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
-print*, 'start'
+! get the command line arguments
+call getCommandArguments()
 
 ! get the initial time
-call date_and_time(cdate1,ctime1)
-print*,ctime1
-
-! get command-line arguments for the output file suffix
-call getarg(1,output_fileSuffix)
-if (len_trim(output_fileSuffix) == 0) then
- print*,'1st command-line argument missing, expect text string defining the output file suffix'; stop
-end if
-
-! get command-line argument for the muster file
-call getarg(2,summaFileManagerFile) ! path/name of file defining directories and files
-if (len_trim(summaFileManagerFile) == 0) then
- print*,'2nd command-line argument missing, expect path/name of muster file'; stop
-end if
+call date_and_time(values=ctime1)
+print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
 
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
@@ -313,19 +315,18 @@ call handle_err(err,message)
 ! *****************************************************************************
 ! (3a) read the number of GRUs and HRUs, and allocate the gru-hru mapping structures
 ! *****************************************************************************
-! read and allocate for gru-hru mapping structures and get global variables, e.g, nGRU, nHRU,
-! needed in the consequent allocations
-! nGRU-is the total number of GRUs of the simulation domain
-! nHRU-is the total number of HRUs of the simulation domain
-! hruCount-is a local variable for the total number of HRUs in a GRU
-call allocate_gru_struc(nGRU,nHRU,err,message); call handle_err(err,message)
+! obtain the HRU and GRU dimensions in the LocalAttribute file 
+attrFile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
+select case (iRunMode)
+ case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,message)
+ case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,message,startGRU=startGRU)
+ case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,message,checkHRU=checkHRU)
+end select
+call handle_err(err,message)
 
 ! *****************************************************************************
 ! (3b) read model attributes 
 ! *****************************************************************************
-! read local attributes for each HRU
-call read_gru2hru_mapping(nGRU,nHRU,err,message); call handle_err(err,message)
-
 ! read number of snow and soil layers
 restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
 call read_icond_layers(trim(restartFile),nGRU,nHRU,indx_meta,err,message)
@@ -360,7 +361,8 @@ end do  ! looping through data structures
 ! (3c) allocate space for other data structures
 ! allocate space for default model parameters
 ! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
-call allocGlobal(mpar_meta,  dparStruct,  err, message)   ! default model parameters
+! *****************************************************************************
+call allocGlobal(mpar_meta,dparStruct,err,message)   ! default model parameters
 call handle_err(err,trim(message)//' [problem allocating dparStruct]')
 
 ! allocate space for the time step and computeVegFlux flags (recycled for each GRU for subsequent calls to coupled_em)
@@ -377,14 +379,18 @@ end do
 ! *****************************************************************************
 ! (3c) allocate space for other data structures
 ! read local attributes for each HRU
-call read_attrb(nGRU,nHRU,attrStruct,typeStruct,err,message); call handle_err(err,message)
-
 ! *****************************************************************************
-! (3c) allocate space for other data structures
+if (iRunMode==iRunModeHRU) then
+ call read_attrb(trim(attrFile),nGRU,fileHRU,attrStruct,typeStruct,err,message,checkHRU=checkHRU)
+else
+ call read_attrb(trim(attrFile),nGRU,fileHRU,attrStruct,typeStruct,err,message)
+end if 
+call handle_err(err,message)
+
 ! *****************************************************************************
 ! (4a) read description of model forcing datafile used in each HRU
 ! *****************************************************************************
-call ffile_info(nHRU,err,message); call handle_err(err,message)
+call ffile_info(nGRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (4b) read model decisions
@@ -514,7 +520,7 @@ do iGRU=1,nGRU
 
   kHRU=0
   ! check the network topology (only expect there to be one downslope HRU)
-  do jHRU=1,nHRU
+  do jHRU=1,gru_struc(iGRU)%hruCount
    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
     if(kHRU==0)then  ! check there is a unique match
      kHRU=jHRU
@@ -593,22 +599,21 @@ do iGRU=1,nGRU
   if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
    SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)
    LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
-  end if
+  endif
   
   ! initialize canopy drip
   ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
-  fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
-  
+  fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used  
  end do  ! (looping through HRUs)
 
  ! compute total area of the upstream HRUS that flow into each HRU
  do iHRU=1,gru_struc(iGRU)%hruCount
   upArea(iGRU)%hru(iHRU) = 0._dp
-  do jHRU=1,nHRU
-   ! check if jHRU flows into iHRU
+  do jHRU=1,gru_struc(iGRU)%hruCount
+   ! check if jHRU flows into iHRU; assume no exchange between GRUs
    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex))then
     upArea(iGRU)%hru(iHRU) = upArea(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
-   end if   ! (if jHRU is an upstream HRU)
+   endif   ! (if jHRU is an upstream HRU)
   end do  ! jHRU
  end do  ! iHRU
 
@@ -644,7 +649,6 @@ do iGRU=1,nGRU
 
  ! initialize time step length for each HRU
  do iHRU=1,gru_struc(iGRU)%hruCount
-
   dt_init(iGRU)%hru(iHRU) = progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
  end do
 
@@ -653,18 +657,33 @@ end do  ! (looping through GRUs)
 ! *****************************************************************************
 ! (5e) initialize first output sequence 
 ! *****************************************************************************
-! define the file
+! define the output file
 ! NOTE: currently assumes that nSoil is constant across the model domain
-write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_spinup'//trim(output_fileSuffix)
+
+! set up the output file names as: OUTPUT_PREFIX_spinup|waterYear_output_fileSuffix_startGRU-endGRU_outfreq.nc or OUTPUT_PREFIX_spinup|waterYear_output_fileSuffix_HRU_outfreq.nc; 
+if (OUTPUT_PREFIX(len_trim(OUTPUT_PREFIX):len_trim(OUTPUT_PREFIX)) /= '_') OUTPUT_PREFIX=trim(OUTPUT_PREFIX)//'_' ! separate OUTPUT_PREFIX from others by underscore
+if (output_fileSuffix(1:1) /= '_') output_fileSuffix='_'//trim(output_fileSuffix)                                 ! separate output_fileSuffix from others by underscores 
+if (output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) == '_') output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) = ' '
+select case (iRunMode)
+ case(iRunModeGRU)
+  ! left zero padding for startGRU and endGRU
+  write(fmtGruOutput,"(i0)") ceiling(log10(real(fileGRU)+0.1))               ! maximum width of startGRU and endGRU
+  fmtGruOutput = "i"//trim(fmtGruOutput)//"."//trim(fmtGruOutput)           ! construct the format string for startGRU and endGRU
+  fmtGruOutput = "('_G',"//trim(fmtGruOutput)//",'-',"//trim(fmtGruOutput)//")"
+  write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),fmtGruOutput) startGRU,startGRU+nGRU-1  
+ case(iRunModeHRU)
+  write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
+end select
+fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
  
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
  do iHRU=1,gru_struc(iGRU)%hruCount
-  call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
-  call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
-  call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
- end do ! HRU
+  call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
+  call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
+  call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
+ enddo ! HRU
  call writeParm(integerMissing,bparStruct%gru(iGRU)%var,bpar_meta,err,message); call handle_err(err,message)
 end do ! GRU
 
@@ -681,30 +700,27 @@ do modelTimeStep=1,numtim
  globalPrintFlag=.false.
 
  ! read forcing data 
- do iHRU=1,nHRU  ! loop through global HRUs
-
-  ! get mapping
-  ix_gru = index_map(iHRU)%gru_ix
-  ix_hru = index_map(iHRU)%ihru
-
-  ! read forcing data
-  call read_force(&
-                  ! input
-                  modelTimeStep,                          & ! intent(in):    time step index
-                  ix_gru,                                 & ! intent(in):    index of gru
-                  ix_hru,                                 & ! intent(in):    index of LOCAL hru
-                  iHRU,                                   & ! intent(in):    index of GLOBAL hru
-                  ! input-output
-                  iFile,                                  & ! intent(inout): index of current forcing file in forcing file list
-                  forcingStep,                            & ! intent(inout): index of read position in time dimension in current netcdf file
-                  forcNcid,                               & ! intent(inout): netcdf file identifier for the current forcing file
-                  ! output
-                  timeStruct%var,                         & ! intent(out):   time data structure (integer)
-                  forcStruct%gru(ix_gru)%hru(ix_hru)%var, & ! intent(out):   forcing data structure (double precision)
-                  err, message)                             ! intent(out):   error control
-  call handle_err(err,message)
-
- end do  ! (end looping through global HRUs)
+ do iGRU=1,nGRU
+  do iHRU=1,gru_struc(iGRU)%hruCount
+   
+   ! read forcing data
+   call read_force(&
+                   ! input
+                   modelTimeStep,                              & ! intent(in):    time step index
+                   iGRU,                                       & ! intent(in):    index of gru
+                   iHRU,                                   & ! intent(in):    index of LOCAL hru
+                   gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,   & ! intent(in):    index of hru in netcdf
+                   ! input-output
+                   iFile,                                      & ! intent(inout): index of current forcing file in forcing file list
+                   forcingStep,                                & ! intent(inout): index of read position in time dimension in current netcdf file
+                   forcNcid,                                   & ! intent(inout): netcdf file identifier for the current forcing file
+                   ! output
+                   timeStruct%var,                             & ! intent(out):   time data structure (integer)
+                   forcStruct%gru(iGRU)%hru(iHRU)%var,     & ! intent(out):   forcing data structure (double precision)
+                   err, message)                               ! intent(out):   error control
+   call handle_err(err,message)
+  end do 
+ end do  ! (end looping through global GRUs)
 
  ! print progress
  select case(ixProgress)
@@ -768,7 +784,7 @@ do modelTimeStep=1,numtim
   end do
  
   ! define the filename
-  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_',&
+  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
                                  timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
                                  trim(output_fileSuffix)
 
@@ -827,7 +843,7 @@ do modelTimeStep=1,numtim
    ! NOTE: layer structure is different for each HRU
    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
-   nLayers                             = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)
+   nLayers                                 = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)
   
    ! get height at bottom of each soil layer, negative downwards (used in Noah MP)
    allocate(zSoilReverseSign(gru_struc(iGRU)%hruInfo(iHRU)%nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
@@ -841,6 +857,9 @@ do modelTimeStep=1,numtim
                gru_struc(iGRU)%hruInfo(iHRU)%nSoil,                             & ! number of soil layers
                urbanVegCategory)                                                  ! vegetation category for urban areas
   
+   ! deallocate height at bottom of each soil layer(used in Noah MP)
+   deallocate(zSoilReverseSign,stat=err); call handle_err(err,'problem deallocating space for zSoilReverseSign')
+   
    ! overwrite the minimum resistance
    if(overwriteRSMIN) RSMIN = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%minStomatalResistance)
   
@@ -853,7 +872,10 @@ do modelTimeStep=1,numtim
     SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)
     LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
    end if
-  
+
+   ! cycle water pixel
+   if (typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) == isWater) cycle
+   
    ! compute derived forcing variables
    call derivforce(timeStruct%var,                    & ! vector of time information
                    forcStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model forcing data
@@ -873,20 +895,22 @@ do modelTimeStep=1,numtim
    ! run the model for a single parameter set and time step
    call coupled_em(&
                    ! model control
-                   modelTimeStep,                  & ! intent(in):    time step index
-                   dt_init(iGRU)%hru(iHRU),        & ! intent(inout): initial time step
-                   computeVegFluxFlag,             & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                   modelTimeStep,                               & ! intent(in):    time step index
+                   gru_struc(iGRU)%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
+                   dt_init(iGRU)%hru(iHRU),                 & ! intent(inout): initial time step
+                   computeVegFluxFlag,                          & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                   resumeFailSolver,                            & ! flag whether simulation continues if solver does not converge 
                    ! data structures (input)
-                   typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    local classification of soil veg etc. for each HRU
-                   attrStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    local attributes for each HRU
-                   forcStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model forcing data
-                   mparStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model parameters
-                   bvarStruct%gru(iGRU),           & ! intent(in):    basin-average model variables
+                   typeStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local classification of soil veg etc. for each HRU
+                   attrStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local attributes for each HRU
+                   forcStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    model forcing data
+                   mparStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    model parameters
+                   bvarStruct%gru(iGRU),                        & ! intent(in):    basin-average model variables
                    ! data structures (input-output)
-                   indxStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model indices
-                   progStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model prognostic variables for a local HRU
-                   diagStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model diagnostic variables for a local HRU
-                   fluxStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model fluxes for a local HRU
+                   indxStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model indices
+                   progStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model prognostic variables for a local HRU
+                   diagStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model diagnostic variables for a local HRU
+                   fluxStruct%gru(iGRU)%hru(iHRU),          & ! intent(inout): model fluxes for a local HRU
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
@@ -905,7 +929,7 @@ do modelTimeStep=1,numtim
 
    kHRU = 0
    ! identify the downslope HRU
-   dsHRU: do jHRU=1,nHRU
+   dsHRU: do jHRU=1,gru_struc(iGRU)%hruCount
     if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
@@ -962,8 +986,6 @@ do modelTimeStep=1,numtim
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSoil+1
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) + nLayers+1
   
-   ! deallocate height at bottom of each soil layer(used in Noah MP)
-   deallocate(zSoilReverseSign,stat=err); call handle_err(err,'problem deallocating space for zSoilReverseSign')
 
   end do  ! (looping through HRUs)
 
@@ -1046,9 +1068,125 @@ end do
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
 
-call stop_program('finished simulation')
+call stop_program('finished simulation successfully.')
 
 contains
+
+ ! **************************************************************************************************
+ ! private function to obtain the command line arguments
+ ! **************************************************************************************************
+ subroutine getCommandArguments()
+ implicit none
+ integer(i4b)                     :: iArgument                  ! index of command line argument
+ integer(i4b)                     :: nArgument                  ! number of command line arguments 
+ character(len=256),allocatable   :: argString(:)               ! string to store command line arguments
+ integer(i4b)                     :: nLocalArgument             ! number of command line arguments to read for a switch
+
+ nArgument = command_argument_count()   
+ ! check numbers of command-line arguments and obtain all arguments 
+ if (nArgument < 1) then 
+  call printCommandHelp()
+ end if
+
+ allocate(argString(nArgument))
+ do iArgument = 1,nArgument
+  call get_command_argument(iArgument,argString(iArgument))   
+ end do  
+
+ ! initialize command line argument variables
+ startGRU = integerMissing; nGRU = integerMissing; checkHRU = integerMissing; nHRU = integerMissing
+ nGRU = integerMissing; nHRU = integerMissing
+ iRunMode = iRunModeFull
+
+ ! loop through all command arguments
+ nLocalArgument = 0
+ do iArgument = 1,nArgument
+  if (nLocalArgument>0) then; nLocalArgument = nLocalArgument -1; cycle; end if ! skip the arguments have been read 
+  select case (trim(argString(iArgument)))
+
+   case ('-r', '--resume')
+    nLocalArgument = 0
+    resumeFailSolver = .true.
+    print "(A)", "Simulation will continue even if the solver does NOT converge."
+
+   case ('-s', '--suffix')
+    ! define file suffix
+    nLocalArgument = 1
+    ! check if the number of command line arguments is correct
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1,"missing argument file_suffix; type 'summa.exe --help' for correct usage")   
+    output_fileSuffix=trim(argString(iArgument+1))
+    print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
+
+   case ('-c', '--checkhru')
+    ! define a single HRU run
+    if (iRunMode == iRunModeGRU) call handle_err(1,"single-HRU run and GRU-parallelization run cannot be both selected.")
+    iRunMode=iRunModeHRU
+    nLocalArgument = 1
+    ! check if the number of command line arguments is correct
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1,"missing argument checkHRU; type 'summa.exe --help' for correct usage")   
+    read(argString(iArgument+1),*) checkHRU ! read the index of the HRU for a single HRU run 
+    nHRU=1; nGRU=1                          ! nHRU and nGRU are both one in this case
+    ! examines the checkHRU is correct 
+    if (checkHRU<1) then
+     call handle_err(1,"illegal checkHRU specification; type 'summa.exe --help' for correct usage") 
+    else
+     print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgument+1))//' is selected for simulation.'
+    end if
+
+   case ('-g','--gru')
+    ! define a GRU parallelization run; get the starting GRU and countGRU
+    if (iRunMode == iRunModeHRU) call handle_err(1,"single-HRU run and GRU-parallelization run cannot be both selected.")
+    iRunMode=iRunModeGRU
+    nLocalArgument = 2
+    ! check if the number of command line arguments is correct
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1,"missing argument startGRU or countGRU; type 'summa.exe --help' for correct usage")   
+    read(argString(iArgument+1),*) startGRU ! read the argument of startGRU
+    read(argString(iArgument+2),*) nGRU     ! read the argument of countGRU 
+    if (startGRU<1 .or. nGRU<1) then
+     call handle_err(1,'startGRU and countGRU must be larger than 1.') 
+    else
+     print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
+    end if
+
+   case ('-h','--help')
+    call printCommandHelp
+
+   case default
+    ! this is the master file argument, the file will be opened in subroutine summa_SetDirsUndPhiles
+    if (len(trim(summaFileManagerFile))>0) then
+     ! check if summaFileManagerFile has been defined
+     print "(A)", "Name of Master control File: '"//trim(argString(iArgument))//"'. Argument '"//trim(summaFileManagerFile)//"' is ignored."
+    else
+     print "(A)", "Name of Master control File: '"//trim(argString(iArgument))//"'."
+    end if           
+    summaFileManagerFile=trim(argString(iArgument))
+  end select
+ end do 
+
+ ! check if master_file has been received.
+ if (len(trim(summaFileManagerFile))==0) call handle_err(1,"master_file is not received; type 'summa.exe --help' for correct usage")
+
+ ! set startGRU for full run
+ if (iRunMode==iRunModeFull) startGRU=1
+
+ end subroutine getCommandArguments
+
+ ! **************************************************************************************************
+ ! private subroutine to print the correct command line usage of SUMMA
+ ! ************************************************************************************************** 
+ subroutine printCommandHelp()  
+ implicit none
+ ! command line usage
+ print "(//A)",'Usage: summa.exe master_file [-r] [-s file_suffix] [-g startGRU countGRU] [-c checkHRU]'
+ print "(A)",  ' summa.exe          summa executable'
+ print "(A,/)",' master_file        path/name of master file'
+ print "(A)",  'Running options:'
+ print "(A)",  ' -r --resume        Continue simulation when solver failed convergence'
+ print "(A)",  ' -s --suffix        Add file_suffix to the output files'
+ print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
+ print "(A)",  ' -c --checkhru      Run a single HRU with index of checkHRU'
+ stop 
+ end subroutine printCommandHelp
 
  ! **************************************************************************************************
  ! private subroutine handle_err: error handler
@@ -1064,15 +1202,15 @@ contains
  if(err==0) return
  ! process error messages
  if (err>0) then
-  write(*,'(a)') 'FATAL ERROR: '//trim(message)
+  write(*,'(//a/)') 'FATAL ERROR: '//trim(message)
  else
-  write(*,'(a)') 'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
- end if
- ! dump variables
- print*, 'error, variable dump:'
- print*, 'modelTimeStep        = ', modelTimeStep
- if(iGRU<=nGRU)then
-  if(iHRU<=gru_struc(iGRU)%hruCount)then
+  write(*,'(//a/)') 'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
+ endif
+ if(iGRU>=1 .and. iGRU<=nGRU)then
+  if(iHRU>=1 .and. iHRU<=gru_struc(iGRU)%hruCount)then
+   ! dump variables
+   print*, 'error, variable dump:'
+   print*, 'modelTimeStep      = ', modelTimeStep
    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
    print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
    print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
@@ -1093,11 +1231,11 @@ contains
    write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
    print*, 'mLayerMatricHead   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
    print*, 'column inflow      = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
-  end if  ! if HRU is valid
- end if  ! if GRU is valid
+  endif  ! if HRU is valid
+ endif  ! if GRU is valid
  print*,'error code = ', err
  if(allocated(timeStruct%var)) print*, timeStruct%var
- write(*,'(a)') trim(message)
+ !write(*,'(a)') trim(message)
  stop
  end subroutine handle_err
 
@@ -1111,15 +1249,22 @@ contains
  character(*),intent(in)::message
  ! define the local variables
  integer(i4b),parameter :: outunit=6               ! write to screen
- character(len=8)       :: cdate2                  ! final date
- character(len=10)      :: ctime2                  ! final time
+ integer(i4b)           :: ctime2(8)               ! final time
+ real(dp)               :: elpSec                  ! elapsed seconds
+ 
  ! get the final date and time
- call date_and_time(cdate2,ctime2)
+ call date_and_time(values=ctime2)
+ 
+ elpSec = elapsedSec(ctime1,ctime2)
+ 
  ! print initial and final date and time
- write(outunit,*) 'initial date/time = '//'ccyy='//cdate1(1:4)//' - mm='//cdate1(5:6)//' - dd='//cdate1(7:8), &
-                                         ' - hh='//ctime1(1:2)//' - mi='//ctime1(3:4)//' - ss='//ctime1(5:10)
- write(outunit,*) 'final date/time   = '//'ccyy='//cdate2(1:4)//' - mm='//cdate2(5:6)//' - dd='//cdate2(7:8), &
-                                         ' - hh='//ctime2(1:2)//' - mi='//ctime2(3:4)//' - ss='//ctime2(5:10)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
+ ! print elapsed time
+ write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elpSec,          ' s'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/60_dp,    ' m'
+ write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/3600_dp,  ' h'
+ write(outunit,"(A,1PG15.7,A/)"),                                           '       or           ', elpSec/86400_dp, ' d'
  ! stop with message
  print*,'FORTRAN STOP: '//trim(message)
  stop

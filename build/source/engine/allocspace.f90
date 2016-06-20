@@ -44,7 +44,6 @@ implicit none
 private
 public::allocGlobal
 public::allocLocal
-public::allocate_gru_struc
 ! define missing values
 integer(i4b),parameter :: missingInteger=-9999
 real(dp),parameter     :: missingDouble=-9999._dp
@@ -53,100 +52,6 @@ integer(i4b),parameter :: nBand=2         ! number of spectral bands
 integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay histogram
 ! -----------------------------------------------------------------------------------------------------------------------------------
 contains
-
- ! ************************************************************************************************
- ! public subroutine allocate_gru_struc: allocate space for GRU-HRU mapping structures
- ! ************************************************************************************************
- subroutine allocate_gru_struc(nGRU,nHRU,err,message)
- USE netcdf
- USE nr_utility_module,only:arth
- ! provide access to subroutines
- USE netcdf_util_module,only:nc_file_open          ! open netCDF file
- ! provide access to data
- USE summaFileManager,only:SETNGS_PATH             ! path for metadata files
- USE summaFileManager,only:LOCAL_ATTRIBUTES        ! file containing information on local attributes
- USE globalData,only: index_map                    ! relating different indexing system
- USE globalData,only: gru_struc                    ! gru-hru mapping structures
- 
- implicit none
- ! define output
- integer(i4b),intent(out)             :: nGRU               ! number of grouped response units
- integer(i4b),intent(out)             :: nHRU               ! number of hydrologic response units
- integer(i4b),intent(out)             :: err                ! error code
- character(*),intent(out)             :: message            ! error message
- ! define general variables
- character(len=256)                   :: cmessage           ! error message for downwind routine
- character(LEN=256)                   :: infile             ! input filename
- 
- ! define variables for NetCDF file operation
- integer(i4b)                         :: mode               ! netCDF file open mode
- integer(i4b)                         :: ncid               ! integer variables for NetCDF IDs
- integer(i4b)                         :: varid              ! variable id from netcdf file
- integer(i4b)                         :: hruDimID           ! integer variables for NetCDF IDs
- integer(i4b)                         :: gruDimID           ! integer variables for NetCDF IDs
- integer(i4b),allocatable             :: hru_id(:)          ! unique id of hru over entire domain
- integer(i4b),allocatable             :: gru_id(:)          ! unique ids of GRUs
- integer(i4b),allocatable             :: hru2gru_id(:)      ! unique GRU ids at each HRU
-      
- ! define local variables
- integer(i4b)                         :: hruCount           ! number of hrus in a gru
- integer(i4b)                         :: iGRU               ! index of a GRU and HRU
-
- ! Start procedure here
- err=0; message="allocate_gru_hru_map/"
-
- ! check that gru_struc structure is initialized
- if(allocated(gru_struc)) deallocate(gru_struc)
- if(allocated(index_map)) deallocate(index_map)
-
- ! build filename
- infile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
- ! open file
- mode=nf90_noWrite
- call nc_file_open(trim(infile), mode, ncid, err, cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
- ! get gru_ix dimension length
- err = nf90_inq_dimid(ncid, "ngru", gruDimID);             if(err/=0)then; message=trim(message)//'problem finding nGRU dimension'; return; end if
- err = nf90_inquire_dimension(ncid, gruDimID, len = nGRU); if(err/=0)then; message=trim(message)//'problem reading nGRU dimension'; return; end if
-
- ! get hru_dim dimension length (ie., the number of hrus in entire domain)
- err = nf90_inq_dimid(ncid, "nhru", hruDimID);             if(err/=0)then; message=trim(message)//'problem finding nHRU dimension'; return; end if
- err = nf90_inquire_dimension(ncid, hruDimID, len = nHRU); if(err/=0)then; message=trim(message)//'problem reading nHRU dimension'; return; end if
- 
- allocate(gru_struc(nGRU), index_map(nHRU), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for mapping structures'; return; end if
- 
- allocate(gru_id(nGRU),hru_id(nHRU),hru2gru_id(nHRU),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for zLocalAttributes gru-hru correspondence vectors'; return; end if
-
- ! read gru_id from netcdf file
- err = nf90_inq_varid(ncid, "gruId", varid);     if(err/=0)then; message=trim(message)//'problem finding gruId variable'; return; end if
- err = nf90_get_var(ncid,varid,gru_id);          if(err/=0)then; message=trim(message)//'problem reading gruId variable'; return; end if
-
- ! read the HRU to GRU mapping
- err = nf90_inq_varid(ncid, "hru2gruId", varid); if(err/=0)then; message=trim(message)//'problem finding hru2gruId variable'; return; end if
- err = nf90_get_var(ncid,varid,hru2gru_id);      if(err/=0)then; message=trim(message)//'problem reading hru2gruId variable'; return; end if
-
- ! allocate mapping array
- do iGRU=1,nGRU
-  hruCount = count(hru2gru_id==gru_id(iGRU))
-  gru_struc(iGRU)%hruCount = hruCount
-  allocate(gru_struc(iGRU)%hruInfo(hruCount),stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for hru in gru_struc'; return; end if
- end do
-
- ! close the HRU_ATTRIBUTES netCDF file
- err = nf90_close(ncid)
- if(err/=0)then; err=20; message=trim(message)//'error closing zLocalAttributes file'; return; end if
-
- ! check allocation was successful
- if(.not.allocated(gru_struc))then
-  message=trim(message)//'gru_struc is not allocated'
-  err=20; return
- end if
-
- end subroutine allocate_gru_struc
 
  ! ************************************************************************************************
  ! public subroutine allocGlobal: allocate space for global data structures 
@@ -385,7 +290,7 @@ contains
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err) ! maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
      err=40; message=trim(message)//"1. unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"

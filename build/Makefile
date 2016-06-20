@@ -310,7 +310,7 @@ compile_summa:
 
 # link routines
 link:
-	$(FC) -p -g *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
+	$(FC) -pg -g *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

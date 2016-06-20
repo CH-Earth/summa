@@ -30,7 +30,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond_layers: read model initial conditions file for number of snow/soil layers
  ! ************************************************************************************************
- subroutine read_icond_layers(infile,nGRU,nHRU,indx_meta,err,message)
+ subroutine read_icond_layers(iconFile,nGRU,nHRU,indx_meta,err,message)
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
@@ -46,19 +46,19 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- character(*)        ,intent(in)     :: infile       ! name of input (restart) file 
- integer(i4b)        ,intent(in)     :: nGRU, nHRU   ! total # of GRUs and HRUs 
- type(var_info)      ,intent(in)     :: indx_meta(:) ! metadata 
- integer(i4b)        ,intent(out)    :: err          ! error code
- character(*)        ,intent(out)    :: message      ! returned error message
+ character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file 
+ integer(i4b)        ,intent(in)     :: nGRU, nHRU ! total # of GRUs and HRUs 
+ type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata 
+ integer(i4b)        ,intent(out)    :: err            ! error code
+ character(*)        ,intent(out)    :: message        ! returned error message
 
  ! locals
- integer(i4b)            :: ncID                     ! netcdf file id
- integer(i4b)            :: snowID, soilID           ! netcdf variable ids
- integer(i4b)            :: iGRU, iHRU               ! loop indexes
+ integer(i4b)            :: ncID                       ! netcdf file id
+ integer(i4b)            :: snowID, soilID             ! netcdf variable ids
+ integer(i4b)            :: iGRU, iHRU                 ! loop indexes
  integer(i4b)            :: snowData(nHRU)           ! number of snow layers in all HRUs
  integer(i4b)            :: soilData(nHRU)           ! number of soil layers in all HRUs
- character(len=256)      :: cmessage                 ! downstream error message 
+ character(len=256)      :: cmessage                   ! downstream error message 
 
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
@@ -66,7 +66,7 @@ contains
  message = 'read_icond_layers/'
 
  ! open netcdf file
- call nc_file_open(infile,nf90_nowrite,ncid,err,cmessage);
+ call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage);
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! get variable ids
@@ -80,8 +80,8 @@ contains
  ! assign to index structure - gru by hru
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix)
-   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix)
+   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
   end do
  end do
 
@@ -95,7 +95,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
- subroutine read_icond(filename,                      & ! name of initial conditions file
+ subroutine read_icond(iconFile,                      & ! name of initial conditions file
                        nGRU,nHRU,                     & ! number of GRUs and HRUs
                        prog_meta,                     & ! metadata
                        progData,                      & ! model prognostic (state) variables
@@ -120,7 +120,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- character(*)           ,intent(in)     :: filename     ! name of netcdf file containing the initial conditions
+ character(*)           ,intent(in)     :: iconFile     ! name of netcdf file containing the initial conditions
  integer(i4b)           ,intent(in)     :: nGRU, nHRU   ! number of response units
  type(var_info)         ,intent(in)     :: prog_meta(:) ! prognostic metadata
  type(gru_hru_doubleVec),intent(inout)  :: progData     ! prognostic vars 
@@ -163,7 +163,7 @@ contains
  ! (1) read the file
  ! --------------------------------------------------------------------------------------------------------
  ! open netcdf file
- call nc_file_open(filename,nf90_nowrite,ncID,err,cmessage)
+ call nc_file_open(iconFile,nf90_nowrite,ncID,err,cmessage)
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! is there any snow in initial conditions file?
@@ -216,14 +216,14 @@ contains
     nToto = nSnow + nSoil 
    
     select case (prog_meta(iVar)%varType)
-     case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1        ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1        ) 
-     case (iLookVarType%wlength); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,:        ) 
-     case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSoil  ) 
-     case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nToto  ) 
-     case (iLookVarType%midSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSnow  ) 
-     case (iLookVarType%ifcSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSoil+1) 
-     case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nToto+1) 
-     case (iLookVarType%ifcSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:nSnow+1) 
+     case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1        ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1        ) 
+     case (iLookVarType%wlength); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,:        ) 
+     case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil  ) 
+     case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto  ) 
+     case (iLookVarType%midSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSnow  ) 
+     case (iLookVarType%ifcSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil+1) 
+     case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1) 
+     case (iLookVarType%ifcSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSnow+1) 
     end select
 
    end do ! iHRU

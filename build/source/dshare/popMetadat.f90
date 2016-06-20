@@ -681,7 +681,7 @@ contains
  ! (1) open file and read variable data
  ! **********************************************************************************************
  outfile = trim(SETNGS_PATH)//trim(META_LOCALMVAR)   ! build filename
- print*,'Name of Model Output control file: ',trim(outfile)
+ print '(2A)','Name of Model Output control file: ',trim(outfile)
  call file_open(trim(outfile),unt,err,cmessage)      ! open file
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 

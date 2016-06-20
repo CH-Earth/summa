@@ -159,7 +159,7 @@ contains
  icount=0  ! initialize the counter for the valid lines
  do iline=1,maxLines
   read(unt,'(a)',iostat=iend)temp; if(iend/=0)exit    ! read line of data
-  if (temp(1:1)=='!')cycle
+  if (temp(1:1)=='!' .or. temp == '')cycle            ! skip comment and empty lines
   icount = icount+1
   ! add the variable to the linked list
   if(.not.associated(list))then

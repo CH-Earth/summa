@@ -106,7 +106,7 @@ contains
                        nState,         & ! intent(in): total number of state variables
                        dt,             & ! intent(in): time step (s)
                        maxiter,        & ! intent(in): maximum number of iterations
-                       firstSubstep,   & ! intent(in): flag to denote first sub-step
+                       firstSubStep,   & ! intent(in): flag to denote first sub-step
                        computeVegFlux, & ! intent(in): flag to denote if computing energy flux over vegetation
                        ! input/output: data structures
                        type_data,      & ! intent(in):    type of vegetation and soil
@@ -121,6 +121,7 @@ contains
                        model_decisions,& ! intent(in):    model decisions
                        ! output: model control
                        niter,          & ! number of iterations taken
+                       resumeSolver,   & ! resume the solver even maximum iteration reaches
                        err,message)      ! error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -157,6 +158,7 @@ contains
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
  ! output: model control
+ logical(lgt),intent(in)         :: resumeSolver                  ! flag to resume solver when it failed (not converged)
  integer(i4b),intent(out)        :: niter                         ! number of iterations
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
@@ -501,7 +503,13 @@ contains
   if(converged) exit
 
   ! check convergence
-  if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; end if
+  if(niter==maxiter) then
+   if (resumeSolver) then 
+    exit ! pretend that it was converged to force continuation the simulation
+   else
+    err=-20; message=trim(message)//'failed to converge'; return
+   end if 
+  end if
   !print*, 'PAUSE: iterating'; read(*,*)
 
  end do  ! iterating

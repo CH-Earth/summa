@@ -30,7 +30,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine ffile_info: read information on model forcing files
  ! ************************************************************************************************
- subroutine ffile_info(nHRU,err,message)
+ subroutine ffile_info(nGRU,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
  USE netcdf_util_module,only:nc_file_open    ! open netCDF file
@@ -45,9 +45,10 @@ contains
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
  USE multiconst,only:integerMissing          ! integer missing value
+ USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output
- integer(i4b),intent(in)              :: nHRU           ! number of hydrologic response units
+ integer(i4b),intent(in)              :: nGRU           ! number of grouped response units
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
  ! define local variables
@@ -71,6 +72,8 @@ contains
  integer(i4b)                         :: nFile          ! number of forcing files in forcing file list
  integer(i4b)                         :: file_nHRU      ! number of HRUs in current forcing file
  integer(i4b)                         :: nForcing       ! number of forcing variables
+ integer(i4b)                         :: iGRU,localHRU  ! index of GRU and HRU
+ integer(i4b)                         :: ncHruId(1)     ! hruID from the forcing files
  real(dp)                             :: dataStep_iFile ! data step for a given forcing data file
  ! Start procedure here
  err=0; message="ffile_info/"
@@ -143,14 +146,8 @@ contains
   forcFileInfo(iFile)%nVars = nVar
 
   ! inquire nhru dimension size
-  err = nf90_inq_dimid(ncid,'nHRU',dimId);                if(err/=0)then; message=trim(message)//'cannot find dimension nHRU'; return; end if
-  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension nHRU'; return; end if 
-
-  ! check HRUs are as expected
-  if(file_nHRU /= nHRU)then
-   write(message,'(a,i0,a,i0)') trim(message)//'File HRU dimension: ',file_nHRU ,'not equal to nHRU: ',nHRU
-   err=20; return
-  end if
+  err = nf90_inq_dimid(ncid,'hru',dimId);                 if(err/=0)then; message=trim(message)//'cannot find dimension hru'; return; endif
+  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif 
 
   ! inquire time dimension size
   err = nf90_inq_dimid(ncid,'time',dimId);                                     if(err/=0)then; message=trim(message)//'cannot find dimension time'; return; end if
@@ -210,8 +207,21 @@ contains
 
      ! check to see if hruId exists as a variable, this is a required variable
      err = nf90_inq_varid(ncid,trim(varname),varId)
-     if(err/=0)then; message=trim(message)//'hruID variable not present'; return; end if
-
+     if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
+     ! check that the hruId is what we expect
+     ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
+     do iGRU=1,nGRU
+      do localHRU=1,gru_struc(iGRU)%hruCount
+       err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
+       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
+        write(message,'(a,i0,i0,a,i0,a)') trim(message)//'hruId for global HRU: ', gru_struc(iGRU)%hruInfo(localHRU)%hru_nc, ncHruId(1), 'differs from the expected:',     &
+                                                          gru_struc(iGRU)%hruInfo(localHRU)%hru_id, 'in file', trim(infile)
+        write(message,'(a)') trim(message)//'order of hruId in forcing file needs to match order in zLocalAttributes.nc'
+        err=40; return
+       endif
+      end do
+     end do
+  
     ! OK to have additional variables in the forcing file that are not used
     case default; cycle
    end select  ! select variable name
