@@ -40,54 +40,54 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
- USE var_lookup,only:iLookParam             ! variable lookup structure
- USE var_lookup,only:iLookProg              ! variable lookup structure
- USE var_lookup,only:iLookIndex             ! variable lookup structure
- USE globalData,only:gru_struc              ! gru-hru mapping structures
- USE data_types,only:gru_hru_doubleVec      ! actual data
- USE data_types,only:gru_hru_intVec         ! actual data
- USE data_types,only:gru_hru_double         ! actual data
- USE globaldata,only:ix_soil,ix_snow        ! named variables to describe the type of layer
+ USE var_lookup,only:iLookParam                          ! variable lookup structure
+ USE var_lookup,only:iLookProg                           ! variable lookup structure
+ USE var_lookup,only:iLookIndex                          ! variable lookup structure
+ USE globalData,only:gru_struc                           ! gru-hru mapping structures
+ USE data_types,only:gru_hru_doubleVec                   ! actual data
+ USE data_types,only:gru_hru_intVec                      ! actual data
+ USE data_types,only:gru_hru_double                      ! actual data
+ USE globaldata,only:ix_soil,ix_snow                     ! named variables to describe the type of layer
  USE multiconst,only:&
-                       LH_fus,    &  ! latent heat of fusion                (J kg-1)
-                       iden_ice,  &  ! intrinsic density of ice             (kg m-3)
-                       iden_water,&  ! intrinsic density of liquid water    (kg m-3)
-                       gravity,   &  ! gravitational acceleration           (m s-2)
-                       Tfreeze       ! freezing point of pure water         (K)
- USE snow_utils_module,only:fracliquid             ! compute volumetric fraction of liquid water in snow based on temperature
- USE updatState_module,only:updateSnow             ! update snow states
- USE updatState_module,only:updateSoil             ! update soil states
+                       LH_fus,    &                      ! latent heat of fusion                (J kg-1)
+                       iden_ice,  &                      ! intrinsic density of ice             (kg m-3)
+                       iden_water,&                      ! intrinsic density of liquid water    (kg m-3)
+                       gravity,   &                      ! gravitational acceleration           (m s-2)
+                       Tfreeze                           ! freezing point of pure water         (K)
+ USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
+ USE updatState_module,only:updateSnow                   ! update snow states
+ USE updatState_module,only:updateSoil                   ! update soil states
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- integer(i4b)           ,intent(in)    :: nGRU, nHRU   ! number of response units
- type(gru_hru_doubleVec),intent(inout) :: progData     ! prognostic vars 
- type(gru_hru_double)   ,intent(in)    :: mparData     ! parameters 
- type(gru_hru_intVec)   ,intent(in)    :: indxData     ! layer indexes 
- integer(i4b)           ,intent(out)   :: err          ! error code
- character(*)           ,intent(out)   :: message      ! returned error message
+ integer(i4b)           ,intent(in)    :: nGRU, nHRU     ! number of response units
+ type(gru_hru_doubleVec),intent(inout) :: progData       ! prognostic vars 
+ type(gru_hru_double)   ,intent(in)    :: mparData       ! parameters 
+ type(gru_hru_intVec)   ,intent(in)    :: indxData       ! layer indexes 
+ integer(i4b)           ,intent(out)   :: err            ! error code
+ character(*)           ,intent(out)   :: message        ! returned error message
 
  ! locals
- character(len=256)                     :: cmessage     ! downstream error message
- integer(i4b)                           :: iVar         ! loop index 
- integer(i4b)                           :: iGRU         ! loop index 
- integer(i4b)                           :: iHRU         ! loop index 
- integer(i4b)                           :: cHRU         ! loop index 
+ character(len=256)                     :: cmessage      ! downstream error message
+ integer(i4b)                           :: iVar          ! loop index 
+ integer(i4b)                           :: iGRU          ! loop index 
+ integer(i4b)                           :: iHRU          ! loop index 
+ integer(i4b)                           :: cHRU          ! loop index 
 
  ! temporary variables for realism checks
- integer(i4b)                      :: iLayer              ! layer index
- real(dp)                          :: fLiq                ! fraction of liquid water on the vegetation canopy (-)
- real(dp)                          :: vGn_m               ! van Genutchen "m" parameter (-)
- real(dp)                          :: tWat                ! total water on the vegetation canopy (kg m-2)
- real(dp)                          :: scalarTheta         ! liquid water equivalent of total water [liquid water + ice] (-)
- real(dp)                          :: h1,h2               ! used to check depth and height are consistent
- integer(i4b)                      :: nLayers         ! total number of layers
- real(dp)                          :: kappa               ! constant in the freezing curve function (m K-1)
- real(dp)                          :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
- integer(i4b)                      :: nSnow           ! number of snow layers
- integer(i4b)                      :: nSoil           ! number of soil layers
+ integer(i4b)                      :: iLayer             ! layer index
+ real(dp)                          :: fLiq               ! fraction of liquid water on the vegetation canopy (-)
+ real(dp)                          :: vGn_m              ! van Genutchen "m" parameter (-)
+ real(dp)                          :: tWat               ! total water on the vegetation canopy (kg m-2)
+ real(dp)                          :: scalarTheta        ! liquid water equivalent of total water [liquid water + ice] (-)
+ real(dp)                          :: h1,h2              ! used to check depth and height are consistent
+ integer(i4b)                      :: nLayers            ! total number of layers
+ real(dp)                          :: kappa              ! constant in the freezing curve function (m K-1)
+ real(dp)                          :: maxVolFracLiq      ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
+ integer(i4b)                      :: nSnow              ! number of snow layers
+ integer(i4b)                      :: nSoil              ! number of soil layers
 
  ! --------------------------------------------------------------------------------------------------------
 
@@ -269,7 +269,6 @@ contains
   
    ! if snow layers exist, compute snow depth and SWE
    if(nSnow > 0)then
-!    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1) =      -progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(0)
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)       = sum( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
                                                                                progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice)        * &
                                                                                progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )

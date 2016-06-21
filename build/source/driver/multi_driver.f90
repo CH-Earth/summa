@@ -181,7 +181,7 @@ type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)
 integer(i4b)                     :: iVar                       ! index of a model variable 
 integer(i4b)                     :: iStruct                    ! loop through data structures
 integer(i4b)                     :: iGRU
-integer(i4b)                     :: iHRU,jHRU,kHRU         ! index of the hydrologic response unit
+integer(i4b)                     :: iHRU,jHRU,kHRU             ! index of the hydrologic response unit
 integer(i4b)                     :: nGRU                       ! number of grouped response units
 integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
 integer(i4b)                     :: hruCount                   ! number of local hydrologic response units

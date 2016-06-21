@@ -34,20 +34,20 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
- USE var_lookup,only:iLookIndex             ! variable lookup structure
- USE globalData,only:gru_struc              ! gru-hru mapping structures
- USE netcdf_util_module,only:nc_file_close  ! close netcdf file
- USE netcdf_util_module,only:nc_file_open   ! close netcdf file
- USE netcdf_util_module,only:netcdf_err     ! netcdf error handling
- USE data_types,only:gru_hru_intVec         ! actual data
- USE data_types,only:var_info               ! metadata 
+ USE var_lookup,only:iLookIndex                        ! variable lookup structure
+ USE globalData,only:gru_struc                         ! gru-hru mapping structures
+ USE netcdf_util_module,only:nc_file_close             ! close netcdf file
+ USE netcdf_util_module,only:nc_file_open              ! close netcdf file
+ USE netcdf_util_module,only:netcdf_err                ! netcdf error handling
+ USE data_types,only:gru_hru_intVec                    ! actual data
+ USE data_types,only:var_info                          ! metadata 
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
  character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file 
- integer(i4b)        ,intent(in)     :: nGRU, nHRU ! total # of GRUs and HRUs 
+ integer(i4b)        ,intent(in)     :: nGRU, nHRU     ! total # of GRUs and HRUs 
  type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata 
  integer(i4b)        ,intent(out)    :: err            ! error code
  character(*)        ,intent(out)    :: message        ! returned error message
@@ -56,8 +56,8 @@ contains
  integer(i4b)            :: ncID                       ! netcdf file id
  integer(i4b)            :: snowID, soilID             ! netcdf variable ids
  integer(i4b)            :: iGRU, iHRU                 ! loop indexes
- integer(i4b)            :: snowData(nHRU)           ! number of snow layers in all HRUs
- integer(i4b)            :: soilData(nHRU)           ! number of soil layers in all HRUs
+ integer(i4b)            :: snowData(nHRU)             ! number of snow layers in all HRUs
+ integer(i4b)            :: soilData(nHRU)             ! number of soil layers in all HRUs
  character(len=256)      :: cmessage                   ! downstream error message 
 
  ! --------------------------------------------------------------------------------------------------------
@@ -104,17 +104,17 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
- USE var_lookup,only:iLookVarType           ! variable lookup structure
- USE var_lookup,only:iLookProg              ! variable lookup structure
- USE var_lookup,only:iLookIndex             ! variable lookup structure
- USE globalData,only:gru_struc              ! gru-hru mapping structures
- USE globaldata,only:ix_soil,ix_snow        ! named variables to describe the type of layer
- USE netcdf_util_module,only:nc_file_close  ! close netcdf file
- USE netcdf_util_module,only:nc_file_open   ! close netcdf file
- USE netcdf_util_module,only:netcdf_err     ! netcdf error handling
- USE data_types,only:gru_hru_doubleVec      ! actual data
- USE data_types,only:gru_hru_intVec         ! actual data
- USE data_types,only:var_info               ! metadata 
+ USE var_lookup,only:iLookVarType                       ! variable lookup structure
+ USE var_lookup,only:iLookProg                          ! variable lookup structure
+ USE var_lookup,only:iLookIndex                         ! variable lookup structure
+ USE globalData,only:gru_struc                          ! gru-hru mapping structures
+ USE globaldata,only:ix_soil,ix_snow                    ! named variables to describe the type of layer
+ USE netcdf_util_module,only:nc_file_close              ! close netcdf file
+ USE netcdf_util_module,only:nc_file_open               ! close netcdf file
+ USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
+ USE data_types,only:gru_hru_doubleVec                  ! actual data
+ USE data_types,only:gru_hru_intVec                     ! actual data
+ USE data_types,only:var_info                           ! metadata 
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
