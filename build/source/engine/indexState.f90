@@ -115,7 +115,7 @@ contains
   nVegNrg   = 0
   nVegMass  = 0
   nVegState = 0
- endif
+ end if
 
  ! define the number state variables of different type
  nNrgState  = nVegNrg + nLayers  ! number of energy state variables
@@ -138,7 +138,7 @@ contains
   ixCasNrg  = missingInteger
   ixVegNrg  = missingInteger
   ixVegWat  = missingInteger
- endif
+ end if
 
  ! define the index of the top layer
  ixTopNrg = nVegState + 1                       ! energy
@@ -156,7 +156,7 @@ contains
  if(nSnow>0)then  ! (total water in snow only defined if snow layers exist)
   ixSnowOnlyNrg = arth(ixTopNrg,nVarSnowSoil,nSnow)    ! energy
   ixSnowOnlyWat = arth(ixTopWat,nVarSnowSoil,nSnow)    ! total water
- endif
+ end if
 
  ! -----
  ! * re-allocate index vectors (if needed)...
@@ -184,14 +184,14 @@ contains
   if(err/=0)then
    message=trim(message)//'unable to deallocate space for variable '//trim(indx_meta(ivar)%varname)
    err=20; return
-  endif
+  end if
 
   ! allocate space
   allocate(indx_data%var(iVar)%dat(nVec),stat=err)
   if(err/=0)then
    message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(ivar)%varname)
    err=20; return
-  endif
+  end if
 
  end do  ! looping through variables
 
@@ -215,7 +215,7 @@ contains
   ixStateType(ixCasNrg) = ixNrgState
   ixStateType(ixVegNrg) = ixNrgState
   ixStateType(ixVegWat) = ixMassState
- endif
+ end if
 
  ! define the state type for the snow-soil domain
  ixStateType(ixSnowSoilNrg) = ixNrgState

@@ -100,21 +100,21 @@ contains
   fstring = adjustl(fstring)
   fname = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  print "(A,A)",'Created output file:',trim(fname)
- enddo
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  print*,'Created output file:',trim(fname)
+ end do
 
  ! define model decisions
  do iVar = 1,size(model_decisions)
   if(model_decisions(iVar)%iDecision.ne.integerMissing)then
    call put_attrib(ncid(modelTime),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  endif
- enddo
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  end if
+ end do
 
  do iFreq = 1,nFreq
   do iStruct = 1,size(structInfo)
-   selectcase (trim(structInfo(iStruct)%structName))
+   select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
     case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
     case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
@@ -128,12 +128,12 @@ contains
     case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
     case('bvar' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
-   endselect
+   end select
    ! error handling
-   if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;endif
-  enddo ! iStruct 
+   if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
+  end do ! iStruct 
 
- enddo ! iFreq 
+ end do ! iFreq 
 
  end subroutine def_output
 
@@ -250,6 +250,8 @@ contains
  integer(i4b)                  :: iStat             ! stat index
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
  integer(i4b)                  :: iVarId            ! variable ID
+! integer                       :: index             ! intrinsic function to find substring index
+ integer(i4b)                  :: timePosition      ! extrinsic variable to hold substring index
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  character(LEN=256)            :: catName           ! full variable name
  ! initialize error control
@@ -268,7 +270,7 @@ contains
   ! special case of the time variable
   if(metaData(iVar)%varName == 'time')then
    call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'; return; endif
+   if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'; return; end if
 
   ! standard case
   else
@@ -280,26 +282,26 @@ contains
      if(hruDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/)               , err=err, message=cmessage)
      if(hruDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage)
     ! (other variables)
-    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID,        wLength_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSnowAndTime_DimID                /), err=err, message=cmessage)
-    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midSoilAndTime_DimID                /), err=err, message=cmessage)
-    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, midTotoAndTime_DimID                /), err=err, message=cmessage)
-    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSnowAndTime_DimID                /), err=err, message=cmessage)
-    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcSoilAndTime_DimID                /), err=err, message=cmessage)
-    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/    hru_DimID, ifcTotoAndTime_DimID                /), err=err, message=cmessage)
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                      /), err=err, message=cmessage)
+    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID,       Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnowAndTime_DimID               /), err=err, message=cmessage)
+    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoilAndTime_DimID               /), err=err, message=cmessage)
+    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midTotoAndTime_DimID               /), err=err, message=cmessage)
+    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnowAndTime_DimID               /), err=err, message=cmessage)
+    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoilAndTime_DimID               /), err=err, message=cmessage)
+    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcTotoAndTime_DimID               /), err=err, message=cmessage)
+    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                 /), err=err, message=cmessage)
    end select
    ! check errors
    if(err/=0)then
     message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'
     return
-   endif
-  endif  ! check if we are processing the time variable
+   end if
+  end if  ! check if we are processing the time variable
   ! check that we got the shape
   if(.not.allocated(dimensionIDs))then
    message=trim(message)//'problem defining dimensions for variable '//trim(metaData(iVar)%varName)
    err=20; return
-  endif
+  end if
 
   ! loop through statistics
   do iStat = 1,maxvarStat
@@ -317,18 +319,40 @@ contains
    call netcdf_err(err,message); if (err/=0) return
 
    ! add parameter description
-   err = nf90_put_att(ncid,iVarId,'long_name',trim(metaData(iVar)%vardesc))
+   catName = trim(metaData(iVar)%vardesc)//' ('//trim(get_statName(iStat))
+   catName = trim(catName)//')' 
+   err = nf90_put_att(ncid,iVarId,'long_name',trim(catName))
    call netcdf_err(err,message); if (err/=0) return
 
    ! add parameter units
-   err = nf90_put_att(ncid,iVarId,'units',trim(metaData(iVar)%varunit))
+   catName = trim(metaData(iVar)%varunit) 
+   if (iStat==iLookStat%totl) then
+    ! make sure that the units of this varaible allow for integration
+    if ((index(catName,'s-1')<=0).and.(index(catName,'s-2')<=0).and.(index(catName,'W m-2')<=0)) then 
+     err=20
+     message=trim(message)//'trying to integrate a non-time variable: '//trim(metaData(iVar)%varName)//' - units: '//trim(catName)
+     return
+    endif
+    ! change to integrated units
+    if (index(catName,'s-1')>0)       then 
+     timePosition = index(catName,'s-1')
+     catName(timePosition:(timePosition+3)) = '   '
+    elseif (index(catName,'s-2')>0)   then 
+     timePosition = index(catName,'s-2')
+     catName(timePosition:(timePosition+3)) = 's-1'
+    elseif (index(catName,'W m-2')>0) then 
+     timePosition = index(catName,'W') 
+     catName(timePosition:(timePosition+1)) = 'J'
+    end if
+   end if
+   err = nf90_put_att(ncid,iVarId,'units',trim(catName))
    call netcdf_err(err,message); if (err/=0) return
 
    ! add file info to metadata structure
    metaData(iVar)%ncVarID(iStat) = iVarID
 
-  enddo ! looping through statistics
- enddo  ! looping through variables
+  end do ! looping through statistics
+ end do  ! looping through variables
   
  ! close output file
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return

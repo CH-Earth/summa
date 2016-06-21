@@ -105,7 +105,7 @@ contains
   hydCondMP_liq = (satHydCond_ma - satHydCond_mi) * (theta_e**mpExp)
  else
   hydCondMP_liq = 0._dp
- endif
+ end if
  !write(*,'(a,4(f9.3,1x),2(e20.10))') 'in soil_utils: theta_mp, theta_sat, volFracLiq, hydCondMP_liq, satHydCond_ma, satHydCond_mi = ', &
  !                                                    theta_mp, theta_sat, volFracLiq, hydCondMP_liq, satHydCond_ma, satHydCond_mi
  end function hydCondMP_liq
@@ -130,7 +130,7 @@ contains
                  / ( (1._dp + (psi*alpha)**n)**(m/2._dp) ) )
  else
   hydCond_psi = k_sat
- endif
+ end if
  end function hydCond_psi
 
 
@@ -154,7 +154,7 @@ contains
   hydCond_liq = k_sat*theta_e**(1._dp/2._dp) * (1._dp - (1._dp - theta_e**(1._dp/m) )**m)**2._dp
  else
   hydCond_liq = k_sat
- endif
+ end if
  end function hydCond_liq
 
 
@@ -175,7 +175,7 @@ contains
   volFracLiq = theta_res + (theta_sat - theta_res)*(1._dp + (alpha*psi)**n)**(-m)
  else
   volFracLiq = theta_sat
- endif
+ end if
  end function volFracLiq
 
 
@@ -202,7 +202,7 @@ contains
   matricHead = (1._dp/alpha)*( effSat**(-1._dp/m) - 1._dp)**(1._dp/n)
  else
   matricHead = 0._dp
- endif
+ end if
  end function matricHead
 
 
@@ -224,7 +224,7 @@ contains
   if(abs(dTheta_dPsi) < epsilon(psi)) dTheta_dPsi = epsilon(psi)
  else
   dTheta_dPsi = epsilon(psi)
- endif
+ end if
  end function dTheta_dPsi
 
 
@@ -259,7 +259,7 @@ contains
   dPsi_dTheta = d1*d2/alpha
  else
   dPsi_dTheta = 0._dp
- endif
+ end if
  end function dPsi_dTheta
 
 
@@ -304,11 +304,11 @@ contains
    func0 = dPsi_dTheta(volFracLiq,   alpha,theta_res,theta_sat,n,m)
    func1 = dPsi_dTheta(volFracLiq+dx,alpha,theta_res,theta_sat,n,m)
    dPsi_dTheta2 = (func1 - func0)/dx
-  endif
+  end if
  ! (case where volumetric liquid water content exceeds porosity)
  else
   dPsi_dTheta2 = 0._dp
- endif
+ end if
  end function dPsi_dTheta2
 
 
@@ -360,10 +360,10 @@ contains
    hydcond0  = hydCond_psi(psi,   k_sat,alpha,n,m)
    hydcond1  = hydCond_psi(psi+dx,k_sat,alpha,n,m)
    dHydCond_dPsi = (hydcond1 - hydcond0)/dx
-  endif
+  end if
  else
   dHydCond_dPsi = 0._dp
- endif
+ end if
  end function dHydCond_dPsi
 
 
@@ -422,10 +422,10 @@ contains
    hydcond0 = hydCond_liq(volFracLiq,   k_sat,theta_res,theta_sat,m)
    hydcond1 = hydCond_liq(volFracLiq+dx,k_sat,theta_res,theta_sat,m)
    dHydCond_dLiq = (hydcond1 - hydcond0)/dx
-  endif
+  end if
  else
   dHydCond_dLiq = 0._dp
- endif
+ end if
  end function dHydCond_dLiq
 
 

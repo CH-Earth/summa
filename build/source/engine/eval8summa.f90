@@ -238,13 +238,13 @@ contains
  ! check canopy liquid water is not negative
  if(computeVegFlux)then
   if(stateVecTrial(ixVegWat) < 0._dp) feasible=.false.
- endif
+ end if
 
  ! check snow temperature is below freezing and snow liquid water is not negative
  if(nSnow>0)then
   if(any(stateVecTrial(ixSnowOnlyNrg) > Tfreeze)) feasible=.false.
   if(any(stateVecTrial(ixSnowOnlyWat) < 0._dp)  ) feasible=.false.
- endif
+ end if
 
  ! early return for non-feasible solutions
  if(.not.feasible)then
@@ -252,7 +252,7 @@ contains
   resVec(:)  = quadMissing 
   fEval      = realMissing
   return
- endif
+ end if
 
  ! extract variables from the model state vector
  call varExtract(&
@@ -277,7 +277,7 @@ contains
                  mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
 
  ! compute the fluxes for a given state vector
@@ -320,7 +320,7 @@ contains
                  fluxVec,                 & ! intent(out):   flux vector (mixed units)
                  ! output: error control
                  err,cmessage)              ! intent(out):   error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
 
  ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
@@ -339,7 +339,7 @@ contains
                  mLayerCompress,                         & ! intent(out): compressibility of the soil matrix (-)
                  dCompress_dPsi,                         & ! intent(out): derivative in compressibility w.r.t. matric head (m-1)
                  err,cmessage)                             ! intent(out): error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
@@ -375,7 +375,7 @@ contains
                   resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                   resVec,                  & ! intent(out):   residual vector
                   err,cmessage)              ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
 
  ! compute the function evaluation

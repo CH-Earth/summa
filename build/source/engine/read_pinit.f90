@@ -78,7 +78,7 @@ contains
  write(*,'(a)') trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! **********************************************************************************************
  ! (2) read default model parameter values and constraints
@@ -93,12 +93,12 @@ contains
  do iline=1,maxLines
   ! (read through comment lines)
   read(unt,'(a)',iostat=iend) temp  ! read a line of data
-  if(iend/=0)then; err=20; message=trim(message)//'got to end of file before found the format code'; return; endif
+  if(iend/=0)then; err=20; message=trim(message)//'got to end of file before found the format code'; return; end if
   if (temp(1:1)=='!')cycle
   ! (read in format string -- assume that the first non-comment line is the format code)
   read(temp,*)ffmt  ! read in format string
   exit
-  if(iLine==maxLines)then; err=20; message=trim(message)//'problem finding format code -- no non-comment line after start of parameter definitions'; return; endif
+  if(iLine==maxLines)then; err=20; message=trim(message)//'problem finding format code -- no non-comment line after start of parameter definitions'; return; end if
  end do ! looping through lines
  ! ---------------------------------------------------------------------------------------------
  ! read in default values of model parameters, and parameter constraints
@@ -110,25 +110,25 @@ contains
   if (temp(1:1)=='!')cycle
   ! (save data into a temporary variables)
   read(temp,trim(ffmt),iostat=err) varname, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
-  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; endif
+  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
   ! (identify the index of the variable in the data structure)
   if(isLocal)then
    ivar = get_ixParam(trim(varname))
   else
    ivar = get_ixBpar(trim(varname))
-  endif
+  end if
   ! (check that we have successfully found the parameter)
   if(ivar>0)then
    if(ivar>size(parFallback))then
     err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return
-   endif
+   end if
    ! (put data in the structure)
    parFallback(ivar)=parTemp
    !write(*,'(a,1x,i4,1x,a30,1x,f20.10,1x)') 'ivar, trim(varname), parFallback(ivar)%default_val = ', &
    !                                          ivar, trim(varname), parFallback(ivar)%default_val
   else
    err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return
-  endif
+  end if
  end do  ! (looping through lines in the file)
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
@@ -137,18 +137,18 @@ contains
    do ivar=1,size(parFallback)
     if(parFallback(ivar)%default_val > 0.99_dp*amiss)then
      err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
-    endif
+    end if
    end do
-  endif
+  end if
  ! populate parameters that were not included in the original control files
  else ! (need backwards compatibility)
   if(isLocal)then
    if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
     parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._dp             ! maximum wetted fraction of the canopy (-)
     parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_dp    ! exponent in canopy wetting function (-)
-   endif
-  endif
- endif
+   end if
+  end if
+ end if
  ! close file unit
  close(unt)
  end subroutine read_pinit

@@ -185,7 +185,7 @@ contains
 
  ! read information from model decisions file, and populate model decisions structure
  call readoption(err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! -------------------------------------------------------------------------------------------------
 
@@ -198,7 +198,7 @@ contains
                   startTime%var(iLookTIME%imin),                         & ! minute
                   dsec,                                                  & ! second
                   err,cmessage)                                            ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! put simulation end time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
@@ -209,7 +209,7 @@ contains
                   finshTime%var(iLookTIME%imin),                         & ! minute
                   dsec,                                                  & ! second
                   err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the start of the simulation
  call compjulday(&
@@ -221,7 +221,7 @@ contains
                  0._dp,                                                 & ! second
                  dJulianStart,                                          & ! julian date for the start of the simulation
                  err, cmessage)                                           ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the end of the simulation
  call compjulday(&
@@ -233,14 +233,14 @@ contains
                  0._dp,                                                 & ! second
                  dJulianFinsh,                                          & ! julian date for the end of the simulation
                  err, cmessage)                                           ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! check start and finish time
  write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
  write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var
 
  ! check that simulation end time is > start time
- if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; endif
+ if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
  ! compute the number of time steps
  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
@@ -280,7 +280,7 @@ contains
    case default
     err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision)//"]"; return
   end select
- endif
+ end if
 
  ! identify the humidity controls on stomatal resistance
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -290,7 +290,7 @@ contains
    case default
     err=10; message=trim(message)//"unknown humidity function [option="//trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision)//"]"; return
   end select
- endif
+ end if
 
  ! identify functions for electron transport function (dependence of photosynthesis on PAR)
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -301,7 +301,7 @@ contains
    case default
     err=10; message=trim(message)//"unknown electron transport function [option="//trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision)//"]"; return
   end select
- endif
+ end if
 
  ! identify the use of the co2 compensation point in the stomatal conductance calaculations
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -311,7 +311,7 @@ contains
    case default
     err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
   end select
- endif
+ end if
  
  ! identify the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -321,7 +321,7 @@ contains
    case default
     err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
   end select
- endif
+ end if
  
  ! identify the controls on carbon assimilation
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -331,7 +331,7 @@ contains
    case default
     err=10; message=trim(message)//"unknown option for the controls on carbon assimilation [option="//trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision)//"]"; return
   end select
- endif
+ end if
 
  ! identify the scaling of photosynthesis from the leaf to the canopy
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
@@ -341,7 +341,7 @@ contains
    case default
     err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
   end select
- endif
+ end if
 
  ! identify the numerical method
  select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
@@ -579,7 +579,7 @@ contains
  !  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision /= prescribedHead)then
  !   message=trim(message)//'upper boundary condition for soil hydology must be presHead with presTemp and zeroFlux options for thermodynamics'
  !   err=20; return
- !  endif
+ !  end if
  !end select
 
  ! check there is prescribedTemp or zeroFlux for thermodynamics when using prescribedHead for soil hydrology
@@ -600,7 +600,7 @@ contains
    if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
     message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater'
     err=20; return
-   endif
+   end if
  end select
 
  ! check power-law profile is selected when using topmodel baseflow option
@@ -609,7 +609,7 @@ contains
    if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
     message=trim(message)//'power-law transmissivity profile must be selected when using topmodel baseflow option'
     err=20; return
-   endif
+   end if
  end select
 
  ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
@@ -617,15 +617,15 @@ contains
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
    message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw'
    err=20; return
-  endif
- endif
+  end if
+ end if
 
  ! ensure that the LAI seaonality option is switched off (this was a silly idea, in retrospect)
  !if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
  ! message=trim(message)//'parameterization of LAI in terms of seasonal cycle of green veg fraction was a silly idea '&
  !                      //' -- the LAI_method option ["specified"] is no longer supported'
  ! err=20; return
- !endif
+ !end if
 
  end subroutine mDecisions
 
@@ -662,10 +662,10 @@ contains
  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,charline,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! close the file unit
  close(unt)
  ! get the number of model decisions
@@ -674,11 +674,11 @@ contains
  do iDecision=1,nDecisions
   ! extract name of decision and the decision selected
   read(charline(iDecision),*,iostat=err) option, decision
-  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; endif
+  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
   ! get the index of the decision in the data structure
   iVar = get_ixdecisions(trim(option))
   write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
-  if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; endif
+  if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; end if
   ! populate the model decisions structure
   model_decisions(iVar)%cOption   = trim(option)
   model_decisions(iVar)%cDecision = trim(decision)
