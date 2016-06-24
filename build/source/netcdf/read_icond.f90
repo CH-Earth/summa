@@ -138,7 +138,6 @@ contains
  integer(i4b)                           :: ncVarID      ! variable ID in netcdf file
  character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                           :: dimLen       ! data dimensions
- integer(i4b)                           :: varLen       ! data dimensions
  integer(i4b)                           :: ncID         ! netcdf file ID
  real(dp)    ,allocatable               :: varData(:,:) ! variable data storage        
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers

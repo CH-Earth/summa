@@ -184,7 +184,7 @@ end subroutine read_dimension
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(attrFile,nGRU,fileHRU,attrStruct,typeStruct,err,message,checkHRU)
+ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,err,message)
  ! provide access to subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
@@ -204,20 +204,18 @@ end subroutine read_dimension
  ! io vars
  character(*)                         :: attrFile           ! input filename
  integer(i4b),intent(in)              :: nGRU               ! number of grouped response units
- integer(i4b),intent(in)              :: fileHRU            ! number of HRUs in the netCDF file
  type(gru_hru_double),intent(inout)   :: attrStruct         ! local attributes for each HRU
  type(gru_hru_int),intent(inout)      :: typeStruct         ! local classification of soil veg etc. for each HRU
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
- integer(i4b),intent(in),optional     :: checkHRU           ! index of the HRU for single-HRU run
 
  ! define local variables
  character(len=256)                   :: cmessage           ! error message for downwind routine
  integer(i4b)                         :: iVar               ! loop through varibles in the netcdf file
  integer(i4b)                         :: iHRU               ! index of an HRU within a GRU
  integer(i4b)                         :: iGRU               ! index of an GRU
- integer(i4b),allocatable             :: varType            ! type of variable (categorical or numerical)
- integer(i4b),allocatable             :: varIndx            ! index of variable within its data structure
+ integer(i4b)                         :: varType            ! type of variable (categorical or numerical)
+ integer(i4b)                         :: varIndx            ! index of variable within its data structure
 
  ! check structures
  integer(i4b)                         :: iCheck             ! index of an attribute name

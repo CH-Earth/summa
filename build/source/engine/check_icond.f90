@@ -32,7 +32,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
- subroutine check_icond(nGRU,nHRU,                     & ! number of GRUs and HRUs
+ subroutine check_icond(nGRU,                          & ! number of GRUs and HRUs
                         progData,                      & ! model prognostic (state) variables
                         mparData,                      & ! model parameters
                         indxData,                      & ! layer index data
@@ -62,7 +62,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- integer(i4b)           ,intent(in)    :: nGRU, nHRU     ! number of response units
+ integer(i4b)           ,intent(in)    :: nGRU           ! number of grouped response units
  type(gru_hru_doubleVec),intent(inout) :: progData       ! prognostic vars 
  type(gru_hru_double)   ,intent(in)    :: mparData       ! parameters 
  type(gru_hru_intVec)   ,intent(in)    :: indxData       ! layer indexes 
@@ -71,10 +71,8 @@ contains
 
  ! locals
  character(len=256)                     :: cmessage      ! downstream error message
- integer(i4b)                           :: iVar          ! loop index 
  integer(i4b)                           :: iGRU          ! loop index 
  integer(i4b)                           :: iHRU          ! loop index 
- integer(i4b)                           :: cHRU          ! loop index 
 
  ! temporary variables for realism checks
  integer(i4b)                      :: iLayer             ! layer index
@@ -87,7 +85,6 @@ contains
  real(dp)                          :: kappa              ! constant in the freezing curve function (m K-1)
  real(dp)                          :: maxVolFracLiq      ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
  integer(i4b)                      :: nSnow              ! number of snow layers
- integer(i4b)                      :: nSoil              ! number of soil layers
 
  ! --------------------------------------------------------------------------------------------------------
 
@@ -181,38 +178,26 @@ contains
      ! ***** snow
      case(ix_snow)
       ! (check liquid water)
-      if(mLayerVolFracLiq(iLayer) < 0._dp .or. mLayerVolFracLiq(iLayer) > 1._dp)then
-       write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0 or > 1: layer = ',iLayer
-       err=20; return
-      end if
+      if(mLayerVolFracLiq(iLayer) < 0._dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracLiq(iLayer) > 1._dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
       ! (check ice)
-      if(mLayerVolFracIce(iLayer) < 0.05_dp .or. mLayerVolFracIce(iLayer) > 0.80_dp)then
-       write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05 or > 0.70: layer = ',iLayer
-       err=20; return
-      end if
+      if(mLayerVolFracIce(iLayer) > 0.80_dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > 0.80: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracIce(iLayer) < 0.05_dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0.05: layer = ',iLayer; err=20; return; end if
       ! check total water
-      if(scalarTheta < 0.05_dp .or. scalarTheta > 0.80_dp)then
-       write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with theta (total water fraction [liquid + ice]) < 0.05 or > 0.70: layer = ',iLayer
-       err=20; return
-      end if
+      if(scalarTheta > 0.80_dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > 0.80: layer = ',iLayer; err=20; return; end if
+      if(scalarTheta < 0.05_dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < 0.05: layer = ',iLayer; err=20; return; end if
 
      ! ***** soil
      case(ix_soil)
       ! (check liquid water)
-      if(mLayerVolFracLiq(iLayer) < theta_res .or. mLayerVolFracLiq(iLayer) > theta_sat)then
-       write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res or > theta_sat: layer = ',iLayer
-       err=20; return
-      end if
+      if(mLayerVolFracLiq(iLayer) < theta_res)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracLiq(iLayer) > theta_sat)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
       ! (check ice)
-      if(mLayerVolFracIce(iLayer) < 0._dp .or. mLayerVolFracIce(iLayer) > theta_sat)then
-       write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0 or > theta_sat: layer = ',iLayer
-       err=20; return
-      end if
+      if(mLayerVolFracIce(iLayer) < 0._dp    )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '        ,iLayer; err=20; return; end if
+      if(mLayerVolFracIce(iLayer) > theta_sat)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > theta_sat: layer = ',iLayer; err=20; return; end if
       ! check total water
-      if(scalarTheta < theta_res .or. scalarTheta > theta_sat)then
-       write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with theta (total water fraction [liquid + ice]) < theta_res or > theta_sat: layer = ',iLayer
-       err=20; return
-      end if
+      if(scalarTheta < theta_res)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < theta_res: layer = ',iLayer; err=20; return; end if 
+      if(scalarTheta > theta_sat)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
 
      case default
       err=20; message=trim(message)//'cannot identify layer type'; return
