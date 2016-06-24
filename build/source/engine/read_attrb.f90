@@ -329,14 +329,14 @@ end subroutine read_dimension
  ! check that we have all desired categorical variables
  if(any(.not.checkType))then
   do iCheck = 1,size(type_meta)
-   if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varname)//'] in lo    cal attributes file'; return; endif
+   if(.not.checkType(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(type_meta(iCheck)%varname)//'] in local attributes file'; return; endif
   end do
  endif
 
  ! check that we have all desired local attributes
  if(any(.not.checkAttr))then
   do iCheck = 1,size(attr_meta)
-   if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varname)//'] in lo    cal attributes file'; return; endif
+   if(.not.checkAttr(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(attr_meta(iCheck)%varname)//'] in local attributes file'; return; endif
   end do
  endif
 
