@@ -193,7 +193,7 @@ integer(i4b),parameter           :: ixProgress_im=1000         ! named variable 
 integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
 integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
 integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
-integer(i4b)                     :: ixProgress=ixProgress_id   ! define frequency to write progress
+integer(i4b)                     :: ixProgress=ixProgress_never! define frequency to write progress
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
@@ -322,7 +322,7 @@ call handle_err(err,message)
 ! *****************************************************************************
 ! read number of snow and soil layers
 restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
-call read_icond_layers(trim(restartFile),nGRU,nHRU,indx_meta,err,message)
+call read_icond_layers(trim(restartFile),nGRU,indx_meta,err,message)
 call handle_err(err,message)
 
 ! *****************************************************************************

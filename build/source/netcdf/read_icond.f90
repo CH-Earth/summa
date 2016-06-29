@@ -30,7 +30,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond_layers: read model initial conditions file for number of snow/soil layers
  ! ************************************************************************************************
- subroutine read_icond_layers(iconFile,nGRU,nHRU,indx_meta,err,message)
+ subroutine read_icond_layers(iconFile,nGRU,indx_meta,err,message)
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
@@ -47,18 +47,20 @@ contains
  ! variable declarations
  ! dummies
  character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file 
- integer(i4b)        ,intent(in)     :: nGRU, nHRU     ! total # of GRUs and HRUs 
+ integer(i4b)        ,intent(in)     :: nGRU           ! total # of GRUs in run domain 
  type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata 
  integer(i4b)        ,intent(out)    :: err            ! error code
  character(*)        ,intent(out)    :: message        ! returned error message
 
  ! locals
- integer(i4b)            :: ncID                       ! netcdf file id
- integer(i4b)            :: snowID, soilID             ! netcdf variable ids
- integer(i4b)            :: iGRU, iHRU                 ! loop indexes
- integer(i4b)            :: snowData(nHRU)             ! number of snow layers in all HRUs
- integer(i4b)            :: soilData(nHRU)             ! number of soil layers in all HRUs
- character(len=256)      :: cmessage                   ! downstream error message 
+ integer(i4b)             :: ncID                       ! netcdf file id
+ integer(i4b)             :: dimID                      ! netcdf file dimension id
+ integer(i4b)             :: fileHRU                    ! number of HRUs in netcdf file
+ integer(i4b)             :: snowID, soilID             ! netcdf variable ids
+ integer(i4b)             :: iGRU, iHRU                 ! loop indexes
+ integer(i4b),allocatable :: snowData(:)                ! number of snow layers in all HRUs
+ integer(i4b),allocatable :: soilData(:)                ! number of soil layers in all HRUs
+ character(len=256)       :: cmessage                   ! downstream error message 
 
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
@@ -68,6 +70,16 @@ contains
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage);
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+ ! get number of HRUs in file
+ err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem     finding hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem     reading hru dimension/'//trim(nf90_strerror(err)); return; end if
+
+ ! allocate sotrage for reading from file
+ allocate(snowData(fileHRU))
+ allocate(soilData(fileHRU))
+ snowData = 0
+ soilData = 0
 
  ! get variable ids
  err = nf90_inq_varid(ncid,trim(indx_meta(iLookIndex%nSnow)%varName),snowid); call netcdf_err(err,message)
@@ -88,6 +100,9 @@ contains
  ! close file
  call nc_file_close(ncid,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
+
+ ! cleanup
+ deallocate(snowData,soilData)
 
  end subroutine read_icond_layers
 
