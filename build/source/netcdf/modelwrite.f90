@@ -335,7 +335,7 @@ contains
  end subroutine writeTime 
 
  ! *********************************************************************************************************
- ! private subroutine printRestartFile: print a re-start file
+ ! public subroutine printRestartFile: print a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
                          nGRU,             & ! intent(in): number of GRUs
