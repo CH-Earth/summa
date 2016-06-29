@@ -105,7 +105,7 @@ contains
  ! **********************************************************************************************
  ! allocate space for GRU indices
  allocate(gru_id(fileGRU))
- allocate(hru_ix(fileGRU),hru_id(fileHRU),hru2gru_id(fileHRU))
+ allocate(hru_ix(fileHRU),hru_id(fileHRU),hru2gru_id(fileHRU))
 
  ! read gru_id from netcdf file
  err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if

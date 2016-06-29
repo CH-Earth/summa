@@ -72,8 +72,8 @@ contains
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  ! get number of HRUs in file
- err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem     finding hru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem     reading hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! allocate sotrage for reading from file
  allocate(snowData(fileHRU))
@@ -111,7 +111,7 @@ contains
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
  subroutine read_icond(iconFile,                      & ! name of initial conditions file
-                       nGRU,nHRU,                     & ! number of GRUs and HRUs
+                       nGRU,                          & ! number of GRUs 
                        prog_meta,                     & ! metadata
                        progData,                      & ! model prognostic (state) variables
                        indxData,                      & ! layer index data
@@ -136,7 +136,7 @@ contains
  ! variable declarations
  ! dummies
  character(*)           ,intent(in)     :: iconFile     ! name of netcdf file containing the initial conditions
- integer(i4b)           ,intent(in)     :: nGRU, nHRU   ! number of response units
+ integer(i4b)           ,intent(in)     :: nGRU         ! number of grouped response units in simulation domain
  type(var_info)         ,intent(in)     :: prog_meta(:) ! prognostic metadata
  type(gru_hru_doubleVec),intent(inout)  :: progData     ! prognostic vars 
  type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! layer indexes 
@@ -146,6 +146,7 @@ contains
  ! locals
  character(len=256)                     :: cmessage     ! downstream error message
  logical(lgt)                           :: snowExists   ! query whether to read snow layers
+ integer(i4b)                           :: fileHRU      ! number of HRUs in file
  integer(i4b)                           :: iVar         ! loop index 
  integer(i4b)                           :: iGRU         ! loop index 
  integer(i4b)                           :: iHRU         ! loop index 
@@ -154,7 +155,7 @@ contains
  character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                           :: dimLen       ! data dimensions
  integer(i4b)                           :: ncID         ! netcdf file ID
- real(dp)    ,allocatable               :: varData(:,:) ! variable data storage        
+ real(dp),allocatable                   :: varData(:,:) ! variable data storage        
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
 
 
@@ -179,6 +180,10 @@ contains
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncID,err,cmessage)
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+ ! get number of HRUs in file
+ err = nf90_inq_dimid(ncID,"hru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
+ err = nf90_inquire_dimension(ncID,dimID,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! is there any snow in initial conditions file?
  snowExists = .true.
@@ -215,7 +220,7 @@ contains
   err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
 
   ! iniitialize the varialbe data
-  allocate(varData(nHRU,dimLen))
+  allocate(varData(fileHRU,dimLen))
 
   ! get data
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message) 
