@@ -737,6 +737,9 @@ contains
   end select
   if (err.ne.0) then; message=trim(message)//trim(cmessage);return; end if
 
+  ! Ensure that time is turned on: it doens't matter what this value is as long as it is >0.
+  forc_meta(iLookForce%time)%outFreq = 1e6
+
  end do ! loop through file lines with vline
 
  ! **********************************************************************************************
