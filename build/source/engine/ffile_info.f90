@@ -216,7 +216,7 @@ contains
        if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
         write(message,'(a,i0,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ', gru_struc(iGRU)%hruInfo(localHRU)%hru_nc, ncHruId(1), ' differs from the expected: ',     &
                                                           gru_struc(iGRU)%hruInfo(localHRU)%hru_id, ' in file ', trim(infile)
-        write(message,'(a)') trim(message)//'order of hruId in forcing file needs to match order in zLocalAttributes.nc'
+        write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
       end do
