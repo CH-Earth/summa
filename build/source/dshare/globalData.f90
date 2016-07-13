@@ -27,6 +27,7 @@ MODULE globalData
  USE data_types,only:file_info       ! metadata for model forcing datafile
  USE data_types,only:par_info        ! default parameter values and parameter bounds
  USE data_types,only:var_info        ! metadata for variables in each model structure
+ USE data_types,only:flux2state      ! extended metadata to define flux-to-state mapping
  USE data_types,only:extended_info   ! extended metadata for variables in each model structure
  USE data_types,only:struct_info     ! summary information on all data structures 
  USE data_types,only:var_i           ! vector of integers 
@@ -84,7 +85,8 @@ MODULE globalData
  type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
 
  ! ancillary metadata structures
- type(extended_info),save,public,allocatable :: averageFlux_meta(:)     ! timestep-average model fluxes
+ type(flux2state),   save,public             :: flux2state_meta(maxvarFlux)  ! named variables for the states affected by each flux
+ type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
 
  ! define summary information on all data structures
  integer(i4b),parameter                      :: nStruct=12              ! number of data structures

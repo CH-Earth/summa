@@ -145,7 +145,8 @@ SUMMA_DATAMS= \
 		var_lookup.f90 \
 		data_types.f90 \
 		globalData.f90 \
-		popMetadat.f90
+		popMetadat.f90 \
+		flxMapping.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
 # utility modules

@@ -670,21 +670,21 @@ contains
   ! calculate the liquid flux through soil
   call soilLiqFlx(&
                   ! input: model control
-                  nSoil,                                  & ! intent(in): number of soil layers
-                  firstFluxCall,                          & ! intent(in): flag indicating first call
-                  .true.,                                 & ! intent(in): flag indicating if derivatives are desired
+                  nSoil,                                  & ! intent(in):    number of soil layers
+                  firstFluxCall,                          & ! intent(in):    flag indicating first call
+                  .true.,                                 & ! intent(in):    flag indicating if derivatives are desired
                   ! input: trial state variables
-                  mLayerTempTrial(nSnow+1:nLayers),       & ! intent(in): trial temperature at the current iteration (K)
-                  mLayerMatricHeadLiq(1:nSoil),           & ! intent(in): liquid water matric potential (m)
-                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): volumetric fraction of liquid water (-)
-                  mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): volumetric fraction of ice (-)
+                  mLayerTempTrial(nSnow+1:nLayers),       & ! intent(in):    trial temperature at the current iteration (K)
+                  mLayerMatricHeadLiq(1:nSoil),           & ! intent(in):    liquid water matric potential (m)
+                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in):    volumetric fraction of liquid water (-)
+                  mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in):    volumetric fraction of ice (-)
                   ! input: pre-computed deriavatives
-                  mLayerdTheta_dTk(nSnow+1:nLayers),      & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                  dPsiLiq_dTemp(1:nSoil),                 & ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
+                  mLayerdTheta_dTk(nSnow+1:nLayers),      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                  dPsiLiq_dTemp(1:nSoil),                 & ! intent(in):    derivative in liquid water matric potential w.r.t. temperature (m K-1)
                   ! input: fluxes
-                  scalarCanopyTranspiration,              & ! intent(in): canopy transpiration (kg m-2 s-1)
-                  scalarGroundEvaporation,                & ! intent(in): ground evaporation (kg m-2 s-1)
-                  scalarRainPlusMelt,                     & ! intent(in): rain plus melt (m s-1)
+                  scalarCanopyTranspiration,              & ! intent(in):    canopy transpiration (kg m-2 s-1)
+                  scalarGroundEvaporation,                & ! intent(in):    ground evaporation (kg m-2 s-1)
+                  scalarRainPlusMelt,                     & ! intent(in):    rain plus melt (m s-1)
                   ! input-output: data structures
                   mpar_data,                              & ! intent(in):    model parameters
                   indx_data,                              & ! intent(in):    model indices

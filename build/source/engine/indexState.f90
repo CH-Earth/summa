@@ -44,6 +44,7 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 implicit none
 private
 public::indexState
+public::resizeIndx
 ! control parameters
 integer(i4b),parameter :: missingInteger=-9999
 contains
@@ -69,16 +70,15 @@ contains
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! general local variables
+ character(len=256)              :: cmessage               ! message of downwind routine
  integer(i4b),parameter          :: nVarSnowSoil=2         ! number of state variables in the snow and soil domain (energy and total water/matric head)
- integer(i4b)                    :: iVar                   ! index of variable within the index data structure
- integer(i4b)                    :: nVec                   ! number of elements in the index vector
  ! indices of model state variables
- integer(i4b)                    :: ixCasNrg       ! index of canopy air space energy state variable
- integer(i4b)                    :: ixVegNrg       ! index of canopy energy state variable
- integer(i4b)                    :: ixVegWat       ! index of canopy hydrology state variable (mass)
- integer(i4b)                    :: ixTopNrg       ! index of upper-most energy state in the snow-soil subdomain
- integer(i4b)                    :: ixTopWat       ! index of upper-most total water state in the snow-soil subdomain
- integer(i4b)                    :: ixTopMat       ! index of upper-most matric head state in the soil subdomain
+ integer(i4b)                    :: ixCasNrg               ! index of canopy air space energy state variable
+ integer(i4b)                    :: ixVegNrg               ! index of canopy energy state variable
+ integer(i4b)                    :: ixVegWat               ! index of canopy hydrology state variable (mass)
+ integer(i4b)                    :: ixTopNrg               ! index of upper-most energy state in the snow-soil subdomain
+ integer(i4b)                    :: ixTopWat               ! index of upper-most total water state in the snow-soil subdomain
+ integer(i4b)                    :: ixTopMat               ! index of upper-most matric head state in the soil subdomain
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&
@@ -154,44 +154,12 @@ contains
  ixNrgLayer = arth(ixTopNrg,nVarSnowSoil,nLayers)  ! energy
  ixHydLayer = arth(ixTopWat,nVarSnowSoil,nLayers)  ! total water
 
- ! -----
- ! * re-allocate index vectors (if needed)...
- ! ------------------------------------------
-
- ! loop through index variables
- do iVar=1,size(indx_data%var)
-
-  ! get the length of the desired variable
-  select case(iVar)
-   case(iLookINDEX%ixMapFull2Subset); nVec=nState  
-   case(iLookINDEX%ixControlVolume);  nVec=nState
-   case(iLookINDEX%ixDomainType);     nVec=nState
-   case(iLookINDEX%ixStateType);      nVec=nState
-   case(iLookINDEX%ixAllState);       nVec=nState
-   case default; cycle ! only need to process the above variables
-  end select  ! iVar
-
-  ! check if we need to reallocate space
-  if(size(indx_data%var(iVar)%dat) == nVec) cycle
-
-  ! deallocate space
-  deallocate(indx_data%var(iVar)%dat,stat=err)
-  if(err/=0)then
-   message=trim(message)//'unable to deallocate space for variable '//trim(indx_meta(ivar)%varname)
-   err=20; return
-  endif
-
-  ! allocate space
-  allocate(indx_data%var(iVar)%dat(nVec),stat=err)
-  if(err/=0)then
-   message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(ivar)%varname)
-   err=20; return
-  endif
-
-  ! set to missing
-  indx_data%var(iVar)%dat = integerMissing
-
- end do  ! looping through variables
+ ! re-allocate index vectors (if needed)...
+ call resizeIndx( (/iLookINDEX%ixMapFull2Subset, iLookINDEX%ixControlVolume, iLookINDEX%ixDomainType, iLookINDEX%ixStateType, iLookINDEX%ixAllState/), & ! desired variables
+                  indx_data,  & ! data structure
+                  nState,     & ! vector length
+                  err,cmessage) ! error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! -----
  ! * define the type of model states...
@@ -271,5 +239,56 @@ contains
  end associate  ! end association to variables in the data structures
  end subroutine indexState
 
+ ! **********************************************************************************************************
+ ! public subroutine resizeIndx: re-size specific index vectors 
+ ! **********************************************************************************************************
+ subroutine resizeIndx(ixDesire,indx_data,nVec,err,message)
+ ! input
+ integer(i4b)     ,intent(in)    :: ixDesire(:)            ! variables needing to be re-sized
+ type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
+ integer(i4b)     ,intent(in)    :: nVec                   ! desired vector length 
+ ! output
+ integer(i4b)     ,intent(out)   :: err                    ! error code
+ character(*)     ,intent(out)   :: message                ! error message 
+ ! local variables
+ integer(i4b)                    :: jVar,iVar              ! vatiable index
+ ! initialize error control
+ err=0; message='resizeIndx/'
+
+ ! loop through variables
+ do jVar=1,size(ixDesire)
+
+  ! define index in index array
+  iVar = ixDesire(jVar)
+
+  ! check iVar is within range
+  if(iVar<1 .or. iVar>size(indx_data%var))then
+   message=trim(message)//'desired variable is out of range'
+   err=20; return
+  endif
+
+  ! check if we need to reallocate space
+  if(size(indx_data%var(iVar)%dat) == nVec) cycle
+
+  ! deallocate space
+  deallocate(indx_data%var(iVar)%dat,stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to deallocate space for variable '//trim(indx_meta(ivar)%varname)
+   err=20; return
+  endif
+
+  ! allocate space
+  allocate(indx_data%var(iVar)%dat(nVec),stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to allocate space for variable '//trim(indx_meta(ivar)%varname)
+   err=20; return
+  endif
+
+  ! set to missing
+  indx_data%var(iVar)%dat = integerMissing
+
+ end do  ! looping through variables
+
+ end subroutine resizeIndx
 
 end module indexState_module

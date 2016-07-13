@@ -67,6 +67,9 @@ USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
+! provide access to the number of flux variables
+USE var_lookup,only:nFlux=>maxvarFlux ! number of model flux variables
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
@@ -129,12 +132,15 @@ contains
                        err,message)      ! error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
+ USE globalData,only:flux_meta                        ! metadata on the model fluxes
  USE globalData,only:deriv_meta                       ! metadata on the model derivatives
+ USE globalData,only:flux2state_meta                  ! metadata on flux-to-state mapping
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
  USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  ! population/extracction of state vectors
+ USE indexState_module,only:resizeIndx                ! resize index vectors
  USE getVectorz_module,only:popStateVec               ! populate the state vector
  USE getVectorz_module,only:varExtract                ! extract variables from the state vector
  ! numerical recipes utility modules
@@ -197,6 +203,7 @@ contains
  ! * operator splitting
  ! ------------------------------------------------------------------------------------------------------
  real(dp)                        :: dtSplit                      ! time step for a given operator-splitting operation
+ real(dp)                        :: dt_wght                      ! weight given to a given flux calculation
  integer(i4b),parameter          :: fullyImplicit=1001           ! named variable for the fully implicit solution
  integer(i4b),parameter          :: strangSplitting=1002         ! named variable for the Strang splitting solution
  integer(i4b)                    :: ixSplitOption=strangSplitting  ! selected operator splitting method
@@ -207,7 +214,9 @@ contains
  integer(i4b),parameter          :: halfMass2=3                  ! order in sequence for the 2nd mass operation
  integer(i4b),parameter          :: fullNrg=2                    ! order in sequence for the energy operation
  logical(lgt),dimension(nState)  :: stateMask                    ! mask defining desired state variables
+ logical(lgt),dimension(nFlux)   :: fluxMask                     ! mask defining desired flux variables
  integer(i4b)                    :: nSubset                      ! number of selected state variables for a given split
+ integer(i4b)                    :: iVar                         ! index of variables in data structures
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
@@ -216,6 +225,7 @@ contains
  logical(lgt),parameter          :: forceFullMatrix=.true.      ! flag to force the use of the full Jacobian matrix
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  integer(i4b)                    :: ixMatrix                     ! form of matrix (band diagonal or full matrix)
+ type(var_dlength)               :: flux_temp                    ! temporary model fluxes 
  type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
  integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),allocatable            :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
@@ -248,41 +258,45 @@ contains
  ! ---------------------------------------------------------------------------------------
  globalVars: associate(&
  ! model decisions
- ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in): [i4b] groundwater parameterization
- ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
+ ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b] groundwater parameterization
+ ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b] spatial representation of groundwater (local-column or single-basin)
  ! domain boundary conditions
- airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in): [dp] temperature of the upper boundary of the snow and soil domains (K)
+ airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp] temperature of the upper boundary of the snow and soil domains (K)
  ! indices of model state variables
- ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat        , & ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector
- ixDomainType            => indx_data%var(iLookINDEX%ixDomainType)%dat            , & ! intent(in): [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
- ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat             , & ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
- ixAllState              => indx_data%var(iLookINDEX%ixAllState)%dat              , & ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
+ ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b(:)] list of indices in the state subset for each state in the full state vector
+ ixDomainType            => indx_data%var(iLookINDEX%ixDomainType)%dat             ,& ! intent(in):    [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
+ ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):    [i4b(:)] indices defining the type of the state (ixNrgState...)
+ ixAllState              => indx_data%var(iLookINDEX%ixAllState)%dat               ,& ! intent(in):    [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
+ ! index of model state variables (state subset)
+ ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] id of domain for desired model state variables
+ ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
+ ixAllState_subset       => indx_data%var(iLookINDEX%ixAllState_subset)%dat        ,& ! intent(in):    [i4b(:)] [state subset] list of indices in the full state vector
  ! vegetation parameters
- canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp] canopy depth (m)
+ canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):    [dp] canopy depth (m)
  ! snow parameters
- snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,& ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
+ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,& ! intent(in):    [dp] scaling parameter for the snow freezing curve (K-1)
  ! soil parameters
- vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,& ! intent(in): [dp] van Genutchen "m" parameter (-)
- vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,& ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)                    ,& ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat)                    ,& ! intent(in): [dp] soil porosity (-)
- theta_res               => mpar_data%var(iLookPARAM%theta_res)                    ,& ! intent(in): [dp] soil residual volumetric water content (-)
- specificStorage         => mpar_data%var(iLookPARAM%specificStorage)              ,& ! intent(in): [dp] specific storage coefficient (m-1)
+ vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,& ! intent(in):    [dp] van Genutchen "m" parameter (-)
+ vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,& ! intent(in):    [dp] van Genutchen "n" parameter (-)
+ vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)                    ,& ! intent(in):    [dp] van Genutchen "alpha" parameter (m-1)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)                    ,& ! intent(in):    [dp] soil porosity (-)
+ theta_res               => mpar_data%var(iLookPARAM%theta_res)                    ,& ! intent(in):    [dp] soil residual volumetric water content (-)
+ specificStorage         => mpar_data%var(iLookPARAM%specificStorage)              ,& ! intent(in):    [dp] specific storage coefficient (m-1)
  ! convergence parameters
- absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,& ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
+ absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,& ! intent(in):    [dp] absolute convergence tolerance for vol frac liq water (-)
  ! model diagnostic variables (fraction of liquid water)
- scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out): [dp]    fraction of liquid water on vegetation (-)
- mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out): [dp(:)] fraction of liquid water in each snow layer (-)
- mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat          ,& ! intent(out): [dp(:)] melt-freeze in each snow and soil layer (kg m-3)
+ scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out):   [dp]    fraction of liquid water on vegetation (-)
+ mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out):   [dp(:)] fraction of liquid water in each snow layer (-)
+ mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat          ,& ! intent(out):   [dp(:)] melt-freeze in each snow and soil layer (kg m-3)
  ! model fluxes
- mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! intent(out): [dp(:)]  change in storage associated with compression of the soil matrix (-)
- iLayerLiqFluxSoil       => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat         ,& ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
- mLayerTranspire         => flux_data%var(iLookFLUX%mLayerTranspire)%dat           ,& ! intent(out): [dp(:)]  transpiration loss from each soil layer (m s-1)
- mLayerBaseflow          => flux_data%var(iLookFLUX%mLayerBaseflow)%dat            ,& ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
- scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1)     ,& ! intent(out): [dp]     exfiltration from the soil profile (m s-1)
+ mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! intent(out):   [dp(:)]  change in storage associated with compression of the soil matrix (-)
+ iLayerLiqFluxSoil       => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat         ,& ! intent(out):   [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+ mLayerTranspire         => flux_data%var(iLookFLUX%mLayerTranspire)%dat           ,& ! intent(out):   [dp(:)]  transpiration loss from each soil layer (m s-1)
+ mLayerBaseflow          => flux_data%var(iLookFLUX%mLayerBaseflow)%dat            ,& ! intent(out):   [dp(:)]  baseflow from each soil layer (m s-1)
+ scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1)     ,& ! intent(out):   [dp]     exfiltration from the soil profile (m s-1)
  ! sublimation (needed to check mass balance constraints)
- scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1),& ! intent(out): [dp] sublimation of ice from the vegetation canopy (kg m-2 s-1)
- scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)  ,& ! intent(out): [dp] sublimation of ice from the snow surface (kg m-2 s-1)
+ scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1),& ! intent(out):   [dp] sublimation of ice from the vegetation canopy (kg m-2 s-1)
+ scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)  ,& ! intent(out):   [dp] sublimation of ice from the snow surface (kg m-2 s-1)
  ! model state variables (vegetation canopy)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)] depth of each layer in the snow-soil sub-domain (m)
  scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp] temperature of the canopy air space (K)
@@ -319,7 +333,7 @@ contains
  ! compute the total water content in snow and soil
  ! NOTE: no ice expansion allowed for soil
  if(nSnow>0)& 
- mLayerVolFracWat(1:      nSnow)   = mLayerVolFracLiq(1:      nSnow)   + mLayerVolFracIce(1:      nSnow)*(iden_ice/iden_water)
+ mLayerVolFracWat(      1:nSnow  ) = mLayerVolFracLiq(      1:nSnow  ) + mLayerVolFracIce(      1:nSnow  )*(iden_ice/iden_water)
  mLayerVolFracWat(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
 
  ! define the number of operator splits
@@ -335,6 +349,10 @@ contains
   case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
   case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
  end select ! (modify the groundwater representation for this single-column implementation)
+
+ ! allocate space for the temporary model flux structure
+ call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! allocate space for the derivative structure
  call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
@@ -367,6 +385,37 @@ contains
    stateMask(:) = .true.  ! use all state variables
   endif
 
+  ! get the number of selected state variables
+  nSubset = count(stateMask)
+
+  ! re-size index vectors (if needed)...
+  call resizeIndx( (/iLookINDEX%ixDomainType_subset, iLookINDEX%ixStateType_subset, iLookINDEX%ixAllState_subset/), & ! desired variables
+                   indx_data,  & ! data structure
+                   nSubset,    & ! vector length
+                   err,cmessage) ! error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! * associate local variables to the subset variables
+  subsetVars: associate(&
+  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] id of domain for desired model state variables
+  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
+  ixAllState_subset   => indx_data%var(iLookINDEX%ixAllState_subset)%dat         & ! intent(in):    [i4b(:)] [state subset] list of indices in the full state vector
+  )  ! associating local variables to the subset variables
+
+  ! * pack state subsets
+  ixDomainType_subset = pack(ixDomainType,stateMask)  ! id of domain for desired model state variables
+  ixStateType_subset  = pack(ixStateType,stateMask)   ! type of desired model state variables
+  ixAllState_subset   = pack(ixAllState,stateMask)    ! list of indices in the full state vector
+
+  ! define the mask of the fluxes used
+  if(ixSplitOption==strangSplitting)then
+   do iVar=1,size(flux_meta)
+    fluxMask(iVar) = any(ixStateType_subset==flux2state_meta(iVar)%state1) .or. any(ixStateType_subset==flux2state_meta(iVar)%state2) 
+   end do
+  else
+   fluxMask(:) = .true.
+  endif
+
   ! get the time step for strang splitting
   if(ixSplitOption==strangSplitting .and. (iSplit==halfMass1 .or. iSplit==halfMass2))then
    dtSplit = dt*0.5_dp
@@ -374,8 +423,8 @@ contains
    dtSplit = dt
   endif
 
-  ! get the number of selected state variables
-  nSubset = count(stateMask)
+  print*, 'iSplit, dtSplit = ', iSplit, dtSplit
+  pause
 
   ! get the mapping between the full state vector and the state subset
   ixMapFull2Subset( pack(ixAllState,      stateMask) ) = arth(1,1,nSubset)  ! indices in the state subset
@@ -403,9 +452,9 @@ contains
   call popStateVec(&
                    ! input
                    computeVegFlux,                   & ! intent(in):    flag to denote if computing energy flux over vegetation
-                   pack(ixDomainType,stateMask),     & ! intent(in):    id of domain for desired model state variables
-                   pack(ixStateType,stateMask),      & ! intent(in):    type of desired model state variables
-                   pack(ixAllState,stateMask),       & ! intent(in):    list of indices of the state subset in the full state vector
+                   ixDomainType_subset,              & ! intent(in):    id of domain for desired model state variables
+                   ixStateType_subset,               & ! intent(in):    type of desired model state variables
+                   ixAllState_subset,                & ! intent(in):    list of indices of the state subset in the full state vector
                    nSubset,                          & ! intent(in):    number of desired state variables
                    ! input-output: data structures
                    prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
@@ -420,6 +469,13 @@ contains
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+  ! end associatiion to index variables used to populate state vector
+  end associate subsetVars
+
+  ! -----
+  ! * compute the initial function evaluation...
+  ! --------------------------------------------
+  
   ! make association with model indices
   stateSubset: associate(&
   ixCasNrg      => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)  , & ! intent(in): [i4b]    index of canopy air space energy state variable
@@ -430,10 +486,6 @@ contains
   ixSoilOnlyHyd => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat  & ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
   ) ! associations
 
-  ! -----
-  ! * compute the initial function evaluation...
-  ! --------------------------------------------
-  
   ! initialize the trial state vectors
   stateVecTrial = stateVecInit
 
@@ -474,7 +526,7 @@ contains
                   indx_data,               & ! intent(in):    index data
                   ! input-output: data structures
                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_data,               & ! intent(inout): model fluxes for a local HRU
+                  flux_temp,               & ! intent(inout): model fluxes for a local HRU (temporary structure)
                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                   ! input-output: baseflow
                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
@@ -544,7 +596,7 @@ contains
                    indx_data,               & ! intent(in):    index data
                    ! input-output: data structures
                    diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                   flux_data,               & ! intent(inout): model fluxes for a local HRU
+                   flux_temp,               & ! intent(inout): model fluxes for a local HRU (temporary structure)
                    deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                    ! input-output: baseflow
                    ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
@@ -575,6 +627,18 @@ contains
   
   end do  ! iterating
   !print*, 'PAUSE: after iterations'; read(*,*)
+
+  ! -----
+  ! * update model fluxes...
+  ! ------------------------
+
+  ! define weight applied to each splitting operation
+  dt_wght = dtSplit/dt 
+
+  ! increment fluxes
+  do iVar=1,size(flux_meta)
+   if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:) + flux_data%var(iVar)%dat(:)*dt_wght
+  end do
 
   ! -----
   ! * update states and compute total volumetric melt...

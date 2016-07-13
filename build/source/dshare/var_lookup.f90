@@ -599,6 +599,10 @@ MODULE var_lookup
   integer(i4b)    :: ixDomainType           = imiss ! type of domain (iname_veg, iname_snow, or iname_soil)
   integer(i4b)    :: ixStateType            = imiss ! indices defining the type of every state variable (iname_nrgCanair, iname_nrgLayer, iname_watLayer, etc.)
   integer(i4b)    :: ixHydType              = imiss ! indices defining the type of hydrology states in the snow+soil domain (iname_watLayer, iname_matLayer)
+  ! type of model state variables (state subset)
+  integer(i4b)    :: ixDomainType_subset    = imiss ! [state subset] id of domain for desired model state variables
+  integer(i4b)    :: ixStateType_subset     = imiss ! [state subset] type of desired model state variables
+  integer(i4b)    :: ixAllState_subset      = imiss ! [state subset] list of indices in the full state vector
   ! mapping between state subset and the full state vector
   integer(i4b)    :: ixMapFull2Subset       = imiss ! list of indices of the state subset in the full state vector 
   integer(i4b)    :: ixMapSubset2Full       = imiss ! list of indices of the full state vector in the state subset
@@ -749,7 +753,7 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
-                                                                         41, 42, 43, 44, 45, 46, 47)
+                                                                         41, 42, 43, 44, 45, 46, 47, 48, 49, 50)
 
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
