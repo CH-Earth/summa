@@ -75,6 +75,7 @@ contains
  integer(i4b)                         :: iGRU,localHRU  ! index of GRU and HRU
  integer(i4b)                         :: ncHruId(1)     ! hruID from the forcing files
  real(dp)                             :: dataStep_iFile ! data step for a given forcing data file
+
  ! Start procedure here
  err=0; message="ffile_info/"
  ! ------------------------------------------------------------------------------------------------------------------
@@ -130,7 +131,7 @@ contains
   ! initialize variable ids to missing
   forcFileInfo(iFile)%data_id(:) = integerMissing
 
-  ! build filename bfor actual forcing file
+  ! build filename for actual forcing file
   infile = trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
   ! open file
@@ -159,7 +160,6 @@ contains
    ! inqure about current variable name, type, number of dimensions
    err = nf90_inquire_variable(ncid,iNC,name=varName)
    if(err/=0)then; message=trim(message)//'problem inquiring variable: '//trim(varName); return; end if
-   !print *,'current var',iNC,trim(varName)
 
    ! process variable
    select case(trim(varName))
@@ -208,14 +208,15 @@ contains
      ! check to see if hruId exists as a variable, this is a required variable
      err = nf90_inq_varid(ncid,trim(varname),varId)
      if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
+
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
      do iGRU=1,nGRU
       do localHRU=1,gru_struc(iGRU)%hruCount
        err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
        if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
-        write(message,'(a,i0,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ', gru_struc(iGRU)%hruInfo(localHRU)%hru_nc, ncHruId(1), ' differs from the expected: ',     &
-                                                          gru_struc(iGRU)%hruInfo(localHRU)%hru_id, ' in file ', trim(infile)
+        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_nc,' - ',  &
+            ncHruId(1), ' differs from the expected: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_id, ' in file ', trim(infile)
         write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
@@ -230,7 +231,7 @@ contains
   ! check to see if any forcing variables are missed
   if(any(forcFileInfo(iFile)%data_id(:)==integerMissing))then
    do iVar=1,size(forcFileInfo(iFile)%data_id)
-    if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; end if
+    if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variable missing [var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; end if
    end do
   end if
 

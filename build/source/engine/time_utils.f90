@@ -88,6 +88,7 @@ contains
  call extract(refdate(istart:n),":",iend,imin,err,message); if (err/=0) return
  if(imin <  0)then; err=20; message=trim(message)//'minute < 0'; return; end if
  if(imin > 60)then; err=20; message=trim(message)//'minute > 60'; return; end if
+
  ! get the second
  istart = istart+iend
  if(istart > len_trim(refdate)) return
@@ -121,7 +122,7 @@ contains
   read(substring(1:iend-1),*,iostat=err) itemp
   ! read error
   if (err/=0) then
-   err=20; message=trim(message)//"unexpectedCharacters/[string='"//trim(substring)//"']"; return
+   err=20; message=trim(message)//"unexpected characters [string='"//trim(substring)//"']"; return
   end if
   end subroutine extract
 

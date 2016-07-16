@@ -370,24 +370,23 @@ do iGRU=1,nGRU
 end do
 
 ! *****************************************************************************
-! (3c) allocate space for other data structures
-! read local attributes for each HRU
+! (4a) read local attributes for each HRU
 ! *****************************************************************************
 call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,err,message)
 call handle_err(err,message)
 
 ! *****************************************************************************
-! (4a) read description of model forcing datafile used in each HRU
+! (4b) read description of model forcing datafile used in each HRU
 ! *****************************************************************************
 call ffile_info(nGRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (4b) read model decisions
+! (4c) read model decisions
 ! *****************************************************************************
 call mDecisions(err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (4c) allocate space for output statistics data structures
+! (4d) allocate space for output statistics data structures
 ! *****************************************************************************
 ! child metadata structures - so that we do not carry full stats structures around everywhere
 ! only carry stats for scalar varaible
@@ -557,7 +556,7 @@ do iGRU=1,nGRU
                   progStruct%gru(iGRU)%hru(iHRU),   & ! intent(inout): model prognostic (state) variables for a local HRU
                   ! output: error control
                   err,message); call handle_err(err,message)
-  
+
   ! calculate vertical distribution of root density
   call rootDensty(mparStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model parameters
                   indxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model indices
@@ -565,7 +564,7 @@ do iGRU=1,nGRU
                   diagStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model diagnostic variables
                   err,message)                         ! error control
   call handle_err(err,message) 
-  
+
   ! calculate saturated hydraulic conductivity in each soil layer
   call satHydCond(mparStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model parameters
                   indxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model indices
@@ -573,23 +572,23 @@ do iGRU=1,nGRU
                   fluxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model fluxes 
                   err,message)                         ! error control
   call handle_err(err,message)
-  
+
   ! calculate "short-cut" variables such as volumetric heat capacity
   call v_shortcut(mparStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model parameters
                   diagStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model diagnostic variables
                   err,message)                         ! error control
   call handle_err(err,message)
-  
+
   ! overwrite the vegetation height
   HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)
   HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)
-  
+
   ! overwrite the tables for LAI and SAI
   if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
    SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)
    LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)*greenVegFrac_monthly
   endif
-  
+
   ! initialize canopy drip
   ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used  
@@ -634,7 +633,6 @@ do iGRU=1,nGRU
    end do
   case default; call handle_err(20,'unable to identify decision for regional representation of groundwater')
  end select
-
 
  ! initialize time step length for each HRU
  do iHRU=1,gru_struc(iGRU)%hruCount
@@ -972,7 +970,6 @@ do modelTimeStep=1,numtim
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSoil+1
    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) + nLayers+1
-  
 
   end do  ! (looping through HRUs)
 
@@ -980,7 +977,7 @@ do modelTimeStep=1,numtim
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
    call handle_err(20,'multi_driver/bigBucket groundwater code not transferred from old code base yet')
   end if
-  
+
   ! perform the routing
   associate(totalArea => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) )
   call qOverland(&
@@ -1008,7 +1005,7 @@ do modelTimeStep=1,numtim
 
  ! write current time to all files
  call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
- 
+
  ! increment output file timestep
  do iFreq = 1,nFreq
   if (mod(waterYearTimeStep,outFreq(iFreq))==0) then

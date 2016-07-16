@@ -73,7 +73,7 @@ contains
  integer(i4b)                      :: ncStart(2)       ! start array for reading hru forcing
  ! rest
  real(dp),parameter                :: amiss= -1.d+30   ! missing real
- real(dp),parameter                :: verySmall=1e-9   ! tiny number
+ real(dp),parameter                :: verySmall=1e-6   ! tiny number
  character(len=256)                :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  character(len=256)                :: refTimeString    ! reference time string
@@ -217,7 +217,7 @@ contains
    end if  ! first time step is not in any forcing files
 
   end do ! end of search for model first time step in forcing files
-   
+
  end if  ! if the file is not yet open
 
  ! **********************************************************************************************

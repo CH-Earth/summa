@@ -138,8 +138,8 @@ if (present(checkHRU)) then                                                     
 
  ! gru to hru maping
  iGRU = 1
- gru_struc(iGRU)%hruCount        = 1                                                           ! number of HRUs in each GRU
- gru_struc(iGRU)%gruId           = hru2gru_id(checkHRU)                                        ! set gru id
+ gru_struc(iGRU)%hruCount             = 1                                                      ! number of HRUs in each GRU
+ gru_struc(iGRU)%gruId                = hru2gru_id(checkHRU)                                   ! set gru id
  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                   ! allocate second level of gru to hru map
  gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU                                               ! set hru id in attributes netcdf file
  gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                                                      ! set index of hru in run domain

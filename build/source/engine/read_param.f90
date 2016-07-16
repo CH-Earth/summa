@@ -77,6 +77,7 @@ contains
  ! build filename
  infile = trim(SETNGS_PATH)//trim(PARAMETER_TRIAL)
  ! open file
+
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
@@ -95,10 +96,11 @@ contains
  ! save the number of parameters
  nPars = size(varnames)
  ! check that there are at least 2 "words" -- must modify at least one parameter
- if(nPars < 2)then
-  message=trim(message)//'expect need to modify at least one parameter [file = '//trim(infile)//']'
-  err=20; return
- end if
+ if (nPars < 2) return
+! if(nPars < 2)then
+!  message=trim(message)//'expect need to modify at least one parameter [file = '//trim(infile)//']'
+!  err=20; return
+! end if
  ! check that the first parameter is the HRU index
  if(varnames(1) /= 'hruIndex' .and. varnames(1) /= 'hruId')then
   message=trim(message)//'expect first parameter name to be '//"'hruIndex' or 'hruId' [file = "//trim(infile)//']'
@@ -121,14 +123,14 @@ contains
 
  ! allocate space for the character data
  allocate(chardata(nPars),stat=err)
- if(err/=0)then;err=30;message=trim(message)//"problemAllocateChardata"; return; end if
+ if(err/=0)then;err=30;message=trim(message)//"problem: allocate chardata"; return; end if
 
  ! loop through the HRUs
  dataLineLoop: do iline=1,nDataLine
 
   ! get the HRU index
   read(charline(iline),*,iostat=err) hruIndex
-  if(err/=0)then;err=41;message=trim(message)//"problemInternalRead [data='"//trim(charline(iline))//"']"; return; endif
+  if(err/=0)then;err=41;message=trim(message)//"problem: internal read [data='"//trim(charline(iline))//"']"; return; endif
 
   ! identify the HRU index
   hruLoop: do iHRU=1,nHRU
