@@ -992,11 +992,11 @@ do modelTimeStep=1,numtim
    ! Passes the full metadata structure rather than the stats metadata structure because 
    !  we have the option to write out data of types other than statistics. 
    !  Thus, we must also pass the stats parent->child maps from childStruct.
-   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(localHRU)%var,forcStruct%gru(iGRU)%hru(localHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(localHRU)%var,progStruct%gru(iGRU)%hru(localHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(localHRU)%var,diagStruct%gru(iGRU)%hru(localHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(localHRU)%var,fluxStruct%gru(iGRU)%hru(localHRU)%var,fluxChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,indxChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,localHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(localHRU)%var,forcStruct%gru(iGRU)%hru(localHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(localHRU)%var,progStruct%gru(iGRU)%hru(localHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(localHRU)%var,diagStruct%gru(iGRU)%hru(localHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(localHRU)%var,fluxStruct%gru(iGRU)%hru(localHRU)%var,fluxChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(localHRU)%var,indxStruct%gru(iGRU)%hru(localHRU)%var,indxChild_map,indxStruct%gru(iGRU)%hru(localHRU)%var,gru_struc(iGRU)%hruInfo(localHRU)%hru_ix,err,message); call handle_err(err,message)
   
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(localHRU)%nSnow + gru_struc(iGRU)%hruInfo(localHRU)%nSoil
