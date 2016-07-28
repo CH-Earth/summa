@@ -685,8 +685,13 @@ contains
   ! internal subroutine imposeConstraints: impose solution constraints
   ! *********************************************************************************************************
   subroutine imposeConstraints(stateVecTrial,xInc,err,message)
+  ! external functions
+  USE snow_utils_module,only:fracliquid                           ! compute the fraction of liquid water at a given temperature (snow)
+  ! named variables
   USE var_lookup,only:iLookPROG                                   ! named variables for elements of the prognostic structure
+  USE var_lookup,only:iLookPARAM                                  ! named variables for elements of the parameter structure
   USE var_lookup,only:iLookINDEX                                  ! named variables for elements of the index structure
+  ! physical constants
   USE multiconst,only:Tfreeze                                     ! temperature at freezing (K)
   USE multiconst,only:gravity                                     ! acceleration of gravity (m s-2)
   USE multiconst,only:LH_fus                                      ! latent heat of fusion (J kg-1)
@@ -702,7 +707,8 @@ contains
   real(dp)                        :: xIncFactor                   ! scaling factor for the iteration increment (-)
   integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
   real(dp),dimension(nSnow)       :: mLayerTempCheck              ! updated temperatures (K) -- used to check iteration increment for snow
-  real(dp),dimension(nSnow)       :: mLayerVolFracLiqCheck        ! updated volumetric liquid water content (-) -- used to check iteration increment for snow
+  real(dp)                        :: scalarTemp                   ! temperature of an individual snow layer (K)
+  real(dp)                        :: volFracLiq                   ! volumetric liquid water content of an individual snow layer (-)
   logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
   logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
   logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
@@ -853,16 +859,28 @@ contains
   ! NOTE: change in total water is only due to liquid flux
   if(size(ixSnowOnlyWat)>0)then
   
-   ! get new volumetric fraction of liquid water
-   mLayerVolFracLiqCheck = stateVecTrial(ixSnowOnlyWat)+xInc(ixSnowOnlyWat)
-   drainFlag(:) = .false.
-  
+   ! loop through snow layers
    do iLayer=1,nSnow
-    if(mLayerVolFracLiqCheck(iLayer) < 0._dp)then
-     drainFlag(iLayer) = .true.
-     xInc(ixSnowOnlyWat(iLayer)) = -0.5_dp*stateVecTrial(ixSnowOnlyWat(iLayer) )
+
+    ! * get the layer temperature
+    ! case 1: temperature is included in the current state vector
+    if(size(ixSnowOnlyNrg)>0)then
+     scalarTemp = stateVecTrial(ixSnowOnlyNrg(iLayer))
+    ! case 2: operator splitting - use temperature from previous calculation
+    else
+     scalarTemp = prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer)
     endif
-   end do
+
+    ! * get the volumetric fraction of liquid water
+    volFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)) * stateVecTrial(ixSnowOnlyWat(iLayer))
+
+    ! * check that the iteration increment does not exceed volumetric liquid water content
+    if(-xInc(ixSnowOnlyWat(iLayer)) > volFracLiq)then
+     drainFlag(iLayer) = .true.
+     xInc(ixSnowOnlyWat(iLayer)) = -0.5_dp*volFracLiq
+    endif
+
+   end do  ! looping through snow layers
   
   endif   ! if there are state variables for liquid water in the snow domain
   

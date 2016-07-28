@@ -571,9 +571,9 @@ contains
  indx_meta(iLookINDEX%ixStateType)         = var_info('ixStateType'        , 'index of the type of every state variable (iname_nrgCanair, ...)'       , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixHydType)           = var_info('ixHydType'          , 'index of the type of hydrology states in snow+soil domain'              , '-', 'midToto', .false.)
  ! type of model state variables (state subset)
- indx_meta(iLookINDEX%ixDomainType_subset) = var_info('ixDomainType_subset', '[state subset] id of domain for desired model state variables'          , '-', 'midToto', .false.)
- indx_meta(iLookINDEX%ixStateType_subset)  = var_info('ixStateType_subset' , '[state subset] type of desired model state variables'                   , '-', 'midToto', .false.)
- indx_meta(iLookINDEX%ixAllState_subset)   = var_info('ixAllState_subset'  , '[state subset] list of indices in the full state vector'                , '-', 'midToto', .false.)
+ indx_meta(iLookINDEX%ixDomainType_subset) = var_info('ixDomainType_subset', '[state subset] id of domain for desired model state variables'          , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixStateType_subset)  = var_info('ixStateType_subset' , '[state subset] type of desired model state variables'                   , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixAllState_subset)   = var_info('ixAllState_subset'  , '[state subset] list of indices in the full state vector'                , '-', 'unknown', .false.)
  ! mapping between state subset and the full state vector
  indx_meta(iLookINDEX%ixMapFull2Subset)   = var_info('ixMapFull2Subset'    , 'list of indices of the state subset in the full state vector'           , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixMapSubset2Full)   = var_info('ixMapSubset2Full'    , 'list of indices of the full state vector in the state subset'           , '-', 'unknown', .false.)
@@ -600,8 +600,8 @@ contains
  indx_meta(iLookINDEX%ixNrgLayer)         = var_info('ixNrgLayer'          , 'indices IN THE FULL VECTOR for energy states in the snow+soil domain'   , '-', 'midToto', .false.)
  indx_meta(iLookINDEX%ixHydLayer)         = var_info('ixHydLayer'          , 'indices IN THE FULL VECTOR for hydrology states in the snow+soil domain', '-', 'midToto', .false.)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
- indx_meta(iLookINDEX%ixVolFracWat)       = var_info('ixVolFracWat'        , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                         , '-', 'midToto', .false.)
- indx_meta(iLookINDEX%ixMatricHead)       = var_info('ixMatricHead'        , 'indices IN THE SOIL VECTOR for hyd states'                              , '-', 'midSoil', .false.)
+ indx_meta(iLookINDEX%ixVolFracWat)       = var_info('ixVolFracWat'        , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                         , '-', 'unknown', .false.)
+ indx_meta(iLookINDEX%ixMatricHead)       = var_info('ixMatricHead'        , 'indices IN THE SOIL VECTOR for hyd states'                              , '-', 'unknown', .false.)
  ! indices within state vectors
  indx_meta(iLookINDEX%ixAllState)         = var_info('ixAllState'          , 'list of indices for all model state variables'                          , '-', 'unknown', .false.)
  indx_meta(iLookINDEX%ixSoilState)        = var_info('ixSoilState'         , 'list of indices for all soil layers'                                    , '-', 'midSoil', .false.)

@@ -258,6 +258,7 @@ contains
  ! extract variables from the model state vector
  call varExtract(&
                  ! input
+                 do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU         
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
@@ -280,6 +281,14 @@ contains
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+ if(nSnow>0)then
+  print*, trim(message)
+  write(*,'(a,1x,10(f15.8,1x))') 'mLayerVolFracWatTrial(1:nSnow) = ', mLayerVolFracWatTrial(1:nSnow)
+  write(*,'(a,1x,10(f15.8,1x))') 'mLayerVolFracLiqTrial(1:nSnow) = ', mLayerVolFracLiqTrial(1:nSnow)
+  write(*,'(a,1x,10(f15.8,1x))') 'mLayerVolFracIceTrial(1:nSnow) = ', mLayerVolFracIceTrial(1:nSnow)
+  write(*,'(a,1x,10(f15.8,1x))') 'liquid fraction                = ', mLayerVolFracLiqTrial(1:nSnow) / mLayerVolFracWatTrial(1:nSnow)
+ endif
 
  ! compute the fluxes for a given state vector
  call computFlux(&

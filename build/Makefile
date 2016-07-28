@@ -226,6 +226,7 @@ SUMMA_MODRUN = \
 		snwCompact.f90 \
 		layerMerge.f90 \
 		layerDivide.f90 \
+		nrgInfiltr8.f90 \
 		volicePack.f90 \
 		qTimeDelay.f90
 MODRUN = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODRUN))

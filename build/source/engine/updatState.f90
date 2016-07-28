@@ -36,7 +36,7 @@ contains
 
 
  ! *************************************************************************************************************
- ! public subroutine updateSnow: compute phase change impacts on matric head and volumetric liquid water and ice
+ ! public subroutine updateSnow: compute phase change impacts on volumetric liquid water and ice
  ! *************************************************************************************************************
  subroutine updateSnow(&
                        ! input
@@ -72,7 +72,8 @@ contains
  !print*, 'mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq) = ', mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq)
 
  !write(*,'(a,1x,4(f20.10,1x))') 'in updateSnow: fLiq, mLayerTheta, mLayerVolFracIce = ', &
- !                                               fLiq, mLayerTheta, mLayerVolFracIce
+ :wq
+!                                               fLiq, mLayerTheta, mLayerVolFracIce
  !pause
 
  end subroutine updateSnow

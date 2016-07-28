@@ -100,6 +100,8 @@ contains
                   err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; endif
 
+ if(divideLayer) print*, '*** layer was divided!!!'
+
  ! merge snow layers if they are too thin
  call layerMerge(&
                  ! input/output: model data structures

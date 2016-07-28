@@ -132,6 +132,7 @@ contains
   if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
    iLayerLiqFluxSnow(iLayer)      = iLayerLiqFluxSnow(iLayer-1)
    iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
+   write(*,'(a,i4,1x,e20.10,1x,10(f9.3,1x))') 'liqFluxSnow (dense):  ', iLayer, iLayerLiqFluxSnow(iLayer), mLayerVolFracLiqTrial(iLayer), mLayerVolFracIce(iLayer)
   ! ** typical flux computations
   else
    ! check that flow occurs
@@ -145,6 +146,8 @@ contains
     ! compute the flux and derivative (m s-1)
     iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
     iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)
+    write(*,'(a,i4,1x,e20.10,1x,10(f9.3,1x))') 'liqFluxSnow (normal): ', iLayer, iLayerLiqFluxSnow(iLayer), mLayerVolFracLiqTrial(iLayer), mLayerVolFracIce(iLayer), availCap, relSaturn, k_snow
+
     ! check the derivative
     !relSaturn1 = (mLayerVolFracLiqTrial(iLayer)+dx - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
     !testFlux   =  k_snow*relSaturn1**mw_exp

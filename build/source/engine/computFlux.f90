@@ -435,6 +435,7 @@ contains
    ! compute the derivative in the liquid water matric potential w.r.t. temperature (m K-1)
    dEffSat_dTemp        = -mLayerdTheta_dTk(nSnow+iSoil)*xNum/(xDen**2._dp) + mLayerdTheta_dTk(nSnow+iSoil)/xDen
    dPsiLiq_dTemp(iSoil) = dPsiLiq_dEffSat*dEffSat_dTemp
+
   ! ** unfrozen soil
   else   ! (no ice)
    dPsiLiq_dPsi0(iSoil)       = 1._dp  ! derivative=1 because values are identical
@@ -647,6 +648,7 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSnow
    mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
+   write(*,'(a,i4,1x,10(f20.8,1x))') 'iLayer, mLayerLiqFluxSnow(iLayer) = ', iLayer, mLayerLiqFluxSnow(iLayer), mLayerDepth(iLayer)
   end do
 
  else

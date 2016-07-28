@@ -675,7 +675,8 @@ contains
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-   pause 'completed step!'
+   !print*, trim(cmessage)
+   !pause 'completed step!'
 
    ! update first step
    firstStep=.false.
@@ -1005,8 +1006,8 @@ contains
   ! check the water balance in each layer
   do iLayer=1,nSoil
    xCompress = diag_data%var(iLookDIAG%mLayerCompress)%dat(iLayer)
-   xFlux0    = flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(iLayer-1)*dt
-   xFlux1    = flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(iLayer)*dt
+   xFlux0    = flux_mean%var( childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil) )%dat(iLayer-1)*dt
+   xFlux1    = flux_mean%var( childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil) )%dat(iLayer)*dt
    write(*,'(a,1x,i4,1x,10(e20.10,1x))') 'iLayer, xFlux0, xFlux1, (xFlux1 - xFlux0)/mLayerDepth(iLayer), xCompress = ', &
                                           iLayer, xFlux0, xFlux1, (xFlux1 - xFlux0)/mLayerDepth(iLayer), xCompress
   end do
