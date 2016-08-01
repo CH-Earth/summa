@@ -72,8 +72,7 @@ contains
  !print*, 'mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq) = ', mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq)
 
  !write(*,'(a,1x,4(f20.10,1x))') 'in updateSnow: fLiq, mLayerTheta, mLayerVolFracIce = ', &
- :wq
-!                                               fLiq, mLayerTheta, mLayerVolFracIce
+ !                                               fLiq, mLayerTheta, mLayerVolFracIce
  !pause
 
  end subroutine updateSnow
@@ -91,9 +90,9 @@ contains
                        theta_res        ,& ! intent(in): soil residual volumetric water content (-)
                        vGn_m            ,& ! intent(in): van Genutchen "m" parameter (-)
                        ! output
-                       mLayerVolFracWat ,& ! intent(out): volumetric fraction of total water (-)
                        mLayerVolFracLiq ,& ! intent(out): volumetric fraction of liquid water (-)
                        mLayerVolFracIce ,& ! intent(out): volumetric fraction of ice (-)
+                       mLayerVolFracWat ,& ! intent(out): volumetric fraction of total water (-)
                        err,message)        ! intent(out): error control
  ! utility routines
  USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head

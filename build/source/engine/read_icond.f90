@@ -454,9 +454,9 @@ contains
                     mLayerMatricHead(iLayer-nSnow),            & ! intent(in): matric head (m)
                     vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
                     ! output
-                    scalarTheta,                               & ! intent(out): volumetric fraction of total water (-)
                     mLayerVolFracLiq(iLayer),                  & ! intent(out): volumetric fraction of liquid water (-)
                     mLayerVolFracIce(iLayer),                  & ! intent(out): volumetric fraction of ice (-)
+                    scalarTheta,                               & ! intent(out): volumetric fraction of total water (-)
                     err,cmessage)                                ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 

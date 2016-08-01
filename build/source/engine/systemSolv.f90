@@ -703,11 +703,12 @@ contains
    ! update states: compute liquid water and ice content from total water content
    call varExtract(&
                    ! input
+                   .true.,                                    & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                    stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
+                   mpar_data,                                 & ! intent(in):    model parameters for a local HRU
+                   diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
                    prog_data,                                 & ! intent(inout): model prognostic variables for a local HRU
                    indx_data,                                 & ! intent(in):    indices defining model states and layers
-                   snowfrz_scale,                             & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
-                   vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in):    van Genutchen soil parameters
                    ! output: variables for the vegetation canopy
                    scalarFracLiqVeg,                          & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
                    scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
