@@ -1188,10 +1188,12 @@ contains
  subroutine handle_err(err,message)
  ! used to handle error codes
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX    ! named variables defining elements in data structure
+ USE netcdf
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)::err             ! error code
  character(*),intent(in)::message         ! error message
+ integer(i4b)           ::nc_err          ! error code of nc_close
  ! return if A-OK
  if(err==0) return
  ! process error messages
@@ -1230,6 +1232,11 @@ contains
  print*,'error code = ', err
  if(allocated(timeStruct%var)) print*, timeStruct%var
  !write(*,'(a)') trim(message)
+ 
+ ! close all the netcdf files
+ do iFreq = 1,nFreq
+  nc_err = nf90_close(ncid(iFreq))
+ end do
  stop
  end subroutine handle_err
 
