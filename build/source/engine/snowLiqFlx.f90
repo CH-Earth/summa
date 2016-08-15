@@ -128,33 +128,21 @@ contains
 
  ! compute fluxes
  do iLayer=1,nSnow  ! (loop through snow layers)
-  ! ** allow liquid water to pass through under very high density
-  if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
-   iLayerLiqFluxSnow(iLayer)      = iLayerLiqFluxSnow(iLayer-1)
+  ! check that flow occurs
+  if(mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer))then
+   ! compute the relative saturation (-)
+   availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
+   relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
+   iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
+   iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)
+   if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
+     ! ! ** allow liquid water to pass through under very high ice density
+     iLayerLiqFluxSnow(iLayer) = iLayerLiqFluxSnow(iLayer) + iLayerLiqFluxSnow(iLayer-1) !NOTE: derivative may need to be updated in future. 
+   end if
+  else  ! flow does not occur
+   iLayerLiqFluxSnow(iLayer)      = 0._dp
    iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
-  ! ** typical flux computations
-  else
-   ! check that flow occurs
-   if(mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer))then
-    ! compute the relative saturation (-)
-    availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
-    relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
-    !print*, 'mLayerVolFracLiqTrial(iLayer) = ', mLayerVolFracLiqTrial(iLayer)
-    !print*, 'mLayerPoreSpace(iLayer), mLayerThetaResid(iLayer) = ', mLayerThetaResid(iLayer)
-    !print*, 'iLayer, availCap, relSaturn, k_snow = ', iLayer, availCap, relSaturn, k_snow
-    ! compute the flux and derivative (m s-1)
-    iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
-    iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)
-    ! check the derivative
-    !relSaturn1 = (mLayerVolFracLiqTrial(iLayer)+dx - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
-    !testFlux   =  k_snow*relSaturn1**mw_exp
-    !write(*,'(a,1x,10(e25.10,1x))') 'iLayerLiqFluxSnow(iLayer), testFlux, iLayerLiqFluxSnowDeriv(iLayer), (testFlux - iLayerLiqFluxSnow(iLayer))/dx = ', &
-    !                                 iLayerLiqFluxSnow(iLayer), testFlux, iLayerLiqFluxSnowDeriv(iLayer), (testFlux - iLayerLiqFluxSnow(iLayer))/dx
-   else  ! flow does not ocur
-    iLayerLiqFluxSnow(iLayer)      = 0._dp
-    iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
-   endif  ! storage above residual content
-  endif  ! check for very high density
+  endif  ! storage above residual content
  end do  ! loop through snow layers
 
  ! end association of local variables with information in the data structures
