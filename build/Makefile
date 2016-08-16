@@ -136,7 +136,7 @@ NRPROC = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
 SUMMA_HOOKUP= \
-    summaFileManager.f90
+		summaFileManager.f90
 HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
 # Data modules
@@ -148,7 +148,7 @@ SUMMA_DATAMS= \
 		get_ixname.f90 \
 		ascii_util.f90 \
 		popMetadat.f90 \
-  	outpt_stat.f90
+		outpt_stat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
 # utility modules
@@ -167,7 +167,7 @@ SUMMA_MODGUT= \
 SUMMA_SOLVER= \
 		vegPhenlgy.f90 \
 		diagn_evar.f90 \
-    stomResist.f90 \
+		stomResist.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
