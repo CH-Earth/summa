@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+set -e
+
+export CC=/usr/bin/gcc-6
+export FC=/usr/bin/gfortran-6
+
+if [ -z "$WORKDIR" ]; then
+    export WORKDIR=$HOME/workdir
+    mkdir -p $WORKDIR
+fi
+
+if [ -z "$INSTALLDIR" ]; then
+    export INSTALLDIR=$HOME/installdir
+    mkdir -p $INSTALLDIR
+fi
+
+function install_szip {
+    echo install_szip
+    cd $WORKDIR
+    wget --no-check-certificate -q http://www.hdfgroup.org/ftp/lib-external/szip/2.1/src/szip-2.1.tar.gz
+    tar -xzf szip-2.1.tar.gz
+    cd szip-2.1
+    ./configure --prefix=$INSTALLDIR &> config.log
+    make &> make.log
+    make install
+    export CPPFLAGS="$CPPFLAGS -I${INSTALLDIR}/include"
+    export LDFLAGS="$LDFLAGS -L${INSTALLDIR}/lib"
+}
+
+function install_hdf5 {
+    echo install_hdf5
+    cd $WORKDIR
+    wget --no-check-certificate -q http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.17.tar.gz
+    tar -xzf hdf5-1.8.17.tar.gz
+    cd hdf5-1.8.17
+    ./configure --prefix=$INSTALLDIR &> config.log
+    make &> make.log
+    make install
+    export LIBDIR=${INSTALLDIR}/lib
+}
+
+function install_netcdf_c {
+    echo install_netcdf_c
+    cd $WORKDIR
+    wget --no-check-certificate -q ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.4.1.tar.gz
+    tar -xzf netcdf-4.4.1.tar.gz
+    cd netcdf-4.4.1
+    ./configure --prefix=$INSTALLDIR &> config.log
+    make &> make.log
+    make install
+    export LD_LIBRARY_PATH=${INSTALLDIR}/lib
+}
+
+function install_netcdf_fortran {
+    echo install_netcdf_fortran
+    cd $WORKDIR
+    wget --no-check-certificate -q ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-fortran-4.4.4.tar.gz
+    tar -xzf netcdf-fortran-4.4.4.tar.gz
+    cd netcdf-fortran-4.4.4
+    ./configure --prefix=$INSTALLDIR &> config.log
+    make &> make.log
+    make install
+}
+
+function summa_before_install {
+    echo summa_before_install
+    # Install szip (used by hdf5)
+    install_szip
+    # Install HDF5
+    install_hdf5
+    # Install NetCDF-C
+    install_netcdf_c
+    # Install NetCDF fortran
+    install_netcdf_fortran
+}
+
+function summa_install {
+    echo summa_install
+    cd ${TRAVIS_BUILD_DIR}
+    sed -i "s/FC =.*/FC = gfortran-6/" build/Makefile
+    sed -i "s|F_MASTER =.*|F_MASTER = ${TRAVIS_BUILD_DIR}|" build/Makefile
+    sed -i "s|NCDF_PATH =.*|NCDF_PATH = ${INSTALLDIR}|" build/Makefile
+    make -C build/ -f Makefile &> make.log
+}
+
+function summa_script {
+    echo summa_script
+    ${TRAVIS_BUILD_DIR}/bin/summa.exe
+}
+
+function summa_after_success {
+  echo summa_after_success
+  echo "SUMMA build succeeded"
+}
+
+function summa_after_failure {
+  echo summa_after_failure
+  echo "SUMMA build failed"
+}
