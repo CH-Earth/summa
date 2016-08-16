@@ -1,19 +1,26 @@
-sudo: false
+sudo: false # use container-based build
 language: fortran
-compiler:
-  - gfortran
-os:
-  - linux
+notifications:
+    email: false
+
+compiler: gfortran-6
+os: linux
+env: TESTID='summa_linux'
 addons:
   apt:
-    source:
+    sources:
       - ubuntu-toolchain-r-test
     packages:
-      - libnetcdf-dev
       - liblapack-dev
-      - gfortran
+      - gfortran-6
+before_install:
+  - source ci/summa_install_utils
+  - summa_before_install
+install:
+   - summa_install
 script:
-  - sed -i "s/FC =/FC = gfortran/" build/Makefile
-  - sed -i "s|F_MASTER =|F_MASTER = ${TRAVIS_BUILD_DIR}|" build/Makefile
-  - make -C build/ -f Makefile
-  - ${TRAVIS_BUILD_DIR}/bin/summa.exe
+  - summa_script
+after_success:
+  - summa_after_success
+after_failure:
+  - summa_after_failure
