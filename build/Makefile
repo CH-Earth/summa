@@ -32,7 +32,7 @@ FC =
 
 # gfortran compiler on OS X tested with 4.8 and higher
 # (works on Mac OS X with Macports)
-ifeq "$(FC)" "gfortran-mp-4.8"
+ifeq "$(FC)" "gfortran-mp-6"
  NCDF_PATH = /opt/local
  LAPK_PATH = /opt/local
  # define the lapack libraries - on OS X you need atlas and
@@ -42,11 +42,11 @@ endif
 
 # Ubuntu gfortran compiler tested with 4.6 and higher
 # also used for the travis build
-ifeq "$(FC)" "gfortran"
- NCDF_PATH = /opt/netcdf4
- LAPK_PATH = /opt/local
+ifeq "$(FC)" "gfortran-6"
+ NCDF_PATH = /usr/local
+ LAPK_PATH = /usr
  # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
 endif
 
 # Intel fortran compiler
@@ -72,12 +72,12 @@ INCNETCDF = -I$(NCDF_PATH)/include
 # Define compiler flags. If you use a different compiler,
 # you will need to figure out what the equivalent flags are
 # and may need to update this section
-ifeq "$(FC)" "gfortran-mp-4.8"
+ifeq "$(FC)" "gfortran-mp-6"
  FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 endif
-ifeq "$(FC)" "gfortran"
+ifeq "$(FC)" "gfortran-6"
  FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
@@ -122,7 +122,7 @@ ENGINE_DIR = $(F_KORE_DIR)/engine
 
 #  utilities
 SUMMA_NRUTIL= \
-        nrtype.f90 \
+		nrtype.f90 \
 		nr_utility.f90
 NRUTIL = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRUTIL))
 
@@ -136,7 +136,7 @@ NRPROC = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
 SUMMA_HOOKUP= \
-        summaFileManager.f90
+		summaFileManager.f90
 HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
 # Data modules
@@ -148,7 +148,7 @@ SUMMA_DATAMS= \
 		get_ixname.f90 \
 		ascii_util.f90 \
 		popMetadat.f90 \
-  		outpt_stat.f90
+		outpt_stat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
 # utility modules
@@ -161,13 +161,13 @@ UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
 # Model guts
 SUMMA_MODGUT= \
-MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
+		MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
 
 # Solver
 SUMMA_SOLVER= \
 		vegPhenlgy.f90 \
 		diagn_evar.f90 \
-        	stomResist.f90 \
+		stomResist.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
@@ -248,7 +248,7 @@ SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER)
 
 # Define the driver routine
 SUMMA_DRIVER= \
-	multi_driver.f90
+		multi_driver.f90
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 
 # Define the executable

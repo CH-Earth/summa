@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/NCAR/summa.svg)](https://travis-ci.org/NCAR/summa)
+[![Build Status](https://travis-ci.org/NCAR/summa.svg?branch=develop)](https://travis-ci.org/NCAR/summa)
 #SUMMA
 
 This is the source code repository for the **Structure for Unifying Multiple Modeling Alternatives** or **SUMMA**. More information about SUMMA, including publications, test data sets, and sample applications can be found on the [SUMMA web site](http://www.ral.ucar.edu/projects/summa) at NCAR.

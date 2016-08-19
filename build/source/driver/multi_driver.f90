@@ -971,11 +971,11 @@ do modelTimeStep=1,numtim
    ! Passes the full metadata structure rather than the stats metadata structure because 
    !  we have the option to write out data of types other than statistics. 
    !  Thus, we must also pass the stats parent->child maps from childStruct.
-   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,fluxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,iHRU,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,fluxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
   
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
@@ -1194,10 +1194,12 @@ contains
  subroutine handle_err(err,message)
  ! used to handle error codes
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX    ! named variables defining elements in data structure
+ USE netcdf
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)::err             ! error code
  character(*),intent(in)::message         ! error message
+ integer(i4b)           ::nc_err          ! error code of nc_close
  ! return if A-OK
  if(err==0) return
  ! process error messages
@@ -1236,6 +1238,11 @@ contains
  print*,'error code = ', err
  if(allocated(timeStruct%var)) print*, timeStruct%var
  !write(*,'(a)') trim(message)
+ 
+ ! close all the netcdf files
+ do iFreq = 1,nFreq
+  nc_err = nf90_close(ncid(iFreq))
+ end do
  stop
  end subroutine handle_err
 
