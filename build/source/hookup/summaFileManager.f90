@@ -38,7 +38,7 @@ CHARACTER(LEN=summaPathLen)  :: META_ATTR        ='summa_zLocalAttributeMeta.txt
 CHARACTER(LEN=summaPathLen)  :: META_TYPE        ='summa_zCatergoryMeta.txt'       ! metadata for local classification of veg, soil, etc.
 CHARACTER(LEN=summaPathLen)  :: META_FORCE       ='summa_zForceMeta.txt'           ! metadata for model forcing variables
 CHARACTER(LEN=summaPathLen)  :: META_LOCALPARAM  ='summa_zLocalParamMeta.txt'      ! metadata for model parameters
-CHARACTER(LEN=summaPathLen)  :: META_LOCALMVAR   ='summa_zLocalModelVarMeta.txt'   ! metadata for model variables
+CHARACTER(LEN=summaPathLen)  :: OUTPUT_CONTROL   ='summa_zLocalModelVarMeta.txt'   ! metadata for model variables
 CHARACTER(LEN=summaPathLen)  :: META_LOCALINDEX  ='summa_zLocalModelIndexMeta.txt' ! metadata for model indices
 CHARACTER(LEN=summaPathLen)  :: META_BASINPARAM  ='summa_zBasinParamMeta.txt'      ! metadata for model parameters
 CHARACTER(LEN=summaPathLen)  :: META_BASINMVAR   ='summa_zBasinModelVarMeta.txt'   ! metadata for model variables
@@ -113,7 +113,7 @@ call readLine(fileUnit,META_ATTR,       err,message); if(err/=0)return
 call readLine(fileUnit,META_TYPE,       err,message); if(err/=0)return
 call readLine(fileUnit,META_FORCE,      err,message); if(err/=0)return
 call readLine(fileUnit,META_LOCALPARAM, err,message); if(err/=0)return
-call readLine(fileUnit,META_LOCALMVAR,  err,message); if(err/=0)return
+call readLine(fileUnit,OUTPUT_CONTROL,  err,message); if(err/=0)return
 call readLine(fileUnit,META_LOCALINDEX, err,message); if(err/=0)return
 call readLine(fileUnit,META_BASINPARAM, err,message); if(err/=0)return
 call readLine(fileUnit,META_BASINMVAR,  err,message); if(err/=0)return
