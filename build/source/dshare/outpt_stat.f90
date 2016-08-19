@@ -51,7 +51,6 @@ contains
  character(256)                 :: cmessage         ! error message
  integer(i4b)                   :: iVar             ! index for varaiable loop
  integer(i4b)                   :: pVar             ! index into parent structure
- integer(i4b)                   :: iFreq            ! index for frequency loop
  real(dp)                       :: tdata            ! dummy for pulling info from dat structure
 
  ! initialize error control

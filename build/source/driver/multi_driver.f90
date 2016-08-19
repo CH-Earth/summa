@@ -178,7 +178,6 @@ type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)
 ! define the ancillary data structures
 type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
 ! define indices
-integer(i4b)                     :: iVar                       ! index of a model variable 
 integer(i4b)                     :: iStruct                    ! loop through data structures
 integer(i4b)                     :: iGRU
 integer(i4b)                     :: iHRU,jHRU,kHRU         ! index of the hydrologic response unit
@@ -188,8 +187,6 @@ integer(i4b)                     :: hruCount                   ! number of local
 integer(i4b)                     :: modelTimeStep=0            ! index of model time step
 integer(i4b)                     :: waterYearTimeStep=0        ! index of water year
 integer(i4b),dimension(maxFreq)  :: outputTimeStep=0           ! timestep in output files
-integer(i4b)                     :: ix_gru                     ! index of GRU that corresponds to the global HRU
-integer(i4b)                     :: ix_hru                     ! index of local HRU that corresponds to the global HRU
 ! define the time output
 logical(lgt)                     :: printProgress              ! flag to print progress
 integer(i4b),parameter           :: ixProgress_im=1000         ! named variable to print progress once per month
@@ -219,11 +216,7 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
-integer(i4b)                     :: fileUnit                   ! file unit (output from file_open; a unit not currently used)
 logical(lgt),parameter           :: printTime=.true.           ! flag to print the time information
-character(LEN=256),allocatable   :: dataLines(:)               ! vector of character strings from non-comment lines
-character(LEN=256),allocatable   :: chardata(:)                ! vector of character data
-integer(i4b)                     :: iWord                      ! loop through words in a string
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
 integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
@@ -381,9 +374,9 @@ end do
 ! read local attributes for each HRU
 ! *****************************************************************************
 if (iRunMode==iRunModeHRU) then
- call read_attrb(trim(attrFile),nGRU,fileHRU,attrStruct,typeStruct,err,message,checkHRU=checkHRU)
+ call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,err,message)
 else
- call read_attrb(trim(attrFile),nGRU,fileHRU,attrStruct,typeStruct,err,message)
+ call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,err,message)
 end if 
 call handle_err(err,message)
 
@@ -549,7 +542,7 @@ call read_icond(restartFile,                   & ! name of initial conditions fi
                 err,message)                     ! error control
 call handle_err(err,message)
 
-call check_icond(nGRU,nHRU,                     & ! number of response units
+call check_icond(nGRU,                          & ! number of response units
                  progStruct,                    & ! model prognostic (state) variables
                  mparStruct,                    & ! model parameters
                  indxStruct,                    & ! layer indexes
@@ -707,17 +700,15 @@ do modelTimeStep=1,numtim
    call read_force(&
                    ! input
                    modelTimeStep,                              & ! intent(in):    time step index
-                   iGRU,                                       & ! intent(in):    index of gru
-                   iHRU,                                   & ! intent(in):    index of LOCAL hru
-                   gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,   & ! intent(in):    index of hru in netcdf
+                   gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,       & ! intent(in):    index of hru in netcdf
                    ! input-output
                    iFile,                                      & ! intent(inout): index of current forcing file in forcing file list
                    forcingStep,                                & ! intent(inout): index of read position in time dimension in current netcdf file
                    forcNcid,                                   & ! intent(inout): netcdf file identifier for the current forcing file
                    ! output
                    timeStruct%var,                             & ! intent(out):   time data structure (integer)
-                   forcStruct%gru(iGRU)%hru(iHRU)%var,     & ! intent(out):   forcing data structure (double precision)
-                   err, message)                               ! intent(out):   error control
+                   forcStruct%gru(iGRU)%hru(iHRU)%var,         & ! intent(out):   forcing data structure (double precision)
+                   err, message)                                 ! intent(out):   error control
    call handle_err(err,message)
   end do 
  end do  ! (end looping through global GRUs)

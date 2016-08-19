@@ -201,7 +201,7 @@ SUMMA_PRELIM= \
 		pOverwrite.f90 \
 		read_param.f90 \
 		paramCheck.f90 \
-		read_icond.f90
+		check_icond.f90
 PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_PRELIM))
 
 SUMMA_NOAHMP= \
@@ -237,7 +237,8 @@ SUMMA_MSOLVE = \
 SUMMA_NETCDF = \
 		netcdf_util.f90 \
 		def_output.f90 \
-		modelwrite.f90
+		modelwrite.f90 \
+		read_icond.f90
 NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(SUMMA_NETCDF))
 
 # ... stitch together common programs

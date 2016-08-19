@@ -32,7 +32,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
- subroutine check_icond(nGRU,nHRU,                     & ! number of GRUs and HRUs
+ subroutine check_icond(nGRU,                          & ! number of GRUs and HRUs
                         progData,                      & ! model prognostic (state) variables
                         mparData,                      & ! model parameters
                         indxData,                      & ! layer index data
@@ -62,7 +62,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- integer(i4b)           ,intent(in)    :: nGRU, nHRU   ! number of response units
+ integer(i4b)           ,intent(in)    :: nGRU         ! number of response units
  type(gru_hru_doubleVec),intent(inout) :: progData     ! prognostic vars 
  type(gru_hru_double)   ,intent(in)    :: mparData     ! parameters 
  type(gru_hru_intVec)   ,intent(in)    :: indxData     ! layer indexes 
@@ -71,10 +71,8 @@ contains
 
  ! locals
  character(len=256)                     :: cmessage     ! downstream error message
- integer(i4b)                           :: iVar         ! loop index 
  integer(i4b)                           :: iGRU         ! loop index 
  integer(i4b)                           :: iHRU         ! loop index 
- integer(i4b)                           :: cHRU         ! loop index 
 
  ! temporary variables for realism checks
  integer(i4b)                      :: iLayer              ! layer index
@@ -87,7 +85,6 @@ contains
  real(dp)                          :: kappa               ! constant in the freezing curve function (m K-1)
  real(dp)                          :: maxVolFracLiq       ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
  integer(i4b)                      :: nSnow               ! number of snow layers
- integer(i4b)                      :: nSoil               ! number of soil layers
 
  ! --------------------------------------------------------------------------------------------------------
 

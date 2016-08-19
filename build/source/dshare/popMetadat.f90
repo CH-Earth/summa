@@ -661,7 +661,6 @@ contains
  character(LEN=512),allocatable     :: charlines(:)    ! vector of character strings
  character(LEN=64),allocatable      :: lineWords(:)    ! vector to parse textline
  integer(i4b)                       :: nWords          ! number of words in line
- character(LEN=64)                  :: vName           ! string for indexing into integrations of model variables
  integer(i4b)                       :: oFreq           ! output frequencies read from file
  integer(i4b),parameter             :: modelTime=1     ! to force index variables to be output at model timestep
  character(LEN=5)                   :: structName      ! name of structure
@@ -669,7 +668,6 @@ contains
  ! indices
  integer(i4b)                       :: vLine           ! index for loop through variables
  integer(i4b)                       :: vDex            ! index into type lists
- integer(i4b)                       :: iInt            ! index into integration depths
 
  ! flags
  logical(lgt),dimension(6)          :: indexFlags      ! logical flags to turn on index variables 

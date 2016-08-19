@@ -28,7 +28,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_force: read in forcing data
  ! ************************************************************************************************
- subroutine read_force(istep,iGRU,iHRU_local,iHRU_global,iFile,iRead,ncid,time_data,forc_data,err,message)
+ subroutine read_force(istep,iHRU_global,iFile,iRead,ncid,time_data,forc_data,err,message)
  ! provide access to subroutines
  USE nrtype                                            ! variable types, etc.
  USE netcdf                                            ! netcdf capability
@@ -52,8 +52,6 @@ contains
  implicit none
  ! define input variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
- integer(i4b),intent(in)           :: iGRU             ! index of grouped response unit
- integer(i4b),intent(in)           :: iHRU_local       ! index of local hydrologic response unit
  integer(i4b),intent(in)           :: iHRU_global      ! index of global hydrologic response unit
  ! define input-output variables
  integer(i4b),intent(inout)        :: iFile            ! index of current forcing file in forcing file list
