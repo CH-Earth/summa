@@ -24,13 +24,13 @@ USE netcdf
 implicit none
 private
 public::read_icond
-public::read_icond_layers
+public::read_icond_nlayers
 contains
 
  ! ************************************************************************************************
- ! public subroutine read_icond_layers: read model initial conditions file for number of snow/soil layers
+ ! public subroutine read_icond_nlayers: read model initial conditions file for number of snow/soil layers
  ! ************************************************************************************************
- subroutine read_icond_layers(iconFile,nGRU,indx_meta,err,message)
+ subroutine read_icond_nlayers(iconFile,nGRU,indx_meta,err,message)
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
@@ -65,7 +65,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
  err=0
- message = 'read_icond_layers/'
+ message = 'read_icond_nlayers/'
 
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage);
@@ -104,7 +104,7 @@ contains
  ! cleanup
  deallocate(snowData,soilData)
 
- end subroutine read_icond_layers
+ end subroutine read_icond_nlayers
 
 
  ! ************************************************************************************************

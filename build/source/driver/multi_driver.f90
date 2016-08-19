@@ -48,7 +48,7 @@ USE read_pinit_module,only:read_pinit                       ! module to read ini
 USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
 USE check_icond_module,only:check_icond                     ! module to check initial conditions
 USE read_icond_module,only:read_icond                       ! module to read initial conditions
-USE read_icond_module,only:read_icond_layers                ! module to read initial conditions
+USE read_icond_module,only:read_icond_nlayers               ! module to read initial conditions
 USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
 USE read_param_module,only:read_param                       ! module to read model parameter sets
 USE ConvE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
@@ -322,7 +322,7 @@ call handle_err(err,message)
 ! *****************************************************************************
 ! read number of snow and soil layers
 restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
-call read_icond_layers(trim(restartFile),nGRU,indx_meta,err,message)
+call read_icond_nlayers(trim(restartFile),nGRU,indx_meta,err,message)
 call handle_err(err,message)
 
 ! *****************************************************************************
@@ -1178,10 +1178,12 @@ contains
  subroutine handle_err(err,message)
  ! used to handle error codes
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX    ! named variables defining elements in data structure
+ USE netcdf
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)::err             ! error code
  character(*),intent(in)::message         ! error message
+ integer(i4b)           ::nc_err          ! error code of nc_close
  ! return if A-OK
  if(err==0) return
  ! process error messages
@@ -1220,6 +1222,11 @@ contains
  print*,'error code = ', err
  if(allocated(timeStruct%var)) print*, timeStruct%var
  !write(*,'(a)') trim(message)
+ 
+ ! close all the netcdf files
+ do iFreq = 1,nFreq
+  nc_err = nf90_close(ncid(iFreq))
+ end do
  stop
  end subroutine handle_err
 
