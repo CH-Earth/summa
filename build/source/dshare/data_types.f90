@@ -96,13 +96,13 @@ MODULE data_types
  ! hru info data structure
  type, public :: hru_info
   integer(i4b)                      :: hru_nc                   ! index of the hru in the netcdf file
-  integer(i4b)                      :: hru_ix                   ! index of the hru in the entire domain
+  integer(i4b)                      :: hru_ix                   ! index of the hru in the run domain
   integer(i4b)                      :: hru_id                   ! id (non-sequential number) of the hru
   integer(i4b)                      :: nSnow                    ! number of snow layers
   integer(i4b)                      :: nSoil                    ! number of soil layers
  endtype hru_info
 
- ! define mapping from HRUs to the HRUs
+ ! define mapping from GRUs to the HRUs
  type, public :: gru2hru_map
   integer(i4b)                      :: gruId                    ! id of the gru
   integer(i4b)                      :: hruCount                 ! total number of hrus in the gru

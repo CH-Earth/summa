@@ -123,7 +123,7 @@ contains
 
  ! compute fractional **volume** of total water (liquid plus ice)
  mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
- if(mLayerVolFracWat > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; endif
+ if(mLayerVolFracWat > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
@@ -148,7 +148,7 @@ contains
   mLayerVolFracLiq = mLayerVolFracWat
   mLayerVolFracIce = 0._dp
 
- endif  ! (check if soil is partially frozen)
+ end if  ! (check if soil is partially frozen)
 
  end subroutine updateSoil
 

@@ -122,7 +122,7 @@ contains
   chi2 = exp(-tempScalGrowth*(Tfreeze - mLayerTemp(iSnow)))
   ! compute the acceleration of grain growth in the presence of liquid water (-)
   if(mLayerVolFracLiqNew(iSnow) > wetSnowThresh)then; chi3=2._dp  ! snow is "wet"
-  else; chi3=1._dp; endif                                         ! snow is "dry"
+  else; chi3=1._dp; end if                                         ! snow is "dry"
   ! compute the compaction associated with grain growth (s-1)
   CR_grainGrowth = grainGrowthRate*chi1*chi2*chi3
   ! **** compute the compaction associated with over-burden pressure (s-1)
@@ -145,13 +145,13 @@ contains
     volFracIceLoss = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice - dt*(scalarSnowSublimation/mLayerDepth(iSnow))/iden_ice )
    else
     volFracIceLoss = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
-   endif
+   end if
    ! (adjust snow depth to account for cavitation)
    scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
    !print*, 'volFracIceLoss = ', volFracIceLoss
   else
    scalarDepthNew = mLayerDepth(iSnow)
-  endif
+  end if
   ! compute the total compaction rate associated with metamorphism
   CR_metamorph = CR_grainGrowth + CR_ovrvdnPress
   ! update depth due to metamorphism (implicit solution)
@@ -161,7 +161,7 @@ contains
    write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, dt, density, massIceOld, massLiqOld = ', iSnow, dt, mLayerVolFracIceNew(iSnow)*iden_ice, massIceOld, massLiqOld
    write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
                                          iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
-  endif
+  end if
   ! update volumetric ice and liquid water content
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
   mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
@@ -176,7 +176,7 @@ contains
   end do
   message=trim(message)//'unreasonable value for snow depth'
   err=20; return
- endif
+ end if
 
  ! check for low/high snow density
  if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice < minLayerDensity) .or. &
@@ -186,7 +186,7 @@ contains
   end do
   message=trim(message)//'unreasonable value for snow density'
   err=20; return
- endif
+ end if
 
  end subroutine snwDensify
 

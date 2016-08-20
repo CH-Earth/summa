@@ -190,10 +190,10 @@ contains
 
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
-   call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! associate local variables to the information in the data structures
    ! NOTE: need to do this here, since state vectors have just been modified
@@ -243,9 +243,9 @@ contains
     end select  ! identify option for snow albedo
     ! set direct albedo to diffuse albedo
     diag_data%var(iLookDIAG%spectralSnowAlbedoDirect)%dat(:) = prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(:)
-   endif  ! (if NOT using the Noah-MP radiation routine)
+   end if  ! (if NOT using the Noah-MP radiation routine)
 
-  endif  ! if creating a new layer
+  end if  ! if creating a new layer
 
  ! end special case of nSnow=0
  ! ********************************************************************************************************************
@@ -272,7 +272,7 @@ contains
       zmaxCheck = zmax_lower(iLayer)
      else
       zmaxCheck = zmax_upper(iLayer)
-     endif
+     end if
     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
    end select ! (option to combine/sub-divide snow layers)
   
@@ -283,10 +283,10 @@ contains
     divideLayer=.true.
   
     ! add a layer to all model variables
-    call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   
     ! define the layer depth
     layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
@@ -297,11 +297,11 @@ contains
   
     exit  ! NOTE: only sub-divide one layer per substep
   
-   endif   ! (if sub-dividing layer)
+   end if   ! (if sub-dividing layer)
   
   end do  ! (looping through layers)
 
- endif  ! if nSnow==0
+ end if  ! if nSnow==0
 
  ! update coordinates
  if(divideLayer)then
@@ -341,12 +341,12 @@ contains
    write(*,'(a,1x,f30.25,1x)') 'epsilon(scalarSnowDepth)  = ', epsilon(scalarSnowDepth)
    message=trim(message)//'sum of layer depths does not equal snow depth'
    err=20; return
-  endif
+  end if
 
   ! end association with coordinate variables in data structure
   end associate geometry
 
- endif  ! if dividing a layer
+ end if  ! if dividing a layer
 
  ! end associate variables in data structure
  end associate
@@ -410,62 +410,62 @@ contains
    ! ** double precision
    type is (var_dlength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! assign the data vector to the temporary vector
     call cloneStruc(tempVec_dp, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! reallocate space for the new vector
     deallocate(dataStruct%var(ivar)%dat,stat=err)
-    if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
+    if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; end if
     allocate(dataStruct%var(ivar)%dat(ix_lower:ix_upper+1),stat=err)
-    if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
+    if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; end if
     ! populate the state vector
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
        dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_dp(1:ix_divide)  ! copy data
        dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_dp(ix_divide)    ! repeat data for the sub-divided layer
-      endif
+      end if
       if(ix_upper > ix_divide) &
        dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_dp(ix_divide+1:ix_upper)  ! copy data
-     endif  ! if the vector exists
+     end if  ! if the vector exists
     ! not a state variable
     else
      dataStruct%var(ivar)%dat(:) = missingDouble
-    endif
+    end if
     ! deallocate the temporary vector: strictly not necessary, but include to be safe
     deallocate(tempVec_dp,stat=err)
-    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; end if
 
    ! ** integer
    type is (var_ilength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! assign the data vector to the temporary vector
     call cloneStruc(tempVec_i4b, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! reallocate space for the new vector
     deallocate(dataStruct%var(ivar)%dat,stat=err)
-    if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; endif
+    if(err/=0)then; err=20; message='problem in attempt to deallocate memory for data vector'; return; end if
     allocate(dataStruct%var(ivar)%dat(ix_lower:ix_upper+1),stat=err)
-    if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; endif
+    if(err/=0)then; err=20; message='problem in attempt to reallocate memory for data vector'; return; end if
     ! populate the state vector
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
        dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_i4b(1:ix_divide)  ! copy data
        dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
-      endif
+      end if
       if(ix_upper > ix_divide) &
        dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_i4b(ix_divide+1:ix_upper)  ! copy data
-     endif  ! if the vector exists
+     end if  ! if the vector exists
     ! not a state variable
     else
      dataStruct%var(ivar)%dat(:) = missingInteger
-    endif
+    end if
     ! deallocate the temporary vector: strictly not necessary, but include to be safe
     deallocate(tempVec_i4b,stat=err)
-    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; end if
 
    ! check that we found the data type
    class default; err=20; message=trim(message)//'unable to identify the data type'; return

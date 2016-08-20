@@ -88,15 +88,15 @@ contains
   end select
   ! check that the length of the lookup structure matches the number of variables in the data structure
   call split_line(longString,words,err,cmessage) ! convert the long character string to a vector of "words"
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  if(size(words)/=structInfo(iStruct)%nVar)then; err=20; message=trim(message)//'unexpected number of elements'; return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  if(size(words)/=structInfo(iStruct)%nVar)then; err=20; message=trim(message)//'unexpected number of elements'; return; end if
   ! check that the elements in the lookup structure are sequential integers (1,2,3,...,n)
   do ix=1,structInfo(iStruct)%nVar
    read(words(ix),*) ixTest  ! convert character to integer; store in ixTest
    if(ixTest/=ix)then ! expect that the ix-th word is equal to ix
     write(message,'(a,i0,a)')trim(message)//'problem with structure constructor iLook'//trim(structInfo(iStruct)%lookName)//' [element=',ix,']'
     err=20; return
-   endif
+   end if
   end do
  end do  ! looping through data structures
 
@@ -122,7 +122,7 @@ contains
    case('deriv'); call checkPopulated(iStruct,deriv_meta,err,cmessage) 
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors) 
  end do  ! looping through data structures
 
 
@@ -157,7 +157,7 @@ contains
    if (trim(metadata(iVar)%varname)=='empty') then
     write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar, ' in structure iLook'//trim(structInfo(iStruct)%lookName)
     err=20; return
-   endif
+   end if
 
    ! look for the populated variable
    call get_ixUnknown(trim(metadata(iVar)%varname),typeName,jVar,err,message)
@@ -166,20 +166,20 @@ contains
    if (jVar==integerMissing) then
     message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
     err=20; return
-   endif
+   end if
    
    ! check that the variable was found in the correct structure
    if (trim(structInfo(iStruct)%structName)/=typeName) then
     message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(typeName)//'_meta'
     err=20; return
-   endif
+   end if
 
    ! check that the variable index is correct
    ! This can occur because (1) the code in popMetadat is corrupt (e.g., mis-match in look-up variable); or (2) var_lookup is corrupt.
    if (jVar/=iVar) then
     write(message,'(a,i0,a,i0,a)') trim(message)//'variable '//trim(metadata(iVar)%varname)//' has index ', iVar, ' (expect index ', jVar, '); problem possible in popMetadat, get_ix'//trim(structInfo(iStruct)%structName)//', or var_lookup'
     err=20; return
-   endif
+   end if
 
   end do  ! looping through variables in structure iStruct
 

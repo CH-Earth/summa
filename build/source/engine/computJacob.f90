@@ -203,7 +203,7 @@ contains
  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
  if(computeVegFlux)then
   dMat(ixVegNrg) = scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy       ! volumetric heat capacity of the vegetation (J m-3 K-1)
- endif
+ end if
 
  ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
  ! NOTE: energy for snow+soil is computed *within* the iteration loop as it includes phase change
@@ -226,7 +226,7 @@ contains
    if(size(aJac,1)/=nBands .or. size(aJac,2)/=size(dMat))then
     message=trim(message)//'unexpected shape of the Jacobian matrix: expect aJac(nBands,nState)'
     err=20; return
-   endif
+   end if
 
    ! -----
    ! * energy and liquid fluxes over vegetation...
@@ -267,7 +267,7 @@ contains
     aJac(ixSub3,ixCasNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanairTemp)                                      ! ixCasNrg: CORRECT
     aJac(ixSub2,ixVegNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)                                      ! ixVegNrg: CORRECT
    
-   endif  ! if there is a need to compute energy fluxes within vegetation
+   end if  ! if there is a need to compute energy fluxes within vegetation
    
    ! -----
    ! * energy fluxes for the snow-soil domain...
@@ -298,7 +298,7 @@ contains
     if(iLayer < nSnow)then
      aJac(ixSub3,mLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
      aJac(ixSub2,jLayer) = (dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer)              ! dVol(below)/dLiq(above) -- (-)
-    endif
+    end if
    end do  ! (looping through snow layers)
    
    ! -----
@@ -333,16 +333,16 @@ contains
       aJac(ixSub4,ixCasNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
       aJac(ixSub3,ixVegNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
       aJac(ixSub2,ixVegWat) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
-     endif
+     end if
      aJac(ixSub1,ixTopNrg)   = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixSub1,ixTopNrg) ! dVol/dT (K-1)
-    endif
+    end if
    
     ! melt-freeze: compute derivative in energy with respect to mass
     if(mLayerdTheta_dTk(kLayer) > verySmall)then  ! ice is present
      aJac(ixSup1,jLayer) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water    ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
     else
      aJac(ixSup1,jLayer) = 0._dp
-    endif
+    end if
    
     ! - compute the Jacobian for neighboring layers (dVol/dT)
     if(kLayer > nSnow+1) aJac(ixSup1,mLayer) = (dt/mLayerDepth(kLayer-1))*( dq_dNrgStateBelow(iLayer-1))   ! K-1
@@ -356,7 +356,7 @@ contains
     do iLayer=kl+1,nBands
      write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=iJac1,iJac2)
     end do
-   endif
+   end if
 
   ! *********************************************************************************************************************************************************
   ! *********************************************************************************************************************************************************
@@ -369,7 +369,7 @@ contains
    if(size(aJac,1)/=size(dMat) .or. size(aJac,2)/=size(dMat))then
     message=trim(message)//'unexpected shape of the Jacobian matrix: expect aJac(nState,nState)'
     err=20; return
-   endif
+   end if
 
    ! -----
    ! * energy and liquid fluxes over vegetation...
@@ -409,7 +409,7 @@ contains
     aJac(ixTopNrg,ixCasNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanairTemp)
     aJac(ixTopNrg,ixVegNrg) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanopyTemp)
   
-   endif  ! if there is a need to compute energy fluxes within vegetation
+   end if  ! if there is a need to compute energy fluxes within vegetation
   
    ! -----
    ! * energy fluxes for the snow-soil domain...
@@ -442,7 +442,7 @@ contains
     if(iLayer < nSnow)then
      aJac(jLayer+nVarSnowSoil,mLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)        ! dVol(below)/dT(above) -- K-1
      aJac(jLayer+nVarSnowSoil,jLayer) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer)             ! dVol(below)/dLiq(above) -- (-)
-    endif
+    end if
    end do
   
    ! -----
@@ -466,7 +466,7 @@ contains
       qLayer = ixSoilOnlyHyd(pLayer)  ! layer index within the full state vector
       aJac(jLayer,qLayer) = aJac(jLayer,qLayer) + (dt/mLayerDepth(kLayer))*dBaseflow_dMatric(iLayer,pLayer)
      end do
-    endif
+    end if
   
    end do  ! (looping through soil layers)
   
@@ -489,16 +489,16 @@ contains
       aJac(jLayer,ixVegWat) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
       aJac(jLayer,ixCasNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
       aJac(jLayer,ixVegNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
-     endif
+     end if
      aJac(jLayer,ixTopNrg) = (dt/mLayerDepth(kLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(jLayer,ixTopNrg) ! dVol/dT (K-1)
-    endif
+    end if
   
     ! melt-freeze: compute derivative in energy with respect to mass
     if(mLayerdTheta_dTk(kLayer) > verySmall)then  ! ice is present
      aJac(mLayer,jLayer) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water    ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
     else
      aJac(mLayer,jLayer) = 0._dp
-    endif
+    end if
   
     ! - compute the Jacobian for neighboring layers
     if(kLayer > nSnow+1) aJac(jLayer-nVarSnowSoil,mLayer) = (dt/mLayerDepth(kLayer-1))*( dq_dNrgStateBelow(iLayer-1))   ! K-1
@@ -511,7 +511,7 @@ contains
     print*, '** analytical Jacobian:'
     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
-   endif
+   end if
 
   ! ***
   ! check

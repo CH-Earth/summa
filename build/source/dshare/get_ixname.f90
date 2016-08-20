@@ -96,7 +96,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
- endselect
+ end select
  end function get_ixdecisions
 
 
@@ -119,7 +119,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixtime = integerMissing
- endselect
+ end select
  end function get_ixtime
 
 
@@ -145,7 +145,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixforce = integerMissing
- endselect
+ end select
  end function get_ixforce
 
 
@@ -170,7 +170,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixAttr = integerMissing
- endselect
+ end select
  end function get_ixAttr
 
 
@@ -193,7 +193,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixType = integerMissing
- endselect
+ end select
  end function get_ixType
 
 
@@ -377,7 +377,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixparam = integerMissing
- endselect
+ end select
  end function get_ixparam
 
 
@@ -422,7 +422,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixprog = integerMissing
- endselect
+ end select
  end function get_ixprog
 
 
@@ -528,7 +528,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixdiag = integerMissing
- endselect
+ end select
  end function get_ixdiag
 
 
@@ -640,7 +640,7 @@ contains
   case('scalarAquiferBaseflow'          ); get_ixflux = iLookFLUX%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
   case default
    get_ixflux = integerMissing
- endselect
+ end select
  end function get_ixflux
 
 
@@ -702,7 +702,7 @@ contains
   case('dPsiLiq_dTemp'                  ); get_ixderiv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   case default
    get_ixderiv = integerMissing
- endselect
+ end select
  end function get_ixderiv
 
 
@@ -762,7 +762,7 @@ contains
   case('ifcTotoStartIndex'); get_ixindex = iLookINDEX%ifcTotoStartIndex ! start index of the ifcToto vector for a given timestep
   case default
    get_ixindex = integerMissing
- endselect
+ end select
  end function get_ixindex
 
 
@@ -787,7 +787,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixbpar = integerMissing
- endselect
+ end select
  end function get_ixbpar
 
 
@@ -819,7 +819,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixbvar = integerMissing
- endselect
+ end select
  end function get_ixbvar
 
  ! *********************************************************************************************************
@@ -846,7 +846,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_ixVarType = integerMissing
- endselect
+ end select
  end function get_ixVarType
 
  ! ****************************************************************************************************************
@@ -873,7 +873,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_VarTypeName = 'missing'
- endselect
+ end select
  end function get_VarTypeName
 
  ! *******************************************************************************************************************
@@ -916,9 +916,9 @@ contains
    case ('bpar' ); vDex = get_ixBpar(trim(varName))
    case ('bvar' ); vDex = get_ixBvar(trim(varName))
    case ('deriv'); vDex = get_ixDeriv(trim(varName))
-  endselect
-  if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; endif;
- enddo
+  end select
+  if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; end if;
+ end do
 
  ! 404
  err=20;message=trim(message)//'variable not found in any structure:'//trim(varName); return;
@@ -946,7 +946,7 @@ contains
   ! get to here if cannot find the variable
   case default
    get_statName = 'unknown'
- endselect
+ end select
  end function get_statName
 
 end module get_ixname_module

@@ -38,7 +38,7 @@ CHARACTER(LEN=summaPathLen)  :: META_ATTR        ='summa_zLocalAttributeMeta.txt
 CHARACTER(LEN=summaPathLen)  :: META_TYPE        ='summa_zCatergoryMeta.txt'       ! metadata for local classification of veg, soil, etc.
 CHARACTER(LEN=summaPathLen)  :: META_FORCE       ='summa_zForceMeta.txt'           ! metadata for model forcing variables
 CHARACTER(LEN=summaPathLen)  :: META_LOCALPARAM  ='summa_zLocalParamMeta.txt'      ! metadata for model parameters
-CHARACTER(LEN=summaPathLen)  :: META_LOCALMVAR   ='summa_zLocalModelVarMeta.txt'   ! metadata for model variables
+CHARACTER(LEN=summaPathLen)  :: OUTPUT_CONTROL   ='summa_zLocalModelVarMeta.txt'   ! metadata for model variables
 CHARACTER(LEN=summaPathLen)  :: META_LOCALINDEX  ='summa_zLocalModelIndexMeta.txt' ! metadata for model indices
 CHARACTER(LEN=summaPathLen)  :: META_BASINPARAM  ='summa_zBasinParamMeta.txt'      ! metadata for model parameters
 CHARACTER(LEN=summaPathLen)  :: META_BASINMVAR   ='summa_zBasinModelVarMeta.txt'   ! metadata for model variables
@@ -86,20 +86,20 @@ if(.not.xist)then
   message=trim(message)//"FileNotFound['"//trim(summaFileManagerIn)//"']"&
                        //'/ProceedingWithDefaults'
   err=-10; return
-endif
+end if
 ! open file manager file
 open(fileUnit,file=summaFileManagerIn,status="old",action="read",iostat=err)
 if(err/=0)then
   message=trim(message)//"fileManagerOpenError['"//trim(summaFileManagerIn)//"']"
   err=10; return
-endif
+end if
 ! check the header matches the code
 read(fileUnit,*)temp
 if(trim(temp)/=summaFileManagerHeader)then
   message=trim(message)//"unknownHeader&[file='"//trim(summaFileManagerIn)//"']&&
     &[header="//trim(temp)//"]"
   err=20; return
-endif
+end if
 ! read information from file
 ierr=0 ! initialize errors
 
@@ -113,7 +113,7 @@ call readLine(fileUnit,META_ATTR,       err,message); if(err/=0)return
 call readLine(fileUnit,META_TYPE,       err,message); if(err/=0)return
 call readLine(fileUnit,META_FORCE,      err,message); if(err/=0)return
 call readLine(fileUnit,META_LOCALPARAM, err,message); if(err/=0)return
-call readLine(fileUnit,META_LOCALMVAR,  err,message); if(err/=0)return
+call readLine(fileUnit,OUTPUT_CONTROL,  err,message); if(err/=0)return
 call readLine(fileUnit,META_LOCALINDEX, err,message); if(err/=0)return
 call readLine(fileUnit,META_BASINPARAM, err,message); if(err/=0)return
 call readLine(fileUnit,META_BASINMVAR,  err,message); if(err/=0)return
@@ -127,7 +127,7 @@ call readLine(fileUnit,OUTPUT_PREFIX,   err,message); if(err/=0)return
 close(fileUnit)
 ! check that the output directory exists and write the date and time to a log file
 open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)
-if(err/=0)then; err=10; message=trim(message)//"cannot write to directory '"//trim(OUTPUT_PATH)//"'"; return; endif
+if(err/=0)then; err=10; message=trim(message)//"cannot write to directory '"//trim(OUTPUT_PATH)//"'"; return; end if
 call date_and_time(cdate,ctime)
 write(runinfo_fileunit,*) 'ccyy='//cdate(1:4)//' - mm='//cdate(5:6)//' - dd='//cdate(7:8), &
                          ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
@@ -157,6 +157,5 @@ if(index(trim(inputString),' ')/=0) then
  return
 endif
 end subroutine readLine
-
 
 END MODULE summafilemanager

@@ -58,20 +58,20 @@ contains
  err=0; message="pOverwrite/"
 
  ! define vegetation class
- if(ixVeg < 1)then; err=20; message=trim(message)//'index for vegetation type must be > 0'; return; endif
+ if(ixVeg < 1)then; err=20; message=trim(message)//'index for vegetation type must be > 0'; return; end if
  if(ixVeg > LUCATS)then
   write(message,'(2(a,i0),a)')trim(message)//'index for vegetation type is greater than dimension of vegetation table [ixVeg = ', ixVeg, &
                             '; LUCATS = ', LUCATS, ']'
   err=20; return
- endif
+ end if
 
  ! define soil class
- if(ixSoil < 1)then; err=20; message=trim(message)//'index for soil type must be > 0'; return; endif
+ if(ixSoil < 1)then; err=20; message=trim(message)//'index for soil type must be > 0'; return; end if
  if(ixSoil > NSLTYPE)then
   write(message,'(2(a,i0),a)')trim(message)//'index for soil type is greater than dimension of soil table [ixSoil = ', ixSoil, &
                             '; NSLTYPE = ', NSLTYPE, ']'
   err=20; return
- endif
+ end if
 
  ! include parameters from the vegetation tables
  defaultParam(iLookPARAM%heightCanopyTop)     = HVT(ixVeg)          ! Noah-MP: height at top of canopy (m)

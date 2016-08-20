@@ -642,7 +642,7 @@ contains
 
  ! to get name of output control file from user
  USE summaFileManager,only:SETNGS_PATH                 ! path for metadata files
- USE summaFileManager,only:META_LOCALMVAR              ! file with output controls
+ USE summaFileManager,only:OUTPUT_CONTROL              ! file with output controls
 
  ! modules for smart file reading
  USE ascii_util_module,only:get_vlines                 ! get a vector of non-comment lines
@@ -661,7 +661,6 @@ contains
  character(LEN=512),allocatable     :: charlines(:)    ! vector of character strings
  character(LEN=64),allocatable      :: lineWords(:)    ! vector to parse textline
  integer(i4b)                       :: nWords          ! number of words in line
- character(LEN=64)                  :: vName           ! string for indexing into integrations of model variables
  integer(i4b)                       :: oFreq           ! output frequencies read from file
  integer(i4b),parameter             :: modelTime=1     ! to force index variables to be output at model timestep
  character(LEN=5)                   :: structName      ! name of structure
@@ -669,7 +668,6 @@ contains
  ! indices
  integer(i4b)                       :: vLine           ! index for loop through variables
  integer(i4b)                       :: vDex            ! index into type lists
- integer(i4b)                       :: iInt            ! index into integration depths
 
  ! flags
  logical(lgt),dimension(6)          :: indexFlags      ! logical flags to turn on index variables 
@@ -680,17 +678,17 @@ contains
  ! **********************************************************************************************
  ! (1) open file and read variable data
  ! **********************************************************************************************
- outfile = trim(SETNGS_PATH)//trim(META_LOCALMVAR)   ! build filename
+ outfile = trim(SETNGS_PATH)//trim(OUTPUT_CONTROL)   ! build filename
  print '(2A)','Name of Model Output control file: ',trim(outfile)
  call file_open(trim(outfile),unt,err,cmessage)      ! open file
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! **********************************************************************************************
  ! (2) read variable data (continue reading from previous point in the file)
  ! **********************************************************************************************
  ! read the rest of the lines
  call get_vlines(unt,charLines,err,cmessage) ! get a list of character strings from non-comment lines
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  close(unt) ! close the file 
 
  ! **********************************************************************************************
@@ -708,7 +706,7 @@ contains
 
   ! parse the current line
   call split_line(charLines(vLine),lineWords,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   nWords = size(lineWords)
 
   ! user cannot control time output
@@ -719,7 +717,7 @@ contains
 
   ! --- variables with multiple statistics options --------------------------
   call get_ixUnknown(trim(lineWords(1)),structName,vDex,err,cmessage)
-  if (err.ne.0) then; message=trim(message)//trim(cmessage)//trim(linewords(1)); return; endif;
+  if (err.ne.0) then; message=trim(message)//trim(cmessage)//trim(linewords(1)); return; end if;
   select case (trim(structName))
    case('time' ); if (oFreq.ne.0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modelTime ! timing data
    case('bpar' ); if (oFreq.ne.0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modelTime ! basin parameters
@@ -728,7 +726,7 @@ contains
    case('mpar' ); if (oFreq.ne.0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
    case('indx' )
     if (oFreq==modelTime)       indx_meta(vDex)%statFlag(iLookStat%inst)=.true.; indx_meta(vDex)%outFreq=modelTime      ! indexex
-    if (oFreq>modelTime) then; err=20; message=trim(message)//'index variables can only be output at model timestep'; return; endif
+    if (oFreq>modelTime) then; err=20; message=trim(message)//'index variables can only be output at model timestep'; return; end if
    case('forc' ); call popStat(forc_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model forcing data
    case('prog' ); call popStat(prog_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model prognostics 
    case('diag' ); call popStat(diag_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model diagnostics
@@ -737,9 +735,12 @@ contains
    case('deriv'); call popStat(deriv_meta(vDex),lineWords,nWords,indexFlags,err,cmessage)    ! model derivs 
    case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
   end select
-  if (err.ne.0) then; message=trim(message)//trim(cmessage);return; endif
+  if (err.ne.0) then; message=trim(message)//trim(cmessage);return; end if
 
- enddo ! loop through file lines with vline
+  ! Ensure that time is turned on: it doens't matter what this value is as long as it is >0.
+  forc_meta(iLookForce%time)%outFreq = 1e6
+
+ end do ! loop through file lines with vline
 
  ! **********************************************************************************************
  ! (4) see if we need any index variabels 
@@ -749,37 +750,37 @@ contains
   indx_meta(iLookINDEX%midSnowStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
- endif
+ end if
  if (indexFlags(2)) then
   indx_meta(iLookINDEX%midSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midSoilStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
- endif
+ end if
  if (indexFlags(3)) then
   indx_meta(iLookINDEX%midTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midTotoStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
   indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
- endif
+ end if
  if (indexFlags(4)) then
   indx_meta(iLookINDEX%ifcSnowStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSnowStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
- endif
+ end if
  if (indexFlags(5)) then
   indx_meta(iLookINDEX%ifcSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSoilStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
- endif
+ end if
  if (indexFlags(6)) then
   indx_meta(iLookINDEX%ifcTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcTotoStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
   indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
- endif
+ end if
 
  return
  end subroutine read_output_file
@@ -827,12 +828,12 @@ contains
      err=20
      message=trim(message)//'cannot have more than one file line per variable:'//trim(meta%varName)
      return
-    endif
+    end if
     found = .true.
     exit
-   endif
-  enddo
- enddo
+   end if
+  end do
+ end do
 
  ! check to make sure there are sufficient statistics flags
  ! varName | outFreq | inst | sum | mean | var | min | max | mode
@@ -844,7 +845,7 @@ contains
    err=-20
    message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(1))
    return
- endif
+ end if
 
  ! check to make sure there are sufficient statistics flags
  ! read output frequency
@@ -863,8 +864,8 @@ contains
     found = .true.
     cFreq = iFreq
    exit
-  endif
-  enddo
+  end if
+  end do
   if ((.not.found).and.(nFreq.lt.maxFreq)) then          ! if it doesn't exist and we have room, put it in
    nFreq = nFreq + 1
    cFreq = nFreq
@@ -873,22 +874,22 @@ contains
    err=20
    message = trim(message)//'too many output frequencies - variable:'//trim(lineWords(1))
    return
-  endif
+  end if
 
   ! pull the stats flags
   do iStat = 1,maxVarStat
    if (lineWords(3+2*iStat)=='1') then 
     meta%statFlag(iStat)=.true.
     meta%outFreq = cFreq
-   endif
-  enddo
+   end if
+  end do
 
  ! if not a scalar variable and requested output at frequency of model timestep
  elseif (oFreq==modelTime) then
   meta%statFlag(iLookStat%inst) = .true.
   meta%outFreq = modelTime
   ! force appropriate layer indexes 
-  selectcase(meta%varType)
+  select case(meta%varType)
    case (iLookVarType%midSnow)
     indexFlags(1) = .true.
    case (iLookVarType%midSoil)
@@ -905,14 +906,14 @@ contains
    case (iLookVarType%routing)
    case default
     err=20; message=trim(message)//trim(meta%varName)//':variable type not found'
-  endselect ! variable type
+  end select ! variable type
 
  ! if not a scalay and requested any other output frequency
  else
   err=20
   message=trim(message)//'layered variabless can only be output at model timestep:'//trim(meta%varName)
   return
- endif
+ end if
 
  return
  end subroutine popStat

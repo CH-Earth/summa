@@ -135,7 +135,7 @@ contains
   unloading_melt = min(ratioDrip2Unloading*scalarCanopyLiqDrainage, scalarCanopyIce/dt)  ! kg m-2 s-1
  else
   unloading_melt = 0._dp
- endif
+ end if
  scalarCanopyIce = scalarCanopyIce - unloading_melt*dt
 
  ! *****
@@ -147,7 +147,7 @@ contains
   scalarThroughfallSnow     = scalarSnowfall    ! throughfall of snow through the canopy (kg m-2 s-1)
   scalarCanopySnowUnloading = unloading_melt    ! unloading of snow from the canopy (kg m-2 s-1)
   return
- endif
+ end if
 
  ! get a trial value for canopy storage
  scalarCanopyIceIter = scalarCanopyIce
@@ -177,7 +177,7 @@ contains
     ! * option 1: maximum interception capacity an inverse function of new snow density (e.g., Mahat and Tarboton, HydProc 2013)
     case(lightSnow)
      ! (check new snow density is valid)
-     if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; endif
+     if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; end if
      ! (compute storage capacity of new snow)
      leafScaleFactor       = 0.27_dp + 46._dp/scalarNewSnowDensity
      leafInterceptCapSnow  = refInterceptCapSnow*leafScaleFactor  ! per unit leaf area (kg m-2)
@@ -188,7 +188,7 @@ contains
      if    (airtemp_degC > -1._dp)then; leafScaleFactor = 4.0_dp
      elseif(airtemp_degC > -3._dp)then; leafScaleFactor = 1.5_dp*airtemp_degC + 5.5_dp
                                   else; leafScaleFactor = 1.0_dp
-     endif
+     end if
      leafInterceptCapSnow = refInterceptCapSnow*leafScaleFactor
      !write(*,'(a,1x,2(f20.10,1x))') 'airtemp_degC, leafInterceptCapSnow = ', airtemp_degC, leafInterceptCapSnow
      !pause 'in stickysnow'
@@ -210,7 +210,7 @@ contains
    !write(*,'(a,1x,10(e20.10,1x))') 'scalarSnowfall, scalarNewSnowDensity, refInterceptCapSnow, leafScaleFactor, leafInterceptCapSnow, exposedVAI, canopyIceScaleFactor = ', &
    !                                 scalarSnowfall, scalarNewSnowDensity, refInterceptCapSnow, leafScaleFactor, leafInterceptCapSnow, exposedVAI, canopyIceScaleFactor
 
-  endif  ! (if snow is falling)
+  end if  ! (if snow is falling)
 
   !write(*,'(a,1x,10(e20.10,1x))') 'scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt = ', &
   !                                 scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt
@@ -226,7 +226,7 @@ contains
   if(abs(resMass) < convTolerMass)exit
 
   ! ** check for non-convengence
-  if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge [mass]'; return; endif
+  if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge [mass]'; return; end if
 
   ! ** update value
   scalarCanopyIceIter = scalarCanopyIceIter + delS

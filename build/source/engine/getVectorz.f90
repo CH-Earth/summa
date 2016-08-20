@@ -154,7 +154,7 @@ contains
   stateVec(ixCasNrg) = scalarCanairTemp
   stateVec(ixVegNrg) = scalarCanopyTemp
   stateVec(ixVegWat) = scalarCanopyWat  ! kg m-2
- endif
+ end if
 
  ! build the state vector for the snow and soil domain
  stateVec(ixSnowSoilNrg) = mLayerTemp(1:nLayers)
@@ -191,7 +191,7 @@ contains
   sMul(ixCasNrg) = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
   sMul(ixVegNrg) = volHeatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
   sMul(ixVegWat) = 1._dp             ! nothing else on the left hand side
- endif
+ end if
 
  ! define the multiplier for the state vector for residual calculations (snow-soil domain)
  sMul(ixSnowSoilNrg) = mLayerVolHeatCap(1:nLayers)
@@ -203,7 +203,7 @@ contains
  if(computeVegFlux)then
   dMat(ixCasNrg) = Cp_air*iden_air          ! volumetric heat capacity of air (J m-3 K-1)
   dMat(ixVegWat) = 1._dp                    ! nothing else on the left hand side
- endif
+ end if
 
  ! compute terms in the Jacobian for the snow domain (excluding fluxes)
  ! NOTE: this is computed outside the iteration loop because it does not depend on state variables
@@ -318,7 +318,7 @@ contains
  else  ! unexpected
   message=trim(message)//'unexpected number of vegetation state variables'
   err=20; return
- endif
+ end if
 
  ! extract state variables for layers in the snow-soil system
  mLayerTempTrial(1:nLayers)     = stateVec(ixSnowSoilNrg)
@@ -341,7 +341,7 @@ contains
                     mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
                     fracLiqSnow(iLayer),                       & ! intent(out): fraction of liquid water in each snow layer (-)
                     err,cmessage)                                ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    !** soil
    case(ix_soil)
@@ -355,12 +355,12 @@ contains
                     mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
                     mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
                     err,cmessage)                                ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    !** check errors
    case default; err=40; message=trim(message)//"cannot identify the layer as snow or soil"; return
 
-  endselect  ! identifying type of layer
+  end select  ! identifying type of layer
 
  end do   ! looping through layers
 
