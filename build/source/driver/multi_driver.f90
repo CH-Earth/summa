@@ -1164,10 +1164,10 @@ contains
  subroutine printCommandHelp()  
  implicit none
  ! command line usage
- print "(//A)",'Usage: summa.exe master_file [-m master_file] [-s file_suffix] [-g startGRU countGRU] [-c checkHRU] [-r resume]'
+ print "(//A)",'Usage: summa.exe -m master_file [-s file_suffix] [-g startGRU countGRU] [-c checkHRU] [-r resume]'
  print "(A,/)",  ' summa.exe          summa executable'
  print "(A)",  'Running options:'
- print "(A)",  ' -m --master        path/name of master file'
+ print "(A)",  ' -m --master        path/name of master file (required)'
  print "(A)",  ' -s --suffix        Add file_suffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -c --checkhru      Run a single HRU with index of checkHRU'
