@@ -1057,7 +1057,7 @@ call stop_program('finished simulation successfully.')
 contains
 
  ! **************************************************************************************************
- ! private function to obtain the command line arguments
+ ! internal function to obtain the command line arguments
  ! **************************************************************************************************
  subroutine getCommandArguments()
  implicit none
@@ -1092,6 +1092,14 @@ contains
     nLocalArgument = 0
     resumeFailSolver = .true.
     print "(A)", "Simulation will continue even if the solver does NOT converge."
+
+   case ('-m', '--master')
+    ! update arguments
+    nLocalArgument = 1
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1,"missing argument file_suffix; type 'summa.exe --help' for correct usage")   
+    ! get name of master control file
+    summaFileManagerFile=trim(argString(iArgument+1))
+    print "(A)", "file_master is '"//trim(summaFileManagerFile)//"'."
 
    case ('-s', '--suffix')
     ! define file suffix
@@ -1136,16 +1144,11 @@ contains
     call printCommandHelp
 
    case default
-    ! this is the master file argument, the file will be opened in subroutine summa_SetDirsUndPhiles
-    if (len(trim(summaFileManagerFile))>0) then
-     ! check if summaFileManagerFile has been defined
-     print "(A)", "Name of Master control File: '"//trim(argString(iArgument))//"'. Argument '"//trim(summaFileManagerFile)//"' is ignored."
-    else
-     print "(A)", "Name of Master control File: '"//trim(argString(iArgument))//"'."
-    end if           
-    summaFileManagerFile=trim(argString(iArgument))
+    call printCommandHelp
+    call handle_err(1,'unknown command line option')
+
   end select
- end do 
+ end do  ! looping through command line arguments 
 
  ! check if master_file has been received.
  if (len(trim(summaFileManagerFile))==0) call handle_err(1,"master_file is not received; type 'summa.exe --help' for correct usage")
@@ -1156,24 +1159,24 @@ contains
  end subroutine getCommandArguments
 
  ! **************************************************************************************************
- ! private subroutine to print the correct command line usage of SUMMA
+ ! internal subroutine to print the correct command line usage of SUMMA
  ! ************************************************************************************************** 
  subroutine printCommandHelp()  
  implicit none
  ! command line usage
- print "(//A)",'Usage: summa.exe master_file [-r] [-s file_suffix] [-g startGRU countGRU] [-c checkHRU]'
- print "(A)",  ' summa.exe          summa executable'
- print "(A,/)",' master_file        path/name of master file'
+ print "(//A)",'Usage: summa.exe -m master_file [-s file_suffix] [-g startGRU countGRU] [-c checkHRU] [-r resume]'
+ print "(A,/)",  ' summa.exe          summa executable'
  print "(A)",  'Running options:'
- print "(A)",  ' -r --resume        Continue simulation when solver failed convergence'
+ print "(A)",  ' -m --master        path/name of master file (required)'
  print "(A)",  ' -s --suffix        Add file_suffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -c --checkhru      Run a single HRU with index of checkHRU'
+ print "(A)",  ' -r --resume        Continue simulation when solver failed convergence'
  stop 
  end subroutine printCommandHelp
 
  ! **************************************************************************************************
- ! private subroutine handle_err: error handler
+ ! internal subroutine handle_err: error handler
  ! **************************************************************************************************
  subroutine handle_err(err,message)
  ! used to handle error codes

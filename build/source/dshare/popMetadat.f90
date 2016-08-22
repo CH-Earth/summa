@@ -738,12 +738,12 @@ contains
   if (err.ne.0) then; message=trim(message)//trim(cmessage);return; end if
 
   ! Ensure that time is turned on: it doens't matter what this value is as long as it is >0.
-  forc_meta(iLookForce%time)%outFreq = 1e6
+  forc_meta(iLookForce%time)%outFreq = abs(integerMissing)
 
  end do ! loop through file lines with vline
 
  ! **********************************************************************************************
- ! (4) see if we need any index variabels 
+ ! (4) see if we need any index variables 
  ! **********************************************************************************************
  if (indexFlags(1)) then
   indx_meta(iLookINDEX%midSnowStartIndex)%statFlag(iLookStat%inst) = .true.
