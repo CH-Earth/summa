@@ -117,8 +117,9 @@ contains
  mpar_meta(iLookPARAM%tempCritRain)          = var_info('tempCritRain'          , 'critical temperature where precipitation is rain'                 , 'K'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%tempRangeTimestep)     = var_info('tempRangeTimestep'     , 'temperature range over the time step'                             , 'K'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%frozenPrecipMultip)    = var_info('frozenPrecipMultip'    , 'frozen precipitation multiplier'                                  , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- ! freezing curve for snow
+ ! snow properties
  mpar_meta(iLookPARAM%snowfrz_scale)         = var_info('snowfrz_scale'         , 'scaling parameter for the freezing curve for snow'                , 'K-1'             , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%fixedThermalCond_snow) = var_info('fixedThermalCond_snow' , 'temporally constant thermal conductivity for snow'                , 'W m-1 K-1'       , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! snow albedo
  mpar_meta(iLookPARAM%albedoMax)             = var_info('albedoMax'             , 'maximum snow albedo (single spectral band)'                       , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%albedoMinWinter)       = var_info('albedoMinWinter'       , 'minimum snow albedo during winter (single spectral band)'         , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -704,7 +705,7 @@ contains
  ! (3) loop to parse individual file lines 
  ! **********************************************************************************************
  ! flag whether or not the user has requested an output variable that requires output of layer information
- indexFlags = .false.
+ indexFlags(:) = .false.
 
  ! initialize output frequency
  nFreq = 1
@@ -732,7 +733,7 @@ contains
 
   ! idenify the data structure for the given variable (structName) and the variable index (vDex)
   call get_ixUnknown(trim(lineWords(nameIndex)),structName,vDex,err,cmessage)
-  if (err.ne.0) then; message=trim(message)//trim(cmessage)//trim(linewords(nameIndex)); return; end if;
+  if (err/=0) then; message=trim(message)//trim(cmessage)//trim(linewords(nameIndex)); return; end if;
 
   ! populate the metadata that controls the model output
   select case (trim(structName))
@@ -770,41 +771,44 @@ contains
  ! **********************************************************************************************
  ! (4) see if we need any index variables 
  ! **********************************************************************************************
+
+ ! if any layered variables at all, then output the number of layers
+ if(any(indexFlags))then
+  ! (snow layers)
+  indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
+  indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
+  ! (soil layers)
+  indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
+  indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
+  ! (total layers)
+  indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
+  indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
+ endif  ! if any layered variables at all
+
+ ! output the start index in the ragged arrays
  if (indexFlags(indexMidSnow)) then
   indx_meta(iLookINDEX%midSnowStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midSnowStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
  end if
  if (indexFlags(indexMidSoil)) then
   indx_meta(iLookINDEX%midSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midSoilStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
  end if
  if (indexFlags(indexMidToto)) then
   indx_meta(iLookINDEX%midTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midTotoStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
-  indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
  end if
  if (indexFlags(indexIfcSnow)) then
   indx_meta(iLookINDEX%ifcSnowStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSnowStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
  end if
  if (indexFlags(indexIfcSoil)) then
   indx_meta(iLookINDEX%ifcSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSoilStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
  end if
  if (indexFlags(indexIfcToto)) then
   indx_meta(iLookINDEX%ifcTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcTotoStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
-  indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
  end if
 
  return
@@ -827,7 +831,7 @@ contains
  ! dummy variables
  class(var_info),intent(inout)                 :: meta         ! dummy meta_data structure
  character(*),intent(in)                       :: lineWords(:) ! vector to parse textline
- logical(lgt),dimension(6)                     :: indexFlags   ! logical flags to turn on index variables 
+ logical(lgt),dimension(6),intent(inout)       :: indexFlags   ! logical flags to turn on index variables 
  integer(i4b),intent(out)                      :: err          ! error code
  character(*),intent(out)                      :: message      ! error message
  ! internals 
@@ -852,19 +856,6 @@ contains
  endif
 
  ! check to make sure there are sufficient statistics flags
- ! varName | outFreq | inst | sum | mean | var | min | max | mode
- if ((meta%varType==iLookVarType%scalarv).and.(nWords /= freqIndex + 2*maxVarStat)) then
-  message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
-  err=-20; return
- endif
-
- ! check to make sure non-scalar variables have sufficient elements
- if ((meta%varType/=iLookVarType%scalarv).and.(nWords/=freqIndex)) then ! varName | outFreq 
-  message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
-  err=-20; return
- end if
-
- ! check to make sure there are sufficient statistics flags
  read(lineWords(freqIndex),*) oFreq
  if (oFreq <0)then
   message=trim(message)//'expect output frequency to be positive for variable: '//trim(lineWords(nameIndex))
@@ -873,8 +864,29 @@ contains
  if (oFreq==0) return
 
  ! check to make sure there are sufficient statistics flags
+ ! varName | outFreq | inst | sum | mean | var | min | max | mode
+ if (oFreq>modelTime .and. (nWords /= freqIndex + 2*maxVarStat)) then
+  message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
+  err=-20; return
+ endif
+
+ ! check to make sure non-scalar variables have the correct number of elements
+ if (meta%varType/=iLookVarType%scalarv)then
+  ! (ensure that statistics flags are not defined for non-scalar variables)
+  if(nWords/=freqIndex) then ! format = "varName | outFreq"
+   message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
+   err=-20; return
+  endif
+  ! (check that the output frequency is equal to one)
+  if(oFreq/=modelTime)then
+   message=trim(message)//'expect the output frequency in Model output file to equal modelTime for non-scalar variables: '//trim(lineWords(nameIndex))
+   err=-20; return
+  endif
+ end if  ! if non-scalar variables
+
+ ! define a new output frequency
  ! scalar variables can have multiple statistics
- if (meta%varType==iLookVarType%scalarv) then
+ if (oFreq>modelTime) then
 
   ! identify index of oFreq witin outFreq (cFreq=0 if oFreq is not in outfreq)
   if(nFreq>0)then
@@ -907,7 +919,7 @@ contains
    end if
   end do
 
- ! if not a scalar variable and requested output at frequency of model timestep
+ ! if requested output at frequency of model timestep
  elseif (oFreq==modelTime) then
 
   ! set the stat flag
@@ -922,17 +934,17 @@ contains
    case (iLookVarType%ifcSnow); indexFlags(indexIfcSnow) = .true.
    case (iLookVarType%ifcSoil); indexFlags(indexIfcSoil) = .true.
    case (iLookVarType%ifcToto); indexFlags(indexIfcToto) = .true.
-   case (iLookVarType%wLength)
-   case (iLookVarType%routing)
+   case (iLookVarType%scalarv)   ! do nothing
+   case (iLookVarType%wLength)   ! do nothing
+   case (iLookVarType%routing)   ! do nothing
    case default
     err=20; message=trim(message)//trim(meta%varName)//':variable type not found'
   end select ! variable type
 
- ! if not a scalar and requested any other output frequency
+ ! if requested any other output frequency
  else
-  err=20
-  message=trim(message)//'layered variables can only be output at model timestep:'//trim(meta%varName)
-  return
+  message=trim(message)//'wrong output frequency for variable: '//trim(meta%varName)
+  err=-20; return
  end if
 
  return

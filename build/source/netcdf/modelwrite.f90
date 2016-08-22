@@ -144,7 +144,9 @@ contains
  ifcSoilStartIndex = indx(iLookIndex%ifcSoilStartIndex)%dat(1)
  ifcTotoStartIndex = indx(iLookIndex%ifcTotoStartIndex)%dat(1)
 
+ ! loop through output frequencies
  do iFreq = 1,nFreq
+
   ! check that the timestep is desired
   if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
 
@@ -169,10 +171,11 @@ contains
 
     ! loop through output stats
     do iStat = 1,maxVarStat
+
      ! check that the variable is desired
      if ((.not.meta(iVar)%statFlag(iStat)).or.(trim(meta(iVar)%varName)=='unknown')) cycle
 
-     ! stats/dats output - select data type
+     ! stats/data output - select data type
      if (meta(iVar)%varType==iLookVarType%scalarv) then
        select type(stat)
         type is (ilength)
@@ -180,7 +183,9 @@ contains
         type is (dlength)
          err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
         class default; err=20; message=trim(message)//'stats must be scalarv and either ilength of dlength'; return
-       end select  ! stat 
+       end select  ! stat
+
+     ! non-scalar variables
      else
       select type (dat)
        type is (dlength)
