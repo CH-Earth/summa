@@ -117,7 +117,7 @@ contains
   nVegNrg   = 0
   nVegMass  = 0
   nVegState = 0
- endif
+ end if
 
  ! define the number state variables of different type
  nNrgState  = nVegNrg + nLayers  ! number of energy state variables
@@ -143,7 +143,7 @@ contains
   ixCasNrg  = missingInteger
   ixVegNrg  = missingInteger
   ixVegWat  = missingInteger
- endif
+ end if
 
  ! define the index of the top layer
  ixTopNrg = nVegState + 1                       ! energy

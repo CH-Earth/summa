@@ -24,9 +24,9 @@ module eval8summa_module
 USE nrtype
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
-USE globalData,only:quadMissing     ! missing quadruple precision number
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing double precision number
+USE multiconst,only:quadMissing     ! missing quadruple precision number
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -235,7 +235,7 @@ contains
  ! check canopy liquid water is not negative
  if(ixVegWat/=integerMissing)then
   if(stateVecTrial(ixVegWat) < 0._dp) feasible=.false.
- endif
+ end if
 
  ! check snow temperature is below freezing
  if(size(ixSnowOnlyNrg)>0)then
@@ -245,7 +245,7 @@ contains
  ! check snow liquid water is not negative
  if(size(ixSnowOnlyWat)>0)then
   if(any(stateVecTrial(ixSnowOnlyWat) < 0._dp)  ) feasible=.false.
- endif
+ end if
 
  ! early return for non-feasible solutions
  if(.not.feasible)then
@@ -253,7 +253,7 @@ contains
   resVec(:)  = quadMissing 
   fEval      = realMissing
   return
- endif
+ end if
 
  ! extract variables from the model state vector
  call varExtract(&
@@ -280,7 +280,7 @@ contains
                  mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  if(nSnow>0)then
   print*, trim(message)
@@ -329,7 +329,7 @@ contains
                  fluxVec,                 & ! intent(out):   flux vector (mixed units)
                  ! output: error control
                  err,cmessage)              ! intent(out):   error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
 
  ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
@@ -348,7 +348,7 @@ contains
                  mLayerCompress,                         & ! intent(out): compressibility of the soil matrix (-)
                  dCompress_dPsi,                         & ! intent(out): derivative in compressibility w.r.t. matric head (m-1)
                  err,cmessage)                             ! intent(out): error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
@@ -381,7 +381,7 @@ contains
                   resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                   resVec,                  & ! intent(out):   residual vector
                   err,cmessage)              ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the function evaluation
  rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)

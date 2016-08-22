@@ -27,9 +27,9 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
-USE globalData,only:quadMissing     ! missing quadruple precision number
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing double precision number
+USE multiconst,only:quadMissing     ! missing quadruple precision number
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands
@@ -213,7 +213,7 @@ contains
                   aJac,                           & ! intent(out):   Jacobian matrix
                   ! output: error control
                   err,cmessage)                     ! intent(out):   error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! -----
  ! * solve linear system...
@@ -224,7 +224,7 @@ contains
 
  ! scale matrices
  call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  if(globalPrintFlag)then
   print*, '** SCALED banded analytical Jacobian:'
@@ -232,14 +232,14 @@ contains
   do iLayer=kl+1,nBands
    write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=iJac1,iJac2)
   end do
- endif
+ end if
 
  ! copy the scaled matrix, since it is decomposed in lapackSolv
  aJacScaledTemp = aJacScaled
 
  ! compute the newton step: use the lapack routines to solve the linear system A.X=B
  call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  if(globalPrintFlag)&
  write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
@@ -263,10 +263,10 @@ contains
  ! NOTE: Accept the full newton step
  if(err<0)then
   doRefine=.false.;    call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
- endif
+ end if
 
  ! check errors
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! end association to info in data structures
  end associate
@@ -322,12 +322,12 @@ contains
 
    ! compute the gradient of the function vector
    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
    ! compute the initial slope
    slopeInit = dot_product(gradScaled,newtStepScaled)
 
-  endif  ! if computing the line search
+  end if  ! if computing the line search
 
   ! initialize lambda
   xLambda=1._dp
@@ -349,7 +349,7 @@ contains
    ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
    !  (especially the feasibility check)
    call imposeConstraints(stateVecTrial,xInc,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
@@ -359,7 +359,7 @@ contains
    !       The internal sub routine has access to all data
    !       Hence, we only need to include the variables of interest in lineSearch
    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check line search
    if(globalPrintFlag)then
@@ -368,7 +368,7 @@ contains
     write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
     write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(iJac1:iJac2)
     write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(iJac1:iJac2)
-   endif
+   end if
 
    ! check feasibility
    if(.not.feasible) cycle
@@ -400,7 +400,7 @@ contains
     if(iLine==maxLineSearch)then
      message=trim(message)//'backtracked all the way back to the original value'
      err=-20; return
-    endif
+    end if
 
     ! define rhs
     rhs1 = fNew - fOld - xLambda*slopeInit
@@ -421,13 +421,13 @@ contains
       xLambdaTemp = 0.5_dp*xLambda
      else
       xLambdaTemp = (-bCoef + sqrt(disc))/(3._dp*aCoef)
-     endif
-    endif  ! calculating cubic
+     end if
+    end if  ! calculating cubic
 
     ! constrain to <= 0.5*xLambda
     if(xLambdaTemp > 0.5_dp*xLambda) xLambdaTemp=0.5_dp*xLambda
 
-   endif  ! subsequent backtracks
+   end if  ! subsequent backtracks
 
    ! save results
    xLambdaPrev = xLambda
@@ -551,7 +551,7 @@ contains
                   resVecNew,               & ! intent(out):   new residual vector
                   fNew,                    & ! intent(out):   new function evaluation
                   err,cmessage)              ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
 
   end subroutine eval8summa_wrapper
@@ -763,15 +763,15 @@ contains
   ! iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
   ! xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
   ! xInc       = xIncFactor*xInc
-  !endif
+  !end if
   
   ! vegetation
   if(ixVegNrg/=integerMissing)then
    if(abs(xInc(ixVegNrg)) > 1._dp)then
     xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
     xInc       = xIncFactor*xInc            ! scale iteration increments
-   endif
-  endif
+   end if
+  end if
   
   ! snow and soil
   if(size(ixSnowSoilNrg)>0)then
@@ -798,16 +798,16 @@ contains
     if(xInc(ixVegNrg) > critDiff)then
      crosTempVeg = .true.
      cInc        = critDiff + epsT  ! constrained temperature increment (K)
-    endif
+    end if
   
    ! initially unfrozen (T > Tfreeze)
    else
     if(xInc(ixVegNrg) < critDiff)then
      crosTempVeg = .true.
      cInc        = critDiff - epsT  ! constrained temperature increment (K)
-    endif
+    end if
   
-   endif  ! switch between frozen and unfrozen
+   end if  ! switch between frozen and unfrozen
   
    ! scale iterations
    if(crosTempVeg)then
@@ -828,7 +828,7 @@ contains
     cInc       = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
     xIncFactor = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
     xInc       = xIncFactor*xInc                                                  ! new iteration increment
-   endif
+   end if
   
   endif  ! if the state variable for canopy water is included within the state subset
   
@@ -849,7 +849,7 @@ contains
      xInc       = xIncFactor*xInc
    ! else    ! if snow temperature > freezing
    !  exit checkSnow
-    endif   ! if snow temperature > freezing
+    end if   ! if snow temperature > freezing
    !end do checkSnow
 
   endif  ! if there are state variables for energy in the snow domain

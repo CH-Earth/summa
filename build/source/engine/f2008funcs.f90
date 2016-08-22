@@ -23,6 +23,7 @@ USE nrtype
 implicit none
 private
 public::cloneStruc
+public::findIndex
 
 ! define generic interface
 interface cloneStruc
@@ -30,6 +31,38 @@ interface cloneStruc
 end interface cloneStruc
 
 contains
+
+ ! ************************************************************************************************
+ ! public function findIndex: find the first index within a vector
+ ! ************************************************************************************************
+ function findIndex(vector,desiredValue)
+ ! finds the first index within a vector
+ !  -- if the index does not exist, returns zero
+ ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
+ implicit none
+ ! dummy variables
+ integer(i4b),intent(in)   :: vector(:)    ! vector to search
+ integer(i4b),intent(in)   :: desiredValue ! desired value in the vector
+ integer(i4b)              :: findIndex    ! first index of the desired value in the vector
+ ! local variables
+ integer(i4b),dimension(1) :: vecIndex     ! first index of the desired value in the vector (vec of length=1) 
+
+ ! check if the value exisits
+ if(any(vector==desiredValue))then
+
+  ! get the index: merge provides a vector with 1s where mask is true and 0s otherwise, so maxloc(merge) is the first index of value=1
+  ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
+  vecIndex=maxloc( merge(1, 0, vector==desiredValue) )
+
+ ! value does not exist
+ else
+  vecIndex=0
+ endif
+
+ ! return function value (extract into a scalar)
+ findIndex=vecIndex(1)
+
+ end function findIndex
 
  ! ************************************************************************************************
  ! public subroutine cloneStruc_rv: clone a data structure (real vector)
@@ -56,22 +89,22 @@ contains
  if(.not.present(source) .and. .not.present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (neither given)'
   err=20; return
- endif
+ end if
 
  ! check that source and mold are not both present
  if(present(source) .and. present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (both given)'
   err=20; return
- endif
+ end if
 
  ! get the upper bounds of the source or the mold vector
- if(present(source))then; upperBound=ubound(source); endif
- if(present(mold))  then; upperBound=ubound(mold);   endif
+ if(present(source))then; upperBound=ubound(source); end if
+ if(present(mold))  then; upperBound=ubound(mold);   end if
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
  allocate(dataVec(lowerBound:upperBound(1)),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; end if
 
  ! copy data
  if(present(source)) dataVec(lowerBound:upperBound(1)) = source(lowerBound:upperBound(1))
@@ -103,22 +136,22 @@ contains
  if(.not.present(source) .and. .not.present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (neither given)'
   err=20; return
- endif
+ end if
 
  ! check that source and mold are not both present
  if(present(source) .and. present(mold))then
   message=trim(message)//'expect to receive either optional argument "source" or "mold" (both given)'
   err=20; return
- endif
+ end if
 
  ! get the upper bounds of the source or the mold vector
- if(present(source))then; upperBound=ubound(source); endif
- if(present(mold))  then; upperBound=ubound(mold);   endif
+ if(present(source))then; upperBound=ubound(source); end if
+ if(present(mold))  then; upperBound=ubound(mold);   end if
 
  ! reallocate spcae
  if(allocated(dataVec)) deallocate(dataVec)
  allocate(dataVec(lowerBound:upperBound(1)),stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the data vector'; return; end if
 
  ! copy data
  if(present(source)) dataVec(lowerBound:upperBound(1)) = source(lowerBound:upperBound(1))

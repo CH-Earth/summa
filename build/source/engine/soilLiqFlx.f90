@@ -288,21 +288,21 @@ contains
  if(ixDerivMethod==numerical)then
   message=trim(message)//'numerical derivates do not account for the cross derivatives between hydrology and thermodynamics'
   err=20; return
- endif
+ end if
 
  ! check the need to compute analytical derivatives
  if(deriv_desired .and. ixDerivMethod==analytical)then
   desireAnal = .true.
  else
   desireAnal = .false.
- endif
+ end if
 
  ! check the need to compute numerical derivatives
  if(deriv_desired .and. ixDerivMethod==numerical)then
   nFlux=3  ! compute the derivatives using one-sided finite differences
  else
   nFlux=0  ! compute analytical derivatives
- endif
+ end if
 
  ! identify the number of layers that contain roots
  nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth)
@@ -313,7 +313,7 @@ contains
  do iLayer=1,nSoil ! (loop through soil layers)
   if(mLayerVolFracIceTrial(iLayer) > verySmall) ixIce = iLayer
  end do
- !if(ixIce==nSoil)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; endif
+ !if(ixIce==nSoil)then; err=20; message=trim(message)//'ice extends to the bottom of the soil profile'; return; end if
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************
@@ -327,7 +327,7 @@ contains
   mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
  else ! (possible for there to be non-zero conductance and therefore transpiration in this case)
   mLayerTranspireFrac(:) = mLayerRootDensity(:)
- endif
+ end if
 
  ! compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
@@ -383,7 +383,7 @@ contains
                   dHydCond_dTemp(iSoil),           & ! intent(out): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                   ! output: error control
                   err,cmessage)                      ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  end do  ! (looping through soil layers)
 
  ! *************************************************************************************************************************************************
@@ -486,7 +486,7 @@ contains
                   dq_dNrgStateBelow(0),               & ! intent(out):   derivative in surface infiltration w.r.t. energy state variable in the upper-most soil layer (m s-1 K-1)
                   ! output: error control
                   err,cmessage)                         ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! include base soil evaporation as the upper boundary flux
   iLayerLiqFluxSoil(0) = scalarGroundEvaporation/iden_water + scalarSurfaceInfiltration
@@ -498,7 +498,7 @@ contains
     case(perturbStateBelow); scalarFlux_dStateBelow = iLayerLiqFluxSoil(0)
     case default; err=10; message=trim(message)//"unknown perturbation"; return
    end select
-  endif
+  end if
 
   !write(*,'(a,1x,10(f30.15))') 'scalarRainPlusMelt, scalarSurfaceInfiltration = ', scalarRainPlusMelt, scalarSurfaceInfiltration
 
@@ -507,7 +507,7 @@ contains
  ! compute numerical derivatives
  if(deriv_desired .and. ixDerivMethod==numerical)then
   dq_dHydStateBelow(0) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
- endif
+ end if
  !print*, 'scalarSurfaceInfiltration, iLayerLiqFluxSoil(0) = ', scalarSurfaceInfiltration, iLayerLiqFluxSoil(0)
  !print*, '(ixDerivMethod==numerical), dq_dHydStateBelow(0) = ', (ixDerivMethod==numerical), dq_dHydStateBelow(0)
  !pause
@@ -552,7 +552,7 @@ contains
      case(mixdform); vectorMatricHeadTrial(ixPerturb) = vectorMatricHeadTrial(ixPerturb) + dx
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select ! (form of Richards' equation)
-   endif
+   end if
 
    ! =====
    ! get hydraulic conductivty...
@@ -574,7 +574,7 @@ contains
       vectorHydCondTrial(ixPerturb) = scalarHydCondMicro + scalarHydCondMacro
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select ! (form of Richards' equation)
-   endif
+   end if
 
    ! =====
    ! compute vertical flux at layer interface and its derivative w.r.t. the state above and the state below...
@@ -611,7 +611,7 @@ contains
                    dq_dNrgStateBelow(iLayer),          & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
                    ! output: error control
                    err,cmessage)                         ! intent(out): error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! compute total vertical flux, to compute derivatives
    if(deriv_desired .and. ixDerivMethod==numerical)then
@@ -621,7 +621,7 @@ contains
      case(perturbStateBelow); scalarFlux_dStateBelow = iLayerLiqFluxSoil(iLayer)
      case default; err=10; message=trim(message)//"unknown perturbation"; return
     end select
-   endif
+   end if
 
   end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
 
@@ -629,7 +629,7 @@ contains
   if(deriv_desired .and. ixDerivMethod==numerical)then
    dq_dHydStateAbove(iLayer) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
    dq_dHydStateBelow(iLayer) = (scalarFlux_dStateBelow - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
-  endif
+  end if
 
   ! check
   !if(iLayer==6) write(*,'(a,i4,1x,10(e25.15,1x))') 'iLayer, vectorMatricHeadTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer) = ',&
@@ -747,7 +747,7 @@ contains
                   dq_dNrgStateAbove(nSoil),        & ! intent(out): change in drainage flux w.r.t. change in energy state in lowest unsaturated node (m s-1 or s-1)
                   ! output: error control
                   err,cmessage)                ! intent(out): error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! get copies of drainage flux to compute derivatives
   if(deriv_desired .and. ixDerivMethod==numerical)then
@@ -757,7 +757,7 @@ contains
     case(perturbStateBelow); err=20; message=trim(message)//'lower state should never be perturbed when computing drainage do not expect to get here'; return
     case default; err=10; message=trim(message)//"unknown perturbation"; return
    end select
-  endif
+  end if
 
  end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
 
@@ -766,7 +766,7 @@ contains
  !       (note also negative sign to account for inverse relationship between water table depth and aquifer storage)
  if(deriv_desired .and. ixDerivMethod==numerical)then
   dq_dHydStateAbove(nSoil) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
- endif
+ end if
 
  ! no dependence on the aquifer for drainage
  dq_dHydStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
@@ -920,7 +920,7 @@ contains
     volFracLiq1 = volFracLiq(scalarMatricHeadTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     volFracLiq2 = volFracLiq(scalarMatricHeadTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     print*, 'scalardTheta_dPsi = ', scalardTheta_dPsi, (volFracLiq2 - volFracLiq1)/dx
-   endif  ! (testing the derivative)
+   end if  ! (testing the derivative)
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  end select
 
@@ -949,11 +949,11 @@ contains
      dHydCond_dVolLiq = hydCond_noIce*dIceImpede_dLiq + dK_dLiq__noIce*iceImpedeFac
     else
      dHydCond_dVolLiq = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)
-    endif
+    end if
     dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.true.)   ! [.true. = analytical] compute derivative in dPsi_dTheta (m)
     dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
     dHydCond_dMatric = valueMissing ! not used, so cause problems
-   endif
+   end if
 
   ! ***** mixed form of Richards' equation -- just compute hydraulic condictivity
   case(mixdform)
@@ -974,7 +974,7 @@ contains
     else
      dHydCondMacro_dVolLiq = 0._dp
      dHydCondMacro_dMatric = 0._dp
-    endif
+    end if
     ! (compute derivatives for micropores)
     if(scalarVolFracIceTrial > verySmall)then
      dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
@@ -983,7 +983,7 @@ contains
     else
      dHydCondMicro_dTemp   = 0._dp
      dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
-    endif
+    end if
     ! (combine derivatives)
     dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
     ! (compute analytical derivative for change in ice impedance factor w.r.t. temperature)
@@ -1008,22 +1008,22 @@ contains
      print*, 'test derivative: ', (hydCon - hydCond_noIce)/dx, dHydCondMicro_dTemp
      print*, 'test derivative: ', (hydIce - scalarHydCond)/dx, dHydCond_dTemp
      print*, 'press any key to continue'; read(*,*) ! (alternative to the deprecated 'pause' statement)
-    endif  ! testing the derivative
+    end if  ! testing the derivative
     ! (set values that are not used to missing)
     dHydCond_dVolLiq = valueMissing ! not used, so cause problems
     dDiffuse_dVolLiq = valueMissing ! not used, so cause problems
-   endif
+   end if
 
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
 
- endselect
+ end select
 
  ! if derivatives are not desired, then set values to missing
  if(.not.deriv_desired)then
   dHydCond_dVolLiq   = valueMissing ! not used, so cause problems
   dDiffuse_dVolLiq   = valueMissing ! not used, so cause problems
   dHydCond_dMatric   = valueMissing ! not used, so cause problems
- endif
+ end if
 
  end subroutine diagv_node
 
@@ -1217,7 +1217,7 @@ contains
    else
     dq_dHydState = 0._dp
     dNum         = 0._dp
-   endif
+   end if
    !write(*,'(a,1x,10(e30.20,1x))') 'scalarMatricHead, scalarSurfaceInfiltration, dq_dHydState, dNum = ', &
    !                                 scalarMatricHead, scalarSurfaceInfiltration, dq_dHydState, dNum
 
@@ -1236,16 +1236,16 @@ contains
      do iLayer=1,nRoots-1
       rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(iLayer)*mLayerDepth(iLayer)
       rootZoneIce = rootZoneIce + mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
-     enddo
-    endif
-    if(rootingDepth < iLayerHeight(nRoots-1))then; err=20; message=trim(message)//'problem with definition of nRoots'; return; endif
+     end do
+    end if
+    if(rootingDepth < iLayerHeight(nRoots-1))then; err=20; message=trim(message)//'problem with definition of nRoots'; return; end if
     ! (process layers where the roots end in the current layer)
     rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
     rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
 
     ! define available capacity to hold water (m)
     availCapacity = theta_sat*rootingDepth - rootZoneIce
-    if(rootZoneLiq > availCapacity)then; err=20; message=trim(message)//'liquid water in the root zone exceeds capacity'; return; endif
+    if(rootZoneLiq > availCapacity)then; err=20; message=trim(message)//'liquid water in the root zone exceeds capacity'; return; end if
 
     ! define the depth to the wetting front (m)
     depthWettingFront = (rootZoneLiq/availCapacity)*rootingDepth
@@ -1277,10 +1277,10 @@ contains
      scalarFrozenArea = 0._dp
     else
      scalarFrozenArea = 0._dp
-    endif
+    end if
     !print*, 'scalarFrozenArea, rootZoneIce = ', scalarFrozenArea, rootZoneIce
 
-   endif ! (if desire to compute infiltration)
+   end if ! (if desire to compute infiltration)
 
    ! compute infiltration (m s-1)
    scalarSurfaceInfiltration = (1._dp - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
@@ -1303,7 +1303,7 @@ contains
   ! ***** error check
   case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return
 
- endselect  ! (type of upper boundary condition)
+ end select  ! (type of upper boundary condition)
 
  end subroutine surfaceFlx
 
@@ -1404,7 +1404,7 @@ contains
   iLayerHydCond   = (nodeHydCondTrial(ixLower)   * nodeHydCondTrial(ixUpper))**0.5_dp
  else
   iLayerHydCond   = (nodeHydCondTrial(ixLower)   + nodeHydCondTrial(ixUpper))*0.5_dp
- endif
+ end if
  !write(*,'(a,1x,5(e20.10,1x))') 'in iLayerFlux: iLayerHydCond, iLayerHydCondMP = ', iLayerHydCond, iLayerHydCondMP
  ! compute the height difference between nodes
  dz = nodeHeight(ixLower) - nodeHeight(ixUpper)
@@ -1433,7 +1433,7 @@ contains
     if(.not.useGeometric)then
      message=trim(message)//'only currently implemented for geometric mean -- change local flag'
      err=20; return
-    endif
+    end if
     ! derivatives in hydraulic conductivity at the layer interface (m s-1)
     dHydCondIface_dVolLiqAbove = dHydCond_dVolLiq(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_dp/max(iLayerHydCond,verySmall)
     dHydCondIface_dVolLiqBelow = dHydCond_dVolLiq(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_dp/max(iLayerHydCond,verySmall)
@@ -1451,7 +1451,7 @@ contains
     else
      dHydCondIface_dMatricAbove = dHydCond_dMatric(ixUpper)/2._dp
      dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)/2._dp
-    endif
+    end if
     ! derivatives in the flux w.r.t. matric head
     dq_dHydStateAbove = -dHydCondIface_dMatricAbove*dPsi/dz + iLayerHydCond/dz + dHydCondIface_dMatricAbove
     dq_dHydStateBelow = -dHydCondIface_dMatricBelow*dPsi/dz - iLayerHydCond/dz + dHydCondIface_dMatricBelow
@@ -1463,7 +1463,7 @@ contains
  else
   dq_dHydStateAbove = valueMissing
   dq_dHydStateBelow = valueMissing
- endif
+ end if
 
  end subroutine iLayerFlux
 
@@ -1614,7 +1614,7 @@ contains
    else     ! (do not desire derivatives)
     dq_dHydStateUnsat = valueMissing
     dq_dNrgStateUnsat = valueMissing
-   endif
+   end if
 
   ! ---------------------------------------------------------------------------------------------
   ! * function of matric head in the bottom layer
@@ -1625,7 +1625,7 @@ contains
    select case(ixRichards)
     case(moisture); nodePsi = matricHead(nodeVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     case(mixdform); nodePsi = nodeMatricHead
-   endselect
+   end select
    zWater = nodeHeight - nodePsi
    scalarDrainage = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)
 
@@ -1642,7 +1642,7 @@ contains
    else     ! (do not desire derivatives)
     dq_dHydStateUnsat = valueMissing
     dq_dNrgStateUnsat = valueMissing
-   endif
+   end if
 
   ! ---------------------------------------------------------------------------------------------
   ! * free drainage
@@ -1665,7 +1665,7 @@ contains
    else     ! (do not desire derivatives)
     dq_dHydStateUnsat = valueMissing
     dq_dNrgStateUnsat = valueMissing
-   endif
+   end if
 
 
   ! ---------------------------------------------------------------------------------------------
@@ -1679,14 +1679,14 @@ contains
    else
     dq_dHydStateUnsat = valueMissing
     dq_dNrgStateUnsat = valueMissing
-   endif
+   end if
 
   ! ---------------------------------------------------------------------------------------------
   ! * error check
   ! ---------------------------------------------------------------------------------------------
   case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return
 
- endselect ! (type of boundary condition)
+ end select ! (type of boundary condition)
 
  end subroutine qDrainFlux
 

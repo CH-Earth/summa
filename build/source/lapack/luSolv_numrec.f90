@@ -47,13 +47,13 @@ contains
  if(size(a,1) /= n .or. size(a,2) /= n)then
   message=trim(message)//'mismatch in size of matrices'
   err=20; return
- endif
+ end if
  d=1.0_dp
  vv=maxval(abs(a),dim=2)
  if (any(vv == 0.0))then
   message=trim(message)//'singular matrix'
   err=20; return
- endif
+ end if
  vv=1.0_dp/vv
  do j=1,n
   imax=(j-1)+imaxloc(vv(j:n)*abs(a(j:n,j)))
@@ -90,7 +90,7 @@ contains
  if(size(a,1) /= n .or. size(a,2) /= n)then
   message=trim(message)//'mismatch in size of matrices'
   err=20; return
- endif
+ end if
  ii=0
  do i=1,n
   ll=indx(i)

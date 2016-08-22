@@ -22,7 +22,9 @@ MODULE data_types
  ! used to define model data structures
  USE nrtype
  USE multiconst,only:integerMissing
+ USE var_lookup,only:maxvarStat
  implicit none
+ ! constants necessary for variable defs
  private
 
  ! ***********************************************************************************************************
@@ -30,9 +32,9 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! the model decision structure
  type,public  :: model_options
-  character(len=64)                      :: cOption='notPopulatedYet'
-  character(len=64)                      :: cDecision='notPopulatedYet'
-  integer(i4b)                           :: iDecision=integerMissing
+  character(len=64)                      :: cOption   = 'notPopulatedYet'
+  character(len=64)                      :: cDecision = 'notPopulatedYet'
+  integer(i4b)                           :: iDecision = integerMissing
  end type model_options
 
  ! ***********************************************************************************************************
@@ -46,6 +48,7 @@ MODULE data_types
   integer(i4b),allocatable               :: data_id(:)               ! netcdf variable id for each forcing data variable
   character(len=256),allocatable         :: varName(:)               ! netcdf variable name for each forcing data variable
   real(dp)                               :: firstJulDay              ! first julian day in forcing file
+  real(dp)                               :: convTime2Days            ! factor to convert time to days
  end type file_info
 
  ! ***********************************************************************************************************
@@ -61,13 +64,15 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! Define variable metadata
  ! ***********************************************************************************************************
- ! define derived type for model variables, including name, decription, and units
+ ! define derived type for model variables, including name, description, and units
  type,public :: var_info
-  character(len=64)                      :: varname=''       ! variable name
-  character(len=128)                     :: vardesc=''       ! variable description
-  character(len=64)                      :: varunit=''       ! variable units
-  character(len=32)                      :: vartype=''       ! variable type (scalar, model layers, etc.)
-  logical(lgt)                           :: v_write=.FALSE.  ! flag to write variable to the output file
+  character(len=64)                      :: varname  = 'empty'         ! variable name
+  character(len=128)                     :: vardesc  = 'empty'         ! variable description
+  character(len=64)                      :: varunit  = 'empty'         ! variable units
+  integer(i4b)                           :: vartype  = integerMissing  ! variable type 
+  logical(lgt),dimension(maxvarStat)     :: statFlag = .false.         ! statistic flag (on/off) 
+  integer(i4b)                           :: outFreq  = integerMissing  ! output file id # - each variable may be output to exactly one of maxFreq output files 
+  integer(i4b),dimension(maxvarStat)     :: ncVarID  = integerMissing  ! netcdf variable id 
  endtype var_info
 
  ! define extended data type (include indices to map onto parent data type)
@@ -97,15 +102,16 @@ MODULE data_types
 
  ! hru info data structure
  type, public :: hru_info
-  integer(i4b)                      :: hru_ix                   ! index of the hru in the entire domain
+  integer(i4b)                      :: hru_nc                   ! index of the hru in the netcdf file
+  integer(i4b)                      :: hru_ix                   ! index of the hru in the run domain
   integer(i4b)                      :: hru_id                   ! id (non-sequential number) of the hru
   integer(i4b)                      :: nSnow                    ! number of snow layers
   integer(i4b)                      :: nSoil                    ! number of soil layers
  endtype hru_info
 
- ! define mapping from HRUs to the HRUs
+ ! define mapping from GRUs to the HRUs
  type, public :: gru2hru_map
-  integer(i4b)                      :: gru_ix                   ! index of the gru
+  integer(i4b)                      :: gruId                    ! id of the gru
   integer(i4b)                      :: hruCount                 ! total number of hrus in the gru
   type(hru_info), allocatable       :: hruInfo(:)               ! basic information of HRUs within the gru
  endtype gru2hru_map
@@ -113,7 +119,7 @@ MODULE data_types
  ! define the mapping from the HRUs to the GRUs
  type, public :: hru2gru_map
   integer(i4b)                      :: gru_ix                   ! index of gru which the hru belongs to 
-  integer(i4b)                      :: ihru                     ! index of a hru within a gru
+  integer(i4b)                      :: localHRU                 ! index of a hru within a gru
  endtype hru2gru_map
 
  ! ***********************************************************************************************************

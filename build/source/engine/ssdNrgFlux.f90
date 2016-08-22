@@ -173,8 +173,8 @@ contains
     iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                     (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
 
-    !print*, 'iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
-  endif ! (the type of layer)
+    !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
+  end if ! (the type of layer)
  end do
 
  ! -------------------------------------------------------------------------------------------------------------------------
@@ -193,7 +193,7 @@ contains
   ! compute fluxes within the domain -- positive downwards
   else
    iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
-  endif
+  end if
  end do  ! looping through layers
 
  ! -------------------------------------------------------------------------------------------------------------------------
@@ -234,7 +234,7 @@ contains
       flux0 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)   ))/dz
       flux1 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)+dx))/dz
       dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
-     endif
+     end if
 
      ! * zero flux at the lower boundary
      case(zeroFlux)
@@ -256,9 +256,9 @@ contains
     flux2 = -iLayerThermalC(iLayer)*((mLayerTempTrial(iLayer+1)+dx) -  mLayerTempTrial(iLayer)    ) / dz
     dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
     dFlux_dTempBelow(iLayer) = (flux2 - flux0)/dx
-   endif
+   end if
 
-  endif  ! type of layer (upper, internal, or lower)
+  end if  ! type of layer (upper, internal, or lower)
 
  end do  ! (looping through layers)
 

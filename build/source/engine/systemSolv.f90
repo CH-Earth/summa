@@ -27,9 +27,9 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
-USE globalData,only:quadMissing     ! missing quadruple precision number
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing double precision number
+USE multiconst,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
@@ -114,7 +114,7 @@ contains
                        nState,         & ! intent(in): total number of state variables
                        dt,             & ! intent(in): time step (s)
                        maxiter,        & ! intent(in): maximum number of iterations
-                       firstSubstep,   & ! intent(in): flag to denote first sub-step
+                       firstSubStep,   & ! intent(in): flag to denote first sub-step
                        computeVegFlux, & ! intent(in): flag to denote if computing energy flux over vegetation
                        ! input/output: data structures
                        type_data,      & ! intent(in):    type of vegetation and soil
@@ -129,6 +129,7 @@ contains
                        model_decisions,& ! intent(in):    model decisions
                        ! output: model control
                        niter,          & ! number of iterations taken
+                       resumeSolver,   & ! resume the solver even maximum iteration reaches
                        err,message)      ! error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -170,6 +171,7 @@ contains
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
  ! output: model control
+ logical(lgt),intent(in)         :: resumeSolver                  ! flag to resume solver when it failed (not converged)
  integer(i4b),intent(out)        :: niter                         ! number of iterations
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
@@ -355,15 +357,15 @@ contains
 
  ! allocate space for the derivative structure
  call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! allocate space for the baseflow derivatives
  if(ixGroundwater==qbaseTopmodel)then
   allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
  else
   allocate(dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
- endif
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; endif
+ end if
+ if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
 
  ! point to flux variables in the data structure
  fluxVars: associate(&
@@ -851,17 +853,13 @@ contains
    
  ! compute the change in temperature associated with melt-freeze of infiltrating water
  if(ixSplitOption==deCoupled_nrgMass)then
-  
-
-
-
   message=trim(message)//'need to compute the change in temperature associated with melt-freeze of infiltrating water'
   err=20; return
  endif
 
  ! deallocate space for the baseflow derivative matrix
  deallocate(dBaseflow_dMatric,stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; end if
 
  ! end associate statements
  end associate fluxVars

@@ -24,6 +24,7 @@ USE netcdf
 implicit none
 private
 public::nc_file_open
+public::nc_file_close
 public::netcdf_err
 contains
 
@@ -50,17 +51,38 @@ contains
  if(.not.xist)then
    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
    err=10; return
- endif
+ end if
 
  ! open file
  err=nf90_open(infile, mode, ncid) 
  if(err/=nf90_noerr) then
    message=trim(message)//"OpenError['"//trim(infile)//"']"//trim(nf90_strerror(err))
    err=20; return
- endif
+ end if
 
  end subroutine nc_file_open
 
+ ! **********************************************************************************************************
+ ! private subroutine put_attrib: put global attributes as character string
+ ! **********************************************************************************************************
+ subroutine nc_file_close(ncid,err,message)
+ implicit none
+
+ ! declare dummy variables
+ integer(i4b),intent(in)    :: ncid         ! file id of netcdf file to close
+ integer(i4b),intent(out)   :: err          ! error code
+ character(*),intent(out)   :: message      ! error message
+ ! internals
+ character(64)              :: cmessage     ! netcdf error message
+
+ ! initialize error control
+ err=0; message = 'nc_file_close/'
+
+ err = nf90_close(ncid); 
+ call netcdf_err(err,cmessage);
+ message=trim(message)//trim(cmessage)
+
+ end subroutine nc_file_close
 
 ! ***********************************************************************************************
 ! check the status of netCDF file operation and return error message 
@@ -76,7 +98,7 @@ contains
   if (err/=nf90_noerr) then
    message=trim(message)//"["//trim(nf90_strerror(err))//"]"
    err=200
-  endif
+  end if
  end subroutine netcdf_err
 
 end module netcdf_util_module

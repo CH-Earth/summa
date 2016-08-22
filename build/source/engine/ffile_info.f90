@@ -30,7 +30,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine ffile_info: read information on model forcing files
  ! ************************************************************************************************
- subroutine ffile_info(nHRU,err,message)
+ subroutine ffile_info(nGRU,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
  USE netcdf_util_module,only:nc_file_open    ! open netCDF file
@@ -45,9 +45,10 @@ contains
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
  USE multiconst,only:integerMissing          ! integer missing value
+ USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output
- integer(i4b),intent(in)              :: nHRU           ! number of hydrologic response units
+ integer(i4b),intent(in)              :: nGRU           ! number of grouped response units
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
  ! define local variables
@@ -71,7 +72,10 @@ contains
  integer(i4b)                         :: nFile          ! number of forcing files in forcing file list
  integer(i4b)                         :: file_nHRU      ! number of HRUs in current forcing file
  integer(i4b)                         :: nForcing       ! number of forcing variables
+ integer(i4b)                         :: iGRU,localHRU  ! index of GRU and HRU
+ integer(i4b)                         :: ncHruId(1)     ! hruID from the forcing files
  real(dp)                             :: dataStep_iFile ! data step for a given forcing data file
+
  ! Start procedure here
  err=0; message="ffile_info/"
  ! ------------------------------------------------------------------------------------------------------------------
@@ -82,29 +86,29 @@ contains
 
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,dataLines,err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
  nFile = size(dataLines)
 
  ! allocate space for forcing information
  if(allocated(forcFileInfo)) deallocate(forcFileInfo)
  allocate(forcFileInfo(nFile), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; endif
+ if(err/=0)then; err=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
 
  ! poputate the forcingInfo structure with filenames 
  do iFile=1,nFile
   ! split the line into "words" (expect one word: the file describing forcing data for that index)
   read(dataLines(iFile),*,iostat=err) filenameData
-  if(err/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; endif
+  if(err/=0)then; message=trim(message)//'problem reading a line of data from file ['//trim(infile)//']'; return; end if
   ! set forcing file name attribute
   forcFileInfo(iFile)%filenmData = trim(filenameData)
- enddo  ! (looping through files)
+ end do  ! (looping through files)
 
  ! close ascii file
- close(unit=unt,iostat=err); if(err/=0)then;message=trim(message)//'problem closing forcing file list'; return; endif
+ close(unit=unt,iostat=err); if(err/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
  ! ------------------------------------------------------------------------------------------------------------------
  ! (2) pull descriptive information from netcdf forcing file and check number of HRUs in each forcing file matches nHRU
@@ -122,18 +126,18 @@ contains
 
   ! allocate space for structure components
   allocate(forcFileInfo(iFile)%data_id(nForcing), forcFileInfo(iFile)%varName(nForcing), stat=err)
-  if(err/=0)then; err=41; message=trim(message)//"problemAllocateStructureElement"; return; endif
+  if(err/=0)then; err=41; message=trim(message)//"problemAllocateStructureElement"; return; end if
 
   ! initialize variable ids to missing
   forcFileInfo(iFile)%data_id(:) = integerMissing
 
-  ! build filename bfor actual forcing file
+  ! build filename for actual forcing file
   infile = trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
   ! open file
   mode=nf90_NoWrite
   call nc_file_open(trim(infile), mode, ncid, err, cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! how many variables are there?
   err = nf90_inquire(ncid, nvariables=nVar)
@@ -143,26 +147,19 @@ contains
   forcFileInfo(iFile)%nVars = nVar
 
   ! inquire nhru dimension size
-  err = nf90_inq_dimid(ncid,'nHRU',dimId);                if(err/=0)then; message=trim(message)//'cannot find dimension nHRU'; return; endif
-  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension nHRU'; return; endif 
-
-  ! check HRUs are as expected
-  if(file_nHRU /= nHRU)then
-   write(message,'(a,i0,a,i0)') trim(message)//'File HRU dimension: ',file_nHRU ,'not equal to nHRU: ',nHRU
-   err=20; return
-  endif
+  err = nf90_inq_dimid(ncid,'hru',dimId);                 if(err/=0)then; message=trim(message)//'cannot find dimension hru'; return; endif
+  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif 
 
   ! inquire time dimension size
-  err = nf90_inq_dimid(ncid,'time',dimId);                                     if(err/=0)then; message=trim(message)//'cannot find dimension time'; return; endif
-  err = nf90_inquire_dimension(ncid,dimId,len=forcFileInfo(iFile)%nTimeSteps); if(err/=0)then; message=trim(message)//'cannot read dimension time'; return; endif
+  err = nf90_inq_dimid(ncid,'time',dimId);                                     if(err/=0)then; message=trim(message)//'cannot find dimension time'; return; end if
+  err = nf90_inquire_dimension(ncid,dimId,len=forcFileInfo(iFile)%nTimeSteps); if(err/=0)then; message=trim(message)//'cannot read dimension time'; return; end if
 
   ! loop through all variables in netcdf file, check to see if everything needed to run the model exists and data_step is correct
   do iNC=1,nVar
 
    ! inqure about current variable name, type, number of dimensions
    err = nf90_inquire_variable(ncid,iNC,name=varName)
-   if(err/=0)then; message=trim(message)//'problem inquiring variable: '//trim(varName); return; endif
-   !print *,'current var',iNC,trim(varName)
+   if(err/=0)then; message=trim(message)//'problem inquiring variable: '//trim(varName); return; end if
 
    ! process variable
    select case(trim(varName))
@@ -172,12 +169,12 @@ contains
 
      ! get variable index
      ivar = get_ixforce(trim(varname))
-     if(ivar < 0)then;                               err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return; endif
-     if(ivar>size(forcFileInfo(iFile)%data_id))then; err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return; endif
+     if(ivar < 0)then;                               err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return; end if
+     if(ivar>size(forcFileInfo(iFile)%data_id))then; err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return; end if
 
      ! put netcdf file variable index in the forcing file metadata structure
      err = nf90_inq_varid(ncid, trim(varName), forcFileInfo(iFile)%data_id(ivar))
-     if(err/=0)then; message=trim(message)//"problem inquiring forcing variable[var="//trim(varName)//"]"; return; endif
+     if(err/=0)then; message=trim(message)//"problem inquiring forcing variable[var="//trim(varName)//"]"; return; end if
 
      ! put variable name in forcing file metadata structure
      forcFileInfo(iFile)%varName(ivar) = trim(varName)
@@ -185,15 +182,15 @@ contains
      ! get first time from file, place into forcFileInfo
      if(trim(varname)=='time')then
       err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forcFileInfo(iFile)%firstJulDay,start=(/1/))
-      if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; endif
-     endif  ! if the variable name is time
+      if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; end if
+     end if  ! if the variable name is time
 
     ! data step
     case('data_step' )
 
      ! read data_step from netcdf file
-     err = nf90_inq_varid(ncid, "data_step", varId); if(err/=0)then; message=trim(message)//'cannot find data_step'; return; endif
-     err = nf90_get_var(ncid,varid,dataStep_iFile);  if(err/=0)then; message=trim(message)//'cannot read data_step'; return; endif
+     err = nf90_inq_varid(ncid, "data_step", varId); if(err/=0)then; message=trim(message)//'cannot find data_step'; return; end if
+     err = nf90_get_var(ncid,varid,dataStep_iFile);  if(err/=0)then; message=trim(message)//'cannot read data_step'; return; end if
 
      ! check data_step is the same for all forcing files
      if(iFile == 1)then
@@ -202,8 +199,8 @@ contains
       if(abs(dataStep_iFile - data_step) > epsilon(dataStep_iFile))then
        write(message,'(a,i0,a)') trim(message)//'data step for forcing file ',iFile,'differs from the datastep of the first forcing file'
        err=20; return
-      endif
-     endif
+      end if
+     end if
 
     ! HRU id -- required
     case('hruId')
@@ -212,17 +209,31 @@ contains
      err = nf90_inq_varid(ncid,trim(varname),varId)
      if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
 
+     ! check that the hruId is what we expect
+     ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
+     do iGRU=1,nGRU
+      do localHRU=1,gru_struc(iGRU)%hruCount
+       err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
+       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
+        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_nc,' - ',  &
+            ncHruId(1), ' differs from the expected: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_id, ' in file ', trim(infile)
+        write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
+        err=40; return
+       endif
+      end do
+     end do
+  
     ! OK to have additional variables in the forcing file that are not used
     case default; cycle
    end select  ! select variable name
-  enddo ! (end of netcdf file variable loop)
+  end do ! (end of netcdf file variable loop)
 
   ! check to see if any forcing variables are missed
   if(any(forcFileInfo(iFile)%data_id(:)==integerMissing))then
    do iVar=1,size(forcFileInfo(iFile)%data_id)
-    if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; endif
+    if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variable missing [var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; end if
    end do
-  endif
+  end if
 
  end do ! (loop through files)
 

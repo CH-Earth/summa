@@ -24,8 +24,8 @@ module computFlux_module
 USE nrtype
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing real number
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing real number
 
 ! layer types
 USE globalData,only:iname_snow      ! named variables for snow
@@ -378,7 +378,7 @@ contains
   print*, 'scalarCanopyTempTrial = ', scalarCanopyTempTrial
   message=trim(message)//'canopy temperature is > expected maximum'
   err=20; return
- endif
+ end if
 
  ! *****
  ! * COMPUTE DERIVATIVES ASSOCIATED WITH MELT-FREEZE...
@@ -393,8 +393,8 @@ contains
   else
    dTheta_dTkCanopy = 0._dp
    dCanLiq_dTcanopy = 0._dp
-  endif
- endif
+  end if
+ end if
 
  ! * snow+soil domain: compute derivative of volumetric liquid water content w.r.t. temperature (K-1)
  do iLayer=1,nLayers  ! loop through all snow and soil layers
@@ -407,9 +407,9 @@ contains
      mLayerdTheta_dTk(iLayer)        = dTheta_dTk(mLayerTempTrial(iLayer),theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)  ! assume no volume expansion
     else
      mLayerdTheta_dTk(iLayer)        = 0._dp
-    endif
+    end if
    case default; err=40; message=trim(message)//"cannot identify the layer as snow or soil"; return
-  endselect
+  end select
  end do  ! (looping through snow+soil layers)
 
  ! * compute the matric head associated with liquid water
@@ -441,7 +441,7 @@ contains
    dPsiLiq_dPsi0(iSoil)       = 1._dp  ! derivative=1 because values are identical
    dPsiLiq_dTemp(iSoil)       = 0._dp  ! derivative=0 because no impact of temperature for unfrozen conditions
    mLayerMatricHeadLiq(iSoil) = mLayerMatricHeadTrial(iSoil) ! liquid water matric potential is equal to the total water matic potential when there is no ice
-  endif  ! (if ice exists)
+  end if  ! (if ice exists)
 
  end do  ! (looping through soil layers)
 
@@ -450,7 +450,7 @@ contains
  if(firstFluxCall)then
   if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._dp
                 iLayerLiqFluxSoil(0:nSoil) = 0._dp
- endif
+ end if
 
  ! *****
  ! * CALCULATE ENERGY FLUXES OVER VEGETATION...
@@ -742,7 +742,6 @@ contains
 
  endif  ! if calculating the liquid flux through soil
 
-
  ! *****
  ! * CALCULATE THE GROUNDWATER FLOW...
  ! ************************************
@@ -812,7 +811,7 @@ contains
   scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1
   scalarAquiferRecharge  = 0._dp  ! recharge to the aquifer (m s-1)
   scalarAquiferBaseflow  = 0._dp  ! total baseflow from the aquifer (m s-1)
- endif
+ end if
 
  ! *****
  ! (X) WRAP UP...
@@ -893,7 +892,7 @@ contains
  else
   compress(:)       = 0._dp
   dCompress_dPsi(:) = 0._dp
- endif
+ end if
  end subroutine soilCmpres
 
 end module computFlux_module

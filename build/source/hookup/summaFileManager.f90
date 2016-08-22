@@ -38,7 +38,7 @@ CHARACTER(LEN=summaPathLen)  :: META_ATTR        ='summa_zLocalAttributeMeta.txt
 CHARACTER(LEN=summaPathLen)  :: META_TYPE        ='summa_zCatergoryMeta.txt'       ! metadata for local classification of veg, soil, etc.
 CHARACTER(LEN=summaPathLen)  :: META_FORCE       ='summa_zForceMeta.txt'           ! metadata for model forcing variables
 CHARACTER(LEN=summaPathLen)  :: META_LOCALPARAM  ='summa_zLocalParamMeta.txt'      ! metadata for model parameters
-CHARACTER(LEN=summaPathLen)  :: META_LOCALMVAR   ='summa_zLocalModelVarMeta.txt'   ! metadata for model variables
+CHARACTER(LEN=summaPathLen)  :: OUTPUT_CONTROL   ='summa_zLocalModelVarMeta.txt'   ! metadata for model variables
 CHARACTER(LEN=summaPathLen)  :: META_LOCALINDEX  ='summa_zLocalModelIndexMeta.txt' ! metadata for model indices
 CHARACTER(LEN=summaPathLen)  :: META_BASINPARAM  ='summa_zBasinParamMeta.txt'      ! metadata for model parameters
 CHARACTER(LEN=summaPathLen)  :: META_BASINMVAR   ='summa_zBasinModelVarMeta.txt'   ! metadata for model variables
@@ -70,7 +70,7 @@ integer(i4b),intent(out)::err
 character(*),intent(out)::message
 ! locals
 logical(lgt)::xist
-integer(i4b),parameter::unt=99 !DK: need to either define units globally, or use getSpareUnit
+integer(i4b),parameter::fileUnit=99 !DK: need to either define units globally, or use getSpareUnit
 character(*),parameter::summaFileManagerHeader="SUMMA_FILE_MANAGER_V1.0"
 character(LEN=100)::temp
 integer(i4b)::ierr ! temporary error code
@@ -86,49 +86,48 @@ if(.not.xist)then
   message=trim(message)//"FileNotFound['"//trim(summaFileManagerIn)//"']"&
                        //'/ProceedingWithDefaults'
   err=-10; return
-endif
+end if
 ! open file manager file
-open(unt,file=summaFileManagerIn,status="old",action="read",iostat=err)
+open(fileUnit,file=summaFileManagerIn,status="old",action="read",iostat=err)
 if(err/=0)then
   message=trim(message)//"fileManagerOpenError['"//trim(summaFileManagerIn)//"']"
   err=10; return
-endif
+end if
 ! check the header matches the code
-read(unt,*)temp
+read(fileUnit,*)temp
 if(trim(temp)/=summaFileManagerHeader)then
   message=trim(message)//"unknownHeader&[file='"//trim(summaFileManagerIn)//"']&&
     &[header="//trim(temp)//"]"
   err=20; return
-endif
+end if
 ! read information from file
-ierr=0  ! initialize errors
-read(unt,'(a)')temp
-read(unt,'(a)')temp
-read(unt,*)SETNGS_PATH     ; call checkLineRead(SETNGS_PATH,      err,message); if(err/=0)return
-read(unt,*)INPUT_PATH      ; call checkLineRead(INPUT_PATH,       err,message); if(err/=0)return
-read(unt,*)OUTPUT_PATH     ; call checkLineRead(OUTPUT_PATH,      err,message); if(err/=0)return
-read(unt,'(a)')temp
-read(unt,*)M_DECISIONS     ; call checkLineRead(M_DECISIONS,      err,message); if(err/=0)return
-read(unt,*)META_TIME       ; call checkLineRead(META_TIME,        err,message); if(err/=0)return
-read(unt,*)META_ATTR       ; call checkLineRead(META_ATTR,        err,message); if(err/=0)return
-read(unt,*)META_TYPE       ; call checkLineRead(META_TYPE,        err,message); if(err/=0)return
-read(unt,*)META_FORCE      ; call checkLineRead(META_FORCE,       err,message); if(err/=0)return
-read(unt,*)META_LOCALPARAM ; call checkLineRead(META_LOCALPARAM,  err,message); if(err/=0)return
-read(unt,*)META_LOCALMVAR  ; call checkLineRead(META_LOCALMVAR,   err,message); if(err/=0)return
-read(unt,*)META_LOCALINDEX ; call checkLineRead(META_LOCALINDEX,  err,message); if(err/=0)return
-read(unt,*)META_BASINPARAM ; call checkLineRead(META_BASINPARAM,  err,message); if(err/=0)return
-read(unt,*)META_BASINMVAR  ; call checkLineRead(META_BASINMVAR,   err,message); if(err/=0)return
-read(unt,*)LOCAL_ATTRIBUTES; call checkLineRead(LOCAL_ATTRIBUTES, err,message); if(err/=0)return
-read(unt,*)LOCALPARAM_INFO ; call checkLineRead(LOCALPARAM_INFO,  err,message); if(err/=0)return
-read(unt,*)BASINPARAM_INFO ; call checkLineRead(BASINPARAM_INFO,  err,message); if(err/=0)return
-read(unt,*)FORCING_FILELIST; call checkLineRead(FORCING_FILELIST, err,message); if(err/=0)return
-read(unt,*)MODEL_INITCOND  ; call checkLineRead(MODEL_INITCOND,   err,message); if(err/=0)return
-read(unt,*)PARAMETER_TRIAL ; call checkLineRead(PARAMETER_TRIAL,  err,message); if(err/=0)return
-read(unt,*)OUTPUT_PREFIX   ; call checkLineRead(OUTPUT_PREFIX,    err,message); if(err/=0)return
-close(unt)
+ierr=0 ! initialize errors
+
+call readLine(fileUnit,SETNGS_PATH,     err,message); if(err/=0)return
+call readLine(fileUnit,INPUT_PATH,      err,message); if(err/=0)return
+call readLine(fileUnit,OUTPUT_PATH,     err,message); if(err/=0)return
+
+call readLine(fileUnit,M_DECISIONS,     err,message); if(err/=0)return
+call readLine(fileUnit,META_TIME,       err,message); if(err/=0)return
+call readLine(fileUnit,META_ATTR,       err,message); if(err/=0)return
+call readLine(fileUnit,META_TYPE,       err,message); if(err/=0)return
+call readLine(fileUnit,META_FORCE,      err,message); if(err/=0)return
+call readLine(fileUnit,META_LOCALPARAM, err,message); if(err/=0)return
+call readLine(fileUnit,OUTPUT_CONTROL,  err,message); if(err/=0)return
+call readLine(fileUnit,META_LOCALINDEX, err,message); if(err/=0)return
+call readLine(fileUnit,META_BASINPARAM, err,message); if(err/=0)return
+call readLine(fileUnit,META_BASINMVAR,  err,message); if(err/=0)return
+call readLine(fileUnit,LOCAL_ATTRIBUTES,err,message); if(err/=0)return
+call readLine(fileUnit,LOCALPARAM_INFO, err,message); if(err/=0)return
+call readLine(fileUnit,BASINPARAM_INFO, err,message); if(err/=0)return
+call readLine(fileUnit,FORCING_FILELIST,err,message); if(err/=0)return
+call readLine(fileUnit,MODEL_INITCOND,  err,message); if(err/=0)return
+call readLine(fileUnit,PARAMETER_TRIAL, err,message); if(err/=0)return
+call readLine(fileUnit,OUTPUT_PREFIX,   err,message); if(err/=0)return
+close(fileUnit)
 ! check that the output directory exists and write the date and time to a log file
 open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)
-if(err/=0)then; err=10; message=trim(message)//"cannot write to directory '"//trim(OUTPUT_PATH)//"'"; return; endif
+if(err/=0)then; err=10; message=trim(message)//"cannot write to directory '"//trim(OUTPUT_PATH)//"'"; return; end if
 call date_and_time(cdate,ctime)
 write(runinfo_fileunit,*) 'ccyy='//cdate(1:4)//' - mm='//cdate(5:6)//' - dd='//cdate(7:8), &
                          ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
@@ -136,19 +135,27 @@ close(runinfo_fileunit)
 ! End procedure here
 end subroutine summa_SetDirsUndPhiles
 
-
 ! *************************************************************************************************
-! public subroutine checkLineRead: check if there is a space in the character string
+! public subroutine readLine: read the first string to a string variable
 ! *************************************************************************************************
-subroutine checkLineRead(stringInput,err,message)
+subroutine readLine(fileUnit,inputString,err,message)
 implicit none
-character(*),intent(in)   :: stringInput
+integer(i4b),intent(in)   :: fileUnit
+character(*),intent(inout):: inputString
 integer(i4b),intent(inout):: err
 character(*),intent(inout):: message
-if(index(trim(stringInput),' ')/=0) then
- err=30; message="f-summaSetDirsUndPhiles/spaceInString[string="//trim(stringInput)//"]"
-endif
-end subroutine checkLineRead
 
+do
+ ! read line that is not comment
+ read(fileUnit,*) inputString
+ if (inputString(1:1) /= '!') exit
+end do
+
+! check if there is a space in the character string
+if(index(trim(inputString),' ')/=0) then
+ err=30; message="f-summaSetDirsUndPhiles/spaceInString[string="//trim(inputString)//"]"
+ return
+endif
+end subroutine readLine
 
 END MODULE summafilemanager

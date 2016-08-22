@@ -139,7 +139,7 @@ contains
    nCheck=5
   else
    nCheck=nSnow
-  endif
+  end if
 
   ! loop through snow layers
   do iSnow=kSnow+1,nCheck
@@ -173,11 +173,11 @@ contains
      scalarSWE       = (mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water)*mLayerDepth(1)
      ! remove the top layer from all model variable vectors
      ! NOTE: nSnow-1 = 0, so routine removes layer #1
-     call rmLyAllVars(prog_data,prog_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call rmLyAllVars(diag_data,diag_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call rmLyAllVars(flux_data,flux_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     call rmLyAllVars(indx_data,indx_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+     call rmLyAllVars(prog_data,prog_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     call rmLyAllVars(diag_data,diag_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     call rmLyAllVars(flux_data,flux_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     call rmLyAllVars(indx_data,indx_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
      ! update the total number of layers
      nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
      nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
@@ -193,10 +193,10 @@ contains
                      prog_data,   & ! intent(inout): model variables for a local HRU
                      ! output: error control
                      err,cmessage)
-     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
      ! exit the do loop (no more snow layers to remove)
      return
-    endif  ! (special case of 1 layer --> snow without a layer)
+    end if  ! (special case of 1 layer --> snow without a layer)
 
     ! ***** identify the layer to combine
     if(iSnow==1)then
@@ -204,20 +204,20 @@ contains
     elseif(iSnow==nSnow)then
      jSnow = nSnow-1  ! lower-most layer, combine with its upper neighbor
     else
-     if(mLayerDepth(iSnow-1)<mLayerDepth(iSnow+1))then; jSnow = iSnow-1; else; jSnow = iSnow+1; endif
-    endif
+     if(mLayerDepth(iSnow-1)<mLayerDepth(iSnow+1))then; jSnow = iSnow-1; else; jSnow = iSnow+1; end if
+    end if
 
     ! ***** combine layers
     ! identify the layer closest to the surface
     kSnow=min(iSnow,jSnow)
     ! combine layer with identified neighbor
     call layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,kSnow,err,cmessage)
-    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
     ! exit the loop to try again
     exit
 
-   endif  ! (if layer is below the mass threshold)
+   end if  ! (if layer is below the mass threshold)
 
    kSnow=iSnow ! ksnow is used for completion test, so include here
 
@@ -238,21 +238,21 @@ contains
   ! flag that layers were merged
   mergedLayers=.true.
   ! initial check to ensure everything is wonderful in the universe
-  if(nSnow /= 6)then; err=5; message=trim(message)//'special case of > 5 layers: expect only six layers'; return; endif
+  if(nSnow /= 6)then; err=5; message=trim(message)//'special case of > 5 layers: expect only six layers'; return; end if
   ! combine 5th layer with layer below
   call layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,5,err,cmessage)
-  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
   ! another check
-  if(nSnow /= 5)then; err=5; message=trim(message)//'special case of > 5 layers: expect to reduced layers to exactly 5'; return; endif
- endif
+  if(nSnow /= 5)then; err=5; message=trim(message)//'special case of > 5 layers: expect to reduced layers to exactly 5'; return; end if
+ end if
 
  ! check that there are no more than 5 layers in the CLM option
  if(ix_snowLayers == rulesDependLayerIndex)then
   if(nSnow > 5)then
    message=trim(message)//'expect no more than 5 layers when combination/sub-division rules depend on the layer index (CLM option)'
    err=20; return
-  endif
- endif
+  end if
+ end if
 
  ! end association to variables in the data structure
  end associate
@@ -337,18 +337,18 @@ contains
 
  ! convert enthalpy (J m-3) to temperature (K)
  call E2T_nosoil(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
- if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
  ! test enthalpy conversion
  if(abs(temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
   write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
   message=trim(message)//'problem with enthalpy-->temperature conversion'
   err=20; return
- endif
+ end if
 
  ! check temperature is within the two temperatures
- if(cTemp > max(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; endif
- if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; endif
+ if(cTemp > max(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
+ if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
 
  ! compute volumetric fraction of liquid water
  fLiq = fracLiquid(cTemp,snowfrz_scale)
@@ -361,10 +361,10 @@ contains
  end associate
 
  ! remove a model layer from all model variable vectors
- call rmLyAllVars(prog_data,prog_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- call rmLyAllVars(diag_data,diag_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- call rmLyAllVars(flux_data,flux_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- call rmLyAllVars(indx_data,indx_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ call rmLyAllVars(prog_data,prog_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ call rmLyAllVars(diag_data,diag_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ call rmLyAllVars(flux_data,flux_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ call rmLyAllVars(indx_data,indx_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! define the combined layer as snow
  indx_data%var(iLookINDEX%layerType)%dat(iSnow) = iname_snow
@@ -392,7 +392,7 @@ contains
                  prog_data,   & ! intent(inout): model variables for a local HRU
                  ! output: error control
                  err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  end subroutine layer_combine
 
@@ -404,6 +404,8 @@ contains
  ! (layer "iSnow" will be filled with a combined layer later)
  ! ***********************************************************************************************************
  subroutine rmLyAllVars(dataStruct,metaStruct,iSnow,err,message)
+ USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  USE f2008funcs_module,only:cloneStruc            ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
  USE data_types,only:var_ilength,var_dlength      ! data vectors with variable length dimension
  USE data_types,only:var_info                     ! metadata structure
@@ -432,18 +434,18 @@ contains
   type is (var_dlength); if(size(dataStruct%var) /= size(metaStruct)) err=20
   type is (var_ilength); if(size(dataStruct%var) /= size(metaStruct)) err=20
   class default; err=20; message=trim(message)//'unable to identify the data type'; return
- endselect
- if(err/=0)then; message=trim(message)//'dimensions of data structure and metadata structures do not match'; return; endif
+ end select
+ if(err/=0)then; message=trim(message)//'dimensions of data structure and metadata structures do not match'; return; end if
 
  ! ***** loop through model variables and remove one layer
  do ivar=1,size(metaStruct)
 
   ! define bounds
-  select case(trim(metaStruct(ivar)%vartype))
-   case('midSnow'); ix_lower=1; ix_upper=nSnow
-   case('midToto'); ix_lower=1; ix_upper=nLayers
-   case('ifcSnow'); ix_lower=0; ix_upper=nSnow
-   case('ifcToto'); ix_lower=0; ix_upper=nLayers
+  select case(metaStruct(ivar)%vartype)
+   case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
+   case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
+   case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
+   case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
    case default; cycle  ! no need to remove soil layers or scalar variables
   end select
 
@@ -453,44 +455,44 @@ contains
    ! ** double precision
    type is (var_dlength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! allocate the temporary vector
     allocate(tempVec_dp(ix_lower:ix_upper-1), stat=err)
-    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
     if(iSnow>=ix_lower)  tempVec_dp(iSnow)              = missingDouble ! set merged layer to missing (fill in later)
     if(iSnow>ix_lower)   tempVec_dp(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
     if(iSnow+1<ix_upper) tempVec_dp(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
     ! deallocate the data vector: strictly not necessary, but include to be safe 
     deallocate(dataStruct%var(ivar)%dat,stat=err)
-    if(err/=0)then; err=20; message='problem deallocating data vector'; return; endif
+    if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source
     call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_dp, err=err, message=cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_dp,stat=err)
-    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; end if
 
    ! ** integer
    type is (var_ilength)
     ! check allocated
-    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; endif
+    if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! allocate the temporary vector
     allocate(tempVec_i4b(ix_lower:ix_upper-1), stat=err)
-    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; endif
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
     if(iSnow>=ix_lower)  tempVec_i4b(iSnow)              = missingInteger ! set merged layer to missing (fill in later)
     if(iSnow>ix_lower)   tempVec_i4b(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
     if(iSnow+1<ix_upper) tempVec_i4b(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
     deallocate(dataStruct%var(ivar)%dat,stat=err)
-    if(err/=0)then; err=20; message='problem deallocating data vector'; return; endif
+    if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source
     call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_i4b, err=err, message=cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
     deallocate(tempVec_i4b,stat=err)
-    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; endif
+    if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; end if
 
    ! check that we found the data type
    class default; err=20; message=trim(message)//'unable to identify the data type'; return

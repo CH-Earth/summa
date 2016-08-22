@@ -24,8 +24,8 @@ module getVectorz_module
 USE nrtype
 
 ! missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing real number
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing real number
 
 ! domain types
 USE globalData,only:iname_veg       ! named variables for vegetation

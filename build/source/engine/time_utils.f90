@@ -25,6 +25,7 @@ private
 public::extractTime
 public::compjulday
 public::compcalday
+public::elapsedSec
 contains
 
 
@@ -54,39 +55,40 @@ contains
   istart = istart+iend
  else
   istart=1
- endif
+ end if
 
  ! get the year
  call extract(refdate(istart:n),"-",iend,iyyy,err,message); if (err/=0) return
- if(iyyy < 1900)then; err=20; message=trim(message)//'year < 1900'; return; endif
- if(iyyy > 2100)then; err=20; message=trim(message)//'year > 2100'; return; endif
+ if(iyyy < 1900)then; err=20; message=trim(message)//'year < 1900'; return; end if
+ if(iyyy > 2100)then; err=20; message=trim(message)//'year > 2100'; return; end if
  ! get the month
  istart=istart+iend
  call extract(refdate(istart:n),"-",iend,im,err,message);   if (err/=0) return
- if(im <  1)then; err=20; message=trim(message)//'month < 1'; return; endif
- if(im > 12)then; err=20; message=trim(message)//'month > 12'; return; endif
+ if(im <  1)then; err=20; message=trim(message)//'month < 1'; return; end if
+ if(im > 12)then; err=20; message=trim(message)//'month > 12'; return; end if
  ! get the day
  istart=istart+iend
  call extract(refdate(istart:n)," ",iend,id,err,message);   if (err/=0) return
- if(id <  1)then; err=20; message=trim(message)//'day < 1'; return; endif
- if(id > 31)then; err=20; message=trim(message)//'day > 31'; return; endif
+ if(id <  1)then; err=20; message=trim(message)//'day < 1'; return; end if
+ if(id > 31)then; err=20; message=trim(message)//'day > 31'; return; end if
  ! check if we are at the end of the string
  if (istart+(iend-2)==n) then
   ih=0; imin=0; dsec=0._dp; return
- endif
+ end if
 
  ! get the hour (":" at end of hour)
  istart = istart+iend
- if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include hours'; return; endif
+ if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include hours'; return; end if
  call extract(refdate(istart:n),":",iend,ih,err,message);   if (err/=0) return
- if(ih <  0)then; err=20; message=trim(message)//'hour < 0'; return; endif
- if(ih > 24)then; err=20; message=trim(message)//'hour > 24'; return; endif
+ if(ih <  0)then; err=20; message=trim(message)//'hour < 0'; return; end if
+ if(ih > 24)then; err=20; message=trim(message)//'hour > 24'; return; end if
  ! get the minute (":" at end of minute)
  istart = istart+iend
- if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include minutes'; return; endif
+ if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include minutes'; return; end if
  call extract(refdate(istart:n),":",iend,imin,err,message); if (err/=0) return
- if(imin <  0)then; err=20; message=trim(message)//'minute < 0'; return; endif
- if(imin > 60)then; err=20; message=trim(message)//'minute > 60'; return; endif
+ if(imin <  0)then; err=20; message=trim(message)//'minute < 0'; return; end if
+ if(imin > 60)then; err=20; message=trim(message)//'minute > 60'; return; end if
+
  ! get the second
  istart = istart+iend
  if(istart > len_trim(refdate)) return
@@ -120,8 +122,8 @@ contains
   read(substring(1:iend-1),*,iostat=err) itemp
   ! read error
   if (err/=0) then
-   err=20; message=trim(message)//"unexpectedCharacters/[string='"//trim(substring)//"']"; return
-  endif
+   err=20; message=trim(message)//"unexpected characters [string='"//trim(substring)//"']"; return
+  end if
   end subroutine extract
 
  end subroutine extractTime
@@ -153,19 +155,19 @@ contains
 
  ! compute julian day
  jy=iyyy
- if (jy.eq.0) then; err=10; message=trim(message)//"noYearZero/"; return; endif
+ if (jy.eq.0) then; err=10; message=trim(message)//"noYearZero/"; return; end if
  if (jy.lt.0) jy=jy+1
  if (mm.gt.2) then
   jm=mm+1
  else
   jy=jy-1
   jm=mm+13
- endif
+ end if
  julday=int(365.25*jy)+int(30.6001*jm)+id+1720995
  if (id+31*(mm+12*iyyy).ge.IGREG) then
   ja=int(0.01*jy)
   julday=julday+2-ja+int(0.25*ja)
- endif
+ end if
 
  ! compute fraction of the day
  jfrac = (real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
@@ -222,7 +224,7 @@ contains
 
  ! initialize errors
  err=0; message="compcalday"
- if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; endif
+ if(julday<=0)then;err=10;message=trim(message)//"no negative julian days/"; return; end if
 
  ! step 1
  step_1a = 4*int(julday)+b
@@ -262,5 +264,44 @@ contains
  dsec = nint(remainder*secprmin)
 
  end subroutine compcalday
+ 
+ ! ***************************************************************************************
+ ! public function elapsedSec: calculate difference of two time marks obtained by date_and_time()
+ ! *************************************************************************************** 
+ function elapsedSec(startTime, endTime)
+ USE multiconst,only            :  secprday,secprhour,secprmin        ! seconds in an (day, hour, minute)
+ integer(i4b),intent(in)        :: startTime(8),endTime(8)            ! state time and end time
+ real(dp)                       :: elapsedSec                         ! elapsed time in seconds
+ ! local variables
+ integer(i4b)                   :: elapsedDay                         ! elapsed full days
+ integer(i4b)                   :: yy                                 ! index of year
+ ! number of days of each month
+ integer(i4b)                   :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ integer(i4b)                   :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ 
+ ! calculate the elapsed time smaller than a day
+ elapsedSec = (endTime(8)-startTime(8))*.001_dp + (endTime(7)-startTime(7)) + (endTime(6)-startTime(6))*secprmin + (endTime(5)-startTime(5))*secprhour
+
+ ! check if the run is within the same day otherwise calculate how many days
+ if (endTime(1) > startTime(1) .or. endTime(2) > startTime(2) .or. endTime(3) > startTime(3)) then
+
+  elapsedDay = 0
+  ! diffenece in year
+  do yy = startTime(1), endTime(1) - 1
+   elapsedDay = elapsedDay + 365
+   if ((mod(yy,4)==0 .and. .not. mod(yy,100)==0) .or. (mod(yy,400)==0)) elapsedDay = elapsedDay + 1
+  end do
+  if ((mod(startTime(1),4)==0 .and. .not. mod(startTime(1),100)==0) .or. (mod(startTime(1),400)==0)) days1(2) = 29
+  if ((mod(endTime(1),4)==0 .and. .not. mod(endTime(1),100)==0) .or. (mod(endTime(1),400)==0)) days2(2) = 29
+  ! difference in month 
+  if (startTime(2) > 1) elapsedDay = elapsedDay - sum(days1(1:(startTime(2)-1)))
+  elapsedDay = elapsedDay - startTime(3) 
+  ! difference in day
+  if (endTime(2) > 1) elapsedDay = elapsedDay + sum(days2(1:(endTime(2)-1)))
+  elapsedDay = elapsedDay + endTime(3)
+  ! convert to seconds
+  elapsedSec = elapsedSec + elapsedDay * secprday
+ end if 
+ end function  
 
 end module time_utils_module

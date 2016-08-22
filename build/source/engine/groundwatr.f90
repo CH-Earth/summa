@@ -183,9 +183,9 @@ contains
   ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
   do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
    if(mLayerVolFracLiq(iLayer) > fieldCapacity)then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
-   else; exit; endif                                                        ! (only consider saturated layer at the bottom of the soil profile)
+   else; exit; end if                                                        ! (only consider saturated layer at the bottom of the soil profile)
   end do  ! (looping through soil layers)
- endif
+ end if
 
  ! check for an early return (no layers are "active")
  if(ixSaturation > nSoil)then
@@ -194,7 +194,7 @@ contains
   mLayerBaseflow(:)      = 0._dp   ! baseflow from each soil layer (m s-1)
   dBaseflow_dMatric(:,:) = 0._dp   ! derivative in baseflow w.r.t. matric head (s-1)
   return
- endif  ! if some layers are saturated
+ end if  ! if some layers are saturated
 
  ! ************************************************************************************************
  ! (2) compute the baseflow flux and its derivative w.r.t volumetric liquid water content
@@ -285,7 +285,7 @@ contains
   do iLayer=1,nSoil; write(*,'(i4,1x,100(e12.5,1x))') iLayer, nJac(1:nSoil,iLayer); end do
   !pause 'testing Jacobian'
 
- endif  ! if desire to compute the Jacobian
+ end if  ! if desire to compute the Jacobian
 
  ! end association to variables in data structures
  end associate
@@ -422,7 +422,7 @@ contains
    zActive(iLayer) = zActive(iLayer+1) + drainableWater
    trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL
    trSoil(iLayer)  = trTotal(iLayer) - trTotal(iLayer+1)
-  endif
+  end if
   !write(*,'(a,1x,i4,1x,10(f20.15,1x))') 'iLayer, mLayerMatricHeadLiq(iLayer), mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer) = ', &
   !                                       iLayer, mLayerMatricHeadLiq(iLayer), mLayerVolFracLiq(iLayer), zActive(iLayer), trTotal(iLayer), trSoil(iLayer)
  end do  ! looping through soil layers
@@ -432,7 +432,7 @@ contains
   zActive(1:ixSaturation-1) = 0._dp
   trTotal(1:ixSaturation-1) = 0._dp
   trSoil(1:ixSaturation-1)  = 0._dp
- endif
+ end if
 
  ! compute the outflow from each layer (m3 s-1)
  mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
@@ -461,11 +461,11 @@ contains
   !  write(*,'(a,1x,i4,1x,10(f30.20,1x))') 'iLayer, dLogFunc_dLiq(iLayer), (f1 - logF)/dx = ', iLayer, dLogFunc_dLiq(iLayer), (f1 - logF)/dx
   ! end do  ! (testing derivative for individual soil layers)
   ! !pause ' check logistic'
-  !endif
+  !end if
  else
   logF             = 0._dp
   dLogFunc_dLiq(:) = 0._dp
- endif
+ end if
 
  ! compute the exfiltartion (m s-1)
  if(totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._dp))then
@@ -473,7 +473,7 @@ contains
   !write(*,'(a,1x,10(f30.20,1x))') 'scalarExfiltration = ', scalarExfiltration
  else
   scalarExfiltration = 0._dp
- endif
+ end if
 
  ! check
  !write(*,'(a,1x,10(f30.20,1x))') 'zActive(1), soilDepth, availStorage, logF, scalarExfiltration = ', &
@@ -502,7 +502,7 @@ contains
   write(*,'(a,1x,5(f30.20,1x))') 'xTran, trTotal(ixSaturation)     = ', xTran, trTotal(ixSaturation)
   write(*,'(a,1x,5(f30.20,1x))') 'xFlow, totalColumnOutflow        = ', xFlow, sum(mLayerColumnOutflow(:))/HRUarea
   !pause 'check groundwater'
- endif
+ end if
 
  ! ***********************************************************************************************************************
  ! (2) compute the derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
@@ -539,7 +539,7 @@ contains
    dExfiltrate_dVolLiq(iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*logF + dLogFunc_dLiq(iLayer)*qbTotal
   end do  ! looping through soil layers
   dBaseflow_dVolLiq(1,1:nSoil) = dBaseflow_dVolLiq(1,1:nSoil) - dExfiltrate_dVolLiq(1:nSoil)
- endif
+ end if
 
 
  ! ***********************************************************************************************************************
@@ -566,7 +566,7 @@ contains
    f1 = zActive(jLayer+1) + mLayerDepth(jLayer)*((mLayerVolFracLiq(jLayer)+dx) - fieldCapacity)/activePorosity
   else
    f1 = mLayerDepth(jLayer)*((mLayerVolFracLiq(jLayer)+dx) - fieldCapacity)/activePorosity
-  endif
+  end if
   if(jLayer==iLayer+1) tOld = tran0*(f1/soilDepth)**zScale_TOPMODEL
   do kLayer=jLayer-1,iLayer,-1
    f1 = f1 + mLayerDepth(kLayer)*(mLayerVolFracLiq(kLayer) - fieldCapacity)/activePorosity
@@ -593,7 +593,7 @@ contains
   write(*,'(a,1x,2(e20.10,1x))') 'anal x-deriv   = ', dPart0*dPart1*(dPart2 - dPart3)/HRUarea, dBaseflow_dVolLiq(iLayer,jLayer) + dExfiltrate_dVolLiq(jLayer)
   !pause ' check x-deriv'
 
- endif  ! if testing derivatives
+ end if  ! if testing derivatives
 
  ! end association to data in structures
  end associate

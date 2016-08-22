@@ -42,7 +42,7 @@ contains
  logical(lgt),intent(in)                     :: mask(:)             ! variables desired
  ! output variables
  type(extended_info),allocatable,intent(out) :: metaChild(:)        ! child metadata structure
- integer(i4b),intent(out)                    :: parent2child_map(:) ! index of the child variable
+ integer(i4b),allocatable,intent(out)        :: parent2child_map(:) ! index of the child variable
  integer(i4b),intent(out)                    :: err                 ! error code
  character(*),intent(out)                    :: message             ! error message
  ! local variables
@@ -57,7 +57,7 @@ contains
  if(size(mask)/=nParent)then
   message=trim(message)//'size of mask vector does not match the size of the parent structure'
   err=20; return
- endif
+ end if
 
  ! allocate space for the child metadata structure
  nChild = count(mask)
@@ -66,7 +66,7 @@ contains
  if(err/=0)then
   message=trim(message)//'problem allocating space for the child metadata structure'
   err=20; return
- endif
+ end if
 
  ! define mapping with the parent data structure
  metaChild(:)%ixParent = pack(arth(1,1,nParent), mask)
@@ -74,9 +74,11 @@ contains
  ! copy across the metadata from the parent structure
  metaChild(:)%var_info = metaParent(metaChild(:)%ixParent)
 
- ! put the child indices in the childFLUX_MEAN vector
+ ! allows to map from the parent to the child - must carry this around outside
+ if(allocated(parent2child_map)) then; err=20; message=trim(message)//'child map already allocated'; return; end if; 
+ allocate(parent2child_map(nParent))
  parent2child_map(:) = integerMissing
- parent2child_map(metaChild(:)%ixParent) = arth(1,1,nChild)
+ if(nChild>0) parent2child_map(metaChild(:)%ixParent) = arth(1,1,nChild)
 
  end subroutine childStruc
 
