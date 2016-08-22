@@ -40,6 +40,7 @@ USE multiconst,only:&
 ! named variables that define the layer type
 USE globalData,only:iname_snow     ! snow
 USE globalData,only:iname_soil     ! soil
+USE mDecisions_module,only:Smirnova2000  ! option for temporally constant thermal conductivity
 implicit none
 private
 public::diagn_evar
@@ -243,7 +244,7 @@ contains
     end select  ! option for the thermal conductivity of soil
     
    ! ***** snow
-   case(ix_snow)
+   case(iname_snow)
     ! temporally constant thermal conductivity
     if(ixThCondSnow==Smirnova2000)then
      mLayerThermalC(iLayer) = fixedThermalCond_snow

@@ -47,7 +47,7 @@ contains
  USE data_types,only:gru_hru_doubleVec                   ! actual data
  USE data_types,only:gru_hru_intVec                      ! actual data
  USE data_types,only:gru_hru_double                      ! actual data
- USE globaldata,only:ix_soil,ix_snow                     ! named variables to describe the type of layer
+ USE globaldata,only:iname_soil,iname_snow               ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
                        iden_ice,  &                      ! intrinsic density of ice             (kg m-3)
@@ -176,7 +176,7 @@ contains
     select case(mlayerLayerType(iLayer))
 
      ! ***** snow
-     case(ix_snow)
+     case(iname_snow)
       ! (check liquid water)
       if(mLayerVolFracLiq(iLayer) < 0._dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < 0: layer = ',iLayer; err=20; return; end if
       if(mLayerVolFracLiq(iLayer) > 1._dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > 1: layer = ',iLayer; err=20; return; end if
@@ -188,7 +188,7 @@ contains
       if(scalarTheta < 0.05_dp)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < 0.05: layer = ',iLayer; err=20; return; end if
 
      ! ***** soil
-     case(ix_soil)
+     case(iname_soil)
       ! (check liquid water)
       if(mLayerVolFracLiq(iLayer) < theta_res)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
       if(mLayerVolFracLiq(iLayer) > theta_sat)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
@@ -207,7 +207,7 @@ contains
     select case(mLayerLayerType(iLayer))
   
      ! ** snow
-     case(ix_snow)
+     case(iname_snow)
   
       ! check that snow temperature is less than freezing
       if(mLayerTemp(iLayer) > Tfreeze)then
@@ -229,7 +229,7 @@ contains
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
   
      ! ** soil
-     case(ix_soil)
+     case(iname_soil)
   
       ! ensure consistency among state variables
       call updateSoil(&

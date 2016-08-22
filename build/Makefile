@@ -49,6 +49,14 @@ ifeq "$(FC)" "gfortran-6"
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
 endif
 
+# generic gfortran compiler
+ifeq "$(FC)" "gfortran"
+ NCDF_PATH = /opt/netcdf4
+ LAPK_PATH = /opt/local
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
+endif
+
 # Intel fortran compiler
 ifeq "$(FC)" "ifort"
  NCDF_PATH = /opt/netcdf4-intel
@@ -78,6 +86,11 @@ ifeq "$(FC)" "gfortran-mp-6"
  FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 endif
 ifeq "$(FC)" "gfortran-6"
+ FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+endif
+ifeq "$(FC)" "gfortran"
  FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument

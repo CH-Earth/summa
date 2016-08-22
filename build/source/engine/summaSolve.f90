@@ -653,12 +653,6 @@ contains
 
   ! check convergence based on the soil water balance error (m)
   if(size(ixSoilOnlyHyd)>0)then
-   ! (temporary check)
-   if(size(ixSoilOnlyHyd)/=nSoil)then
-    message=trim(message)//'still need to implement the water balance check for the case when size(ixSoilOnlyHyd)/=nSoil'
-    err=20; return
-   endif
-   ! (calculate the soil water balance error)
    soilWatbalErr = abs( sum(real(rVec(ixSoilOnlyHyd), dp)*mLayerDepth(nSnow+1:nLayers)) )
    watbalConv    = (soilWatbalErr < absConvTol_liquid)  ! absolute error in total soil water balance (m)
   else

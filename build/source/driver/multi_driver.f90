@@ -1202,7 +1202,6 @@ contains
  endif
  ! dump variables
  print*, 'error, variable dump:'
- print*, 'istep              = ', istep
  if(allocated(timeStruct%var))then
   if(iGRU<=nGRU)then
    if(iHRU<=gru_struc(iGRU)%hruCount)then
