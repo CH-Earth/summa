@@ -1,11 +1,22 @@
 module popMetadat_module
+USE nrtype
 implicit none
+! define indices in metadata structures
+integer(i4b),parameter   :: modelTime=1     ! to force index variables to be output at model timestep
+integer(i4b),parameter   :: nameIndex=1     ! index of the variable name
+integer(i4b),parameter   :: freqIndex=3     ! index of the output frequency
+! define indices in flag vectors
+integer(i4b),parameter   :: indexMidSnow=1  ! index of flag vector: midSnow
+integer(i4b),parameter   :: indexMidSoil=2  ! index of flag vector: midSoil
+integer(i4b),parameter   :: indexMidToto=3  ! index of flag vector: midToto
+integer(i4b),parameter   :: indexIfcSnow=4  ! index of flag vector: ifcSnow
+integer(i4b),parameter   :: indexIfcSoil=5  ! index of flag vector: ifcSoil
+integer(i4b),parameter   :: indexIfcToto=6  ! index of flag vector: ifcToto
 private
 public::popMetadat
 contains
 
  subroutine popMetadat(err,message)
- USE nrtype
  USE multiconst,only:integerMissing
  ! data structures
  USE data_types, only: var_info   ! data type for metadata structure
@@ -610,11 +621,10 @@ contains
 
  end subroutine popMetadat
 
-! ------------------------------------------------
-! subroutine to populate write commands from file input
-! ------------------------------------------------
+ ! ------------------------------------------------
+ ! subroutine to populate write commands from file input
+ ! ------------------------------------------------
  subroutine read_output_file(err,message)
- USE nrtype
  USE multiconst,only:integerMissing
  USE get_ixName_module,only:get_ixUnknown
 
@@ -662,7 +672,6 @@ contains
  character(LEN=64),allocatable      :: lineWords(:)    ! vector to parse textline
  integer(i4b)                       :: nWords          ! number of words in line
  integer(i4b)                       :: oFreq           ! output frequencies read from file
- integer(i4b),parameter             :: modelTime=1     ! to force index variables to be output at model timestep
  character(LEN=5)                   :: structName      ! name of structure
 
  ! indices
@@ -713,29 +722,45 @@ contains
   if (trim(lineWords(1))=='time') cycle
 
   ! read output frequency
-  read(lineWords(3),*) oFreq
+  read(lineWords(freqIndex),*,iostat=err) oFreq
+  if(err/=0)then
+   message=trim(message)//'problem reading the output frequency: check format of model control file "'//trim(outfile)//'"'
+   err=20; return
+  endif
 
   ! --- variables with multiple statistics options --------------------------
-  call get_ixUnknown(trim(lineWords(1)),structName,vDex,err,cmessage)
-  if (err.ne.0) then; message=trim(message)//trim(cmessage)//trim(linewords(1)); return; end if;
+
+  ! idenify the data structure for the given variable (structName) and the variable index (vDex)
+  call get_ixUnknown(trim(lineWords(nameIndex)),structName,vDex,err,cmessage)
+  if (err.ne.0) then; message=trim(message)//trim(cmessage)//trim(linewords(nameIndex)); return; end if;
+
+  ! populate the metadata that controls the model output
   select case (trim(structName))
-   case('time' ); if (oFreq.ne.0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modelTime ! timing data
-   case('bpar' ); if (oFreq.ne.0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modelTime ! basin parameters
-   case('attr' ); if (oFreq.ne.0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modelTime ! local attributes 
-   case('type' ); if (oFreq.ne.0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification 
-   case('mpar' ); if (oFreq.ne.0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
+
+   ! temporally constant structures
+   case('time' ); if (oFreq/=0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modelTime ! timing data
+   case('bpar' ); if (oFreq/=0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modelTime ! basin parameters
+   case('attr' ); if (oFreq/=0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modelTime ! local attributes 
+   case('type' ); if (oFreq/=0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification 
+   case('mpar' ); if (oFreq/=0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
+
+   ! index structures -- can only be output at the model time step
    case('indx' )
     if (oFreq==modelTime)       indx_meta(vDex)%statFlag(iLookStat%inst)=.true.; indx_meta(vDex)%outFreq=modelTime      ! indexex
     if (oFreq>modelTime) then; err=20; message=trim(message)//'index variables can only be output at model timestep'; return; end if
-   case('forc' ); call popStat(forc_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model forcing data
-   case('prog' ); call popStat(prog_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model prognostics 
-   case('diag' ); call popStat(diag_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model diagnostics
-   case('flux' ); call popStat(flux_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model fluxes
-   case('bvar' ); call popStat(bvar_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! basin variables
-   case('deriv'); call popStat(deriv_meta(vDex),lineWords,nWords,indexFlags,err,cmessage)    ! model derivs 
+
+   ! temporally varying structures
+   case('forc' ); call popStat(forc_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model forcing data
+   case('prog' ); call popStat(prog_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model prognostics 
+   case('diag' ); call popStat(diag_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model diagnostics
+   case('flux' ); call popStat(flux_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model fluxes
+   case('bvar' ); call popStat(bvar_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! basin variables
+   case('deriv'); call popStat(deriv_meta(vDex),lineWords,indexFlags,err,cmessage)    ! model derivs 
+
+   ! error control
    case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
-  end select
-  if (err.ne.0) then; message=trim(message)//trim(cmessage);return; end if
+  end select  ! select data structure
+  if (err/=0) then; message=trim(message)//trim(cmessage);return; end if
 
   ! Ensure that time is turned on: it doens't matter what this value is as long as it is >0.
   forc_meta(iLookForce%time)%outFreq = abs(integerMissing)
@@ -745,37 +770,37 @@ contains
  ! **********************************************************************************************
  ! (4) see if we need any index variables 
  ! **********************************************************************************************
- if (indexFlags(1)) then
+ if (indexFlags(indexMidSnow)) then
   indx_meta(iLookINDEX%midSnowStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midSnowStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
  end if
- if (indexFlags(2)) then
+ if (indexFlags(indexMidSoil)) then
   indx_meta(iLookINDEX%midSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midSoilStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
  end if
- if (indexFlags(3)) then
+ if (indexFlags(indexMidToto)) then
   indx_meta(iLookINDEX%midTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midTotoStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
   indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
  end if
- if (indexFlags(4)) then
+ if (indexFlags(indexIfcSnow)) then
   indx_meta(iLookINDEX%ifcSnowStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSnowStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
  end if
- if (indexFlags(5)) then
+ if (indexFlags(indexIfcSoil)) then
   indx_meta(iLookINDEX%ifcSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSoilStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
   indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
  end if
- if (indexFlags(6)) then
+ if (indexFlags(indexIfcToto)) then
   indx_meta(iLookINDEX%ifcTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcTotoStartIndex)%outFreq                  = modelTime 
   indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
@@ -789,8 +814,7 @@ contains
  ! Subroutine popStat for populating the meta_data structures with information read in from file.
  ! This routine is called by read_output_file
  ! ********************************************************************************************
- subroutine popStat(meta,lineWords,nWords,indexFlags,err,message)
- USE nrtype
+ subroutine popStat(meta,lineWords,indexFlags,err,message)
  USE multiconst,only:integerMissing
  USE globalData,only:outFreq,nFreq             ! maximum number of output files
  USE data_types,only:var_info                  ! meta_data type declaration
@@ -798,18 +822,17 @@ contains
  USE var_lookup,only:maxvarStat                ! number of possible output statistics
  USE var_lookup,only:iLookVarType              ! variable type lookup structure
  USE var_lookup,only:iLookStat                 ! output statistic lookup structure
+ USE f2008funcs_module,only:findIndex          ! finds the index of the first value within a vector
  implicit none
  ! dummy variables
- class(var_info),intent(inout)                 :: meta        ! dummy meta_data structure
- integer(i4b),intent(in)                       :: nWords      ! number of words in line
- character(LEN=64),intent(in)                  :: lineWords(nWords)   ! vector to parse textline
- logical(lgt),dimension(6)                     :: indexFlags  ! logical flags to turn on index variables 
- integer(i4b),intent(out)                      :: err         ! error code
- character(*),intent(out)                      :: message     ! error message
-
+ class(var_info),intent(inout)                 :: meta         ! dummy meta_data structure
+ character(*),intent(in)                       :: lineWords(:) ! vector to parse textline
+ logical(lgt),dimension(6)                     :: indexFlags   ! logical flags to turn on index variables 
+ integer(i4b),intent(out)                      :: err          ! error code
+ character(*),intent(out)                      :: message      ! error message
  ! internals 
- integer(i4b)                                  :: oFreq       ! output frequency
- integer(i4b),parameter                        :: modelTime=1 ! frequency of model timestep 
+ integer(i4b)                                  :: oFreq        ! output frequency
+ integer(i4b)                                  :: nWords       ! number of words in a line
  ! indexes 
  integer(i4b) :: iFreq ! into frequency array
  integer(i4b) :: cFreq ! current index into frequency array
@@ -819,66 +842,66 @@ contains
  ! initiate error handling
  err=0; message='popStat/'
 
+ ! get the number of words in a line
+ nWords = size(lineWords)
+
  ! make sure the variable only has one output frequency
- found = .false.
- do iFreq = 1,nFreq
-  do iStat = 1,maxVarStat
-   if (meta%statFlag(iStat)) then
-    if (found) then
-     err=20
-     message=trim(message)//'cannot have more than one file line per variable:'//trim(meta%varName)
-     return
-    end if
-    found = .true.
-    exit
-   end if
-  end do
- end do
+ if(count(meta%statFlag)>0)then
+  message=trim(message)//'model output for variable '//trim(meta%varName)//' already defined (can only be defined once)'
+  err=20; return
+ endif
 
  ! check to make sure there are sufficient statistics flags
  ! varName | outFreq | inst | sum | mean | var | min | max | mode
- if ((meta%varType==iLookVarType%scalarv).and.(nwords.lt.3+2*maxVarStat)) then
-   err=-20
-   message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(1))
-   return
- elseif (nwords.lt.3) then ! varName | outFreq 
-   err=-20
-   message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(1))
-   return
+ if ((meta%varType==iLookVarType%scalarv).and.(nWords /= freqIndex + 2*maxVarStat)) then
+  message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
+  err=-20; return
+ endif
+
+ ! check to make sure non-scalar variables have sufficient elements
+ if ((meta%varType/=iLookVarType%scalarv).and.(nWords/=freqIndex)) then ! varName | outFreq 
+  message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
+  err=-20; return
  end if
 
  ! check to make sure there are sufficient statistics flags
- ! read output frequency
- read(lineWords(3),*) oFreq
- if (oFreq.le.0) return
+ read(lineWords(freqIndex),*) oFreq
+ if (oFreq <0)then
+  message=trim(message)//'expect output frequency to be positive for variable: '//trim(lineWords(nameIndex))
+  err=20; return
+ end if
+ if (oFreq==0) return
 
  ! check to make sure there are sufficient statistics flags
  ! scalar variables can have multiple statistics
  if (meta%varType==iLookVarType%scalarv) then
 
- ! check to make sure there are sufficient statistics flags
-  ! check whether any of these output frequencies exist yet
-  found = .false.                                        ! found flag
-  do iFreq = 1,nFreq                                     ! loop through the existing frequencies
-   if (oFreq==outFreq(iFreq)) then                     ! if frequency already exists, set current index
-    found = .true.
-    cFreq = iFreq
-   exit
-  end if
-  end do
-  if ((.not.found).and.(nFreq.lt.maxFreq)) then          ! if it doesn't exist and we have room, put it in
+  ! identify index of oFreq witin outFreq (cFreq=0 if oFreq is not in outfreq)
+  if(nFreq>0)then
+   cFreq=findIndex(outFreq(1:nFreq),oFreq)  ! index of oFreq, cFreq=0 if not in oFreq
+  else
+   cFreq=0
+  endif
+
+  ! index not found: define index
+  if(cFreq==0)then
+
+   ! check that there is room in the vector
+   if(nFreq==maxFreq)then
+    message=trim(message)//'too many output frequencies - variable:'//trim(lineWords(nameIndex))
+    err=20; return
+   endif
+
+   ! add indices
    nFreq = nFreq + 1
    cFreq = nFreq
    outFreq(nFreq) = oFreq
-  elseif ((.not.found).and.(nFreq.ge.maxFreq)) then      ! if it doesn't exist and we don't have room, spit an error
-   err=20
-   message = trim(message)//'too many output frequencies - variable:'//trim(lineWords(1))
-   return
-  end if
+
+  endif   ! if the index is not found (creating a new output frequency)
 
   ! pull the stats flags
   do iStat = 1,maxVarStat
-   if (lineWords(3+2*iStat)=='1') then 
+   if (lineWords(freqIndex + 2*iStat)=='1') then 
     meta%statFlag(iStat)=.true.
     meta%outFreq = cFreq
    end if
@@ -886,32 +909,29 @@ contains
 
  ! if not a scalar variable and requested output at frequency of model timestep
  elseif (oFreq==modelTime) then
+
+  ! set the stat flag
   meta%statFlag(iLookStat%inst) = .true.
   meta%outFreq = modelTime
+
   ! force appropriate layer indexes 
   select case(meta%varType)
-   case (iLookVarType%midSnow)
-    indexFlags(1) = .true.
-   case (iLookVarType%midSoil)
-    indexFlags(2) = .true.
-   case (iLookVarType%midToto)
-    indexFlags(3) = .true.
-   case (iLookVarType%ifcSnow)
-    indexFlags(4) = .true.
-   case (iLookVarType%ifcSoil)
-    indexFlags(5) = .true.
-   case (iLookVarType%ifcToto)
-    indexFlags(6) = .true.
+   case (iLookVarType%midSnow); indexFlags(indexMidSnow) = .true.
+   case (iLookVarType%midSoil); indexFlags(indexMidSoil) = .true.
+   case (iLookVarType%midToto); indexFlags(indexMidToto) = .true.
+   case (iLookVarType%ifcSnow); indexFlags(indexIfcSnow) = .true.
+   case (iLookVarType%ifcSoil); indexFlags(indexIfcSoil) = .true.
+   case (iLookVarType%ifcToto); indexFlags(indexIfcToto) = .true.
    case (iLookVarType%wLength)
    case (iLookVarType%routing)
    case default
     err=20; message=trim(message)//trim(meta%varName)//':variable type not found'
   end select ! variable type
 
- ! if not a scalay and requested any other output frequency
+ ! if not a scalar and requested any other output frequency
  else
   err=20
-  message=trim(message)//'layered variabless can only be output at model timestep:'//trim(meta%varName)
+  message=trim(message)//'layered variables can only be output at model timestep:'//trim(meta%varName)
   return
  end if
 
