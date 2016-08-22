@@ -258,6 +258,7 @@ contains
 
   ! deallocate storage vector for next variable
   deallocate(varData, stat=err)
+  if(err/=0)then; message=trim(message)//'problem deallocating variable data'; return; endif
 
  end do ! iVar 
 
