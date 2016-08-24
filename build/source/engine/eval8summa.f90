@@ -255,32 +255,35 @@ contains
   return
  end if
 
+ print*, 'before varExtract'
  ! extract variables from the model state vector
  call varExtract(&
                  ! input
-                 .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                 stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
-                 mpar_data,                                 & ! intent(in):    model parameters for a local HRU
-                 diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU         
-                 prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU         
-                 indx_data,                                 & ! intent(in):    indices defining model states and layers
+                 do_adjustTemp         = .false.,                & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 stateVec              = stateVecTrial,          & ! intent(in):    model state vector (mixed units)
+                 mpar_data             = mpar_data,              & ! intent(in):    model parameters for a local HRU
+                 diag_data             = diag_data,              & ! intent(in):    model diagnostic variables for a local HRU         
+                 prog_data             = prog_data,              & ! intent(in):    model prognostic variables for a local HRU         
+                 deriv_data            = deriv_data,             & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                 indx_data             = indx_data,              & ! intent(in):    indices defining model states and layers
                  ! output: variables for the vegetation canopy
-                 scalarFracLiqVeg,                          & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
-                 scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
-                 scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
-                 scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
-                 scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,                      & ! intent(out):   trial value of canopy ice content (kg m-2)
+                 fracLiqVeg            = scalarFracLiqVeg,       & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                 scalarCanairTempTrial = scalarCanairTempTrial,  & ! intent(out):   trial value of canopy air temperature (K)
+                 scalarCanopyTempTrial = scalarCanopyTempTrial,  & ! intent(out):   trial value of canopy temperature (K)
+                 scalarCanopyWatTrial  = scalarCanopyWatTrial,   & ! intent(out):   trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial  = scalarCanopyLiqTrial,   & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial  = scalarCanopyIceTrial,   & ! intent(out):   trial value of canopy ice content (kg m-2)
                  ! output: variables for the snow-soil domain
-                 mLayerFracLiqSnow,                         & ! intent(out):   volumetric fraction of water in each snow layer (-)
-                 mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
-                 mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-)
-                 mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,                     & ! intent(out):   trial vector of volumetric ice water content (-)
-                 mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
+                 fracLiqSnow           = mLayerFracLiqSnow,      & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                 mLayerTempTrial       = mLayerTempTrial,        & ! intent(out):   trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial = mLayerVolFracWatTrial,  & ! intent(out):   trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial = mLayerVolFracLiqTrial,  & ! intent(out):   trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial = mLayerVolFracIceTrial,  & ! intent(out):   trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial = mLayerMatricHeadTrial,  & ! intent(out):   trial vector of matric head (m)
                  ! output: error control
-                 err,cmessage)                                ! intent(out):   error control
+                 err=err,message=cmessage)                         ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ print*, 'after varExtract'
 
  if(nSnow>0)then
   print*, trim(message)

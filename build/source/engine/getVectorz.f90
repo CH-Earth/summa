@@ -28,7 +28,8 @@ USE multiconst,only:integerMissing  ! missing integer
 USE multiconst,only:realMissing     ! missing real number
 
 ! domain types
-USE globalData,only:iname_veg       ! named variables for vegetation
+USE globalData,only:iname_cas       ! named variables for canopy air space
+USE globalData,only:iname_veg       ! named variables for vegetation canopy
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
 
@@ -46,6 +47,7 @@ USE globalData,only:indx_meta       ! metadata for the variables in the index st
 ! constants
 USE multiconst,only:&
                     Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
+                    LH_fus,       & ! latent heat of fusion                (J kg-1)
                     iden_air,     & ! intrinsic density of air             (kg m-3)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
@@ -58,8 +60,9 @@ USE data_types,only:&
                     var_dlength     ! data vector with variable length dimension (dp)
 
 ! provide access to indices that define elements of the data structures
-USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
@@ -378,10 +381,12 @@ contains
  subroutine varExtract(&
                        ! input
                        do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                       fluxVec,         & ! OPTIONAL              & ! intent(in):    model flux vector (mixed units)
                        stateVec,                                  & ! intent(in):    model state vector (mixed units)
                        mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                        diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                       deriv_data,                                & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output: variables for the vegetation canopy
                        fracLiqVeg,                                & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
@@ -402,10 +407,12 @@ contains
  implicit none 
  ! input
  logical(lgt),intent(in)         :: do_adjustTemp              ! flag to adjust temperature to account for the energy used in melt+freeze
+ real(dp),intent(in),optional    :: fluxVec(:)                 ! model flux vector (mixed units)
  real(dp),intent(in)             :: stateVec(:)                ! model state vector (mixed units)
  type(var_d),      intent(in)    :: mpar_data                  ! model parameters for a local HRU
  type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)    :: deriv_data                 ! derivatives in model fluxes w.r.t. relevant state variables 
  type(var_ilength),intent(in)    :: indx_data                  ! indices defining model states and layers                 
  ! output: variables for the vegetation canopy
  real(dp),intent(out)            :: fracLiqVeg                 ! fraction of liquid water on the vegetation canopy (-)
@@ -426,10 +433,17 @@ contains
  character(*),intent(out)        :: message                    ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                    :: iLayer                     ! index of layer in the snow and soil sub-domains
- logical(lgt)                    :: computeVegFlux             ! flag=.true. if computing fluxes over vegetation
+ integer(i4b)                    :: iState                     ! index of model state variable
+ integer(i4b)                    :: ixFullVector               ! index within full state vector
+ integer(i4b)                    :: ixDomainType               ! name of a given model domain
+ integer(i4b)                    :: ixControlIndex             ! index within a given model domain
+ integer(i4b)                    :: ixOther,ixOtherLocal       ! index of the coupled state variable within the (full, local) vector
+ logical(lgt)                    :: isCoupled                  ! .true. if a given variable shared another state variable in the same control volume
+ logical(lgt)                    :: isNrgState                 ! .true. if a given variable is an energy state 
+ logical(lgt),allocatable        :: computedCoupling(:)        ! .true. if computed the coupling for a given state variable
  real(dp)                        :: scalarVolFracLiq           ! volumetric fraction of liquid water (-)
  real(dp)                        :: scalarVolFracIce           ! volumetric fraction of ice (-)
+ real(dp)                        :: rhsNrgFlux                 ! the right-hand-side energy flux (J m-3), is zero for uncoupled and non-energy states
  character(len=256)              :: cMessage                   ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
@@ -453,8 +467,11 @@ contains
  ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat             ,& ! intent(in): [i4b(:)] indices IN THE SOIL VECTOR for hydrology states in the soil subdomain
  ! model diagnostic variables
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp   ] canopy depth (m)
- scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
- mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat,        & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
+ scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in): [dp   ] volumetric heat capacity of the vegetation (J m-3 K-1)
+ mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in): [dp(:)] volumetric heat capacity in each layer (J m-3 K-1)
+ ! model derivatives
+ dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(in): [dp   ] derivative of volumetric liquid water content w.r.t. temperature (K-1)
+ mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature (K-1)
  ! model states for the vegetation canopy
  scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the canopy air space (K)
  scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp] temperature of the vegetation canopy (K)
@@ -464,11 +481,23 @@ contains
  mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)] volumetric fraction of total water (-)
  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
  ! model diagnostic variables from a previous solution
+ scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp(:)] mass of ice on the vegetation canopy (kg m-2)
  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat           & ! intent(in): [dp(:)] volumetric fraction of ice (-)
  ) ! association with variables in the data structures
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
+
+ ! initialize error control
+ err=0; message='varExtract/'
+
+ ! check that the flux vector is present when the do_adjustTemp flag is true
+ if(.not.present(fluxVec) .and. do_adjustTemp)then
+  message=trim(message)//'flux vector must be present when do_adjustTemp=.true.'
+  err=20; return
+ endif
+
+ if(do_adjustTemp) print*, 'fluxVec = ', fluxVec 
 
  ! *****
  ! * part 1: extract state variables...
@@ -479,9 +508,6 @@ contains
  ! check if computing the vegetation flux
  if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixVegWat/=integerMissing)then
  
-  ! set the flag
-  computeVegFlux=.true.
-
   ! extract temperature of the canopy air space
   if(ixCasNrg/=integerMissing)then
    scalarCanairTempTrial = stateVec(ixCasNrg)
@@ -505,7 +531,6 @@ contains
   
  ! not computing the vegetation flux (veg buried with snow, or bare ground)
  else
-  computeVegFlux        = .false.
   scalarCanairTempTrial = realMissing
   scalarCanopyTempTrial = realMissing
   scalarCanopyWatTrial  = realMissing
@@ -532,132 +557,231 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
 
  ! *****
- ! * part 2: adjust temperature to account for the energy used in melt+freeze...
- ! *****************************************************************************
+ ! * part 2: update volumetric fraction of liquid water and ice (and also update temperature if desired)... 
+ ! ********************************************************************************************************
 
- ! if vegetation exists
- if(computeVegFlux)then
-  ! disaggretate total water into liquid and ice components (and adjust temperature, if desired)
-  call updateTemp(&
-                  ! model control
-                  do_adjustTemp,                             & ! intent(in)   : logical flag to adjust temperature to account for energy associated with melt+freeze
-                  iname_veg,                                 & ! intent(in)   : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
-                  mpar_data,                                 & ! intent(in)   : model parameters for a local HRU
-                  diag_data,                                 & ! intent(in)   : model diagnostic variables for a local HRU
-                  ! state and diagnostic variables
-                  scalarCanopyTempTrial,                     & ! intent(inout): temperature (K)
-                  scalarCanopyWatTrial/canopyDepth,          & ! intent(in)   : volumetric fraction of total water (-)
-                  scalarBulkVolHeatCapVeg,                   & ! intent(in)   : volumetric heat capacity of the vegetation (J m-3 K-1)
-                  ! diagnostic variables
-                  scalarVolFracLiq,                          & ! intent(out)  : volumetric fraction of liquid water (-)
-                  scalarVolFracIce,                          & ! intent(out)  : volumetric fraction of ice (-)
-                  fracLiq=fracLiqVeg,                        & ! intent(out)  : fraction of liquid water (-)
-                  ! error handling
-                  err=err,message=cmessage)                    ! intent(out)  : error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  ! compute mass of water on the canopy
-  scalarCanopyLiqTrial = scalarVolFracLiq*canopyDepth
-  scalarCanopyIceTrial = scalarVolFracIce*canopyDepth
- endif ! if computing fluxes over vegetation
+ ! make association with indices
+ indices: associate(&
+  ixNrgLayer          => indx_data%var(iLookINDEX%ixNrgLayer)%dat             ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+  ixHydLayer          => indx_data%var(iLookINDEX%ixHydLayer)%dat             ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+  ixMapFull2Subset    => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat       ,& ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector
+  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat    ,& ! intent(in): [i4b(:)] [state subset] id of domain for desired model state variables
+  ixAllState_subset   => indx_data%var(iLookINDEX%ixAllState_subset)%dat      ,& ! intent(in): [i4b(:)] [state subset] list of indices in the full state vector
+  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat        ,& ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+  ixStateType         => indx_data%var(iLookINDEX%ixStateType)%dat             & ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+ ) ! association with model indices
 
- ! loop through layers in the snow+soil domain
- do iLayer=1,nLayers
-  select case(layerType(iLayer))
+ ! make association with parameters in the data structures
+ parameters: associate(&
+  vGn_m               => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)          ,& ! intent(in): [dp] van Genutchen "m" parameter (-)
+  vGn_n               => mpar_data%var(iLookPARAM%vGn_n)                      ,& ! intent(in): [dp] van Genutchen "n" parameter (-)
+  vGn_alpha           => mpar_data%var(iLookPARAM%vGn_alpha)                  ,& ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
+  theta_sat           => mpar_data%var(iLookPARAM%theta_sat)                  ,& ! intent(in): [dp] soil porosity (-)
+  theta_res           => mpar_data%var(iLookPARAM%theta_res)                  ,& ! intent(in): [dp] soil residual volumetric water content (-)
+  snowfrz_scale       => mpar_data%var(iLookPARAM%snowfrz_scale)               & ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
+ ) ! association with parameters in the data structures
 
-   ! snow
+ ! check that the dimensions are as expected
+ if(size(ixDomainType_subset)/=size(stateVec) .or. size(ixAllState_subset)/=size(stateVec) )then
+  message=trim(message)//'size mismatch for state subset'
+  err=20; return
+ endif
+
+ ! allocate space and assign values to the flag vector
+ allocate(computedCoupling(size(stateVec)),stat=err)        ! .true. if computed the coupling for a given state variable
+ if(err/=0)then; message=trim(message)//'problem allocating computedCoupling'; return; endif
+ computedCoupling(:)=.false.
+
+ ! loop through model state variables
+ do iState=1,size(stateVec)
+
+  ! get domain type, and index of the control volume within the domain
+  ixFullVector   = ixAllState_subset(iState)      ! index within full state vector
+  ixDomainType   = ixDomainType_subset(iState)    ! named variables defining the domain (iname_cas, iname_veg, etc.)
+  ixControlIndex = ixControlVolume(ixFullVector)  ! index within a given domain
+
+  print*, 'ixFullVector   = ', ixFullVector
+  print*, 'ixDomainType   = ', ixDomainType
+  print*, 'ixControlIndex = ', ixControlIndex
+
+  ! get the index of the other (energy or mass) state variable within the full state vector
+  select case(ixDomainType)
+   case(iname_cas);  cycle ! canopy air space: do nothing
+   case(iname_veg);  ixOther = merge(ixVegWat,ixVegNrg,ixStateType(ixFullVector)==iname_nrgCanopy)  ! ixVegWat if stateType=iname_nrgCanopy; ixVegNrg otherwise
+   case(iname_snow); ixOther = merge(ixHydLayer(ixControlIndex),ixNrgLayer(ixControlIndex),ixStateType(ixFullVector)==iname_nrgLayer)
+   case(iname_soil); ixOther = merge(ixHydLayer(nSnow+ixControlIndex),ixNrgLayer(nSnow+ixControlIndex),ixStateType(ixFullVector)==iname_nrgLayer)
+   case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil'; return
+  end select
+
+  ! get the index in the local state vector
+  ixOtherLocal = ixMapFull2Subset(ixOther)  ! ixOtherLocal could equal integerMissing
+
+  print*, 'ixOther      = ', ixOther
+  print*, 'ixOtherLocal = ', ixOtherLocal
+
+  ! check if we have a coupled solution
+  isCoupled    = (ixOtherLocal/=integerMissing)
+
+  ! check if we are an energy state
+  isNrgState   = (ixStateType(ixFullVector)==iname_nrgCanopy .or. ixStateType(ixFullVector)==iname_nrgLayer)
+
+  print*, 'isCoupled  = ', isCoupled
+  print*, 'isNrgState = ', isNrgState
+
+  ! get the right-hand-side energy flux
+  if(isCoupled .or. isNrgState)then
+   rhsNrgFlux = merge(fluxVec(iState),fluxVec(ixOtherLocal),isNrgState)
+  else
+   rhsNrgFlux = 0._dp
+  endif
+
+  ! get desired variables for each control volume
+  select case(ixDomainType)
+  
+   ! vegetation
+   case(iname_veg)
+    call updateVars(&
+                    ! model control
+                    ixDomainType,                                               & ! intent(in)   : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
+                    do_adjustTemp,                                              & ! intent(in)    : logical flag to adjust temperature to account for energy associated with melt+freeze
+                    snowfrz_scale,                                              & ! intent(in)    : scaling parameter for the snow freezing curve (K-1)
+                    vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,                  & ! intent(in)    : soil parameters
+                    ! input
+                    LH_fus*iden_water                                          ,& ! intent(in)    : energy for melt+freeze (J m-3)
+                    dTheta_dTkCanopy                                           ,& ! intent(in)    : derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                    scalarBulkVolHeatCapVeg                                    ,& ! intent(in)    : volumetric heat capacity (J m-3 K-1)
+                    scalarCanopyTemp                                           ,& ! intent(in)    : initial temperature (K) 
+                    scalarCanopyIce/(iden_water*canopyDepth)                   ,& ! intent(in)    : initial volumetric fraction of ice (-)
+                    scalarCanopyWatTrial/(iden_water*canopyDepth)              ,& ! intent(in)    : mass state variable = trial volumetric fraction of total water (-)
+                    ! output 
+                    scalarCanopyTempTrial                                      ,& ! intent(inout) : trial temperature (K)
+                    scalarVolFracLiq                                           ,& ! intent(out)   : trial volumetric fraction of liquid water (-)
+                    scalarVolFracIce                                           ,& ! intent(out)   : trial volumetric fraction if ice (-)
+                    fracLiqTrial=fracLiqVeg                                    ,& ! intent(out)   : fraction of liquid water (-)
+                    err=err,message=cmessage)                                     ! intent(out)   : error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! compute mass of water on the canopy
+    scalarCanopyLiqTrial = scalarVolFracLiq*(iden_water*canopyDepth)
+    scalarCanopyIceTrial = scalarVolFracIce*(iden_water*canopyDepth)
+
+   ! snow layers
    case(iname_snow)
-   call updateTemp(&
-                   ! model control
-                   do_adjustTemp,                             & ! intent(in)   : logical flag to adjust temperature to account for energy associated with melt+freeze
-                   iname_snow,                                & ! intent(in)   : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
-                   mpar_data,                                 & ! intent(in)   : model parameters for a local HRU
-                   diag_data,                                 & ! intent(in)   : model diagnostic variables for a local HRU
-                   ! state and diagnostic variables
-                   mLayerTempTrial(iLayer),                   & ! intent(inout): temperature (K)
-                   mLayerVolFracWatTrial(iLayer),             & ! intent(in)   : volumetric fraction of total water (-)
-                   mLayerVolHtCapBulk(iLayer),                & ! intent(in)   : volumetric heat capacity of the snow or soil layer (J m-3 K-1)
-                   ! diagnostic variables
-                   mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
-                   mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
-                   fracLiq=fracLiqSnow(iLayer),               & ! intent(out)  : fraction of liquid water (-)
-                   ! error handling
-                   err=err,message=cmessage)                    ! intent(out)  : error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
-   ! soil
+    call updateVars(&
+                    ! model control
+                    ixDomainType,                                               & ! intent(in)   : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
+                    do_adjustTemp,                                              & ! intent(in)    : logical flag to adjust temperature to account for energy associated with melt+freeze
+                    snowfrz_scale,                                              & ! intent(in)    : scaling parameter for the snow freezing curve (K-1)
+                    vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,                  & ! intent(in)    : soil parameters
+                    ! input
+                    LH_fus*iden_ice                                            ,& ! intent(in)    : energy for melt+freeze (J m-3)
+                    mLayerdTheta_dTk(ixControlIndex)                           ,& ! intent(in)    : derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                    mLayerVolHtCapBulk(ixControlIndex)                         ,& ! intent(in)    : volumetric heat capacity (J m-3 K-1)
+                    mLayerTemp(ixControlIndex)                                 ,& ! intent(in)    : initial temperature (K)
+                    mLayerVolFracIce(ixControlIndex)                           ,& ! intent(in)    : initial volumetric fraction of ice (-)
+                    mLayerVolFracWatTrial(ixControlIndex)                      ,& ! intent(in)    : mass state variable = trial volumetric fraction of water (-)
+                    ! output 
+                    mLayerTempTrial(ixControlIndex)                            ,& ! intent(inout) : trial temperature (K)
+                    mLayerVolFracLiqTrial(ixControlIndex)                      ,& ! intent(out)   : trial volumetric fraction of liquid water (-)
+                    mLayerVolFracIceTrial(ixControlIndex)                      ,& ! intent(out)   : trial volumetric fraction if ice (-)
+                    fracLiqTrial=fracLiqSnow(ixControlIndex)                   ,& ! intent(out)   : fraction of liquid water (-)
+                    err=err,message=cmessage)                                     ! intent(out)   : error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! soil layers
    case(iname_soil)
-   call updateTemp(&
-                   ! model control
-                   do_adjustTemp,                             & ! intent(in)   : logical flag to adjust temperature to account for energy associated with melt+freeze
-                   iname_soil,                                & ! intent(in)   : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
-                   mpar_data,                                 & ! intent(in)   : model parameters for a local HRU
-                   diag_data,                                 & ! intent(in)   : model diagnostic variables for a local HRU
-                   ! state and diagnostic variables
-                   mLayerTempTrial(iLayer),                   & ! intent(inout): temperature (K)
-                   mLayerMatricHeadTrial(iLayer-nSnow),       & ! intent(in)   : matric head (m)
-                   mLayerVolHtCapBulk(iLayer),                & ! intent(in)   : volumetric heat capacity of the snow or soil layer (J m-3 K-1)
-                   ! diagnostic variables
-                   mLayerVolFracLiqTrial(iLayer),             & ! intent(out): volumetric fraction of liquid water (-)
-                   mLayerVolFracIceTrial(iLayer),             & ! intent(out): volumetric fraction of ice (-)
-                   volFracWat=mLayerVolFracWatTrial(iLayer),  & ! intent(out): volumetric fraction of total water (-)
-                   ! error handling
-                   err=err,message=cmessage)                    ! intent(out)  : error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
-   ! check
-   case default; err=20; message=trim(message)//'expect case to be snow or soil'
+    call updateVars(&
+                    ! model control
+                    ixDomainType,                                               & ! intent(in)   : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
+                    do_adjustTemp,                                              & ! intent(in)    : logical flag to adjust temperature to account for energy associated with melt+freeze
+                    snowfrz_scale,                                              & ! intent(in)    : scaling parameter for the snow freezing curve (K-1)
+                    vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,                  & ! intent(in)    : soil parameters
+                    ! input
+                    LH_fus*iden_water                                          ,& ! intent(in)    : energy for melt+freeze (J m-3)
+                    mLayerdTheta_dTk(nSnow+ixControlIndex)                     ,& ! intent(in)    : derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                    mLayerVolHtCapBulk(nSnow+ixControlIndex)                   ,& ! intent(in)    : volumetric heat capacity (J m-3 K-1)
+                    mLayerTemp(nSnow+ixControlIndex)                           ,& ! intent(in)    : initial temperature (K)
+                    mLayerVolFracIce(nSnow+ixControlIndex)                     ,& ! intent(in)    : initial volumetric fraction of ice (-)
+                    mLayerMatricHeadTrial(ixControlIndex)                      ,& ! intent(in)    : mass state variable = trial matric head (m)
+                    ! output 
+                    mLayerTempTrial(nSnow+ixControlIndex)                      ,& ! intent(inout) : trial temperature (K)
+                    mLayerVolFracLiqTrial(nSnow+ixControlIndex)                ,& ! intent(out)   : trial volumetric fraction of liquid water (-)
+                    mLayerVolFracIceTrial(nSnow+ixControlIndex)                ,& ! intent(out)   : trial volumetric fraction if ice (-)
+                    volFracWatTrial=mLayerVolFracWatTrial(nSnow+ixControlIndex),& ! intent(out)   : volumetric fraction of total water (-)
+                    err=err,message=cmessage)                                     ! intent(out)   : error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  end select  ! domain type
+   case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
 
- end do  ! looping through layers in the snow+soil domain
- 
+  endselect  ! domain type
 
+ end do  ! looping through state variables
+
+ ! deallocate space
+ deallocate(computedCoupling,stat=err)        ! .true. if computed the coupling for a given state variable
+ if(err/=0)then; message=trim(message)//'problem deallocating computedCoupling'; return; endif
 
  ! end association to the variables in the data structures
+ end associate parameters
+ end associate indices
  end associate
 
  end subroutine varExtract
 
  
  ! **********************************************************************************************************
- ! private subroutine updateTemp: compute volumetric fraction of liquid water and ice and update temperature
+ ! private subroutine updateProg: update prognostoc variables
+ !  * compute volumetric fraction of liquid water and ice and update temperature
  ! **********************************************************************************************************
- subroutine updateTemp(&
+ subroutine updateVars(&
                        ! model control
-                       do_adjustTemp, & ! intent(in)   : logical flag to adjust temperature to account for energy associated with melt+freeze
-                       ixDomainType,  & ! intent(in)   : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
-                       mpar_data,     & ! intent(in)   : model parameters for a local HRU
-                       diag_data,     & ! intent(in):    model diagnostic variables for a local HRU
-                       ! state and diagnostic variables (input)
-                       xTemp,         & ! intent(inout): temperature (K)
-                       massState,     & ! intent(in)   : mass state: volumetric fraction of liquid water (-) or matric head (m)
-                       volHeatCap,    & ! intent(in)   : volumetric heat capacity of the snow or soil layer (J m-3 K-1)
-                       ! diagostic variables (output)
-                       volFracLiq,    & ! intent(out)  : volumetric fraction of liquid water (-)
-                       volFracIce,    & ! intent(out)  : volumetric fraction of ice (-)
-                       volFracWat,    & ! intent(out)  : volumetric fraction of total water (-)
-                       fracLiq,       & ! intent(out)  : fraction liquid water (-)
+                       ixDomainType,                                  & ! intent(in)    : named variable defining the domain type (iname_veg, iname_snow, iname_soil)
+                       do_adjustTemp,                                 & ! intent(in)    : logical flag to adjust temperature to account for energy associated with melt+freeze
+                       snowfrz_scale,                                 & ! intent(in)    : scaling parameter for the snow freezing curve (K-1)
+                       vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,     & ! intent(in)    : soil parameters
+                       ! input
+                       meltNrg                                       ,& ! intent(in)    : energy for melt+freeze (J m-3)
+                       dLiq_dT                                       ,& ! intent(in)    : derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                       heatCap                                       ,& ! intent(in)    : volumetric heat capacity (J m-3 K-1)
+                       tempInit                                      ,& ! intent(in)    : initial temperature (K)
+                       volFracIceInit                                ,& ! intent(in)    : initial volumetric fraction of ice (-)
+                       massStateTrial                                ,& ! intent(in)    : trial mass state variable
+                       ! output
+                       tempTrial                                     ,& ! intent(inout) : trial temperature (K)
+                       volFracLiqTrial                               ,& ! intent(out)  : volumetric fraction of liquid water (-)
+                       volFracIceTrial                               ,& ! intent(out)  : volumetric fraction of ice (-)
+                       volFracWatTrial ,&  ! OPTIONAL                   ! intent(out)  : volumetric fraction of total water (-)
+                       fracLiqTrial    ,&  ! OPTIONAL                   ! intent(out)  : fraction liquid water (-)
                        ! error handling
-                       err,message)     ! intent(out)  : error control
+                       err,message)                                     ! intent(out)  : error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  USE updatState_module,only:updateSnow  ! update snow states
  USE updatState_module,only:updateSoil  ! update soil states
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! model control
- logical(lgt),intent(in)        :: do_adjustTemp    ! logical flag to adjust temperature to account for energy associated with melt+freeze
  integer(i4b),intent(in)        :: ixDomainType     ! named variable defining the domain type (iname_veg, iname_snow, iname_soil)
- type(var_d), intent(in)        :: mpar_data        ! model parameters for a local HRU
- type(var_dlength),intent(in)   :: diag_data        ! diagnostic variables for a local HRU
- ! state and diagnostic variables (input)
- real(dp),intent(inout)         :: xTemp            ! temperature (K)
- real(dp),intent(in)            :: massState        ! mass state: volumetric fraction of liquid water (-) or matric head (m) 
- real(dp),intent(in)            :: volHeatCap       ! volumetric heat capacity (J m-3 K-1)
- ! diagostic variables (output)
- real(dp),intent(out)           :: volFracLiq       ! volumetric fraction of liquid water (-)
- real(dp),intent(out)           :: volFracIce       ! volumetric fraction of ice (-)
- real(dp),intent(out),optional  :: volFracWat       ! volumetric fraction of total water (-)
- real(dp),intent(out),optional  :: fracLiq          ! fraction liquid water (-)
+ logical(lgt),intent(in)        :: do_adjustTemp    ! logical flag to adjust temperature to account for energy associated with melt+freeze
+ ! parameters
+ real(dp),intent(in)            :: vGn_m            ! van Genutchen "m" parameter (-)
+ real(dp),intent(in)            :: vGn_n            ! van Genutchen "n" parameter (-)
+ real(dp),intent(in)            :: vGn_alpha        ! van Genutchen "alpha" parameter (m-1)
+ real(dp),intent(in)            :: theta_sat        ! soil porosity (-)
+ real(dp),intent(in)            :: theta_res        ! soil residual volumetric water content (-)
+ real(dp),intent(in)            :: snowfrz_scale    ! scaling parameter for the snow freezing curve (K-1)
+ ! input
+ real(dp),intent(in)            :: meltNrg          ! energy for melt+freeze (J m-3)
+ real(dp),intent(in)            :: dLiq_dT          ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+ real(dp),intent(in)            :: heatCap          ! volumetric heat capacity (J m-3 K-1)
+ real(dp),intent(in)            :: tempInit         ! initial temperature (K)
+ real(dp),intent(in)            :: volFracIceInit   ! initial volumetric fraction of ice (-)
+ real(dp),intent(in)            :: massStateTrial   ! trial mass state variable
+ ! output
+ real(dp),intent(inout)         :: tempTrial        ! trial temperature (K)
+ real(dp),intent(out)           :: volFracLiqTrial  ! volumetric fraction of liquid water (-)
+ real(dp),intent(out)           :: volFracIceTrial  ! volumetric fraction of ice (-)
+ real(dp),intent(out),optional  :: volFracWatTrial  ! volumetric fraction of total water (-)
+ real(dp),intent(out),optional  :: fracLiqTrial     ! fraction liquid water (-)
  ! error handling
  integer(i4b),intent(out)       :: err              ! error code
  character(*),intent(out)       :: message          ! error message
@@ -667,62 +791,72 @@ contains
  integer(i4b),parameter         :: maxiter=20       ! iteration index
  character(len=256)             :: cMessage         ! error message of downwind routine
  ! -----------------------------------------------------------------------------------------------------------------
- ! make association with variables in the data structures
- associate(&
- vGn_m             => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
- vGn_n             => mpar_data%var(iLookPARAM%vGn_n)                        ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_alpha         => mpar_data%var(iLookPARAM%vGn_alpha)                    ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
- theta_sat         => mpar_data%var(iLookPARAM%theta_sat)                    ,&  ! intent(in): [dp] soil porosity (-)
- theta_res         => mpar_data%var(iLookPARAM%theta_res)                    ,&  ! intent(in): [dp] soil residual volumetric water content (-)
- snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)                 &  ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
- ) ! association with variables in the data structures
- ! -----------------------------------------------------------------------------------------------------------------
  ! initialize subroutine
- err=0; message='updateTemp/'
+ err=0; message='updateVars/'
 
- ! check that optional argument "fracLiq" is not given for the soil domain
- if(present(fracLiq) .and. ixDomainType==iname_soil)then
-  message=trim(message)//'optional argument "fracLiq" not expected for the soil domain'
-  err=20; return
+ ! check arguments for the snow domain
+ if(ixDomainType==iname_snow)then
+  if(.not.present(fracLiqTrial))then; err=20; message=trim(message)//'optional argument "fracLiqTrial" expected for the snow domain';        return; endif
+  if(present(volFracWatTrial)  )then; err=20; message=trim(message)//'optional argument "volFracWatTrial" NOT expected for the snow domain'; return; endif
  endif
 
- ! check that the optional argument "volFracWat" is not given for the veg and snow domains
- if(present(volFracWat) .and. ixDomainType/=iname_soil)then
-  message=trim(message)//'optional argument "volFracWat" only expected for the soil domain'
-  err=20; return
+ ! check arguments for the soil domain
+ if(ixDomainType==iname_soil)then
+  if(.not.present(volFracWatTrial))then; err=20; message=trim(message)//'optional argument "volFracWatTrial" expected for the soil domain';  return; endif
+  if(present(fracLiqTrial)        )then; err=20; message=trim(message)//'optional argument "fracLiqTrial" NOT expected for the soil domain'; return; endif
  endif
 
  ! iterate
  do iter=1,maxiter
 
-  ! compute the volumetric fraction of liquid water and ice
+  ! -----
+  ! - diaggregate total water content into liquid water and ice...
+  ! --------------------------------------------------------------
+
+  ! identify domain type
+  ! NOTE: cycle statement for iname_cas above, so that should not be reached here
   select case(ixDomainType)
 
-   ! (snow)
-   case(iname_veg, iname_snow)
-    call updateSnow(xTemp,massState,snowfrz_scale,                             & ! input
-                    volFracLiq,volFracIce,fracLiq,err,cmessage)                  ! output
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+   ! vegetation canopy and snow layers
+   case(iname_veg, iname_snow)  
+    call updateSnow(tempTrial,                                  & ! intent(in)   : temperature (K)
+                    massStateTrial,                             & ! intent(in)   : volumetric fraction of total water (-)
+                    snowfrz_scale,                              & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
+                    volFracLiqTrial,                            & ! intent(out)  : volumetric fraction of liquid water (-)
+                    volFracIceTrial,                            & ! intent(out)  : volumetric fraction of ice (-)
+                    fracLiqTrial,                               & ! intent(out)  : fraction of liquid water (-)
+                    err,cmessage)                                 ! intent(out)  : error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! (soil)
+   ! soil layers
    case(iname_soil)
-    call updateSoil(xTemp,massState,vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! input
-                    volFracLiq,volFracIce,volFracWat,err,cmessage)               ! output 
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+    call updateSoil(tempTrial,                                  & ! intent(in)   : temperature (K)
+                    massStateTrial,                             & ! intent(in)   : matric head (m)
+                    vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,  & ! intent(in)   : soil parameters
+                    volFracWatTrial,                            & ! intent(out)  : volumetric fraction of total water (-)
+                    volFracLiqTrial,                            & ! intent(out)  : volumetric fraction of liquid water (-)
+                    volFracIceTrial,                            & ! intent(out)  : volumetric fraction of ice (-)
+                    err,cmessage)                                 ! intent(out)  : error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+   ! check
+   case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
 
-   ! (check)
-   case default
-    message=trim(message)//'unknown domain type'
-    err=20; return
+  end select  ! domain type
 
-  end select  ! domain type for computing the volumetric fraction of liquid water and ice
+  ! -----
+  ! - compute new temperature...
+  ! ----------------------------
+
+  ! check if the need to update temperatures
+  if(.not.do_adjustTemp) return
+
+  !print*, 'dTheta_dTk = ', dTheta_dTk
+  print*, 'PAUSE: adjusting temperature'; read(*,*)
 
  end do  ! iterating
 
- ! end association with variables in the data structures
- end associate
-
- end subroutine updateTemp
+ end subroutine updateVars
 
 
  ! **********************************************************************************************************

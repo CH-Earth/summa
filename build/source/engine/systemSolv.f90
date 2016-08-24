@@ -213,8 +213,8 @@ contains
  !integer(i4b)                    :: ixSplitOption=fullyImplicit     ! selected operator splitting method
  integer(i4b)                    :: nOperSplit                   ! number of splitting operations
  integer(i4b)                    :: iSplit                       ! index of splitting operation
- integer(i4b),parameter          :: nrgSplit=1                   ! order in sequence for the energy operation
- integer(i4b),parameter          :: massSplit=2                  ! order in sequence for the mass operation
+ integer(i4b),parameter          :: nrgSplit=2                   ! order in sequence for the energy operation
+ integer(i4b),parameter          :: massSplit=1                  ! order in sequence for the mass operation
  integer(i4b)                    :: iSubstep                     ! index of substep for a given variable
  integer(i4b)                    :: nSubstep                     ! number of substeps for a given variable
  logical(lgt),dimension(nState)  :: stateMask                    ! mask defining desired state variables
@@ -292,7 +292,7 @@ contains
  scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out):   [dp]    fraction of liquid water on vegetation (-)
  mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out):   [dp(:)] fraction of liquid water in each snow layer (-)
  mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat          ,& ! intent(out):   [dp(:)] melt-freeze in each snow and soil layer (kg m-3)
- ! model fluxes
+ ! model fluxes and derivatives
  mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! intent(out):   [dp(:)]  change in storage associated with compression of the soil matrix (-)
  ! model state variables (vegetation canopy)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)] depth of each layer in the snow-soil sub-domain (m)
@@ -469,7 +469,7 @@ contains
   ! define the number of substeps for each solution
   if(ixSplitOption==deCoupled_nrgMass)then
    select case(iSplit)
-    case(nrgSplit);  nSubstep=2
+    case(nrgSplit);  nSubstep=1
     case(massSplit); nSubstep=1
     case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
    end select
@@ -482,7 +482,7 @@ contains
   do iSubstep=1,nSubstep
 
    ! test
-   !write(*,'(a,1x,3(i5,1x))') 'iSubstep, iSplit, nSnow = ', iSubstep, iSplit, nSnow
+   write(*,'(a,1x,3(i5,1x))') 'iSubstep, iSplit, nSnow = ', iSubstep, iSplit, nSnow
 
    ! **************************************************************************************************************************
    ! **************************************************************************************************************************
@@ -542,7 +542,7 @@ contains
    ! try to accelerate solution for energy
    if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
    if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
-   
+
    ! compute the flux and the residual vector for a given state vector
    ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
    ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
@@ -584,7 +584,7 @@ contains
                    fOld,                    & ! intent(out):   function evaluation
                    err,cmessage)              ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-   
+
    ! check feasibility (state vector SHOULD be feasible at this point)
    if(.not.feasible)then
     message=trim(message)//'unfeasible state vector'
@@ -662,16 +662,18 @@ contains
     fOld          = fNew
     rVec          = resVecNew 
     stateVecTrial = stateVecNew
+    print*, 'rVec          = ', rVec
+    print*, 'stateVecTrial = ', stateVecTrial
    
     ! exit iteration loop if converged
     if(converged) exit
    
     ! check convergence
     if(niter==maxiter)then; err=-20; message=trim(message)//'failed to converge'; return; endif
-    !print*, 'PAUSE: iterating'; read(*,*)
+    print*, 'PAUSE: iterating'; read(*,*)
    
    end do  ! iterating
-   !print*, 'PAUSE: after iterations'; read(*,*)
+   print*, 'PAUSE: after iterations'; read(*,*)
   
    ! -----
    ! * update model fluxes...
@@ -705,30 +707,33 @@ contains
    ! update states: compute liquid water and ice content from total water content
    call varExtract(&
                    ! input
-                   .true.,                                    & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                   stateVecTrial,                             & ! intent(in):    model state vector (mixed units)
-                   mpar_data,                                 & ! intent(in):    model parameters for a local HRU
-                   diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
-                   prog_data,                                 & ! intent(inout): model prognostic variables for a local HRU
-                   indx_data,                                 & ! intent(in):    indices defining model states and layers
+                   do_adjustTemp         = .true.,                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                   fluxVec               = fluxVecNew, & ! OPTIONAL  & ! intent(in):    model flux vector (mixed units)
+                   stateVec              = stateVecTrial,            & ! intent(in):    model state vector (mixed units)
+                   mpar_data             = mpar_data,                & ! intent(in):    model parameters for a local HRU
+                   diag_data             = diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
+                   prog_data             = prog_data,                & ! intent(in):    model prognostic variables for a local HRU
+                   deriv_data            = deriv_data,               & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                   indx_data             = indx_data,                & ! intent(in):    indices defining model states and layers
                    ! output: variables for the vegetation canopy
-                   scalarFracLiqVeg,                          & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
-                   scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
-                   scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
-                   scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
-                   scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                   scalarCanopyIceTrial,                      & ! intent(out):   trial value of canopy ice content (kg m-2)
+                   fracLiqVeg            = scalarFracLiqVeg,         & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
+                   scalarCanairTempTrial = scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
+                   scalarCanopyTempTrial = scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
+                   scalarCanopyWatTrial  = scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
+                   scalarCanopyLiqTrial  = scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                   scalarCanopyIceTrial  = scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
                    ! output: variables for the snow-soil domain
-                   mLayerFracLiqSnow,                         & ! intent(out):   volumetric fraction of water in each snow layer (-)
-                   mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
-                   mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-)
-                   mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-)
-                   mLayerVolFracIceTrial,                     & ! intent(out):   trial vector of volumetric ice water content (-)
-                   mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of matric head (m)
+                   fracLiqSnow           = mLayerFracLiqSnow,        & ! intent(out):   volumetric fraction of water in each snow layer (-)
+                   mLayerTempTrial       = mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
+                   mLayerVolFracWatTrial = mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
+                   mLayerVolFracLiqTrial = mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
+                   mLayerVolFracIceTrial = mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
+                   mLayerMatricHeadTrial = mLayerMatricHeadTrial,    & ! intent(out):   trial vector of matric head (m)
                    ! output: error control
-                   err,cmessage)                                ! intent(out):   error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
+                   err=err,message=cmessage)                         ! intent(out):   error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+   ! check results 
    if(any(mLayerVolFracIceTrial>1))then
     print*, 'dtsplit = ', dtSplit
     write(*,'(a,1x,10(f20.12,1x))') 'stateVecInit(ixSnowOnlyWat)  = ', (stateVecInit(ixSnowOnlyWat(iVar)),iVar=1,size(ixSnowOnlyWat))

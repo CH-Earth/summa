@@ -542,6 +542,7 @@ call read_icond(restartFile,                   & ! name of initial conditions fi
                 err,message)                     ! error control
 call handle_err(err,message)
 
+! check initial conditions
 call check_icond(nGRU,                          & ! number of response units
                  progStruct,                    & ! model prognostic (state) variables
                  mparStruct,                    & ! model parameters

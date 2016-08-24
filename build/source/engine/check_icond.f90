@@ -172,7 +172,9 @@ contains
      scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
     end if
 
-    ! check that the initial volumetric fraction of liquid water and ice is reasonable
+    ! *****
+    ! * check that the initial volumetric fraction of liquid water and ice is reasonable...
+    ! *************************************************************************************
     select case(mlayerLayerType(iLayer))
 
      ! ***** snow
@@ -203,7 +205,9 @@ contains
       err=20; message=trim(message)//'cannot identify layer type'; return
     end select
 
-    ! process snow and soil separately
+    ! *****
+    ! * check that the initial conditions are consistent with the constitutive functions...
+    ! *************************************************************************************
     select case(mLayerLayerType(iLayer))
   
      ! ** snow

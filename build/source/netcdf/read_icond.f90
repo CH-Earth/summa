@@ -158,7 +158,7 @@ contains
  integer(i4b)                           :: ncID         ! netcdf file ID
  real(dp),allocatable                   :: varData(:,:) ! variable data storage        
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
-
+ integer(i4b),parameter                 :: nBand=2      ! number of spectral bands
 
  character(len=32),parameter            :: hruDimName    ='hru'      ! dimension name for HRUs
  character(len=32),parameter            :: specDimName   ='spectral' ! dimension name for spectral bands
@@ -253,6 +253,9 @@ contains
       err=20; return
     end select
 
+    ! initialize the spectral albedo
+    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
+
    end do ! iHRU
   end do ! iGRU
 
@@ -261,6 +264,9 @@ contains
   if(err/=0)then; message=trim(message)//'problem deallocating variable data'; return; endif
 
  end do ! iVar 
+
+ print*, 'progData%gru(1)%hru(1)%var(iLookPROG%mLayerTemp)%dat       = ', progData%gru(1)%hru(1)%var(iLookPROG%mLayerTemp)%dat
+ print*, 'progData%gru(1)%hru(1)%var(iLookPROG%mLayerVolFracIce)%dat = ', progData%gru(1)%hru(1)%var(iLookPROG%mLayerVolFracIce)%dat
 
  ! --------------------------------------------------------------------------------------------------------
  ! (2) set number of layers 
