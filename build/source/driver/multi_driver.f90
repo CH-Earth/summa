@@ -899,6 +899,10 @@ do modelTimeStep=1,numtim
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
+   
+   ! update layer numbers that could be changed in coupled_em()
+   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
+   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
 
 !   ! check feasibiility of certain states
 !   call check_icond(nGRU,nHRU,                     & ! number of response units
