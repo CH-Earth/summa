@@ -34,7 +34,6 @@ contains
  subroutine calcStats(stat,dat,meta,iStep,err,message)
  USE nrtype
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
- USE globalData,only:nFreq                          ! output frequencies
  USE var_lookup,only:iLookVarType                   ! named variables for variable types 
  USE var_lookup,only:iLookStat                      ! named variables for output statistics types 
  implicit none

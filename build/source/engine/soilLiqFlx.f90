@@ -333,10 +333,6 @@ contains
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
  ! (special case of prescribed head -- no transpiration)
  if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._dp
- !print*, trim(message)//'mLayerTranspire = ', mLayerTranspire
- !print*, trim(message)//'mLayerTranspireLim = ', mLayerTranspireLim
- !print*, trim(message)//'scalarCanopyTranspiration = ', scalarCanopyTranspiration
-
 
  ! *************************************************************************************************************************************************
  ! *************************************************************************************************************************************************

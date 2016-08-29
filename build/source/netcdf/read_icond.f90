@@ -146,7 +146,6 @@ contains
 
  ! locals
  character(len=256)                     :: cmessage     ! downstream error message
- logical(lgt)                           :: snowExists   ! query whether to read snow layers
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
  integer(i4b)                           :: iVar         ! loop index 
  integer(i4b)                           :: iGRU         ! loop index 
@@ -264,9 +263,6 @@ contains
   if(err/=0)then; message=trim(message)//'problem deallocating variable data'; return; endif
 
  end do ! iVar 
-
- print*, 'progData%gru(1)%hru(1)%var(iLookPROG%mLayerTemp)%dat       = ', progData%gru(1)%hru(1)%var(iLookPROG%mLayerTemp)%dat
- print*, 'progData%gru(1)%hru(1)%var(iLookPROG%mLayerVolFracIce)%dat = ', progData%gru(1)%hru(1)%var(iLookPROG%mLayerVolFracIce)%dat
 
  ! --------------------------------------------------------------------------------------------------------
  ! (2) set number of layers 

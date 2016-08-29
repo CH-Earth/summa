@@ -35,17 +35,18 @@ contains
  ! ************************************************************************************************
  ! public function findIndex: find the first index within a vector
  ! ************************************************************************************************
- function findIndex(vector,desiredValue)
+ function findIndex(vector,desiredValue,missingValue)
  ! finds the first index within a vector
  !  -- if the index does not exist, returns zero
  ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
  implicit none
  ! dummy variables
- integer(i4b),intent(in)   :: vector(:)    ! vector to search
- integer(i4b),intent(in)   :: desiredValue ! desired value in the vector
- integer(i4b)              :: findIndex    ! first index of the desired value in the vector
+ integer(i4b),intent(in)            :: vector(:)    ! vector to search
+ integer(i4b),intent(in)            :: desiredValue ! desired value in the vector
+ integer(i4b),intent(in),optional   :: missingValue ! desired missing value if desiredValue is not found
+ integer(i4b)                       :: findIndex    ! first index of the desired value in the vector
  ! local variables
- integer(i4b),dimension(1) :: vecIndex     ! first index of the desired value in the vector (vec of length=1) 
+ integer(i4b),dimension(1)          :: vecIndex     ! first index of the desired value in the vector (vec of length=1) 
 
  ! check if the value exisits
  if(any(vector==desiredValue))then
@@ -56,7 +57,11 @@ contains
 
  ! value does not exist
  else
-  vecIndex=0
+  if(present(missingValue))then
+   vecIndex=missingValue
+  else
+   vecIndex=0
+  endif
  endif
 
  ! return function value (extract into a scalar)

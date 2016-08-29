@@ -90,6 +90,7 @@ contains
  USE globalData,only:data_step              ! time step of forcing data (s)
  USE globalData,only:model_decisions        ! model decision structure
  ! structure allocations
+ USE globalData,only:prog_meta              ! metadata on model prognostic variables
  USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
  USE allocspace_module,only:allocLocal      ! allocate local data structures
  ! preliminary subroutines
@@ -164,6 +165,7 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! define other local variables
  character(len=256)                   :: cmessage               ! error message
+ type(var_dlength)                    :: prog_temp              ! TEMPORARY prognostic variables for a local HRU
  logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
  logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
  logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
@@ -626,7 +628,8 @@ contains
     end if
 
    ! ** if previous step is not rejected
-   end if
+   end if  ! ***************************
+   ! **********************************
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then
@@ -645,6 +648,19 @@ contains
 
    ! (9) solve model equations...
    ! ----------------------------
+
+   ! get a copy of the prognostic structure 
+   if(.not.rejectedStep)then
+
+    ! allocate space for the temporary prognostic structure
+    call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+    ! copy the data from prog_data to prog_temp
+    forall(iVar=1:size(prog_temp%var)) prog_temp%var(iVar)%dat = prog_data%var(iVar)%dat
+
+   endif  ! if the step was not rejected
+
 
    ! get the new solution
    call systemSolv(&
@@ -670,7 +686,6 @@ contains
                    model_decisions,                        & ! intent(in):    model decisions
                    ! output: model control
                    niter,                                  & ! intent(out): number of iterations
-                   resumeSubStepSolver,                    & ! intent(in):  resume the solver even it is not 
                    err,cmessage)                             ! intent(out): error code and error message
 
    ! check for fatal errors
@@ -684,10 +699,12 @@ contains
 
    ! if err<0 (warnings) and hence non-convergence
    if(err<0)then
+
     ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
     write(*,'(a,1x,2(f13.3,1x),A,I0)') trim(cmessage), dt_temp, minstep,' at HRU ',hruId
     rejectedStep=.true.
+
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then
      if (resumeFailSolver) then 
@@ -698,16 +715,36 @@ contains
       err=20; return
      end if 
     endif
-    !pause 'failed step'
+
+    ! copy the data from prog_temp to prog_data
+    forall(iVar=1:size(prog_temp%var)) prog_data%var(iVar)%dat = prog_temp%var(iVar)%dat
+
     ! (try again)
     cycle  ! try again
+
+   ! step accepted
    else
+
+    ! set flag
     rejectedStep=.false.
-    !pause 'accepted step'
-   end if
+    
+    ! deallocate space for prog_temp
+    do iVar=1,size(prog_temp%var)
+     deallocate(prog_temp%var(iVar)%dat, stat=err)
+     if(err/=0)then; err=20; write(message,'(a,i0)') trim(message)//'problem deallocating space for prog_temp structure for variable ', iVar; return; endif
+    enddo
+    deallocate(prog_temp%var, stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'problem deallocating space for prog_temp structure for all variables'; return; endif
+
+   end if  ! check on whether step is rejected
 
    ! check that err=0 at this point (it should be)
    if(err/=0)then; message=trim(message)//'expect err=0'; return; end if
+
+
+   ! NOTE: Can't we exit the multiple trial loop at this point????
+   ! Or do we keep going to complete the substep??
+
 
 
    ! (10a) compute change in canopy ice content due to sublimation...

@@ -45,7 +45,6 @@ contains
  USE globalData,only:fracJulDay                        ! fractional julian days since the start of year
  USE globalData,only:yearLength                        ! number of days in the current year
  USE globalData,only:time_meta,forc_meta               ! metadata structures
- USE globalData,only:gru_struc                         ! gru-hru mapping structure
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
  USE multiconst,only:integerMissing                    ! integer missing value
@@ -87,7 +86,6 @@ contains
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
- real(dp)                          :: timeMult         ! multiplier to convert time to days
  real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
  real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
  integer(i4b)                      :: nFiles           ! number of forcing files

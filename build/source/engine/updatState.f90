@@ -131,8 +131,10 @@ contains
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
 
   ! - volumetric liquid water content (-)
-  xConst           = LH_fus/(gravity*Tfreeze)                            ! m K-1 (NOTE: J = kg m2 s-2)
-  mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)
+  ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
+  !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
+  xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
+  mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
   ! - volumetric ice content (-)

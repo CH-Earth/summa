@@ -43,9 +43,9 @@ contains
 
  ! net energy and mass fluxes for the vegetation domain
  flux2state_meta(iLookFLUX%scalarCanopyNetLiqFlux)         = flux2state(state1=iname_watCanopy, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarCanairNetNrgFlux)         = flux2state(state1=iname_nrgCanair, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarCanopyNetNrgFlux)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing) 
- flux2state_meta(iLookFLUX%scalarGroundNetNrgFlux)         = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
+ flux2state_meta(iLookFLUX%scalarCanairNetNrgFlux)         = flux2state(state1=iname_nrgCanair, state2=iname_nrgLayer)
+ flux2state_meta(iLookFLUX%scalarCanopyNetNrgFlux)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer) 
+ flux2state_meta(iLookFLUX%scalarGroundNetNrgFlux)         = flux2state(state1=iname_nrgLayer,  state2=iname_nrgCanopy)
 
  ! precipitation -- does not depend on state variables
  flux2state_meta(iLookFLUX%scalarRainfall)                  = flux2state(state1=integerMissing, state2=integerMissing)
@@ -99,13 +99,13 @@ contains
  flux2state_meta(iLookFLUX%scalarSnowSublimation)           = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  
  ! liquid water fluxes associated with evapotranspiration -- assume calculated when the canopy energy state variable is active
- flux2state_meta(iLookFLUX%scalarStomResistSunlit)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarStomResistShaded)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarPhotosynthesisSunlit)      = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarPhotosynthesisShaded)      = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarCanopyTranspiration)       = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarCanopyEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_meta(iLookFLUX%scalarGroundEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_meta(iLookFLUX%scalarStomResistSunlit)          = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_meta(iLookFLUX%scalarStomResistShaded)          = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_meta(iLookFLUX%scalarPhotosynthesisSunlit)      = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_meta(iLookFLUX%scalarPhotosynthesisShaded)      = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_meta(iLookFLUX%scalarCanopyTranspiration)       = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_meta(iLookFLUX%scalarCanopyEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_meta(iLookFLUX%scalarGroundEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_meta(iLookFLUX%mLayerTranspire)                 = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! liquid and solid water fluxes through the canopy
