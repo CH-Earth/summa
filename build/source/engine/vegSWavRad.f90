@@ -21,8 +21,6 @@
 module vegSWavRad_module
 ! Numerical recipes data types
 USE nrtype
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:         &
                       noah_mp,      & ! full Noah-MP implementation (including albedo)
@@ -50,8 +48,6 @@ real(dp),parameter            :: missingValue=-9999._dp  ! missing value, used w
 real(dp),parameter            :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 real(dp),parameter            :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
 real(dp),parameter            :: dx=1.e-6_dp          ! finite difference increment
-! control
-logical(lgt)                  :: printflag            ! flag to turn on printing
 contains
 
 

@@ -33,8 +33,6 @@ USE mDecisions_module,only:      &
  UEB_2stream,                    &         ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
  NL_scatter,                     &         ! Simplified method Nijssen and Lettenmaier (JGR 1999)
  BeersLaw                                  ! Beer's Law (as implemented in VIC)
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow
 implicit none
 private
 public::vegPhenlgy

@@ -40,6 +40,16 @@ USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matri
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
+! named variables to describe the state variable type
+USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
+USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
+USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
+USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
@@ -75,7 +85,6 @@ contains
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                       canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
                        fScale,                  & ! intent(in):    function scaling vector
@@ -126,7 +135,6 @@ contains
  logical(lgt),intent(in)         :: firstSubStep             ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
- real(dp),intent(in)             :: canopyDepth              ! depth of the vegetation canopy (m)
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)         ! trial state vector
  real(dp),intent(in)             :: fScale(:)                ! function scaling vector
@@ -165,6 +173,8 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
+ logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
+ real(dp)                        :: nJac(nState,nState)      ! numerical Jacobian matrix
  real(dp)                        :: aJac(nLeadDim,nState)      ! Jacobian matrix
  real(dp)                        :: aJacScaled(nLeadDim,nState)      ! Jacobian matrix (scaled)
  real(dp)                        :: aJacScaledTemp(nLeadDim,nState)  ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
@@ -191,6 +201,8 @@ contains
  ! * compute the Jacobian matrix...
  ! --------------------------------
 
+ print*, 'before computJacob'
+
  ! compute the analytical Jacobian matrix
  ! NOTE: The derivatives were computed in the previous call to computFlux
  !       This occurred either at the call to eval8summa at the start of systemSolv
@@ -201,7 +213,6 @@ contains
                   nSnow,                          & ! intent(in):    number of snow layers
                   nSoil,                          & ! intent(in):    number of soil layers
                   nLayers,                        & ! intent(in):    total number of layers
-                  canopyDepth,                    & ! intent(in):    depth of the vegetation canopy (m)
                   computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
                   ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
@@ -217,6 +228,13 @@ contains
                   ! output: error control
                   err,cmessage)                     ! intent(out):   error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ print*, 'after computJacob'
+ ! compute the numerical Jacobian matrix
+ if(doNumJacobian)then
+  call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ endif
 
  ! -----
  ! * solve linear system...
@@ -244,7 +262,8 @@ contains
  call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- if(globalPrintFlag) write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
+ if(globalPrintFlag)&
+ write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
 
  ! -----
  ! * update, evaluate, and refine the state vector...
@@ -309,7 +328,6 @@ contains
   real(dp)                       :: xLambda                  ! backtrack magnitude
   real(dp)                       :: xLambdaTemp              ! temporary backtrack magnitude
   real(dp)                       :: slopeInit                ! initial slope
-  real(dp)                       :: rVecTemp(nState)         ! temporary residual vector
   real(dp)                       :: rhs1,rhs2                ! rhs used to compute the cubic
   real(dp)                       :: aCoef,bCoef              ! coefficients in the cubic
   real(dp)                       :: disc                     ! temporary variable used in cubic
@@ -360,7 +378,7 @@ contains
    ! NOTE: This calls eval8summa in an internal subroutine
    !       The internal sub routine has access to all data
    !       Hence, we only need to include the variables of interest in lineSearch
-   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,message)
+   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check line search
@@ -475,13 +493,33 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='trustRegionRefinement/'
 
-  ! dummy
-  stateVecNew = realMissing
-  fluxVecNew  = realMissing
-  resVecNew   = quadMissing
-  fNew        = realMissing
-  converged   = .true.
+  ! check the need to refine the step
+  if(doTrustRefinement)then
 
+   ! (check vectors)
+   if(size(stateVecTrial)/=nState .or. size(newtStepScaled)/=nState .or. size(rVecScaled)/=nState)then
+    message=trim(message)//'unexpected size of input vectors'
+    err=20; return
+   endif
+
+   ! (check matrix)
+   if(size(aJacScaled,1)/=nState .or. size(aJacScaled,2)/=nState)then
+    message=trim(message)//'unexpected size of Jacobian matrix'
+    err=20; return
+   endif
+
+   ! dummy check for the function
+   if(fold==realMissing) print*, 'missing'
+
+   ! dummy
+   stateVecNew = realMissing
+   fluxVecNew  = realMissing
+   resVecNew   = quadMissing
+   fNew        = realMissing
+   converged   = .true.
+
+
+  endif  ! if doing the trust region refinement
 
   message=trim(message)//'routine not implemented yet'
   err=20; return
@@ -490,6 +528,76 @@ contains
 
   end subroutine trustRegionRefinement
 
+  ! *********************************************************************************************************
+  ! * internal subroutine numJacobian: compute the numerical Jacobian matrix
+  ! *********************************************************************************************************
+  subroutine numJacobian(stateVec,dMat,nJac,err,message)
+  implicit none
+  ! dummies
+  real(dp),intent(in)            :: stateVec(:)                ! trial state vector
+  real(dp),intent(in)            :: dMat(:)                    ! diagonal matrix
+  ! output
+  real(dp),intent(out)           :: nJac(:,:)                  ! numerical Jacobian
+  integer(i4b),intent(out)       :: err                        ! error code
+  character(*),intent(out)       :: message                    ! error message
+  ! ----------------------------------------------------------------------------------------------------------
+  ! local
+  character(len=256)             :: cmessage                   ! error message of downwind routine
+  real(dp),parameter             :: dx=1.e-10_dp               ! finite difference increment
+  real(dp),dimension(nState)     :: stateVecPerturbed          ! perturbed state vector
+  real(dp),dimension(nState)     :: fluxVecInit,fluxVecJac     ! flux vector (mized units)
+  real(qp),dimension(nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
+  real(dp)                       :: func                       ! function value
+  logical(lgt)                   :: feasible                   ! flag to denote the feasibility of the solution
+  integer(i4b)                   :: iJac                       ! index of row of the Jacobian matrix
+  integer(i4b),parameter         :: ixNumFlux=1001             ! named variable for the flux-based form of the numerical Jacobian
+  integer(i4b),parameter         :: ixNumRes=1002              ! named variable for the residual-based form of the numerical Jacobian
+  integer(i4b)                   :: ixNumType=ixNumRes         ! method used to calculate the numerical Jacobian 
+  ! ----------------------------------------------------------------------------------------------------------
+  ! initialize error control
+  err=0; message='numJacobian/'
+
+  ! compute initial function evaluation
+  call eval8summa_wrapper(stateVec,fluxVecInit,resVecInit,func,feasible,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  if(.not.feasible)then; message=trim(message)//'initial state vector not feasible'; err=20; return; endif
+
+  ! get a copy of the state vector to perturb
+  stateVecPerturbed(:) = stateVec(:)
+
+  ! loop through state variables
+  do iJac=1,nState
+
+   ! perturb state vector
+   stateVecPerturbed(iJac) = stateVec(iJac) + dx
+
+   ! compute function evaluation
+   call eval8summa_wrapper(stateVecPerturbed,fluxVecJac,resVecJac,func,feasible,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+   if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
+
+   ! compute the row of the Jacobian matrix
+   select case(ixNumType)
+    case(ixNumRes);  nJac(:,iJac) = real(resVecJac - resVecInit, kind(dp) )/dx  ! Jacobian based on residuals
+    case(ixNumFlux); nJac(:,iJac) = -dt*(fluxVecJac(:) - fluxVecInit(:))/dx     ! Jacobian based on fluxes
+    case default; err=20; message=trim(message)//'Jacobian option not found'; return
+   end select
+
+   ! if flux option then add in the diagonal matrix
+   if(ixNumType==ixNumFlux) nJac(iJac,iJac) = nJac(iJac,iJac) + dMat(iJac)
+
+   ! set the state back to the input value
+   stateVecPerturbed(iJac) = stateVec(iJac)
+
+  end do  ! (looping through state variables)
+
+  ! print the Jacobian
+  print*, '** numerical Jacobian:', ixNumType==ixNumRes
+  write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+  do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
+  !print*, 'PAUSE: testing Jacobian'; read(*,*)
+
+  end subroutine numJacobian
 
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector
@@ -526,7 +634,6 @@ contains
                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                  canopyDepth,             & ! intent(in):    depth of the vegetation canopy (m)
                   ! input: state vectors
                   stateVecNew,             & ! intent(in):    updated model state vector
                   fScale,                  & ! intent(in):    function scaling vector
@@ -584,9 +691,6 @@ contains
   real(dp),dimension(1)     :: energy_max             ! maximum absolute value of the energy residual (J m-3)
   real(dp),dimension(1)     :: liquid_max             ! maximum absolute value of the volumetric liquid water content residual (-)
   real(dp),dimension(1)     :: matric_max             ! maximum absolute value of the matric head iteration increment (m)
-  integer(i4b),dimension(1) :: energy_loc             ! location of maximum absolute value of the energy residual (-)
-  integer(i4b),dimension(1) :: liquid_loc             ! location of maximum absolute value of the volumetric liquid water content residual (-)
-  integer(i4b),dimension(1) :: matric_loc             ! location of maximum absolute value of the matric head increment (-)
   logical(lgt)              :: canopyConv             ! flag for canopy water balance convergence
   logical(lgt)              :: watbalConv             ! flag for soil water balance convergence
   logical(lgt)              :: liquidConv             ! flag for residual convergence
@@ -606,54 +710,72 @@ contains
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
   ! model indices
-  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b] index of canopy air space energy state variable
-  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b] index of canopy energy state variable
-  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,&  ! intent(in): [i4b] index of canopy hydrology state variable (mass)
-  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-  ixSnowSoilWat           => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat            ,&  ! intent(in): [i4b(:)] indices for total water states in the snow+soil subdomain
-  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat             &  ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
+  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy energy state variable
+  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+  ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for all energy states
+  ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
+  ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
+  ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat              &  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
+
   ) ! making associations with variables in the data structures
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
-  ! check convergence based on the residuals for energy (J m-3)
-  if(computeVegFlux)then
+  ! check convergence based on the canopy water balance
+  if(ixVegWat/=integerMissing)then
    canopy_max = real(abs(rVec(ixVegWat)), dp)*iden_water
-   energy_max = real(maxval(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) ), dp)
-   energy_loc =      maxloc(abs( (/rVec(ixCasNrg), rVec(ixVegNrg), rVec(ixSnowSoilNrg)/) ) )
    canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (m)
   else
-   energy_max = real(maxval(abs( rVec(ixSnowSoilNrg) ) ), dp)
-   energy_loc =      maxloc(abs( rVec(ixSnowSoilNrg) ) )
-   canopyConv = .true. ! disable check for canopy convergence when there is no canopy
-  end if
+   canopy_max = realMissing
+   canopyConv = .true.
+  endif
+
+  ! check convergence based on the residuals for energy (J m-3)
+  if(size(ixNrgOnly)>0)then
+   energy_max = real(maxval(abs( rVec(ixNrgOnly) )), dp)
+   energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
+  else
+   energy_max = realMissing
+   energyConv = .true.
+  endif
 
   ! check convergence based on the residuals for volumetric liquid water content (-)
-  liquid_max = real(maxval(abs( rVec(ixSnowSoilWat) ) ), dp)
-  liquid_loc =      maxloc(abs( rVec(ixSnowSoilWat) ) )
+  if(size(ixHydOnly)>0)then
+   liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), dp)
+   liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+  else
+   liquid_max = realMissing
+   liquidConv = .true.
+  endif
 
   ! check convergence based on the iteration increment for matric head
   ! NOTE: scale by matric head to avoid unnecessairly tight convergence when there is no water
-  psiScale   = abs(xVec(ixSoilOnlyHyd)) + xSmall ! avoid divide by zero
-  matric_max = maxval(abs( xInc(ixSoilOnlyHyd)/psiScale ) )
-  matric_loc = maxloc(abs( xInc(ixSoilOnlyHyd)/psiScale ) )
+  if(size(ixMatOnly)>0)then
+   psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
+   matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
+   matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
+  else
+   matric_max = realMissing
+   matricConv = .true.
+  endif
 
-  ! compute the soil water balance error (m)
-  soilWatbalErr = abs( sum(real(rVec(ixSoilOnlyHyd), dp)*mLayerDepth(nSnow+1:nLayers)) )
-
-  ! convergence check
-  watbalConv = (soilWatbalErr < absConvTol_liquid)  ! absolute error in total soil water balance (m)
-  matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
-  liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
-  energyConv = (energy_max(1) < absConvTol_energy)  ! (based on the residual)
+  ! check convergence based on the soil water balance error (m)
+  if(size(ixMatOnly)>0)then
+   soilWatBalErr = abs( sum( real(rVec(ixMatOnly), dp)*mLayerDepth(nSnow+ixMatricHead) ) )
+   watbalConv    = (soilWatbalErr < absConvTol_liquid)  ! absolute error in total soil water balance (m)
+  else
+   soilWatbalErr = realMissing
+   watbalConv    = .true.
+  endif
 
   ! final convergence check
   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv)
 
   ! print progress towards solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,i4,1x,4(e15.5,1x),3(i4,1x),5(L1,1x))') 'check convergence: ', iter, &
-    fNew, matric_max(1), liquid_max(1), energy_max(1), matric_loc(1), liquid_loc(1), energy_loc(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
-  end if
+   write(*,'(a,1x,i4,1x,4(e15.5,1x),5(L1,1x))') 'check convergence: ', iter, &
+    fNew, matric_max(1), liquid_max(1), energy_max(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
+  endif
 
   ! end associations with variables in the data structures
   end associate
@@ -665,10 +787,18 @@ contains
   ! internal subroutine imposeConstraints: impose solution constraints
   ! *********************************************************************************************************
   subroutine imposeConstraints(stateVecTrial,xInc,err,message)
-  USE var_lookup,only:iLookINDEX                                  ! named variables for structure elements
+  ! external functions
+  USE snow_utils_module,only:fracliquid                           ! compute the fraction of liquid water at a given temperature (snow)
+  ! named variables
+  USE var_lookup,only:iLookPROG                                   ! named variables for elements of the prognostic structure
+  USE var_lookup,only:iLookPARAM                                  ! named variables for elements of the parameter structure
+  USE var_lookup,only:iLookINDEX                                  ! named variables for elements of the index structure
+  ! physical constants
   USE multiconst,only:Tfreeze                                     ! temperature at freezing (K)
   USE multiconst,only:gravity                                     ! acceleration of gravity (m s-2)
   USE multiconst,only:LH_fus                                      ! latent heat of fusion (J kg-1)
+  ! external functions
+  USE soil_utils_module,only:crit_soilT                           ! compute the critical temperature below which ice exists
   implicit none
   ! dummies
   real(dp),intent(in)             :: stateVecTrial(:)             ! trial state vector
@@ -676,71 +806,76 @@ contains
   integer(i4b),intent(out)        :: err                          ! error code
   character(*),intent(out)        :: message                      ! error message
   ! -----------------------------------------------------------------------------------------------------
-  ! local variables
+  ! temporary variables for model constraints
   real(dp)                        :: cInc                         ! constrained temperature increment (K) -- simplified bi-section
   real(dp)                        :: xIncFactor                   ! scaling factor for the iteration increment (-)
   integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
-  real(dp),dimension(nSnow)       :: mLayerTempCheck              ! updated temperatures (K) -- used to check iteration increment for snow
-  real(dp),dimension(nSnow)       :: mLayerVolFracLiqCheck        ! updated volumetric liquid water content (-) -- used to check iteration increment for snow
+  real(dp)                        :: scalarTemp                   ! temperature of an individual snow layer (K)
+  real(dp)                        :: volFracLiq                   ! volumetric liquid water content of an individual snow layer (-)
   logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
   logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
   logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
-  integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
-  integer(i4b)                    :: iLayer                       ! index of model layer
   real(dp)                        :: xPsi00                       ! matric head after applying the iteration increment (m)
   real(dp)                        :: TcSoil                       ! critical point when soil begins to freeze (K)
   real(dp)                        :: critDiff                     ! temperature difference from critical (K)
   real(dp),parameter              :: epsT=1.e-7_dp                ! small interval above/below critical (K)
   real(dp),parameter              :: zMaxTempIncrement=1._dp      ! maximum temperature increment (K)
+  ! indices of model state variables
+  integer(i4b)                    :: iState                       ! index of state within a specific variable type
+  integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
+  ! indices of model layers
+  integer(i4b)                    :: iLayer                       ! index of model layer
   ! -----------------------------------------------------------------------------------------------------
   ! associate variables with indices of model state variables
   associate(&
-  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b] index of canopy air space energy state variable
-  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b] index of canopy energy state variable
-  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,&  ! intent(in): [i4b] index of canopy hydrology state variable (mass)
-  ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,&  ! intent(in): [i4b] index of upper-most energy state in the snow-soil subdomain
-  ixTopWat                => indx_data%var(iLookINDEX%ixTopWat)%dat(1)              ,&  ! intent(in): [i4b] index of upper-most total water state in the snow-soil subdomain
-  ixTopMat                => indx_data%var(iLookINDEX%ixTopMat)%dat(1)              ,&  ! intent(in): [i4b] index of upper-most matric head state in the soil subdomain
-  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow-soil subdomain
-  ixSnowSoilWat           => indx_data%var(iLookINDEX%ixSnowSoilWat)%dat            ,&  ! intent(in): [i4b(:)] indices for total water states in the snow-soil subdomain
-  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
-  ixSnowOnlyWat           => indx_data%var(iLookINDEX%ixSnowOnlyWat)%dat            ,&  ! intent(in): [i4b(:)] indices for total water states in the snow subdomain
-  ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
-  ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for all energy states
-  layerType               => indx_data%var(iLookINDEX%layerType)%dat                 &  ! intent(in): [i4b(:)] type of each layer in the snow+soil domain (snow or soil)
+  ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
+  ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states 
+  ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
+  ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat               ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
+  ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
+  ! indices for specific state variables
+  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy air space energy state variable
+  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
+  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
+  ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b] index of upper-most energy state in the snow-soil subdomain
+  ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b] index of upper-most hydrology state in the snow-soil subdomain
+  ! vector of energy indices for the snow and soil domains
+  ! NOTE: states not in the subset are equal to integerMissing
+  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
+  ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
+  ! vector of hydrology indices for the snow and soil domains
+  ! NOTE: states not in the subset are equal to integerMissing
+  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+  ixSnowOnlyHyd           => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
+  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+  ! number of state variables of a specific type
+  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
+  nSnowOnlyNrg            => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
+  nSoilOnlyNrg            => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the soil domain
+  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
+  nSnowOnlyHyd            => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
+  nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
+  ! state variables at the start of the time step
+  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat           & ! intent(in): [dp(:)] matric head (m)
   ) ! associating variables with indices of model state variables
   ! -----------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='imposeConstraints/'
   
   ! ** limit temperature increment to zMaxTempIncrement
-  !if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
-  ! iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
-  ! xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
-  ! xInc       = xIncFactor*xInc
-  !end if
-  
-  ! vegetation
-  if(computeVegFlux)then
-   if(abs(xInc(ixVegNrg)) > 1._dp)then
-    xIncFactor = abs(1._dp/xInc(ixVegNrg))  ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc            ! scale iteration increments
-   end if
-  end if
-  
-  ! snow and soil
-  if(any(abs(xInc(ixSnowSoilNrg)) > 1._dp))then
-   iMax       = maxloc( abs(xInc(ixSnowSoilNrg)) )                   ! index of maximum temperature increment
-   xIncFactor = abs( 1._dp/xInc(ixSnowSoilNrg(iMax(1))) )            ! scaling factor for the iteration increment (-)
+  if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
+   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
+   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   end if
   
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
-  if(computeVegFlux)then
+  ! --------------------------------------------------------------------------------------------------------------------
+  ! canopy temperatures
   
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! canopy temperatures
+  if(ixVegNrg/=integerMissing)then
   
    ! initialize
    critDiff    = Tfreeze - stateVecTrial(ixVegNrg)
@@ -766,10 +901,14 @@ contains
    if(crosTempVeg)then
     xIncFactor  = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
     xInc        = xIncFactor*xInc      ! scale iteration increments
-   end if
-  
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! canopy liquid water
+   endif
+ 
+  endif  ! if the state variable for canopy temperature is included within the state subset
+ 
+  ! --------------------------------------------------------------------------------------------------------------------
+  ! canopy liquid water
+
+  if(ixVegWat/=integerMissing)then
   
    ! check if new value of storage will be negative
    if(stateVecTrial(ixVegWat)+xInc(ixVegWat) < 0._dp)then
@@ -779,89 +918,124 @@ contains
     xInc       = xIncFactor*xInc                                                  ! new iteration increment
    end if
   
-  end if  ! if computing fluxes through vegetation
-  
-  ! ** impose solution constraints for snow
-  if(nSnow > 0)then
-  
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! loop through snow layers
-   !checksnow: do iState=1,nSnow  ! necessary to ensure that NO layers rise above Tfreeze
-    ! - get updated snow temperatures
-    mLayerTempCheck = stateVecTrial(ixSnowOnlyNrg) + xInc(ixSnowOnlyNrg)
-    ! - check sub-freezing temperatures for snow
-    if(any(mLayerTempCheck > Tfreeze))then
-     ! scale iteration increment
-     iMax       = maxloc(mLayerTempCheck)                                          ! index of maximum temperature
-     cInc       = 0.5_dp*(Tfreeze - stateVecTrial(ixSnowOnlyNrg(iMax(1))) )        ! constrained temperature increment (K) -- simplified bi-section
-     xIncFactor = cInc/xInc(ixSnowOnlyNrg(iMax(1)))                                ! scaling factor for the iteration increment (-)
-     xInc       = xIncFactor*xInc
-   ! else    ! if snow temperature > freezing
-   !  exit checkSnow
-    end if   ! if snow temperature > freezing
-   !end do checkSnow
-  
-   ! --------------------------------------------------------------------------------------------------------------------
-   ! - check if drain more than what is available
-   ! NOTE: change in total water is only due to liquid flux
-  
-   ! get new volumetric fraction of liquid water
-   mLayerVolFracLiqCheck = stateVecTrial(ixSnowOnlyWat)+xInc(ixSnowOnlyWat)
-   drainFlag(:) = .false.
-  
-   do iLayer=1,nSnow
-    if(mLayerVolFracLiqCheck(iLayer) < 0._dp)then
-     drainFlag(iLayer) = .true.
-     xInc(ixSnowOnlyWat(iLayer)) = -0.5_dp*stateVecTrial(ixSnowOnlyWat(iLayer) )
-    end if
-   end do
-  
-  end if   ! if snow layers exist
+  endif  ! if the state variable for canopy water is included within the state subset
   
   ! --------------------------------------------------------------------------------------------------------------------
-  ! ** impose solution constraints for soil
-  do iLayer=1,nSoil
+  ! ** impose solution constraints for snow
+  if(nSnowOnlyNrg > 0)then
   
-   ! initialize crossing flag
-   crosFlag(iLayer) = .false.
+   ! loop through snow layers
+   checksnow: do iLayer=1,nSnow  ! necessary to ensure that NO layers rise above Tfreeze
+
+    ! check of the data is mising
+    if(ixSnowOnlyNrg(iLayer)==integerMissing) cycle
+
+    ! check temperatures, and, if necessary, scale iteration increment
+    iState = ixSnowOnlyNrg(iLayer)
+    if(stateVecTrial(iState) + xInc(iState) > Tfreeze)then
+     ! scale iteration increment
+     cInc       = 0.5_dp*(Tfreeze - stateVecTrial(iState) )        ! constrained temperature increment (K) -- simplified bi-section
+     xIncFactor = cInc/xInc(iState)                                ! scaling factor for the iteration increment (-)
+     xInc       = xIncFactor*xInc
+    end if   ! if snow temperature > freezing
+
+   end do checkSnow
+
+  endif  ! if there are state variables for energy in the snow domain
   
-   ! identify indices for energy and mass state variables
-   ixNrg = ixSnowSoilNrg(nSnow+iLayer)
-   ixLiq = ixSnowSoilWat(nSnow+iLayer)
+  ! --------------------------------------------------------------------------------------------------------------------
+  ! - check if drain more than what is available
+  ! NOTE: change in total water is only due to liquid flux
+  if(nSnowOnlyHyd>0)then
   
-   ! identify the critical point when soil begins to freeze (TcSoil)
-   xPsi00 = stateVecTrial(ixLiq) + xInc(ixLiq)
-   TcSoil = Tfreeze + min(xPsi00,0._dp)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+   ! loop through snow layers
+   do iLayer=1,nSnow
+
+    ! * check if the layer is included
+    if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
+
+    ! * get the layer temperature (from stateVecTrial if ixSnowOnlyNrg(iLayer) is within the state vector
+    scalarTemp = merge(stateVecTrial( ixSnowOnlyNrg(iLayer) ), prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer), ixSnowOnlyNrg(iLayer)/=integerMissing)
+
+    ! * get the volumetric fraction of liquid water
+    select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
+     case(iname_watLayer); volFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)) * stateVecTrial(ixSnowOnlyHyd(iLayer))
+     case(iname_liqLayer); volFracLiq = stateVecTrial(ixSnowOnlyHyd(iLayer))
+     case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow hydrology'; return
+    end select
+
+    ! * check that the iteration increment does not exceed volumetric liquid water content
+    if(-xInc(ixSnowOnlyHyd(iLayer)) > volFracLiq)then
+     drainFlag(iLayer) = .true.
+     xInc(ixSnowOnlyHyd(iLayer)) = -0.5_dp*volFracLiq
+    endif
+
+   end do  ! looping through snow layers
   
-   ! get the difference from the current state and the crossing point (K)
-   critDiff = TcSoil - stateVecTrial(ixNrg)
+  endif   ! if there are state variables for liquid water in the snow domain
   
-   ! * initially frozen (T < TcSoil)
-   if(critDiff > 0._dp)then
-  
-    ! (check crossing above zero)
-    if(xInc(ixNrg) > critDiff)then
-     crosFlag(iLayer) = .true.
-     xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
-    end if
-  
-   ! * initially unfrozen (T > TcSoil)
-   else
-  
-    ! (check crossing below zero)
-    if(xInc(ixNrg) < critDiff)then
-     crosFlag(iLayer) = .true.
-     xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
-    end if
-  
-   end if  ! (switch between initially frozen and initially unfrozen)
-  
-   ! place constraint for matric head
-   if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
-    xInc(ixLiq) = 1._dp
-   end if  ! if constraining matric head
-  
-  end do  ! (loop through soil layers)
+  ! --------------------------------------------------------------------------------------------------------------------
+  ! ** impose solution constraints for soil temperature
+  if(nSoilOnlyNrg>0)then
+   do iLayer=1,nSoil
+
+    ! - check if energy state is included
+    if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
+
+    ! - define index of the state variables within the state subset
+    ixNrg = ixSoilOnlyNrg(iLayer)
+    ixLiq = ixSoilOnlyHyd(iLayer)       
+
+    ! get the matric potential of total water 
+    if(ixLiq/=integerMissing)then
+     xPsi00 = stateVecTrial(ixLiq) + xInc(ixLiq)
+    else
+     xPsi00 = mLayerMatricHead(iLayer)
+    endif
+
+    ! identify the critical point when soil begins to freeze (TcSoil)
+    TcSoil = crit_soilT(xPsi00)
+   
+    ! get the difference from the current state and the crossing point (K)
+    critDiff = TcSoil - stateVecTrial(ixNrg)
+   
+    ! * initially frozen (T < TcSoil)
+    if(critDiff > 0._dp)then
+   
+     ! (check crossing above zero)
+     if(xInc(ixNrg) > critDiff)then
+      crosFlag(iLayer) = .true.
+      xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
+     endif
+   
+    ! * initially unfrozen (T > TcSoil)
+    else
+   
+     ! (check crossing below zero)
+     if(xInc(ixNrg) < critDiff)then
+      crosFlag(iLayer) = .true.
+      xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
+     endif
+   
+    endif  ! (switch between initially frozen and initially unfrozen)
+   
+   end do  ! (loop through soil layers)
+  endif   ! (if there are both energy and liquid water state variables)
+
+  ! ** impose solution constraints matric head
+  if(size(ixMatOnly)>0)then
+   do iState=1,size(ixMatOnly)
+
+    ! - define index of the hydrology state variable within the state subset
+    ixLiq = ixMatOnly(iState)
+
+    ! - place constraint for matric head
+    if(xInc(ixLiq) > 1._dp .and. stateVecTrial(ixLiq) > 0._dp)then
+     xInc(ixLiq) = 1._dp
+    endif  ! if constraining matric head
+
+   end do  ! (loop through soil layers)
+  endif   ! (if there are both energy and liquid water state variables)
   
   ! end association with variables with indices of model state variables
   end associate

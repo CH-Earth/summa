@@ -36,7 +36,8 @@ USE multiconst,only:&
                     iden_ice,    & ! intrinsic density of ice      (kg m-3)
                     iden_water     ! intrinsic density of water    (kg m-3)
 ! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow                        ! names variables for snow and soil
+USE globalData,only:iname_snow     ! named variables for snow
+USE globalData,only:iname_soil     ! named variables for soil
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:      &
  ! look-up values for the numerical method
@@ -135,7 +136,7 @@ contains
   ! input: model coordinates and thermal properties
   nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in): number of snow layers 
   nLayers              => indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in): total number of layers 
-  layerType            => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in): layer type (ix_soil or ix_snow)
+  layerType            => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in): layer type (iname_soil or iname_snow)
   mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
   mLayerHeight         => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
   iLayerThermalC       => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
@@ -172,7 +173,7 @@ contains
     iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                     (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
 
-    !print*, 'iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
+    !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
   end if ! (the type of layer)
  end do
 
@@ -182,8 +183,8 @@ contains
  do iLayer=1,nLayers
   ! get the liquid flux at layer interfaces
   select case(layerType(iLayer))
-   case(ix_snow); qFlux = iLayerLiqFluxSnow(iLayer)
-   case(ix_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
+   case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
+   case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
    case default; err=20; message=trim(message)//'unable to identify layer type'; return
   end select
   ! compute fluxes at the lower boundary -- positive downwards

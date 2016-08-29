@@ -48,6 +48,7 @@ MODULE data_types
   integer(i4b),allocatable               :: data_id(:)               ! netcdf variable id for each forcing data variable
   character(len=256),allocatable         :: varName(:)               ! netcdf variable name for each forcing data variable
   real(dp)                               :: firstJulDay              ! first julian day in forcing file
+  real(dp)                               :: convTime2Days            ! factor to convert time to days
  end type file_info
 
  ! ***********************************************************************************************************
@@ -78,6 +79,12 @@ MODULE data_types
  type,extends(var_info),public :: extended_info
   integer(i4b)                           :: ixParent         ! index in the parent data structure
  endtype extended_info
+
+ ! define extended data type (includes named variables for the states affected by each flux)
+ type,extends(var_info),public :: flux2state
+  integer(i4b)                           :: state1           ! named variable of the 1st state affected by the flux
+  integer(i4b)                           :: state2           ! named variable of the 2nd state affected by the flux
+ endtype flux2state
 
  ! ***********************************************************************************************************
  ! Define summary of data structures

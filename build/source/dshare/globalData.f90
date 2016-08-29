@@ -27,6 +27,7 @@ MODULE globalData
  USE data_types,only:file_info       ! metadata for model forcing datafile
  USE data_types,only:par_info        ! default parameter values and parameter bounds
  USE data_types,only:var_info        ! metadata for variables in each model structure
+ USE data_types,only:flux2state      ! extended metadata to define flux-to-state mapping
  USE data_types,only:extended_info   ! extended metadata for variables in each model structure
  USE data_types,only:struct_info     ! summary information on all data structures 
  USE data_types,only:var_i           ! vector of integers 
@@ -85,7 +86,8 @@ MODULE globalData
  type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
 
  ! ancillary metadata structures
- type(extended_info),save,public,allocatable :: averageFlux_meta(:)     ! timestep-average model fluxes
+ type(flux2state),   save,public             :: flux2state_meta(maxvarFlux)  ! named variables for the states affected by each flux
+ type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
 
  ! define summary information on all data structures
  integer(i4b),parameter                      :: nStruct=12              ! number of data structures
@@ -103,15 +105,21 @@ MODULE globalData
                    struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
                    struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
 
- ! define named variables to describe the layer type
- integer(i4b),parameter,public               :: ix_soil=1001            ! named variable to denote a soil layer
- integer(i4b),parameter,public               :: ix_snow=1002            ! named variable to denote a snow layer
+ ! define named variables to describe the domain type
+ integer(i4b),parameter,public               :: iname_cas =1000         ! named variable to denote a vegetation state variable
+ integer(i4b),parameter,public               :: iname_veg =1001         ! named variable to denote a vegetation state variable
+ integer(i4b),parameter,public               :: iname_soil=1002         ! named variable to denote a soil layer
+ integer(i4b),parameter,public               :: iname_snow=1003         ! named variable to denote a snow layer
 
  ! define named variables to describe the state varible type            
- integer(i4b),parameter,public               :: ixNrgState=2001         ! named variable defining the energy state variable
- integer(i4b),parameter,public               :: ixWatState=2002         ! named variable defining the total water state variable
- integer(i4b),parameter,public               :: ixMatState=2003         ! named variable defining the matric head state variable
- integer(i4b),parameter,public               :: ixMassState=2004        ! named variable defining the mass of water (currently only used for the veg canopy)
+ integer(i4b),parameter,public               :: iname_nrgCanair=2001    ! named variable defining the energy of the canopy air space
+ integer(i4b),parameter,public               :: iname_nrgCanopy=2002    ! named variable defining the energy of the vegetation canopy
+ integer(i4b),parameter,public               :: iname_watCanopy=2003    ! named variable defining the mass of water on the vegetation canopy
+ integer(i4b),parameter,public               :: iname_nrgLayer=3001     ! named variable defining the energy state variable for snow+soil layers
+ integer(i4b),parameter,public               :: iname_watLayer=3002     ! named variable defining the total water state variable for snow+soil layers
+ integer(i4b),parameter,public               :: iname_liqLayer=3003     ! named variable defining the liquid  water state variable for snow+soil layers
+ integer(i4b),parameter,public               :: iname_matLayer=3004     ! named variable defining the matric head state variable for soil layers
+ integer(i4b),parameter,public               :: iname_lmpLayer=3005     ! named variable defining the liquid matric potential state variable for soil layers
 
  ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
  ! NOTE: This indexing scheme provides the matrix structure expected by lapack. Specifically, lapack requires kl extra rows for additional storage.
@@ -135,7 +143,7 @@ MODULE globalData
 
  ! define indices describing the first and last layers of the Jacobian to print (for debugging)
  integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
- integer(i4b),parameter,public               :: iJac2=10                ! last layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac2=9                 ! last layer of the Jacobian to print
 
  ! define mapping structures
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing
