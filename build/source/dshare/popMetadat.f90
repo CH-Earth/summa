@@ -613,7 +613,7 @@ contains
  indx_meta(iLookINDEX%ixVegNrg)            = var_info('ixVegNrg'            , 'index of canopy energy state variable'                                   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixVegWat)            = var_info('ixVegWat'            , 'index of canopy hydrology state variable (mass)'                         , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixTopNrg)            = var_info('ixTopNrg'            , 'index of upper-most energy state in the snow+soil subdomain'             , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixTopHyd)            = var_info('ixTopWat'            , 'index of upper-most hydrology state in the snow+soil subdomain'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixTopHyd)            = var_info('ixTopHyd'            , 'index of upper-most hydrology state in the snow+soil subdomain'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! vectors of indices for specific state types
  indx_meta(iLookINDEX%ixNrgOnly)           = var_info('ixNrgOnly'           , 'indices IN THE STATE SUBSET for energy states'                           , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixHydOnly)           = var_info('ixHydOnly'           , 'indices IN THE STATE SUBSET for hydrology states in the snow+soil domain', '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)

@@ -234,20 +234,9 @@ contains
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
- !if(size(ixSnowOnlyWat)>0)then
- ! write(*,'(a,1x,10(f15.8,1x))') 'rVec(ixSnowOnlyWat)            = ', (rVec(ixSnowOnlyWat(iVar)),iVar=1,size(ixSnowOnlyWat))
- ! write(*,'(a,1x,10(f15.8,1x))') 'mLayerVolFracWat(1:nSnow)      = ', mLayerVolFracWat(1:nSnow)
- !endif
-
- !if(size(ixSoilOnlyMat)>0)then
- ! write(*,'(a,1x,10(f15.8,1x))') 'rAdd(ixSoilOnlyMat)            = ', (rAdd(ixSoilOnlyMat(iVar)),iVar=1,size(ixSoilOnlyMat))
- ! write(*,'(a,1x,10(f15.8,1x))') 'fVec(ixSoilOnlyMat)            = ', (fVec(ixSoilOnlyMat(iVar)),iVar=1,size(ixSoilOnlyMat))
- ! write(*,'(a,1x,10(f15.8,1x))') 'rVec(ixSoilOnlyMat)            = ', (rVec(ixSoilOnlyMat(iVar)),iVar=1,size(ixSoilOnlyMat))
- ! write(*,'(a,1x,10(f15.8,1x))') 'mLayerVolFracWat(1:nSoil)      = ', mLayerVolFracWat(nSnow+1:nLayers)
- !endif
-
  ! print result
- if(globalPrintFlag) write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec
+ if(globalPrintFlag) &
+  write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(iJac1:iJac2)
 
  ! end association with the necessary variabiles for the residual calculations
  end associate

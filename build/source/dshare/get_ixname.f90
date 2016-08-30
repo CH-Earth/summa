@@ -946,11 +946,11 @@ contains
    case ('bvar' ); vDex = get_ixBvar(trim(varName))
    case ('deriv'); vDex = get_ixDeriv(trim(varName))
   end select
-  if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; end if;
+  if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; end if
  end do
 
  ! 404
- err=20;message=trim(message)//'variable not found in any structure:'//trim(varName); return;
+ err=20;message=trim(message)//'variable '//trim(varName)//' is not found in any structure'; return
 
  end subroutine get_ixUnknown
 

@@ -427,13 +427,18 @@ contains
   nSubset = count(stateMask)
 
   ! get indices for a given split
-  call indexSplit(stateMask,           & ! intent(in)    : logical vector (.true. if state is in the subset)
-                  nSnow,nSoil,nLayers, & ! intent(in)    : number of snow and soil layers, and total number of layers
-                  nState,nSubset,      & ! intent(in)    : number of state variables in the state vector, and state subset
-                  indx_data,           & ! intent(inout) : index data structure
-                  err,cmessage)          ! intent(out)   : error control
+  call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
+                  nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
+                  indx_data,                   & ! intent(inout) : index data structure
+                  err,cmessage)                  ! intent(out)   : error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! make association with model indices defined in indexSplit
+  stateSubset: associate(&
+  ixSnowSoilNrg => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat, & ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+  ixSnowOnlyHyd => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat  & ! intent(in): [i4b(:)] indices for hydrology states in the snow subdomain
+  ) ! associations
+  
   ! allocate space for solution and scaling vectors
   allocate(stateVecInit(nSubset), stateVecTrial(nSubset), stateVecNew(nSubset), fluxVec0(nSubset), fluxVecNew(nSubset), fScale(nSubset), xScale(nSubset), stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution and scaling vectors'; return; endif
@@ -498,6 +503,9 @@ contains
    ! * populate state vectors...
    ! ---------------------------
 
+   ! initialize the global print flag
+   globalPrintFlag=.true.
+
    ! initialize state vectors
    call popStateVec(&
                     ! input
@@ -520,12 +528,6 @@ contains
    ! * compute the initial function evaluation...
    ! --------------------------------------------
    
-   ! make association with model indices
-   stateSubset: associate(&
-   ixSnowSoilNrg => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat, & ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-   ixSnowOnlyHyd => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat  & ! intent(in): [i4b(:)] indices for hydrology states in the snow subdomain
-   ) ! associations
-  
    ! initialize the trial state vectors
    stateVecTrial = stateVecInit
   
@@ -585,9 +587,6 @@ contains
     message=trim(message)//'unfeasible state vector'
     err=20; return
    endif
-
-   print*, 'PAUSE: after eval8summa'; read(*,*)  
-
  
    ! ==========================================================================================================================================
    ! ==========================================================================================================================================
@@ -682,7 +681,7 @@ contains
      print*, 'PAUSE: failed to converge'; read(*,*)
      err=-20; return
     endif
-    !print*, 'PAUSE: iterating'; read(*,*)
+    print*, 'PAUSE: iterating'; read(*,*)
    
    end do  ! iterating
    !print*, 'PAUSE: after iterations'; read(*,*)
@@ -810,10 +809,10 @@ contains
    ! ------------------------------------------------------
    ! ------------------------------------------------------
 
-   ! end associations with variables for the state update
-   end associate stateSubset
-
   end do  ! time steps for variable-dependent sub-stepping
+
+  ! end associations with variables for the state update
+  end associate stateSubset
 
   ! deallocate space for temporary vectors
   deallocate(stateVecInit, stateVecTrial, stateVecNew, fluxVec0, fluxVecNew, fScale, xScale, dMat, sMul, rVec, rAdd, resSinkNew, resVecNew, stat=err)

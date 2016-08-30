@@ -35,6 +35,16 @@ USE globalData,only:iname_veg       ! named variables for vegetation
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
 
+! named variables to describe the state variable type
+USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
+USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
+USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
+USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
+USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
+
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
@@ -135,6 +145,8 @@ contains
  integer(i4b)                      :: kLayer          ! index of model layer within the snow-soil domain
  integer(i4b)                      :: mLayer          ! index of model layer within the full state vector (thermodynamics)
  integer(i4b)                      :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
+ ! conversion factors
+ real(dp)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
  ! --------------------------------------------------------------
  ! associate variables from data structures
  associate(&
@@ -164,9 +176,11 @@ contains
  nSnowSoilHyd                 => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
  nSnowOnlyHyd                 => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
  nSoilOnlyHyd                 => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
- ! mapping between states and model layers
+ ! type and index of model control volume
+ ixHydType                    => indx_data%var(iLookINDEX%ixHydType)%dat                         ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
  ixDomainType                 => indx_data%var(iLookINDEX%ixDomainType)%dat                      ,& ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
  ixControlVolume              => indx_data%var(iLookINDEX%ixControlVolume)%dat                   ,& ! intent(in): [i4b(:)] index of the control volume for specific model domains
+ ! mapping between states and model layers
  ixMapSubset2Full             => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat                  ,& ! intent(in): [i4b(:)] list of indices in the full state vector that are in the state subset
  ixMapFull2Subset             => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat                  ,& ! intent(in): [i4b(:)] list of indices in the state subset in each element of the full state vector
  ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
@@ -228,8 +242,6 @@ contains
  ! *********************************************************************************************************************************************************
  ! *********************************************************************************************************************************************************
 
- print*, 'start of computJacob'
-
  ! initialize the Jacobian
  ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver
  aJac(:,:) = 0._dp  ! analytical Jacobian matrix
@@ -248,7 +260,6 @@ contains
  do iLayer=1,nSoil
   if(ixSoilOnlyHyd(iLayer)/=integerMissing) dMat(ixSoilOnlyHyd(iLayer)) = dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer)
  end do
- print*, 'after initialize'
 
  ! define the form of the matrix
  select case(ixMatrix)
@@ -413,8 +424,6 @@ contains
     err=20; return
    end if
 
-   print*, 'energy and liquid fluxes over vegetation'
-
    ! -----
    ! * energy and liquid fluxes over vegetation...
    ! ---------------------------------------------
@@ -464,8 +473,6 @@ contains
 
    endif  ! if there is a need to compute energy fluxes within vegetation
   
-   print*, 'energy fluxes for the snow+soil domain'
-
    ! -----
    ! * energy fluxes for the snow+soil domain...
    ! -------------------------------------------
@@ -506,8 +513,11 @@ contains
      ! - define state indices for the current layer
      watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
 
+     ! compute factor to convert liquid water derivative to total water derivative
+     convLiq2tot = merge(mLayerFracLiqSnow(iLayer), 1._dp, ixHydType(iLayer)==iname_watLayer)
+
      ! - diagonal elements
-     aJac(watState,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer) + dMat(watState)
+     aJac(watState,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot + dMat(watState)
 
      ! - lower-diagonal elements
      if(iLayer > 1)then
@@ -516,7 +526,7 @@ contains
 
      ! - upper diagonal elements
      if(iLayer < nSnow)then
-      if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerFracLiqSnow(iLayer)       ! dVol(below)/dLiq(above) -- (-)
+      if(ixSnowOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer+1),watState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot       ! dVol(below)/dLiq(above) -- (-)
      endif
 
      ! - compute cross-derivative terms for energy

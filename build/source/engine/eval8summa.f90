@@ -36,8 +36,14 @@ USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
 ! named variables to describe the state variable type
+USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
+USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
+USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
+USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
+USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
+USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
 ! constants
 USE multiconst,only:&
@@ -196,6 +202,8 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial    ! trial value for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial    ! trial value for volumetric fraction of ice (-)
  ! other local variables
+ logical(lgt),dimension(nSnow)   :: snowFlags                ! flags for layers in the snow domain
+ logical(lgt),dimension(nLayers) :: layerFlags               ! flags for layers in the snow+soil domain
  real(dp),dimension(nLayers)     :: mLayerVolFracHydTrial    ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
  real(dp),dimension(nState)      :: rVecScaled               ! scaled residual vector
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
@@ -243,19 +251,23 @@ contains
  ! check the feasibility of the solution
  feasible=.true.
 
+ ! get flags
+ snowFlags  = (ixSnowOnlyNrg/=integerMissing)  ! check snow temperature is not below freezing
+ layerFlags = (ixSnowSoilHyd/=integerMissing .and. (ixHydType==iname_watLayer .or. ixHydType==iname_liqLayer) )  ! check water not <0
+
  ! check canopy liquid water is not negative
  if(ixVegWat/=integerMissing)then
   if(stateVecTrial(ixVegWat) < 0._dp) feasible=.false.
  end if
 
  ! check snow temperature is below freezing
- if(count(ixSnowOnlyNrg/=integerMissing)>0)then
-  if(any(stateVecTrial( pack(ixSnowOnlyNrg, ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
+ if(count(snowFlags)>0)then
+  if(any(stateVecTrial( pack(ixSnowOnlyNrg,snowFlags) ) > Tfreeze)) feasible=.false.
  endif
 
  ! check total water is not negative
- if(count(ixSnowSoilHyd/=integerMissing)>0)then
-  if(any(stateVecTrial( pack(ixSnowSoilHyd, ixSnowSoilHyd/=integerMissing) ) < 0._dp)  ) feasible=.false.
+ if(count(layerFlags)>0)then
+  if(any(stateVecTrial( pack(ixSnowSoilHyd,layerFlags) ) < 0._dp)  ) feasible=.false.
  end if
 
  ! early return for non-feasible solutions
@@ -296,9 +308,11 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! print the water content
- if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracWatTrial = ', mLayerVolFracWatTrial(iJac1:min(iJac2,nSnow))
- if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracLiqTrial = ', mLayerVolFracLiqTrial(iJac1:min(iJac2,nSnow))
- if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial(iJac1:min(iJac2,nSnow))
+ if(globalPrintFlag)then
+  if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracWatTrial = ', mLayerVolFracWatTrial(iJac1:min(iJac2,nSnow))
+  if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracLiqTrial = ', mLayerVolFracLiqTrial(iJac1:min(iJac2,nSnow))
+  if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial(iJac1:min(iJac2,nSnow))
+ endif
 
  ! compute the fluxes for a given state vector
  call computFlux(&
@@ -365,8 +379,6 @@ contains
 
  ! get the correct water states (total water, or liquid water, depending on the state type)
  mLayerVolFracHydTrial = merge(mLayerVolFracWatTrial, mLayerVolFracLiqTrial, (ixHydType==iname_watLayer .or. ixHydType==iname_matLayer) )
- print*, 'mLayerVolFracHydTrial = ', mLayerVolFracHydTrial
- print*, 'PAUSE: check state vector merge'; read(*,*)
 
  ! compute the residual vector
  call computResid(&
@@ -397,8 +409,6 @@ contains
                   resVec,                  & ! intent(out):   residual vector
                   err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
- print*, 'PAUSE: after residuals'; read(*,*)
 
  ! compute the function evaluation
  rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)

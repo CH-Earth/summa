@@ -173,7 +173,7 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
- logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
+ logical(lgt),parameter          :: doNumJacobian=.true.     ! flag to compute the numerical Jacobian matrix
  real(dp)                        :: nJac(nState,nState)      ! numerical Jacobian matrix
  real(dp)                        :: aJac(nLeadDim,nState)      ! Jacobian matrix
  real(dp)                        :: aJacScaled(nLeadDim,nState)      ! Jacobian matrix (scaled)
@@ -189,6 +189,7 @@ contains
  ! general
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
+ logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associations to information in data structures
@@ -197,11 +198,12 @@ contains
  ! initialize error control
  err=0; message='summaSolve/'
 
+ ! initialize the global print flag
+ globalPrintFlagInit=globalPrintFlag
+
  ! -----
  ! * compute the Jacobian matrix...
  ! --------------------------------
-
- print*, 'before computJacob'
 
  ! compute the analytical Jacobian matrix
  ! NOTE: The derivatives were computed in the previous call to computFlux
@@ -229,11 +231,12 @@ contains
                   err,cmessage)                     ! intent(out):   error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- print*, 'after computJacob'
  ! compute the numerical Jacobian matrix
  if(doNumJacobian)then
+  globalPrintFlag=.false.
   call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  globalPrintFlag=globalPrintFlagInit
  endif
 
  ! -----
@@ -247,7 +250,7 @@ contains
  call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- if(globalPrintFlag)then
+ if(globalPrintFlag .and. ixMatrix==ixBandMatrix)then
   print*, '** SCALED banded analytical Jacobian:'
   write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
   do iLayer=kl+1,nBands
@@ -543,7 +546,7 @@ contains
   ! ----------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                   ! error message of downwind routine
-  real(dp),parameter             :: dx=1.e-10_dp               ! finite difference increment
+  real(dp),parameter             :: dx=1.e-8_dp               ! finite difference increment
   real(dp),dimension(nState)     :: stateVecPerturbed          ! perturbed state vector
   real(dp),dimension(nState)     :: fluxVecInit,fluxVecJac     ! flux vector (mized units)
   real(qp),dimension(nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
@@ -595,7 +598,7 @@ contains
   print*, '** numerical Jacobian:', ixNumType==ixNumRes
   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
   do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
-  !print*, 'PAUSE: testing Jacobian'; read(*,*)
+  print*, 'PAUSE: testing Jacobian'; read(*,*)
 
   end subroutine numJacobian
 

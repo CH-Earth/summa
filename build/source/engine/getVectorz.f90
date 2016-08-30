@@ -75,6 +75,7 @@ USE updatState_module,only:updateSnow     ! update snow states
 USE updatState_module,only:updateSoil     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
+USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow) 
 USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
 USE soil_utils_module,only:dTheta_dTk     ! differentiate the freezing curve w.r.t. temperature (soil)
 USE soil_utils_module,only:dTheta_dPsi    ! derivative in the soil water characteristic (soil)
@@ -169,7 +170,7 @@ contains
  ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
  ixSnowSoilHyd       => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
  nSnowSoilNrg        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the snow+soil domain
- nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
+ nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
  ! type of hydrology states in the snow+soil domain
  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
  ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in snow+soil domain
@@ -385,7 +386,7 @@ contains
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for energy states in the snow+soil subdomain
- ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for hydrology states in the snow+soil subdomain
+ ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for hydrology states in the snow+soil subdomain
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):  [i4b]    number of energy state variables in the snow+soil domain
  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):  [i4b]    number of hydrology variables in the snow+soil domain
  ! indices foe states within the snow+soil domain
@@ -611,8 +612,16 @@ contains
     case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
    end select  ! domain type
 
-   ! (early return)
-   return  ! do not update the volume fractions of liquid water and ice, and do not update liquid water matric potential
+   ! (compute the fraction of snow)
+   select case(ixDomainType)
+    case(iname_veg);  fracLiqVeg          = fracliquid(xTemp,snowfrz_scale) 
+    case(iname_snow); fracLiqSnow(iLayer) = fracliquid(xTemp,snowfrz_scale)
+    case(iname_soil); cycle 
+    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+   end select  ! domain type
+
+   ! (cycle to next state variable)
+   cycle  ! do not update the volume fractions of liquid water and ice, and do not update liquid water matric potential
   endif
 
   ! -----

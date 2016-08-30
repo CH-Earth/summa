@@ -250,32 +250,30 @@ contains
  ! **********************************************************************************************************
  ! public subroutine indexSplit: define list of indices for each state variable 
  ! **********************************************************************************************************
- subroutine indexSplit(stateSubsetMask,     & ! intent(in)    : logical vector (.true. if state is in the subset)
-                       nSnow,nSoil,nLayers, & ! intent(in)    : number of snow and soil layers, and total number of layers
-                       nState,nSubset,      & ! intent(in)    : number of state variables in the state vector, and state subset
-                       indx_data,           & ! intent(inout) : index data structure
-                       err,message)           ! intent(out)   : error control
+ subroutine indexSplit(stateSubsetMask,             & ! intent(in)    : logical vector (.true. if state is in the subset)
+                       nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
+                       indx_data,                   & ! intent(inout) : index data structure
+                       err,message)                   ! intent(out)   : error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
- logical(lgt),intent(in)         :: stateSubsetMask(:)     ! logical vector (.true. if state is in the subset) 
- integer(i4b),intent(in)         :: nSnow,nSoil,nLayers    ! number of snow and soil layers, and total number of layers
- integer(i4b),intent(in)         :: nState,nSubset         ! number of state variables in the state vector, and state subset
- type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
+ logical(lgt),intent(in)         :: stateSubsetMask(:)          ! logical vector (.true. if state is in the subset) 
+ integer(i4b),intent(in)         :: nSnow,nSoil,nLayers,nSubset ! number of snow and soil layers, total number of layers, and number of states in the subset
+ type(var_ilength),intent(inout) :: indx_data                   ! indices defining model states and layers
  ! output
- integer(i4b),intent(out)        :: err                    ! error code
- character(*),intent(out)        :: message                ! error message
+ integer(i4b),intent(out)        :: err                         ! error code
+ character(*),intent(out)        :: message                     ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                    :: iVar                   ! variable index
- integer(i4b)                    :: ixTopWat               ! index of upper-most total water state in the snow-soil subdomain
- integer(i4b)                    :: ixTopLiq               ! index of upper-most liquid water state in the snow-soil subdomain
- integer(i4b)                    :: ixTopMat               ! index of upper-most total water matric potential state in the soil subdomain
- integer(i4b)                    :: ixTopLMP               ! index of upper-most liquid water matric potential state in the soil subdomain
- integer(i4b),dimension(nSubset) :: ixSequence             ! sequential index in model state vector
- logical(lgt),dimension(nState)  :: stateTypeMask          ! mask of state vector for specific state subsets
- logical(lgt),dimension(nLayers) :: volFracWat_mask        ! mask of layers within the snow+soil domain
- logical(lgt),dimension(nSoil)   :: matricHead_mask        ! mask of layers within the soil domain
- character(len=256)              :: cmessage               ! error message of downwind routine
+ integer(i4b)                    :: iVar                        ! variable index
+ integer(i4b)                    :: ixTopWat                    ! index of upper-most total water state in the snow-soil subdomain
+ integer(i4b)                    :: ixTopLiq                    ! index of upper-most liquid water state in the snow-soil subdomain
+ integer(i4b)                    :: ixTopMat                    ! index of upper-most total water matric potential state in the soil subdomain
+ integer(i4b)                    :: ixTopLMP                    ! index of upper-most liquid water matric potential state in the soil subdomain
+ integer(i4b),dimension(nSubset) :: ixSequence                  ! sequential index in model state vector
+ logical(lgt),dimension(nSubset) :: stateTypeMask               ! mask of state vector for specific state subsets
+ logical(lgt),dimension(nLayers) :: volFracWat_mask             ! mask of layers within the snow+soil domain
+ logical(lgt),dimension(nSoil)   :: matricHead_mask             ! mask of layers within the soil domain
+ character(len=256)              :: cmessage                    ! error message of downwind routine
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! make association to variables in the data structures
