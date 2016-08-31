@@ -221,6 +221,7 @@ contains
   case('frozenPrecipMultip'       ); get_ixparam = iLookPARAM%frozenPrecipMultip     ! frozen precipitation multiplier (-)
   ! freezing curve for snow
   case('snowfrz_scale'            ); get_ixparam = iLookPARAM%snowfrz_scale          ! scaling parameter for the freezing curve for snow (K-1)
+  case('fixedThermalCond_snow'    ); get_ixparam = iLookPARAM%fixedThermalCond_snow  ! temporally constant thermal conductivity for snow (W m-1 K-1)
   ! snow albedo
   case('albedoMax'                ); get_ixparam = iLookPARAM%albedoMax              ! maximum snow albedo for a single spectral band (-)
   case('albedoMinWinter'          ); get_ixparam = iLookPARAM%albedoMinWinter        ! minimum snow albedo during winter for a single spectral band (-)

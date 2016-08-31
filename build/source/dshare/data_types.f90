@@ -48,6 +48,7 @@ MODULE data_types
   integer(i4b),allocatable               :: data_id(:)               ! netcdf variable id for each forcing data variable
   character(len=256),allocatable         :: varName(:)               ! netcdf variable name for each forcing data variable
   real(dp)                               :: firstJulDay              ! first julian day in forcing file
+  real(dp)                               :: convTime2Days            ! factor to convert time to days
  end type file_info
 
  ! ***********************************************************************************************************

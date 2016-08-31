@@ -65,6 +65,7 @@ contains
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
    ! don't do anything if var is not requested
+   ! WHY is this needed when included above?
    if (meta(iVar)%outFreq<0) cycle
 
    ! index into parent structure
@@ -73,7 +74,7 @@ contains
    select type (dat)
     type is (real(dp)); tdata = dat(pVar)
     type is (dlength) ; tdata = dat(pVar)%dat(1)
-    type is (ilength) ; tdata = real(dat(pVar)%dat(1))
+    type is (ilength) ; tdata = real(dat(pVar)%dat(1), kind(dp))
     class default;err=20;message=trim(message)//'dat type not found';return
    end select
 
