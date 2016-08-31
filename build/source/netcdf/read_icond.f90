@@ -130,6 +130,7 @@ contains
  USE data_types,only:gru_hru_doubleVec                  ! actual data
  USE data_types,only:gru_hru_intVec                     ! actual data
  USE data_types,only:var_info                           ! metadata 
+ USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
@@ -185,71 +186,79 @@ contains
  err = nf90_inq_dimid(ncID,"hru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimID,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
- ! is there any snow in initial conditions file?
- snowExists = .true.
- err = nf90_inq_dimid(ncID,trim(midSnowDimName),dimID)
- if (err/=0) snowExists = .false.
-
  ! loop through prognostic variables
  do iVar = 1,size(prog_meta)
 
-  ! if there is no snow, do not look for snow variables
-  if ((.not.snowExists).and.((prog_meta(iVar)%varType==iLookVarType%midSnow).or.(prog_meta(iVar)%varType==iLookVarType%ifcSnow))) then
-   do iGRU = 1,nGRU
-    do iHRU = 1,gru_struc(iGRU)%hruCount
-     progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat = 0.
-    end do
-   end do
-   cycle
-  end if
+  ! skip variables that are computed later
+  if(prog_meta(iVar)%varName=='scalarCanopyWat'           .or. &
+     prog_meta(iVar)%varName=='spectralSnowAlbedoDiffuse' .or. &
+     prog_meta(iVar)%varName=='scalarSurfaceTemp'         .or. &
+     prog_meta(iVar)%varName=='mLayerVolFracWat'          .or. &
+     prog_meta(iVar)%varName=='mLayerHeight'                   ) cycle
 
   ! get variable id
   err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+  if(err/=0)then
+   message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
+   return
+  endif
 
   ! get variable dimension IDs
   select case (prog_meta(iVar)%varType)
    case (iLookVarType%scalarv); err = nf90_inq_dimid(ncID,trim(scalDimName)   ,dimID); call netcdf_err(err,message)
-   case (iLookVarType%wlength); err = nf90_inq_dimid(ncID,trim(specDimName)   ,dimID); call netcdf_err(err,message)
    case (iLookVarType%midSoil); err = nf90_inq_dimid(ncID,trim(midSoilDimName),dimID); call netcdf_err(err,message)
    case (iLookVarType%midToto); err = nf90_inq_dimid(ncID,trim(midTotoDimName),dimID); call netcdf_err(err,message)
    case (iLookVarType%ifcToto); err = nf90_inq_dimid(ncID,trim(ifcTotoDimName),dimID); call netcdf_err(err,message)
-   case (iLookVarType%midSnow); err = nf90_inq_dimid(ncID,trim(midSnowDimName),dimID); call netcdf_err(err,message)
-   case (iLookVarType%ifcSoil); err = nf90_inq_dimid(ncID,trim(ifcSoilDimName),dimID); call netcdf_err(err,message)
-   case (iLookVarType%ifcSnow); err = nf90_inq_dimid(ncID,trim(ifcSnowDimName),dimID); call netcdf_err(err,message)
+   case default
+    message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
+    err=20; return
   end select
-  err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+  
+  ! check errors
+  if(err/=0)then
+   message=trim(message)//': problem with dimension ids, var='//trim(prog_meta(iVar)%varName)
+   return
+  endif
 
-  ! iniitialize the varialbe data
-  allocate(varData(fileHRU,dimLen))
+  ! get the dimension length
+  err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+  if(err/=0)then; message=trim(message)//': problem getting the dimension length'; return; endif
+
+  ! iniitialize the variable data
+  allocate(varData(fileHRU,dimLen),stat=err)
+  if(err/=0)then; message=trim(message)//'problem allocating variable data'; return; endif
 
   ! get data
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message) 
+  if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
   ! store data in prognostics structure 
   ! loop through GRUs
   do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
 
+    ! get ther number of layers
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow 
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil 
     nToto = nSnow + nSoil 
    
+    ! put the data into data structures
     select case (prog_meta(iVar)%varType)
      case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1        ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1        ) 
-     case (iLookVarType%wlength); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:dimLen ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,:        ) 
      case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil  ) 
      case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto  ) 
-     case (iLookVarType%midSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSnow  ) 
-     case (iLookVarType%ifcSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil+1) 
      case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1) 
-     case (iLookVarType%ifcSnow); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nSnow  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSnow+1) 
+     case default
+      message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
+      err=20; return
     end select
 
    end do ! iHRU
   end do ! iGRU
 
   ! deallocate storage vector for next variable
-  deallocate(varData)
+  deallocate(varData, stat=err)
+  if(err/=0)then; message=trim(message)//'problem deallocating variable data'; return; endif
 
  end do ! iVar 
 

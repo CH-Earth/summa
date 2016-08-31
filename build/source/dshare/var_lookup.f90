@@ -139,8 +139,9 @@ MODULE var_lookup
   integer(i4b)    :: tempCritRain          = integerMissing    ! critical temperature where precipitation is rain (K)
   integer(i4b)    :: tempRangeTimestep     = integerMissing    ! temperature range over the time step (K)
   integer(i4b)    :: frozenPrecipMultip    = integerMissing    ! frozen precipitation multiplier (-)
-  ! freezing curve for snow
+  ! snow properties
   integer(i4b)    :: snowfrz_scale         = integerMissing    ! scaling parameter for the freezing curve for snow (K-1)
+  integer(i4b)    :: fixedThermalCond_snow = integerMissing    ! fixed thermal conductivity for snow (W m-1 K-1)
   ! snow albedo
   integer(i4b)    :: albedoMax             = integerMissing    ! maximum snow albedo for a single spectral band (-)
   integer(i4b)    :: albedoMinWinter       = integerMissing    ! minimum snow albedo during winter for a single spectral band (-)
@@ -727,7 +728,7 @@ MODULE var_lookup
                                                                         121,122,123,124,125,126,127,128,129,130,&
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147,148,149,150,&
-                                                                        151,152,153)
+                                                                        151,152,153,154)
 
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

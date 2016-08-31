@@ -292,7 +292,8 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 ! *****************************************************************************
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
-! check d2ta structures
+
+! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
 ! define the mask to identify the subset of variables in the "child" data structure
@@ -389,13 +390,13 @@ call mDecisions(err,message); call handle_err(err,message)
 ! (4d) allocate space for output statistics data structures
 ! *****************************************************************************
 ! child metadata structures - so that we do not carry full stats structures around everywhere
-! only carry stats for scalar varaible
-statForc_mask = ((forc_meta(:)%vartype==iLookVarType%scalarv).and.(forc_meta(:)%outfreq>0))
-statProg_mask = ((prog_meta(:)%vartype==iLookVarType%scalarv).and.(prog_meta(:)%outfreq>0)) 
-statDiag_mask = ((diag_meta(:)%vartype==iLookVarType%scalarv).and.(diag_meta(:)%outfreq>0)) 
-statFlux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).and.(flux_meta(:)%outfreq>0)) 
-statIndx_mask = ((indx_meta(:)%vartype==iLookVarType%scalarv).and.(indx_meta(:)%outfreq>0)) 
-statBvar_mask = ((bvar_meta(:)%vartype==iLookVarType%scalarv).and.(bvar_meta(:)%outfreq>0)) 
+! only carry stats for variables with output frequency > model time step
+statForc_mask = (forc_meta(:)%outfreq>0)
+statProg_mask = (prog_meta(:)%outfreq>0) 
+statDiag_mask = (diag_meta(:)%outfreq>0) 
+statFlux_mask = (flux_meta(:)%outfreq>0) 
+statIndx_mask = (indx_meta(:)%outfreq>0) 
+statBvar_mask = (bvar_meta(:)%outfreq>0) 
 
 ! create the stats metadata structures
 do iStruct=1,size(structInfo)

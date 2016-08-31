@@ -172,7 +172,7 @@ contains
     iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                     (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
 
-    !print*, 'iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
+    !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
   end if ! (the type of layer)
  end do
 
