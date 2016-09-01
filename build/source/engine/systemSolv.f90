@@ -232,9 +232,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: numericalJacobian=.false.    ! flag to compute the Jacobian matrix
- logical(lgt),parameter          :: testBandDiagonal=.false.     ! flag to test the band-diagonal matrix
- logical(lgt),parameter          :: forceFullMatrix=.true.      ! flag to force the use of the full Jacobian matrix
+ logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
  logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
  integer(i4b)                    :: ixMatrix                     ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: flux_temp                    ! temporary model fluxes 
@@ -480,7 +478,7 @@ contains
   ! identify the matrix solution method
   ! NOTE: uses nSubset so must be defined here
   ! (the type of matrix used to solve the linear system A.X=B)
-  if(local_ixGroundwater==qbaseTopmodel .or. testBandDiagonal .or. forceFullMatrix)then
+  if(local_ixGroundwater==qbaseTopmodel .or. forceFullMatrix)then
    nLeadDim=nSubset        ! length of the leading dimension
    ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
   else

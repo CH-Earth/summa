@@ -174,6 +174,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
  logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
+ logical(lgt),parameter          :: testBandDiagonal=.false. ! flag to test the band diagonal Jacobian matrix
  real(dp)                        :: nJac(nState,nState)      ! numerical Jacobian matrix
  real(dp)                        :: aJac(nLeadDim,nState)      ! Jacobian matrix
  real(dp)                        :: aJacScaled(nLeadDim,nState)      ! Jacobian matrix (scaled)
@@ -237,6 +238,12 @@ contains
   call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
   globalPrintFlag=globalPrintFlagInit
+ endif
+
+ ! test the band diagonal matrix
+ if(testBandDiagonal)then
+  call testBandMat(check=.true.,err=err,message=cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  endif
 
  ! -----
@@ -604,6 +611,77 @@ contains
   print*, 'PAUSE: testing Jacobian'; read(*,*)
 
   end subroutine numJacobian
+
+  ! *********************************************************************************************************
+  ! * internal subroutine testBandMat: compute the full Jacobian matrix and decompose into a band matrix
+  ! *********************************************************************************************************
+
+  subroutine testBandMat(check,err,message)
+  ! dummy variables
+  logical(lgt),intent(in)         :: check                    ! flag to pause
+  integer(i4b),intent(out)        :: err                      ! error code
+  character(*),intent(out)        :: message                  ! error message
+  ! local variables
+  real(dp)                        :: fullJac(nState,nState)   ! full Jacobian matrix
+  real(dp)                        :: bandJac(nLeadDim,nState) ! band Jacobian matrix
+  integer(i4b)                    :: iState,jState            ! indices of the state vector
+  character(LEN=256)              :: cmessage                 ! error message of downwind routine
+  ! initialize error control
+  err=0; message='testBandMat/'
+
+  ! check
+  if(nLeadDim==nState)then
+   message=trim(message)//'do not expect nLeadDim==nState: check that are computing the band diagonal matrix'
+   err=20; return
+  endif
+
+  ! compute the full Jacobian matrix
+  call computJacob(&
+                   ! input: model control
+                   dt,                             & ! intent(in):    length of the time step (seconds)
+                   nSnow,                          & ! intent(in):    number of snow layers
+                   nSoil,                          & ! intent(in):    number of soil layers
+                   nLayers,                        & ! intent(in):    total number of layers
+                   computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                   .false.,                        & ! intent(in):    flag to indicate if we need to compute baseflow
+                   ixFullMatrix,                   & ! intent(in):    force full Jacobian matrix
+                   ! input: data structures
+                   indx_data,                      & ! intent(in):    index data
+                   prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
+                   diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
+                   deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                   dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                   ! input-output: Jacobian and its diagonal
+                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
+                   fullJac,                        & ! intent(out):   full Jacobian matrix
+                   ! output: error control
+                   err,cmessage)                     ! intent(out):   error code and error message
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+  ! initialize band matrix
+  bandJac(:,:) = 0._dp
+
+  ! transfer into the lapack band diagonal structure
+  do iState=1,nState
+   do jState=max(1,iState-ku),min(nState,iState+kl)
+    bandJac(kl + ku + 1 + jState - iState, iState) = fullJac(jState,iState)
+   end do
+  end do
+
+  ! print results
+  print*, '** test banded analytical Jacobian:'
+  write(*,'(a4,1x,100(i17,1x))') 'xCol', (iState, iState=iJac1,iJac2)
+  do iState=kl+1,nLeadDim; write(*,'(i4,1x,100(e17.10,1x))') iState, bandJac(iState,iJac1:iJac2); end do
+
+  ! check if the need to pause
+  if(check)then
+   print*, 'PAUSE: testing banded analytical Jacobian'
+   read(*,*)
+  endif
+
+  end subroutine testBandMat
+
+
 
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector
