@@ -92,8 +92,8 @@ ifeq "$(FC)" "gfortran-6"
 endif
 ifeq "$(FC)" "gfortran"
  FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+ FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 endif
 ifeq "$(FC)" "ifort"
  FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
@@ -231,6 +231,7 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 SUMMA_MODRUN = \
 		indexState.f90 \
 		getVectorz.f90 \
+		updateVars.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
