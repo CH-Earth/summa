@@ -159,7 +159,7 @@ SUMMA_DATAMS= \
 		var_lookup.f90 \
 		data_types.f90 \
 		globalData.f90 \
-		flxMapping.f90
+		flxMapping.f90 \
 		get_ixname.f90 \
 		ascii_util.f90 \
 		popMetadat.f90 \
