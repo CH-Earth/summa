@@ -260,7 +260,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * mass balance checks
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: checkMassBalance=.true.      ! flag to check the mass balance
+ logical(lgt)                    :: checkMassBalance             ! flag to check the mass balance
  real(dp)                        :: balance0,balance1            ! storage at start and end of time step
  real(dp)                        :: vertFlux                     ! change in storage due to vertical fluxes
  real(dp)                        :: tranSink,baseSink,compSink   ! change in storage sue to sink terms
@@ -410,7 +410,10 @@ contains
   ! -----
   ! * define subsets for a given split...
   ! -------------------------------------
-  
+ 
+  ! define need to check the mass balance
+  checkMassBalance = ( (ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit) .or. ixSplitOption/=deCoupled_nrgMass)
+ 
   ! modify state variable names for the mass split
   if(ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit)then
 
@@ -801,7 +804,7 @@ contains
    ! * check mass balance...
    ! -----------------------
 
-   ! NOTE: This could be moved to the varExtract subroutine to avoid need to output Trial values
+   ! NOTE: This could be moved to the updateVars subroutine to avoid need to output Trial values
 
    ! check the mass balance for the soil domain
    ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
@@ -814,7 +817,16 @@ contains
     compSink = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
     liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
     if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
+     write(*,'(a,1x,f30.20)')  'balance0 = ', balance0
+     write(*,'(a,1x,f30.20)')  'balance1 = ', balance1
+     write(*,'(a,1x,f30.20)')  'vertFlux = ', vertFlux
+     write(*,'(a,1x,f30.20)')  'tranSink = ', tranSink
+     write(*,'(a,1x,f30.20)')  'baseSink = ', baseSink
+     write(*,'(a,1x,f30.20)')  'compSink = ', compSink
+     write(*,'(a,1x,f30.20)')  'liqError = ', liqError
      message=trim(message)//'water balance error in the soil domain'
+     print*, trim(message)
+     stop
      err=-20; return ! negative error code forces time step reduction and another trial
     endif  ! if there is a water balance error
    endif  ! checking mass balance
