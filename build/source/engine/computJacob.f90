@@ -514,7 +514,10 @@ contains
      watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
 
      ! compute factor to convert liquid water derivative to total water derivative
-     convLiq2tot = merge(mLayerFracLiqSnow(iLayer), 1._dp, ixHydType(iLayer)==iname_watLayer)
+     select case( ixHydType(iLayer) )
+      case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
+      case default;         convLiq2tot = 1._dp
+     end select
 
      ! - diagonal elements
      aJac(watState,watState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*convLiq2tot + dMat(watState)
@@ -649,11 +652,11 @@ contains
    endif   ! (if there are state variables for both water and energy in the soil domain)
   
    ! print the Jacobian
-   !if(globalPrintFlag)then
+   if(globalPrintFlag)then
     print*, '** analytical Jacobian:'
     write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
     do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
-   !end if
+   end if
 
   ! ***
   ! check

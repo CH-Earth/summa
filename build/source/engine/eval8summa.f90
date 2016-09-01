@@ -129,6 +129,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
+ USE updateVars_module, only:updateVars           ! update prognostic variables
  USE computFlux_module, only:soilCmpres           ! compute soil compression 
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
  USE computResid_module,only:computResid          ! compute residuals given a state vector 
@@ -281,22 +282,17 @@ contains
  ! extract variables from the model state vector
  call varExtract(&
                  ! input
-                 .false.,                  & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  stateVecTrial,            & ! intent(in):    model state vector (mixed units)
-                 mpar_data,                & ! intent(in):    model parameters for a local HRU
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU         
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU         
                  indx_data,                & ! intent(in):    indices defining model states and layers
-                 deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output: variables for the vegetation canopy
-                 scalarFracLiqVeg,         & ! intent(out):   fraction of liquid water on the vegetation canopy (-)
                  scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
                  scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
                  scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
                  scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
                  scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
                  ! output: variables for the snow-soil domain
-                 mLayerFracLiqSnow,        & ! intent(out):   volumetric fraction of water in each snow layer (-)
                  mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
                  mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
                  mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
@@ -305,6 +301,31 @@ contains
                  mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ ! update diagnostic variables
+ call updateVars(&
+                 ! input
+                 .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 mpar_data,                                 & ! intent(in):    model parameters for a local HRU
+                 indx_data,                                 & ! intent(in):    indices defining model states and layers
+                 prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                 diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
+                 deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                 ! output: variables for the vegetation canopy
+                 scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
+                 ! output: variables for the snow-soil domain
+                 mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,                     & ! intent(inout): trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
+                 mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
+                 ! output: error control
+                 err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! print the water content

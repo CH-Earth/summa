@@ -238,6 +238,7 @@ contains
  ! indices of model state variables for the snow+soil domain
  ixSnowSoilNrg                => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat                     ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
  ixSnowSoilHyd                => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                     ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+ layerType                    => indx_data%var(iLookINDEX%layerType)%dat                        , & ! intent(in): [i4b(:)] type of layer (iname_soil or iname_snow)
 
  ! number of state variables of a specific type
  nSnowSoilNrg                 => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
@@ -673,6 +674,7 @@ contains
   
   ! expand derivatives to the total water matric potential
   ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
+  if(globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)
   dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
   dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
 
@@ -766,11 +768,17 @@ contains
 
  ! populate the flux vector for hydrology 
  ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
- if(nSnowSoilHyd>0)then
-  do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
-   fluxVec( ixSnowSoilHyd(iLayer) ) = merge(mLayerLiqFluxSnow(iLayer), mLayerLiqFluxSoil(iLayer-nSnow), iLayer<=nSnow)
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
- endif
+ if(nSnowSoilHyd>0)then  ! check if any hydrology states exist
+  do iLayer=1,nLayers
+   if(ixSnowSoilHyd(iLayer)/=integerMissing)then   ! check if a given hydrology state exists 
+    select case( layerType(iLayer) )
+     case(iname_snow); fluxVec( ixSnowSoilHyd(iLayer) ) = mLayerLiqFluxSnow(iLayer)
+     case(iname_soil); fluxVec( ixSnowSoilHyd(iLayer) ) = mLayerLiqFluxSoil(iLayer-nSnow)
+     case default; err=20; message=trim(message)//'expect layerType to be either iname_snow or iname_soil'; return
+    end select
+   endif  ! if a given hydrology state exists
+  end do ! looping through non-missing energy state variables in the snow+soil domain
+ endif  ! if any hydrology states exist
 
  ! set the first flux call to false
  firstFluxCall=.false.

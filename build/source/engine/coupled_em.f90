@@ -778,6 +778,7 @@ contains
    if(nSnow > 0)then ! snow layers exist
 
     ! compute volumetric sublimation (-)
+    print*, 'flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1) = ', flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)
     volSub = dt_temp*flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)/prog_data%var(iLookPROG%mLayerDepth)%dat(1)
 
     ! update volumetric fraction of ice (-)
@@ -894,7 +895,9 @@ contains
    !print*, 'dt_temp, dt_sub = ', dt_temp, dt_sub
 
   end do  ! (multiple attempts for non-convergence)
-  !print*, 'after do loop: dt_sub = ', dt_sub
+  print*, 'after do loop: dt_sub = ', dt_sub
+  print*, 'PAUSE: completed substep'; read(*,*)
+  
 
   ! ****************************************************************************************************
   ! *** END MAIN SOLVER ********************************************************************************
@@ -962,7 +965,7 @@ contains
   !print*, 'in substep loop: dt_sub = ', dt_sub
 
  end do  ! (sub-step loop)
- !pause 'completed time step'
+ print*, 'PAUSE: completed time step'; read(*,*)
 
  ! ---
  ! (14) balance checks...

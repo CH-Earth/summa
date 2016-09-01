@@ -114,7 +114,8 @@ MODULE globalData
  ! define named variables to describe the state varible type            
  integer(i4b),parameter,public               :: iname_nrgCanair=2001    ! named variable defining the energy of the canopy air space
  integer(i4b),parameter,public               :: iname_nrgCanopy=2002    ! named variable defining the energy of the vegetation canopy
- integer(i4b),parameter,public               :: iname_watCanopy=2003    ! named variable defining the mass of water on the vegetation canopy
+ integer(i4b),parameter,public               :: iname_watCanopy=2003    ! named variable defining the mass of total water on the vegetation canopy
+ integer(i4b),parameter,public               :: iname_liqCanopy=2004    ! named variable defining the mass of liquid water on the vegetation canopy
  integer(i4b),parameter,public               :: iname_nrgLayer=3001     ! named variable defining the energy state variable for snow+soil layers
  integer(i4b),parameter,public               :: iname_watLayer=3002     ! named variable defining the total water state variable for snow+soil layers
  integer(i4b),parameter,public               :: iname_liqLayer=3003     ! named variable defining the liquid  water state variable for snow+soil layers

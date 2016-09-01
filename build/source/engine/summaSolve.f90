@@ -173,7 +173,7 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
- logical(lgt),parameter          :: doNumJacobian=.true.     ! flag to compute the numerical Jacobian matrix
+ logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
  real(dp)                        :: nJac(nState,nState)      ! numerical Jacobian matrix
  real(dp)                        :: aJac(nLeadDim,nState)      ! Jacobian matrix
  real(dp)                        :: aJacScaled(nLeadDim,nState)      ! Jacobian matrix (scaled)
@@ -571,6 +571,8 @@ contains
   ! loop through state variables
   do iJac=1,nState
 
+   !print*, 'iJac = ', iJac
+
    ! perturb state vector
    stateVecPerturbed(iJac) = stateVec(iJac) + dx
 
@@ -578,6 +580,7 @@ contains
    call eval8summa_wrapper(stateVecPerturbed,fluxVecJac,resVecJac,func,feasible,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
    if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
+   !write(*,'(a,1x,2(f30.20,1x))') 'resVecJac(101:102)  = ', resVecJac(101:102)
 
    ! compute the row of the Jacobian matrix
    select case(ixNumType)
@@ -958,7 +961,13 @@ contains
     if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
 
     ! * get the layer temperature (from stateVecTrial if ixSnowOnlyNrg(iLayer) is within the state vector
-    scalarTemp = merge(stateVecTrial( ixSnowOnlyNrg(iLayer) ), prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer), ixSnowOnlyNrg(iLayer)/=integerMissing)
+    if(ixSnowOnlyNrg(iLayer)/=integerMissing)then
+     scalarTemp = stateVecTrial( ixSnowOnlyNrg(iLayer) )
+
+    ! * get the layer temperature from the last update
+    else
+     scalarTemp = prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer)
+    endif
 
     ! * get the volumetric fraction of liquid water
     select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
