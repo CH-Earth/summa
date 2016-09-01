@@ -162,6 +162,7 @@ contains
  character(len=256)              :: cMessage                        ! error message of downwind routine
  logical(lgt),parameter          :: printFlag=.false.               ! flag to turn on printing
  ! iterative solution for temperature
+ real(dp)                        :: meltNrg                         ! energy for melt+freeze (J m-3)
  real(dp)                        :: residual                        ! residual in the energy equation (J m-3)
  real(dp)                        :: derivative                      ! derivative in the energy equation (J m-3 K-1)
  real(dp)                        :: tempInc                         ! iteration increment (K)
@@ -321,8 +322,6 @@ contains
     endif
    endif
 
-   if(iLayer==1) print*, 'mLayerVolFracWatTrial(iLayer) = ', mLayerVolFracWatTrial(iLayer)
-
   endif  ! if hydrology state variable or uncoupled solution
  
   ! get iterations (set to maximum iterations if adjusting the temperature)
@@ -409,8 +408,6 @@ contains
      ! *** snow layers
      case(iname_snow)
 
-      if(iLayer==1) print*, 'xTemp, mLayerVolFracWatTrial(iLayer) = ', xTemp, mLayerVolFracWatTrial(iLayer)
-   
       ! compute volumetric fraction of liquid water and ice
       call updateSnow(xTemp,                                        & ! intent(in)   : temperature (K)
                       mLayerVolFracWatTrial(iLayer),                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
@@ -441,8 +438,6 @@ contains
   
    endif  ! if energy state or solution is coupled 
 
-   if(iLayer==1) print*, 'update temp ', do_adjustTemp
-
    ! -----
    ! - update temperatures...
    ! ------------------------
@@ -450,6 +445,8 @@ contains
    ! check the need to adjust temperature
    if(do_adjustTemp)then
 
+    ! get the melt energy
+    meltNrg = merge(LH_fus*iden_ice, LH_fus*iden_water, ixDomainType==iname_snow)
 
     ! compute the residual and the derivative
     select case(ixDomainType)
@@ -458,7 +455,7 @@ contains
      case(iname_veg)
       call xTempSolve(&
                       ! constant over iterations
-                      meltNrg         = LH_fus*iden_water                       ,&  ! intent(in)    : energy for melt+freeze (J m-3)
+                      meltNrg         = meltNrg                                 ,&  ! intent(in)    : energy for melt+freeze (J m-3)
                       heatCap         = scalarBulkVolHeatCapVeg                 ,&  ! intent(in)    : volumetric heat capacity (J m-3 K-1)
                       tempInit        = scalarCanopyTemp                        ,&  ! intent(in)    : initial temperature (K)
                       volFracIceInit  = scalarCanopyIce/(iden_water*canopyDepth),&  ! intent(in)    : initial volumetric fraction of ice (-)
@@ -470,11 +467,11 @@ contains
                       residual        = residual                                ,&  ! intent(out)   : residual (J m-3)
                       derivative      = derivative                               )  ! intent(out)   : derivative (J m-3 K-1)
 
-     ! * snow
-     case(iname_snow)
+     ! * snow and soil
+     case(iname_snow, iname_soil)
       call xTempSolve(&
                       ! constant over iterations
-                      meltNrg         = LH_fus*iden_ice                         ,&  ! intent(in)    : energy for melt+freeze (J m-3)
+                      meltNrg         = meltNrg                                 ,&  ! intent(in)    : energy for melt+freeze (J m-3)
                       heatCap         = mLayerVolHtCapBulk(iLayer)              ,&  ! intent(in)    : volumetric heat capacity (J m-3 K-1)
                       tempInit        = mLayerTemp(iLayer)                      ,&  ! intent(in)    : initial temperature (K)
                       volFracIceInit  = mLayerVolFracIce(iLayer)                ,&  ! intent(in)    : initial volumetric fraction of ice (-)
@@ -486,21 +483,6 @@ contains
                       residual        = residual                                ,&  ! intent(out)   : residual (J m-3)
                       derivative      = derivative                               )  ! intent(out)   : derivative (J m-3 K-1)
 
-     ! * soil
-     case(iname_soil)
-      call xTempSolve(&
-                      ! constant over iterations
-                      meltNrg         = LH_fus*iden_water                       ,&  ! intent(in)    : energy for melt+freeze (J m-3)
-                      heatCap         = mLayerVolHtCapBulk(iLayer)              ,&  ! intent(in)    : volumetric heat capacity (J m-3 K-1)
-                      tempInit        = mLayerTemp(iLayer)                      ,&  ! intent(in)    : initial temperature (K)
-                      volFracIceInit  = mLayerVolFracIce(iLayer)                ,&  ! intent(in)    : initial volumetric fraction of ice (-)
-                      ! trial values
-                      xTemp           = xTemp                                   ,&  ! intent(inout) : trial value of temperature
-                      dLiq_dT         = mLayerdTheta_dTk(iLayer)                ,&  ! intent(in)    : derivative in liquid water content w.r.t. temperature (K-1)
-                      volFracIceTrial = mLayerVolFracIceTrial(iLayer)           ,&  ! intent(in)    : trial value for volumetric fraction of ice
-                      ! residual and derivative
-                      residual        = residual                                ,&  ! intent(out)   : residual (J m-3)
-                      derivative      = derivative                               )  ! intent(out)   : derivative (J m-3 K-1)
      ! * check
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
 
@@ -508,7 +490,7 @@ contains
 
     ! compute iteration increment
     tempInc    = residual/derivative  ! K
-    if(iLayer==1) write(*,'(i4,1x,e20.10,1x,2(f20.10,1x))') iter, residual, xTemp, tempInc
+    !if(iLayer==1) write(*,'(i4,1x,e20.10,1x,2(f20.10,1x))') iter, residual, xTemp, tempInc
  
     ! check convergence
     if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit

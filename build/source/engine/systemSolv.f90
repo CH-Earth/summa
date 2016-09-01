@@ -151,7 +151,6 @@ contains
  USE getVectorz_module,only:varExtract                ! extract variables from the state vector
  USE updateVars_module,only:updateVars                ! update prognostic variables
  ! numerical recipes utility modules
- USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -412,17 +411,6 @@ contains
   ! * define subsets for a given split...
   ! -------------------------------------
   
-  ! define mask for the decoupled solutions
-  if(ixSplitOption==deCoupled_nrgMass)then
-   select case(iSplit)
-    case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
-    case(massSplit); stateMask = (ixStateType==iname_watCanopy .or. ixStateType==iname_watLayer  .or. ixStateType==iname_matLayer)
-    case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
-   end select
-  else  ! (fully coupled solutions)
-   stateMask(:) = .true.  ! use all state variables
-  endif
-
   ! modify state variable names for the mass split
   if(ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit)then
 
@@ -441,8 +429,28 @@ contains
 
   endif  ! if modifying state variables for the mass split
 
+  ! define mask for the decoupled solutions
+  if(ixSplitOption==deCoupled_nrgMass)then
+   select case(iSplit)
+    case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
+    case(massSplit); stateMask = (ixStateType==iname_watCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
+    case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
+   end select
+  else  ! (fully coupled solutions)
+   stateMask(:) = .true.  ! use all state variables
+  endif
+
   ! get the number of selected state variables
   nSubset = count(stateMask)
+
+  ! check splitting operation
+  if(nSubset==0)then
+   select case(iSplit)
+    case(nrgSplit);  err=20; message=trim(message)//'[nrgSplit] no state variables in the splitting operation';  return
+    case(massSplit); err=20; message=trim(message)//'[massSplit] no state variables in the splitting operation'; return
+    case default;    err=20; message=trim(message)//'unable to identify splitting operation'; return
+   end select
+  endif
 
   ! get indices for a given split
   call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
@@ -525,7 +533,7 @@ contains
    ! ---------------------------
 
    ! initialize the global print flag
-   globalPrintFlag=.true.
+   globalPrintFlag=.false.
 
    ! initialize state vectors
    call popStateVec(&
@@ -542,8 +550,6 @@ contains
                     dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
                     err,cmessage)                       ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
-   print*, 'stateVecInit = ', stateVecInit
  
    ! -----
    ! * compute the initial function evaluation...
@@ -624,7 +630,7 @@ contains
     niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
   
     ! print iteration count
-    print*, '*** iter, dt = ', iter, dtSplit
+    !print*, '*** iter, dt = ', iter, dtSplit
  
     ! compute the next trial state vector
     !  1) Computes the Jacobian matrix based on derivatives from the last flux evaluation
@@ -685,12 +691,12 @@ contains
     stateVecTrial = stateVecNew
 
     ! print the liquid fluxes through the snowpack
-    if(iJac1<=nSnow) write(*,'(a,10(f16.10,1x))') 'liqFluxSnow           = ', (flux_temp%var(iLookFLUX%iLayerLiqFluxSnow)%dat(iVar),iVar=iJac1-1,min(iJac2,nSnow))
+    !if(iJac1<=nSnow) write(*,'(a,10(f16.10,1x))') 'liqFluxSnow           = ', (flux_temp%var(iLookFLUX%iLayerLiqFluxSnow)%dat(iVar),iVar=iJac1-1,min(iJac2,nSnow))
 
     ! print progress
-    write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec(iJac1:iJac2)
-    write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew(iJac1:iJac2)*dtSplit
-    write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial(iJac1:iJac2)
+    !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec(iJac1:iJac2)
+    !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew(iJac1:iJac2)*dtSplit
+    !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial(iJac1:iJac2)
     !print*, 'PAUSE: check states and fluxes'; read(*,*) 
  
     ! exit iteration loop if converged
@@ -702,7 +708,7 @@ contains
      print*, 'PAUSE: failed to converge'; read(*,*)
      err=-20; return
     endif
-    print*, 'PAUSE: iterating'; read(*,*)
+    !print*, 'PAUSE: iterating'; read(*,*)
    
    end do  ! iterating
    !print*, 'PAUSE: after iterations'; read(*,*)
@@ -719,8 +725,6 @@ contains
     if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
    end do
 
-   print*, trim(message)//'flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1) = ', flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)
-  
    ! -----
    ! * update states and compute total volumetric melt...
    ! ----------------------------------------------------
@@ -765,7 +769,7 @@ contains
                    ! output: error control
                    err,cmessage)               ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   print*, 'PAUSE: after varExtract'; read(*,*)
+   !print*, 'PAUSE: after varExtract'; read(*,*)
 
    ! update diagnostic variables
    call updateVars(&
@@ -791,7 +795,7 @@ contains
                    ! output: error control
                    err,cmessage)                                ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   print*, 'PAUSE: after updateVars'; read(*,*)
+   !print*, 'PAUSE: after updateVars'; read(*,*)
 
    ! -----
    ! * check mass balance...
@@ -872,7 +876,7 @@ contains
   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for temporary vectors'; return; endif
 
  end do  ! operator splitting loop 
- print*, 'PAUSE: end of splitting loop'; read(*,*)
+ !print*, 'PAUSE: end of splitting loop'; read(*,*)
 
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
