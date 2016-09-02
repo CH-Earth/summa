@@ -402,6 +402,8 @@ contains
  ! operator splitting loop
  do iSplit=1,nOperSplit 
 
+  !print*, 'iSplit, nOperSplit = ', iSplit, nOperSplit
+
   ! initialize the first flux call
   firstFluxCall=.true.
 
@@ -510,6 +512,10 @@ contains
     case(massSplit); nSubstep=1
     case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
    end select
+
+  ! fully implicit, then nSubstep=1
+  else
+   nSubstep=1
   endif
 
   ! define the length of the substep
@@ -706,7 +712,6 @@ contains
     ! check convergence
     if(niter==maxiter)then
      message=trim(message)//'failed to converge'
-     print*, 'PAUSE: failed to converge'; read(*,*)
      err=-20; return
     endif
     !print*, 'PAUSE: iterating'; read(*,*)
