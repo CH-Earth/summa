@@ -41,7 +41,8 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
+USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
+USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
 USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
 USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
@@ -100,9 +101,9 @@ public::systemSolv
 
 ! control parameters
 real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter  :: verySmall=tiny(1.0_dp)     ! a very small number
+real(dp),parameter  :: verySmall=1.e-12_dp        ! a very small number (used to check consistency)
 real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
-real(dp),parameter  :: dx = 1.e-8_dp             ! finite difference increment
+real(dp),parameter  :: dx = 1.e-8_dp              ! finite difference increment
 
 contains
 
@@ -184,85 +185,87 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! * general local variables
  ! ---------------------------------------------------------------------------------------
- character(LEN=256)              :: cmessage                     ! error message of downwind routine
- integer(i4b)                    :: iter                         ! iteration index
- integer(i4b)                    :: iSoil                        ! index of soil layer
- integer(i4b)                    :: iLayer                       ! index of layer in the snow+soil domain
- integer(i4b)                    :: iState                       ! index of model state
- integer(i4b)                    :: nLeadDim                     ! length of the leading dimension of the Jacobian matrix (nBands or nState)
- integer(i4b)                    :: local_ixGroundwater          ! local index for groundwater representation
- real(dp),parameter              :: tempAccelerate=0.00_dp       ! factor to force initial canopy temperatures to be close to air temperature
- real(dp),parameter              :: xMinCanopyWater=0.0001_dp    ! minimum value to initialize canopy water (kg m-2)
+ character(LEN=256)              :: cmessage                      ! error message of downwind routine
+ integer(i4b)                    :: iter                          ! iteration index
+ integer(i4b)                    :: iSoil                         ! index of soil layer
+ integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
+ integer(i4b)                    :: iState                        ! index of model state
+ integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
+ integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
+ real(dp),parameter              :: tempAccelerate=0.00_dp        ! factor to force initial canopy temperatures to be close to air temperature
+ real(dp),parameter              :: xMinCanopyWater=0.0001_dp     ! minimum value to initialize canopy water (kg m-2)
  ! ------------------------------------------------------------------------------------------------------
  ! * state variables and diagniostic variables
  ! ------------------------------------------------------------------------------------------------------
  ! trial state variables
- real(dp)                        :: scalarCanairTempTrial        ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempTrial        ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatTrial         ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempTrial              ! trial vector for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial        ! trial vector for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial        ! trial vector for total water matric potential (m)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial     ! trial vector for liquid water matric potential (m)
+ real(dp)                        :: scalarCanairTempTrial         ! trial value for temperature of the canopy air space (K)
+ real(dp)                        :: scalarCanopyTempTrial         ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyWatTrial          ! trial value for liquid water storage in the canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerTempTrial               ! trial vector for temperature of layers in the snow and soil domains (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial         ! trial vector for volumetric fraction of total water (-)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial         ! trial vector for total water matric potential (m)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial      ! trial vector for liquid water matric potential (m)
  ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqTrial         ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial         ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial        ! trial vector for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial        ! trial vector for volumetric fraction of ice (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceInit         ! initial vector for volumetric fraction of ice (-)
+ real(dp)                        :: scalarCanopyLiqTrial          ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                        :: scalarCanopyIceTrial          ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial         ! trial vector for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial         ! trial vector for volumetric fraction of ice (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceInit          ! initial vector for volumetric fraction of ice (-)
  ! ------------------------------------------------------------------------------------------------------
  ! * operator splitting
  ! ------------------------------------------------------------------------------------------------------
- real(dp)                        :: dtSplit                      ! time step for a given operator-splitting operation
- real(dp)                        :: dt_wght                      ! weight given to a given flux calculation
- integer(i4b),parameter          :: fullyImplicit=1001           ! named variable for the fully implicit solution
- integer(i4b),parameter          :: deCoupled_nrgMass=1002       ! named variable for the solution where energy and mass is decoupled
+ real(dp)                        :: dtSplit                       ! time step for a given operator-splitting operation
+ real(dp)                        :: dt_wght                       ! weight given to a given flux calculation
+ integer(i4b),parameter          :: fullyImplicit=1001            ! named variable for the fully implicit solution
+ integer(i4b),parameter          :: deCoupled_nrgMass=1002        ! named variable for the solution where energy and mass is decoupled
  integer(i4b)                    :: ixSplitOption=decoupled_nrgMass  ! selected operator splitting method
  !integer(i4b)                    :: ixSplitOption=fullyImplicit     ! selected operator splitting method
- integer(i4b)                    :: nOperSplit                   ! number of splitting operations
- integer(i4b)                    :: iSplit                       ! index of splitting operation
- integer(i4b),parameter          :: nrgSplit=2                   ! order in sequence for the energy operation
- integer(i4b),parameter          :: massSplit=1                  ! order in sequence for the mass operation
- integer(i4b)                    :: iSubstep                     ! index of substep for a given variable
- integer(i4b)                    :: nSubstep                     ! number of substeps for a given variable
- logical(lgt),dimension(nState)  :: stateMask                    ! mask defining desired state variables
- logical(lgt),dimension(nFlux)   :: fluxMask                     ! mask defining desired flux variables
- integer(i4b)                    :: nSubset                      ! number of selected state variables for a given split
- integer(i4b)                    :: iVar                         ! index of variables in data structures
+ integer(i4b)                    :: nOperSplit                    ! number of splitting operations
+ integer(i4b)                    :: iSplit                        ! index of splitting operation
+ integer(i4b),parameter          :: nrgSplit=1                    ! order in sequence for the energy operation
+ integer(i4b),parameter          :: massSplit=2                   ! order in sequence for the mass operation
+ integer(i4b)                    :: iSubstep                      ! index of substep for a given variable
+ integer(i4b)                    :: nSubstep                      ! number of substeps for a given variable
+ logical(lgt),dimension(nState)  :: stateMask                     ! mask defining desired state variables
+ logical(lgt),dimension(nFlux)   :: fluxMask                      ! mask defining desired flux variables
+ integer(i4b)                    :: nSubset                       ! number of selected state variables for a given split
+ integer(i4b)                    :: iVar                          ! index of variables in data structures
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: forceFullMatrix=.false.      ! flag to force the use of the full Jacobian matrix
- logical(lgt)                    :: firstFluxCall                ! flag to define the first flux call
- integer(i4b)                    :: ixMatrix                     ! form of matrix (band diagonal or full matrix)
- type(var_dlength)               :: flux_temp                    ! temporary model fluxes 
- type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables 
- integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(dp),allocatable            :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
- real(dp),allocatable            :: stateVecInit(:)              ! initial state vector (mixed units)
- real(dp),allocatable            :: stateVecTrial(:)             ! trial state vector (mixed units)
- real(dp),allocatable            :: stateVecNew(:)               ! new state vector (mixed units)
- real(dp),allocatable            :: fluxVec0(:)                  ! flux vector (mixed units)
- real(dp),allocatable            :: fScale(:)                    ! characteristic scale of the function evaluations (mixed units)
- real(dp),allocatable            :: xScale(:)                    ! characteristic scale of the state vector (mixed units)
- real(dp),allocatable            :: dMat(:)                      ! diagonal matrix (excludes flux derivatives)
- real(qp),allocatable            :: sMul(:)       ! NOTE: qp     ! multiplier for state vector for the residual calculations
- real(qp),allocatable            :: rVec(:)       ! NOTE: qp     ! residual vector
- real(dp),allocatable            :: rAdd(:)                      ! additional terms in the residual vector
- real(dp)                        :: fOld,fNew                    ! function values (-); NOTE: dimensionless because scaled
- logical(lgt)                    :: feasible                     ! flag to define the feasibility of the solution
- logical(lgt)                    :: converged                    ! convergence flag
- real(dp),allocatable            :: resSinkNew(:)                ! additional terms in the residual vector
- real(dp),allocatable            :: fluxVecNew(:)                ! new flux vector
- real(qp),allocatable            :: resVecNew(:)  ! NOTE: qp     ! new residual vector
+ logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
+ logical(lgt)                    :: firstFluxCall                 ! flag to define the first flux call
+ integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
+ type(var_dlength)               :: flux_temp                     ! temporary model fluxes 
+ type(var_dlength)               :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables 
+ integer(i4b)                    :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ real(dp),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
+ real(dp),allocatable            :: stateVecInit(:)               ! initial state vector (mixed units)
+ real(dp),allocatable            :: stateVecTrial(:)              ! trial state vector (mixed units)
+ real(dp),allocatable            :: stateVecNew(:)                ! new state vector (mixed units)
+ real(dp),allocatable            :: fluxVec0(:)                   ! flux vector (mixed units)
+ real(dp),allocatable            :: fScale(:)                     ! characteristic scale of the function evaluations (mixed units)
+ real(dp),allocatable            :: xScale(:)                     ! characteristic scale of the state vector (mixed units)
+ real(dp),allocatable            :: dMat(:)                       ! diagonal matrix (excludes flux derivatives)
+ real(qp),allocatable            :: sMul(:)       ! NOTE: qp      ! multiplier for state vector for the residual calculations
+ real(qp),allocatable            :: rVec(:)       ! NOTE: qp      ! residual vector
+ real(dp),allocatable            :: rAdd(:)                       ! additional terms in the residual vector
+ real(dp)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
+ logical(lgt)                    :: feasible                      ! flag to define the feasibility of the solution
+ logical(lgt)                    :: converged                     ! convergence flag
+ real(dp),allocatable            :: resSinkNew(:)                 ! additional terms in the residual vector
+ real(dp),allocatable            :: fluxVecNew(:)                 ! new flux vector
+ real(qp),allocatable            :: resVecNew(:)  ! NOTE: qp      ! new residual vector
  ! ------------------------------------------------------------------------------------------------------
  ! * mass balance checks
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt)                    :: checkMassBalance             ! flag to check the mass balance
- real(dp)                        :: balance0,balance1            ! storage at start and end of time step
- real(dp)                        :: vertFlux                     ! change in storage due to vertical fluxes
- real(dp)                        :: tranSink,baseSink,compSink   ! change in storage sue to sink terms
- real(dp)                        :: liqError                     ! water balance error
+ logical(lgt),parameter          :: checkTranspire=.false.        ! flag to check transpiration
+ logical(lgt)                    :: checkMassBalance              ! flag to check the mass balance
+ real(dp)                        :: soilBalance0,soilBalance1     ! soil storage at start and end of time step
+ real(dp)                        :: canopyBalance0,canopyBalance1 ! soil storage at start and end of time step
+ real(dp)                        :: vertFlux                      ! change in storage due to vertical fluxes
+ real(dp)                        :: tranSink,baseSink,compSink    ! change in storage sue to sink terms
+ real(dp)                        :: liqError                      ! water balance error
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -279,10 +282,11 @@ contains
  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
  ! indices of model state variables
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):    [i4b(:)] indices defining the type of the state (ixNrgState...)
+ ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
  ixHydLayer              => indx_data%var(iLookINDEX%ixHydLayer)%dat               ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
- ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
+ ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
  ! vegetation parameters
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):    [dp]     canopy depth (m)
  ! snow parameters
@@ -330,9 +334,16 @@ contains
  ! * initialize...
  ! ---------------
 
+ ! initialize the first flux call
+ firstFluxCall=.true.
+
  ! compute the total water content in the vegetation canopy
  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
 
+ ! save water storage at the start of the step
+ canopyBalance0 = scalarCanopyWat
+ soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
+ 
  ! save volumetric ice content at the start of the step
  ! NOTE: used for volumetric loss due to melt-freeze
  mLayerVolFracIceInit(:) = mLayerVolFracIce(:)
@@ -384,28 +395,22 @@ contains
  end if 
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
 
- ! point to flux variables in the data structure
- fluxVars: associate(&
- iLayerLiqFluxSoil       => flux_temp%var(iLookFLUX%iLayerLiqFluxSoil)%dat         ,& ! intent(out):   [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
- mLayerTranspire         => flux_temp%var(iLookFLUX%mLayerTranspire)%dat           ,& ! intent(out):   [dp(:)]  transpiration loss from each soil layer (m s-1)
- mLayerBaseflow          => flux_temp%var(iLookFLUX%mLayerBaseflow)%dat            ,& ! intent(out):   [dp(:)]  baseflow from each soil layer (m s-1)
- scalarExfiltration      => flux_temp%var(iLookFLUX%scalarExfiltration)%dat(1)     ,& ! intent(out):   [dp]     exfiltration from the soil profile (m s-1)
- scalarCanopySublimation => flux_temp%var(iLookFLUX%scalarCanopySublimation)%dat(1),& ! intent(out):   [dp]     sublimation of ice from the vegetation canopy (kg m-2 s-1)
- scalarSnowSublimation   => flux_temp%var(iLookFLUX%scalarSnowSublimation)%dat(1)   & ! intent(out):   [dp]     sublimation of ice from the snow surface (kg m-2 s-1)
- ) ! associating flux variables in the data structure
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
+ ! ==========================================================================================================================================
 
- ! ==========================================================================================================================================
- ! ==========================================================================================================================================
- ! ==========================================================================================================================================
- ! ==========================================================================================================================================
+ ! check
+ if(nrgSplit > massSplit)then
+  message=trim(message)//'currently energy split must be done first in order for canopy water balance to close: '//&
+   'if implement Strang Splitting then need to include start-of-step energy fluxes in average flux calculations'
+  err=20; return
+ endif
 
  ! operator splitting loop
  do iSplit=1,nOperSplit 
 
   !print*, 'iSplit, nOperSplit = ', iSplit, nOperSplit
-
-  ! initialize the first flux call
-  firstFluxCall=.true.
 
   ! -----
   ! * define subsets for a given split...
@@ -417,17 +422,22 @@ contains
   ! modify state variable names for the mass split
   if(ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit)then
 
-   ! (modify the state type names associated with the state vector)
-   if(ixVegWat/=integerMissing) ixStateType(ixVegWat) = iname_watCanopy
-   where(ixStateType(ixHydlayer)==iname_watLayer) ixStateType(ixHydlayer)=iname_liqLayer
-   where(ixStateType(ixHydlayer)==iname_matLayer) ixStateType(ixHydlayer)=iname_lmpLayer
+   ! modify the state type names associated with the state vector
+   where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
+   where(ixStateType(ixHydLayer) ==iname_watLayer)  ixStateType(ixHydLayer) =iname_liqLayer
+   where(ixStateType(ixHydLayer) ==iname_matLayer)  ixStateType(ixHydLayer) =iname_lmpLayer
 
-   ! (modify the state type names associated with the flux mapping structure)
+   ! modify the state type names associated with the flux mapping structure
    do iVar=1,size(flux_meta)
-    if(flux2state_meta(iVar)%state1==iname_watLayer) flux2state_meta(iVar)%state1=iname_liqLayer
-    if(flux2state_meta(iVar)%state2==iname_watLayer) flux2state_meta(iVar)%state2=iname_liqLayer
-    if(flux2state_meta(iVar)%state1==iname_matLayer) flux2state_meta(iVar)%state1=iname_lmpLayer
-    if(flux2state_meta(iVar)%state2==iname_matLayer) flux2state_meta(iVar)%state2=iname_lmpLayer
+    ! (mass of total water on the vegetation canopy --> mass of liquid water)
+    if(flux2state_meta(iVar)%state1==iname_watCanopy) flux2state_meta(iVar)%state1=iname_liqCanopy
+    if(flux2state_meta(iVar)%state2==iname_watCanopy) flux2state_meta(iVar)%state2=iname_liqCanopy
+    ! (volumetric total water in the snow+soil domain --> volumetric liquid water)
+    if(flux2state_meta(iVar)%state1==iname_watLayer)  flux2state_meta(iVar)%state1=iname_liqLayer
+    if(flux2state_meta(iVar)%state2==iname_watLayer)  flux2state_meta(iVar)%state2=iname_liqLayer
+    ! (total water matric potential in the snow+soil domain --> liquid water matric potential)
+    if(flux2state_meta(iVar)%state1==iname_matLayer)  flux2state_meta(iVar)%state1=iname_lmpLayer
+    if(flux2state_meta(iVar)%state2==iname_matLayer)  flux2state_meta(iVar)%state2=iname_lmpLayer
    end do
 
   endif  ! if modifying state variables for the mass split
@@ -436,7 +446,7 @@ contains
   if(ixSplitOption==deCoupled_nrgMass)then
    select case(iSplit)
     case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
-    case(massSplit); stateMask = (ixStateType==iname_watCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
+    case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
     case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
    end select
   else  ! (fully coupled solutions)
@@ -498,8 +508,19 @@ contains
    ! copy over the master flux structure since some model fluxes are not computed in the iterations
    flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
    ! set master flux vector to zero for the fluxes computed here
-   if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = 0._dp
+   if(fluxMask(iVar))then
+    flux_data%var(iVar)%dat(:) = 0._dp
+   endif
   end do
+
+  ! check transpiration 
+  if(checkTranspire)then 
+   fluxVarsStart: associate(&
+   scalarCanopyTranspiration => flux_temp%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)  ,& ! intent(out): [dp]     canopy transpiration (kg m-2 s-1)
+   mLayerTranspire           => flux_temp%var(iLookFLUX%mLayerTranspire)%dat                ) ! intent(out): [dp(:)]  transpiration loss from each soil layer (m s-1)
+   write(*,'(a,1x,i4,1x,2(e20.10,1x))') 'initial transpire  : ', iter, dtSplit*scalarCanopyTranspiration/iden_water, dtSplit*sum(mLayerTranspire)
+   end associate fluxVarsStart
+  endif
 
   ! -----
   ! * variable-dependent sub-stepping...
@@ -525,7 +546,7 @@ contains
   do iSubstep=1,nSubstep
 
    ! test
-   !write(*,'(a,1x,3(i5,1x))') 'iSubstep, iSplit, nSnow = ', iSubstep, iSplit, nSnow
+   write(*,'(a,1x,3(i5,1x),a)') 'iSubstep, iSplit, nSnow = ', iSubstep, iSplit, nSnow, merge('operSplitting','fullyImplicit',ixSplitOption==deCoupled_nrgMass)
 
    ! **************************************************************************************************************************
    ! **************************************************************************************************************************
@@ -566,13 +587,15 @@ contains
    stateVecTrial = stateVecInit
   
    ! need to intialize canopy water at a positive value
-   if(ixVegWat/=integerMissing)then
-    if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegWat) = scalarCanopyWat + xMinCanopyWater
+   if(ixVegHyd/=integerMissing)then
+    if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegHyd) = scalarCanopyWat + xMinCanopyWater
    endif
    
    ! try to accelerate solution for energy
-   if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
-   if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
+   if(iSplit==1 .and. iSubStep==1)then
+    if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
+    if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
+   endif
 
    ! compute the flux and the residual vector for a given state vector
    ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
@@ -616,6 +639,9 @@ contains
                    err,cmessage)              ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+   ! check transpiration
+   if(checkTranspire) write(*,'(a,1x,2(e20.10,1x))') 'eval8summa:     ', dtSplit*flux_temp%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)/iden_water
+
    ! check feasibility (state vector SHOULD be feasible at this point)
    if(.not.feasible)then
     message=trim(message)//'unfeasible state vector'
@@ -637,7 +663,7 @@ contains
     niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
   
     ! print iteration count
-    !print*, '*** iter, dt = ', iter, dtSplit
+    !print*, '*** iter, dt = ', iter, dtSplit, merge('nrg','wat',iSplit==nrgSplit)
  
     ! compute the next trial state vector
     !  1) Computes the Jacobian matrix based on derivatives from the last flux evaluation
@@ -683,7 +709,7 @@ contains
                     ! output
                     stateVecNew,             & ! intent(out):   new state vector
                     fluxVecNew,              & ! intent(out):   new flux vector
-                    resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                    resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equa
                     resVecNew,               & ! intent(out):   new residual vector
                     fNew,                    & ! intent(out):   new function evaluation
                     converged,               & ! intent(out):   convergence flag
@@ -705,7 +731,16 @@ contains
     !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew(iJac1:iJac2)*dtSplit
     !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial(iJac1:iJac2)
     !print*, 'PAUSE: check states and fluxes'; read(*,*) 
- 
+  
+    ! check transpiration 
+    if(checkTranspire)then 
+     fluxVarsTemp: associate(&
+     scalarCanopyTranspiration => flux_temp%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)  ,& ! intent(out): [dp]     canopy transpiration (kg m-2 s-1)
+     mLayerTranspire           => flux_temp%var(iLookFLUX%mLayerTranspire)%dat                ) ! intent(out): [dp(:)]  transpiration loss from each soil layer (m s-1)
+     write(*,'(a,1x,i4,1x,2(e20.10,1x))') 'transpire: ', iter, dtSplit*scalarCanopyTranspiration/iden_water, dtSplit*sum(mLayerTranspire)
+     end associate fluxVarsTemp
+    endif
+
     ! exit iteration loop if converged
     if(converged) exit
    
@@ -730,6 +765,15 @@ contains
    do iVar=1,size(flux_meta)
     if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
    end do
+
+   ! check transpiration 
+   if(checkTranspire)then 
+    fluxVarsData: associate(&
+    scalarCanopyTranspiration => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)  ,& ! intent(out): [dp]     canopy transpiration (kg m-2 s-1)
+    mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat                ) ! intent(out): [dp(:)]  transpiration loss from each soil layer (m s-1)
+    write(*,'(a,1x,i4,1x,2(e20.10,1x))') 'converged transpire: ', iter, dtSplit*scalarCanopyTranspiration/iden_water, dtSplit*sum(mLayerTranspire)
+    end associate fluxVarsData
+   endif
 
    ! -----
    ! * update states and compute total volumetric melt...
@@ -780,7 +824,7 @@ contains
    ! update diagnostic variables
    call updateVars(&
                    ! input
-                   .true.,                                    & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                   (iSplit==massSplit),                       & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                    mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                    indx_data,                                 & ! intent(in):    indices defining model states and layers
                    prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
@@ -803,62 +847,6 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
    !print*, 'PAUSE: after updateVars'; read(*,*)
 
-   ! -----
-   ! * check mass balance...
-   ! -----------------------
-
-   ! NOTE: This could be moved to the updateVars subroutine to avoid need to output Trial values
-
-   ! check the mass balance for the soil domain
-   ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
-   if(checkMassBalance)then
-    balance0 = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
-    balance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
-    vertFlux = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dtSplit  ! m s-1 --> m
-    tranSink = sum(mLayerTranspire)*dtSplit                                ! m s-1 --> m
-    baseSink = sum(mLayerBaseflow)*dtSplit                                 ! m s-1 --> m
-    compSink = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
-    liqError = balance1 - (balance0 + vertFlux + tranSink - baseSink - compSink)
-    if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
-     write(*,'(a,1x,f30.20)')  'balance0 = ', balance0
-     write(*,'(a,1x,f30.20)')  'balance1 = ', balance1
-     write(*,'(a,1x,f30.20)')  'vertFlux = ', vertFlux
-     write(*,'(a,1x,f30.20)')  'tranSink = ', tranSink
-     write(*,'(a,1x,f30.20)')  'baseSink = ', baseSink
-     write(*,'(a,1x,f30.20)')  'compSink = ', compSink
-     write(*,'(a,1x,f30.20)')  'liqError = ', liqError
-     message=trim(message)//'water balance error in the soil domain'
-     print*, trim(message)
-     stop
-     err=-20; return ! negative error code forces time step reduction and another trial
-    endif  ! if there is a water balance error
-   endif  ! checking mass balance
-   
-   ! -----
-   ! * check that there is sufficient ice content to support the converged sublimation rate...
-   ! -----------------------------------------------------------------------------------------
-  
-   ! NOTE: This could be moved to the varExtract subroutine to avoid need to output Trial values
-
-   ! check that sublimation does not exceed the available water on the canopy
-   if(computeVegFlux)then
-    if(-dtSplit*scalarCanopySublimation > scalarCanopyLiqTrial + scalarCanopyIceTrial)then  ! try again
-     print*, 'scalarCanopySublimation = ', scalarCanopySublimation
-     print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
-     print*, 'scalarCanopyIceTrial    = ', scalarCanopyIceTrial
-     message=trim(message)//'insufficient water to support converged canopy sublimation rate'
-     err=-20; return  ! negative error code means "try again"
-    endif  ! if insufficient water for sublimation
-   endif  ! if computing the veg flux
-   
-   ! check that sublimation does not exceed the available ice in the top snow layer
-   if(nSnow > 0)then ! snow layers exist
-    if(-dtSplit*(scalarSnowSublimation/mLayerDepth(1))/iden_ice > mLayerVolFracIceTrial(1))then  ! try again
-     message=trim(message)//'insufficient water to support converged surface sublimation rate'
-     err=-20; return  ! negative error code means "try again"
-    endif  ! if insufficient water for sublimation
-   endif  ! if computing the veg flux
-   
    ! -----
    ! * extract state variables for the start of the next time step...
    ! ----------------------------------------------------------------
@@ -898,6 +886,109 @@ contains
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
 
+ ! -----
+ ! * check mass balance...
+ ! -----------------------
+
+ ! point to flux variables in the data structure
+ fluxVars: associate(&
+ scalarRainfall            => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)             ,& ! intent(in):  [dp]     rainfall rate (kg m-2 s-1)
+ scalarThroughfallRain     => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)      ,& ! intent(out): [dp]     rain reaches ground without touching the canopy (kg m-2 s-1)
+ scalarCanopyEvaporation   => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)    ,& ! intent(out): [dp]     canopy evaporation/condensation (kg m-2 s-1)
+ scalarCanopyTranspiration => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)  ,& ! intent(out): [dp]     canopy transpiration (kg m-2 s-1)
+ scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)    ,& ! intent(out): [dp]     drainage liquid water from vegetation canopy (kg m-2 s-1)
+ iLayerLiqFluxSoil         => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat             ,& ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+ mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(out): [dp(:)]  transpiration loss from each soil layer (m s-1)
+ mLayerBaseflow            => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                ,& ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+ scalarExfiltration        => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1)         ,& ! intent(out): [dp]     exfiltration from the soil profile (m s-1)
+ scalarCanopySublimation   => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)    ,& ! intent(out): [dp]     sublimation of ice from the vegetation canopy (kg m-2 s-1)
+ scalarSnowSublimation     => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)       & ! intent(out): [dp]     sublimation of ice from the snow surface (kg m-2 s-1)
+ ) ! associating flux variables in the data structure
+
+ ! NOTE: This could be moved to the updateVars subroutine to avoid need to output Trial values
+
+ ! check the mass balance
+ ! NOTE: this should never fail since did not converge if water balance was not within tolerance=absConvTol_liquid
+ if(checkMassBalance)then
+
+  ! check transpiration
+  if(abs(sum(mLayerTranspire)*dtSplit - scalarCanopyTranspiration*dtSplit/iden_water) > verySmall )then
+   print*, sum(mLayerTranspire)*dtSplit
+   print*, scalarCanopyTranspiration*dtSplit/iden_water
+   message=trim(message)//'sum of transpitation sinks does not equal the canopy transpiration flux'
+   err=20; return
+  endif
+
+  ! check mass balance for the canopy
+  canopyBalance1 = canopyBalance0 + (scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage)*dtSplit
+  liqError       = canopyBalance1 - scalarCanopyWatTrial
+  if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
+   write(*,'(a,1x,f30.20)')  'canopyBalance0          = ', canopyBalance0
+   write(*,'(a,1x,f30.20)')  'canopyBalance1          = ', canopyBalance1
+   write(*,'(a,1x,f30.20)')  'scalarCanopyWatTrial    = ', scalarCanopyWatTrial
+   write(*,'(a,1x,f30.20)')  'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
+   write(*,'(a,1x,f30.20)')  'scalarCanopyIceTrial    = ', scalarCanopyIceTrial
+   write(*,'(a,1x,f30.20)')  'scalarRainfall          = ', scalarRainfall*dtSplit 
+   write(*,'(a,1x,f30.20)')  'scalarCanopyEvaporation = ', scalarCanopyEvaporation*dtSplit   
+   write(*,'(a,1x,f30.20)')  'scalarThroughfallRain   = ', scalarThroughfallRain*dtSplit
+   write(*,'(a,1x,f30.20)')  'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage*dtSplit
+   write(*,'(a,1x,f30.20)')  'liqError                = ', liqError
+   message=trim(message)//'water balance error in the canopy domain'
+   print*, trim(message)
+   stop
+   err=-20; return ! negative error code forces time step reduction and another trial
+  endif  ! if there is a water balance error
+
+  ! check mass balance for soil
+  soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
+  vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dtSplit  ! m s-1 --> m
+  tranSink     = sum(mLayerTranspire)*dtSplit                                ! m s-1 --> m
+  baseSink     = sum(mLayerBaseflow)*dtSplit                                 ! m s-1 --> m
+  compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
+  liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
+  if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
+   write(*,'(a,1x,f30.20)')  'soilBalance0 = ', soilBalance0
+   write(*,'(a,1x,f30.20)')  'soilBalance1 = ', soilBalance1
+   write(*,'(a,1x,f30.20)')  'vertFlux     = ', vertFlux
+   write(*,'(a,1x,f30.20)')  'tranSink     = ', tranSink
+   write(*,'(a,1x,f30.20)')  'baseSink     = ', baseSink
+   write(*,'(a,1x,f30.20)')  'compSink     = ', compSink
+   write(*,'(a,1x,f30.20)')  'liqError     = ', liqError
+   message=trim(message)//'water balance error in the soil domain'
+   print*, trim(message)
+   err=-20; return ! negative error code forces time step reduction and another trial
+  endif  ! if there is a water balance error
+
+ endif  ! checking mass balance
+ 
+ ! -----
+ ! * check that there is sufficient ice content to support the converged sublimation rate...
+ ! -----------------------------------------------------------------------------------------
+
+ ! NOTE: This could be moved to the varExtract subroutine to avoid need to output Trial values
+
+ ! check that sublimation does not exceed the available water on the canopy
+ if(computeVegFlux)then
+  if(-dtSplit*scalarCanopySublimation > scalarCanopyLiqTrial + scalarCanopyIceTrial)then  ! try again
+   print*, 'scalarCanopySublimation = ', scalarCanopySublimation
+   print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
+   print*, 'scalarCanopyIceTrial    = ', scalarCanopyIceTrial
+   message=trim(message)//'insufficient water to support converged canopy sublimation rate'
+   err=-20; return  ! negative error code means "try again"
+  endif  ! if insufficient water for sublimation
+ endif  ! if computing the veg flux
+ 
+ ! check that sublimation does not exceed the available ice in the top snow layer
+ if(nSnow > 0)then ! snow layers exist
+  if(-dtSplit*(scalarSnowSublimation/mLayerDepth(1))/iden_ice > mLayerVolFracIceTrial(1))then  ! try again
+   message=trim(message)//'insufficient water to support converged surface sublimation rate'
+   err=-20; return  ! negative error code means "try again"
+  endif  ! if insufficient water for sublimation
+ endif  ! if computing the veg flux
+ 
+ ! end association to flux variables
+ end associate fluxVars
+
  ! compute the melt in each snow and soil layer
  if(nSnow>0) mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIce(      1:nSnow  ) - mLayerVolFracIceInit(      1:nSnow  ))*iden_ice
              mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
@@ -907,7 +998,6 @@ contains
  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for the baseflow derivatives'; return; end if
 
  ! end associate statements
- end associate fluxVars
  end associate globalVars
 
  end subroutine systemSolv

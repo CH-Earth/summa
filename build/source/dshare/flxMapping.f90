@@ -98,11 +98,15 @@ contains
  flux2state_meta(iLookFLUX%scalarCanopySublimation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_meta(iLookFLUX%scalarSnowSublimation)           = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  
- ! liquid water fluxes associated with evapotranspiration -- assume calculated when the canopy energy state variable is active
+ ! stomatal resistance and photosynthesis -- calculated when the canopy energy state variable is active
  flux2state_meta(iLookFLUX%scalarStomResistSunlit)          = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_meta(iLookFLUX%scalarStomResistShaded)          = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_meta(iLookFLUX%scalarPhotosynthesisSunlit)      = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_meta(iLookFLUX%scalarPhotosynthesisShaded)      = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+
+ ! liquid water fluxes associated with evapotranspiration
+ ! NOTE 1: calculated in the energy balance routines: energy balance must be calculated first in order for water to balance
+ ! NOTE 2: if implement strang splitting, need to average fluxes from the start and end of the time step
  flux2state_meta(iLookFLUX%scalarCanopyTranspiration)       = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_meta(iLookFLUX%scalarCanopyEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_meta(iLookFLUX%scalarGroundEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)

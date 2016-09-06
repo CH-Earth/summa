@@ -579,6 +579,7 @@ contains
   do iJac=1,nState
 
    !print*, 'iJac = ', iJac
+   !globalPrintFlag = merge(.true.,.false., iJac==1)
 
    ! perturb state vector
    stateVecPerturbed(iJac) = stateVec(iJac) + dx
@@ -608,7 +609,7 @@ contains
   print*, '** numerical Jacobian:', ixNumType==ixNumRes
   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
   do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
-  print*, 'PAUSE: testing Jacobian'; read(*,*)
+  !print*, 'PAUSE: testing Jacobian'; read(*,*)
 
   end subroutine numJacobian
 
@@ -631,7 +632,8 @@ contains
 
   ! check
   if(nLeadDim==nState)then
-   message=trim(message)//'do not expect nLeadDim==nState: check that are computing the band diagonal matrix'
+   message=trim(message)//'do not expect nLeadDim==nState: check that are computing the band diagonal matrix'//&
+                          ' (is forceFullMatrix==.true.?)'
    err=20; return
   endif
 
@@ -796,7 +798,7 @@ contains
   ! model indices
   ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
   ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy energy state variable
-  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
   ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for all energy states
   ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
   ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
@@ -806,8 +808,8 @@ contains
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
   ! check convergence based on the canopy water balance
-  if(ixVegWat/=integerMissing)then
-   canopy_max = real(abs(rVec(ixVegWat)), dp)*iden_water
+  if(ixVegHyd/=integerMissing)then
+   canopy_max = real(abs(rVec(ixVegHyd)), dp)*iden_water
    canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (m)
   else
    canopy_max = realMissing
@@ -857,8 +859,8 @@ contains
 
   ! print progress towards solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,i4,1x,4(e15.5,1x),5(L1,1x))') 'check convergence: ', iter, &
-    fNew, matric_max(1), liquid_max(1), energy_max(1), matricConv, liquidConv, energyConv, watbalConv, canopyConv
+   write(*,'(a,1x,i4,1x,5(e15.5,1x),5(L1,1x))') 'check convergence: ', iter, &
+    fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, matricConv, liquidConv, energyConv, watbalConv, canopyConv
   endif
 
   ! end associations with variables in the data structures
@@ -920,7 +922,7 @@ contains
   ! indices for specific state variables
   ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy air space energy state variable
   ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
-  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
+  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
   ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b] index of upper-most energy state in the snow-soil subdomain
   ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b] index of upper-most hydrology state in the snow-soil subdomain
   ! vector of energy indices for the snow and soil domains
@@ -992,13 +994,13 @@ contains
   ! --------------------------------------------------------------------------------------------------------------------
   ! canopy liquid water
 
-  if(ixVegWat/=integerMissing)then
+  if(ixVegHyd/=integerMissing)then
   
    ! check if new value of storage will be negative
-   if(stateVecTrial(ixVegWat)+xInc(ixVegWat) < 0._dp)then
+   if(stateVecTrial(ixVegHyd)+xInc(ixVegHyd) < 0._dp)then
     ! scale iteration increment
-    cInc       = -0.5_dp*stateVecTrial(ixVegWat)                                  ! constrained iteration increment (K) -- simplified bi-section
-    xIncFactor = cInc/xInc(ixVegWat)                                              ! scaling factor for the iteration increment (-)
+    cInc       = -0.5_dp*stateVecTrial(ixVegHyd)                                  ! constrained iteration increment (K) -- simplified bi-section
+    xIncFactor = cInc/xInc(ixVegHyd)                                              ! scaling factor for the iteration increment (-)
     xInc       = xIncFactor*xInc                                                  ! new iteration increment
    end if
   

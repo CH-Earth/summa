@@ -205,6 +205,8 @@ contains
  ! other local variables
  logical(lgt),dimension(nSnow)   :: snowFlags                ! flags for layers in the snow domain
  logical(lgt),dimension(nLayers) :: layerFlags               ! flags for layers in the snow+soil domain
+ integer(i4b),parameter          :: ixVegVolume=1            ! index of the desired vegetation control volumne (currently only one veg layer)
+ real(dp)                        :: scalarCanopyHydTrial     ! trial value for mass of water on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerVolFracHydTrial    ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
  real(dp),dimension(nState)      :: rVecScaled               ! scaled residual vector
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
@@ -239,10 +241,11 @@ contains
  dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(out): [dp(:)] derivative in total water content w.r.t. total water matric potential
  dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat          ,&  ! intent(out): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
  ! indices
- ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+ ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,&  ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+ ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
  ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                 &  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -257,8 +260,8 @@ contains
  layerFlags = (ixSnowSoilHyd/=integerMissing .and. (ixHydType==iname_watLayer .or. ixHydType==iname_liqLayer) )  ! check water not <0
 
  ! check canopy liquid water is not negative
- if(ixVegWat/=integerMissing)then
-  if(stateVecTrial(ixVegWat) < 0._dp) feasible=.false.
+ if(ixVegHyd/=integerMissing)then
+  if(stateVecTrial(ixVegHyd) < 0._dp) feasible=.false.
  end if
 
  ! check snow temperature is below freezing
@@ -327,6 +330,9 @@ contains
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ ! print the temperature
+ !write(*,'(a,1x,2(f20.10,1x))') 'canopyTemp, canairTemp = ', scalarCanopyTempTrial, scalarCanairTempTrial
 
  ! print the water content
  if(globalPrintFlag)then
@@ -398,7 +404,14 @@ contains
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
- ! get the correct water states (total water, or liquid water, depending on the state type)
+ ! vegetation domain: get the correct water states (total water, or liquid water, depending on the state type)
+ if(computeVegFlux)then
+  scalarCanopyHydTrial = merge(scalarCanopyWatTrial, scalarCanopyLiqTrial, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
+ else
+  scalarCanopyHydTrial = realMissing
+ endif
+
+ ! snow+soil domain: get the correct water states (total water, or liquid water, depending on the state type)
  mLayerVolFracHydTrial = merge(mLayerVolFracWatTrial, mLayerVolFracLiqTrial, (ixHydType==iname_watLayer .or. ixHydType==iname_matLayer) )
 
  ! compute the residual vector
@@ -414,7 +427,7 @@ contains
                   ! input: state variables (already disaggregated into scalars and vectors)
                   scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
                   scalarCanopyTempTrial,   & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                  scalarCanopyWatTrial,    & ! intent(in):    trial value of canopy total water (kg m-2)
+                  scalarCanopyHydTrial,    & ! intent(in):    trial value of canopy hydrology state variable (kg m-2)
                   mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
                   mLayerVolFracHydTrial,   & ! intent(in):    trial vector of volumetric water content (-)
                   ! input: diagnostic variables defining the liquid water and ice content (function of state variables)

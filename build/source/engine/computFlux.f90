@@ -231,7 +231,7 @@ contains
  ! indices of model state variables for the vegetation subdomain
  ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy air space energy state variable
  ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy energy state variable
- ixVegWat                     => indx_data%var(iLookINDEX%ixVegWat)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+ ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
  ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most energy state in the snow+soil subdomain
  ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow+soil subdomain
 
@@ -515,7 +515,7 @@ contains
  ! **************************************************
 
  ! check the need to compute the liquid water fluxes through vegetation
- if(ixVegWat/=integerMissing .or. firstFluxCall)then
+ if(ixVegHyd/=integerMissing .or. firstFluxCall)then
 
   ! calculate liquid water fluxes through vegetation
   call vegLiqFlux(&
@@ -542,10 +542,11 @@ contains
   
   ! test
   if(globalPrintFlag)then
-   print*, 'scalarRainfall = ', scalarRainfall
+   print*, 'scalarRainfall          = ', scalarRainfall
    print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
    print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
    print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
+   print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
   endif
 
  endif  ! computing the liquid water fluxes through vegetation
@@ -757,7 +758,7 @@ contains
  ! define model flux vector for the vegetation sub-domain
  if(ixCasNrg/=integerMissing) fluxVec(ixCasNrg) = scalarCanairNetNrgFlux/canopyDepth
  if(ixVegNrg/=integerMissing) fluxVec(ixVegNrg) = scalarCanopyNetNrgFlux/canopyDepth
- if(ixVegWat/=integerMissing) fluxVec(ixVegWat) = scalarCanopyNetLiqFlux   ! NOTE: solid fluxes are handled separately
+ if(ixVegHyd/=integerMissing) fluxVec(ixVegHyd) = scalarCanopyNetLiqFlux   ! NOTE: solid fluxes are handled separately
 
  ! populate the flux vector for energy 
  if(nSnowSoilNrg>0)then

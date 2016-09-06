@@ -152,7 +152,7 @@ contains
  ! indices of model state variables
  ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                       ,& ! intent(in): [i4b(:)] index of canopy air space energy state variable
  ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                       ,& ! intent(in): [i4b(:)] index of canopy energy state variable
- ixVegWat                     => indx_data%var(iLookINDEX%ixVegWat)%dat(1)                       ,& ! intent(in): [i4b(:)] index of canopy hydrology state variable (mass)
+ ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                       ,& ! intent(in): [i4b(:)] index of canopy hydrology state variable (mass)
  ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b(:)] index of upper-most energy state in the snow+soil subdomain
  ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                       ,& ! intent(in): [i4b(:)] index of upper-most hydrology state in the snow+soil subdomain
  ! vectors of indices for specfic state types within specific sub-domains IN THE FULL STATE VECTOR
@@ -284,20 +284,20 @@ contains
     ! * diagonal elements for the vegetation canopy (-)
     if(ixCasNrg/=integerMissing) aJac(ixDiag,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg)
     if(ixVegNrg/=integerMissing) aJac(ixDiag,ixVegNrg) = (dt/canopyDepth)*(-dCanopyNetFlux_dCanopyTemp) + dMat(ixVegNrg)
-    if(ixVegWat/=integerMissing) aJac(ixDiag,ixVegWat) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp     ! ixVegWat: CORRECT
+    if(ixVegHyd/=integerMissing) aJac(ixDiag,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp     ! ixVegHyd: CORRECT
 
     ! * cross-derivative terms w.r.t. canopy water
-    if(ixVegWat/=integerMissing)then
+    if(ixVegHyd/=integerMissing)then
      ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
-     if(ixCasNrg/=integerMissing) aJac(ixOffDiag(ixVegWat,ixCasNrg),ixCasNrg) = -dCanopyEvaporation_dTCanair*dt                                                        ! ixCasNrg: CORRECT
-     if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixVegWat,ixVegNrg),ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy             ! ixVegNrg: CORRECT
-     if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixVegWat,ixTopNrg),ixTopNrg) = -dCanopyEvaporation_dTGround*dt                                                        ! ixTopNrg: CORRECT
+     if(ixCasNrg/=integerMissing) aJac(ixOffDiag(ixVegHyd,ixCasNrg),ixCasNrg) = -dCanopyEvaporation_dTCanair*dt                                                        ! ixCasNrg: CORRECT
+     if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixVegHyd,ixVegNrg),ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy             ! ixVegNrg: CORRECT
+     if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixVegHyd,ixTopNrg),ixTopNrg) = -dCanopyEvaporation_dTGround*dt                                                        ! ixTopNrg: CORRECT
      ! cross-derivative terms w.r.t. canopy water (kg-1 m2)
-     if(ixTopHyd/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegWat),ixVegWat) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
+     if(ixTopHyd/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
      ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
      ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
-     if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixVegNrg,ixVegWat),ixVegWat) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
-     if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopNrg,ixVegWat),ixVegWat) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
+     if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixVegNrg,ixVegHyd),ixVegHyd) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
+     if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopNrg,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
     endif     
 
     ! cross-derivative terms between surface hydrology and the temperature of the vegetation canopy (K-1)
@@ -466,7 +466,7 @@ contains
       ! - include derivatives w.r.t. ground evaporation
       if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
        if(computeVegFlux)then
-        aJac(ixOffDiag(watState,ixVegWat),ixVegWat) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
+        aJac(ixOffDiag(watState,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
         aJac(ixOffDiag(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
         aJac(ixOffDiag(watState,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
        endif
@@ -523,20 +523,20 @@ contains
    if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
   
     ! * liquid water fluxes for vegetation canopy (-)
-    if(ixVegWat/=integerMissing) aJac(ixVegWat,ixVegWat) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp
-  
+    if(ixVegHyd/=integerMissing) aJac(ixVegHyd,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp
+
     ! * cross-derivative terms for canopy water
-    if(ixVegWat/=integerMissing)then
+    if(ixVegHyd/=integerMissing)then
      ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
-     if(ixCasNrg/=integerMissing) aJac(ixVegWat,ixCasNrg) = -dCanopyEvaporation_dTCanair*dt
-     if(ixVegNrg/=integerMissing) aJac(ixVegWat,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy
-     if(ixTopNrg/=integerMissing) aJac(ixVegWat,ixTopNrg) = -dCanopyEvaporation_dTGround*dt
+     if(ixCasNrg/=integerMissing) aJac(ixVegHyd,ixCasNrg) = -dCanopyEvaporation_dTCanair*dt
+     if(ixVegNrg/=integerMissing) aJac(ixVegHyd,ixVegNrg) = -dCanopyEvaporation_dTCanopy*dt + dt*scalarCanopyLiqDeriv*dCanLiq_dTcanopy
+     if(ixTopNrg/=integerMissing) aJac(ixVegHyd,ixTopNrg) = -dCanopyEvaporation_dTGround*dt
      ! cross-derivative terms w.r.t. canopy water (kg-1 m2)
-     if(ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegWat) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
+     if(ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
      ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
      ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
-     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegWat) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
-     if(ixTopNrg/=integerMissing) aJac(ixTopNrg,ixVegWat) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
+     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
+     if(ixTopNrg/=integerMissing) aJac(ixTopNrg,ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
     endif  
 
     ! cross-derivative terms w.r.t. canopy temperature (K-1)
@@ -715,7 +715,7 @@ contains
       ! - include derivatives w.r.t. ground evaporation
       if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
        if(computeVegFlux)then
-        aJac(watState,ixVegWat) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
+        aJac(watState,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
         aJac(watState,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
         aJac(watState,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
        endif

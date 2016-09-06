@@ -326,12 +326,19 @@ contains
  if(scalarTranspireLim > tiny(scalarTranspireLim))then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
   mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
  else ! (possible for there to be non-zero conductance and therefore transpiration in this case)
-  mLayerTranspireFrac(:) = mLayerRootDensity(:)
+  mLayerTranspireFrac(:) = mLayerRootDensity(:) / sum(mLayerRootDensity)
  end if
+
+ ! check fractions sum to one
+ if(abs(sum(mLayerTranspireFrac) - 1._dp) > verySmall)then
+  message=trim(message)//'fraction transpiration in soil layers does not sum to one'
+  err=20; return
+ endif
 
  ! compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)
  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
- ! (special case of prescribed head -- no transpiration)
+
+ ! special case of prescribed head -- no transpiration
  if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._dp
 
  ! *************************************************************************************************************************************************

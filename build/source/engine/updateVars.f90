@@ -39,7 +39,8 @@ USE globalData,only:iname_soil      ! named variables for soil
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_watCanopy ! named variable defining the mass of water on the vegetation canopy
+USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
+USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
 USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
 USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
@@ -180,11 +181,17 @@ contains
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
  ! indices defining model states and layers
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
- ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
+ ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
+ ! indices in the full vector for specific domains
+ ixNrgCanair             => indx_data%var(iLookINDEX%ixNrgCanair)%dat              ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
+ ixNrgCanopy             => indx_data%var(iLookINDEX%ixNrgCanopy)%dat              ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
+ ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
  ixNrgLayer              => indx_data%var(iLookINDEX%ixNrgLayer)%dat               ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
  ixHydLayer              => indx_data%var(iLookINDEX%ixHydLayer)%dat               ,& ! intent(in):  [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+ ! mapping between the full state vector and the state subset
  ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):  [i4b(:)] list of indices in the state subset for each state in the full state vector
  ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat         ,& ! intent(in):  [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+ ! type of domain, type of state variable, and index of control volume within domain
  ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):  [i4b(:)] [state subset] id of domain for desired model state variables
  ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):  [i4b(:)] index of the control volume for different domains (veg, snow, soil)
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):  [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
@@ -261,7 +268,7 @@ contains
    
   ! get the index of the other (energy or mass) state variable within the full state vector
   select case(ixDomainType)
-   case(iname_veg)             ; ixOther = merge(ixVegWat,ixVegNrg,ixStateType(ixFullVector)==iname_nrgCanopy)  ! ixVegWat if stateType=iname_nrgCanopy; ixVegNrg otherwise
+   case(iname_veg)             ; ixOther = merge(ixHydCanopy(1),    ixNrgCanopy(1),    ixStateType(ixFullVector)==iname_nrgCanopy)
    case(iname_snow, iname_soil); ixOther = merge(ixHydLayer(iLayer),ixNrgLayer(iLayer),ixStateType(ixFullVector)==iname_nrgLayer)
    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
   end select
@@ -299,8 +306,9 @@ contains
   if(.not.isNrgState .and. .not.isCoupled)then
 
    ! update the total water from volumetric liquid water
-   if(ixStateType(ixFullVector)==iname_liqLayer)then
+   if(ixStateType(ixFullVector)==iname_liqCanopy .or. ixStateType(ixFullVector)==iname_liqLayer)then
     select case(ixDomainType)
+     case(iname_veg);    scalarCanopyWatTrial          = scalarCanopyLiqTrial          + scalarCanopyIceTrial
      case(iname_snow);   mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)*iden_ice/iden_water
      case(iname_soil);   mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, or iname_soil'; return
@@ -323,9 +331,6 @@ contains
    endif
 
   endif  ! if hydrology state variable or uncoupled solution
- 
-  ! get iterations (set to maximum iterations if adjusting the temperature)
-  niter = merge(maxiter, 1, do_adjustTemp)
 
   ! initialize temperature 
   select case(ixDomainType)
@@ -334,6 +339,9 @@ contains
    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
   end select
   
+  ! get iterations (set to maximum iterations if adjusting the temperature)
+  niter = merge(maxiter, 1, do_adjustTemp)
+
   ! iterate
   do iter=1,niter
 
@@ -376,7 +384,6 @@ contains
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
     end select  ! domain type
  
-
    ! -----
    ! - update volumetric fraction of liquid water and ice...
    !    => case of energy state or coupled solution (or adjusting the temperature)... 
@@ -490,7 +497,7 @@ contains
 
     ! compute iteration increment
     tempInc    = residual/derivative  ! K
-    !if(iLayer==1) write(*,'(i4,1x,e20.10,1x,2(f20.10,1x))') iter, residual, xTemp, tempInc
+    !if(ixDomainType==iname_veg) write(*,'(i4,1x,e20.10,1x,2(f20.10,1x))') iter, residual, xTemp, tempInc
  
     ! check convergence
     if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit
@@ -509,11 +516,11 @@ contains
      stop
      err=20; return
     endif
-   
+  
    endif   ! if adjusting the temperature
 
   end do  ! iterating
- 
+
   ! save temperature 
   select case(ixDomainType)
    case(iname_veg);              scalarCanopyTempTrial   = xTemp

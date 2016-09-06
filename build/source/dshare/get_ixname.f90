@@ -728,7 +728,8 @@ contains
   case('nLayers'             ); get_ixINDEX = iLookINDEX%nLayers             ! total number of layers                                                   (-)
   case('layerType'           ); get_ixINDEX = iLookINDEX%layerType           ! index defining type of layer (snow or soil)                              (-)
   ! number of state variables of different type
-  case('nVegNrg'             ); get_ixINDEX = iLookINDEX%nVegNrg             ! number of energy state variables for vegetation                          (-)
+  case('nCasNrg'             ); get_ixINDEX = iLookINDEX%nCasNrg             ! number of energy state variables for the canopy air space domain         (-)
+  case('nVegNrg'             ); get_ixINDEX = iLookINDEX%nVegNrg             ! number of energy state variables for the vegetation canopy               (-)
   case('nVegMass'            ); get_ixINDEX = iLookINDEX%nVegMass            ! number of hydrology states for vegetation (mass of water)                (-)
   case('nVegState'           ); get_ixINDEX = iLookINDEX%nVegState           ! number of vegetation state variables                                     (-)
   case('nNrgState'           ); get_ixINDEX = iLookINDEX%nNrgState           ! number of energy state variables                                         (-)
@@ -757,7 +758,7 @@ contains
   ! indices of model specific state variables
   case('ixCasNrg'            ); get_ixINDEX = iLookINDEX%ixCasNrg            ! index of canopy air space energy state variable                          (-)
   case('ixVegNrg'            ); get_ixINDEX = iLookINDEX%ixVegNrg            ! index of canopy energy state variable                                    (-)
-  case('ixVegWat'            ); get_ixINDEX = iLookINDEX%ixVegWat            ! index of canopy hydrology state variable (mass)                          (-)
+  case('ixVegHyd'            ); get_ixINDEX = iLookINDEX%ixVegHyd            ! index of canopy hydrology state variable (mass)                          (-)
   case('ixTopNrg'            ); get_ixINDEX = iLookINDEX%ixTopNrg            ! index of upper-most energy state in the snow+soil subdomain              (-)
   case('ixTopHyd'            ); get_ixINDEX = iLookINDEX%ixTopHyd            ! index of upper-most hydrology state in the snow+soil subdomain           (-)
   ! vectors of indices for specific state types
@@ -773,6 +774,9 @@ contains
   case('ixSnowOnlyHyd'       ); get_ixINDEX = iLookINDEX%ixSnowOnlyHyd       ! indices IN THE STATE SUBSET for hydrology states in the snow domain      (-)
   case('ixSoilOnlyHyd'       ); get_ixINDEX = iLookINDEX%ixSoilOnlyHyd       ! indices IN THE STATE SUBSET for hydrology states in the soil domain      (-)
   ! vectors of indices for specfic state types within specific sub-domains
+  case('ixNrgCanair'         ); get_ixINDEX = iLookINDEX%ixNrgCanair         ! indices IN THE STATE SUBSET for energy states in canopy air space domain (-) 
+  case('ixNrgCanopy'         ); get_ixINDEX = iLookINDEX%ixNrgCanopy         ! indices IN THE STATE SUBSET for energy states in the canopy domain       (-) 
+  case('ixHydCanopy'         ); get_ixINDEX = iLookINDEX%ixHydCanopy         ! indices IN THE STATE SUBSET for hydrology states in the canopy domain    (-) 
   case('ixNrgLayer'          ); get_ixINDEX = iLookINDEX%ixNrgLayer          ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
   case('ixHydLayer'          ); get_ixINDEX = iLookINDEX%ixHydLayer          ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
   ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS

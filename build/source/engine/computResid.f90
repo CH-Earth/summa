@@ -80,7 +80,7 @@ contains
                         ! input: state variables (already disaggregated into scalars and vectors)
                         scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
                         scalarCanopyTempTrial,   & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                        scalarCanopyWatTrial,    & ! intent(in):    trial value of canopy total water (kg m-2)
+                        scalarCanopyHydTrial,    & ! intent(in):    trial value of canopy water (kg m-2), either liquid water content or total water content
                         mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
                         mLayerVolFracHydTrial,   & ! intent(in):    trial vector of volumetric water content (-), either liquid water content or total water content
                         ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
@@ -112,7 +112,7 @@ contains
  ! input: state variables (already disaggregated into scalars and vectors)
  real(dp),intent(in)             :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
  real(dp),intent(in)             :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
- real(dp),intent(in)             :: scalarCanopyWatTrial      ! trial value for canopy total water (kg m-2)
+ real(dp),intent(in)             :: scalarCanopyHydTrial      ! trial value for canopy water (kg m-2), either liquid water content or total water content
  real(dp),intent(in)             :: mLayerTempTrial(:)        ! trial value for temperature of each snow/soil layer (K)
  real(dp),intent(in)             :: mLayerVolFracHydTrial(:)  ! trial vector of volumetric water content (-), either liquid water content or total water content 
  ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
@@ -132,6 +132,8 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  integer(i4b)                    :: iLayer                    ! index of layer within the snow+soil domain
+ integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
+ real(dp)                        :: scalarCanopyHyd           ! canopy water content (kg m-2), either liquid water content or total water content
  real(dp),dimension(nLayers)     :: mLayerVolFracHyd          ! vector of volumetric water content (-), either liquid water content or total water content
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -141,6 +143,7 @@ contains
   scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the canopy air space (K)
   scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the vegetation canopy (K)
   scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp]     mass of ice on the vegetation canopy (kg m-2)
+  scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in): [dp]     mass of liquid water on the vegetation canopy (kg m-2)
   scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in): [dp]     mass of total water on the vegetation canopy (kg m-2)
   ! model state variables (snow and soil domains)
   mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in): [dp(:)]  temperature of each snow/soil layer (K)
@@ -161,10 +164,12 @@ contains
   ! model indices
   ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
   ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
-  ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
   ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
   ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
   ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+  ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
   ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in): [i4b(:)] named variables defining the type of hydrology states in snow+soil domain
   layerType               => indx_data%var(iLookINDEX%layerType)%dat                 & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
  ) ! association to necessary variables for the residual computations
@@ -209,12 +214,13 @@ contains
  ! --------------------------------
 
  ! compute the residual vector for the vegetation canopy
- ! NOTE: sMul(ixVegWat) = 1, but include as it converts all variables to quadruple precision
+ ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
  ! --> energy balance
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
  if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
  ! --> mass balance
- if(ixVegWat/=integerMissing) rVec(ixVegWat) = sMul(ixVegWat)*scalarCanopyWatTrial  - ( (sMul(ixVegWat)*scalarCanopyWat  + fVec(ixVegWat)*dt) + rAdd(ixVegWat) )
+ scalarCanopyHyd = merge(scalarCanopyWat, scalarCanopyLiq, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
+ if(ixVegHyd/=integerMissing) rVec(ixVegHyd) = sMul(ixVegHyd)*scalarCanopyHydTrial  - ( (sMul(ixVegHyd)*scalarCanopyHyd  + fVec(ixVegHyd)*dt) + rAdd(ixVegHyd) )
 
  ! compute the residual vector for the snow and soil sub-domains for energy
  if(nSnowSoilNrg>0)then

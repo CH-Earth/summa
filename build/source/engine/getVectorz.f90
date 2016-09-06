@@ -145,6 +145,7 @@ contains
  real(dp),parameter              :: xScaleMat=10._dp       ! state var: characteristic scale for matric head (m)
  real(dp),parameter              :: xScaleTemp=1._dp       ! state var: characteristic scale for temperature (K)
  ! state subsets
+ integer(i4b)                    :: iState                 ! index of state within the snow+soil domain
  integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
  integer(i4b)                    :: ixStateSubset          ! index within the state subset
  logical(lgt),dimension(nState)  :: stateFlag              ! flag to denote that the state is populated
@@ -156,6 +157,7 @@ contains
  scalarCanairTemp    => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in) : [dp]     temperature of the canopy air space (K)
  scalarCanopyTemp    => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in) : [dp]     temperature of the vegetation canopy (K)
  scalarCanopyWat     => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in) : [dp]     mass of total water on the vegetation canopy (kg m-2)
+ scalarCanopyLiq     => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in) : [dp]     mass of liquid water on the vegetation canopy (kg m-2)
  ! model state variable vectors for the snow-soil layers
  mLayerTemp          => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in) : [dp(:)]  temperature of each snow/soil layer (K)
  mLayerVolFracWat    => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in) : [dp(:)]  volumetric fraction of total water (-)
@@ -167,15 +169,16 @@ contains
  mLayerVolHeatCap    => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in) : [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
  mLayerMatricHeadLiq => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in) : [dp(:)]  matric potential of liquid water (m)
  ! indices defining specific model states
- ixCasNrg            => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in) : [i4b]    index of canopy air space energy state variable
- ixVegNrg            => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in) : [i4b]    index of canopy energy state variable
- ixVegWat            => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in) : [i4b]    index of canopy hydrology state variable (mass)
+ ixCasNrg            => indx_data%var(iLookINDEX%ixCasNrg)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy air space energy state variable
+ ixVegNrg            => indx_data%var(iLookINDEX%ixVegNrg)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy energy state variable
+ ixVegHyd            => indx_data%var(iLookINDEX%ixVegHyd)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy hydrology state variable (mass)
  ! vector of energy and hydrology indices for the snow and soil domains
  ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
  ixSnowSoilHyd       => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
  nSnowSoilNrg        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the snow+soil domain
  nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
  ! type of hydrology states in the snow+soil domain
+ ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in) : [i4b(:)] [state subset] domain of desired model state variables
  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
  ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in snow+soil domain
  ! number of layers
@@ -194,10 +197,30 @@ contains
  ! initialize flags
  stateFlag(:) = .false.
 
- ! build elements of the state vector for the vegetation canopy
- if(ixCasNrg/=integerMissing) stateVec(ixCasNrg) = scalarCanairTemp
- if(ixVegNrg/=integerMissing) stateVec(ixVegNrg) = scalarCanopyTemp
- if(ixVegWat/=integerMissing) stateVec(ixVegWat) = scalarCanopyWat  ! kg m-2
+ ! build the state vector for the temperature of thecanopy air space
+ ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
+ do concurrent (iState=1:size(ixCasNrg),ixCasNrg(iState)/=integerMissing)
+  stateVec( ixCasNrg(iState) )  = scalarCanairTemp       ! transfer canopy air temperature to the state vector
+  stateFlag( ixCasNrg(iState) ) = .true.                 ! flag to denote that the state is populated
+ end do
+
+ ! build the state vector for the temperature of the vegetation canopy
+ ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
+ do concurrent (iState=1:size(ixVegNrg),ixVegNrg(iState)/=integerMissing)
+  stateVec( ixVegNrg(iState) )  = scalarCanopyTemp       ! transfer vegetation temperature to the state vector
+  stateFlag( ixVegNrg(iState) ) = .true.                 ! flag to denote that the state is populated
+ end do
+
+ ! build the state vector for the water in the vegetation canopy
+ ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
+ do concurrent (iState=1:size(ixVegHyd),ixVegHyd(iState)/=integerMissing)
+  select case(ixStateType_subset( ixVegHyd(iState) ))
+   case(iname_watCanopy); stateVec( ixVegHyd(iState) )  = scalarCanopyWat        ! transfer total canopy water to the state vector
+   case(iname_liqCanopy); stateVec( ixVegHyd(iState) )  = scalarCanopyLiq        ! transfer liquid canopy water to the state vector
+   case default; cycle
+  end select
+  stateFlag( ixVegHyd(iState) ) = .true.                 ! flag to denote that the state is populated
+ end do
 
  ! build the energy state vector for the snow and soil domain
  if(nSnowSoilNrg>0)then
@@ -226,6 +249,8 @@ contains
 
  ! check that we populated all state variables
  if(count(stateFlag)/=nState)then
+  print*, 'ixStateType_subset = ', ixStateType_subset
+  print*, 'stateFlag = ', stateFlag
   message=trim(message)//'some state variables unpopulated'
   err=20; return
  endif
@@ -241,7 +266,7 @@ contains
  endwhere
 
  ! define the function and variable scaling factors for water on the vegetation canopy
- where(ixStateType_subset==iname_watCanopy)
+ where(ixStateType_subset==iname_watCanopy .or. ixStateType_subset==iname_liqCanopy)
   fScale = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! 1/(kg m-2)
   xScale = 1._dp  ! (kg m-2)
  endwhere
@@ -263,16 +288,20 @@ contains
  ! ------------------------------------------------------------------------------------------
 
  ! define the multiplier for the state vector for residual calculations (vegetation canopy)
- if(ixCasNrg/=integerMissing) sMul(ixCasNrg) = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
- if(ixVegNrg/=integerMissing) sMul(ixVegNrg) = volHeatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
- if(ixVegWat/=integerMissing) sMul(ixVegWat) = 1._dp             ! nothing else on the left hand side
+ ! NOTE: Use the "where" statement to generalize to multiple canopy layers (currently one canopy layer)
+ where(ixStateType_subset==iname_nrgCanair) sMul = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
+ where(ixStateType_subset==iname_nrgCanopy) sMul = volHeatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
+ where(ixStateType_subset==iname_watCanopy) sMul = 1._dp             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_liqCanopy) sMul = 1._dp             ! nothing else on the left hand side
 
  ! compute terms in the Jacobian for vegetation (excluding fluxes)
- ! NOTE: this is computed outside the iteration loop because it does not depend on state variables
- ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
- if(ixCasNrg/=integerMissing) dMat(ixCasNrg) = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
- if(ixVegNrg/=integerMissing) dMat(ixVegNrg) = realMissing       ! populated within the iteration loop 
- if(ixVegWat/=integerMissing) dMat(ixVegWat) = 1._dp             ! nothing else on the left hand side
+ ! NOTE: This is computed outside the iteration loop because it does not depend on state variables
+ ! NOTE: Energy for vegetation is computed *within* the iteration loop as it includes phase change
+ ! NOTE: Use the "where" statement to generalize to multiple canopy layers (currently one canopy layer)
+ where(ixStateType_subset==iname_nrgCanair) dMat = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
+ where(ixStateType_subset==iname_nrgCanopy) dMat = realMissing       ! populated within the iteration loop 
+ where(ixStateType_subset==iname_watCanopy) dMat = 1._dp             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_liqCanopy) dMat = 1._dp             ! nothing else on the left hand side
 
  ! define the energy multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
  if(nSnowSoilNrg>0)then
@@ -362,7 +391,7 @@ contains
  ! indices defining model states and layers
  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
- ixVegWat                => indx_data%var(iLookINDEX%ixVegWat)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
+ ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for energy states in the snow+soil subdomain
  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for hydrology states in the snow+soil subdomain
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):  [i4b]    number of energy state variables in the snow+soil domain
@@ -402,7 +431,7 @@ contains
  scalarCanopyIceTrial  = scalarCanopyIce
 
  ! check if computing the vegetation flux
- if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixVegWat/=integerMissing)then
+ if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixVegHyd/=integerMissing)then
  
   ! extract temperature of the canopy air space
   if(ixCasNrg/=integerMissing) scalarCanairTempTrial = stateVec(ixCasNrg)
@@ -411,14 +440,14 @@ contains
   if(ixVegNrg/=integerMissing) scalarCanopyTempTrial = stateVec(ixVegNrg) 
   
   ! extract intercepted water
-  if(ixVegWat/=integerMissing)then
-   select case( ixStateType_subset(ixVegWat) )
-    case(iname_liqCanopy); scalarCanopyLiqTrial = stateVec(ixVegWat)
-    case(iname_watCanopy); scalarCanopyWatTrial = stateVec(ixVegWat)
+  if(ixVegHyd/=integerMissing)then
+   select case( ixStateType_subset(ixVegHyd) )
+    case(iname_liqCanopy); scalarCanopyLiqTrial = stateVec(ixVegHyd)
+    case(iname_watCanopy); scalarCanopyWatTrial = stateVec(ixVegHyd)
     case default; err=20; message=trim(message)//'case not found: expect iname_liqCanopy or iname_watCanopy'; return
    end select
   endif
-  
+ 
  ! not computing the vegetation flux (veg buried with snow, or bare ground)
  else
   scalarCanairTempTrial = realMissing
