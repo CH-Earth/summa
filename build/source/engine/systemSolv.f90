@@ -341,7 +341,7 @@ contains
  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
 
  ! save water storage at the start of the step
- canopyBalance0 = scalarCanopyWat
+ canopyBalance0 = merge(scalarCanopyWat, realMissing, computeVegFlux)
  soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers)      + mLayerVolFracIce(nSnow+1:nLayers)      )*mLayerDepth(nSnow+1:nLayers) )
  
  ! save volumetric ice content at the start of the step
@@ -423,7 +423,9 @@ contains
   if(ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit)then
 
    ! modify the state type names associated with the state vector
-   where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
+   if(computeVegFlux)then
+    where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
+   endif
    where(ixStateType(ixHydLayer) ==iname_watLayer)  ixStateType(ixHydLayer) =iname_liqLayer
    where(ixStateType(ixHydLayer) ==iname_matLayer)  ixStateType(ixHydLayer) =iname_lmpLayer
 
@@ -920,24 +922,25 @@ contains
   endif
 
   ! check mass balance for the canopy
-  canopyBalance1 = canopyBalance0 + (scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage)*dtSplit
-  liqError       = canopyBalance1 - scalarCanopyWatTrial
-  if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
-   write(*,'(a,1x,f30.20)')  'canopyBalance0          = ', canopyBalance0
-   write(*,'(a,1x,f30.20)')  'canopyBalance1          = ', canopyBalance1
-   write(*,'(a,1x,f30.20)')  'scalarCanopyWatTrial    = ', scalarCanopyWatTrial
-   write(*,'(a,1x,f30.20)')  'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
-   write(*,'(a,1x,f30.20)')  'scalarCanopyIceTrial    = ', scalarCanopyIceTrial
-   write(*,'(a,1x,f30.20)')  'scalarRainfall          = ', scalarRainfall*dtSplit 
-   write(*,'(a,1x,f30.20)')  'scalarCanopyEvaporation = ', scalarCanopyEvaporation*dtSplit   
-   write(*,'(a,1x,f30.20)')  'scalarThroughfallRain   = ', scalarThroughfallRain*dtSplit
-   write(*,'(a,1x,f30.20)')  'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage*dtSplit
-   write(*,'(a,1x,f30.20)')  'liqError                = ', liqError
-   message=trim(message)//'water balance error in the canopy domain'
-   print*, trim(message)
-   stop
-   err=-20; return ! negative error code forces time step reduction and another trial
-  endif  ! if there is a water balance error
+  if(computeVegFlux)then
+   canopyBalance1 = canopyBalance0 + (scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage)*dtSplit
+   liqError       = canopyBalance1 - scalarCanopyWatTrial
+   if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 to avoid precision issues
+    write(*,'(a,1x,f30.20)')  'canopyBalance0          = ', canopyBalance0
+    write(*,'(a,1x,f30.20)')  'canopyBalance1          = ', canopyBalance1
+    write(*,'(a,1x,f30.20)')  'scalarCanopyWatTrial    = ', scalarCanopyWatTrial
+    write(*,'(a,1x,f30.20)')  'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
+    write(*,'(a,1x,f30.20)')  'scalarCanopyIceTrial    = ', scalarCanopyIceTrial
+    write(*,'(a,1x,f30.20)')  'scalarRainfall          = ', scalarRainfall*dtSplit 
+    write(*,'(a,1x,f30.20)')  'scalarCanopyEvaporation = ', scalarCanopyEvaporation*dtSplit   
+    write(*,'(a,1x,f30.20)')  'scalarThroughfallRain   = ', scalarThroughfallRain*dtSplit
+    write(*,'(a,1x,f30.20)')  'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage*dtSplit
+    write(*,'(a,1x,f30.20)')  'liqError                = ', liqError
+    message=trim(message)//'water balance error in the canopy domain'
+    print*, trim(message)
+    err=-20; return ! negative error code forces time step reduction and another trial
+   endif  ! if there is a water balance error
+  endif  ! if computing the water balance error
 
   ! check mass balance for soil
   soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )

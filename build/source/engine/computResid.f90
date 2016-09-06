@@ -219,8 +219,10 @@ contains
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
  if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
  ! --> mass balance
- scalarCanopyHyd = merge(scalarCanopyWat, scalarCanopyLiq, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
- if(ixVegHyd/=integerMissing) rVec(ixVegHyd) = sMul(ixVegHyd)*scalarCanopyHydTrial  - ( (sMul(ixVegHyd)*scalarCanopyHyd  + fVec(ixVegHyd)*dt) + rAdd(ixVegHyd) )
+ if(ixVegHyd/=integerMissing)then
+  scalarCanopyHyd = merge(scalarCanopyWat, scalarCanopyLiq, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
+  rVec(ixVegHyd)  = sMul(ixVegHyd)*scalarCanopyHydTrial  - ( (sMul(ixVegHyd)*scalarCanopyHyd  + fVec(ixVegHyd)*dt) + rAdd(ixVegHyd) )
+ endif
 
  ! compute the residual vector for the snow and soil sub-domains for energy
  if(nSnowSoilNrg>0)then
