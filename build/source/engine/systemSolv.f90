@@ -546,7 +546,7 @@ contains
   do iSubstep=1,nSubstep
 
    ! test
-   write(*,'(a,1x,3(i5,1x),a)') 'iSubstep, iSplit, nSnow = ', iSubstep, iSplit, nSnow, merge('operSplitting','fullyImplicit',ixSplitOption==deCoupled_nrgMass)
+   !write(*,'(a,1x,3(i5,1x),a)') 'iSubstep, iSplit, nSnow = ', iSubstep, iSplit, nSnow, merge('operSplitting','fullyImplicit',ixSplitOption==deCoupled_nrgMass)
 
    ! **************************************************************************************************************************
    ! **************************************************************************************************************************

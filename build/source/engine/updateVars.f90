@@ -409,8 +409,9 @@ contains
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
       ! compute mass of water on the canopy
+      ! NOTE: possibilities for speed-up here
       scalarCanopyLiqTrial = scalarVolFracLiq*(iden_water*canopyDepth)
-      scalarCanopyIceTrial = scalarVolFracIce*(iden_water*canopyDepth)
+      scalarCanopyIceTrial = scalarVolFracIce*(iden_ice*canopyDepth)   ! NOTE: updateSnow provides volumetric fraction of ice assuming intrinsic density ice = 917 kg m-3
       
      ! *** snow layers
      case(iname_snow)
@@ -503,7 +504,7 @@ contains
     if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit
 
     ! add constraints for snow temperature
-    if(ixDomainType==iname_snow)then
+    if(ixDomainType==iname_veg .or. ixDomainType==iname_snow)then
      if(tempInc > Tcrit - xTemp) tempInc=(Tcrit - xTemp)*0.5_dp  ! simple bi-section method
     endif
    
@@ -513,7 +514,6 @@ contains
     ! check failed convergence
     if(iter==maxiter)then
      message=trim(message)//'failed to converge'
-     stop
      err=20; return
     endif
   
