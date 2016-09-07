@@ -326,6 +326,7 @@ contains
       effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! effective saturation
       avPore = theta_sat - mLayerVolFracIceTrial(iLayer) - theta_res  ! available pore space
       mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res
+      mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
       mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
       !write(*,'(a,1x,i4,1x,3(f20.10,1x))') 'mLayerVolFracLiqTrial(iLayer) 1 = ', iLayer, mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer), mLayerVolFracWatTrial(iLayer)
      ! --> update the total water from the total water matric potential
