@@ -160,6 +160,8 @@ contains
  real(dp)                        :: scalarVolFracIce                ! volumetric fraction of ice (-)
  real(dp)                        :: Tcrit                           ! critical soil temperature below which ice exists (K)
  real(dp)                        :: xTemp                           ! temporary temperature (K)
+ real(dp)                        :: effSat                          ! effective saturation (-)
+ real(dp)                        :: avPore                          ! available pore space (-)
  character(len=256)              :: cMessage                        ! error message of downwind routine
  logical(lgt),parameter          :: printFlag=.false.               ! flag to turn on printing
  ! iterative solution for temperature
@@ -179,6 +181,7 @@ contains
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
+ mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ! indices defining model states and layers
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
@@ -315,20 +318,26 @@ contains
     end select
    endif
 
-   ! update the total water from liquid matric potential
-   if(ixStateType(ixFullVector)==iname_lmpLayer)then  ! lmpLayer must be in the soil domain
-    mLayerVolFracLiqTrial(iLayer)         = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    mLayerVolFracWatTrial(iLayer)         = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
-   endif
-
-   ! update the total water matric potential
+   ! update the total water and the total water matric potential
    if(ixDomainType==iname_soil)then
-    if(ixStateType(ixFullVector)/=iname_matLayer)then
-     mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
-    else
-     mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    endif
-   endif
+    select case( ixStateType(ixFullVector) )
+     ! --> update the total water from the liquid water matric potential
+     case(iname_lmpLayer)
+      effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! effective saturation
+      avPore = theta_sat - mLayerVolFracIceTrial(iLayer) - theta_res  ! available pore space
+      mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res
+      mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
+      mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+      !write(*,'(a,1x,i4,1x,3(f20.10,1x))') 'mLayerVolFracLiqTrial(iLayer) 1 = ', iLayer, mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer), mLayerVolFracWatTrial(iLayer)
+     ! --> update the total water from the total water matric potential
+     case(iname_matLayer)
+      mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     ! --> update the total water matric potential (assume already have mLayerVolFracWatTrial given block above)
+     case(iname_liqLayer, iname_watLayer)
+      mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+     case default; err=20; message=trim(message)//'expect iname_lmpLayer, iname_matLayer, iname_liqLayer, or iname_watLayer'; return
+    end select
+   endif  ! if in the soil domain
 
   endif  ! if hydrology state variable or uncoupled solution
 
@@ -343,16 +352,22 @@ contains
   niter = merge(maxiter, 1, do_adjustTemp)
 
   ! iterate
-  do iter=1,niter
+  iterations: do iter=1,niter
 
    ! -----
    ! - compute derivatives...
    ! ------------------------
   
    ! compute the derivative in total water content w.r.t. total water matric potential (m-1)
-   ! NOTE: valid for frozen and unfrozen conditions
-   if(ixDomainType==iname_soil) dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  
+   ! NOTE 1: valid for frozen and unfrozen conditions
+   ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi
+   if(ixDomainType==iname_soil)then
+    select case( ixStateType(ixFullVector) )
+     case(iname_lmpLayer); dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)*avPore
+     case default;         dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    end select
+   endif
+
    ! compute the critical soil temperature below which ice exists
    select case(ixDomainType)
     case(iname_veg, iname_snow); Tcrit = Tfreeze
@@ -360,13 +375,24 @@ contains
     case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
    end select
   
-   ! (compute the derivative in liquid water content w.r.t. temperature)
-   select case(ixDomainType)
-    case(iname_veg);  dTheta_dTkCanopy         = merge(dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth),  0._dp, xTemp<Tcrit)
-    case(iname_snow); mLayerdTheta_dTk(iLayer) = merge(dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer),             0._dp, xTemp<Tcrit)
-    case(iname_soil); mLayerdTheta_dTk(iLayer) = merge(dTheta_dTk(xTemp,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m),                 0._dp, xTemp<Tcrit) ! assume no volume expansion
-    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
-   end select  ! domain type
+   ! compute the derivative in liquid water content w.r.t. temperature
+   ! --> partially frozen: dependence of liquid water on temperature
+   if(xTemp<Tcrit)then
+    select case(ixDomainType)
+     case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth)
+     case(iname_snow); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
+     case(iname_soil); mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
+     case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+    end select  ! domain type
+
+   ! --> unfrozen: no dependence of liquid water on temperature
+   else
+    select case(ixDomainType)
+     case(iname_veg);              dTheta_dTkCanopy         = 0._dp 
+     case(iname_snow, iname_soil); mLayerdTheta_dTk(iLayer) = 0._dp
+     case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+    end select  ! domain type
+   endif
   
    ! -----
    ! - update volumetric fraction of liquid water and ice...
@@ -438,7 +464,7 @@ contains
                       mLayerVolFracIceTrial(iLayer),                & ! intent(out)  : trial volumetric fraction if ice (-)
                       err,cmessage)                                   ! intent(out)  : error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
+
      ! check
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
    
@@ -498,10 +524,10 @@ contains
 
     ! compute iteration increment
     tempInc    = residual/derivative  ! K
-    !if(ixDomainType==iname_veg) write(*,'(i4,1x,e20.10,1x,2(f20.10,1x))') iter, residual, xTemp, tempInc
+    !write(*,'(i4,1x,e20.10,1x,2(f20.10,1x))') iter, residual, xTemp, tempInc
  
     ! check convergence
-    if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit
+    if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit iterations
 
     ! add constraints for snow temperature
     if(ixDomainType==iname_veg .or. ixDomainType==iname_snow)then
@@ -519,7 +545,7 @@ contains
   
    endif   ! if adjusting the temperature
 
-  end do  ! iterating
+  end do iterations ! iterating
 
   ! save temperature 
   select case(ixDomainType)

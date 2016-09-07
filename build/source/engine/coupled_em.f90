@@ -1041,6 +1041,8 @@ contains
  if(abs(scalarSoilWatBalError) > 1.d-2)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   write(*,'(a,1x,f20.10)') 'dt                        = ', dt
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
+  write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq
+  write(*,'(a,1x,f20.10)') 'scalarTotalSoilIce        = ', scalarTotalSoilIce
   write(*,'(a,1x,f20.10)') 'balanceSoilWater0         = ', balanceSoilWater0
   write(*,'(a,1x,f20.10)') 'balanceSoilWater1         = ', balanceSoilWater1
   write(*,'(a,1x,f20.10)') 'balanceSoilInflux         = ', balanceSoilInflux

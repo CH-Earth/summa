@@ -219,8 +219,10 @@ contains
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
  if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
  ! --> mass balance
- scalarCanopyHyd = merge(scalarCanopyWat, scalarCanopyLiq, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
- if(ixVegHyd/=integerMissing) rVec(ixVegHyd) = sMul(ixVegHyd)*scalarCanopyHydTrial  - ( (sMul(ixVegHyd)*scalarCanopyHyd  + fVec(ixVegHyd)*dt) + rAdd(ixVegHyd) )
+ if(ixVegHyd/=integerMissing)then
+  scalarCanopyHyd = merge(scalarCanopyWat, scalarCanopyLiq, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
+  rVec(ixVegHyd)  = sMul(ixVegHyd)*scalarCanopyHydTrial  - ( (sMul(ixVegHyd)*scalarCanopyHyd  + fVec(ixVegHyd)*dt) + rAdd(ixVegHyd) )
+ endif
 
  ! compute the residual vector for the snow and soil sub-domains for energy
  if(nSnowSoilNrg>0)then
@@ -237,12 +239,15 @@ contains
    mLayerVolFracHyd(iLayer)      = merge(mLayerVolFracWat(iLayer), mLayerVolFracLiq(iLayer), (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
    ! (compute the residual)
    rVec( ixSnowSoilHyd(iLayer) ) = mLayerVolFracHydTrial(iLayer) - ( (mLayerVolFracHyd(iLayer) + fVec( ixSnowSoilHyd(iLayer) )*dt) + rAdd( ixSnowSoilHyd(iLayer) ) )
+
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
  ! print result
- if(globalPrintFlag) &
+ if(globalPrintFlag)then
   write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(iJac1:iJac2)
+  write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(iJac1:iJac2)
+ endif
 
  ! end association with the necessary variabiles for the residual calculations
  end associate

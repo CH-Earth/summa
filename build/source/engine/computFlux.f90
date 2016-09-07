@@ -99,6 +99,7 @@ contains
                        nLayers,                 & ! intent(in):    total number of layers
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to denote the first flux call
+                       firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        drainageMeltPond,        & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
@@ -165,6 +166,7 @@ contains
  integer(i4b),intent(in)         :: nLayers                     ! total number of layers
  logical(lgt),intent(in)         :: firstSubStep                ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall               ! flag to indicate if we are processing the first flux call
+ logical(lgt),intent(in)         :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
  real(dp),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
@@ -612,7 +614,7 @@ contains
   call soilLiqFlx(&
                   ! input: model control
                   nSoil,                                  & ! intent(in):    number of soil layers
-                  firstFluxCall,                          & ! intent(in):    flag indicating first call
+                  firstSplitOper,                         & ! intent(in):    flag indicating first flux call in a splitting operation
                   .true.,                                 & ! intent(in):    flag indicating if derivatives are desired
                   ! input: trial state variables
                   mLayerTempTrial(nSnow+1:nLayers),       & ! intent(in):    trial temperature at the current iteration (K)

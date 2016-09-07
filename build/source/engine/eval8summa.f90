@@ -98,6 +98,7 @@ contains
                        nState,                  & ! intent(in):    total number of state variables
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                       firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    model state vector
@@ -156,6 +157,7 @@ contains
  integer(i4b),intent(in)         :: nState                 ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall          ! flag to indicate if we are processing the first flux call
+ logical(lgt),intent(in)         :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)       ! model state vector 
@@ -349,6 +351,7 @@ contains
                  nLayers,                 & ! intent(in):    total number of layers
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  firstFluxCall,           & ! intent(inout): flag to denote the first flux call
+                 firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSfcMeltPond/dt,    & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
