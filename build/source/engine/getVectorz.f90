@@ -214,12 +214,12 @@ contains
  ! build the state vector for the water in the vegetation canopy
  ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
  do concurrent (iState=1:size(ixVegHyd),ixVegHyd(iState)/=integerMissing)
+  stateFlag( ixVegHyd(iState) ) = .true.                 ! flag to denote that the state is populated
   select case(ixStateType_subset( ixVegHyd(iState) ))
    case(iname_watCanopy); stateVec( ixVegHyd(iState) )  = scalarCanopyWat        ! transfer total canopy water to the state vector
    case(iname_liqCanopy); stateVec( ixVegHyd(iState) )  = scalarCanopyLiq        ! transfer liquid canopy water to the state vector
-   case default; cycle
+   case default; stateFlag( ixVegHyd(iState) ) = .false. ! flag to denote that the state is populated
   end select
-  stateFlag( ixVegHyd(iState) ) = .true.                 ! flag to denote that the state is populated
  end do
 
  ! build the energy state vector for the snow and soil domain
@@ -236,14 +236,14 @@ contains
  if(nSnowSoilHyd>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
    ixStateSubset                                  = ixSnowSoilHyd(iLayer)   ! index within the state vector
+   stateFlag(ixStateSubset) = .true. ! flag to denote that the state is populated
    select case( ixHydType(iLayer) )
     case(iname_watLayer); stateVec(ixStateSubset) = mLayerVolFracWat(iLayer)           ! total water state variable for snow+soil layers
     case(iname_liqLayer); stateVec(ixStateSubset) = mLayerVolFracLiq(iLayer)           ! liquid water state variable for snow+soil layers
     case(iname_matLayer); stateVec(ixStateSubset) = mLayerMatricHead(iLayer-nSnow)     ! total water matric potential variable for soil layers
     case(iname_lmpLayer); stateVec(ixStateSubset) = mLayerMatricHeadLiq(iLayer-nSnow)  ! liquid matric potential state variable for soil layers
-    case default; cycle
+    case default; stateFlag( ixVegHyd(iState) ) = .false.  ! flag to denote that the state is populated
    end select
-   stateFlag(ixStateSubset) = .true. ! flag to denote that the state is populated
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
@@ -475,13 +475,12 @@ contains
  ! overwrite with the hydrology values from the state vector
  if(nSnowSoilHyd>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
-   if(globalPrintFlag .and. iLayer==101) write(*,'(a,1x,10(i4,1x))') 'iLayer, ixHydType(iLayer), ixSnowSoilHyd(iLayer) = ', iLayer, ixHydType(iLayer), ixSnowSoilHyd(iLayer)
    select case( ixHydType(iLayer) )
     case(iname_watLayer); mLayerVolFracWatTrial(iLayer)          = stateVec( ixSnowSoilHyd(iLayer) ) ! total water state variable for snow+soil layers
     case(iname_liqLayer); mLayerVolFracLiqTrial(iLayer)          = stateVec( ixSnowSoilHyd(iLayer) ) ! liquid water state variable for snow+soil layers
     case(iname_matLayer); mLayerMatricHeadTrial(iLayer-nSnow)    = stateVec( ixSnowSoilHyd(iLayer) ) ! total water matric potential variable for soil layers
     case(iname_lmpLayer); mLayerMatricHeadLiqTrial(iLayer-nSnow) = stateVec( ixSnowSoilHyd(iLayer) ) ! liquid matric potential state variable for soil layers
-    case default; cycle
+    case default ! do nothing
    end select
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
