@@ -235,14 +235,14 @@ contains
  ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
  if(nSnowSoilHyd>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
-   ixStateSubset                                  = ixSnowSoilHyd(iLayer)   ! index within the state vector
-   stateFlag(ixStateSubset) = .true. ! flag to denote that the state is populated
+   ixStateSubset            = ixSnowSoilHyd(iLayer)   ! index within the state vector
+   stateFlag(ixStateSubset) = .true.                  ! flag to denote that the state is populated
    select case( ixHydType(iLayer) )
     case(iname_watLayer); stateVec(ixStateSubset) = mLayerVolFracWat(iLayer)           ! total water state variable for snow+soil layers
     case(iname_liqLayer); stateVec(ixStateSubset) = mLayerVolFracLiq(iLayer)           ! liquid water state variable for snow+soil layers
     case(iname_matLayer); stateVec(ixStateSubset) = mLayerMatricHead(iLayer-nSnow)     ! total water matric potential variable for soil layers
     case(iname_lmpLayer); stateVec(ixStateSubset) = mLayerMatricHeadLiq(iLayer-nSnow)  ! liquid matric potential state variable for soil layers
-    case default; stateFlag( ixVegHyd(iState) ) = .false.  ! flag to denote that the state is populated
+    case default; stateFlag(ixStateSubset) = .false.  ! flag to denote that the state is populated
    end select
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
