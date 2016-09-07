@@ -375,13 +375,24 @@ contains
     case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
    end select
   
-   ! (compute the derivative in liquid water content w.r.t. temperature)
-   select case(ixDomainType)
-    case(iname_veg);  dTheta_dTkCanopy         = merge(dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth),  0._dp, xTemp<Tcrit)
-    case(iname_snow); mLayerdTheta_dTk(iLayer) = merge(dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer),             0._dp, xTemp<Tcrit)
-    case(iname_soil); mLayerdTheta_dTk(iLayer) = merge(dTheta_dTk(xTemp,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m),                 0._dp, xTemp<Tcrit) ! assume no volume expansion
-    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
-   end select  ! domain type
+   ! compute the derivative in liquid water content w.r.t. temperature
+   ! --> partially frozen: dependence of liquid water on temperature
+   if(xTemp<Tcrit)then
+    select case(ixDomainType)
+     case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth)
+     case(iname_snow); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
+     case(iname_soil); mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
+     case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+    end select  ! domain type
+
+   ! --> unfrozen: no dependence of liquid water on temperature
+   else
+    select case(ixDomainType)
+     case(iname_veg);              dTheta_dTkCanopy         = 0._dp 
+     case(iname_snow, iname_soil); mLayerdTheta_dTk(iLayer) = 0._dp
+     case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+    end select  ! domain type
+   endif
   
    ! -----
    ! - update volumetric fraction of liquid water and ice...
