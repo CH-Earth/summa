@@ -233,7 +233,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: forceFullMatrix=.true.        ! flag to force the use of the full Jacobian matrix
+ logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
  logical(lgt)                    :: firstFluxCall                 ! flag to define the first flux call
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes 
@@ -667,7 +667,7 @@ contains
   
     ! print iteration count
     !print*, '*** iter, dt = ', iter, dtSplit, merge('nrg','wat',iSplit==nrgSplit)
- 
+
     ! compute the next trial state vector
     !  1) Computes the Jacobian matrix based on derivatives from the last flux evaluation
     !  2) Computes the iteration increment based on Jacobian and residuals from the last flux evaluation
