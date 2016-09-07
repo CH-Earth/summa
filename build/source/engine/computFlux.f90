@@ -457,7 +457,8 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! check fluxes
-  if(globalPrintFlag)then
+  !if(globalPrintFlag)then
+   print*, '**'
    write(*,'(a,1x,f30.20)') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
    write(*,'(a,1x,f30.20)') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
    write(*,'(a,1x,f30.20)') 'mLayerTempTrial(1)    = ',  mLayerTempTrial(1)      ! trial value of ground temperature (K)
@@ -465,7 +466,7 @@ contains
    write(*,'(a,1x,f30.20)') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
    write(*,'(a,1x,f30.20)') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
    write(*,'(a,1x,f30.20)') 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
-  endif ! if checking fluxes
+  !endif ! if checking fluxes
 
  endif ! if calculating the energy fluxes over vegetation
 
@@ -503,9 +504,9 @@ contains
   ! calculate net energy fluxes for each snow and soil layer (J m-3 s-1)
   do iLayer=1,nLayers
    mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
-   if(globalPrintFlag)then
+   !if(globalPrintFlag)then
     if(iLayer < 3) write(*,'(a,1x,i4,1x,10(f25.15,1x))') 'iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)   = ', iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)
-   endif
+   !endif
   end do
 
  endif  ! if computing energy fluxes throughout the snow+soil domain
@@ -655,11 +656,14 @@ contains
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
+  print*, 'scalarInfiltration = ', scalarInfiltration
+
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSoil
    mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
+   print*, 'iLayerLiqFluxSoil(iLayer) = ', iLayer-1, iLayerLiqFluxSoil(iLayer-1)
   end do
-  
+ 
   ! calculate the soil control on infiltration
   if(nSnow==0) then
    ! * case of infiltration into soil

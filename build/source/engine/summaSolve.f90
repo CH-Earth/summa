@@ -75,6 +75,7 @@ contains
  subroutine summaSolve(&
                        ! input: model control
                        dt,                      & ! intent(in):    length of the time step (seconds)
+                       funcOnly,                & ! intent(in):    logical flag to only return the flux and function evaluation
                        iter,                    & ! intent(in):    iteration index
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
@@ -125,6 +126,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)             :: dt                       ! length of the time step (seconds)
+ logical(lgt),intent(in)         :: funcOnly                 ! logical flag to only return the flux and function evaluation
  integer(i4b),intent(in)         :: iter                     ! interation index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
@@ -190,6 +192,7 @@ contains
  ! general
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
+ logical(lgt)                    :: feasible                 ! flag to denote the feasibility of the solution
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -201,6 +204,19 @@ contains
 
  ! initialize the global print flag
  globalPrintFlagInit=globalPrintFlag
+
+ ! -----
+ ! * only compute the function evaluation and return...
+ ! ----------------------------------------------------
+
+ ! this is done if using the explicit Euler solution
+ if(funcOnly)then
+  stateVecNew = stateVecTrial
+  call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if                  ! (check for errors)
+  if(.not.feasible)then; err=20; message=trim(message)//'solution not feasible'; return; end if  ! (check if the solution is feasible)
+  return
+ endif
 
  ! -----
  ! * compute the Jacobian matrix...
