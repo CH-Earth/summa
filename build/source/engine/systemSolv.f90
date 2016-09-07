@@ -417,7 +417,7 @@ contains
   ! -------------------------------------
  
   ! define need to check the mass balance
-  checkMassBalance = .true. ! ( (ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit) .or. ixSplitOption/=deCoupled_nrgMass)
+  checkMassBalance = ( (ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit) .or. ixSplitOption/=deCoupled_nrgMass )
  
   ! modify state variable names for the mass split
   if(ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit)then
