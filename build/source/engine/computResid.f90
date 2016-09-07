@@ -239,12 +239,15 @@ contains
    mLayerVolFracHyd(iLayer)      = merge(mLayerVolFracWat(iLayer), mLayerVolFracLiq(iLayer), (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
    ! (compute the residual)
    rVec( ixSnowSoilHyd(iLayer) ) = mLayerVolFracHydTrial(iLayer) - ( (mLayerVolFracHyd(iLayer) + fVec( ixSnowSoilHyd(iLayer) )*dt) + rAdd( ixSnowSoilHyd(iLayer) ) )
+
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
  ! print result
- if(globalPrintFlag) &
+ if(globalPrintFlag)then
   write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(iJac1:iJac2)
+  write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(iJac1:iJac2)
+ endif
 
  ! end association with the necessary variabiles for the residual calculations
  end associate

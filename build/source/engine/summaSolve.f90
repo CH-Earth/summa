@@ -609,7 +609,7 @@ contains
   print*, '** numerical Jacobian:', ixNumType==ixNumRes
   write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
   do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
-  !print*, 'PAUSE: testing Jacobian'; read(*,*)
+  print*, 'PAUSE: testing Jacobian'; read(*,*)
 
   end subroutine numJacobian
 
@@ -719,6 +719,7 @@ contains
                   nState,                  & ! intent(in):    total number of state variables
                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                  .false.,                 & ! intent(in):    flag to indicate if we are processing the first iteration in a splitting operation
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   ! input: state vectors
                   stateVecNew,             & ! intent(in):    updated model state vector
@@ -859,8 +860,8 @@ contains
 
   ! print progress towards solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,i4,1x,5(e15.5,1x),5(L1,1x))') 'check convergence: ', iter, &
-    fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, matricConv, liquidConv, energyConv, watbalConv, canopyConv
+   write(*,'(a,1x,i4,1x,6(e15.5,1x),6(L1,1x))') 'check convergence: ', iter, &
+    fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, watbalConv
   endif
 
   ! end associations with variables in the data structures
