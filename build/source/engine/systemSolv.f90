@@ -118,14 +118,15 @@ contains
  ! **********************************************************************************************************
  subroutine systemSolv(&
                        ! input: model control
-                       nSnow,          & ! intent(in): number of snow layers
-                       nSoil,          & ! intent(in): number of soil layers
-                       nLayers,        & ! intent(in): total number of layers
-                       nState,         & ! intent(in): total number of state variables
-                       dt,             & ! intent(in): time step (s)
-                       maxiter,        & ! intent(in): maximum number of iterations
-                       firstSubStep,   & ! intent(in): flag to denote first sub-step
-                       computeVegFlux, & ! intent(in): flag to denote if computing energy flux over vegetation
+                       nSnow,          & ! intent(in):    number of snow layers
+                       nSoil,          & ! intent(in):    number of soil layers
+                       nLayers,        & ! intent(in):    total number of layers
+                       nState,         & ! intent(in):    total number of state variables
+                       dt,             & ! intent(in):    time step (s)
+                       maxiter,        & ! intent(in):    maximum number of iterations
+                       firstSubStep,   & ! intent(in):    flag to denote first sub-step
+                       computeVegFlux, & ! intent(in):    flag to denote if computing energy flux over vegetation
+                       ixSolution,     & ! intent(in):    index of solution method (1,2,3,...)
                        ! input/output: data structures
                        type_data,      & ! intent(in):    type of vegetation and soil
                        attr_data,      & ! intent(in):    spatial attributes
@@ -170,6 +171,7 @@ contains
  integer(i4b),intent(in)         :: maxiter                       ! maximum number of iterations
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ integer(i4b),intent(in)         :: ixSolution                    ! index of solution method (1,2,3,...)
  ! input/output: data structures
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
@@ -219,22 +221,33 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * operator splitting
  ! ------------------------------------------------------------------------------------------------------
+ ! time stepping
  real(dp)                        :: dtSplit                       ! time step for a given operator-splitting operation
  real(dp)                        :: dt_wght                       ! weight given to a given flux calculation
- integer(i4b),parameter          :: fullyCoupled=1001             ! named variable for the fully coupled solution
- integer(i4b),parameter          :: deCoupled_nrgMass=1002        ! named variable for the solution where energy and mass is decoupled
- integer(i4b)                    :: ixSplitOption=decoupled_nrgMass  ! selected operator splitting method
- !integer(i4b)                    :: ixSplitOption=fullyCoupled   ! selected operator splitting method
- integer(i4b),parameter          :: explicitEuler=2001            ! explicit Euler solution
- integer(i4b),parameter          :: implicitEuler=2002            ! implicit Euler solution
- integer(i4b)                    :: ixIterOption=explicitEuler    ! selected option for the iterations
- !integer(i4b)                    :: ixIterOption=implicitEuler    ! selected option for the iterations
- integer(i4b)                    :: nOperSplit                    ! number of splitting operations
- integer(i4b)                    :: iSplit                        ! index of splitting operation
- integer(i4b),parameter          :: nrgSplit=1                    ! order in sequence for the energy operation
- integer(i4b),parameter          :: massSplit=2                   ! order in sequence for the mass operation
  integer(i4b)                    :: iSubstep                      ! index of substep for a given variable
  integer(i4b)                    :: nSubstep                      ! number of substeps for a given variable
+ ! named variables defining the solution method
+ integer(i4b),parameter          :: fullyCoupled=1                ! 1st try: fully coupled solution
+ integer(i4b),parameter          :: splitStateType=2              ! 2nd try: split the solution by state type (energy and water)
+ integer(i4b),parameter          :: splitDomainType=3             ! 3rd try: split the solution by domain type (veg, snow, and soil)
+ integer(i4b),parameter          :: explicitEuler=4               ! 4th try: explicit Euler solution for sub-domains of a given type
+ ! maximum number of possible splits
+ integer(i4b),parameter          :: nStateTypes=2                 ! number of state types (energy, water)
+ integer(i4b),parameter          :: nDomains=3                    ! number of domains (vegetation, snow, and soil)
+ ! actual number of splits
+ integer(i4b)                    :: nStateTypeSplit               ! number of splits for the state type
+ integer(i4b)                    :: nDomainSplit                  ! number of splits for the domain
+ ! indices for the state type split
+ integer(i4b)                    :: iStateTypeSplit               ! index of the state type split
+ integer(i4b),parameter          :: nrgSplit=1                    ! order in sequence for the energy operation
+ integer(i4b),parameter          :: massSplit=2                   ! order in sequence for the mass operation
+ ! indices for the domain split
+ integer(i4b)                    :: iname_domain                  ! name of the model domain
+ integer(i4b)                    :: iDomainSplit                  ! index of the domain split
+ integer(i4b),parameter          :: vegSplit=1                    ! order in sequence for the vegetation split
+ integer(i4b),parameter          :: snowSplit=2                   ! order in sequence for the snow split
+ integer(i4b),parameter          :: soilSplit=3                   ! order in sequence for the soil split
+ ! state and flux masks for a given split
  logical(lgt),dimension(nState)  :: stateMask                     ! mask defining desired state variables
  logical(lgt),dimension(nFlux)   :: fluxMask                      ! mask defining desired flux variables
  integer(i4b)                    :: nSubset                       ! number of selected state variables for a given split
@@ -280,8 +293,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * mass balance checks
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: checkTranspire=.false.        ! flag to check transpiration
- logical(lgt)                    :: checkMassBalance              ! flag to check the mass balance
+ logical(lgt),parameter          :: checkMassBalance=.true.       ! flag to check the mass balance
  real(dp)                        :: soilBalance0,soilBalance1     ! soil storage at start and end of time step
  real(dp)                        :: canopyBalance0,canopyBalance1 ! soil storage at start and end of time step
  real(dp)                        :: vertFlux                      ! change in storage due to vertical fluxes
@@ -303,7 +315,10 @@ contains
  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
  ! indices of model state variables
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):    [i4b(:)] indices defining the type of the state (ixNrgState...)
+ ixNrgCanair             => indx_data%var(iLookINDEX%ixNrgCanair)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
+ ixNrgCanopy             => indx_data%var(iLookINDEX%ixNrgCanopy)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
  ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+ ixNrgLayer              => indx_data%var(iLookINDEX%ixNrgLayer)%dat               ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
  ixHydLayer              => indx_data%var(iLookINDEX%ixHydLayer)%dat               ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
@@ -358,6 +373,12 @@ contains
  ! initialize the first flux call
  firstFluxCall=.true.
 
+ ! check that the solution index does not exceed the method of last resort (explicit Euler)
+ if(ixSolution>explicitEuler)then
+  message=trim(message)//'solution index cannot exceed explicit Euler (method of last resort)'
+  err=20; return
+ endif
+
  ! compute the total water content in the vegetation canopy
  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
 
@@ -385,13 +406,6 @@ contains
                   err=err,message=cmessage)                                                               ! output: error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through soil layers (computing liquid water matric potential)
-
- ! define the number of operator splits
- select case(ixSplitOption)
-  case(fullyCoupled);      nOperSplit=1
-  case(deCoupled_nrgMass); nOperSplit=2
-  case default; err=20; message=trim(message)//'unable to identify operator splitting strategy'; return
- end select
 
  ! modify the groundwater representation for this single-column implementation
  select case(ixSpatialGroundwater)
@@ -425,6 +439,15 @@ contains
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
 
+ ! define the number of operator splits for the state type (energy and water) and the domain (vegetation, snow, and soil)
+ select case(ixSolution)
+  case(fullyCoupled);    nStateTypeSplit=1;           nDomainSplit=1
+  case(splitStateType);  nStateTypeSplit=nStateTypes; nDomainSplit=1 
+  case(splitDomainType); nStateTypeSplit=nStateTypes; nDomainSplit=nDomains
+  case(explicitEuler);   nStateTypeSplit=nStateTypes; nDomainSplit=nDomains
+  case default; err=20; message=trim(message)//'unable to identify solution method'; return
+ end select
+
  ! check
  if(nrgSplit > massSplit)then
   message=trim(message)//'currently energy split must be done first in order for canopy water balance to close: '//&
@@ -432,20 +455,17 @@ contains
   err=20; return
  endif
 
- ! operator splitting loop
- do iSplit=1,nOperSplit 
+ ! state type splitting loop
+ do iStateTypeSplit=1,nStateTypeSplit 
 
-  !print*, 'iSplit, nOperSplit = ', iSplit, nOperSplit
+  !print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
 
   ! -----
-  ! * define subsets for a given split...
-  ! -------------------------------------
- 
-  ! define need to check the mass balance
-  checkMassBalance = ( (ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit) .or. ixSplitOption/=deCoupled_nrgMass )
+  ! * modify state variables for the mass split...
+  ! ----------------------------------------------
  
   ! modify state variable names for the mass split
-  if(ixSplitOption==deCoupled_nrgMass .and. iSplit==massSplit)then
+  if(ixSolution/=fullyCoupled .and. iStateTypeSplit==massSplit)then
 
    ! modify the state type names associated with the state vector
    if(computeVegFlux)then
@@ -469,531 +489,587 @@ contains
 
   endif  ! if modifying state variables for the mass split
 
-  ! define mask for the decoupled solutions
-  if(ixSplitOption==deCoupled_nrgMass)then
-   select case(iSplit)
-    case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
-    case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
-    case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
-   end select
-  else  ! (fully coupled solutions)
-   stateMask(:) = .true.  ! use all state variables
-  endif
-
-  ! define the error tolerance for the different splits
-  if(ixSplitOption==deCoupled_nrgMass)then
-   errorTol = merge(errorTolNrgFlux, errorTolLiqFlux, iSplit==nrgSplit)
-  endif
-
-  ! get the number of selected state variables
-  nSubset = count(stateMask)
-
-  ! check splitting operation
-  if(nSubset==0)then
-   select case(iSplit)
-    case(nrgSplit);  err=20; message=trim(message)//'[nrgSplit] no state variables in the splitting operation';  return
-    case(massSplit); err=20; message=trim(message)//'[massSplit] no state variables in the splitting operation'; return
-    case default;    err=20; message=trim(message)//'unable to identify splitting operation'; return
-   end select
-  endif
-
-  ! get indices for a given split
-  call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
-                  nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
-                  indx_data,                   & ! intent(inout) : index data structure
-                  err,cmessage)                  ! intent(out)   : error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! make association with model indices defined in indexSplit
-  stateSubset: associate(&
-  ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,      & ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-  ixSnowOnlyHyd       => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,      & ! intent(in): [i4b(:)] indices for hydrology states in the snow subdomain
-  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,    & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
-  ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,   & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
-  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat, & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
-  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
-  ) ! associations
- 
-  ! allocate space for solution and scaling vectors
-  allocate(stateVecInit(nSubset), stateVecTrial(nSubset), stateVecNew(nSubset), fluxVec0(nSubset), fluxVecNew(nSubset), fScale(nSubset), xScale(nSubset), stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution and scaling vectors'; return; endif
-
-  ! allocate space for the diagonal matrix, multipliers and residual vectors
-  allocate(dMat(nSubset), sMul(nSubset), rVec(nSubset), rAdd(nSubset), resSinkNew(nSubset), resVecNew(nSubset), stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the diagonal matrix, multipliers, and residual vectors'; return; endif
-
-  ! if explicit Euler, then allocate space for the solution error
-  if(ixIterOption==explicitEuler)then
-   allocate(solutionError(nSubset), stat=err)
-   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution error'; return; endif
-  endif
-
-  ! identify the matrix solution method
-  ! NOTE: uses nSubset so must be defined here
-  ! (the type of matrix used to solve the linear system A.X=B)
-  if(local_ixGroundwater==qbaseTopmodel .or. forceFullMatrix)then
-   nLeadDim=nSubset        ! length of the leading dimension
-   ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
-  else
-   nLeadDim=nBands         ! length of the leading dimension
-   ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
-  endif
-
-  ! define the mask of the fluxes used
-  do iVar=1,size(flux_meta)
-   fluxMask(iVar) = any(ixStateType_subset==flux2state_meta(iVar)%state1) .or. any(ixStateType_subset==flux2state_meta(iVar)%state2)
-  end do
-
-  ! initialize the model fluxes (some model fluxes are not computed in the iterations)
-  do iVar=1,size(flux_meta)
-   ! copy over the master flux structure since some model fluxes are not computed in the iterations
-   flux_init%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
-   flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
-   ! set master flux vector to zero for the fluxes computed here
-   if(fluxMask(iVar))then
-    flux_data%var(iVar)%dat(:) = 0._dp
-   endif
-  end do
-
-  ! -----
-  ! * variable-dependent sub-stepping...
-  ! ------------------------------------
-  
-  ! define the number of substeps for each solution
-  if(ixSplitOption==deCoupled_nrgMass)then
-   select case(iSplit)
-    case(nrgSplit);  nSubstep=1
-    case(massSplit); nSubstep=1
-    case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
-   end select
-
-  ! fully implicit, then nSubstep=1
-  else
-   nSubstep=1
-  endif
-
-  ! define the length of the substep
-  dtSplit   = dt/real(nSubstep, kind(dp))
-  dtSubstep = dtSplit
-
-  ! initialize subStep
-  dtSum    = 0._dp  ! keep track of the portion of the time step that is completed
-  iSubstep = 0
-
-  ! loop through substeps
-  ! NOTE: continuous do statement with exit clause
-  substeps: do 
-
-   ! increment substep
-   iSubstep = iSubstep+1
-
-   ! test
-   !write(*,'(a,1x,3(i5,1x),a)') 'iSubstep, iSplit, nSnow = ', iSubstep, iSplit, nSnow, merge('operSplitting','fully_coupled',ixSplitOption==deCoupled_nrgMass)
-
-   ! **************************************************************************************************************************
-   ! **************************************************************************************************************************
-   ! **************************************************************************************************************************
-   ! *** NUMERICAL SOLUTION FOR A GIVEN SUBSTEP AND SPLIT *********************************************************************
-   ! **************************************************************************************************************************
-   ! **************************************************************************************************************************
-   ! **************************************************************************************************************************
+  ! domain type splitting loop
+  do iDomainSplit=1,nDomainSplit
 
    ! -----
-   ! * populate state vectors...
-   ! ---------------------------
+   ! * define subsets for a given split...
+   ! -------------------------------------
 
-   ! initialize the global print flag
-   globalPrintFlag=.false.
+   ! identify splitting option
+   select case(ixSolution)
 
-   ! initialize state vectors
-   call popStateVec(&
-                    ! input
-                    nSubset,                          & ! intent(in):    number of desired state variables
-                    prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
-                    diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
-                    indx_data,                        & ! intent(in):    indices defining model states and layers
-                    ! output
-                    stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
-                    fScale,                           & ! intent(out):   function scaling vector (mixed units)
-                    xScale,                           & ! intent(out):   variable scaling vector (mixed units)
-                    sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                    dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
-                    err,cmessage)                       ! intent(out):   error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
-   ! -----
-   ! * compute the initial function evaluation...
-   ! --------------------------------------------
-   
-   ! initialize the trial state vectors
-   stateVecTrial = stateVecInit
+    ! ** fully coupled
+    case(fullyCoupled); stateMask(:) = .true.  ! use all state variables
+
+    ! ** splitting by state type
+    case(splitStateType)
+     ! --> define mask
+     select case(iStateTypeSplit)
+      case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
+      case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
+      case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+     end select
+
+    ! ** splitting by domain
+    case(splitDomainType,explicitEuler)
+
+     ! --> identify domain type
+     select case(iDomainSplit)
+      case(vegSplit);  iname_domain = iname_veg
+      case(snowSplit); iname_domain = iname_snow
+      case(soilSplit); iname_domain = iname_soil
+      case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
+     end select
+
+     ! --> check if the domain is included
+     if(.not.computeVegFlux .and. iname_domain==iname_veg) cycle
+     if(nSnow==0 .and. iname_domain==iname_snow) cycle
+
+     ! --> define state mask
+     stateMask=.true. ! (initialize state mask)
+     select case(iStateTypeSplit)
+
+      ! define mask for energy
+      case(nrgSplit)
+       select case(iname_domain)
+        case(iname_veg)
+         stateMask(ixNrgCanair)   = .true.  ! energy of the canopy air space
+         stateMask(ixNrgCanopy)   = .true.  ! energy of the vegetation canopy
+         stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
+        case(iname_snow); stateMask(ixNrgLayer(1:nSnow)) = .true.
+        case(iname_soil); stateMask(ixNrgLayer(nSnow+1:nLayers)) = .true.
+        case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
+       end select       
   
-   ! need to intialize canopy water at a positive value
-   if(ixVegHyd/=integerMissing)then
-    if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegHyd) = scalarCanopyWat + xMinCanopyWater
-   endif
-   
-   ! try to accelerate solution for energy
-   if(iSplit==1 .and. iSubStep==1)then
-    if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
-    if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
-   endif
+      ! define mask for water
+      case(massSplit) 
+       select case(iname_domain)
+        case(iname_veg);  stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
+        case(iname_snow); stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
+        case(iname_soil); stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
+        case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
+       end select
 
-   ! compute the flux and the residual vector for a given state vector
-   ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
-   ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
-   call eval8summa(&
-                   ! input: model control
-                   dtSubstep,               & ! intent(in):    length of the time step (seconds)
-                   nSnow,                   & ! intent(in):    number of snow layers
-                   nSoil,                   & ! intent(in):    number of soil layers
-                   nLayers,                 & ! intent(in):    number of layers
-                   nSubset,                 & ! intent(in):    number of state variables in the current subset
-                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                   .true.,                  & ! intent(in):    flag to indicate if we are processing the first iteration in a splitting operation
-                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                   ! input: state vectors
-                   stateVecTrial,           & ! intent(in):    model state vector
-                   fScale,                  & ! intent(in):    function scaling vector
-                   sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
-                   ! input: data structures
-                   model_decisions,         & ! intent(in):    model decisions
-                   type_data,               & ! intent(in):    type of vegetation and soil
-                   attr_data,               & ! intent(in):    spatial attributes
-                   mpar_data,               & ! intent(in):    model parameters
-                   forc_data,               & ! intent(in):    model forcing data
-                   bvar_data,               & ! intent(in):    average model variables for the entire basin
-                   prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                   indx_data,               & ! intent(in):    index data
-                   ! input-output: data structures
-                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                   flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
-                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                   ! input-output: baseflow
-                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                   dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                   ! output
-                   feasible,                & ! intent(out):   flag to denote the feasibility of the solution
-                   fluxVec0,                & ! intent(out):   flux vector
-                   rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                   rVec,                    & ! intent(out):   residual vector
-                   fOld,                    & ! intent(out):   function evaluation
-                   err,cmessage)              ! intent(out):   error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+       ! define the error tolerance for the different splits
+       errorTol = merge(errorTolNrgFlux, errorTolLiqFlux, iStateTypeSplit==nrgSplit)
+  
+      ! check
+      case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+     end select  ! (split based on state type)
 
-   ! check feasibility (state vector SHOULD be feasible at this point)
-   if(.not.feasible)then
-    message=trim(message)//'unfeasible state vector for the initial function evaluation'
+    case default; err=20; message=trim(message)//'unable to identify solution method'; return
+   end select  ! (selecting solution method)
+  
+   ! get the number of selected state variables
+   nSubset = count(stateMask)
+
+   ! check splitting operation
+   if(nSubset==0)then
+    message=trim(message)//'no state variables in the splitting operation'
     err=20; return
    endif
- 
-   ! copy over the initial flux structure since some model fluxes are not computed in the iterations
-   do concurrent ( iVar=1:size(flux_meta) )
-    flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
-   end do
 
-   ! ** if explicit Euler, then estimate state vector at the end of the time step
-   if(ixIterOption==explicitEuler)then
-    call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,   & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
-                        fluxVec0*dtSubstep + rAdd,                                    & ! input:  right-hand-side of the state equation
-                        stateVecTrial,stateConstrained,                               & ! output: trial state vector and flag to denote that it was constrained
-                        err,cmessage)                                                   ! output: error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-   endif  ! if explicit Euler
-
-   ! ==========================================================================================================================================
-   ! ==========================================================================================================================================
-   ! ==========================================================================================================================================
-   ! ==========================================================================================================================================
-   
-   ! (1) MAIN ITERATION LOOP...
-   ! **************************
-
-   ! iterate
-   ! NOTE: this do loop is skipped in the explicitEuler solution (localMaxIter=0)
-   do iter=1,maxIter
-
-    ! print iteration count
-    !print*, '*** iter, dt = ', iter, dtSubstep, merge('nrg','wat',iSplit==nrgSplit)
- 
-    ! keep track of the number of iterations
-    niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
-  
-    ! compute the next trial state vector
-    !  1) Computes the Jacobian matrix based on derivatives from the last flux evaluation
-    !  2) Computes the iteration increment based on Jacobian and residuals from the last flux evaluation
-    !  3) Computes new fluxes and derivatives, new residuals, and (if necessary) refines the state vector
-    ! NOTE: only returns the flux vector and function evaluation when ixIterOption==explicitEuler
-    call summaSolve(&
-                    ! input: model control
-                    dtSubstep,                     & ! intent(in):    length of the time step (seconds)
-                    (ixIterOption==explicitEuler), & ! intent(in):    logical flag to only return the flux and function evaluation
-                    iter,                          & ! intent(in):    iteration index
-                    nSnow,                         & ! intent(in):    number of snow layers
-                    nSoil,                         & ! intent(in):    number of soil layers
-                    nLayers,                       & ! intent(in):    total number of layers
-                    nLeadDim,                      & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState) 
-                    nSubset,                       & ! intent(in):    total number of state variables
-                    ixMatrix,                      & ! intent(in):    type of matrix (full or band diagonal)
-                    firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
-                    firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
-                    computeVegFlux,                & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                    ! input: state vectors
-                    stateVecTrial,                 & ! intent(in):    trial state vector
-                    fScale,                        & ! intent(in):    function scaling vector
-                    xScale,                        & ! intent(in):    "variable" scaling vector, i.e., for state variables
-                    rVec,                          & ! intent(in):    residual vector
-                    sMul,                          & ! intent(in):    state vector multiplier (used in the residual calculations)
-                    dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
-                    fOld,                          & ! intent(in):    old function evaluation
-                    ! input: data structures       
-                    model_decisions,               & ! intent(in):    model decisions
-                    type_data,                     & ! intent(in):    type of vegetation and soil
-                    attr_data,                     & ! intent(in):    spatial attributes
-                    mpar_data,                     & ! intent(in):    model parameters
-                    forc_data,                     & ! intent(in):    model forcing data
-                    bvar_data,                     & ! intent(in):    average model variables for the entire basin
-                    prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
-                    indx_data,                     & ! intent(in):    index data
-                    ! input-output: data structures
-                    diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
-                    flux_temp,                     & ! intent(inout): model fluxes for a local HRU (temporary structure)
-                    deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                    ! input-output: baseflow       
-                    ixSaturation,                  & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                    dBaseflow_dMatric,             & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
-                    ! output
-                    stateVecNew,                   & ! intent(out):   new state vector
-                    fluxVecNew,                    & ! intent(out):   new flux vector
-                    resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
-                    resVecNew,                     & ! intent(out):   new residual vector
-                    fNew,                          & ! intent(out):   new function evaluation
-                    converged,                     & ! intent(out):   convergence flag
-                    err,cmessage)                    ! intent(out):   error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-    
-    ! update function evaluation, residual vector, and states
-    ! NOTE 1: The derivatives computed in summaSolve are used to calculate the Jacobian matrix at the next iteration
-    ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the new iteration increment
-    if(ixIterOption==implicitEuler)then
-     fOld          = fNew
-     rVec          = resVecNew 
-     stateVecTrial = stateVecNew
-    endif
-
-    ! print progress
-    !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec(iJac1:iJac2)
-    !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew(iJac1:iJac2)*dtSubstep
-    !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial(iJac1:iJac2)
-    !print*, 'PAUSE: check states and fluxes'; read(*,*) 
-  
-    ! exit iteration loop if converged
-    if(converged .or. ixIterOption==explicitEuler) exit
-   
-    ! check convergence
-    if(niter==maxiter)then
-     message=trim(message)//'failed to converge'
-     err=-20; return
-    endif
-    !print*, 'PAUSE: iterating'; read(*,*)
-   
-   end do  ! iterating
-   !print*, 'PAUSE: after iterations'; read(*,*)
-  
-   ! -----
-   ! * update states...
-   ! ------------------
-
-   ! identify solution method
-   select case(ixIterOption)
-
-    ! * explicit Euler: update state vector based on the average of the start-of-step and end-of-step fluxes
-    case(explicitEuler)
-
-     ! estimate state vector at the end of the time step, based on the average of start-of-step and end-of step fluxes
-     call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,            & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
-                         0.5_dp*(fluxVec0 + fluxVecNew)*dtSubstep + 0.5_dp*(rAdd + resSinkNew), & ! input:  right-hand-side of the state equation
-                         stateVecTrial,stateConstrained,                                        & ! output: trial state vector and flag to denote that it was constrained
-                         err,cmessage)                                                            ! output: error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-     ! check if the state is constrained
-     if(stateConstrained)then
-      message=trim(message)//'do not expect constrained state for the explicit Heun solution'
-      err=20; return
-     endif
-
-     ! estimate the solution error
-     solutionError(:) = (fluxVec0(:)*dtSubstep + rAdd(:)) - (fluxVecNew(:)*dtSubstep + resSinkNew(:))
-
-     ! print progress
-     write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0(iJac1:iJac2)
-     write(*,'(a,1x,10(f20.10,1x))') 'fluxVecNew    = ', fluxVecNew(iJac1:iJac2)
-     write(*,'(a,1x,10(f20.10,1x))') 'rAdd          = ', rAdd(iJac1:iJac2)
-     write(*,'(a,1x,10(f20.10,1x))') 'resSinkNew    = ', resSinkNew(iJac1:iJac2)
-     write(*,'(a,1x,10(f20.10,1x))') 'stateVecInit  = ', stateVecInit(iJac1:iJac2)
-     write(*,'(a,1x,10(f20.10,1x))') 'stateVecTrial = ', stateVecTrial(iJac1:iJac2)
-     write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew   = ', stateVecNew(iJac1:iJac2)
-     write(*,'(a,1x,10(f20.10,1x))') 'solutionError = ', solutionError(iJac1:iJac2)
-     print*, 'dt = ', dtSplit, dtSubstep, dtSum
-     if(iSplit==2)then
-      print*, 'PAUSE: checking state vector for the explicit Euler solution'; read(*,*)
-     endif
-
-     ! if the time step is rejected, then reduce the length of the substep and cycle
-     errorMax = maxval( abs(solutionError) )
-     if(errorMax(1) > errorTol)then
-      dtSubstep = dtSubstep*max(safety*sqrt(errorTol/errorMax(1)), reduceMin)
-      cycle substeps
-     endif
-
-     ! if the time step is accepted then check the need to increase the time step length
-     dtSubstep = dtSubstep*min(safety*sqrt(errorTol/errorMax(1)), increaseMax)
-
-    ! * implicit Euler: update state vector to be consistent with the fluxes 
-    case(implicitEuler)
-
-     ! update temperatures (ensure new temperature is consistent with the fluxes)
-     if(nSnowSoilNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-       iState = ixSnowSoilNrg(iLayer)
-       stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dtSubstep + resSinkNew(iState))/real(sMul(iState), dp)
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
-     endif
-   
-     ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
-     ! NOTE: for soil water balance is constrained within the iteration loop
-     if(nSnowSoilHyd>0)then
-      do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow domain)
-       iState = ixSnowSoilHyd(iLayer)
-       stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dtSubstep + resSinkNew(iState))
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
-     endif
-
-    case default; err=20; message=trim(message)//'cannot find iterative option (expect explicitEuler or explicitEuler)'; return
-
-   end select  ! iterative option
-    
-   ! -----
-   ! * update model fluxes...
-   ! ------------------------
- 
-   ! average start-of-step and end-of-step fluxes for explicit Euler
-   if(ixIterOption==explicitEuler)then
-    do iVar=1,size(flux_meta)
-     if(fluxMask(iVar)) flux_temp%var(iVar)%dat(:) = 0.5_dp*(flux_init%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:) )
-    end do
+   ! identify the matrix solution method
+   ! NOTE: uses nSubset so must be defined here
+   ! (the type of matrix used to solve the linear system A.X=B)
+   if(local_ixGroundwater==qbaseTopmodel .or. forceFullMatrix)then
+    nLeadDim=nSubset        ! length of the leading dimension
+    ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
+   else
+    nLeadDim=nBands         ! length of the leading dimension
+    ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
    endif
 
-   ! increment fluxes
-   dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation) 
+   ! -----
+   ! * assemble vectors for a given split...
+   ! ---------------------------------------
+
+   ! get indices for a given split
+   call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
+                   nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
+                   indx_data,                   & ! intent(inout) : index data structure
+                   err,cmessage)                  ! intent(out)   : error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+   ! make association with model indices defined in indexSplit
+   stateSubset: associate(&
+   ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,      & ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+   ixSnowOnlyHyd       => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,      & ! intent(in): [i4b(:)] indices for hydrology states in the snow subdomain
+   ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,    & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+   ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,   & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+   ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat, & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+   ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+   ) ! associations
+  
+   ! allocate space for solution and scaling vectors
+   allocate(stateVecInit(nSubset), stateVecTrial(nSubset), stateVecNew(nSubset), fluxVec0(nSubset), fluxVecNew(nSubset), fScale(nSubset), xScale(nSubset), stat=err)
+   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution and scaling vectors'; return; endif
+  
+   ! allocate space for the diagonal matrix, multipliers and residual vectors
+   allocate(dMat(nSubset), sMul(nSubset), rVec(nSubset), rAdd(nSubset), resSinkNew(nSubset), resVecNew(nSubset), stat=err)
+   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the diagonal matrix, multipliers, and residual vectors'; return; endif
+  
+   ! if explicit Euler, then allocate space for the solution error
+   if(ixSolution==explicitEuler)then
+    allocate(solutionError(nSubset), stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution error'; return; endif
+   endif
+  
+   ! define the mask of the fluxes used
    do iVar=1,size(flux_meta)
-    if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+    fluxMask(iVar) = any(ixStateType_subset==flux2state_meta(iVar)%state1) .or. any(ixStateType_subset==flux2state_meta(iVar)%state2)
    end do
-
+  
+   ! initialize the model fluxes (some model fluxes are not computed in the iterations)
+   do iVar=1,size(flux_meta)
+    ! copy over the master flux structure since some model fluxes are not computed in the iterations
+    flux_init%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
+    flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
+    ! set master flux vector to zero for the fluxes computed here
+    if(fluxMask(iVar))then
+     flux_data%var(iVar)%dat(:) = 0._dp
+    endif
+   end do
+  
    ! -----
-   ! * extract variables and update states...
-   ! ----------------------------------------
+   ! * variable-dependent sub-stepping...
+   ! ------------------------------------
+   
+   ! define the number of substeps for each solution
+   if(ixSolution/=fullyCoupled)then
+    select case(iStateTypeSplit)
+     case(nrgSplit);  nSubstep=1
+     case(massSplit); nSubstep=1
+     case default; err=20; message=trim(message)//'unable to identify splitting operation'; return
+    end select
+  
+   ! fully implicit, then nSubstep=1
+   else
+    nSubstep=1
+   endif
+  
+   ! define the length of the substep
+   dtSplit   = dt/real(nSubstep, kind(dp))
+   dtSubstep = dtSplit
+  
+   ! initialize subStep
+   dtSum    = 0._dp  ! keep track of the portion of the time step that is completed
+   iSubstep = 0
+  
+   ! loop through substeps
+   ! NOTE: continuous do statement with exit clause
+   substeps: do 
+  
+    ! increment substep
+    iSubstep = iSubstep+1
+  
+    ! test
+    !write(*,'(a,1x,3(i5,1x),a)') 'iSubstep, iStateTypeSplit, nSnow = ', iSubstep, iStateTypeSplit, nSnow, merge('operSplitting','fully_coupled',ixSplitOption/=fullyCoupled)
+  
+    ! **************************************************************************************************************************
+    ! **************************************************************************************************************************
+    ! **************************************************************************************************************************
+    ! *** NUMERICAL SOLUTION FOR A GIVEN SUBSTEP AND SPLIT *********************************************************************
+    ! **************************************************************************************************************************
+    ! **************************************************************************************************************************
+    ! **************************************************************************************************************************
+  
+    ! -----
+    ! * populate state vectors...
+    ! ---------------------------
+  
+    ! initialize the global print flag
+    globalPrintFlag=.false.
+  
+    ! initialize state vectors
+    call popStateVec(&
+                     ! input
+                     nSubset,                          & ! intent(in):    number of desired state variables
+                     prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
+                     diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                     indx_data,                        & ! intent(in):    indices defining model states and layers
+                     ! output
+                     stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
+                     fScale,                           & ! intent(out):   function scaling vector (mixed units)
+                     xScale,                           & ! intent(out):   variable scaling vector (mixed units)
+                     sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                     dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
+                     err,cmessage)                       ! intent(out):   error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  
+    ! -----
+    ! * compute the initial function evaluation...
+    ! --------------------------------------------
+    
+    ! initialize the trial state vectors
+    stateVecTrial = stateVecInit
+   
+    ! need to intialize canopy water at a positive value
+    if(ixVegHyd/=integerMissing)then
+     if(scalarCanopyWat < xMinCanopyWater) stateVecTrial(ixVegHyd) = scalarCanopyWat + xMinCanopyWater
+    endif
+    
+    ! try to accelerate solution for energy
+    if(iStateTypeSplit==nrgSplit .and. iSubStep==1)then
+     if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
+     if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
+    endif
+  
+    ! compute the flux and the residual vector for a given state vector
+    ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
+    ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
+    call eval8summa(&
+                    ! input: model control
+                    dtSubstep,               & ! intent(in):    length of the time step (seconds)
+                    nSnow,                   & ! intent(in):    number of snow layers
+                    nSoil,                   & ! intent(in):    number of soil layers
+                    nLayers,                 & ! intent(in):    number of layers
+                    nSubset,                 & ! intent(in):    number of state variables in the current subset
+                    firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                    firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                    .true.,                  & ! intent(in):    flag to indicate if we are processing the first iteration in a splitting operation
+                    computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                    ! input: state vectors
+                    stateVecTrial,           & ! intent(in):    model state vector
+                    fScale,                  & ! intent(in):    function scaling vector
+                    sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                    ! input: data structures
+                    model_decisions,         & ! intent(in):    model decisions
+                    type_data,               & ! intent(in):    type of vegetation and soil
+                    attr_data,               & ! intent(in):    spatial attributes
+                    mpar_data,               & ! intent(in):    model parameters
+                    forc_data,               & ! intent(in):    model forcing data
+                    bvar_data,               & ! intent(in):    average model variables for the entire basin
+                    prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                    indx_data,               & ! intent(in):    index data
+                    ! input-output: data structures
+                    diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                    flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
+                    deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                    ! input-output: baseflow
+                    ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                    dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                    ! output
+                    feasible,                & ! intent(out):   flag to denote the feasibility of the solution
+                    fluxVec0,                & ! intent(out):   flux vector
+                    rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                    rVec,                    & ! intent(out):   residual vector
+                    fOld,                    & ! intent(out):   function evaluation
+                    err,cmessage)              ! intent(out):   error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  
+    ! check feasibility (state vector SHOULD be feasible at this point)
+    if(.not.feasible)then
+     message=trim(message)//'unfeasible state vector for the initial function evaluation'
+     err=20; return
+    endif
+  
+    ! copy over the initial flux structure since some model fluxes are not computed in the iterations
+    do concurrent ( iVar=1:size(flux_meta) )
+     flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
+    end do
+  
+    ! ** if explicit Euler, then estimate state vector at the end of the time step
+    if(ixSolution==explicitEuler)then
+     call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,   & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
+                         fluxVec0*dtSubstep + rAdd,                                    & ! input:  right-hand-side of the state equation
+                         stateVecTrial,stateConstrained,                               & ! output: trial state vector and flag to denote that it was constrained
+                         err,cmessage)                                                   ! output: error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+    endif  ! if explicit Euler
+  
+    ! ==========================================================================================================================================
+    ! ==========================================================================================================================================
+    ! ==========================================================================================================================================
+    ! ==========================================================================================================================================
+    
+    ! (1) MAIN ITERATION LOOP...
+    ! **************************
+  
+    ! iterate
+    ! NOTE: this do loop is skipped in the explicitEuler solution (localMaxIter=0)
+    do iter=1,maxIter
+  
+     ! print iteration count
+     !print*, '*** iter, dt = ', iter, dtSubstep, merge('nrg','wat',iStateTypeSplit==nrgSplit)
+  
+     ! keep track of the number of iterations
+     niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
+   
+     ! compute the next trial state vector
+     !  1) Computes the Jacobian matrix based on derivatives from the last flux evaluation
+     !  2) Computes the iteration increment based on Jacobian and residuals from the last flux evaluation
+     !  3) Computes new fluxes and derivatives, new residuals, and (if necessary) refines the state vector
+     ! NOTE: only returns the flux vector and function evaluation when ixSolution==explicitEuler
+     call summaSolve(&
+                     ! input: model control
+                     dtSubstep,                     & ! intent(in):    length of the time step (seconds)
+                     (ixSolution==explicitEuler),   & ! intent(in):    logical flag to only return the flux and function evaluation
+                     iter,                          & ! intent(in):    iteration index
+                     nSnow,                         & ! intent(in):    number of snow layers
+                     nSoil,                         & ! intent(in):    number of soil layers
+                     nLayers,                       & ! intent(in):    total number of layers
+                     nLeadDim,                      & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState) 
+                     nSubset,                       & ! intent(in):    total number of state variables
+                     ixMatrix,                      & ! intent(in):    type of matrix (full or band diagonal)
+                     firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
+                     firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
+                     computeVegFlux,                & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                     ! input: state vectors
+                     stateVecTrial,                 & ! intent(in):    trial state vector
+                     fScale,                        & ! intent(in):    function scaling vector
+                     xScale,                        & ! intent(in):    "variable" scaling vector, i.e., for state variables
+                     rVec,                          & ! intent(in):    residual vector
+                     sMul,                          & ! intent(in):    state vector multiplier (used in the residual calculations)
+                     dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
+                     fOld,                          & ! intent(in):    old function evaluation
+                     ! input: data structures       
+                     model_decisions,               & ! intent(in):    model decisions
+                     type_data,                     & ! intent(in):    type of vegetation and soil
+                     attr_data,                     & ! intent(in):    spatial attributes
+                     mpar_data,                     & ! intent(in):    model parameters
+                     forc_data,                     & ! intent(in):    model forcing data
+                     bvar_data,                     & ! intent(in):    average model variables for the entire basin
+                     prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
+                     indx_data,                     & ! intent(in):    index data
+                     ! input-output: data structures
+                     diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
+                     flux_temp,                     & ! intent(inout): model fluxes for a local HRU (temporary structure)
+                     deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                     ! input-output: baseflow       
+                     ixSaturation,                  & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                     dBaseflow_dMatric,             & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
+                     ! output
+                     stateVecNew,                   & ! intent(out):   new state vector
+                     fluxVecNew,                    & ! intent(out):   new flux vector
+                     resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
+                     resVecNew,                     & ! intent(out):   new residual vector
+                     fNew,                          & ! intent(out):   new function evaluation
+                     converged,                     & ! intent(out):   convergence flag
+                     err,cmessage)                    ! intent(out):   error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+     
+     ! update function evaluation, residual vector, and states
+     ! NOTE 1: The derivatives computed in summaSolve are used to calculate the Jacobian matrix at the next iteration
+     ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the new iteration increment
+     if(ixSolution/=explicitEuler)then
+      fOld          = fNew
+      rVec          = resVecNew 
+      stateVecTrial = stateVecNew
+     endif
+  
+     ! print progress
+     !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec(iJac1:iJac2)
+     !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew(iJac1:iJac2)*dtSubstep
+     !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial(iJac1:iJac2)
+     !print*, 'PAUSE: check states and fluxes'; read(*,*) 
+   
+     ! exit iteration loop if converged
+     if(converged .or. ixSolution==explicitEuler) exit
+    
+     ! check convergence
+     if(niter==maxiter)then
+      message=trim(message)//'failed to converge'
+      err=-20; return
+     endif
+     !print*, 'PAUSE: iterating'; read(*,*)
+    
+    end do  ! iterating
+    !print*, 'PAUSE: after iterations'; read(*,*)
+   
+    ! -----
+    ! * update states...
+    ! ------------------
+  
+    ! identify solution method
+    select case(ixSolution)
+  
+     ! * explicit Euler: update state vector based on the average of the start-of-step and end-of-step fluxes
+     case(explicitEuler)
+  
+      ! estimate state vector at the end of the time step, based on the average of start-of-step and end-of step fluxes
+      call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,            & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
+                          0.5_dp*(fluxVec0 + fluxVecNew)*dtSubstep + 0.5_dp*(rAdd + resSinkNew), & ! input:  right-hand-side of the state equation
+                          stateVecTrial,stateConstrained,                                        & ! output: trial state vector and flag to denote that it was constrained
+                          err,cmessage)                                                            ! output: error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  
+      ! check if the state is constrained
+      if(stateConstrained)then
+       message=trim(message)//'do not expect constrained state for the explicit Heun solution'
+       err=20; return
+      endif
+  
+      ! estimate the solution error
+      solutionError(:) = (fluxVec0(:)*dtSubstep + rAdd(:)) - (fluxVecNew(:)*dtSubstep + resSinkNew(:))
+  
+      ! print progress
+      write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0(iJac1:iJac2)
+      write(*,'(a,1x,10(f20.10,1x))') 'fluxVecNew    = ', fluxVecNew(iJac1:iJac2)
+      write(*,'(a,1x,10(f20.10,1x))') 'rAdd          = ', rAdd(iJac1:iJac2)
+      write(*,'(a,1x,10(f20.10,1x))') 'resSinkNew    = ', resSinkNew(iJac1:iJac2)
+      write(*,'(a,1x,10(f20.10,1x))') 'stateVecInit  = ', stateVecInit(iJac1:iJac2)
+      write(*,'(a,1x,10(f20.10,1x))') 'stateVecTrial = ', stateVecTrial(iJac1:iJac2)
+      write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew   = ', stateVecNew(iJac1:iJac2)
+      write(*,'(a,1x,10(f20.10,1x))') 'solutionError = ', solutionError(iJac1:iJac2)
+      print*, 'dt = ', dtSplit, dtSubstep, dtSum
+      if(iStateTypeSplit/=nrgSplit)then
+       print*, 'PAUSE: checking state vector for the explicit Euler solution'; read(*,*)
+      endif
+  
+      ! if the time step is rejected, then reduce the length of the substep and cycle
+      errorMax = maxval( abs(solutionError) )
+      if(errorMax(1) > errorTol)then
+       dtSubstep = dtSubstep*max(safety*sqrt(errorTol/errorMax(1)), reduceMin)
+       cycle substeps
+      endif
+  
+      ! if the time step is accepted then check the need to increase the time step length
+      dtSubstep = dtSubstep*min(safety*sqrt(errorTol/errorMax(1)), increaseMax)
+  
+     ! * implicit Euler: update state vector to be consistent with the fluxes 
+     case default
+  
+      ! update temperatures (ensure new temperature is consistent with the fluxes)
+      if(nSnowSoilNrg>0)then
+       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+        iState = ixSnowSoilNrg(iLayer)
+        stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dtSubstep + resSinkNew(iState))/real(sMul(iState), dp)
+       end do  ! looping through non-missing energy state variables in the snow+soil domain
+      endif
+    
+      ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
+      ! NOTE: for soil water balance is constrained within the iteration loop
+      if(nSnowSoilHyd>0)then
+       do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow domain)
+        iState = ixSnowSoilHyd(iLayer)
+        stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dtSubstep + resSinkNew(iState))
+       end do  ! looping through non-missing energy state variables in the snow+soil domain
+      endif
+  
+    end select  ! solution method
+     
+    ! -----
+    ! * update model fluxes...
+    ! ------------------------
+  
+    ! average start-of-step and end-of-step fluxes for explicit Euler
+    if(ixSolution==explicitEuler)then
+     do iVar=1,size(flux_meta)
+      if(fluxMask(iVar)) flux_temp%var(iVar)%dat(:) = 0.5_dp*(flux_init%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:) )
+     end do
+    endif
+  
+    ! increment fluxes
+    dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation) 
+    do iVar=1,size(flux_meta)
+     if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+    end do
+  
+    ! -----
+    ! * extract variables and update states...
+    ! ----------------------------------------
+  
+    ! extract states from the state vector 
+    call varExtract(&
+                    ! input
+                    stateVecTrial,            & ! intent(in):    model state vector (mixed units)
+                    diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
+                    prog_data,                & ! intent(in):    model prognostic variables for a local HRU
+                    indx_data,                & ! intent(in):    indices defining model states and layers
+                    ! output: variables for the vegetation canopy
+                    scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
+                    scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                    scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
+                    ! output: variables for the snow-soil domain
+                    mLayerTempTrial,          & ! intent(inout): trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
+                    mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
+                    mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                    ! output: error control
+                    err,cmessage)               ! intent(out):   error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    !print*, 'PAUSE: after varExtract'; read(*,*)
+  
+    ! update diagnostic variables
+    call updateVars(&
+                    ! input
+                    (iStateTypeSplit==massSplit),              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                    mpar_data,                                 & ! intent(in):    model parameters for a local HRU
+                    indx_data,                                 & ! intent(in):    indices defining model states and layers
+                    prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                    diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
+                    deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                    ! output: variables for the vegetation canopy
+                    scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                    scalarCanopyIceTrial,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
+                    ! output: variables for the snow-soil domain
+                    mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,                     & ! intent(inout): trial vector of volumetric liquid water content (-)
+                    mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
+                    mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
+                    ! output: error control
+                    err,cmessage)                                ! intent(out):   error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    !print*, 'PAUSE: after updateVars'; read(*,*)
+  
+    ! -----
+    ! * extract state variables for the start of the next time step...
+    ! ----------------------------------------------------------------
+  
+    ! build elements of the state vector for the vegetation canopy
+    scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
+    scalarCanopyTemp    = scalarCanopyTempTrial    ! trial value of canopy temperature (K)
+    scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2) kg m-2
+    scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)kg m-2
+    scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2) kg m-2
+  
+    ! build elements of the state vector for the snow+soil domain
+    mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)
+    mLayerVolFracWat    = mLayerVolFracWatTrial    ! trial vector of volumetric total water content (-)
+    mLayerVolFracLiq    = mLayerVolFracLiqTrial    ! trial vector of volumetric liquid water content (-)
+    mLayerVolFracIce    = mLayerVolFracIceTrial    ! trial vector of volumetric ice water content (-)
+    mLayerMatricHead    = mLayerMatricHeadTrial    ! trial vector of matric head (m)
+    mLayerMatricHeadLiq = mLayerMatricHeadLiqTrial ! trial vector of matric head (m)
+  
+    ! ------------------------------------------------------
+    ! ------------------------------------------------------
+  
+    ! increment sub-step
+    dtSum = dtSum + dtSubstep
+  
+    ! check that we have completed the sub-step
+    if(dtSum >= dt) exit substeps
+  
+    ! adjust length of the sub-step (make sure that we don't exceed the step)
+    dtSubstep = min(dt - dtSum, dtSubstep)
+  
+   end do substeps  ! time steps for variable-dependent sub-stepping
+  
+   ! end associations with variables for the state update
+   end associate stateSubset
+  
+   ! deallocate space for temporary vectors
+   deallocate(stateVecInit, stateVecTrial, stateVecNew, fluxVec0, fluxVecNew, fScale, xScale, dMat, sMul, rVec, rAdd, resSinkNew, resVecNew, stat=err)
+   if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for temporary vectors'; return; endif
+  
+   ! if explicit Euler, then deallocate space for the solution error
+   if(ixSolution==explicitEuler)then
+    deallocate(solutionError, stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution error'; return; endif
+   endif
 
-   ! extract states from the state vector 
-   call varExtract(&
-                   ! input
-                   stateVecTrial,            & ! intent(in):    model state vector (mixed units)
-                   diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
-                   prog_data,                & ! intent(in):    model prognostic variables for a local HRU
-                   indx_data,                & ! intent(in):    indices defining model states and layers
-                   ! output: variables for the vegetation canopy
-                   scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
-                   scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
-                   scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
-                   scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                   scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
-                   ! output: variables for the snow-soil domain
-                   mLayerTempTrial,          & ! intent(inout): trial vector of layer temperature (K)
-                   mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
-                   mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                   mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
-                   mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
-                   mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
-                   ! output: error control
-                   err,cmessage)               ! intent(out):   error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   !print*, 'PAUSE: after varExtract'; read(*,*)
-
-   ! update diagnostic variables
-   call updateVars(&
-                   ! input
-                   (iSplit==massSplit),                       & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                   mpar_data,                                 & ! intent(in):    model parameters for a local HRU
-                   indx_data,                                 & ! intent(in):    indices defining model states and layers
-                   prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                   diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
-                   deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                   ! output: variables for the vegetation canopy
-                   scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
-                   scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
-                   scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                   scalarCanopyIceTrial,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
-                   ! output: variables for the snow-soil domain
-                   mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
-                   mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
-                   mLayerVolFracLiqTrial,                     & ! intent(inout): trial vector of volumetric liquid water content (-)
-                   mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
-                   mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
-                   mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
-                   ! output: error control
-                   err,cmessage)                                ! intent(out):   error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   !print*, 'PAUSE: after updateVars'; read(*,*)
-
-   ! -----
-   ! * extract state variables for the start of the next time step...
-   ! ----------------------------------------------------------------
- 
-   ! build elements of the state vector for the vegetation canopy
-   scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
-   scalarCanopyTemp    = scalarCanopyTempTrial    ! trial value of canopy temperature (K)
-   scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2) kg m-2
-   scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)kg m-2
-   scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2) kg m-2
-
-   ! build elements of the state vector for the snow+soil domain
-   mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)
-   mLayerVolFracWat    = mLayerVolFracWatTrial    ! trial vector of volumetric total water content (-)
-   mLayerVolFracLiq    = mLayerVolFracLiqTrial    ! trial vector of volumetric liquid water content (-)
-   mLayerVolFracIce    = mLayerVolFracIceTrial    ! trial vector of volumetric ice water content (-)
-   mLayerMatricHead    = mLayerMatricHeadTrial    ! trial vector of matric head (m)
-   mLayerMatricHeadLiq = mLayerMatricHeadLiqTrial ! trial vector of matric head (m)
-
-   ! ------------------------------------------------------
-   ! ------------------------------------------------------
-
-   ! increment sub-step
-   dtSum = dtSum + dtSubstep
-
-   ! check that we have completed the sub-step
-   if(dtSum >= dt) exit substeps
-
-   ! adjust length of the sub-step (make sure that we don't exceed the step)
-   dtSubstep = min(dt - dtSum, dtSubstep)
-
-  end do substeps  ! time steps for variable-dependent sub-stepping
-
-  ! end associations with variables for the state update
-  end associate stateSubset
-
-  ! deallocate space for temporary vectors
-  deallocate(stateVecInit, stateVecTrial, stateVecNew, fluxVec0, fluxVecNew, fScale, xScale, dMat, sMul, rVec, rAdd, resSinkNew, resVecNew, stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'unable to deallocate space for temporary vectors'; return; endif
-
-  ! if explicit Euler, then deallocate space for the solution error
-  if(ixIterOption==explicitEuler)then
-   deallocate(solutionError, stat=err)
-   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution error'; return; endif
-  endif
-
- end do  ! operator splitting loop 
+  end do  ! domain type splitting loop
+ end do  ! state type splitting loop 
  !print*, 'PAUSE: end of splitting loop'; read(*,*)
 
  ! ==========================================================================================================================================

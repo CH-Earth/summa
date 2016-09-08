@@ -188,6 +188,7 @@ contains
  integer(i4b)                         :: nTrial                 ! number of trial sub-steps
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
  logical(lgt)                         :: rejectedStep           ! flag to denote if the sub-step is rejected (convergence problem, etc.)
+ integer(i4b)                         :: ixSolution             ! index of the solution method (1,2,3...)
  logical(lgt),parameter               :: checkTimeStepping=.false.      ! flag to denote a desire to check the time stepping 
  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
  ! balance checks
@@ -661,35 +662,48 @@ contains
 
    endif  ! if the step was not rejected
 
+   ixSolution=0
 
-   ! get the new solution
-   call systemSolv(&
-                   ! input: model control
-                   nSnow,                                  & ! intent(in): number of snow layers
-                   nSoil,                                  & ! intent(in): number of soil layers
-                   nLayers,                                & ! intent(in): total number of layers
-                   nState,                                 & ! intent(in): total number of layers
-                   dt_temp,                                & ! intent(in): length of the model sub-step
-                   maxiter,                                & ! intent(in): maximum number of iterations
-                   (nsub==1),                              & ! intent(in): logical flag to denote the first substep
-                   computeVegFlux,                         & ! intent(in): logical flag to compute fluxes within the vegetation canopy
-                   ! input/output: data structures
-                   type_data,                              & ! intent(in):    type of vegetation and soil
-                   attr_data,                              & ! intent(in):    spatial attributes
-                   forc_data,                              & ! intent(in):    model forcing data
-                   mpar_data,                              & ! intent(in):    model parameters
-                   indx_data,                              & ! intent(inout): index data
-                   prog_data,                              & ! intent(inout): model prognostic variables for a local HRU
-                   diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
-                   flux_data,                              & ! intent(inout): model fluxes for a local HRU
-                   bvar_data,                              & ! intent(in):    model variables for the local basin
-                   model_decisions,                        & ! intent(in):    model decisions
-                   ! output: model control
-                   niter,                                  & ! intent(out): number of iterations
-                   err,cmessage)                             ! intent(out): error code and error message
+   ! try and solve the model equations
+   solution: do
 
-   ! check for fatal errors
-   if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+    ! increment the solution index
+    ixSolution = ixSolution+1
+
+    ! get the new solution
+    call systemSolv(&
+                    ! input: model control
+                    nSnow,                                  & ! intent(in): number of snow layers
+                    nSoil,                                  & ! intent(in): number of soil layers
+                    nLayers,                                & ! intent(in): total number of layers
+                    nState,                                 & ! intent(in): total number of layers
+                    dt_temp,                                & ! intent(in): length of the model sub-step
+                    maxiter,                                & ! intent(in): maximum number of iterations
+                    (nsub==1),                              & ! intent(in): logical flag to denote the first substep
+                    computeVegFlux,                         & ! intent(in): logical flag to compute fluxes within the vegetation canopy
+                    ixSolution,                             & ! intent(in): index of solution method (1,2,3,...)
+                    ! input/output: data structures
+                    type_data,                              & ! intent(in):    type of vegetation and soil
+                    attr_data,                              & ! intent(in):    spatial attributes
+                    forc_data,                              & ! intent(in):    model forcing data
+                    mpar_data,                              & ! intent(in):    model parameters
+                    indx_data,                              & ! intent(inout): index data
+                    prog_data,                              & ! intent(inout): model prognostic variables for a local HRU
+                    diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
+                    flux_data,                              & ! intent(inout): model fluxes for a local HRU
+                    bvar_data,                              & ! intent(in):    model variables for the local basin
+                    model_decisions,                        & ! intent(in):    model decisions
+                    ! output: model control
+                    niter,                                  & ! intent(out): number of iterations
+                    err,cmessage)                             ! intent(out): error code and error message
+
+    ! check for fatal errors
+    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+    ! check for success
+    if(err==0) exit solution
+
+   end do solution  ! different solution trials
 
    !print*, trim(cmessage)
    !pause 'completed step!'
