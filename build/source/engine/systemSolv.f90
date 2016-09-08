@@ -261,6 +261,7 @@ contains
  real(qp),allocatable            :: rVec(:)       ! NOTE: qp      ! residual vector
  real(dp),allocatable            :: rAdd(:)                       ! additional terms in the residual vector
  real(dp)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
+ logical(lgt)                    :: stateConstrained              ! flag to denote if the state was constrained in the explicit update
  logical(lgt)                    :: feasible                      ! flag to define the feasibility of the solution
  logical(lgt)                    :: converged                     ! convergence flag
  real(dp),allocatable            :: resSinkNew(:)                 ! additional terms in the residual vector
@@ -500,10 +501,12 @@ contains
   stateSubset: associate(&
   ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,      & ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
   ixSnowOnlyHyd       => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,      & ! intent(in): [i4b(:)] indices for hydrology states in the snow subdomain
+  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,    & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+  ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,   & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
   ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat, & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
   ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
   ) ! associations
-  
+ 
   ! allocate space for solution and scaling vectors
   allocate(stateVecInit(nSubset), stateVecTrial(nSubset), stateVecNew(nSubset), fluxVec0(nSubset), fluxVecNew(nSubset), fScale(nSubset), xScale(nSubset), stat=err)
   if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the solution and scaling vectors'; return; endif
@@ -685,21 +688,11 @@ contains
 
    ! ** if explicit Euler, then estimate state vector at the end of the time step
    if(ixIterOption==explicitEuler)then
-    ! --> update state vector
-    stateVecTrial(:) = stateVecInit(:) + (fluxVec0(:)*dtSubstep + rAdd(:))/real(sMul(:), dp)
-    ! --> impose constraints
-    do concurrent (iState=1:nSubset)
-     select case( ixStateType_subset(iState) )
-      ! impose non-negativity constraints for mass states
-      case(iname_watCanopy,iname_liqCanopy,iname_watLayer,iname_liqLayer)
-       if(stateVecTrial(iState) < 0._dp) stateVecTrial(iState)=0._dp
-      ! impose below-freezing constraints for snow temperature
-      case(iname_nrgLayer)
-       if(ixDomainType_subset(iState)==iname_snow .and. stateVecTrial(iState) > Tfreeze) stateVecTrial(iState)=Tfreeze
-      ! skip unconstrained states
-      case default; cycle
-     end select  ! selecting state variables
-    end do ! looping through states
+    call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,   & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
+                        fluxVec0*dtSubstep + rAdd,                                    & ! input:  right-hand-side of the state equation
+                        stateVecTrial,stateConstrained,                               & ! output: trial state vector and flag to denote that it was constrained
+                        err,cmessage)                                                   ! output: error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
    endif  ! if explicit Euler
 
    ! ==========================================================================================================================================
@@ -1096,5 +1089,126 @@ contains
  end associate globalVars
 
  end subroutine systemSolv
+
+ ! **********************************************************************************************************
+ ! private subroutine explicitUpdate: update the states using the explicit Euler method
+ ! **********************************************************************************************************
+ subroutine explicitUpdate(&
+                           indx_data,             & ! intent(in)  : state indices
+                           mpar_data,             & ! intent(in)  : model parameters
+                           prog_data,             & ! intent(in)  : model prognostic variables
+                           deriv_data,            & ! intent(in)  : state derivatives
+                           stateVecInit,          & ! intent(in)  : initial state vector
+                           stateVecMult,          & ! intent(in)  : state vector multiplier
+                           riteHandSide,          & ! intent(in)  : right-hand-side of the state equation
+                           stateVecNew,           & ! intent(out) : new state vector
+                           constrained,           & ! intent(out) : flag to denote if the state was constrained
+                           err,message)             ! intent(out) : error control
+ USE var_lookup,only:iLookDERIV                     ! named variables for structure elements
+ implicit none
+ ! input
+ type(var_ilength),intent(in)  :: indx_data         ! state indices
+ type(var_d)      ,intent(in)  :: mpar_data         ! model parameters
+ type(var_dlength),intent(in)  :: prog_data         ! model prognostic variables
+ type(var_dlength),intent(in)  :: deriv_data        ! derivatives in model fluxes w.r.t. relevant state variables
+ real(dp)         ,intent(in)  :: stateVecInit(:)   ! initial state vector   
+ real(qp)         ,intent(in)  :: stateVecMult(:)   ! state vector multiplier
+ real(dp)         ,intent(in)  :: riteHandSide(:)   ! right-hand-side of the state equation
+ ! output
+ real(dp)         ,intent(out) :: stateVecNew(:)    ! new state vector
+ logical(lgt)     ,intent(out) :: constrained       ! flag to denote if the state was constrained
+ integer(i4b)     ,intent(out) :: err               ! error code
+ character(*)     ,intent(out) :: message           ! error message
+ ! local variables
+ integer(i4b)                  :: iState            ! state index
+ integer(i4b)                  :: ixFullVector      ! index in the full state vector
+ integer(i4b)                  :: ixControlIndex    ! index of the control volume for different domains (veg, snow, soil) 
+ real(dp)                      :: convFactor        ! conversion factor 
+ real(dp)                      :: valueMin,valueMax ! minimum and maximum state values    
+ ! --------------------------------------------------------------------------------------------------------------
+
+ ! make association with model indices defined in indexSplit
+ associate(&
+  theta_sat           => mpar_data%var(iLookPARAM%theta_sat),              & ! intent(in): [dp]     soil porosity (-)
+  theta_res           => mpar_data%var(iLookPARAM%theta_res),              & ! intent(in): [dp]     soil residual volumetric water content (-)
+  mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,    & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
+  dVolTot_dPsi0       => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,     & ! intent(in): [dp(:)]  derivative in total water content w.r.t. total water matric potential
+  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,    & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+  ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,   & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat, & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+ ) ! associations
+
+ ! initialize error control
+ err=0; message='explicitUpdate/'
+
+ ! initialize the flag to denote if the state is constrained
+ constrained=.false.
+
+ ! loop through model states
+ do iState=1,size(stateVecInit)
+
+  ! get index of the control volume within the domain
+  ixFullVector   = ixMapSubset2Full(iState)       ! index within full state vector
+  ixControlIndex = ixControlVolume(ixFullVector)  ! index within a given domain
+
+  ! get the flux-2-state conversion factor
+  select case( ixStateType_subset(iState) )
+   case(iname_nrgCanair,iname_nrgCanopy,iname_nrgLayer);                convFactor = 1._dp/real(stateVecMult(iState), dp)
+   case(iname_watCanopy,iname_liqCanopy,iname_watLayer,iname_liqLayer); convFactor = 1._dp
+   case(iname_matLayer,iname_lmpLayer);                                 convFactor = 1._dp/dVolTot_dPsi0(ixControlIndex)
+   case default; err=20; message=trim(message)//'unable to identify the state type'; return
+  end select
+
+  ! update the state vector 
+  stateVecNew(iState) = stateVecInit(iState) + convFactor*riteHandSide(iState)
+
+  ! impose non-negativity constraints for the mass of water on the vegetation canopy
+  if(ixStateType_subset(iState)==iname_watCanopy .or. ixStateType_subset(iState)==iname_liqCanopy)then
+   if(stateVecNew(iState) < 0._dp)then
+    stateVecNew(iState)=0._dp
+    constrained=.true.
+   endif
+  endif
+
+  ! impose minimum and maximum storage constraints for volumetric water
+  if(ixStateType_subset(iState)==iname_watLayer .or. ixStateType_subset(iState)==iname_liqLayer)then
+   select case( ixDomainType_subset(iState) )
+    case(iname_snow)
+     valueMin = 0._dp
+     valueMax = merge(iden_ice/iden_water, 1._dp - mLayerVolFracIce(ixControlIndex), ixStateType_subset(iState)==iname_watLayer)
+    case(iname_soil)
+     valueMin = theta_res
+     valueMax = theta_sat
+    case default; err=20; message=trim(message)//'expect domain type to be iname_snow or iname_soil'; return
+   end select
+   if(stateVecNew(iState) < valueMin)then
+    stateVecNew(iState)=valueMin
+    constrained=.true.
+   endif
+   if(stateVecNew(iState) > valueMax)then
+    stateVecNew(iState)=valueMax
+    constrained=.true.
+   endif
+  endif
+
+  ! impose below-freezing constraints for snow temperature
+  if(ixDomainType_subset(iState)==iname_snow .and. ixStateType_subset(iState)==iname_nrgLayer)then
+   if(stateVecNew(iState) > Tfreeze)then
+    stateVecNew(iState)=Tfreeze
+    constrained=.true.
+   endif
+  endif
+
+ end do ! looping through states
+
+ ! end association to the information in the data structures
+ end associate
+
+ end subroutine explicitUpdate
+
+
+
+
 
 end module systemSolv_module
