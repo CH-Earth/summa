@@ -171,10 +171,13 @@ contains
  real(dp)                        :: tempInc                         ! iteration increment (K)
  integer(i4b)                    :: iter                            ! iteration index
  integer(i4b)                    :: niter                           ! number of iterations
- integer(i4b),parameter          :: maxiter=20                      ! maximum number of iterations
+ integer(i4b),parameter          :: maxiter=100                     ! maximum number of iterations
  real(dp),parameter              :: nrgConvTol=1.e-4_dp             ! convergence tolerance for energy (J m-3)
  real(dp),parameter              :: tempConvTol=1.e-6_dp            ! convergence tolerance for temperature (K)
  real(dp)                        :: critDiff                        ! temperature difference from critical (K)
+ real(dp)                        :: tempMin                         ! minimum bracket for temperature (K)
+ real(dp)                        :: tempMax                         ! maximum bracket for temperature (K)
+ logical(lgt)                    :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
  real(dp),parameter              :: epsT=1.e-7_dp                   ! small interval above/below critical temperature (K)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
@@ -343,18 +346,38 @@ contains
 
   endif  ! if hydrology state variable or uncoupled solution
 
+  ! compute the critical soil temperature below which ice exists
+  select case(ixDomainType)
+   case(iname_veg, iname_snow); Tcrit = Tfreeze
+   case(iname_soil);            Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
+   case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+  end select
+  
   ! initialize temperature 
   select case(ixDomainType)
    case(iname_veg);              xTemp = scalarCanopyTempTrial
    case(iname_snow, iname_soil); xTemp = mLayerTempTrial(iLayer)
    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
   end select
-  
+ 
+  ! define brackets for the root
+  ! NOTE: start with an enormous range; updated quickly in the iterations
+  tempMin = xTemp - 10._dp
+  tempMax = xTemp + 10._dp
+ 
   ! get iterations (set to maximum iterations if adjusting the temperature)
   niter = merge(maxiter, 1, do_adjustTemp)
 
   ! iterate
   iterations: do iter=1,niter
+
+   ! restrict temperature
+   if(xTemp <= tempMin .or. xTemp >= tempMax)then
+    xTemp = 0.5_dp*(tempMin + tempMax)  ! new value
+    bFlag = .true.
+   else
+    bFlag = .false.
+   endif
 
    ! -----
    ! - compute derivatives...
@@ -370,13 +393,6 @@ contains
     end select
    endif
 
-   ! compute the critical soil temperature below which ice exists
-   select case(ixDomainType)
-    case(iname_veg, iname_snow); Tcrit = Tfreeze
-    case(iname_soil);            Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
-    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
-   end select
-  
    ! compute the derivative in liquid water content w.r.t. temperature
    ! --> partially frozen: dependence of liquid water on temperature
    if(xTemp<Tcrit)then
@@ -524,10 +540,17 @@ contains
 
     end select  ! domain type
 
+    ! update bracket
+    if(residual < 0._dp)then
+     tempMax = min(xTemp,tempMax)
+    else
+     tempMin = max(tempMin,xTemp)
+    end if
+
     ! compute iteration increment
     tempInc    = residual/derivative  ! K
-    !write(*,'(i4,1x,e20.10,1x,3(f20.10,1x))') iter, residual, xTemp, tempInc, Tcrit
- 
+    !write(*,'(i4,1x,e20.10,1x,5(f20.10,1x),L1)') iter, residual, Tcrit, xTemp, tempInc, tempMin, tempMax, bFlag
+
     ! check convergence
     if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit iterations
 
