@@ -271,7 +271,9 @@ contains
  real(dp),parameter              :: safety=0.85_dp                ! safety factor in adaptive sub-stepping
  real(dp),parameter              :: reduceMin=0.1_dp              ! mimimum factor that time step is reduced
  real(dp),parameter              :: increaseMax=4.0_dp            ! maximum factor that time step is increased
- real(dp),parameter              :: errorTol=100._dp               ! error tolerance in the explicit solution
+ real(dp),parameter              :: errorTolLiqFlux=0.01_dp       ! error tolerance in the explicit solution (liquid flux)
+ real(dp),parameter              :: errorTolNrgFlux=100._dp       ! error tolerance in the explicit solution (energy flux)
+ real(dp)                        :: errorTol                      ! error tolerance in the explicit solution
  real(dp),dimension(1)           :: errorMax                      ! maximum error in explicit solution
  real(dp)                        :: dtSubstep                     ! length of the substep (seconds)
  real(dp)                        :: dtSum                         ! keep track of the portion of the substep that is completed
@@ -476,6 +478,11 @@ contains
    end select
   else  ! (fully coupled solutions)
    stateMask(:) = .true.  ! use all state variables
+  endif
+
+  ! define the error tolerance for the different splits
+  if(ixSplitOption==deCoupled_nrgMass)then
+   errorTol = merge(errorTolNrgFlux, errorTolLiqFlux, iSplit==nrgSplit)
   endif
 
   ! get the number of selected state variables
@@ -803,8 +810,24 @@ contains
 
     ! * explicit Euler: update state vector based on the average of the start-of-step and end-of-step fluxes
     case(explicitEuler)
-     stateVecTrial(:) = stateVecInit(:) + (0.5_dp*(fluxVec0(:) + fluxVecNew(:))*dtSubstep + 0.5_dp*(rAdd(:) + resSinkNew(:)) ) / real(sMul(:), dp)
+
+     ! estimate state vector at the end of the time step, based on the average of start-of-step and end-of step fluxes
+     call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,            & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
+                         0.5_dp*(fluxVec0 + fluxVecNew)*dtSubstep + 0.5_dp*(rAdd + resSinkNew), & ! input:  right-hand-side of the state equation
+                         stateVecTrial,stateConstrained,                                        & ! output: trial state vector and flag to denote that it was constrained
+                         err,cmessage)                                                            ! output: error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+     ! check if the state is constrained
+     if(stateConstrained)then
+      message=trim(message)//'do not expect constrained state for the explicit Heun solution'
+      err=20; return
+     endif
+
+     ! estimate the solution error
      solutionError(:) = (fluxVec0(:)*dtSubstep + rAdd(:)) - (fluxVecNew(:)*dtSubstep + resSinkNew(:))
+
+     ! print progress
      write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0(iJac1:iJac2)
      write(*,'(a,1x,10(f20.10,1x))') 'fluxVecNew    = ', fluxVecNew(iJac1:iJac2)
      write(*,'(a,1x,10(f20.10,1x))') 'rAdd          = ', rAdd(iJac1:iJac2)
