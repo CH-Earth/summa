@@ -174,6 +174,8 @@ contains
  integer(i4b),parameter          :: maxiter=20                      ! maximum number of iterations
  real(dp),parameter              :: nrgConvTol=1.e-4_dp             ! convergence tolerance for energy (J m-3)
  real(dp),parameter              :: tempConvTol=1.e-6_dp            ! convergence tolerance for temperature (K)
+ real(dp)                        :: critDiff                        ! temperature difference from critical (K)
+ real(dp),parameter              :: epsT=1.e-7_dp                   ! small interval above/below critical temperature (K)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&
@@ -524,7 +526,7 @@ contains
 
     ! compute iteration increment
     tempInc    = residual/derivative  ! K
-    !write(*,'(i4,1x,e20.10,1x,2(f20.10,1x))') iter, residual, xTemp, tempInc
+    !write(*,'(i4,1x,e20.10,1x,3(f20.10,1x))') iter, residual, xTemp, tempInc, Tcrit
  
     ! check convergence
     if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit iterations
@@ -532,7 +534,21 @@ contains
     ! add constraints for snow temperature
     if(ixDomainType==iname_veg .or. ixDomainType==iname_snow)then
      if(tempInc > Tcrit - xTemp) tempInc=(Tcrit - xTemp)*0.5_dp  ! simple bi-section method
-    endif
+    endif  ! if the domain is vegetation or snow  
+
+    ! deal with the discontinuity between partially frozen and unfrozen soil
+    if(ixDomainType==iname_soil)then
+     ! difference from the temperature below which ice exists
+     critDiff = Tcrit - xTemp
+     ! --> initially frozen (T < Tcrit)
+     if(critDiff > 0._dp)then
+      if(tempInc > critDiff) tempInc = critDiff + epsT  ! set iteration increment to slightly above critical temperature
+     ! --> initially unfrozen (T > Tcrit)
+     else
+      if(tempInc < critDiff) tempInc = critDiff - epsT  ! set iteration increment to slightly below critical temperature
+     endif
+    endif  ! if the domain is soil
+
    
     ! update the temperature trial
     xTemp = xTemp + tempInc
