@@ -200,7 +200,7 @@ integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable 
 integer(i4b),parameter           :: ixRestart_im=1001          ! named variable to print a re-start file once per month
 integer(i4b),parameter           :: ixRestart_id=1002          ! named variable to print a re-start file once per day
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
-integer(i4b)                     :: ixRestart=ixRestart_iy     ! define frequency to write restart files
+integer(i4b)                     :: ixRestart=ixRestart_id     ! define frequency to write restart files
 ! define output file
 integer(i4b)                     :: ctime1(8)                  ! initial time
 character(len=256)               :: output_fileSuffix=''       ! suffix for the output file
@@ -891,7 +891,6 @@ do modelTimeStep=1,numtim
                    gru_struc(iGRU)%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
                    dt_init(iGRU)%hru(iHRU),                 & ! intent(inout): initial time step
                    computeVegFluxFlag,                          & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                   resumeFailSolver,                            & ! flag whether simulation continues if solver does not converge 
                    ! data structures (input)
                    typeStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local classification of soil veg etc. for each HRU
                    attrStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local attributes for each HRU

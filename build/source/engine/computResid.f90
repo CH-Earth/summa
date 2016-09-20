@@ -247,6 +247,7 @@ contains
  if(globalPrintFlag)then
   write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(iJac1:iJac2)
   write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(iJac1:iJac2)
+  !print*, 'PAUSE:'; read(*,*)
  endif
 
  ! end association with the necessary variabiles for the residual calculations

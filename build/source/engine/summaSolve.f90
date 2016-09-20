@@ -290,6 +290,7 @@ contains
 
  if(globalPrintFlag)&
  write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
+ !print*, 'PAUSE'; read(*,*)
 
  ! -----
  ! * update, evaluate, and refine the state vector...
@@ -827,7 +828,7 @@ contains
   ! check convergence based on the canopy water balance
   if(ixVegHyd/=integerMissing)then
    canopy_max = real(abs(rVec(ixVegHyd)), dp)*iden_water
-   canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (m)
+   canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (mm)
   else
    canopy_max = realMissing
    canopyConv = .true.

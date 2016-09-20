@@ -86,7 +86,8 @@ MODULE globalData
  type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
 
  ! ancillary metadata structures
- type(flux2state),   save,public             :: flux2state_meta(maxvarFlux)  ! named variables for the states affected by each flux
+ type(flux2state),   save,public             :: flux2state_orig(maxvarFlux)  ! named variables for the states affected by each flux (original)
+ type(flux2state),   save,public             :: flux2state_liq(maxvarFlux)   ! named variables for the states affected by each flux (liquid water)
  type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
 
  ! define summary information on all data structures
