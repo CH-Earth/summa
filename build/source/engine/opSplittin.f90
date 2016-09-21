@@ -438,6 +438,9 @@ contains
      ! get the mask for the state subset
      call stateFilter(ixSolution,iStateTypeSplit,iDomainSplit,indx_data,stateMask,nSubset,err,cmessage)
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+     print*, 'after filter: stateMask = ', stateMask
+     print*, 'nSubset = ', nSubset
    
      ! -----
      ! * assemble vectors for a given split...
@@ -462,11 +465,20 @@ contains
      ! define the mask of the fluxes used
      stateSubset: associate(ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat)
      do iVar=1,size(flux_meta)
-      select case(iStateTypeSplit)
-       case(nrgSplit);  fluxMask(iVar) = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2) 
-       case(massSplit); fluxMask(iVar) = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
-       case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
-      end select
+
+      ! * split solution
+      if(ixSolution/=fullyCoupled)then
+       select case(iStateTypeSplit)
+        case(nrgSplit);  fluxMask(iVar) = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2) 
+        case(massSplit); fluxMask(iVar) = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
+        case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+       end select
+
+      ! * fully coupled
+      else
+       fluxMask(iVar) = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+      endif
+
      end do
      end associate stateSubset
   
@@ -478,7 +490,7 @@ contains
      ! -----
      ! * solve variable subset for one time step...
      ! --------------------------------------------
-    
+
      ! save/recover copies of prognostic variables
      do iVar=1,size(prog_data%var)
       select case(failedMinimumStep)
@@ -494,6 +506,10 @@ contains
        case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
       end select
      end do  ! looping through variables
+
+     ! reset the first flux call
+     ! NOTE: may not need to do this for all splits
+     if(failedMinimumStep) firstFluxCall=.true.
   
      ! solve variable subset for one full time step
      call varSubstep(&
@@ -501,7 +517,7 @@ contains
                      dt,                         & ! intent(inout) : time step (s)
                      dt_min,                     & ! intent(in)    : minimum time step (seconds)
                      errTol,                     & ! intent(in)    : error tolerance for the explicit solution
-                     nState,                     & ! intent(in)    : total number of state variables
+                     nSubset,                    & ! intent(in)    : total number of variables in the state subset
                      doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
                      firstSubStep,               & ! intent(in)    : flag to denote first sub-step
                      firstFluxCall,              & ! intent(inout) : flag to indicate if we are processing the first flux call
@@ -526,7 +542,13 @@ contains
                      failedMinimumStep,          & ! intent(out)   : flag for failed substeps
                      err,cmessage)                 ! intent(out)   : error code and error message
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+
+     ! check 
+     print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
+     if(ixSolution/=fullyCoupled)then
+      print*, 'PAUSE: failed fully coupled attempt'; read(*,*)
+     endif    
+
      ! success = exit the trySolution loop
      if(.not.failedMinimumStep) exit trySolution
 

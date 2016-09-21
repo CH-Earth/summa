@@ -400,7 +400,7 @@ contains
  do iter=1,maxIter
  
   ! print iteration count
-  !print*, '*** iter, maxiter, dt = ', iter, maxiter, dt
+  print*, '*** iter, maxiter, dt = ', iter, maxiter, dt
 
   ! keep track of the number of iterations
   niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)

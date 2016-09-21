@@ -131,17 +131,17 @@ contains
  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
  ! output: variables for the vegetation canopy
- real(dp),intent(out)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
- real(dp),intent(out)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
- real(dp),intent(out)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
- real(dp),intent(out)            :: scalarCanopyIceTrial            ! trial value of canopy ice content (kg m-2)
+ real(dp),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+ real(dp),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
+ real(dp),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
+ real(dp),intent(inout)          :: scalarCanopyIceTrial            ! trial value of canopy ice content (kg m-2)
  ! output: variables for the snow-soil domain
- real(dp),intent(out)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
- real(dp),intent(out)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
- real(dp),intent(out)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(out)            :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
- real(dp),intent(out)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
- real(dp),intent(out)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
+ real(dp),intent(inout)          :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+ real(dp),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
+ real(dp),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
+ real(dp),intent(inout)          :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
+ real(dp),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
+ real(dp),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
  ! output: error control 
  integer(i4b),intent(out)        :: err                             ! error code
  character(*),intent(out)        :: message                         ! error message
@@ -175,6 +175,9 @@ contains
  real(dp),parameter              :: nrgConvTol=1.e-4_dp             ! convergence tolerance for energy (J m-3)
  real(dp),parameter              :: tempConvTol=1.e-6_dp            ! convergence tolerance for temperature (K)
  real(dp)                        :: critDiff                        ! temperature difference from critical (K)
+ real(dp)                        :: tempMin                         ! minimum bracket for temperature (K)
+ real(dp)                        :: tempMax                         ! maximum bracket for temperature (K)
+ logical(lgt)                    :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
  real(dp),parameter              :: epsT=1.e-7_dp                   ! small interval above/below critical temperature (K)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
@@ -349,12 +352,25 @@ contains
    case(iname_snow, iname_soil); xTemp = mLayerTempTrial(iLayer)
    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
   end select
+
+  ! define brackets for the root
+  ! NOTE: start with an enormous range; updated quickly in the iterations
+  tempMin = xTemp - 10._dp
+  tempMax = xTemp + 10._dp
   
   ! get iterations (set to maximum iterations if adjusting the temperature)
   niter = merge(maxiter, 1, do_adjustTemp)
 
   ! iterate
   iterations: do iter=1,niter
+
+   ! restrict temperature
+   if(xTemp <= tempMin .or. xTemp >= tempMax)then
+    xTemp = 0.5_dp*(tempMin + tempMax)  ! new value
+    bFlag = .true.
+   else
+    bFlag = .false.
+   endif
 
    ! -----
    ! - compute derivatives...
@@ -524,9 +540,16 @@ contains
 
     end select  ! domain type
 
+    ! update bracket
+    if(residual < 0._dp)then
+     tempMax = min(xTemp,tempMax)
+    else
+     tempMin = max(tempMin,xTemp)
+    end if
+
     ! compute iteration increment
     tempInc    = residual/derivative  ! K
-    !write(*,'(i4,1x,e20.10,1x,3(f20.10,1x))') iter, residual, xTemp, tempInc, Tcrit
+    write(*,'(i4,1x,e20.10,1x,5(f20.10,1x),L1)') iter, residual, xTemp-Tcrit, tempInc, Tcrit, tempMin, tempMax, bFlag
  
     ! check convergence
     if(abs(residual) < nrgConvTol .or. abs(tempInc) < tempConvTol) exit iterations
@@ -548,7 +571,6 @@ contains
       if(tempInc < critDiff) tempInc = critDiff - epsT  ! set iteration increment to slightly below critical temperature
      endif
     endif  ! if the domain is soil
-
    
     ! update the temperature trial
     xTemp = xTemp + tempInc

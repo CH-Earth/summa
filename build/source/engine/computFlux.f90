@@ -289,6 +289,8 @@ contains
  iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat                  ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
  mLayerHydCond                => flux_data%var(iLookFLUX%mLayerHydCond)%dat                      ,&  ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
  mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                     ,&  ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+ scalarSnowDrainage           => flux_data%var(iLookFLUX%scalarSnowDrainage)%dat(1)              ,&  ! intent(out): [dp]     drainage from the snow profile (m s-1)
+ scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)              ,&  ! intent(out): [dp]     drainage from the soil profile (m s-1)
  scalarSoilBaseflow           => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1)              ,&  ! intent(out): [dp]     total baseflow from the soil profile (m s-1)
 
  ! infiltration
@@ -592,6 +594,9 @@ contains
    !                                                     iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1)
   end do
 
+  ! compute drainage from the soil zone (needed for mass balance checks)
+  scalarSnowDrainage = iLayerLiqFluxSnow(nSnow)
+
  else
 
   ! define forcing for the soil domain for the case of no snow layers
@@ -657,10 +662,11 @@ contains
                   ! output: error control
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+ 
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSoil
    mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
+   !print*, 'iLayerLiqFluxSoil(iLayer-1), mLayerLiqFluxSoil(iLayer) = ', iLayerLiqFluxSoil(iLayer-1), mLayerLiqFluxSoil(iLayer)
   end do
  
   ! calculate the soil control on infiltration
@@ -676,6 +682,9 @@ contains
    scalarSoilControl = 1._dp
   endif
   
+  ! compute drainage from the soil zone (needed for mass balance checks)
+  scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
+
   ! expand derivatives to the total water matric potential
   ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
   if(globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)

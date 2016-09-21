@@ -484,6 +484,7 @@ contains
  flux_meta(iLookFLUX%iLayerNrgFlux)                   = var_info('iLayerNrgFlux'                  , 'energy flux at layer interfaces'                                  , 'W m-2'           , get_ixVarType('ifcToto'), lFalseArry, integerMissing, iMissArry)
  flux_meta(iLookFLUX%mLayerNrgFlux)                   = var_info('mLayerNrgFlux'                  , 'net energy flux for each layer within the snow+soil domain'       , 'J m-3 s-1'       , get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
  ! liquid water fluxes for the snow domain
+ flux_meta(iLookFLUX%scalarSnowDrainage)              = var_info('scalarSnowDrainage'             , 'drainage from the bottom of the snow profile'                     , 'm s-1'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  flux_meta(iLookFLUX%iLayerLiqFluxSnow)               = var_info('iLayerLiqFluxSnow'              , 'liquid flux at snow layer interfaces'                             , 'm s-1'           , get_ixVarType('ifcSnow'), lFalseArry, integerMissing, iMissArry)
  flux_meta(iLookFLUX%mLayerLiqFluxSnow)               = var_info('mLayerLiqFluxSnow'              , 'net liquid water flux for each snow layer'                        , 's-1'             , get_ixVarType('midSnow'), lFalseArry, integerMissing, iMissArry)
  ! liquid water fluxes for the soil domain

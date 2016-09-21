@@ -299,11 +299,8 @@ call flxMapping(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! define the mask to identify the subset of variables in the "child" data structure
-! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
-!       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
-!        and soil drainage (at interface=nSoil)
-flux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).or.(flux_meta(:)%vartype==iLookVarType%ifcSoil))
+! define the mask to identify the subset of variables in the "child" data structure (just scalar variables)
+flux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv)
 
 ! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
