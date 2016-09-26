@@ -495,11 +495,6 @@ contains
    end select
   endif
  
- ! not computing the vegetation flux (veg buried with snow, or bare ground)
- else
-  scalarCanairTempTrial = realMissing
-  scalarCanopyTempTrial = realMissing
-  scalarCanopyWatTrial  = realMissing
  endif  ! not computing the vegetation flux
 
  ! *** extract state variables from the snow+soil sub-domain

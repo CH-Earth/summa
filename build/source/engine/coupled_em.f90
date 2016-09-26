@@ -25,6 +25,7 @@ USE nrtype
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
+                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 implicit none
@@ -156,9 +157,11 @@ contains
  real(dp)                             :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
  real(dp),parameter                   :: varNotUsed1=-9999._dp  ! variables used to calculate derivatives (not needed here)
  real(dp),parameter                   :: varNotUsed2=-9999._dp  ! variables used to calculate derivatives (not needed here)
+ integer(i4b)                         :: iSnow                  ! index of snow layers
  integer(i4b)                         :: iLayer                 ! index of model layers
- real(dp)                             :: volSub                 ! volumetric sublimation (kg m-3)
- real(dp),parameter                   :: tinyNumber=tiny(1._dp) ! a tiny number
+ real(dp)                             :: subLoss                ! sublimation loss (kg m-2)
+ real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
+ real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
  logical(lgt),parameter               :: checkTimeStepping=.false.      ! flag to denote a desire to check the time stepping 
  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
@@ -175,6 +178,8 @@ contains
  real(dp)                             :: totalSoilCompress      ! change in storage associated with compression of the soil matrix (kg m-2)
  real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
+ real(dp)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
+ real(dp)                             :: scalarInitCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
  real(dp)                             :: scalarTotalSoilLiq     ! total liquid water in the soil column (kg m-2)
  real(dp)                             :: scalarTotalSoilIce     ! total ice in the soil column (kg m-2)
  real(dp)                             :: balanceCanopyWater0    ! total water stored in the vegetation canopy at the start of the step (kg m-2)
@@ -233,6 +238,10 @@ contains
  scalarAquiferStorage => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)             &  ! aquifer storage (m)
  ) ! (association of local variables with information in the data structures
 
+ ! save the liquid water and ice on the vegetation canopy
+ scalarInitCanopyLiq = scalarCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
+ scalarInitCanopyIce = scalarCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
+
  ! compute total soil moisture and ice at the *START* of the step (kg m-2)
  scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(1:nSoil)*mLayerDepth(1:nSoil))
  scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(1:nSoil)*mLayerDepth(1:nSoil))  ! NOTE: no expansion and hence use iden_water
@@ -265,7 +274,7 @@ contains
  !print*, 'oldSWE = ', oldSWE
 
  ! initialize the length of the sub-step
- dt_sub  = min(dt_init,min(data_step,maxstep))
+ dt_sub  = min(data_step,maxstep)
  dt_solv = 0._dp
 
  ! initialize the number of sub-steps
@@ -326,9 +335,10 @@ contains
   ! compute maximum canopy ice content (kg m-2)
   ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
   ! NOTE 2: this is a different variable than the max ice used in the throughfall (snow interception) calculations
+  ! NOTE 3: use maximum per unit leaf area storage capacity for snow (kg m-2)
   select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
-   case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)       ! use maximum per unit leaf area storage capacity for snow (kg m-2)
-   case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp ! use maximum per unit leaf area storage capacity for snow (kg m-2)
+   case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)
+   case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp
    case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
   end select ! identifying option for maximum branch interception capacity
   !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
@@ -420,7 +430,7 @@ contains
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-  !print*, 'canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
+  !print*, 'after canopySnow: canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
 
   ! adjust canopy temperature to account for new snow
   call tempAdjust(&
@@ -603,27 +613,46 @@ contains
   ! update first step
   firstStep=.false.
 
+  ! (10) remove ice due to sublimation...
+  ! --------------------------------------------------------------
+  sublime: associate(&
+   scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
+   scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
+   scalarLatHeatCanopyEvap => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1), & ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   scalarSenHeatCanopy     => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1),     & ! sensible heat flux from the canopy to the canopy air space (W m-2)
+   scalarLatHeatGround     => flux_data%var(iLookFLUX%scalarLatHeatGround)%dat(1),     & ! latent heat flux from ground surface below vegetation (W m-2)
+   scalarSenHeatGround     => flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1),     & ! sensible heat flux from ground surface below vegetation (W m-2)
+   scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
+   scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
+   mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
+   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
+  ) ! associations to variables in data structures
+
   ! (10a) compute change in canopy ice content due to sublimation...
   ! --------------------------------------------------------------
-  ! NOTE: keep in continuous do loop in case insufficient water on canopy for sublimation
   if(computeVegFlux)then
 
    ! remove mass of ice on the canopy
-   prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) + &
-                                                     flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)*dt_sub
+   scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*dt_sub
 
    ! if removed all ice, take the remaining sublimation from water
-   if(prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) < 0._dp)then
-    prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) + prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
-    prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) = 0._dp
-   end if
+   if(scalarCanopyIce < 0._dp)then
+    scalarCanopyLiq = scalarCanopyLiq + scalarCanopyIce
+    scalarCanopyIce = 0._dp
+   endif
 
-   ! check that there is sufficient canopy water to support the converged sublimation rate over the time step dt_sub
-   ! NOTE we conducted checks and time step adjustments in opSplittin above so we should not get here: hence fatal error
-   if(prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) < -tinyNumber)then
-    message=trim(message)//'canopy sublimation rate over time step dt_sub depletes more than the available water'
-    err=20; return
-   end if
+   ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the time step dt_sub
+   if(scalarCanopyLiq < 0._dp)then
+    ! --> superfluous sublimation flux
+    superflousSub = -scalarCanopyLiq/dt_sub  ! kg m-2 s-1
+    superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
+    ! --> update fluxes and states
+    scalarCanopySublimation = scalarCanopySublimation + superflousSub
+    scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
+    scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
+    scalarCanopyLiq         = 0._dp
+    print*, 'redistributing energy'
+   endif
 
   end if  ! (if computing the vegetation flux)
 
@@ -632,25 +661,38 @@ contains
   ! NOTE: this is done BEFORE densification
   if(nSnow > 0)then ! snow layers exist
 
-   ! compute volumetric sublimation (-)
-   volSub = dt_sub*flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)/prog_data%var(iLookPROG%mLayerDepth)%dat(1)
+   ! compute sublimation loss (kg m-2)
+   subLoss = dt_sub*scalarSnowSublimation
 
-   ! update volumetric fraction of ice (-)
-   ! NOTE: fluxes are positive downward
-   prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1) + volSub/iden_ice
-
-   ! check that there is sufficient ice in the top snow layer to support the converged sublimation rate over the time step dt_sub
-   ! NOTE we conducted checks and time step adjustments in opSplittin above so we should not get here: hence fatal error
-   if(prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1) < -tinyNumber)then
-    message=trim(message)//'surface sublimation rate over time step dt_sub depletes more than the available water'
-    err=20; return
-   end if
+   ! successively remove ice from snow layers
+   removeSnow: do iSnow=1,nSnow
+    mLayerVolFracIce(iSnow) = mLayerVolFracIce(iSnow) + subLoss/(mLayerDepth(iSnow)*iden_ice)  ! update volumetric ice content (-)
+    ! able to handle sublimation in the current layer
+    if(mLayerVolFracIce(iSnow) > 0._dp)then
+     exit removeSnow
+    ! get the volumetric sublimation that still needs to be removed
+    else
+     subLoss                 = mLayerVolFracIce(iSnow)*mLayerDepth(iSnow)*iden_ice  ! kg m-2
+     mLayerVolFracIce(iSnow) = 0._dp
+    endif
+    ! still need to remove sublimation, but got to the lowest layer
+    ! modify fluxes
+    if(iSnow==nSnow)then
+     ! --> superfluous sublimation flux
+     superflousSub = -subLoss/dt_sub      ! kg m-2 s-1
+     superflousNrg = superflousSub*LH_sub ! W m-2 (J m-2 s-1)
+     ! --> update fluxes and states
+     scalarSnowSublimation = scalarSnowSublimation + superflousSub
+     scalarLatHeatGround   = scalarLatHeatGround   + superflousNrg
+     scalarSenHeatGround   = scalarSenHeatGround   - superflousNrg
+    end if
+   end do removeSnow  ! looping through snow layers
 
   ! no snow
   else
 
    ! no snow: check that sublimation is zero
-   if(abs(flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)) > verySmall)then
+   if(abs(scalarSnowSublimation) > verySmall)then
     message=trim(message)//'sublimation of snow has been computed when no snow exists'
     err=20; return
    end if
@@ -658,6 +700,7 @@ contains
   end if  ! (if snow layers exist)
   !print*, 'ice after sublimation: ', prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice
 
+  end associate sublime
 
   ! (11) account for compaction and cavitation in the snowpack...
   ! ------------------------------------------------------------
@@ -721,9 +764,6 @@ contains
   ! increment sub-step
   dt_solv = dt_solv + dt_sub
 
-  ! modify substep length
-  dt_sub = max(minstep, dt_sub*dtMultiplier)
-
   ! save the time step to initialize the subsequent step
   if(dt_solv<data_step .or. nsub==1) dt_init = dt_sub
 
@@ -736,6 +776,11 @@ contains
 
  end do  substeps ! (sub-step loop)
  !print*, 'PAUSE: completed time step'; read(*,*)
+
+ ! overwrite flux_data with flux_mean (returns timestep-average fluxes for scalar variables)
+ do iVar=1,size(averageFlux_meta)
+  flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:) = flux_mean%var(iVar)%dat(:)
+ end do
 
  ! ***********************************************************************************************************************************
  ! ***********************************************************************************************************************************
@@ -792,13 +837,15 @@ contains
  ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
  scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                             - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
- if(abs(scalarCanopyWatBalError) > 1.d-1)then
+ if(abs(scalarCanopyWatBalError) > 1.d-3)then
   print*, '** canopy water balance error:'
   write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
   write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
   write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
-  write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)*dt = ', (scalarSnowfall - averageThroughfallSnow)*data_step
-  write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)*dt = ', (scalarRainfall - averageThroughfallRain)*data_step
+  write(*,'(a,1x,f20.10)') 'scalarSnowfall                               = ', scalarSnowfall
+  write(*,'(a,1x,f20.10)') 'scalarRainfall                               = ', scalarRainfall
+  write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)*data_step
+  write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)*data_step
   write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading*data_step
   write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage*data_step
   write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation*data_step
@@ -867,7 +914,7 @@ contains
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
- if(abs(scalarSoilWatBalError) > 1.d-2)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+ if(abs(scalarSoilWatBalError) > 1.d-3)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
   write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq

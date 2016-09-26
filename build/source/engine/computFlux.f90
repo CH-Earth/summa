@@ -394,7 +394,7 @@ contains
  ! *********************************************
 
  ! check if there is a need to calculate the energy fluxes over vegetation
- if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing .or. firstFluxCall)then
+ if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. firstFluxCall)then
 
   ! derivative in canopy liquid storage w.r.t. canopy temperature
   dCanLiq_dTcanopy = dTheta_dTkCanopy*iden_water*canopyDepth  ! kg m-2 K-1

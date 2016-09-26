@@ -56,6 +56,7 @@ USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric 
 
 ! constants
 USE multiconst,only:&
+                    LH_fus,       & ! latent heat of fusion                (J K-1)
                     Tfreeze,      & ! temperature at freezing              (K)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
@@ -191,6 +192,7 @@ contains
  integer(i4b)                    :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  real(dp)                        :: stateVecNew(nState)           ! new state vector (mixed units)
+ real(dp)                        :: cf0(nState),cf1(nState)       ! conversion factor: factor to convert fluxes to states (different flux evaluations)
  real(dp)                        :: fluxVec0(nState)              ! flux vector (mixed units)
  real(dp)                        :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
  real(dp)                        :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
@@ -291,9 +293,6 @@ contains
  ! * get scaling vectors...
  ! ------------------------
  
- ! initialize the global print flag
- globalPrintFlag=.false.
- 
  ! initialize state vectors
  call getScaling(&
                  ! input
@@ -379,11 +378,19 @@ contains
  
  ! ** if explicit Euler, then estimate state vector at the end of the time step
  if(explicitEuler)then
-  call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,   & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
-                      fluxVec0*dt + rAdd,                                           & ! input:  right-hand-side of the state equation
-                      stateVecTrial,stateConstrained,                               & ! output: trial state vector and flag to denote that it was constrained
-                      err,cmessage)                                                   ! output: error control
+
+  ! --> compute the factor to convert RHS fluxes to states
+  call convFlux2State(indx_data,deriv_data,sMul, & ! intent(in)  : state indices and derivatives, and the state vector multiplier
+                      cf0,err,cmessage)            ! intent(out) : conversion factor, and error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! --> update states using the explicit Euler method
+  call explicitUpdate(indx_data,mpar_data,prog_data,stateVecInit, & ! intent(in)  : indices, parameters, prognostic variables, and initial state vector
+                      (fluxVec0*dt + rAdd)/cf0,                   & ! intent(in)  : state vector update      
+                      stateVecTrial,stateConstrained,             & ! intent(out) : trial state vector and flag to denote that it was constrained
+                      err,cmessage)                                 ! intent(out) : error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
  endif  ! if explicit Euler
  
  ! ==========================================================================================================================================
@@ -400,7 +407,7 @@ contains
  do iter=1,maxIter
  
   ! print iteration count
-  print*, '*** iter, maxiter, dt = ', iter, maxiter, dt
+  !print*, '*** iter, maxiter, dt = ', iter, maxiter, dt
 
   ! keep track of the number of iterations
   niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
@@ -457,7 +464,9 @@ contains
                   converged,                     & ! intent(out):   convergence flag
                   err,cmessage)                    ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+
+  !print*, err,trim(cmessage) 
+ 
   ! update function evaluation, residual vector, and states
   ! NOTE 1: The derivatives computed in summaSolve are used to calculate the Jacobian matrix at the next iteration
   ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the new iteration increment
@@ -468,9 +477,9 @@ contains
   endif
  
   ! print progress
-  !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec(iJac1:iJac2)
-  !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew(iJac1:iJac2)*dt
-  !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial(iJac1:iJac2)
+  !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec           ( min(nState,iJac1) : min(nState,iJac2) )
+  !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew     ( min(nState,iJac1) : min(nState,iJac2) )*dt
+  !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial  ( min(nState,iJac1) : min(nState,iJac2) )
   !print*, 'PAUSE: check states and fluxes'; read(*,*) 
  
   ! exit iteration loop if converged
@@ -493,17 +502,44 @@ contains
  ! special case of explicit Euler
  if(explicitEuler)then
 
-  ! estimate state vector at the end of the time step, based on the average of start-of-step and end-of step fluxes
-  call explicitUpdate(indx_data,mpar_data,prog_data,deriv_data,stateVecInit,sMul,            & ! input:  indices, parameters, derivatives, initial state vector, and state multiplier
-                      0.5_dp*(fluxVec0 + fluxVecNew)*dt + 0.5_dp*(rAdd + resSinkNew),        & ! input:  right-hand-side of the state equation
-                      stateVecTrial,stateConstrained,                                        & ! output: trial state vector and flag to denote that it was constrained
-                      err,cmessage)                                                            ! output: error control
+  ! --> compute the flux-to-state conversion factor 
+  call convFlux2State(indx_data,deriv_data,sMul, & ! intent(in)  : state indices and derivatives, and the state vector multiplier
+                      cf1,err,cmessage)            ! intent(out) : conversion factor, and error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! --> update states using the explicit Euler method
+  call explicitUpdate(indx_data,mpar_data,prog_data,stateVecInit,                             & ! intent(in)  : indices, parameters, prognostic variables, and initial state vector
+                      0.5_dp*( (fluxVec0*dt + rAdd)/cf0 + (fluxVecNew*dt + resSinkNew)/cf1 ), & ! intent(in)  : state vector update
+                      stateVecTrial,stateConstrained,                                         & ! intent(out) : trial state vector and flag to denote that it was constrained
+                      err,cmessage)                                                             ! intent(out) : error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! --> estimate the solution error
+  ! NOTE: done before the constraints check to return the error
+  solutionError(:) = (stateVecTrial - stateVecNew)*cf1
+  errorTemp        = maxval( abs(solutionError) )
+  explicitError    = max(errorTemp(1), verySmall)
+
+  ! print progress in the explicit Euler solution
+  if(globalPrintFlag)then
+   write(*,'(a,1x,10(f20.10,1x))') 'cf0           = ', cf0            ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'cf1           = ', cf1            ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0       ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'fluxVecNew    = ', fluxVecNew     ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'rAdd          = ', rAdd           ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'resSinkNew    = ', resSinkNew     ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'stateVecInit  = ', stateVecInit   ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'stateVecTrial = ', stateVecTrial  ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew   = ', stateVecNew    ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.10,1x))') 'solutionError = ', solutionError  ( min(nState,iJac1) : min(nState,iJac2) )
+   print*, 'dt = ', dt
+   !print*, 'PAUSE: checking state vector for the explicit Euler solution'; read(*,*)
+  endif  ! (if printing)
 
   ! check if the state is constrained
   if(stateConstrained)then
-   message=trim(message)//'do not expect constrained state for the explicit Heun solution'
-   err=20; return
+   message=trim(message)//'constrained state for the explicit Heun solution: reduce time step and try again'
+   err=-20; return ! NOTE: negative error code so try and recover
   endif
 
   ! average start-of-step and end-of-step fluxes for explicit Euler
@@ -511,25 +547,11 @@ contains
    flux_temp%var(iVar)%dat(:) = 0.5_dp*(flux_init%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:) )
   end do
    
-  ! estimate the solution error
-  solutionError(:) = (fluxVec0(:)*dt + rAdd(:)) - (fluxVecNew(:)*dt + resSinkNew(:))
-  errorTemp        = maxval( abs(solutionError) )
-  explicitError    = errorTemp(1)
-
-  ! print progress
-  write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0(iJac1:iJac2)
-  write(*,'(a,1x,10(f20.10,1x))') 'fluxVecNew    = ', fluxVecNew(iJac1:iJac2)
-  write(*,'(a,1x,10(f20.10,1x))') 'rAdd          = ', rAdd(iJac1:iJac2)
-  write(*,'(a,1x,10(f20.10,1x))') 'resSinkNew    = ', resSinkNew(iJac1:iJac2)
-  write(*,'(a,1x,10(f20.10,1x))') 'stateVecInit  = ', stateVecInit(iJac1:iJac2)
-  write(*,'(a,1x,10(f20.10,1x))') 'stateVecTrial = ', stateVecTrial(iJac1:iJac2)
-  write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew   = ', stateVecNew(iJac1:iJac2)
-  write(*,'(a,1x,10(f20.10,1x))') 'solutionError = ', solutionError(iJac1:iJac2)
-  print*, 'dt = ', dt
-  print*, 'PAUSE: checking state vector for the explicit Euler solution'; read(*,*)
-
  ! standard implicit solution
  else  ! switch between explicit and implicit Euler
+
+  ! set explicit error to missing
+  explicitError = realMissing
 
   ! update temperatures (ensure new temperature is consistent with the fluxes)
   if(nSnowSoilNrg>0)then
@@ -556,32 +578,104 @@ contains
  end subroutine systemSolv
 
  ! **********************************************************************************************************
+ ! private subroutine stateTendency: compute the change in state w.r.t. time (dS/dt)
+ ! **********************************************************************************************************
+ subroutine convFlux2State(&
+                           indx_data,               & ! intent(in)  : state indices
+                           deriv_data,              & ! intent(in)  : state derivatives
+                           stateVecMult,            & ! intent(in)  : state vector multiplier
+                           conversionFactor,        & ! intent(out) : change in state w.r.t. time (dS/dt)
+                           err,message)               ! intent(out) : error control
+ USE var_lookup,only:iLookINDEX                       ! named variables for structure elements
+ USE var_lookup,only:iLookDERIV                       ! named variables for structure elements
+ implicit none
+ ! input
+ type(var_ilength),intent(in)  :: indx_data           ! state indices
+ type(var_dlength),intent(in)  :: deriv_data          ! derivatives in model fluxes w.r.t. relevant state variables
+ real(qp)         ,intent(in)  :: stateVecMult(:)     ! state vector multiplier 
+ ! output
+ real(dp)         ,intent(out) :: conversionFactor(:) ! change in state w.r.t. time (dS/dt)
+ integer(i4b)     ,intent(out) :: err                 ! error code
+ character(*)     ,intent(out) :: message             ! error message
+ ! local variables
+ integer(i4b)                  :: iState              ! state index
+ integer(i4b)                  :: ixFullVector        ! index in the full state vector
+ integer(i4b)                  :: ixControlIndex      ! index of the control volume for different domains (veg, snow, soil) 
+ real(dp)                      :: meltDeriv           ! melt derivative (J m-3 K-1)
+ ! make association with model indices and model derivatives
+ associate(&
+  ! derivatives
+  dVolTot_dPsi0       => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,       & ! intent(in): [dp(:)]  derivative in total water content w.r.t. total water matric potential
+  dTheta_dTkCanopy    => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1), & ! intent(in): [dp]     derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  mLayerdTheta_dTk    => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,    & ! intent(in): [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  ! indices
+  nSnow               => indx_data%var(iLookINDEX%nSnow)%dat(1),             & ! intent(in): [i4b]    number of snow layers
+  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,      & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+  ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,     & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat,   & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat   & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+ ) ! associations
+ ! ---------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message='convFlux2State/'
+
+ ! loop through model states
+ do iState=1,size(stateVecMult)
+
+  ! get index of the control volume within the domain
+  ixFullVector   = ixMapSubset2Full(iState)       ! index within full state vector
+  ixControlIndex = ixControlVolume(ixFullVector)  ! index within a given domain
+
+  ! if ice included in the energy equation, then get the melt derivative
+  if(ixStateType_subset(iState)==iname_nrgCanopy .or. ixStateType_subset(iState)==iname_nrgLayer)then
+   select case( ixDomainType_subset(iState) )
+    case(iname_veg);  meltDeriv = LH_fus*iden_water*dTheta_dTkCanopy 
+    case(iname_snow); meltDeriv = LH_fus*iden_ice  *mLayerdTheta_dTk(ixControlIndex)
+    case(iname_soil); meltDeriv = LH_fus*iden_water*mLayerdTheta_dTk(ixControlIndex+nSnow)
+    case default; err=20; message=trim(message)//'expect domain type to be iname_veg, iname_snow or iname_soil'; return
+   end select
+  else
+   meltDeriv = 0._dp
+  endif
+
+  ! get the flux-2-state conversion factor
+  select case( ixStateType_subset(iState) )
+   case(iname_matLayer,iname_lmpLayer);                                 conversionFactor(iState) = dVolTot_dPsi0(ixControlIndex)
+   case(iname_nrgCanair,iname_nrgCanopy,iname_nrgLayer);                conversionFactor(iState) = real(stateVecMult(iState), dp) + meltDeriv
+   case(iname_watCanopy,iname_liqCanopy,iname_watLayer,iname_liqLayer); conversionFactor(iState) = 1._dp
+   case default; err=20; message=trim(message)//'unable to identify the state type'; return
+  end select
+
+ end do  ! looping through state variables
+
+ ! end association with data structures
+ end associate
+
+ end subroutine convFlux2State
+
+ ! **********************************************************************************************************
  ! private subroutine explicitUpdate: update the states using the explicit Euler method
  ! **********************************************************************************************************
  subroutine explicitUpdate(&
                            indx_data,             & ! intent(in)  : state indices
                            mpar_data,             & ! intent(in)  : model parameters
                            prog_data,             & ! intent(in)  : model prognostic variables
-                           deriv_data,            & ! intent(in)  : state derivatives
                            stateVecInit,          & ! intent(in)  : initial state vector
-                           stateVecMult,          & ! intent(in)  : state vector multiplier
-                           riteHandSide,          & ! intent(in)  : right-hand-side of the state equation
+                           stateVecUpdate,        & ! intent(in)  : state vector update
                            stateVecNew,           & ! intent(out) : new state vector
                            constrained,           & ! intent(out) : flag to denote if the state was constrained
                            err,message)             ! intent(out) : error control
  USE var_lookup,only:iLookPROG                      ! named variables for structure elements
  USE var_lookup,only:iLookPARAM                     ! named variables for structure elements
  USE var_lookup,only:iLookINDEX                     ! named variables for structure elements
- USE var_lookup,only:iLookDERIV                     ! named variables for structure elements
  implicit none
  ! input
  type(var_ilength),intent(in)  :: indx_data         ! state indices
  type(var_d)      ,intent(in)  :: mpar_data         ! model parameters
  type(var_dlength),intent(in)  :: prog_data         ! model prognostic variables
- type(var_dlength),intent(in)  :: deriv_data        ! derivatives in model fluxes w.r.t. relevant state variables
  real(dp)         ,intent(in)  :: stateVecInit(:)   ! initial state vector   
- real(qp)         ,intent(in)  :: stateVecMult(:)   ! state vector multiplier
- real(dp)         ,intent(in)  :: riteHandSide(:)   ! right-hand-side of the state equation
+ real(dp)         ,intent(in)  :: stateVecUpdate(:) ! state vector update
  ! output
  real(dp)         ,intent(out) :: stateVecNew(:)    ! new state vector
  logical(lgt)     ,intent(out) :: constrained       ! flag to denote if the state was constrained
@@ -591,20 +685,18 @@ contains
  integer(i4b)                  :: iState            ! state index
  integer(i4b)                  :: ixFullVector      ! index in the full state vector
  integer(i4b)                  :: ixControlIndex    ! index of the control volume for different domains (veg, snow, soil) 
- real(dp)                      :: convFactor        ! conversion factor 
  real(dp)                      :: valueMin,valueMax ! minimum and maximum state values    
  ! --------------------------------------------------------------------------------------------------------------
 
  ! make association with model indices defined in indexSplit
  associate(&
-  theta_sat           => mpar_data%var(iLookPARAM%theta_sat),              & ! intent(in): [dp]     soil porosity (-)
-  theta_res           => mpar_data%var(iLookPARAM%theta_res),              & ! intent(in): [dp]     soil residual volumetric water content (-)
-  mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,    & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
-  dVolTot_dPsi0       => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,     & ! intent(in): [dp(:)]  derivative in total water content w.r.t. total water matric potential
-  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,    & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
-  ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,   & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
-  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat, & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
-  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+  theta_sat           => mpar_data%var(iLookPARAM%theta_sat),                & ! intent(in): [dp]     soil porosity (-)
+  theta_res           => mpar_data%var(iLookPARAM%theta_res),                & ! intent(in): [dp]     soil residual volumetric water content (-)
+  mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,      & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
+  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,      & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+  ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,     & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat,   & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat   & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
  ) ! associations
 
  ! initialize error control
@@ -620,16 +712,8 @@ contains
   ixFullVector   = ixMapSubset2Full(iState)       ! index within full state vector
   ixControlIndex = ixControlVolume(ixFullVector)  ! index within a given domain
 
-  ! get the flux-2-state conversion factor
-  select case( ixStateType_subset(iState) )
-   case(iname_nrgCanair,iname_nrgCanopy,iname_nrgLayer);                convFactor = 1._dp/real(stateVecMult(iState), dp)
-   case(iname_watCanopy,iname_liqCanopy,iname_watLayer,iname_liqLayer); convFactor = 1._dp
-   case(iname_matLayer,iname_lmpLayer);                                 convFactor = 1._dp/dVolTot_dPsi0(ixControlIndex)
-   case default; err=20; message=trim(message)//'unable to identify the state type'; return
-  end select
-
   ! update the state vector 
-  stateVecNew(iState) = stateVecInit(iState) + convFactor*riteHandSide(iState)
+  stateVecNew(iState) = stateVecInit(iState) + stateVecUpdate(iState)
 
   ! impose non-negativity constraints for the mass of water on the vegetation canopy
   if(ixStateType_subset(iState)==iname_watCanopy .or. ixStateType_subset(iState)==iname_liqCanopy)then

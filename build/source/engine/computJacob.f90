@@ -140,6 +140,7 @@ contains
  integer(i4b)                      :: qState          ! index of cross-derivative state variable for baseflow
  integer(i4b)                      :: nrgState        ! energy state variable
  integer(i4b)                      :: watState        ! hydrology state variable
+ integer(i4b)                      :: nState          ! number of state variables
  ! indices of model layers
  integer(i4b)                      :: iLayer          ! index of model layer
  integer(i4b)                      :: jLayer          ! index of model layer within the full state vector (hydrology)
@@ -240,6 +241,9 @@ contains
  ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
  ! *********************************************************************************************************************************************************
  ! *********************************************************************************************************************************************************
+
+ ! get the number of state variables
+ nState = size(dMat)
 
  ! initialize the Jacobian
  ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver
@@ -497,9 +501,9 @@ contains
    
    if(globalPrintFlag)then
     print*, '** banded analytical Jacobian:'
-    write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+    write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
     do iLayer=kl+1,nBands
-     write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=iJac1,iJac2)
+     write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
     end do
    end if
    !print*, 'PAUSE: banded analytical Jacobian'; read(*,*)
@@ -747,8 +751,8 @@ contains
    ! print the Jacobian
    if(globalPrintFlag)then
     print*, '** analytical Jacobian:'
-    write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-    do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(iJac1:iJac2,iLayer); end do
+    write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+    do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer); end do
    end if
 
   ! ***

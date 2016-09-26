@@ -454,8 +454,8 @@ contains
    
       ! compute mass of water on the canopy
       ! NOTE: possibilities for speed-up here
-      scalarCanopyLiqTrial = scalarVolFracLiq*(iden_water*canopyDepth)
-      scalarCanopyIceTrial = scalarVolFracIce*(iden_ice*canopyDepth)   ! NOTE: updateSnow provides volumetric fraction of ice assuming intrinsic density ice = 917 kg m-3
+      scalarCanopyLiqTrial =          scalarFracLiqVeg *scalarCanopyWatTrial 
+      scalarCanopyIceTrial = (1._dp - scalarFracLiqVeg)*scalarCanopyWatTrial
       
      ! *** snow layers
      case(iname_snow)
@@ -549,6 +549,9 @@ contains
 
     ! compute iteration increment
     tempInc    = residual/derivative  ! K
+
+    ! check
+    if(globalPrintFlag)& 
     write(*,'(i4,1x,e20.10,1x,5(f20.10,1x),L1)') iter, residual, xTemp-Tcrit, tempInc, Tcrit, tempMin, tempMax, bFlag
  
     ! check convergence
@@ -578,7 +581,7 @@ contains
     ! check failed convergence
     if(iter==maxiter)then
      message=trim(message)//'failed to converge'
-     err=20; return
+     err=-20; return ! negative error code = try to recover
     endif
   
    endif   ! if adjusting the temperature

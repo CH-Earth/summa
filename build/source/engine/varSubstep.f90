@@ -28,6 +28,9 @@ USE multiconst,only:integerMissing  ! missing integer
 USE multiconst,only:realMissing     ! missing double precision number
 USE multiconst,only:quadMissing     ! missing quadruple precision number
 
+! access the global print flag
+USE globalData,only:globalPrintFlag
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
@@ -40,7 +43,13 @@ USE data_types,only:&
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+
+! constants
+USE multiconst,only:&
+                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
+                    iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -161,6 +170,7 @@ contains
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
+ mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ! model state variables (vegetation canopy)
  scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the canopy air space (K)
  scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the vegetation canopy (K)
@@ -186,7 +196,7 @@ contains
  failedMinimumStep=.false.
 
  ! initialize the length of the substep
- dtSubstep = dt
+ dtSubstep    = dt
 
  ! allocate space for the temporary model flux structure
  call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -257,17 +267,32 @@ contains
                   err,cmessage)     ! intent(out):   error code and error message
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! implicit Euler
-  if(.not.explicitEuler)then
+  ! identify failure
+  failedSubstep = (err<0)
+  if(explicitEuler .and. explicitError > errTol) failedSubstep=.true.
 
-   ! failure: step halving
-   failedSubStep = (err<0)
-   if(failedSubstep)then
-    err=0 ! recover from failed convergence
-    dtMultiplier  = 0.5_dp   ! step halving
+  ! check
+  if(globalPrintFlag)&
+  print*, 'niter, failedSubstep = ', niter, failedSubstep
 
-   ! success: adjust step length based on iteration count
-   else    
+  ! reduce step based on failure
+  if(failedSubstep)then
+
+   ! get time step reduction
+   if(err<0)then
+    dtMultiplier  = 0.5_dp   ! system failure: step halving
+   else
+    dtMultiplier  = max(safety*sqrt(errTol/explicitError), reduceMin)  ! intolerable errors: MUST be explicit Euler
+   endif
+
+   ! recover from failed convergence
+   err=0 
+
+  ! successful step
+  else
+
+   ! ** implicit Euler: adjust step length based on iteration count
+   if(.not.explicitEuler)then
     if(niter<n_inc)then
      dtMultiplier = F_inc
     elseif(niter>n_dec)then
@@ -275,34 +300,29 @@ contains
     else
      dtMultiplier = 1._dp
     endif
-   endif  ! successful step
 
-  ! explicit Euler
-  else
-   failedSubstep  = (explicitError > errTol)
-   if(failedSubstep)then
-    dtMultiplier  = max(safety*sqrt(errTol/explicitError), reduceMin)
+   ! ** explicit Euler: adjust step based on error estimate
    else
     dtMultiplier  = min(safety*sqrt(errTol/explicitError), increaseMax)
-   endif
-
-  endif  ! switch between explicit and implicit Euler
+   endif  ! switch between explicit and implicit Euler
+  endif  ! switch between failure and success
 
   ! check if we failed the substep
   if(failedSubstep)then
-
-   ! adjust substep length
-   dtSubstep = dtSubstep*dtMultiplier  
-
-   ! check that the substep is not tiny
-   if(dtSubstep<dt_min)then
-    failedMinimumStep=.true.
-    exit subSteps
   
-   ! if step size if ok then try again
-   else
+   ! check that the substep is greater than the minimum step
+   if(dtSubstep*dtMultiplier<dt_min)then
+
+    ! --> if not explicit Euler, then exit and try another solution method
+    if(.not.explicitEuler)then
+     failedMinimumStep=.true.
+     exit subSteps
+    endif
+
+   else ! step is still OK
+    dtSubstep = dtSubstep*dtMultiplier  
     cycle subSteps
-   endif
+   endif  ! if step is less than the minimum
 
   endif  ! if failed the substep
 
@@ -310,10 +330,27 @@ contains
   ! * update model fluxes...
   ! ------------------------
 
+  ! check
+  if(globalPrintFlag)&
+  write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
+
   ! NOTE: we get to here if iterations are successful
   if(err/=0)then
    message=trim(message)//'expect err=0 if updating fluxes'
    return
+  endif
+
+  ! update prognostic variables
+  call updateProg(dtSubstep,doAdjustTemp,computeVegFlux,stateVecTrial,          & ! input: model control
+                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data, & ! input-output: data structures
+                  err,cmessage)                                                   ! output: error control
+  if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! recover from errors in prognostic update
+  if(err<0)then
+   err=0
+   dtSubstep = dtSubstep/2._dp
+   cycle substeps
   endif
 
   ! increment fluxes
@@ -321,99 +358,6 @@ contains
   do iVar=1,size(flux_meta)
    if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
   end do
-
-  ! -----
-  ! * extract variables and update states...
-  ! ----------------------------------------
-
-  ! NOTE: updating prog_data structures
-
-  ! new block (to use dimension information)
-  updateProg : block
-
-  ! trial state variables
-  real(dp)                        :: scalarCanairTempTrial         ! trial value for temperature of the canopy air space (K)
-  real(dp)                        :: scalarCanopyTempTrial         ! trial value for temperature of the vegetation canopy (K)
-  real(dp)                        :: scalarCanopyWatTrial          ! trial value for liquid water storage in the canopy (kg m-2)
-  real(dp),dimension(nLayers)     :: mLayerTempTrial               ! trial vector for temperature of layers in the snow and soil domains (K)
-  real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial         ! trial vector for volumetric fraction of total water (-)
-  real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial         ! trial vector for total water matric potential (m)
-  real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial      ! trial vector for liquid water matric potential (m)
-
-  ! diagnostic variables
-  real(dp)                        :: scalarCanopyLiqTrial          ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
-  real(dp)                        :: scalarCanopyIceTrial          ! trial value for mass of ice on the vegetation canopy (kg m-2)
-  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial         ! trial vector for volumetric fraction of liquid water (-)
-  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial         ! trial vector for volumetric fraction of ice (-)
-
-  ! extract states from the state vector
-  call varExtract(&
-                  ! input
-                  stateVecTrial,            & ! intent(in):    model state vector (mixed units)
-                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
-                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
-                  indx_data,                & ! intent(in):    indices defining model states and layers
-                  ! output: variables for the vegetation canopy
-                  scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
-                  scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
-                  scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
-                  scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                  scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
-                  ! output: variables for the snow-soil domain
-                  mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
-                  mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
-                  mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                  mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
-                  mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
-                  mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
-                  ! output: error control
-                  err,cmessage)               ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-  ! update diagnostic variables
-  call updateVars(&
-                  ! input
-                  doAdjustTemp,                         & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                  mpar_data,                            & ! intent(in):    model parameters for a local HRU
-                  indx_data,                            & ! intent(in):    indices defining model states and layers
-                  prog_data,                            & ! intent(in):    model prognostic variables for a local HRU
-                  diag_data,                            & ! intent(inout): model diagnostic variables for a local HRU
-                  deriv_data,                           & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ! output: variables for the vegetation canopy
-                  scalarCanopyTempTrial,                & ! intent(inout): trial value of canopy temperature (K)
-                  scalarCanopyWatTrial,                 & ! intent(inout): trial value of canopy total water (kg m-2)
-                  scalarCanopyLiqTrial,                 & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                  scalarCanopyIceTrial,                 & ! intent(inout): trial value of canopy ice content (kg m-2)
-                  ! output: variables for the snow-soil domain
-                  mLayerTempTrial,                      & ! intent(inout): trial vector of layer temperature (K)
-                  mLayerVolFracWatTrial,                & ! intent(inout): trial vector of volumetric total water content (-)
-                  mLayerVolFracLiqTrial,                & ! intent(inout): trial vector of volumetric liquid water content (-)
-                  mLayerVolFracIceTrial,                & ! intent(inout): trial vector of volumetric ice water content (-)
-                  mLayerMatricHeadTrial,                & ! intent(inout): trial vector of total water matric potential (m)
-                  mLayerMatricHeadLiqTrial,             & ! intent(inout): trial vector of liquid water matric potential (m)
-                  ! output: error control
-                  err,cmessage)                           ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-  ! update prog structures
-  ! NOTE: need to do the copy rather than pass to avoid conflicting associate statements
-
-  ! build elements of the state vector for the vegetation canopy
-  scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
-  scalarCanopyTemp    = scalarCanopyTempTrial    ! trial value of canopy temperature (K)
-  scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2) kg m-2
-  scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)kg m-2
-  scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2) kg m-2
-
-  ! build elements of the state vector for the snow+soil domain
-  mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)
-  mLayerVolFracWat    = mLayerVolFracWatTrial    ! trial vector of volumetric total water content (-)
-  mLayerVolFracLiq    = mLayerVolFracLiqTrial    ! trial vector of volumetric liquid water content (-)
-  mLayerVolFracIce    = mLayerVolFracIceTrial    ! trial vector of volumetric ice water content (-)
-  mLayerMatricHead    = mLayerMatricHeadTrial    ! trial vector of matric head (m)
-  mLayerMatricHeadLiq = mLayerMatricHeadLiqTrial ! trial vector of matric head (m)
-
-  end block updateProg
 
   ! ------------------------------------------------------
   ! ------------------------------------------------------
@@ -428,13 +372,237 @@ contains
   endif
 
   ! adjust length of the sub-step (make sure that we don't exceed the step)
-  dtSubstep = min(dt - dtSum, dtSubstep*dtMultiplier)
+  dtSubstep = min(dt - dtSum, max(dtSubstep*dtMultiplier, dt_min) )
 
  end do substeps  ! time steps for variable-dependent sub-stepping
 
  ! end associate statements
  end associate globalVars
 
+
  end subroutine varSubstep
+
+
+ ! **********************************************************************************************************
+ ! private subroutine updateProg: update prognostic variables
+ ! **********************************************************************************************************
+ subroutine updateProg(dt,doAdjustTemp,computeVegFlux,stateVecTrial,                 & ! input: model control
+                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data, & ! input-output: data structures
+                       err,message)                                                    ! output: error control
+ USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
+ USE updateVars_module,only:updateVars                             ! update prognostic variables
+ implicit none
+ ! model control
+ real(dp)         ,intent(in)    :: dt                             ! time step (s)
+ logical(lgt)     ,intent(in)    :: doAdjustTemp                   ! flag to indicate if we adjust the temperature
+ logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
+ real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
+ ! data structures 
+ type(var_d)      ,intent(in)    :: mpar_data                      ! model parameters
+ type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
+ type(var_dlength),intent(in)    :: flux_data                      ! model fluxes for a local HRU
+ type(var_dlength),intent(inout) :: prog_data                      ! prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data                      ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
+ ! error control
+ integer(i4b)     ,intent(out)   :: err                            ! error code
+ character(*)     ,intent(out)   :: message                        ! error message
+ ! ==================================================================================================================
+ ! mass balance
+ logical(lgt),parameter          :: checkMassBalance=.true.        ! flag to check the mass balance
+ real(dp)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
+ real(dp)                        :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
+ real(dp)                        :: vertFlux                       ! change in storage due to vertical fluxes
+ real(dp)                        :: tranSink,baseSink,compSink     ! change in storage due to sink terms
+ real(dp)                        :: liqError                       ! water balance error
+ character(LEN=256)              :: cmessage                       ! error message of downwind routine
+ ! -------------------------------------------------------------------------------------------------------------------
+ ! point to flux variables in the data structure
+ associate(&
+ ! number of layers
+ nSnow                     => indx_data%var(iLookINDEX%nSnow)%dat(1)                     ,& ! intent(in)    : [i4b]    number of snow layers
+ nSoil                     => indx_data%var(iLookINDEX%nSoil)%dat(1)                     ,& ! intent(in)    : [i4b]    number of soil layers
+ nLayers                   => indx_data%var(iLookINDEX%nLayers)%dat(1)                   ,& ! intent(in)    : [i4b]    total number of layers
+ mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                   ,& ! intent(in)    : [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+ ! get indices for mass balance
+ ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
+ ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+ ! fluxes
+ scalarRainfall            => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)             ,& ! intent(in)    : [dp]     rainfall rate (kg m-2 s-1)
+ scalarThroughfallRain     => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)      ,& ! intent(in)    : [dp]     rain reaches ground without touching the canopy (kg m-2 s-1)
+ scalarCanopyEvaporation   => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)    ,& ! intent(in)    : [dp]     canopy evaporation/condensation (kg m-2 s-1)
+ scalarCanopyTranspiration => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)  ,& ! intent(in)    : [dp]     canopy transpiration (kg m-2 s-1)
+ scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)    ,& ! intent(in)    : [dp]     drainage liquid water from vegetation canopy (kg m-2 s-1)
+ iLayerLiqFluxSoil         => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat             ,& ! intent(in)    : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+ mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(in)    : [dp(:)]  transpiration loss from each soil layer (m s-1)
+ mLayerBaseflow            => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                ,& ! intent(in)    : [dp(:)]  baseflow from each soil layer (m s-1)
+ mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat                ,& ! intent(in)    : [dp(:)]  change in storage associated with compression of the soil matrix (-)
+ scalarCanopySublimation   => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)    ,& ! intent(in)    : [dp]     sublimation of ice from the vegetation canopy (kg m-2 s-1)
+ scalarSnowSublimation     => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)      ,& ! intent(in)    : [dp]     sublimation of ice from the snow surface (kg m-2 s-1)
+ ! model state variables (vegetation canopy)
+ scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)           ,& ! intent(inout) : [dp]     temperature of the canopy air space (K)
+ scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)           ,& ! intent(inout) : [dp]     temperature of the vegetation canopy (K)
+ scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)            ,& ! intent(inout) : [dp]     mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)            ,& ! intent(inout) : [dp]     mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyWat           => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)            ,& ! intent(inout) : [dp]     mass of total water on the vegetation canopy (kg m-2)
+ ! model state variables (snow and soil domains)
+ mLayerTemp                => prog_data%var(iLookPROG%mLayerTemp)%dat                    ,& ! intent(inout) : [dp(:)]  temperature of each snow/soil layer (K)
+ mLayerVolFracIce          => prog_data%var(iLookPROG%mLayerVolFracIce)%dat              ,& ! intent(inout) : [dp(:)]  volumetric fraction of ice (-)
+ mLayerVolFracLiq          => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat              ,& ! intent(inout) : [dp(:)]  volumetric fraction of liquid water (-)
+ mLayerVolFracWat          => prog_data%var(iLookPROG%mLayerVolFracWat)%dat              ,& ! intent(inout) : [dp(:)]  volumetric fraction of total water (-)
+ mLayerMatricHead          => prog_data%var(iLookPROG%mLayerMatricHead)%dat              ,& ! intent(inout) : [dp(:)]  matric head (m)
+ mLayerMatricHeadLiq       => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat           ,& ! intent(inout) : [dp(:)]  matric potential of liquid water (m)
+ ! error tolerance
+ absConvTol_liquid         => mpar_data%var(iLookPARAM%absConvTol_liquid)                 & ! intent(in)    : [dp]     absolute convergence tolerance for vol frac liq water (-)
+ ) ! associating flux variables in the data structure
+ ! -------------------------------------------------------------------------------------------------------------------
+ ! trial state variables
+ ! NOTE: use a local block so that we can access the dimension information in the data structures
+ localVars : block
+ ! trial state variables
+ real(dp)                        :: scalarCanairTempTrial          ! trial value for temperature of the canopy air space (K)
+ real(dp)                        :: scalarCanopyTempTrial          ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyWatTrial           ! trial value for liquid water storage in the canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerTempTrial                ! trial vector for temperature of layers in the snow and soil domains (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial          ! trial vector for volumetric fraction of total water (-)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
+ ! diagnostic variables
+ real(dp)                        :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial          ! trial vector for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial          ! trial vector for volumetric fraction of ice (-)
+ ! -------------------------------------------------------------------------------------------------------------------
+
+ ! initialize error control
+ err=0; message='updateProg/'
+
+ ! get storage at the start of the step
+ canopyBalance0 = merge(scalarCanopyWat, realMissing, computeVegFlux)
+ soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers)  + mLayerVolFracIce(nSnow+1:nLayers)  )*mLayerDepth(nSnow+1:nLayers) )
+
+ ! -----
+ ! * update states...
+ ! ------------------
+
+ ! extract states from the state vector
+ call varExtract(&
+                 ! input
+                 stateVecTrial,            & ! intent(in):    model state vector (mixed units)
+                 diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
+                 prog_data,                & ! intent(in):    model prognostic variables for a local HRU
+                 indx_data,                & ! intent(in):    indices defining model states and layers
+                 ! output: variables for the vegetation canopy
+                 scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
+                 scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
+                 ! output: variables for the snow-soil domain
+                 mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
+                 mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                 ! output: error control
+                 err,cmessage)               ! intent(out):   error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ ! update diagnostic variables
+ call updateVars(&
+                 ! input
+                 doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 mpar_data,                & ! intent(in):    model parameters for a local HRU
+                 indx_data,                & ! intent(in):    indices defining model states and layers
+                 prog_data,                & ! intent(in):    model prognostic variables for a local HRU
+                 diag_data,                & ! intent(inout): model diagnostic variables for a local HRU
+                 deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                 ! output: variables for the vegetation canopy
+                 scalarCanopyTempTrial,    & ! intent(inout): trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,     & ! intent(inout): trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,     & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial,     & ! intent(inout): trial value of canopy ice content (kg m-2)
+                 ! output: variables for the snow-soil domain
+                 mLayerTempTrial,          & ! intent(inout): trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,    & ! intent(inout): trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,    & ! intent(inout): trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial,    & ! intent(inout): trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial,    & ! intent(inout): trial vector of total water matric potential (m)
+                 mLayerMatricHeadLiqTrial, & ! intent(inout): trial vector of liquid water matric potential (m)
+                 ! output: error control
+                 err,cmessage)               ! intent(out):   error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ ! -----
+ ! * check mass balance...
+ ! -----------------------
+
+ ! NOTE: should not need to do this, since mass balance is checked in the solver
+ if(checkMassBalance)then
+
+  ! check mass balance for the canopy
+  ! NOTE: fatal errors, though possible to recover using negative error codes
+  if(ixVegHyd/=integerMissing)then
+   canopyBalance1 = canopyBalance0 + (scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage)*dt
+   liqError       = canopyBalance1 - scalarCanopyWatTrial
+   if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 because of precision issues
+    write(*,'(a,1x,f20.10)') 'dt = ', dt
+    write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial
+    write(*,'(a,1x,f20.10)') 'canopyBalance0             = ', canopyBalance0
+    write(*,'(a,1x,f20.10)') 'canopyBalance1             = ', canopyBalance1
+    write(*,'(a,1x,f20.10)') 'scalarRainfall*dt          = ', scalarRainfall*dt
+    write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt = ', scalarCanopyLiqDrainage*dt
+    write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
+    write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
+    write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError 
+    message=trim(message)//'failed mass balance check for the vegetation canopy'
+    err=20; return  ! NOTE: also possible to recover using negative error codes
+   endif  ! if there is a water balance error
+  endif  ! if veg canopy
+  
+  ! check mass balance for soil
+  ! NOTE: fatal errors, though possible to recover using negative error codes
+  if(count(ixSoilOnlyHyd/=integerMissing)>0)then
+   soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
+   vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt  ! m s-1 --> m
+   tranSink     = sum(mLayerTranspire)*dt                                ! m s-1 --> m
+   baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
+   compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
+   liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
+   if(abs(liqError) > absConvTol_liquid*10._dp)then   ! *10 because of precision issues
+    message=trim(message)//'failed mass balance check for the soil domain'
+    err=20; return  ! NOTE: also possible to recover using negative error codes
+   endif  ! if there is a water balance error
+  endif  ! if hydrology states exist in the soil domain
+
+ endif  ! if checking the mass balance
+
+ ! -----
+ ! * update prognostic variables... 
+ ! --------------------------------
+
+ ! build elements of the state vector for the vegetation canopy
+ scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
+ scalarCanopyTemp    = scalarCanopyTempTrial    ! trial value of canopy temperature (K)
+ scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2) kg m-2
+ scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)kg m-2
+ scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2) kg m-2
+
+ ! build elements of the state vector for the snow+soil domain
+ mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)
+ mLayerVolFracWat    = mLayerVolFracWatTrial    ! trial vector of volumetric total water content (-)
+ mLayerVolFracLiq    = mLayerVolFracLiqTrial    ! trial vector of volumetric liquid water content (-)
+ mLayerVolFracIce    = mLayerVolFracIceTrial    ! trial vector of volumetric ice water content (-)
+ mLayerMatricHead    = mLayerMatricHeadTrial    ! trial vector of matric head (m)
+ mLayerMatricHeadLiq = mLayerMatricHeadLiqTrial ! trial vector of matric head (m)
+
+ ! end the block used to define local variables
+ end block localVars 
+
+ ! end associations to info in the data structures
+ end associate
+
+ end subroutine updateProg
 
 end module varSubstep_module
