@@ -210,6 +210,7 @@ contains
  integer(i4b)                    :: iSoil                          ! index of soil layer
  integer(i4b)                    :: iVar                           ! index of variables in data structures
  logical(lgt),parameter          :: forceFullMatrix=.false.        ! flag to force the use of the full Jacobian matrix
+ logical(lgt)                    :: firstSuccess                   ! flag to define the first flux call
  logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
  type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables
  type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
@@ -322,6 +323,7 @@ contains
  print*, trim(message), dt
 
  ! initialize the first flux call
+ firstSuccess=.false.
  firstFluxCall=.true.
 
  ! initialize flag for the success of the substepping
@@ -476,6 +478,10 @@ contains
        else
         fluxMask(iVar) = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
        endif
+       
+       ! * check
+       if(globalPrintFlag .and. fluxMask(iVar))&
+       print*, trim(flux_meta(iVar)%varname)
   
       end do
       end associate stateSubset
@@ -488,6 +494,9 @@ contains
       ! -----
       ! * solve variable subset for one time step...
       ! --------------------------------------------
+
+      ! reset the flag for the first flux call
+      if(.not.firstSuccess) firstFluxCall=.true.
   
       ! save/recover copies of prognostic variables
       do iVar=1,size(prog_data%var)
@@ -504,10 +513,6 @@ contains
         case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
        end select
       end do  ! looping through variables
-  
-      ! reset the first flux call
-      ! NOTE: may not need to do this for all splits
-      if(failure) firstFluxCall=.true.
 
       ! solve variable subset for one full time step
       call varSubstep(&
@@ -553,7 +558,8 @@ contains
   
       ! define failure
       failure = (failedMinimumStep .or. err<0)
-  
+      if(.not.failure) firstSuccess=.true. 
+ 
       ! -----
       ! * success: revert back to "more coupled" methods...
       ! ---------------------------------------------------

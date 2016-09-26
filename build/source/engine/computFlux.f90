@@ -547,11 +547,13 @@ contains
   
   ! test
   if(globalPrintFlag)then
+   print*, '**'
    print*, 'scalarRainfall          = ', scalarRainfall
    print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
    print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
    print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
    print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
+   print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
   endif
 
  endif  ! computing the liquid water fluxes through vegetation

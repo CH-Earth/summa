@@ -1417,6 +1417,8 @@ contains
    end if
    !print*, 'scalarSnowSublimation, scalarLatHeatGround = ', scalarSnowSublimation, scalarLatHeatGround
 
+   !print*, 'canopyWetFraction, scalarCanopyEvaporation = ', canopyWetFraction, scalarCanopyEvaporation
+
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
    ! ***** AND STITCH EVERYTHING TOGETHER  *****************************************************************************************************************************
@@ -2777,7 +2779,7 @@ contains
   evapConductance    = canopyWetFraction*leafConductance
   transConductance   = (1._dp - canopyWetFraction) * leafConductanceTr
   !write(*,'(a,10(f14.8,1x))') 'canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction = ', &
-  !                              canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction
+  !                             canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction
  else
   evapConductance    = 0._dp
   transConductance   = 0._dp
