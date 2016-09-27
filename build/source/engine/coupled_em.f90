@@ -651,7 +651,6 @@ contains
     scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
     scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
     scalarCanopyLiq         = 0._dp
-    print*, 'redistributing energy'
    endif
 
   end if  ! (if computing the vegetation flux)
@@ -830,30 +829,35 @@ contains
  ! * balance checks for the canopy...
  ! ----------------------------------
 
- ! canopy water balance
- balanceCanopyWater1 = scalarCanopyLiq + scalarCanopyIce
+ ! if computing the vegetation flux
+ if(computeVegFlux)then
 
- ! balance checks for the canopy
- ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
- scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
-                            - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
- if(abs(scalarCanopyWatBalError) > 1.d-3)then
-  print*, '** canopy water balance error:'
-  write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
-  write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
-  write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
-  write(*,'(a,1x,f20.10)') 'scalarSnowfall                               = ', scalarSnowfall
-  write(*,'(a,1x,f20.10)') 'scalarRainfall                               = ', scalarRainfall
-  write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)*data_step
-  write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)*data_step
-  write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading*data_step
-  write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage*data_step
-  write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation*data_step
-  write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation*data_step
-  write(*,'(a,1x,f20.10)') 'scalarCanopyWatBalError                      = ', scalarCanopyWatBalError
-  message=trim(message)//'canopy hydrology does not balance'
-  err=20; return
- end if
+  ! canopy water balance
+  balanceCanopyWater1 = scalarCanopyLiq + scalarCanopyIce
+  
+  ! balance checks for the canopy
+  ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
+  scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
+                             - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
+  if(abs(scalarCanopyWatBalError) > 1.d-3)then
+   print*, '** canopy water balance error:'
+   write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
+   write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
+   write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
+   write(*,'(a,1x,f20.10)') 'scalarSnowfall                               = ', scalarSnowfall
+   write(*,'(a,1x,f20.10)') 'scalarRainfall                               = ', scalarRainfall
+   write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)!*data_step
+   write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)!*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading!*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage!*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation!*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation!*data_step
+   write(*,'(a,1x,f20.10)') 'scalarCanopyWatBalError                      = ', scalarCanopyWatBalError
+   message=trim(message)//'canopy hydrology does not balance'
+   err=20; return
+  end if
+
+ endif  ! if computing the vegetation flux
 
  ! -----
  ! * balance checks for SWE...

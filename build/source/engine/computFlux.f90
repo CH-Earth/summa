@@ -394,7 +394,7 @@ contains
  ! *********************************************
 
  ! check if there is a need to calculate the energy fluxes over vegetation
- if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. firstFluxCall)then
+ if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing .or. firstFluxCall)then
 
   ! derivative in canopy liquid storage w.r.t. canopy temperature
   dCanLiq_dTcanopy = dTheta_dTkCanopy*iden_water*canopyDepth  ! kg m-2 K-1
@@ -463,6 +463,7 @@ contains
   ! check fluxes
   if(globalPrintFlag)then
    print*, '**'
+   write(*,'(a,1x,f30.20)') 'canopyDepth           = ',  canopyDepth
    write(*,'(a,1x,f30.20)') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
    write(*,'(a,1x,f30.20)') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
    write(*,'(a,1x,f30.20)') 'mLayerTempTrial(1)    = ',  mLayerTempTrial(1)      ! trial value of ground temperature (K)

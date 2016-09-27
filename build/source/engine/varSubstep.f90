@@ -48,6 +48,7 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
 ! constants
 USE multiconst,only:&
+                    LH_vap,       & ! latent heat of vaporization          (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
@@ -162,6 +163,11 @@ contains
  real(dp)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
  real(dp)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes
+ ! flags
+ logical(lgt)                    :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
+ real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
+ real(dp)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ real(dp)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -206,6 +212,11 @@ contains
  do iVar=1,size(flux_data%var)
   flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
  end do
+
+ ! initialize the total energy fluxes (modified in updateProg)
+ sumCanopyEvaporation = 0._dp  ! canopy evaporation/condensation (kg m-2 s-1)
+ sumLatHeatCanopyEvap = 0._dp  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ sumSenHeatCanopy     = 0._dp  ! sensible heat flux from the canopy to the canopy air space (W m-2)
 
  ! initialize subStep
  dtSum     = 0._dp  ! keep track of the portion of the time step that is completed
@@ -272,8 +283,10 @@ contains
   if(explicitEuler .and. explicitError > errTol) failedSubstep=.true.
 
   ! check
-  if(globalPrintFlag)&
-  print*, 'niter, failedSubstep = ', niter, failedSubstep
+  if(globalPrintFlag)then
+   print*, 'niter, failedSubstep = ', niter, failedSubstep
+   print*, trim(cmessage)
+  endif
 
   ! reduce step based on failure
   if(failedSubstep)then
@@ -343,8 +356,19 @@ contains
   ! update prognostic variables
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,stateVecTrial, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,            & ! input-output: data structures
-                  err,cmessage)                                                              ! output: error control
+                  nrgFluxModified,err,cmessage)                                              ! output: flags and error control
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get the total energy fluxes (modified in updateProg)
+  if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+  else
+   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+  endif  ! if energy fluxes were modified
 
   ! recover from errors in prognostic update
   if(err<0)then
@@ -376,6 +400,11 @@ contains
 
  end do substeps  ! time steps for variable-dependent sub-stepping
 
+ ! save the energy fluxes
+ flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
+ flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
+
  ! end associate statements
  end associate globalVars
 
@@ -388,7 +417,7 @@ contains
  ! **********************************************************************************************************
  subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,stateVecTrial, & ! input: model control
                        mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,     & ! input-output: data structures
-                       err,message)                                                        ! output: error control
+                       nrgFluxModified,err,message)                                        ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -403,11 +432,12 @@ contains
  ! data structures 
  type(var_d)      ,intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
- type(var_dlength),intent(in)    :: flux_data                      ! model fluxes for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: prog_data                      ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                      ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
- ! error control
+ ! flags and error control
+ logical(lgt)     ,intent(out)   :: nrgFluxModified                ! flag to denote that the energy fluxes were modified
  integer(i4b)     ,intent(out)   :: err                            ! error code
  character(*)     ,intent(out)   :: message                        ! error message
  ! ==================================================================================================================
@@ -418,6 +448,9 @@ contains
  real(dp)                        :: vertFlux                       ! change in storage due to vertical fluxes
  real(dp)                        :: tranSink,baseSink,compSink     ! change in storage due to sink terms
  real(dp)                        :: liqError                       ! water balance error
+ real(dp)                        :: fluxNet                        ! net water fluxes (kg m-2 s-1)
+ real(dp)                        :: superflousWat                  ! superflous water used for evaporation (kg m-2 s-1)
+ real(dp)                        :: superflousNrg                  ! superflous energy that cannot be used for evaporation (W m-2 [J m-2 s-1])
  character(LEN=256)              :: cmessage                       ! error message of downwind routine
  ! trial state variables
  real(dp)                        :: scalarCanairTempTrial          ! trial value for temperature of the canopy air space (K)
@@ -440,7 +473,7 @@ contains
  ! get indices for mass balance
  ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
  ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
- ! fluxes
+ ! water fluxes
  scalarRainfall            => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)             ,& ! intent(in)    : [dp]     rainfall rate (kg m-2 s-1)
  scalarThroughfallRain     => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)      ,& ! intent(in)    : [dp]     rain reaches ground without touching the canopy (kg m-2 s-1)
  scalarCanopyEvaporation   => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)    ,& ! intent(in)    : [dp]     canopy evaporation/condensation (kg m-2 s-1)
@@ -452,6 +485,9 @@ contains
  mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat                ,& ! intent(in)    : [dp(:)]  change in storage associated with compression of the soil matrix (-)
  scalarCanopySublimation   => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)    ,& ! intent(in)    : [dp]     sublimation of ice from the vegetation canopy (kg m-2 s-1)
  scalarSnowSublimation     => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)      ,& ! intent(in)    : [dp]     sublimation of ice from the snow surface (kg m-2 s-1)
+ ! energy fluxes
+ scalarLatHeatCanopyEvap   => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)    ,& ! intent(in)    : [dp]     latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ scalarSenHeatCanopy       => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)        ,& ! intent(in)    : [dp]     sensible heat flux from the canopy to the canopy air space (W m-2)
  ! model state variables (vegetation canopy)
  scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)           ,& ! intent(inout) : [dp]     temperature of the canopy air space (K)
  scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)           ,& ! intent(inout) : [dp]     temperature of the vegetation canopy (K)
@@ -538,10 +574,49 @@ contains
  if(checkMassBalance)then
 
   ! check mass balance for the canopy
-  ! NOTE: fatal errors, though possible to recover using negative error codes
   if(ixVegHyd/=integerMissing)then
-   canopyBalance1 = canopyBalance0 + (scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage)*dt
-   liqError       = canopyBalance1 - scalarCanopyWatTrial
+
+   ! handle cases where fluxes over-drain the canopy
+   fluxNet = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+   if(-fluxNet*dt > canopyBalance0)then
+
+    ! --> first add water
+    canopyBalance1 = canopyBalance0 + (scalarRainfall - scalarThroughfallRain)*dt
+
+    ! --> next, remove canopy evaporation -- put the unsatisfied evap into sensible heat
+    canopyBalance1 = canopyBalance1 + scalarCanopyEvaporation*dt
+    if(canopyBalance1 < 0._dp)then
+     ! * get superfluous water and energy
+     superflousWat = -canopyBalance1/dt     ! kg m-2 s-1
+     superflousNrg = superflousWat*LH_vap   ! W m-2 (J m-2 s-1)
+     ! * update fluxes and states
+     canopyBalance1          = 0._dp
+     scalarCanopyEvaporation = scalarCanopyEvaporation + superflousWat
+     scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
+     scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
+    endif
+
+    ! --> next, remove canopy drainage
+    canopyBalance1 = canopyBalance1 - scalarCanopyLiqDrainage*dt
+    if(canopyBalance1 < 0._dp)then
+     superflousWat            = -canopyBalance1/dt     ! kg m-2 s-1
+     canopyBalance1          = 0._dp
+     scalarCanopyLiqDrainage = scalarCanopyLiqDrainage + superflousWat 
+    endif
+
+    ! update the trial state
+    scalarCanopyWatTrial = canopyBalance1
+ 
+    ! set the modification flag
+    nrgFluxModified = .true.
+
+   else
+    nrgFluxModified = .false.
+   endif  ! cases where fluxes over-drain the canopy
+
+   ! check the mass balance
+   fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+   liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
    if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 because of precision issues
     write(*,'(a,1x,f20.10)') 'dt = ', dt
     write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial

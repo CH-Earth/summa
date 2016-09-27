@@ -162,8 +162,6 @@ contains
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
    nSnow   = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
 
-   write(*,'(a,1x,10(f9.4,1x))') 'mLayerVolFracLiq = ', mLayerVolFracLiq
-
    ! loop through all layers
    do iLayer=1,nLayers
 

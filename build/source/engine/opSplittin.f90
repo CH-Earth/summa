@@ -224,7 +224,7 @@ contains
  real(dp),parameter              :: dtmin_fullyCoupled=3600._dp    ! minimum time step for the fully coupled solution
  real(dp),parameter              :: dtmin_splitStateType=3600._dp  ! minimum time step for the split by state type 
  real(dp),parameter              :: dtmin_splitDomainType=3600._dp ! minimum time step for the split by domain type 
- real(dp),parameter              :: dtmin_explicitEuler=10._dp     ! minimum time step for the explicit Euler solution
+ real(dp),parameter              :: dtmin_explicitEuler=0.1_dp     ! minimum time step for the explicit Euler solution
  ! explicit error tolerance (depends on state type split, so defined here)
  real(dp),parameter              :: errorTolLiqFlux=0.01_dp        ! error tolerance in the explicit solution (liquid flux)
  real(dp),parameter              :: errorTolNrgFlux=100._dp        ! error tolerance in the explicit solution (energy flux)

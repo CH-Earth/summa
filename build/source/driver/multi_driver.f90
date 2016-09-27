@@ -880,6 +880,8 @@ do modelTimeStep=1,numtim
    ! ****************************************************************************
    ! set the flag to compute the vegetation flux
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
+
+   !print*, 'iHRU = ', iHRU
  
    ! run the model for a single parameter set and time step
    call coupled_em(&
@@ -903,6 +905,10 @@ do modelTimeStep=1,numtim
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
    !print*, 'PAUSE: after coupled_em'; read(*,*)
+
+   ! save the number of snow and soil layers
+   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
+   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
 
 !   ! check feasibiility of certain states
 !   call check_icond(nGRU,nHRU,                     & ! number of response units
@@ -1026,7 +1032,7 @@ do modelTimeStep=1,numtim
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
 
- ! quesry whether this timestep requires a re-start file
+ ! query whether this timestep requires a re-start file
  select case(ixRestart)
   case(ixRestart_iy);    printRestart = (timeStruct%var(iLookTIME%im) == 1 .and. timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0  .and. timeStruct%var(iLookTIME%imin) == 0)
   case(ixRestart_im);    printRestart = (timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
