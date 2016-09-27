@@ -75,6 +75,8 @@ contains
  err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
+ print*, 'fileHRU = ', fileHRU
+
  ! allocate sotrage for reading from file
  allocate(snowData(fileHRU))
  allocate(soilData(fileHRU))
@@ -89,11 +91,15 @@ contains
  err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message) 
  err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message) 
 
+ print*, 'snowData = ', snowData
+ print*, 'soilData = ', soilData
+
  ! assign to index structure - gru by hru
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   print*, 'iGRU, iHRU, nSnow, nSoil = ', iGRU, iHRU, gru_struc(iGRU)%hruInfo(iHRU)%nSnow, gru_struc(iGRU)%hruInfo(iHRU)%nSoil
   end do
  end do
 
@@ -147,6 +153,7 @@ contains
  ! locals
  character(len=256)                     :: cmessage     ! downstream error message
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
+ integer(i4b)                           :: iLayer       ! loop index 
  integer(i4b)                           :: iVar         ! loop index 
  integer(i4b)                           :: iGRU         ! loop index 
  integer(i4b)                           :: iHRU         ! loop index 
@@ -222,6 +229,7 @@ contains
   ! get the dimension length
   err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
   if(err/=0)then; message=trim(message)//': problem getting the dimension length'; return; endif
+  print*, 'varname, trim(dimName), dimLen = ', trim(prog_meta(iVar)%varname), ': ', trim(dimName), dimLen
 
   ! iniitialize the variable data
   allocate(varData(fileHRU,dimLen),stat=err)
@@ -251,6 +259,9 @@ contains
       message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
       err=20; return
     end select
+    print*, 'mapping     = ', iHRU, gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    print*, 'iHRU, var   = ', iHRU, (varData(iHRU,iLayer),iLayer=1,dimLen)
+    print*, 'iHRU, state = ', iHRU, progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat
 
     ! initialize the spectral albedo
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)

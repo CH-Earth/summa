@@ -604,6 +604,12 @@ contains
   ! only for soil
   if(ixDomainType==iname_soil)then
 
+   ! check liquid water
+   if(mLayerVolFracLiqTrial(iLayer) > theta_sat)then
+    message=trim(message)//'liquid water greater than porosity'
+    err=20; return
+   endif
+
    ! case of hydrology state uncoupled with energy
    if(.not.isNrgState .and. .not.isCoupled)then
 

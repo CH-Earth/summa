@@ -523,6 +523,13 @@ contains
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
     nLayers = nSoil + nSnow
 
+    ! check
+    if(iVar==iLookPROG%mLayerVolFracLiq)then
+     write(*,'(a,1x,2(i4,1x),10(f9.4,1x))') 'iGRU, iHRU, mLayerVolFracLiq = ', iGRU, iHRU, prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat
+     print*, 'midToto? = ', iLookVarType%midToto==prog_meta(iVar)%varType
+     print*, 'nLayers = ', nLayers
+    endif
+
     ! take action depending on variable type    
     select case (prog_meta(iVar)%varType)
      case(iLookVarType%scalarv);                err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nScalar  /))
@@ -541,7 +548,7 @@ contains
     err=0; message='writeRestart/'
 
    end do ! iVar 
-  
+
    ! write index variables 
    err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat/),start=(/cHRU/),count=(/1/))
    err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat/),start=(/cHRU/),count=(/1/))
