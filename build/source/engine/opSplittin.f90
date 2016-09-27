@@ -547,14 +547,14 @@ contains
       if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
 
       ! check 
-      if(globalPrintFlag .and. ixSolution>splitStateType)then
+      !if(globalPrintFlag .and. ixSolution>splitStateType)then
        print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
        print*, 'after filter: stateMask = ', stateMask
        print*, 'nSubset = ', nSubset
        print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
        !print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
-      endif    
+      !endif    
   
       ! define failure
       failure = (failedMinimumStep .or. err<0)

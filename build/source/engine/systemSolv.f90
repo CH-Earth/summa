@@ -126,6 +126,7 @@ contains
                        stateVecInit,   & ! intent(in):    initial state vector
                        ! output
                        deriv_data,     & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                       untappedMelt,   & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                        stateVecTrial,  & ! intent(out):   updated state vector
                        explicitError,  & ! intent(out):   error in the explicit solution
                        niter,          & ! intent(out):   number of iterations taken
@@ -163,6 +164,7 @@ contains
  real(dp),intent(in)             :: stateVecInit(:)               ! initial state vector (mixed units)
  ! output: model control
  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables 
+ real(dp),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
  real(dp),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
  real(dp),intent(out)            :: explicitError                 ! error in the explicit solution
  integer(i4b),intent(out)        :: niter                         ! number of iterations taken
@@ -192,6 +194,8 @@ contains
  integer(i4b)                    :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  real(dp)                        :: stateVecNew(nState)           ! new state vector (mixed units)
+ real(dp)                        :: rhsFlux0(nState)              ! right-hand-side fluxes (start of step)
+ real(dp)                        :: rhsFlux1(nState)              ! right-hand-side fluxes (end of step)
  real(dp)                        :: cf0(nState),cf1(nState)       ! conversion factor: factor to convert fluxes to states (different flux evaluations)
  real(dp)                        :: fluxVec0(nState)              ! flux vector (mixed units)
  real(dp)                        :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
@@ -209,6 +213,9 @@ contains
  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector
  real(dp)                        :: solutionError(nState)         ! vector of errors in the model solution
  real(dp),dimension(1)           :: errorTemp                     ! maximum error in explicit solution
+ real(dp)                        :: stateVecUpdate(nState)        ! state vector update
+ real(dp)                        :: tempNrg                       ! energy associated with the temperature increase (J m-3 s-1)
+ real(dp)                        :: totalNrg                      ! total energy flux (J m-3 s-1)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -226,6 +233,9 @@ contains
  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+ ! type of state and domain for a given variable
+ ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
+ ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
  ! layer geometry
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
@@ -379,14 +389,14 @@ contains
  ! ** if explicit Euler, then estimate state vector at the end of the time step
  if(explicitEuler)then
 
-  ! --> compute the factor to convert RHS fluxes to states
-  call convFlux2State(indx_data,deriv_data,sMul, & ! intent(in)  : state indices and derivatives, and the state vector multiplier
-                      cf0,err,cmessage)            ! intent(out) : conversion factor, and error control
+  ! --> compute the RHS fluxes and conversion factor
+  call rhsFluxes(indx_data,deriv_data,sMul,fluxVec0,rAdd/dt,      & ! intent(in)  : state indices and derivatives, and the state vector multiplier
+                 cf0,rhsFlux0,err,cmessage)                         ! intent(out) : conversion factor, and error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! --> update states using the explicit Euler method
   call explicitUpdate(indx_data,mpar_data,prog_data,stateVecInit, & ! intent(in)  : indices, parameters, prognostic variables, and initial state vector
-                      (fluxVec0*dt + rAdd)/cf0,                   & ! intent(in)  : state vector update      
+                      dt*fluxVec0/cf0,                            & ! intent(in)  : state vector update      
                       stateVecTrial,stateConstrained,             & ! intent(out) : trial state vector and flag to denote that it was constrained
                       err,cmessage)                                 ! intent(out) : error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
@@ -502,26 +512,41 @@ contains
  ! special case of explicit Euler
  if(explicitEuler)then
 
-  ! --> compute the flux-to-state conversion factor 
-  call convFlux2State(indx_data,deriv_data,sMul, & ! intent(in)  : state indices and derivatives, and the state vector multiplier
-                      cf1,err,cmessage)            ! intent(out) : conversion factor, and error control
+  ! --> compute the RHS fluxes and conversion factor
+  call rhsFluxes(indx_data,deriv_data,sMul,fluxVecNew,resSinkNew/dt, &  ! intent(in)  : state indices and derivatives, and the state vector multiplier
+                 cf1,rhsFlux1,err,cmessage)                             ! intent(out) : conversion factor, and error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
+  ! --> compute state vector update
+  stateVecUpdate = 0.5_dp*( dt*fluxVec0/cf0 + dt*fluxVecNew/cf1 )
+
   ! --> update states using the explicit Euler method
-  call explicitUpdate(indx_data,mpar_data,prog_data,stateVecInit,                             & ! intent(in)  : indices, parameters, prognostic variables, and initial state vector
-                      0.5_dp*( (fluxVec0*dt + rAdd)/cf0 + (fluxVecNew*dt + resSinkNew)/cf1 ), & ! intent(in)  : state vector update
-                      stateVecTrial,stateConstrained,                                         & ! intent(out) : trial state vector and flag to denote that it was constrained
-                      err,cmessage)                                                             ! intent(out) : error control
+  call explicitUpdate(indx_data,mpar_data,prog_data,            &  ! intent(in)  : indices, parameters, prognostic variables
+                      stateVecInit,stateVecUpdate,stateVecTrial,&  ! intent(in)  : initial state vector, state update, and new state vector
+                      stateConstrained,err,cmessage)               ! intent(out) : flag for state contraint, and error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! --> get un-tapped melt energy
+  do iVar=1,nState
+   ! (energy state variables)
+   if(ixStateType_subset(iVar)==iname_nrgCanopy .or. ixStateType_subset(iVar)==iname_nrgLayer)then
+    tempNrg            = stateVecUpdate(iVar)*real(sMul(iVar), dp)/dt  ! energy associated with the temperature increase (J m-3 s-1)
+    totalNrg           = 0.5_dp*( fluxVec0(iVar) + fluxVecNew(iVar) )  ! total energy (J m-3 s-1)
+    untappedMelt(iVar) = (totalNrg - tempNrg)/totalNrg    ! un-tapped melt energy (J m-3 s-1)
+   ! (all other state variables)
+   else
+    untappedMelt(iVar) = 0._dp
+   endif
+ end do
 
   ! --> estimate the solution error
   ! NOTE: done before the constraints check to return the error
-  solutionError(:) = (stateVecTrial - stateVecNew)*cf1
-  errorTemp        = maxval( abs(solutionError) )
+  solutionError(:) = abs(fluxVec0 - fluxVecNew)
+  errorTemp        = maxval(solutionError)
   explicitError    = max(errorTemp(1), verySmall)
 
   ! print progress in the explicit Euler solution
-  if(globalPrintFlag)then
+  !if(globalPrintFlag)then
    write(*,'(a,1x,10(f20.10,1x))') 'cf0           = ', cf0            ( min(nState,iJac1) : min(nState,iJac2) )
    write(*,'(a,1x,10(f20.10,1x))') 'cf1           = ', cf1            ( min(nState,iJac1) : min(nState,iJac2) )
    write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0       ( min(nState,iJac1) : min(nState,iJac2) )
@@ -534,7 +559,7 @@ contains
    write(*,'(a,1x,10(f20.10,1x))') 'solutionError = ', solutionError  ( min(nState,iJac1) : min(nState,iJac2) )
    print*, 'dt = ', dt
    !print*, 'PAUSE: checking state vector for the explicit Euler solution'; read(*,*)
-  endif  ! (if printing)
+  !endif  ! (if printing)
 
   ! check if the state is constrained
   if(stateConstrained)then
@@ -552,6 +577,9 @@ contains
 
   ! set explicit error to missing
   explicitError = realMissing
+
+  ! set untapped melt energy to zero
+  untappedMelt(:) = 0._dp
 
   ! update temperatures (ensure new temperature is consistent with the fluxes)
   if(nSnowSoilNrg>0)then
@@ -578,14 +606,19 @@ contains
  end subroutine systemSolv
 
  ! **********************************************************************************************************
- ! private subroutine stateTendency: compute the change in state w.r.t. time (dS/dt)
+ ! private subroutine: compute the right-hand-side fluxes and conversion factors 
  ! **********************************************************************************************************
- subroutine convFlux2State(&
-                           indx_data,               & ! intent(in)  : state indices
-                           deriv_data,              & ! intent(in)  : state derivatives
-                           stateVecMult,            & ! intent(in)  : state vector multiplier
-                           conversionFactor,        & ! intent(out) : change in state w.r.t. time (dS/dt)
-                           err,message)               ! intent(out) : error control
+ subroutine rhsFluxes(&
+                      ! input
+                      indx_data,                    & ! intent(in)  : state indices
+                      deriv_data,                   & ! intent(in)  : state derivatives
+                      stateVecMult,                 & ! intent(in)  : state vector multiplier
+                      fluxVec,                      & ! intent(in)  : flux vector
+                      sink,                         & ! intent(in)  : sink
+                      ! output
+                      conversionFactor,             & ! intent(out) : flux2state conversion factor
+                      rhsFlux,                      & ! intent(out) : right-hand-side fluxes
+                      err,message)                    ! intent(out) : error control
  USE var_lookup,only:iLookINDEX                       ! named variables for structure elements
  USE var_lookup,only:iLookDERIV                       ! named variables for structure elements
  implicit none
@@ -593,8 +626,11 @@ contains
  type(var_ilength),intent(in)  :: indx_data           ! state indices
  type(var_dlength),intent(in)  :: deriv_data          ! derivatives in model fluxes w.r.t. relevant state variables
  real(qp)         ,intent(in)  :: stateVecMult(:)     ! state vector multiplier 
+ real(dp)         ,intent(in)  :: fluxVec(:)          ! flux vector
+ real(dp)         ,intent(in)  :: sink(:)             ! sink
  ! output
  real(dp)         ,intent(out) :: conversionFactor(:) ! change in state w.r.t. time (dS/dt)
+ real(dp)         ,intent(out) :: rhsFlux(:)          ! right-hand-side flux
  integer(i4b)     ,intent(out) :: err                 ! error code
  character(*)     ,intent(out) :: message             ! error message
  ! local variables
@@ -618,7 +654,7 @@ contains
  ! ---------------------------------------------------------------------------------------------------------
  ! ---------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='convFlux2State/'
+ err=0; message='rhsFluxes/'
 
  ! loop through model states
  do iState=1,size(stateVecMult)
@@ -631,7 +667,7 @@ contains
   if(ixStateType_subset(iState)==iname_nrgCanopy .or. ixStateType_subset(iState)==iname_nrgLayer)then
    select case( ixDomainType_subset(iState) )
     case(iname_veg);  meltDeriv = LH_fus*iden_water*dTheta_dTkCanopy 
-    case(iname_snow); meltDeriv = LH_fus*iden_ice  *mLayerdTheta_dTk(ixControlIndex)
+    case(iname_snow); meltDeriv = LH_fus*iden_water*mLayerdTheta_dTk(ixControlIndex)
     case(iname_soil); meltDeriv = LH_fus*iden_water*mLayerdTheta_dTk(ixControlIndex+nSnow)
     case default; err=20; message=trim(message)//'expect domain type to be iname_veg, iname_snow or iname_soil'; return
    end select
@@ -647,12 +683,20 @@ contains
    case default; err=20; message=trim(message)//'unable to identify the state type'; return
   end select
 
+  ! get the right-hand-side flux
+  select case( ixStateType_subset(iState) )
+   case(iname_matLayer,iname_lmpLayer,iname_watLayer,iname_liqLayer);   rhsFlux(iState) = fluxVec(iState) + sink(iState) ! include transpiration and lateral flow sinks as part of the flux
+   case(iname_nrgCanair,iname_nrgCanopy,iname_nrgLayer);                rhsFlux(iState) = fluxVec(iState) 
+   case(iname_watCanopy,iname_liqCanopy);                               rhsFlux(iState) = fluxVec(iState) 
+   case default; err=20; message=trim(message)//'unable to identify the state type'; return
+  end select
+
  end do  ! looping through state variables
 
  ! end association with data structures
  end associate
 
- end subroutine convFlux2State
+ end subroutine rhsFluxes
 
  ! **********************************************************************************************************
  ! private subroutine explicitUpdate: update the states using the explicit Euler method

@@ -663,6 +663,9 @@ contains
    ! compute sublimation loss (kg m-2)
    subLoss = dt_sub*scalarSnowSublimation
 
+   print*, 'scalarSnowSublimation = ', scalarSnowSublimation
+   print*, 'mLayerVolFracIce(1:nSnow) = ', mLayerVolFracIce(1:nSnow)
+
    ! successively remove ice from snow layers
    removeSnow: do iSnow=1,nSnow
     mLayerVolFracIce(iSnow) = mLayerVolFracIce(iSnow) + subLoss/(mLayerDepth(iSnow)*iden_ice)  ! update volumetric ice content (-)
@@ -687,6 +690,14 @@ contains
     end if
    end do removeSnow  ! looping through snow layers
 
+   print*, 'after sublimation: mLayerVolFracIce(1:nSnow) = ', mLayerVolFracIce(1:nSnow)
+
+   ! check
+   if(any(mLayerVolFracIce(1:nSnow) < 0._dp) .or. any(mLayerVolFracIce(1:nSnow) > 1._dp) )then
+    message=trim(message)//'unrealistic volumetric fraction of ice for snow layers'
+    err=20; return
+   endif
+
   ! no snow
   else
 
@@ -697,9 +708,11 @@ contains
    end if
 
   end if  ! (if snow layers exist)
-  !print*, 'ice after sublimation: ', prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice
+  print*, 'ice after sublimation: ', prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice
 
   end associate sublime
+
+  print*, 'after sublime'
 
   ! (11) account for compaction and cavitation in the snowpack...
   ! ------------------------------------------------------------
@@ -726,6 +739,8 @@ contains
                    err,cmessage)                     ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
+
+  print*, 'after snow density'
 
   ! update coordinate variables
   call calcHeight(&
@@ -775,6 +790,8 @@ contains
 
  end do  substeps ! (sub-step loop)
  !print*, 'PAUSE: completed time step'; read(*,*)
+
+ print*, 'after solver'
 
  ! overwrite flux_data with flux_mean (returns timestep-average fluxes for scalar variables)
  do iVar=1,size(averageFlux_meta)
@@ -954,8 +971,8 @@ contains
  iLayer = nSnow+1
  !print*, 'nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer) = ', nsub, mLayerTemp(iLayer), mLayerVolFracIce(iLayer)
  !print*, 'nsub = ', nsub
- if(nsub>2000)then
-  write(message,'(a,i0)') trim(cmessage)//'number of sub-steps > 2000 for HRU ', hruID
+ if(nsub>50000)then
+  write(message,'(a,i0)') trim(cmessage)//'number of sub-steps > 50000 for HRU ', hruID
   err=20; return
  end if
 

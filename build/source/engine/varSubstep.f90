@@ -31,6 +31,11 @@ USE multiconst,only:quadMissing     ! missing quadruple precision number
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
+! domain types
+USE globalData,only:iname_veg       ! named variables for vegetation
+USE globalData,only:iname_snow      ! named variables for snow
+USE globalData,only:iname_soil      ! named variables for soil
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
@@ -48,6 +53,7 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
 ! constants
 USE multiconst,only:&
+                    LH_fus,       & ! latent heat of fusion                (J kg-1)
                     LH_vap,       & ! latent heat of vaporization          (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
@@ -160,11 +166,13 @@ contains
  real(dp),parameter              :: F_inc = 1.25_dp               ! factor used to increase time step
  real(dp),parameter              :: F_dec = 0.90_dp               ! factor used to decrease time step
  ! state and flux vectors
+ real(dp)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
  real(dp)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
  real(dp)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes
  ! flags
  logical(lgt)                    :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
+ ! energy fluxes
  real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
  real(dp)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  real(dp)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -272,6 +280,7 @@ contains
                   stateVecInit,   & ! intent(in):    initial state vector
                   ! output: model control
                   deriv_data,     & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  untappedMelt,   & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                   stateVecTrial,  & ! intent(out):   updated state vector
                   explicitError,  & ! intent(out):   error in the explicit solution
                   niter,          & ! intent(out):   number of iterations taken
@@ -343,7 +352,9 @@ contains
   ! * update model fluxes...
   ! ------------------------
 
-  ! check
+  ! NOTE: if we get to here then we are accepting the step
+
+  ! print progress
   if(globalPrintFlag)&
   write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
@@ -354,9 +365,9 @@ contains
   endif
 
   ! update prognostic variables
-  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,stateVecTrial, & ! input: model control
-                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,            & ! input-output: data structures
-                  nrgFluxModified,err,cmessage)                                              ! output: flags and error control
+  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
+                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                         & ! input-output: data structures
+                  nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the total energy fluxes (modified in updateProg)
@@ -400,6 +411,11 @@ contains
 
  end do substeps  ! time steps for variable-dependent sub-stepping
 
+ ! inspect
+ if(nSubsteps>1000)then
+  print*, 'PAUSE: check substeps'; read(*,*)
+ endif
+
  ! save the energy fluxes
  flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
  flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -415,9 +431,9 @@ contains
  ! **********************************************************************************************************
  ! private subroutine updateProg: update prognostic variables
  ! **********************************************************************************************************
- subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,stateVecTrial, & ! input: model control
-                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,     & ! input-output: data structures
-                       nrgFluxModified,err,message)                                        ! output: flags and error control
+ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
+                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
+                       nrgFluxModified,err,message)                                                     ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -428,6 +444,7 @@ contains
  integer(i4b)     ,intent(in)    :: nLayers                        ! total number of layers
  logical(lgt)     ,intent(in)    :: doAdjustTemp                   ! flag to indicate if we adjust the temperature
  logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
+ real(dp)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
  real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
  ! data structures 
  type(var_d)      ,intent(in)    :: mpar_data                      ! model parameters
@@ -441,6 +458,11 @@ contains
  integer(i4b)     ,intent(out)   :: err                            ! error code
  character(*)     ,intent(out)   :: message                        ! error message
  ! ==================================================================================================================
+ ! general
+ integer(i4b)                    :: iState                         ! index of model state variable
+ integer(i4b)                    :: ixSubset                       ! index within the state subset
+ integer(i4b)                    :: ixFullVector                   ! index within full state vector
+ integer(i4b)                    :: ixControlIndex                 ! index within a given domain
  ! mass balance
  logical(lgt),parameter          :: checkMassBalance=.true.        ! flag to check the mass balance
  real(dp)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
@@ -471,8 +493,13 @@ contains
  ! point to flux variables in the data structure
  associate(&
  ! get indices for mass balance
- ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
- ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+ ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in)    : [i4b]    index of canopy hydrology state variable (mass)
+ ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in)    : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+ ! get indices for the un-tapped melt
+ ixNrgOnly                 => indx_data%var(iLookINDEX%ixNrgOnly)%dat                    ,& ! intent(in):    [i4b(:)] list of indices for all energy states
+ ixDomainType              => indx_data%var(iLookINDEX%ixDomainType)%dat                 ,& ! intent(in):    [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
+ ixControlVolume           => indx_data%var(iLookINDEX%ixControlVolume)%dat              ,& ! intent(in):    [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+ ixMapSubset2Full          => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat             ,& ! intent(in):    [i4b(:)] [state subset] list of indices of the full state vector in the state subset
  ! water fluxes
  scalarRainfall            => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)             ,& ! intent(in)    : [dp]     rainfall rate (kg m-2 s-1)
  scalarThroughfallRain     => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)      ,& ! intent(in)    : [dp]     rain reaches ground without touching the canopy (kg m-2 s-1)
@@ -488,13 +515,15 @@ contains
  ! energy fluxes
  scalarLatHeatCanopyEvap   => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)    ,& ! intent(in)    : [dp]     latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  scalarSenHeatCanopy       => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)        ,& ! intent(in)    : [dp]     sensible heat flux from the canopy to the canopy air space (W m-2)
+ ! domain depth
+ canopyDepth               => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)          ,& ! intent(in)    : [dp   ]  canopy depth (m)
+ mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                   ,& ! intent(in)    : [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ! model state variables (vegetation canopy)
  scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)           ,& ! intent(inout) : [dp]     temperature of the canopy air space (K)
  scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)           ,& ! intent(inout) : [dp]     temperature of the vegetation canopy (K)
  scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)            ,& ! intent(inout) : [dp]     mass of ice on the vegetation canopy (kg m-2)
  scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)            ,& ! intent(inout) : [dp]     mass of liquid water on the vegetation canopy (kg m-2)
  scalarCanopyWat           => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)            ,& ! intent(inout) : [dp]     mass of total water on the vegetation canopy (kg m-2)
- mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                   ,& ! intent(in)    : [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ! model state variables (snow and soil domains)
  mLayerTemp                => prog_data%var(iLookPROG%mLayerTemp)%dat                    ,& ! intent(inout) : [dp(:)]  temperature of each snow/soil layer (K)
  mLayerVolFracIce          => prog_data%var(iLookPROG%mLayerVolFracIce)%dat              ,& ! intent(inout) : [dp(:)]  volumetric fraction of ice (-)
@@ -576,7 +605,7 @@ contains
   ! check mass balance for the canopy
   if(ixVegHyd/=integerMissing)then
 
-   ! handle cases where fluxes over-drain the canopy
+   ! handle cases where fluxes empty the canopy
    fluxNet = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
    if(-fluxNet*dt > canopyBalance0)then
 
@@ -612,7 +641,7 @@ contains
 
    else
     nrgFluxModified = .false.
-   endif  ! cases where fluxes over-drain the canopy
+   endif  ! cases where fluxes empty the canopy
 
    ! check the mass balance
    fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
@@ -650,15 +679,48 @@ contains
  endif  ! if checking the mass balance
 
  ! -----
+ ! * remove untapped melt energy (in the explicit Euler method)...
+ ! ---------------------------------------------------------------
+
+ ! only work with energy state variables
+ if(size(ixNrgOnly)>0)then  ! energy state variables exist
+
+  ! loop through energy state variables
+  do iState=1,size(ixNrgOnly)
+
+   ! get index of the control volume within the domain
+   ixSubset       = ixNrgOnly(iState)             ! index within the state subset
+   ixFullVector   = ixMapSubset2Full(ixSubset)    ! index within full state vector
+   ixControlIndex = ixControlVolume(ixFullVector) ! index within a given domain
+
+   ! update volumetric ice content
+   select case ( ixDomainType(ixFullVector) )
+    case(iname_veg);  scalarCanopyIceTrial                        = scalarCanopyIceTrial                        - dt*untappedMelt(ixSubset) / (LH_fus * canopyDepth)  ! (kg m-2)
+    case(iname_snow); mLayerVolFracIceTrial(ixControlIndex)       = mLayerVolFracIceTrial(ixControlIndex)       - dt*untappedMelt(ixSubset) / (LH_fus * iden_ice)     ! (-)
+    case(iname_soil); mLayerVolFracIceTrial(ixControlIndex+nSnow) = mLayerVolFracIceTrial(ixControlIndex+nSnow) - dt*untappedMelt(ixSubset) / (LH_fus * iden_water)   ! (-)
+    case default; err=20; message=trim(message)//'unable to identify domain type'
+   end select
+
+  end do  ! looping through energy variables
+
+  ! check if we removed all the water
+  if(scalarCanopyIceTrial < 0._dp .or. any(mLayerVolFracIceTrial < 0._dp) )then
+   message=trim(message)//'melted more than the available water'
+   err=-20; return
+  endif  ! (if removed all of the water)
+
+ endif  ! (if energy state variables exist)
+
+ ! -----
  ! * update prognostic variables... 
  ! --------------------------------
 
  ! build elements of the state vector for the vegetation canopy
  scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
  scalarCanopyTemp    = scalarCanopyTempTrial    ! trial value of canopy temperature (K)
- scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2) kg m-2
- scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)kg m-2
- scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2) kg m-2
+ scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2) 
+ scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)
+ scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2) 
 
  ! build elements of the state vector for the snow+soil domain
  mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)
