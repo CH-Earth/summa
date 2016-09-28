@@ -496,10 +496,10 @@ contains
  ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in)    : [i4b]    index of canopy hydrology state variable (mass)
  ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in)    : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
  ! get indices for the un-tapped melt
- ixNrgOnly                 => indx_data%var(iLookINDEX%ixNrgOnly)%dat                    ,& ! intent(in):    [i4b(:)] list of indices for all energy states
- ixDomainType              => indx_data%var(iLookINDEX%ixDomainType)%dat                 ,& ! intent(in):    [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
- ixControlVolume           => indx_data%var(iLookINDEX%ixControlVolume)%dat              ,& ! intent(in):    [i4b(:)] index of the control volume for different domains (veg, snow, soil)
- ixMapSubset2Full          => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat             ,& ! intent(in):    [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+ ixNrgOnly                 => indx_data%var(iLookINDEX%ixNrgOnly)%dat                    ,& ! intent(in)    : [i4b(:)] list of indices for all energy states
+ ixDomainType              => indx_data%var(iLookINDEX%ixDomainType)%dat                 ,& ! intent(in)    : [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
+ ixControlVolume           => indx_data%var(iLookINDEX%ixControlVolume)%dat              ,& ! intent(in)    : [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+ ixMapSubset2Full          => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat             ,& ! intent(in)    : [i4b(:)] [state subset] list of indices of the full state vector in the state subset
  ! water fluxes
  scalarRainfall            => flux_data%var(iLookFLUX%scalarRainfall)%dat(1)             ,& ! intent(in)    : [dp]     rainfall rate (kg m-2 s-1)
  scalarThroughfallRain     => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)      ,& ! intent(in)    : [dp]     rain reaches ground without touching the canopy (kg m-2 s-1)
@@ -693,12 +693,20 @@ contains
    ixFullVector   = ixMapSubset2Full(ixSubset)    ! index within full state vector
    ixControlIndex = ixControlVolume(ixFullVector) ! index within a given domain
 
+   ! check 
+   print*, 'ixSubset                   = ', ixSubset      
+   print*, 'ixFullVector               = ', ixFullVector  
+   print*, 'ixControlIndex             = ', ixControlIndex
+   print*, 'ixDomainType(ixFullVector) = ', ixDomainType(ixFullVector)
+   print*, iname_soil
+   print*, nSnow
+
    ! update volumetric ice content
-   select case ( ixDomainType(ixFullVector) )
+   select case( ixDomainType(ixFullVector) )
     case(iname_veg);  scalarCanopyIceTrial                        = scalarCanopyIceTrial                        - dt*untappedMelt(ixSubset) / (LH_fus * canopyDepth)  ! (kg m-2)
     case(iname_snow); mLayerVolFracIceTrial(ixControlIndex)       = mLayerVolFracIceTrial(ixControlIndex)       - dt*untappedMelt(ixSubset) / (LH_fus * iden_ice)     ! (-)
     case(iname_soil); mLayerVolFracIceTrial(ixControlIndex+nSnow) = mLayerVolFracIceTrial(ixControlIndex+nSnow) - dt*untappedMelt(ixSubset) / (LH_fus * iden_water)   ! (-)
-    case default; err=20; message=trim(message)//'unable to identify domain type'
+    case default; err=20; message=trim(message)//'unable to identify domain type [remove untapped melt energy]'
    end select
 
   end do  ! looping through energy variables
