@@ -209,7 +209,6 @@ contains
  character(LEN=256)              :: cmessage                       ! error message of downwind routine
  integer(i4b)                    :: iSoil                          ! index of soil layer
  integer(i4b)                    :: iVar                           ! index of variables in data structures
- logical(lgt),parameter          :: forceFullMatrix=.false.        ! flag to force the use of the full Jacobian matrix
  logical(lgt)                    :: firstSuccess                   ! flag to define the first flux call
  logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
  type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables

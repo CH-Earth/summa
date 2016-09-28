@@ -74,12 +74,9 @@ contains
                      var_dlength            ! x%var(:)%dat        (dp)
  ! named variables for parent structures
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- USE var_lookup,only:iLookATTR              ! named variables for structure elements
- USE var_lookup,only:iLookTYPE              ! named variables for structure elements
  USE var_lookup,only:iLookPROG              ! named variables for structure elements
  USE var_lookup,only:iLookDIAG              ! named variables for structure elements
  USE var_lookup,only:iLookFLUX              ! named variables for structure elements
- USE var_lookup,only:iLookFORCE             ! named variables for structure elements
  USE var_lookup,only:iLookPARAM             ! named variables for structure elements
  USE var_lookup,only:iLookINDEX             ! named variables for structure elements
  USE globalData,only:iname_snow             ! named variables for snow
@@ -163,7 +160,6 @@ contains
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
- logical(lgt),parameter               :: checkTimeStepping=.false.      ! flag to denote a desire to check the time stepping 
  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
  ! check SWE
  real(dp)                             :: oldSWE                 ! SWE at the start of the substep

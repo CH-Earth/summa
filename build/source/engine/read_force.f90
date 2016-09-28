@@ -77,7 +77,6 @@ contains
  character(len=256)                :: cmessage         ! error message for downwind routine
  character(len=256)                :: refTimeString    ! reference time string
  logical(lgt)                      :: xist             ! .TRUE. if the file exists
- integer(i4b),parameter            :: baseUnit=28      ! DK: need to either define units globally, or use getSpareUnit
  integer(i4b)                      :: iline            ! loop through lines in the file
  integer(i4b)                      :: iNC              ! loop through variables in forcing file
  integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector

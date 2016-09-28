@@ -917,7 +917,6 @@ contains
  subroutine get_ixUnknown(varName,typeName,vDex,err,message)
  USE nrtype
  USE globalData,only:structInfo        ! information on the data structures                  
- USE multiconst,only:integerMissing    ! missing integer value
  implicit none
 
  ! dummies

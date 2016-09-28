@@ -899,8 +899,6 @@ contains
   USE var_lookup,only:iLookINDEX                                  ! named variables for elements of the index structure
   ! physical constants
   USE multiconst,only:Tfreeze                                     ! temperature at freezing (K)
-  USE multiconst,only:gravity                                     ! acceleration of gravity (m s-2)
-  USE multiconst,only:LH_fus                                      ! latent heat of fusion (J kg-1)
   ! external functions
   USE soil_utils_module,only:crit_soilT                           ! compute the critical temperature below which ice exists
   implicit none

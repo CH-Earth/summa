@@ -72,7 +72,6 @@ contains
  integer(i4b)                  :: iTry                       ! trial index
  integer(i4b)                  :: iter                       ! iteration index
  integer(i4b),parameter        :: maxiter=100                ! maximum number of iterations
- real(dp),parameter            :: dx=1.e-6_dp                ! finite difference increment (used to test derivatives)
  real(dp)                      :: fLiq                       ! fraction of liquid water (-)
  real(dp)                      :: tempMin,tempMax            ! solution constraints for temperature (K)
  real(dp)                      :: nrgMeltFreeze              ! energy required to melt-freeze the water to the current canopy temperature (J m-3)

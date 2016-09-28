@@ -228,8 +228,6 @@ contains
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
- USE var_lookup,only:iLookIndex                     ! index into index structure
- USE var_lookup,only:iLookStat                      ! index into stat structure
  USE globalData,only:outFreq,nFreq,ncid             ! output file information
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
@@ -296,8 +294,8 @@ contains
  ! **************************************************************************************
  subroutine writeTime(modelTimestep,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
- USE var_lookup,only:maxVarStat,iLookStat           ! index into stats structure
  USE globalData,only:outFreq,nFreq,ncid             ! output file information
+ USE var_lookup,only:iLookStat                      ! index into stat structure
  implicit none
 
  ! declare dummy variables
@@ -358,7 +356,6 @@ contains
  USE data_types,only:gru_hru_intVec         ! actual data
  USE data_types,only:var_info               ! metadata 
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookPROG              ! named variables for structure elements
  USE var_lookup,only:iLookINDEX             ! named variables for structure elements
  USE var_lookup,only:iLookVarType           ! named variables for structure elements
  ! constants

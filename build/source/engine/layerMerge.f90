@@ -72,8 +72,8 @@ contains
  ! access metadata
  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                   ! named variables for elements of the decision structure
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
@@ -267,7 +267,7 @@ contains
  ! ***********************************************************************************************************
  subroutine layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,iSnow,err,message)
  ! provide access to variables in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX           ! named variables for structure elements
  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
  USE data_types,only:var_ilength,var_dlength                   ! data vectors with variable length dimension
  USE data_types,only:var_d                                     ! data structures with fixed dimension

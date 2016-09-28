@@ -40,7 +40,6 @@ contains
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
  USE globalData,only:forc_meta               ! forcing metadata
- USE var_lookup,only:iLookTYPE               ! named variables to index elements of the data vectors
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
@@ -65,7 +64,6 @@ contains
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
- integer(i4b),parameter               :: maxLines=1000000  ! maximum lines in the file
  character(LEN=256)                   :: filenameData   ! name of forcing datafile
  integer(i4b)                         :: ivar           ! index of model variable
  integer(i4b)                         :: iFile          ! counter for forcing files

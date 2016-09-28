@@ -131,7 +131,6 @@ USE var_lookup,only:iLookPROG                               ! look-up values for
 USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables 
 USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes 
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
-USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
 ! provide access to the named variables that describe elements of child  model structures
@@ -216,14 +215,12 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
-logical(lgt),parameter           :: printTime=.true.           ! flag to print the time information
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
 integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
 integer(i4b)                     :: forcingStep=-999           ! index of current time step in current forcing file
 real(dp),allocatable             :: zSoilReverseSign(:)        ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)           :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
-real(dp),parameter               :: doubleMissing=-9999._dp    ! missing value
 logical(lgt),parameter           :: overwriteRSMIN=.false.     ! flag to overwrite RSMIN
 real(dp)                         :: notUsed_canopyDepth        ! NOT USED: canopy depth (m)
 real(dp)                         :: notUsed_exposedVAI         ! NOT USED: exposed vegetation area index (m2 m-2)

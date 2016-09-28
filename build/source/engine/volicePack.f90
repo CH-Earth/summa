@@ -59,9 +59,6 @@ contains
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
  ! external subroutine
  USE layerMerge_module,only:layerMerge   ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide ! sub-divide layers if they are too thick

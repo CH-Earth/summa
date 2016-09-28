@@ -119,7 +119,6 @@ contains
  real(dp),dimension(maxvarStat+1)  :: tstat       ! temporary stats vector
  integer(i4b)                      :: iStat       ! statistics loop
  integer(i4b)                      :: iFreq       ! statistics loop
- integer(i4b)   ,parameter         :: modelTime=1 ! model timestep
  ! initialize error control
  err=0; message='calc_stats/'
 

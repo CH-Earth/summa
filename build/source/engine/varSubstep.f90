@@ -701,6 +701,12 @@ contains
    print*, iname_soil
    print*, nSnow
 
+   if(ixDomainType(ixFullVector)==iname_soil)then
+    print*, 'match!'
+   else
+    print*, 'does not match'
+   endif
+
    ! update volumetric ice content
    select case( ixDomainType(ixFullVector) )
     case(iname_veg);  scalarCanopyIceTrial                        = scalarCanopyIceTrial                        - dt*untappedMelt(ixSubset) / (LH_fus * canopyDepth)  ! (kg m-2)

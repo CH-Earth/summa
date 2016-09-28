@@ -83,7 +83,6 @@ contains
  real(dp),parameter              :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
  real(dp)                        :: availCap                   ! available storage capacity [0,1] (-)
  real(dp)                        :: relSaturn                  ! relative saturation [0,1] (-)
- real(dp),parameter              :: dx = 1.e-8_dp              ! finite difference increment
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! make association of local variables with information in the data structures
  associate(&

@@ -146,11 +146,8 @@ contains
  USE groundwatr_module,only:groundwatr            ! compute the baseflow flux
  ! provide access to indices that define elements of the data structures
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
- USE var_lookup,only:iLookTYPE                    ! named variables for structure elements
- USE var_lookup,only:iLookATTR                    ! named variables for structure elements
  USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
  USE var_lookup,only:iLookFORCE                   ! named variables for structure elements
- USE var_lookup,only:iLookBVAR                    ! named variables for structure elements
  USE var_lookup,only:iLookPROG                    ! named variables for structure elements
  USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
  USE var_lookup,only:iLookDIAG                    ! named variables for structure elements

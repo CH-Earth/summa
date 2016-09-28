@@ -852,7 +852,6 @@ contains
  ! This routine is called by read_output_file
  ! ********************************************************************************************
  subroutine popStat(meta,lineWords,indexFlags,err,message)
- USE multiconst,only:integerMissing
  USE globalData,only:outFreq,nFreq             ! maximum number of output files
  USE data_types,only:var_info                  ! meta_data type declaration
  USE var_lookup,only:maxFreq                   ! maximum number of output files
