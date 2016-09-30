@@ -32,6 +32,7 @@ USE multiconst,only:quadMissing     ! missing quadruple precision number
 USE globalData,only:globalPrintFlag
 
 ! domain types
+USE globalData,only:iname_cas       ! named variables for the canopy air space
 USE globalData,only:iname_veg       ! named variables for vegetation
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
@@ -100,6 +101,7 @@ contains
                        dtMultiplier,      & ! intent(out)   : substep multiplier (-)
                        nSubsteps,         & ! intent(out)   : number of substeps taken for a given split
                        failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
+                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                        err,message)         ! intent(out)   : error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -141,6 +143,7 @@ contains
  real(dp),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
  integer(i4b),intent(out)        :: nSubsteps                     ! number of substeps taken for a given split
  logical(lgt),intent(out)        :: failedMinimumStep             ! flag to denote success of substepping for a given split
+ logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
  ! ---------------------------------------------------------------------------------------
@@ -283,9 +286,14 @@ contains
                   untappedMelt,   & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                   stateVecTrial,  & ! intent(out):   updated state vector
                   explicitError,  & ! intent(out):   error in the explicit solution
+                  tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
                   niter,          & ! intent(out):   number of iterations taken
                   err,cmessage)     ! intent(out):   error code and error message
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! if too much melt then return
+  ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
+  if(tooMuchMelt) return
 
   ! identify failure
   failedSubstep = (err<0)
@@ -365,9 +373,9 @@ contains
   endif
 
   ! update prognostic variables
-  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
-                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                         & ! input-output: data structures
-                  nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
+  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
+                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                       & ! input-output: data structures
+                  nrgFluxModified,err,cmessage)                                                                         ! output: flags and error control
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! get the total energy fluxes (modified in updateProg)
@@ -411,11 +419,6 @@ contains
 
  end do substeps  ! time steps for variable-dependent sub-stepping
 
- ! inspect
- if(nSubsteps>1000)then
-  print*, 'PAUSE: check substeps'; read(*,*)
- endif
-
  ! save the energy fluxes
  flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
  flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -424,16 +427,15 @@ contains
  ! end associate statements
  end associate globalVars
 
-
  end subroutine varSubstep
 
 
  ! **********************************************************************************************************
  ! private subroutine updateProg: update prognostic variables
  ! **********************************************************************************************************
- subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
-                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
-                       nrgFluxModified,err,message)                                                     ! output: flags and error control
+ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
+                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                & ! input-output: data structures
+                       nrgFluxModified,err,message)                                                                   ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -443,6 +445,7 @@ contains
  integer(i4b)     ,intent(in)    :: nSoil                          ! number of soil layers
  integer(i4b)     ,intent(in)    :: nLayers                        ! total number of layers
  logical(lgt)     ,intent(in)    :: doAdjustTemp                   ! flag to indicate if we adjust the temperature
+ logical(lgt)     ,intent(in)    :: explicitEuler                  ! flag to denote computing the explicit Euler solution
  logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
  real(dp)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
  real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
@@ -463,6 +466,8 @@ contains
  integer(i4b)                    :: ixSubset                       ! index within the state subset
  integer(i4b)                    :: ixFullVector                   ! index within full state vector
  integer(i4b)                    :: ixControlIndex                 ! index within a given domain
+ real(dp)                        :: volMelt                        ! volumetric melt (kg m-3)
+ real(dp),parameter              :: verySmall=epsilon(1._dp)*2._dp ! a very small number (deal with precision issues)
  ! mass balance
  logical(lgt),parameter          :: checkMassBalance=.true.        ! flag to check the mass balance
  real(dp)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
@@ -574,6 +579,7 @@ contains
  call updateVars(&
                  ! input
                  doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 explicitEuler,            & ! intent(in)    : flag to denote computing the explicit Euler solution
                  mpar_data,                & ! intent(in):    model parameters for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
@@ -640,6 +646,7 @@ contains
     nrgFluxModified = .true.
 
    else
+    canopyBalance1  = canopyBalance0 + fluxNet*dt
     nrgFluxModified = .false.
    endif  ! cases where fluxes empty the canopy
 
@@ -693,35 +700,70 @@ contains
    ixFullVector   = ixMapSubset2Full(ixSubset)    ! index within full state vector
    ixControlIndex = ixControlVolume(ixFullVector) ! index within a given domain
 
-   ! check 
-   print*, 'ixSubset                   = ', ixSubset      
-   print*, 'ixFullVector               = ', ixFullVector  
-   print*, 'ixControlIndex             = ', ixControlIndex
-   print*, 'ixDomainType(ixFullVector) = ', ixDomainType(ixFullVector)
-   print*, iname_soil
-   print*, nSnow
+   ! compute volumetric melt (kg m-3)
+   volMelt = dt*untappedMelt(ixSubset)/LH_fus  ! (kg m-3)
 
-   if(ixDomainType(ixFullVector)==iname_soil)then
-    print*, 'match!'
-   else
-    print*, 'does not match'
-   endif
-
-   ! update volumetric ice content
+   ! update ice content
    select case( ixDomainType(ixFullVector) )
-    case(iname_veg);  scalarCanopyIceTrial                        = scalarCanopyIceTrial                        - dt*untappedMelt(ixSubset) / (LH_fus * canopyDepth)  ! (kg m-2)
-    case(iname_snow); mLayerVolFracIceTrial(ixControlIndex)       = mLayerVolFracIceTrial(ixControlIndex)       - dt*untappedMelt(ixSubset) / (LH_fus * iden_ice)     ! (-)
-    case(iname_soil); mLayerVolFracIceTrial(ixControlIndex+nSnow) = mLayerVolFracIceTrial(ixControlIndex+nSnow) - dt*untappedMelt(ixSubset) / (LH_fus * iden_water)   ! (-)
-    case default; err=20; message=trim(message)//'unable to identify domain type [remove untapped melt energy]'
+    case(iname_cas);  cycle ! do nothing, since there is no snow stored in the canopy air space
+    case(iname_veg);  scalarCanopyIceTrial                        = scalarCanopyIceTrial                        - volMelt*canopyDepth  ! (kg m-2)
+    case(iname_snow); mLayerVolFracIceTrial(ixControlIndex)       = mLayerVolFracIceTrial(ixControlIndex)       - volMelt/iden_ice     ! (-)
+    case(iname_soil); mLayerVolFracIceTrial(ixControlIndex+nSnow) = mLayerVolFracIceTrial(ixControlIndex+nSnow) - volMelt/iden_water   ! (-)
+    case default; err=20; message=trim(message)//'unable to identify domain type [remove untapped melt energy]'; return
+   end select
+
+   ! update liquid water content
+   select case( ixDomainType(ixFullVector) )
+    case(iname_cas);  cycle ! do nothing, since there is no snow stored in the canopy air space
+    case(iname_veg);  scalarCanopyLiqTrial                        = scalarCanopyLiqTrial                        + volMelt*canopyDepth  ! (kg m-2)
+    case(iname_snow); mLayerVolFracLiqTrial(ixControlIndex)       = mLayerVolFracLiqTrial(ixControlIndex)       + volMelt/iden_water   ! (-)
+    case(iname_soil); mLayerVolFracLiqTrial(ixControlIndex+nSnow) = mLayerVolFracLiqTrial(ixControlIndex+nSnow) + volMelt/iden_water   ! (-)
+    case default; err=20; message=trim(message)//'unable to identify domain type [remove untapped melt energy]'; return
    end select
 
   end do  ! looping through energy variables
 
-  ! check if we removed all the water
-  if(scalarCanopyIceTrial < 0._dp .or. any(mLayerVolFracIceTrial < 0._dp) )then
-   message=trim(message)//'melted more than the available water'
-   err=-20; return
-  endif  ! (if removed all of the water)
+  ! --> check if we removed too much water
+  if(scalarCanopyIceTrial < 0._dp  .or. any(mLayerVolFracIceTrial < 0._dp) )then
+
+   ! **
+   ! canopy within numerical precision
+   if(scalarCanopyIceTrial > -verySmall)then
+    scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
+    scalarCanopyIceTrial = 0._dp
+
+   ! encountered an inconsistency: spit the dummy
+   else
+    print*, 'dt = ', dt
+    print*, 'untappedMelt          = ', untappedMelt
+    print*, 'untappedMelt*dt       = ', untappedMelt*dt
+    print*, 'scalarCanopyLiqTrial  = ', scalarCanopyLiqTrial
+    message=trim(message)//'melted more than the available water'
+    err=20; return
+   endif  ! (inconsistency)
+
+   ! **
+   ! snow+soil within numerical precision
+   do iState=1,size(mLayerVolFracIceTrial) 
+
+    ! snow layer within numerical precision
+    if(mLayerVolFracIceTrial(iState) > -verySmall)then
+     mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
+     mLayerVolFracIceTrial(iState) = 0._dp
+
+    ! encountered an inconsistency: spit the dummy
+    else
+     print*, 'dt = ', dt
+     print*, 'untappedMelt          = ', untappedMelt
+     print*, 'untappedMelt*dt       = ', untappedMelt*dt
+     print*, 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial 
+     message=trim(message)//'melted more than the available water'
+     err=20; return
+    endif  ! (inconsistency)
+
+   end do ! (looping through state variables)
+
+  endif  ! (if we removed too much water)
 
  endif  ! (if energy state variables exist)
 

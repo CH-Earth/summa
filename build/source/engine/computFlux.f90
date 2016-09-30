@@ -458,7 +458,7 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
   ! check fluxes
-  !if(globalPrintFlag)then
+  if(globalPrintFlag)then
    print*, '**'
    write(*,'(a,1x,10(f30.20))') 'canopyDepth           = ',  canopyDepth
    write(*,'(a,1x,10(f30.20))') 'mLayerDepth(1:2)      = ',  mLayerDepth(1:2)
@@ -469,7 +469,7 @@ contains
    write(*,'(a,1x,10(f30.20))') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
    write(*,'(a,1x,10(f30.20))') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
    write(*,'(a,1x,10(f30.20))') 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
-  !endif ! if checking fluxes
+  endif ! if checking fluxes
 
  endif ! if calculating the energy fluxes over vegetation
 

@@ -52,6 +52,7 @@ contains
  ! *****************************************************************************************************************
  subroutine layerMerge(&
                        ! input/output: model data structures
+                       tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
@@ -77,6 +78,7 @@ contains
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
+ logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
@@ -158,6 +160,10 @@ contains
     case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iSnow) < zminLayer(iSnow))
     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
    end select ! (option to combine/sub-divide snow layers)
+
+   ! check if we have too much melt
+   ! NOTE: assume that this is the top snow layer; need more trickery to relax this assumption
+   if(tooMuchMelt .and. iSnow==1) removeLayer=.true.
 
    ! check if need to remove a layer
    if(removeLayer)then

@@ -19,8 +19,10 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module coupled_em_module
+
 ! numerical recipes data types
 USE nrtype
+
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
@@ -28,6 +30,10 @@ USE multiconst,only:&
                     LH_sub,       & ! latent heat of sublimation           (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
+
+! access the global print flag
+USE globalData,only:globalPrintFlag
+
 implicit none
 private
 public::coupled_em
@@ -87,8 +93,12 @@ contains
  USE globalData,only:data_step              ! time step of forcing data (s)
  USE globalData,only:model_decisions        ! model decision structure
  ! structure allocations
+ USE globalData,only:indx_meta              ! metadata on the model index variables
+ USE globalData,only:diag_meta              ! metadata on the model diagnostic variables
+ USE globalData,only:prog_meta              ! metadata on the model prognostic variables
  USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
  USE allocspace_module,only:allocLocal      ! allocate local data structures
+ USE allocspace_module,only:resizeData      ! clone a data structure
  ! preliminary subroutines
  USE vegPhenlgy_module,only:vegPhenlgy      ! (1) compute vegetation phenology
  USE vegNrgFlux_module,only:wettedFrac      ! (2) compute wetted fraction of the canopy (used in sw radiation fluxes)
@@ -160,7 +170,13 @@ contains
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
+ logical(lgt)                         :: tooMuchMelt            ! flag to denote that ice is insufficient to support melt
+ logical(lgt)                         :: stepFailure            ! flag to denote that the step failed (reduce step and try again)
+ logical(lgt)                         :: pauseFlag              ! flag to pause execution 
  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
+ type(var_ilength)                    :: indx_temp              ! temporary model index variables
+ type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
+ type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
  ! check SWE
  real(dp)                             :: oldSWE                 ! SWE at the start of the substep
  real(dp)                             :: newSWE                 ! SWE at the end of the substep
@@ -197,6 +213,16 @@ contains
  ! link canopy depth to the information in the data structure
  canopy: associate(canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1) )  ! intent(out): [dp] canopy depth (m)
 
+ ! start by NOT pausing
+ pauseFlag=.false.
+
+ ! start by assuming that the step is successful 
+ stepFailure = .false.
+
+ ! initialize flags to mdify the veg layers or modify snow layers
+ modifiedLayers    = .false.    ! flag to denote that snow layers were modified
+ modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
+
  ! define the first step
  firstStep = (istep==1)
 
@@ -208,6 +234,18 @@ contains
 
  ! compute the total number of snow and soil layers
  nLayers = nSnow + nSoil
+
+ ! create temporary data structures for prognostic variables
+ call resizeData(prog_meta(:),prog_data,prog_temp,err=err,message=cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! create temporary data structures for diagnostic variables
+ call resizeData(diag_meta(:),diag_data,diag_temp,err=err,message=cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! create temporary data structures for index variables
+ call resizeData(indx_meta(:),indx_data,indx_temp,err=err,message=cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! allocate space for the local fluxes
  call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nSoil,err,cmessage)
@@ -253,7 +291,8 @@ contains
  end associate
 
  ! short-cut to the algorithmic control parameters
- minstep = mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
+ ! NOTE - temporary assignment of minstep to foce something reasonable
+ minstep = 10._dp  ! mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
  maxstep = mpar_data%var(iLookPARAM%maxstep)  ! maximum time step (s)
  !print*, 'minstep, maxstep = ', minstep, maxstep
 
@@ -270,8 +309,9 @@ contains
  !print*, 'oldSWE = ', oldSWE
 
  ! initialize the length of the sub-step
- dt_sub  = min(data_step,maxstep)
- dt_solv = 0._dp
+ dt_solv = 0._dp   ! length of time step that has been completed (s)
+ dt_init = min(data_step,maxstep)  ! initial substep length (s)
+ dt_sub  = dt_init                 ! length of substep
 
  ! initialize the number of sub-steps
  nsub=0
@@ -283,18 +323,68 @@ contains
   !print*, '*** new substep'
   !write(*,'(a,3(f11.4,1x))') 'dt_sub, dt_init = ', dt_sub, dt_init
 
+  ! print progress
+  if(globalPrintFlag)then
+   write(*,'(a,1x,4(f13.5,1x))') ' start of step: dt_init, dt_sub, dt_solv, data_step: ', dt_init, dt_sub, dt_solv, data_step
+   print*, 'stepFailure = ', stepFailure
+   print*, 'before resizeData: nSnow, nSoil = ', nSnow, nSoil
+  endif
+
   ! increment the number of sub-steps
   nsub = nsub+1
 
+  ! resize the "indx_data" structure
+  ! NOTE: this is necessary because the length of index variables depends on a given split
+  !        --> the resize here is overwritten later (in indexSplit)
+  !        --> admittedly ugly, and retained for now
+  if(stepFailure)then
+   call resizeData(indx_meta(:),indx_temp,indx_data,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  else
+   call resizeData(indx_meta(:),indx_data,indx_temp,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  endif
+
+  ! save/recover copies of index variables
+  do iVar=1,size(indx_data%var)
+   !print*, 'indx_meta(iVar)%varname = ', trim(indx_meta(iVar)%varname)
+   select case(stepFailure)
+    case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
+    case(.true.);  indx_data%var(iVar)%dat(:) = indx_temp%var(iVar)%dat(:)
+   end select
+  end do  ! looping through variables
+
+  ! save/recover copies of prognostic variables
+  do iVar=1,size(prog_data%var)
+   !print*, 'prog_meta(iVar)%varname = ', trim(prog_meta(iVar)%varname)
+   select case(stepFailure)
+    case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
+    case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
+   end select
+  end do  ! looping through variables
+
+  ! save/recover copies of diagnostic variables
+  do iVar=1,size(diag_data%var)
+   select case(stepFailure)
+    case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
+    case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
+   end select
+  end do  ! looping through variables
+
+  ! re-assign dimension lengths
+  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
+  nLayers = nSnow+nSoil
+
   ! (1) compute phenology...
   ! ------------------------
-
+ 
   ! compute the temperature of the root zone: used in vegetation phenology
   diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
-
+ 
   ! remember if we compute the vegetation flux on the previous sub-step
   computeVegFluxOld = computeVegFlux  
-
+ 
   ! compute the exposed LAI and SAI and whether veg is buried by snow
   call vegPhenlgy(&
                   ! input/output: data structures
@@ -310,7 +400,7 @@ contains
                   exposedVAI,                  & ! intent(out): exposed vegetation area index (m2 m-2)
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
+ 
   ! check
   if(computeVegFlux)then
    if(canopyDepth < epsilon(canopyDepth))then
@@ -318,16 +408,16 @@ contains
     err=20; return
    endif
   endif
-
+ 
   ! flag the case where number of vegetation states has changed
   modifiedVegState = (computeVegFlux.neqv.computeVegFluxOld)
-
+ 
   ! (2) compute wetted canopy area...
   ! ---------------------------------
-
+ 
   ! compute maximum canopy liquid water (kg m-2)
   diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
-
+ 
   ! compute maximum canopy ice content (kg m-2)
   ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
   ! NOTE 2: this is a different variable than the max ice used in the throughfall (snow interception) calculations
@@ -339,11 +429,11 @@ contains
   end select ! identifying option for maximum branch interception capacity
   !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
   !print*, 'diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1)
-
+ 
   ! compute wetted fraction of the canopy
   ! NOTE: assume that the wetted fraction is constant over the substep for the radiation calculations
   if(computeVegFlux)then
-
+ 
    ! compute wetted fraction of the canopy
    call wettedFrac(&
                    ! input
@@ -364,14 +454,14 @@ contains
                    dCanopyWetFraction_dT,                                        & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
                    err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
+ 
   ! vegetation is completely buried by snow (or no veg exisits at all)
   else
    diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._dp
    dCanopyWetFraction_dWat                                 = 0._dp
    dCanopyWetFraction_dT                                   = 0._dp
   end if
-
+ 
   ! (3) compute snow albedo...
   ! --------------------------
   ! NOTE: this should be done before the radiation calculations
@@ -389,8 +479,8 @@ contains
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-
+ 
+ 
   ! (4) compute canopy sw radiation fluxes...
   ! -----------------------------------------
   call vegSWavRad(&
@@ -405,8 +495,8 @@ contains
                   flux_data,                    & ! intent(inout): model flux variables
                   err,cmessage)                   ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-
+ 
+ 
   ! (5) compute canopy throughfall and unloading...
   ! -----------------------------------------------
   ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation (and throughfall/unloading)
@@ -427,7 +517,7 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
   !print*, 'after canopySnow: canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
-
+ 
   ! adjust canopy temperature to account for new snow
   call tempAdjust(&
                   ! input: derived parameters
@@ -439,7 +529,7 @@ contains
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
+ 
   ! initialize drainage and throughfall
   ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation
   ! NOTE 2: this initialization needs to be done AFTER the call to canopySnow, since canopySnow uses canopy drip drom the previous time step
@@ -450,10 +540,10 @@ contains
    flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._dp
    flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
   end if
-
+ 
   ! (6) add snowfall to the snowpack...
   ! -----------------------------------
-
+ 
   ! add new snowfall to the snowpack
   ! NOTE: This needs to be done AFTER the call to canopySnow, since throughfall and unloading are computed in canopySnow
   call newsnwfall(&
@@ -476,7 +566,7 @@ contains
                  ! output: error control
                  err,cmessage)                                                ! error control
   if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
-
+ 
   ! re-compute snow depth and SWE
   if(nSnow > 0)then
    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
@@ -485,7 +575,7 @@ contains
                                                          * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
   end if
   !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
-
+ 
   ! update coordinate variables
   call calcHeight(&
                   ! input/output: data structures
@@ -503,6 +593,7 @@ contains
   ! -----------------------------------
   call volicePack(&
                   ! input/output: model data structures
+                  stepFailure,                 & ! intent(in):    flag to force merge of snow layers
                   model_decisions,             & ! intent(in):    model decisions
                   mpar_data,                   & ! intent(in):    model parameters
                   indx_data,                   & ! intent(inout): type of each layer
@@ -513,6 +604,24 @@ contains
                   modifiedLayers,              & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+
+  ! recreate the temporary data structures
+  ! NOTE 2: resizeData(meta, old, new, ..)
+  if(modifiedVegState .or. modifiedLayers)then
+
+   ! create temporary data structures for prognostic variables
+   call resizeData(prog_meta(:),prog_data,prog_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  
+   ! create temporary data structures for diagnostic variables
+   call resizeData(diag_meta(:),diag_data,diag_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+  
+   ! create temporary data structures for index variables
+   call resizeData(indx_meta(:),indx_data,indx_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+  endif  ! if modified the states
 
   ! recompute the number of snow and soil layers
   ! NOTE: do this here for greater visibility
@@ -599,12 +708,23 @@ contains
                   model_decisions,                        & ! intent(in):    model decisions
                   ! output: model control
                   dtMultiplier,                           & ! intent(out):   substep multiplier (-)
+                  tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
                   err,cmessage)                             ! intent(out):   error code and error message
 
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
   !print*, 'completed step'
   !print*, 'PAUSE: '; read(*,*)
+
+  ! handle special case of too much melt
+  ! NOTE: need to revert back to the previous state vector that we were happy with, merge the snow layers, and reduce the time step
+  if(tooMuchMelt)then
+   stepFailure = .true.
+   dt_sub      = max(dt_init/2._dp, minstep)
+   cycle substeps
+  else
+   stepFailure = .false.
+  endif
 
   ! update first step
   firstStep=.false.
@@ -659,34 +779,18 @@ contains
    ! compute sublimation loss (kg m-2)
    subLoss = dt_sub*scalarSnowSublimation
 
-   print*, 'scalarSnowSublimation = ', scalarSnowSublimation
-   print*, 'mLayerVolFracIce(1:nSnow) = ', mLayerVolFracIce(1:nSnow)
+   ! try to remove ice from the top layer
+   iSnow=1
+   mLayerVolFracIce(iSnow) = mLayerVolFracIce(iSnow) + subLoss/(mLayerDepth(iSnow)*iden_ice)  ! update volumetric ice content (-)
 
-   ! successively remove ice from snow layers
-   removeSnow: do iSnow=1,nSnow
-    mLayerVolFracIce(iSnow) = mLayerVolFracIce(iSnow) + subLoss/(mLayerDepth(iSnow)*iden_ice)  ! update volumetric ice content (-)
-    ! able to handle sublimation in the current layer
-    if(mLayerVolFracIce(iSnow) > 0._dp)then
-     exit removeSnow
-    ! get the volumetric sublimation that still needs to be removed
-    else
-     subLoss                 = mLayerVolFracIce(iSnow)*mLayerDepth(iSnow)*iden_ice  ! kg m-2
-     mLayerVolFracIce(iSnow) = 0._dp
-    endif
-    ! still need to remove sublimation, but got to the lowest layer
-    ! modify fluxes
-    if(iSnow==nSnow)then
-     ! --> superfluous sublimation flux
-     superflousSub = -subLoss/dt_sub      ! kg m-2 s-1
-     superflousNrg = superflousSub*LH_sub ! W m-2 (J m-2 s-1)
-     ! --> update fluxes and states
-     scalarSnowSublimation = scalarSnowSublimation + superflousSub
-     scalarLatHeatGround   = scalarLatHeatGround   + superflousNrg
-     scalarSenHeatGround   = scalarSenHeatGround   - superflousNrg
-    end if
-   end do removeSnow  ! looping through snow layers
-
-   print*, 'after sublimation: mLayerVolFracIce(1:nSnow) = ', mLayerVolFracIce(1:nSnow)
+   ! check that we did not remove all the ice
+   if(mLayerVolFracIce(iSnow) < verySmall)then
+    stepFailure = .true.
+    dt_sub      = max(dt_init/2._dp, minstep)
+    cycle substeps
+   else
+    stepFailure = .false.
+   endif
 
    ! check
    if(any(mLayerVolFracIce(1:nSnow) < 0._dp) .or. any(mLayerVolFracIce(1:nSnow) > 1._dp) )then
@@ -704,11 +808,8 @@ contains
    end if
 
   end if  ! (if snow layers exist)
-  print*, 'ice after sublimation: ', prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice
 
   end associate sublime
-
-  print*, 'after sublime'
 
   ! (11) account for compaction and cavitation in the snowpack...
   ! ------------------------------------------------------------
@@ -735,8 +836,6 @@ contains
                    err,cmessage)                     ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
-
-  print*, 'after snow density'
 
   ! update coordinate variables
   call calcHeight(&
@@ -777,6 +876,10 @@ contains
   ! save the time step to initialize the subsequent step
   if(dt_solv<data_step .or. nsub==1) dt_init = dt_sub
 
+  ! check
+  if(globalPrintFlag)&
+  write(*,'(a,1x,3(f13.5,1x))') 'dt_sub, dt_solv, data_step: ', dt_sub, dt_solv, data_step
+
   ! check that we have completed the sub-step
   if(dt_solv >= data_step-verySmall) exit substeps
 
@@ -786,8 +889,6 @@ contains
 
  end do  substeps ! (sub-step loop)
  !print*, 'PAUSE: completed time step'; read(*,*)
-
- print*, 'after solver'
 
  ! overwrite flux_data with flux_mean (returns timestep-average fluxes for scalar variables)
  do iVar=1,size(averageFlux_meta)

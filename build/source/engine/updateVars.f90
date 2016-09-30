@@ -89,6 +89,9 @@ USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liqui
 USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
 USE soil_utils_module,only:liquidHead     ! compute the liquid water matric potential 
 
+! IEEE checks
+USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)
+
 implicit none
 private
 public::updateVars
@@ -101,6 +104,7 @@ contains
  subroutine updateVars(&
                        ! input
                        do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                       explicitEuler,                             & ! intent(in):    flag to denote computing the explicit Euler solution
                        mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
@@ -124,7 +128,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none 
  ! input
- logical(lgt),intent(in)         :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
+ logical(lgt)     ,intent(in)    :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
+ logical(lgt)     ,intent(in)    :: explicitEuler                   ! flag to denote computing the explicit Euler solution
  type(var_d),      intent(in)    :: mpar_data                       ! model parameters for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers                 
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
@@ -434,7 +439,8 @@ contains
    ! --------------------------------------------------------------------------------
   
    ! case of energy state OR coupled solution (or adjusting the temperature)
-   else
+   ! NOTE: do not go in here if we have the explicit Euler solution for energy state variables (isNrgState or isCoupled)
+   elseif(do_adjustTemp .or. ( (isNrgState .or. isCoupled) .and. .not.explicitEuler ) )then
 
     ! identify domain type
     select case(ixDomainType)
@@ -488,6 +494,18 @@ contains
    
     end select  ! domain type
   
+   ! explicit Euler solution where energy state variables exist
+   else
+
+    ! do nothing (input = output) -- but check that we got here correctly
+    if(explicitEuler .and. (isNrgState .or. isCoupled) )then
+     scalarVolFracLiq = realMissing
+     scalarVolFracIce = realMissing
+    else
+     message=trim(message)//'unexpected else branch: expect explicit Euler solution where energy state variables exist'
+     err=20; return
+    endif
+
    endif  ! if energy state or solution is coupled 
 
    ! -----
@@ -539,6 +557,12 @@ contains
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
 
     end select  ! domain type
+
+    ! check validity of residual
+    if( ieee_is_nan(residual) )then
+     message=trim(message)//'residual is not valid'
+     err=20; return
+    endif
 
     ! update bracket
     if(residual < 0._dp)then

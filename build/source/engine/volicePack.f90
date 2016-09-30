@@ -43,6 +43,7 @@ contains
  ! ************************************************************************************************
  subroutine volicePack(&
                        ! input/output: model data structures
+                       tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
@@ -65,6 +66,7 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input/output: model data structures
+ logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
@@ -100,6 +102,7 @@ contains
  ! merge snow layers if they are too thin
  call layerMerge(&
                  ! input/output: model data structures
+                 tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                  model_decisions,             & ! intent(in):    model decisions
                  mpar_data,                   & ! intent(in):    model parameters
                  indx_data,                   & ! intent(inout): type of each layer

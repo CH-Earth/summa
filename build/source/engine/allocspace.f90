@@ -19,10 +19,15 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module allocspace_module
+
 ! data types
 USE nrtype
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
+                    ! final data vectors
+                    dlength,             & ! var%dat
+                    ilength,             & ! var%dat
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
                     var_d,               & ! x%var(:)            (dp)
@@ -38,15 +43,24 @@ USE data_types,only:&
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
+
 ! metadata structure
 USE data_types,only:var_info               ! data type for metadata
+
+! access missing values
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing double precision number
+
 implicit none
 private
 public::allocGlobal
 public::allocLocal
+public::resizeData
+
 ! define missing values
 integer(i4b),parameter :: missingInteger=-9999
 real(dp),parameter     :: missingDouble=-9999._dp
+
 ! define fixed dimensions
 integer(i4b),parameter :: nBand=2         ! number of spectral bands
 integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay histogram
@@ -242,6 +256,187 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end subroutine allocLocal
+
+ ! ************************************************************************************************
+ ! public subroutine resizeData: resize data structure
+ ! ************************************************************************************************
+ subroutine resizeData(metaStruct,dataStructOrig,dataStructNew,copy,err,message)
+ implicit none
+ ! input
+ type(var_info),intent(in)             :: metaStruct(:)  ! metadata structure
+ class(*)      ,intent(in)             :: dataStructOrig ! original data structure
+ ! output
+ class(*)      ,intent(inout)          :: dataStructNew  ! new data structure
+ ! control
+ logical(lgt)  ,intent(in)   ,optional :: copy           ! flag to copy data
+ integer(i4b)  ,intent(out)            :: err            ! error code
+ character(*)  ,intent(out)            :: message        ! error message
+ ! local
+ integer(i4b)                          :: iVar           ! number of variables in the structure
+ integer(i4b)                          :: nVars          ! number of variables in the structure
+ logical(lgt)                          :: allocatedOrig  ! flag to denote if a given variable in the original data structure is allocated
+ logical(lgt)                          :: allocatedNew   ! flag to denote if a given variable in the new data structure is allocated
+ integer(i4b)                          :: lowerBoundOrig ! lower bound of a given variable in the original data structure
+ integer(i4b)                          :: upperBoundOrig ! upper bound of a given variable in the original data structure
+ integer(i4b)                          :: lowerBoundNew  ! lower bound of a given variable in the new data structure
+ integer(i4b)                          :: upperBoundNew  ! upper bound of a given variable in the new data structure
+ logical(lgt)                          :: isCopy         ! flag to copy data (handles absence of optional argument)
+ character(len=256)                    :: cmessage       ! error message of the downwind routine
+ ! initialize error control
+ err=0; message='resizeData/'
+
+ ! get the copy flag
+ if(present(copy))then
+  isCopy = copy
+ else
+  isCopy = .false.
+ endif
+
+ ! get the number of variables in the data structure
+ nVars = size(metaStruct)
+
+ ! check that the input data structure is allocated
+ select type(dataStructOrig)
+  type is (var_ilength); err=merge(0, 20, allocated(dataStructOrig%var))
+  type is (var_dlength); err=merge(0, 20, allocated(dataStructOrig%var))
+  class default; err=20; message=trim(message)//'unable to identify type of data structure'; return
+ end select
+ if(err/=0)then; message=trim(message)//'input data structure dataStructOrig%var'; return; end if
+
+ ! allocate the dimension for model variables
+ select type(dataStructNew)
+  type is (var_ilength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err) 
+  type is (var_dlength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
+  class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
+ end select
+ if(err/=0)then; message=trim(message)//'problem allocating space for dataStructNew%var'; return; end if
+
+ ! loop through variables
+ do iVar=1,nVars
+
+  ! get the information of a given variable for the original data structure
+  select type(dataStructOrig)
+   type is (var_ilength); call getVarInfo(dataStructOrig%var(iVar),allocatedOrig,lowerBoundOrig,upperBoundOrig,err,cmessage)
+   type is (var_dlength); call getVarInfo(dataStructOrig%var(iVar),allocatedOrig,lowerBoundOrig,upperBoundOrig,err,cmessage)
+   class default; err=20; message=trim(message)//'unable to identify type of data structure'; return
+  end select
+  if(err/=0)then; message=trim(message)//trim(cmessage)//' [dataStructOrig ('//trim(metaStruct(iVar)%varname)//')]'; return; end if
+
+  ! get the information of a given variable for the new data structure
+  select type(dataStructNew)
+   type is (var_ilength); call getVarInfo(dataStructNew%var(iVar),allocatedNew,lowerBoundNew,upperBoundNew,err,cmessage)
+   type is (var_dlength); call getVarInfo(dataStructNew%var(iVar),allocatedNew,lowerBoundNew,upperBoundNew,err,cmessage)
+   class default; err=20; message=trim(message)//'unable to identify type of data structure'; return
+  end select
+  if(err/=0)then; message=trim(message)//trim(cmessage)//' [dataStructNew ('//trim(metaStruct(iVar)%varname)//')]'; return; end if
+
+  ! check that the variable of the original data structure is allocated
+  if(.not.allocatedOrig)then
+   message=trim(message)//'variable '//trim(metaStruct(iVar)%varname)//' in original data structure is not allocated'
+   err=20; return
+  endif
+
+  ! re-size data structure
+  if(lowerBoundOrig/=lowerBoundNew .or. upperBoundOrig/=upperBoundNew .or. .not.allocatedNew)then
+
+   ! deallocate space (if necessary)
+   if(allocatedNew)then
+    select type(dataStructNew)
+     type is (var_ilength); deallocate(dataStructNew%var(iVar)%dat)
+     type is (var_dlength); deallocate(dataStructNew%var(iVar)%dat)
+     class default; err=20; message=trim(message)//'unkonwn data type of data vector for variable'//trim(metaStruct(iVar)%varname); return
+    end select
+   endif  ! if need to deallocate space
+
+   ! allocate space
+   select type(dataStructNew)
+    type is (var_ilength); allocate(dataStructNew%var(iVar)%dat(lowerBoundOrig:upperBoundOrig), stat=err)
+    type is (var_dlength); allocate(dataStructNew%var(iVar)%dat(lowerBoundOrig:upperBoundOrig), stat=err)
+    class default; err=20; message=trim(message)//'unkonwn data type of data vector for variable'//trim(metaStruct(iVar)%varname); return
+   end select
+   if(err/=0)then; message=trim(message)//trim(cmessage)//' [dataStructNew ('//trim(metaStruct(iVar)%varname)//')]'; return; end if
+
+  endif  ! resizing data structure
+
+  ! copy the data structure
+  if(isCopy)then
+   select type(dataStructNew)
+    ! (integer)
+    type is (var_ilength)
+     select type(dataStructOrig)
+      type is (var_ilength); dataStructNew%var(iVar)%dat(:) = dataStructOrig%var(iVar)%dat(:)
+      class default; err=20; message=trim(message)//'type mismatch for variable '//trim(metaStruct(iVar)%varname); return
+     end select
+    ! (real)
+    type is (var_dlength)
+     select type(dataStructOrig)
+      type is (var_dlength); dataStructNew%var(iVar)%dat(:) = dataStructOrig%var(iVar)%dat(:)
+      class default; err=20; message=trim(message)//'type mismatch for variable '//trim(metaStruct(iVar)%varname); return
+     end select
+    ! (check)
+    class default; err=20; message=trim(message)//'unkonwn data type of data vector for variable'//trim(metaStruct(iVar)%varname); return
+   end select
+  
+  ! initialize data structure
+  else
+   select type(dataStructNew)
+    type is (var_ilength); dataStructNew%var(iVar)%dat(:) = integerMissing 
+    type is (var_dlength); dataStructNew%var(iVar)%dat(:) = realMissing
+    class default; err=20; message=trim(message)//'unkonwn data type of data vector for variable'//trim(metaStruct(iVar)%varname); return
+   end select
+  endif
+
+ end do  ! looping through variables in the data structure
+
+ end subroutine resizeData
+
+
+ ! ************************************************************************************************
+ ! private subroutine allocateDat_dp: initialize data dimension of the data structures
+ ! ************************************************************************************************
+ subroutine getVarInfo(var,isAllocated,lowerBound,upperBound,err,message)
+ ! input
+ class(*),intent(in)              :: var            ! data vector for a given variable
+ ! output
+ logical(lgt),intent(out)         :: isAllocated    ! flag to denote if the data vector is allocated
+ integer(i4b),intent(out)         :: lowerBound     ! lower bound
+ integer(i4b),intent(out)         :: upperBound     ! upper bound
+ integer(i4b),intent(out)         :: err            ! error code
+ character(*),intent(out)         :: message        ! error message
+ ! local
+ integer(i4b),dimension(1)        :: lowerBoundVec  ! lower bound vector
+ integer(i4b),dimension(1)        :: upperBoundVec  ! upper bound vector
+ ! initialize error control
+ err=0; message='getVarInfo/'
+
+ ! check that the input data structure is allocated
+ select type(var)
+  type is (dlength); isAllocated = allocated(var%dat)
+  type is (ilength); isAllocated = allocated(var%dat)
+  class default; err=20; message=trim(message)//'unkonwn data type for data vector'; return
+ end select
+
+ ! if allocated then get the bounds
+ if(isAllocated)then
+
+  ! get the bounds of the original data structure
+  select type(var)
+   type is (dlength); lowerBoundVec=lbound(var%dat); upperBoundVec=ubound(var%dat)
+   type is (ilength); lowerBoundVec=lbound(var%dat); upperBoundVec=ubound(var%dat)
+   class default; err=20; message=trim(message)//'unkonwn data type for data vector'; return
+  end select
+
+  ! translate the 1-d bounds vectors to scalars
+  lowerBound = lowerBoundVec(1)
+  upperBound = upperBoundVec(1)
+
+ ! if not allocated
+ else
+  lowerBound=0
+  upperBound=0
+ endif ! (check allocation)
+
+ end subroutine getVarInfo
 
  ! ************************************************************************************************
  ! private subroutine allocateDat_dp: initialize data dimension of the data structures

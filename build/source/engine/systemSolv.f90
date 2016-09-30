@@ -129,6 +129,7 @@ contains
                        untappedMelt,   & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                        stateVecTrial,  & ! intent(out):   updated state vector
                        explicitError,  & ! intent(out):   error in the explicit solution
+                       tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
                        niter,          & ! intent(out):   number of iterations taken
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
@@ -167,6 +168,7 @@ contains
  real(dp),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
  real(dp),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
  real(dp),intent(out)            :: explicitError                 ! error in the explicit solution
+ logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
  integer(i4b),intent(out)        :: niter                         ! number of iterations taken
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
@@ -184,6 +186,7 @@ contains
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
  real(dp),parameter              :: tempAccelerate=0.00_dp        ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp     ! minimum value to initialize canopy water (kg m-2)
+ real(dp),parameter              :: tinyStep=0.000001_dp          ! stupidly small time step (s) 
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
@@ -214,8 +217,6 @@ contains
  real(dp)                        :: solutionError(nState)         ! vector of errors in the model solution
  real(dp),dimension(1)           :: errorTemp                     ! maximum error in explicit solution
  real(dp)                        :: stateVecUpdate(nState)        ! state vector update
- real(dp)                        :: tempNrg                       ! energy associated with the temperature increase (J m-3 s-1)
- real(dp)                        :: totalNrg                      ! total energy flux (J m-3 s-1)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -252,6 +253,15 @@ contains
  ! -----
  ! * initialize...
  ! ---------------
+
+ ! check
+ if(dt < tinyStep)then
+  message=trim(message)//'dt is tiny'
+  err=20; return
+ endif
+
+ ! initialize the flag for too much mely
+ tooMuchMelt = .false.
 
  ! define maximum number of iterations
  maxiter = nint(mpar_data%var(iLookPARAM%maxiter))
@@ -520,24 +530,24 @@ contains
   ! --> compute state vector update
   stateVecUpdate = 0.5_dp*( dt*fluxVec0/cf0 + dt*fluxVecNew/cf1 )
 
+  ! compute melt energy for the explicit Euler method
+  call explicitMelt(dt,indx_data,diag_data,prog_data,     &  ! intent(in)    : time step and data structures 
+                    0.5_dp*(fluxVec0 + fluxVecNew),sMul,  &  ! intent(in)    : total flux, and state vector multipler
+                    stateVecUpdate,                       &  ! intent(inout) : state vector update (modified if ice cannot support melt)
+                    untappedMelt,                         &  ! intent(out)   : untapped melt energy (J m-3 s-1)
+                    tooMuchMelt,                          &  ! intent(out)   : flag to denote that ice is insufficient to support available melt
+                    err,cmessage)                            ! intent(out)   : error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+  ! if too much melt then return
+  ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
+  if(tooMuchMelt) return 
+
   ! --> update states using the explicit Euler method
   call explicitUpdate(indx_data,mpar_data,prog_data,            &  ! intent(in)  : indices, parameters, prognostic variables
                       stateVecInit,stateVecUpdate,stateVecTrial,&  ! intent(in)  : initial state vector, state update, and new state vector
                       stateConstrained,err,cmessage)               ! intent(out) : flag for state contraint, and error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-  ! --> get un-tapped melt energy
-  do iVar=1,nState
-   ! (energy state variables)
-   if(ixStateType_subset(iVar)==iname_nrgCanopy .or. ixStateType_subset(iVar)==iname_nrgLayer)then
-    tempNrg            = stateVecUpdate(iVar)*real(sMul(iVar), dp)/dt  ! energy associated with the temperature increase (J m-3 s-1)
-    totalNrg           = 0.5_dp*( fluxVec0(iVar) + fluxVecNew(iVar) )  ! total energy (J m-3 s-1)
-    untappedMelt(iVar) = (totalNrg - tempNrg)/totalNrg    ! un-tapped melt energy (J m-3 s-1)
-   ! (all other state variables)
-   else
-    untappedMelt(iVar) = 0._dp
-   endif
- end do
 
   ! --> estimate the solution error
   ! NOTE: done before the constraints check to return the error
@@ -546,7 +556,7 @@ contains
   explicitError    = max(errorTemp(1), verySmall)
 
   ! print progress in the explicit Euler solution
-  !if(globalPrintFlag)then
+  if(globalPrintFlag)then
    write(*,'(a,1x,10(f20.10,1x))') 'cf0           = ', cf0            ( min(nState,iJac1) : min(nState,iJac2) )
    write(*,'(a,1x,10(f20.10,1x))') 'cf1           = ', cf1            ( min(nState,iJac1) : min(nState,iJac2) )
    write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0       ( min(nState,iJac1) : min(nState,iJac2) )
@@ -559,7 +569,13 @@ contains
    write(*,'(a,1x,10(f20.10,1x))') 'solutionError = ', solutionError  ( min(nState,iJac1) : min(nState,iJac2) )
    print*, 'dt = ', dt
    !print*, 'PAUSE: checking state vector for the explicit Euler solution'; read(*,*)
-  !endif  ! (if printing)
+  endif  ! (if printing)
+
+  ! check if there is too much melt
+  if(tooMuchMelt)then
+   message=trim(message)//'too much melt'
+   err=20; return
+  endif
 
   ! check if the state is constrained
   if(stateConstrained)then
@@ -697,6 +713,136 @@ contains
  end associate
 
  end subroutine rhsFluxes
+
+ ! **********************************************************************************************************
+ ! private subroutine explicitUpdate: update the states using the explicit Euler method
+ ! **********************************************************************************************************
+ subroutine explicitMelt(&
+                         dt,                        & ! intent(in)    : time step (s)
+                         indx_data,                 & ! intent(in)    : state indices
+                         diag_data,                 & ! intent(in)    : model diagnostic variables
+                         prog_data,                 & ! intent(in)    : model prognostic variables
+                         totalFlux,                 & ! intent(in)    : total flux
+                         stateVecMult,              & ! intent(in)    : state vector multiplier
+                         stateVecUpdate,            & ! intent(inout) : state vector update
+                         untappedMelt,              & ! intent(out)   : untapped melt energy (J m-3 s-1)
+                         tooMuchMelt,               & ! intent(out)   : flag to denote that ice is insufficient to support available melt
+                         err,message)                 ! intent(out)   : error control
+ USE var_lookup,only:iLookDIAG                        ! named variables for structure elements
+ USE var_lookup,only:iLookPROG                        ! named variables for structure elements
+ USE var_lookup,only:iLookINDEX                       ! named variables for structure elements
+ implicit none
+ ! input
+ real(dp)         ,intent(in)    :: dt                ! time step (s)
+ type(var_ilength),intent(in)    :: indx_data         ! state indices
+ type(var_dlength),intent(in)    :: diag_data         ! model diagnostic variables
+ type(var_dlength),intent(in)    :: prog_data         ! model prognostic variables
+ real(dp)         ,intent(in)    :: totalFlux(:)      ! total flux
+ real(qp)         ,intent(in)    :: stateVecMult(:)   ! state vector multiplier 
+ ! output
+ real(dp)         ,intent(inout) :: stateVecUpdate(:) ! state vector update
+ real(dp)         ,intent(out)   :: untappedMelt(:)   ! untapped melt energy (J m-3 s-1)
+ logical(lgt)     ,intent(out)   :: tooMuchMelt       ! flag to denote that ice is insufficient to support available melt
+ integer(i4b)     ,intent(out)   :: err               ! error code
+ character(*)     ,intent(out)   :: message           ! error message
+ ! local variables
+ integer(i4b)                    :: iState            ! state index
+ integer(i4b)                    :: ixFullVector      ! index in the full state vector
+ integer(i4b)                    :: ixControlIndex    ! index of the control volume for different domains (veg, snow, soil)
+ real(dp)                        :: tempNrg           ! energy associated with the temperature increase (J m-3 s-1)
+ real(dp)                        :: nrgRequired       ! energy required to melt all of the ice (J m-3)
+ real(dp)                        :: untappedNrg       ! untapped energy (J m-3)
+ real(dp)                        :: xIce              ! ice at the start of the step (kg m-2 [canopy] or dimensionless [snow+soil])
+ ! --------------------------------------------------------------------------------------------------------------
+ ! make association with model indices defined in indexSplit
+ associate(&
+  ! diagnostic and prognostic variables
+  canopyDepth         => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),  & ! intent(in): [dp]     canopy depth (m)
+  scalarCanopyIce     => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),    & ! intent(in): [dp]     ice stored on the vegetation canopy (-)
+  mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,      & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
+  ! indices
+  nSnow               => indx_data%var(iLookINDEX%nSnow)%dat(1),             & ! intent(in): [i4b]    number of snow layers
+  ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,      & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+  ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,     & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat,   & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+  ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat   & ! intent(in): [i4b(:)] [state subset] type of desired model state variables
+ ) ! associations
+
+ ! initialize error control
+ err=0; message='explicitMelt/'
+
+ ! initialize the flag to denote that ice is insufficient to support available melt
+ tooMuchMelt=.false.
+
+ ! loop through model states
+ do iState=1,size(totalFlux)
+
+  ! --> get index of the control volume within the domain
+  ixFullVector   = ixMapSubset2Full(iState)       ! index within full state vector
+  ixControlIndex = ixControlVolume(ixFullVector)  ! index within a given domain
+
+  ! restrict attention to the energy state variables in domains where ice can me be present
+  if(ixStateType_subset(iState)==iname_nrgCanopy .or. ixStateType_subset(iState)==iname_nrgLayer)then
+
+   ! --> compute the un-tapped melt energy
+   tempNrg              = stateVecUpdate(iState)*real(stateVecMult(iState), dp)/dt  ! energy associated with the temperature increase (J m-3 s-1)
+   untappedMelt(iState) = totalFlux(iState) - tempNrg
+
+   ! --> get the ice at the start of the time step
+   select case( ixDomainType_subset(iState) )
+    case(iname_veg);  xIce = scalarCanopyIce                             ! kg m-2
+    case(iname_snow); xIce = mLayerVolFracIce(ixControlIndex)            ! (-)
+    case(iname_soil); xIce = mLayerVolFracIce(ixControlIndex+nSnow)      ! (-)
+    case default; err=20; message=trim(message)//'cannot find the domain'; return
+   end select
+
+   ! --> get the energy required to melt all of the ice (J m-3)
+   if(xIce > epsilon(dt))then
+    select case( ixDomainType_subset(iState) )
+     case(iname_veg);  nrgRequired =            LH_fus*xIce/canopyDepth  ! J m-3
+     case(iname_snow); nrgRequired = iden_ice  *LH_fus*xIce              ! J m-3
+     case(iname_soil); nrgRequired = iden_water*LH_fus*xIce              ! J m-3
+     case default; err=20; message=trim(message)//'cannot find the domain'; return
+    end select
+   else
+    nrgRequired = 0._dp
+   endif
+   !print*, 'ixDomainType_subset(iState), untappedMelt(iState)*dt, nrgRequired, xIce = ', ixDomainType_subset(iState), untappedMelt(iState)*dt, nrgRequired, xIce
+
+   ! check if the required melt can be satisfied by the available ice
+   if(untappedMelt(iState)*dt > nrgRequired)then
+
+    ! domain-specfic adjustments
+    select case( ixDomainType_subset(iState) )
+
+     ! --> vegetation and soil have solid matter, so can recover
+     case(iname_veg, iname_soil)
+      untappedNrg            = untappedMelt(iState)*dt - nrgRequired     ! extra energy not used in melt (J m-3)
+      untappedMelt(iState)   = nrgRequired/dt                            ! truncate melt to the energy required to melt all ice (J m-3 s-1)
+      stateVecUpdate(iState) = stateVecUpdate(iState) + untappedNrg/real(stateVecMult(iState), dp)  ! use the extra energy to update the state vector
+
+     ! --> snow is a problem, as we cannot melt all of the ice in a single time step
+     case(iname_snow)
+      tooMuchMelt            = .true.
+
+     ! --> checks
+     case default; err=20; message=trim(message)//'cannot find the domain'; return
+    end select
+
+   endif  ! if melt is less than that required to melt all of the ice
+
+  ! not a relevant energy state (or not an energy state at all!)
+  else
+   untappedMelt(iState) = 0._dp
+  endif
+
+ end do  ! looping through state variables
+
+ ! end association with data structures
+ end associate
+
+ end subroutine explicitMelt
+
 
  ! **********************************************************************************************************
  ! private subroutine explicitUpdate: update the states using the explicit Euler method

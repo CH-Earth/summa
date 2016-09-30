@@ -157,6 +157,7 @@ contains
                        model_decisions,& ! intent(in):    model decisions
                        ! output: model control
                        dtMultiplier,   & ! intent(out):   substep multiplier (-)
+                       tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -199,6 +200,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
  ! output: model control
  real(dp),intent(out)            :: dtMultiplier                   ! substep multiplier (-)
+ logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
  integer(i4b),intent(out)        :: err                            ! error code
  character(*),intent(out)        :: message                        ! error message
  ! *********************************************************************************************************************************************************
@@ -435,8 +437,10 @@ contains
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
       ! check
-      if(globalPrintFlag)&
-      print*, 'after filter: stateMask = ', stateMask
+      if(globalPrintFlag)then
+       print*, 'after filter: stateMask   = ', stateMask
+       print*, 'ixSolution==explicitEuler = ', ixSolution==explicitEuler
+      endif
 
       ! check that state variables exist
       if(nSubset==0) cycle domainSplit 
@@ -542,19 +546,24 @@ contains
                       dtMultiplier,               & ! intent(out)   : substep multiplier (-)
                       nSubsteps,                  & ! intent(out)   : number of substeps taken for a given split
                       failedMinimumStep,          & ! intent(out)   : flag for failed substeps
+                      tooMuchMelt,                & ! intent(out):   flag to denote that ice is insufficient to support melt
                       err,cmessage)                 ! intent(out)   : error code and error message
       if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
 
       ! check 
-      !if(globalPrintFlag .and. ixSolution>splitStateType)then
+      if(globalPrintFlag .and. ixSolution>splitStateType)then
        print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
        print*, 'after filter: stateMask = ', stateMask
        print*, 'nSubset = ', nSubset
        print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
        !print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
-      !endif    
-  
+      endif    
+
+      ! if too much melt then return
+      ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
+      if(tooMuchMelt) return
+ 
       ! define failure
       failure = (failedMinimumStep .or. err<0)
       if(.not.failure) firstSuccess=.true. 
