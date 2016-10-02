@@ -750,16 +750,20 @@ contains
  integer(i4b)                    :: ixFullVector      ! index in the full state vector
  integer(i4b)                    :: ixControlIndex    ! index of the control volume for different domains (veg, snow, soil)
  real(dp)                        :: tempNrg           ! energy associated with the temperature increase (J m-3 s-1)
- real(dp)                        :: nrgRequired       ! energy required to melt all of the ice (J m-3)
+ real(dp)                        :: nrg2meltIce       ! energy required to melt all of the ice (J m-3)
+ real(dp)                        :: nrg2freezeWater   ! energy required to freeze all of the liquid water (J m-3)
  real(dp)                        :: untappedNrg       ! untapped energy (J m-3)
  real(dp)                        :: xIce              ! ice at the start of the step (kg m-2 [canopy] or dimensionless [snow+soil])
+ real(dp)                        :: xLiq              ! liquid water at the start of the step (kg m-2 [canopy] or dimensionless [snow+soil])
  ! --------------------------------------------------------------------------------------------------------------
  ! make association with model indices defined in indexSplit
  associate(&
   ! diagnostic and prognostic variables
   canopyDepth         => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),  & ! intent(in): [dp]     canopy depth (m)
   scalarCanopyIce     => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),    & ! intent(in): [dp]     ice stored on the vegetation canopy (-)
+  scalarCanopyLiq     => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),    & ! intent(in): [dp]     liquid water stored on the vegetation canopy (-)
   mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,      & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
+  mLayerVolFracLiq    => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,      & ! intent(in): [dp(:)]  volumetric fraction of liquid water (-)
   ! indices
   nSnow               => indx_data%var(iLookINDEX%nSnow)%dat(1),             & ! intent(in): [i4b]    number of snow layers
   ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,      & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
@@ -788,48 +792,86 @@ contains
    tempNrg              = stateVecUpdate(iState)*real(stateVecMult(iState), dp)/dt  ! energy associated with the temperature increase (J m-3 s-1)
    untappedMelt(iState) = totalFlux(iState) - tempNrg
 
-   ! --> get the ice at the start of the time step
-   select case( ixDomainType_subset(iState) )
-    case(iname_veg);  xIce = scalarCanopyIce                             ! kg m-2
-    case(iname_snow); xIce = mLayerVolFracIce(ixControlIndex)            ! (-)
-    case(iname_soil); xIce = mLayerVolFracIce(ixControlIndex+nSnow)      ! (-)
-    case default; err=20; message=trim(message)//'cannot find the domain'; return
-   end select
+   ! *****
+   ! melting
+   if(untappedMelt(iState) > 0._dp)then
 
-   ! --> get the energy required to melt all of the ice (J m-3)
-   if(xIce > epsilon(dt))then
+    ! --> get the ice at the start of the time step
     select case( ixDomainType_subset(iState) )
-     case(iname_veg);  nrgRequired =            LH_fus*xIce/canopyDepth  ! J m-3
-     case(iname_snow); nrgRequired = iden_ice  *LH_fus*xIce              ! J m-3
-     case(iname_soil); nrgRequired = iden_water*LH_fus*xIce              ! J m-3
+     case(iname_veg);  xIce = scalarCanopyIce                             ! kg m-2
+     case(iname_snow); xIce = mLayerVolFracIce(ixControlIndex)            ! (-)
+     case(iname_soil); xIce = mLayerVolFracIce(ixControlIndex+nSnow)      ! (-)
      case default; err=20; message=trim(message)//'cannot find the domain'; return
     end select
+  
+    ! --> get the energy required to melt all of the ice (J m-3)
+    if(xIce > epsilon(dt))then
+     select case( ixDomainType_subset(iState) )
+      case(iname_veg);  nrg2meltIce =            LH_fus*xIce/canopyDepth  ! J m-3
+      case(iname_snow); nrg2meltIce = iden_ice  *LH_fus*xIce              ! J m-3
+      case(iname_soil); nrg2meltIce = iden_water*LH_fus*xIce              ! J m-3
+      case default; err=20; message=trim(message)//'cannot find the domain'; return
+     end select
+    else
+     nrg2meltIce = 0._dp
+    endif
+  
+    ! check if the required melt can be satisfied by the available ice
+    if(untappedMelt(iState)*dt > nrg2meltIce)then
+  
+     ! domain-specfic adjustments
+     select case( ixDomainType_subset(iState) )
+  
+      ! --> vegetation and soil have physical structure, so can recover
+      case(iname_veg, iname_soil)
+       untappedNrg            = untappedMelt(iState)*dt - nrg2meltIce     ! extra energy not used in melt (J m-3)
+       untappedMelt(iState)   = nrg2meltIce/dt                            ! truncate melt to the energy required to melt all ice (J m-3 s-1)
+       stateVecUpdate(iState) = stateVecUpdate(iState) + untappedNrg/real(stateVecMult(iState), dp)  ! use the extra energy to update the state vector
+  
+      ! --> snow is a problem, as we cannot melt all of the ice in a single time step
+      case(iname_snow)
+       tooMuchMelt            = .true.
+  
+      ! --> checks
+      case default; err=20; message=trim(message)//'cannot find the domain'; return
+     end select
+
+    endif  ! if melt is less than that required to melt all of the ice
+
+   ! *****
+   ! freezing
    else
-    nrgRequired = 0._dp
-   endif
-   !print*, 'ixDomainType_subset(iState), untappedMelt(iState)*dt, nrgRequired, xIce = ', ixDomainType_subset(iState), untappedMelt(iState)*dt, nrgRequired, xIce
 
-   ! check if the required melt can be satisfied by the available ice
-   if(untappedMelt(iState)*dt > nrgRequired)then
-
-    ! domain-specfic adjustments
+    ! --> get the liquid water at the start of the time step
     select case( ixDomainType_subset(iState) )
-
-     ! --> vegetation and soil have solid matter, so can recover
-     case(iname_veg, iname_soil)
-      untappedNrg            = untappedMelt(iState)*dt - nrgRequired     ! extra energy not used in melt (J m-3)
-      untappedMelt(iState)   = nrgRequired/dt                            ! truncate melt to the energy required to melt all ice (J m-3 s-1)
-      stateVecUpdate(iState) = stateVecUpdate(iState) + untappedNrg/real(stateVecMult(iState), dp)  ! use the extra energy to update the state vector
-
-     ! --> snow is a problem, as we cannot melt all of the ice in a single time step
-     case(iname_snow)
-      tooMuchMelt            = .true.
-
-     ! --> checks
+     case(iname_veg);  xLiq = scalarCanopyLiq                             ! kg m-2
+     case(iname_snow); xLiq = mLayerVolFracLiq(ixControlIndex)            ! (-)
+     case(iname_soil); xLiq = mLayerVolFracLiq(ixControlIndex+nSnow)      ! (-)
      case default; err=20; message=trim(message)//'cannot find the domain'; return
     end select
 
-   endif  ! if melt is less than that required to melt all of the ice
+    ! --> get the energy required to freeze all of the liquid water (J m-3)
+    if(xLiq > epsilon(dt))then
+     select case( ixDomainType_subset(iState) )
+      case(iname_veg);  nrg2freezeWater =            LH_fus*xLiq/canopyDepth  ! J m-3
+      case(iname_snow); nrg2freezeWater = iden_water*LH_fus*xLiq              ! J m-3
+      case(iname_soil); nrg2freezeWater = iden_water*LH_fus*xLiq              ! J m-3
+      case default; err=20; message=trim(message)//'cannot find the domain'; return
+     end select
+    else
+     nrg2freezeWater = 0._dp
+    endif
+
+    ! check if the required melt can be satisfied by the available ice
+    ! NOTE 1: negative untappedMelt
+    ! NOTE 2: insufficient liquid water to freeze is never a problem as temperatures just decrease
+    if(-untappedMelt(iState)*dt > nrg2freezeWater)then
+     untappedNrg            = -untappedMelt(iState)*dt - nrg2freezeWater     ! extra energy not used in melt (J m-3)
+     untappedMelt(iState)   = -nrg2freezeWater/dt                            ! truncate melt to the energy required to melt all ice (J m-3 s-1)
+     stateVecUpdate(iState) = stateVecUpdate(iState) - untappedNrg/real(stateVecMult(iState), dp)  ! use the extra energy to update the state vector
+    endif  ! if freeze is greater than that required to freeze all of the water
+
+   endif    ! if freezing
 
   ! not a relevant energy state (or not an energy state at all!)
   else

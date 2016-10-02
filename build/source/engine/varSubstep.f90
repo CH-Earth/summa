@@ -723,43 +723,109 @@ contains
 
   end do  ! looping through energy variables
 
+  ! ========================================================================================================
+
+  ! *** ice
+
   ! --> check if we removed too much water
   if(scalarCanopyIceTrial < 0._dp  .or. any(mLayerVolFracIceTrial < 0._dp) )then
 
    ! **
    ! canopy within numerical precision
-   if(scalarCanopyIceTrial > -verySmall)then
-    scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
-    scalarCanopyIceTrial = 0._dp
+   if(scalarCanopyIceTrial < 0._dp)then
 
-   ! encountered an inconsistency: spit the dummy
-   else
-    print*, 'dt = ', dt
-    print*, 'untappedMelt          = ', untappedMelt
-    print*, 'untappedMelt*dt       = ', untappedMelt*dt
-    print*, 'scalarCanopyLiqTrial  = ', scalarCanopyLiqTrial
-    message=trim(message)//'melted more than the available water'
-    err=20; return
-   endif  ! (inconsistency)
+    if(scalarCanopyIceTrial > -verySmall)then
+     scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
+     scalarCanopyIceTrial = 0._dp
+  
+    ! encountered an inconsistency: spit the dummy
+    else
+     print*, 'dt = ', dt
+     print*, 'untappedMelt          = ', untappedMelt
+     print*, 'untappedMelt*dt       = ', untappedMelt*dt
+     print*, 'scalarCanopyiceTrial  = ', scalarCanopyIceTrial
+     message=trim(message)//'melted more than the available water'
+     err=20; return
+    endif  ! (inconsistency)
+
+   endif  ! if checking the canopy
 
    ! **
    ! snow+soil within numerical precision
    do iState=1,size(mLayerVolFracIceTrial) 
 
     ! snow layer within numerical precision
-    if(mLayerVolFracIceTrial(iState) > -verySmall)then
-     mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
-     mLayerVolFracIceTrial(iState) = 0._dp
+    if(mLayerVolFracIceTrial(iState) < 0._dp)then
+
+     if(mLayerVolFracIceTrial(iState) > -verySmall)then
+      mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
+      mLayerVolFracIceTrial(iState) = 0._dp
+  
+     ! encountered an inconsistency: spit the dummy
+     else
+      print*, 'dt = ', dt
+      print*, 'untappedMelt          = ', untappedMelt
+      print*, 'untappedMelt*dt       = ', untappedMelt*dt
+      print*, 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial 
+      message=trim(message)//'melted more than the available water'
+      err=20; return
+     endif  ! (inconsistency)
+
+    endif  ! if checking a snow layer
+
+   end do ! (looping through state variables)
+
+  endif  ! (if we removed too much water)
+
+  ! ========================================================================================================
+
+  ! *** liquid water
+
+  ! --> check if we removed too much water
+  if(scalarCanopyLiqTrial < 0._dp  .or. any(mLayerVolFracLiqTrial < 0._dp) )then
+
+   ! **
+   ! canopy within numerical precision
+   if(scalarCanopyLiqTrial < 0._dp)then
+
+    if(scalarCanopyLiqTrial > -verySmall)then
+     scalarCanopyIceTrial = scalarCanopyIceTrial - scalarCanopyLiqTrial
+     scalarCanopyLiqTrial = 0._dp
 
     ! encountered an inconsistency: spit the dummy
     else
      print*, 'dt = ', dt
      print*, 'untappedMelt          = ', untappedMelt
      print*, 'untappedMelt*dt       = ', untappedMelt*dt
-     print*, 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial 
-     message=trim(message)//'melted more than the available water'
+     print*, 'scalarCanopyLiqTrial  = ', scalarCanopyLiqTrial
+     message=trim(message)//'frozen more than the available water'
      err=20; return
     endif  ! (inconsistency)
+
+   endif  ! checking the canopy
+ 
+   ! **
+   ! snow+soil within numerical precision
+   do iState=1,size(mLayerVolFracLiqTrial)
+
+    ! snow layer within numerical precision
+    if(mLayerVolFracLiqTrial(iState) < 0._dp)then
+
+     if(mLayerVolFracLiqTrial(iState) > -verySmall)then
+      mLayerVolFracIceTrial(iState) = mLayerVolFracIceTrial(iState) - mLayerVolFracLiqTrial(iState)
+      mLayerVolFracLiqTrial(iState) = 0._dp
+  
+     ! encountered an inconsistency: spit the dummy
+     else
+      print*, 'dt = ', dt
+      print*, 'untappedMelt          = ', untappedMelt
+      print*, 'untappedMelt*dt       = ', untappedMelt*dt
+      print*, 'mLayerVolFracLiqTrial = ', mLayerVolFracLiqTrial
+      message=trim(message)//'frozen more than the available water'
+      err=20; return
+     endif  ! (inconsistency)
+
+    endif  ! checking a snow layer
 
    end do ! (looping through state variables)
 
