@@ -777,8 +777,8 @@ contains
     case(nrgSplit)
      select case(iDomainSplit)
       case(vegSplit)
-       stateMask(ixNrgCanair)   = .true.  ! energy of the canopy air space
-       stateMask(ixNrgCanopy)   = .true.  ! energy of the vegetation canopy
+       if(ixNrgCanair(1)/=integerMissing) stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
+       if(ixNrgCanopy(1)/=integerMissing) stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
        stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
       case(snowSplit); if(nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) top layer in the snow+soil domain included in vegSplit
       case(soilSplit); stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
@@ -788,7 +788,7 @@ contains
     ! define mask for water
     case(massSplit) 
      select case(iDomainSplit)
-      case(vegSplit);  stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
+      case(vegSplit);  if(ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
       case(snowSplit); stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
       case(soilSplit); stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
       case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
