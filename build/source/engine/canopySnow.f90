@@ -240,6 +240,9 @@ contains
  ! update mass of ice on the canopy (kg m-2)
  scalarCanopyIce = scalarCanopyIceIter
 
+ !print*, 'scalarCanopySnowUnloading    = ', scalarCanopySnowUnloading
+ !print*, 'scalarCanopySnowUnloading*dt = ', scalarCanopySnowUnloading*dt
+
  ! end association to variables in the data structure
  end associate
 

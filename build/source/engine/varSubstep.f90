@@ -410,6 +410,7 @@ contains
 
   ! increment sub-step
   dtSum = dtSum + dtSubstep
+  !print*, 'dtSum, dtSubstep, dt = ', dtSum, dtSubstep, dt
 
   ! check that we have completed the sub-step
   if(dtSum >= dt-verySmall)then

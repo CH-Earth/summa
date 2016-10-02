@@ -557,7 +557,8 @@ contains
        print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
        print*, 'after filter: stateMask = ', stateMask
-       print*, 'nSubset = ', nSubset
+       print*, 'nSubset           = ', nSubset
+       print*, 'tooMuchMelt       = ', tooMuchMelt
        print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
        !print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
       endif    

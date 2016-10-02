@@ -308,6 +308,219 @@ contains
  !print*, 'nSnow = ', nSnow
  !print*, 'oldSWE = ', oldSWE
 
+ ! (1) compute phenology...
+ ! ------------------------
+
+ ! compute the temperature of the root zone: used in vegetation phenology
+ diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
+
+ ! remember if we compute the vegetation flux on the previous sub-step
+ computeVegFluxOld = computeVegFlux  
+
+ ! compute the exposed LAI and SAI and whether veg is buried by snow
+ call vegPhenlgy(&
+                 ! input/output: data structures
+                 model_decisions,             & ! intent(in):    model decisions
+                 type_data,                   & ! intent(in):    type of vegetation and soil
+                 attr_data,                   & ! intent(in):    spatial attributes
+                 mpar_data,                   & ! intent(in):    model parameters
+                 prog_data,                   & ! intent(in):    model prognostic variables for a local HRU
+                 diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                 ! output
+                 computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                 canopyDepth,                 & ! intent(out): canopy depth (m)
+                 exposedVAI,                  & ! intent(out): exposed vegetation area index (m2 m-2)
+                 err,cmessage)                  ! intent(out): error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ ! check
+ if(computeVegFlux)then
+  if(canopyDepth < epsilon(canopyDepth))then
+   message=trim(message)//'canopy depth is zero when computeVegFlux flag is .true.'
+   err=20; return
+  endif
+ endif
+
+ ! flag the case where number of vegetation states has changed
+ modifiedVegState = (computeVegFlux.neqv.computeVegFluxOld)
+
+ ! (2) compute wetted canopy area...
+ ! ---------------------------------
+
+ ! compute maximum canopy liquid water (kg m-2)
+ diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
+
+ ! compute maximum canopy ice content (kg m-2)
+ ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
+ ! NOTE 2: this is a different variable than the max ice used in the throughfall (snow interception) calculations
+ ! NOTE 3: use maximum per unit leaf area storage capacity for snow (kg m-2)
+ select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
+  case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)
+  case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp
+  case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
+ end select ! identifying option for maximum branch interception capacity
+ !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
+ !print*, 'diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1)
+
+ ! compute wetted fraction of the canopy
+ ! NOTE: assume that the wetted fraction is constant over the substep for the radiation calculations
+ if(computeVegFlux)then
+
+  ! compute wetted fraction of the canopy
+  call wettedFrac(&
+                  ! input
+                  .false.,                                                      & ! flag to denote if derivatives are required
+                  .false.,                                                      & ! flag to denote if derivatives are calculated numerically
+                  (prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1) < Tfreeze), & ! flag to denote if the canopy is frozen
+                  varNotUsed1,                                                  & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
+                  varNotUsed2,                                                  & ! fraction of liquid water on the canopy
+                  prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),              & ! canopy liquid water (kg m-2)
+                  prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
+                  diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
+                  diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
+                  mpar_data%var(iLookPARAM%canopyWettingFactor),                & ! maximum wetted fraction of the canopy (-)
+                  mpar_data%var(iLookPARAM%canopyWettingExp),                   & ! exponent in canopy wetting function (-)
+                  ! output
+                  diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
+                  dCanopyWetFraction_dWat,                                      & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
+                  dCanopyWetFraction_dT,                                        & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
+                  err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+ ! vegetation is completely buried by snow (or no veg exisits at all)
+ else
+  diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._dp
+  dCanopyWetFraction_dWat                                 = 0._dp
+  dCanopyWetFraction_dT                                   = 0._dp
+ end if
+
+ ! (3) compute snow albedo...
+ ! --------------------------
+ ! NOTE: this should be done before the radiation calculations
+ ! NOTE: uses snowfall; should really use canopy throughfall + canopy unloading
+ call snowAlbedo(&
+                 ! input: model control
+                 data_step,                   & ! intent(in): model time step (s)
+                 (nSnow > 0),                 & ! intent(in): logical flag to denote if snow is present
+                 ! input/output: data structures
+                 model_decisions,             & ! intent(in):    model decisions
+                 mpar_data,                   & ! intent(in):    model parameters
+                 flux_data,                   & ! intent(in):    model flux variables
+                 diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                 prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                 ! output: error control
+                 err,cmessage)                  ! intent(out): error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+
+ ! (4) compute canopy sw radiation fluxes...
+ ! -----------------------------------------
+ call vegSWavRad(&
+                 data_step,                    & ! intent(in):    time step (s) -- only used in Noah-MP radiation, to compute albedo
+                 nSnow,                        & ! intent(in):    number of snow layers
+                 nSoil,                        & ! intent(in):    number of soil layers
+                 nLayers,                      & ! intent(in):    total number of layers
+                 computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+                 type_data,                    & ! intent(in):    type of vegetation and soil
+                 prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
+                 diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
+                 flux_data,                    & ! intent(inout): model flux variables
+                 err,cmessage)                   ! intent(out):   error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+
+ ! (5) compute canopy throughfall and unloading...
+ ! -----------------------------------------------
+ ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation (and throughfall/unloading)
+ ! NOTE 2: the unloading flux is computed using canopy drip (scalarCanopyLiqDrainage) from the previous time step
+ call canopySnow(&
+                 ! input: model control
+                 data_step,                   & ! intent(in): time step (seconds)
+                 exposedVAI,                  & ! intent(in): exposed vegetation area index (m2 m-2)
+                 computeVegFlux,              & ! intent(in): flag to denote if computing energy flux over vegetation
+                 ! input/output: data structures
+                 model_decisions,             & ! intent(in):    model decisions
+                 forc_data,                   & ! intent(in):    model forcing data
+                 mpar_data,                   & ! intent(in):    model parameters
+                 diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
+                 prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                 flux_data,                   & ! intent(inout): model flux variables
+                 ! output: error control
+                 err,cmessage)                  ! intent(out): error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+ !print*, 'after canopySnow: canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
+
+ ! adjust canopy temperature to account for new snow
+ call tempAdjust(&
+                 ! input: derived parameters
+                 canopyDepth,                 & ! intent(in): canopy depth (m)
+                 ! input/output: data structures
+                 mpar_data,                   & ! intent(in):    model parameters
+                 prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                 diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
+                 ! output: error control
+                 err,cmessage)                  ! intent(out): error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ ! initialize drainage and throughfall
+ ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation
+ ! NOTE 2: this initialization needs to be done AFTER the call to canopySnow, since canopySnow uses canopy drip drom the previous time step
+ if(.not.computeVegFlux)then
+  flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = flux_data%var(iLookFLUX%scalarRainfall)%dat(1)
+  flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
+ else
+  flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._dp
+  flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
+ end if
+
+ ! (6) add snowfall to the snowpack...
+ ! -----------------------------------
+
+ ! add new snowfall to the snowpack
+ ! NOTE: This needs to be done AFTER the call to canopySnow, since throughfall and unloading are computed in canopySnow
+ call newsnwfall(&
+                ! input: model control
+                data_step,                                                 & ! time step (seconds)
+                (nSnow > 0),                                               & ! logical flag if snow layers exist
+                mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
+                ! input: diagnostic scalar variables
+                diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
+                diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
+                flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
+                flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
+                ! input/output: state variables
+                prog_data%var(iLookPROG%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
+                prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
+                prog_data%var(iLookPROG%mLayerTemp)%dat(1),                & ! temperature of the top layer (K)
+                prog_data%var(iLookPROG%mLayerDepth)%dat(1),               & ! depth of the top layer (m)
+                prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1),          & ! volumetric fraction of ice of the top layer (-)
+                prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1),          & ! volumetric fraction of liquid water of the top layer (-)
+                ! output: error control
+                err,cmessage)                                                ! error control
+ if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
+
+ ! re-compute snow depth and SWE
+ if(nSnow > 0)then
+  prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+  prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                          prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                        * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+ end if
+ !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
+
+ ! update coordinate variables
+ call calcHeight(&
+                 ! input/output: data structures
+                 indx_data,   & ! intent(in): layer type
+                 prog_data,   & ! intent(inout): model variables for a local HRU
+                 ! output: error control
+                 err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ ! ****************************************************************************************************
+ ! *** MAIN SOLVER ************************************************************************************
+ ! ****************************************************************************************************
+
  ! initialize the length of the sub-step
  dt_solv = 0._dp   ! length of time step that has been completed (s)
  dt_init = min(data_step,maxstep)  ! initial substep length (s)
@@ -376,219 +589,6 @@ contains
   nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
   nLayers = nSnow+nSoil
 
-  ! (1) compute phenology...
-  ! ------------------------
- 
-  ! compute the temperature of the root zone: used in vegetation phenology
-  diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
- 
-  ! remember if we compute the vegetation flux on the previous sub-step
-  computeVegFluxOld = computeVegFlux  
- 
-  ! compute the exposed LAI and SAI and whether veg is buried by snow
-  call vegPhenlgy(&
-                  ! input/output: data structures
-                  model_decisions,             & ! intent(in):    model decisions
-                  type_data,                   & ! intent(in):    type of vegetation and soil
-                  attr_data,                   & ! intent(in):    spatial attributes
-                  mpar_data,                   & ! intent(in):    model parameters
-                  prog_data,                   & ! intent(in):    model prognostic variables for a local HRU
-                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                  ! output
-                  computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                  canopyDepth,                 & ! intent(out): canopy depth (m)
-                  exposedVAI,                  & ! intent(out): exposed vegetation area index (m2 m-2)
-                  err,cmessage)                  ! intent(out): error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
- 
-  ! check
-  if(computeVegFlux)then
-   if(canopyDepth < epsilon(canopyDepth))then
-    message=trim(message)//'canopy depth is zero when computeVegFlux flag is .true.'
-    err=20; return
-   endif
-  endif
- 
-  ! flag the case where number of vegetation states has changed
-  modifiedVegState = (computeVegFlux.neqv.computeVegFluxOld)
- 
-  ! (2) compute wetted canopy area...
-  ! ---------------------------------
- 
-  ! compute maximum canopy liquid water (kg m-2)
-  diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
- 
-  ! compute maximum canopy ice content (kg m-2)
-  ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
-  ! NOTE 2: this is a different variable than the max ice used in the throughfall (snow interception) calculations
-  ! NOTE 3: use maximum per unit leaf area storage capacity for snow (kg m-2)
-  select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
-   case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)
-   case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp
-   case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
-  end select ! identifying option for maximum branch interception capacity
-  !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
-  !print*, 'diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1)
- 
-  ! compute wetted fraction of the canopy
-  ! NOTE: assume that the wetted fraction is constant over the substep for the radiation calculations
-  if(computeVegFlux)then
- 
-   ! compute wetted fraction of the canopy
-   call wettedFrac(&
-                   ! input
-                   .false.,                                                      & ! flag to denote if derivatives are required
-                   .false.,                                                      & ! flag to denote if derivatives are calculated numerically
-                   (prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1) < Tfreeze), & ! flag to denote if the canopy is frozen
-                   varNotUsed1,                                                  & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
-                   varNotUsed2,                                                  & ! fraction of liquid water on the canopy
-                   prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),              & ! canopy liquid water (kg m-2)
-                   prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
-                   diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
-                   diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
-                   mpar_data%var(iLookPARAM%canopyWettingFactor),                & ! maximum wetted fraction of the canopy (-)
-                   mpar_data%var(iLookPARAM%canopyWettingExp),                   & ! exponent in canopy wetting function (-)
-                   ! output
-                   diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
-                   dCanopyWetFraction_dWat,                                      & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
-                   dCanopyWetFraction_dT,                                        & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
-                   err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- 
-  ! vegetation is completely buried by snow (or no veg exisits at all)
-  else
-   diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._dp
-   dCanopyWetFraction_dWat                                 = 0._dp
-   dCanopyWetFraction_dT                                   = 0._dp
-  end if
- 
-  ! (3) compute snow albedo...
-  ! --------------------------
-  ! NOTE: this should be done before the radiation calculations
-  ! NOTE: uses snowfall; should really use canopy throughfall + canopy unloading
-  call snowAlbedo(&
-                  ! input: model control
-                  dt_sub,                      & ! intent(in): model time step (s)
-                  (nSnow > 0),                 & ! intent(in): logical flag to denote if snow is present
-                  ! input/output: data structures
-                  model_decisions,             & ! intent(in):    model decisions
-                  mpar_data,                   & ! intent(in):    model parameters
-                  flux_data,                   & ! intent(in):    model flux variables
-                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                  ! output: error control
-                  err,cmessage)                  ! intent(out): error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
- 
- 
-  ! (4) compute canopy sw radiation fluxes...
-  ! -----------------------------------------
-  call vegSWavRad(&
-                  dt_sub,                       & ! intent(in):    time step (s) -- only used in Noah-MP radiation, to compute albedo
-                  nSnow,                        & ! intent(in):    number of snow layers
-                  nSoil,                        & ! intent(in):    number of soil layers
-                  nLayers,                      & ! intent(in):    total number of layers
-                  computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                  type_data,                    & ! intent(in):    type of vegetation and soil
-                  prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
-                  diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_data,                    & ! intent(inout): model flux variables
-                  err,cmessage)                   ! intent(out):   error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
- 
- 
-  ! (5) compute canopy throughfall and unloading...
-  ! -----------------------------------------------
-  ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation (and throughfall/unloading)
-  ! NOTE 2: the unloading flux is computed using canopy drip (scalarCanopyLiqDrainage) from the previous time step
-  call canopySnow(&
-                  ! input: model control
-                  dt_sub,                      & ! intent(in): time step (seconds)
-                  exposedVAI,                  & ! intent(in): exposed vegetation area index (m2 m-2)
-                  computeVegFlux,              & ! intent(in): flag to denote if computing energy flux over vegetation
-                  ! input/output: data structures
-                  model_decisions,             & ! intent(in):    model decisions
-                  forc_data,                   & ! intent(in):    model forcing data
-                  mpar_data,                   & ! intent(in):    model parameters
-                  diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
-                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                  flux_data,                   & ! intent(inout): model flux variables
-                  ! output: error control
-                  err,cmessage)                  ! intent(out): error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-  !print*, 'after canopySnow: canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
- 
-  ! adjust canopy temperature to account for new snow
-  call tempAdjust(&
-                  ! input: derived parameters
-                  canopyDepth,                 & ! intent(in): canopy depth (m)
-                  ! input/output: data structures
-                  mpar_data,                   & ! intent(in):    model parameters
-                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                  diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
-                  ! output: error control
-                  err,cmessage)                  ! intent(out): error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
- 
-  ! initialize drainage and throughfall
-  ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation
-  ! NOTE 2: this initialization needs to be done AFTER the call to canopySnow, since canopySnow uses canopy drip drom the previous time step
-  if(.not.computeVegFlux)then
-   flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = flux_data%var(iLookFLUX%scalarRainfall)%dat(1)
-   flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
-  else
-   flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._dp
-   flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
-  end if
- 
-  ! (6) add snowfall to the snowpack...
-  ! -----------------------------------
- 
-  ! add new snowfall to the snowpack
-  ! NOTE: This needs to be done AFTER the call to canopySnow, since throughfall and unloading are computed in canopySnow
-  call newsnwfall(&
-                 ! input: model control
-                 dt_sub,                                                    & ! time step (seconds)
-                 (nSnow > 0),                                               & ! logical flag if snow layers exist
-                 mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
-                 ! input: diagnostic scalar variables
-                 diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
-                 diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
-                 flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),     & ! throughfall of snow through the canopy (kg m-2 s-1)
-                 flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1), & ! unloading of snow from the canopy (kg m-2 s-1)
-                 ! input/output: state variables
-                 prog_data%var(iLookPROG%scalarSWE)%dat(1),                 & ! SWE (kg m-2)
-                 prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! total snow depth (m)
-                 prog_data%var(iLookPROG%mLayerTemp)%dat(1),                & ! temperature of the top layer (K)
-                 prog_data%var(iLookPROG%mLayerDepth)%dat(1),               & ! depth of the top layer (m)
-                 prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1),          & ! volumetric fraction of ice of the top layer (-)
-                 prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1),          & ! volumetric fraction of liquid water of the top layer (-)
-                 ! output: error control
-                 err,cmessage)                                                ! error control
-  if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
- 
-  ! re-compute snow depth and SWE
-  if(nSnow > 0)then
-   prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
-   prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
-  end if
-  !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
- 
-  ! update coordinate variables
-  call calcHeight(&
-                  ! input/output: data structures
-                  indx_data,   & ! intent(in): layer type
-                  prog_data,   & ! intent(inout): model variables for a local HRU
-                  ! output: error control
-                  err,cmessage)
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-  ! ****************************************************************************************************
-  ! *** MAIN SOLVER ************************************************************************************
-  ! ****************************************************************************************************
-
   ! (7) merge/sub-divide snow layers...
   ! -----------------------------------
   call volicePack(&
@@ -606,7 +606,7 @@ contains
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
   ! recreate the temporary data structures
-  ! NOTE 2: resizeData(meta, old, new, ..)
+  ! NOTE: resizeData(meta, old, new, ..)
   if(modifiedVegState .or. modifiedLayers)then
 
    ! create temporary data structures for prognostic variables
