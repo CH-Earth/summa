@@ -251,6 +251,7 @@ contains
  logical(lgt)                    :: failure                        ! flag to denote failure of substepping
  logical(lgt)                    :: doAdjustTemp                   ! flag to adjust temperature after the mass split
  logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
+ integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -543,10 +544,11 @@ contains
                       deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,                  & ! intent(in)    : model variables for the local basin
                       ! output: control
+                      ixSaturation,               & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       dtMultiplier,               & ! intent(out)   : substep multiplier (-)
                       nSubsteps,                  & ! intent(out)   : number of substeps taken for a given split
                       failedMinimumStep,          & ! intent(out)   : flag for failed substeps
-                      tooMuchMelt,                & ! intent(out):   flag to denote that ice is insufficient to support melt
+                      tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                       err,cmessage)                 ! intent(out)   : error code and error message
       if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
 

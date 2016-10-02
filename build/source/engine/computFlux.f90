@@ -717,7 +717,7 @@ contains
     message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
     err=20; return
    endif
-  
+ 
    ! compute the baseflow flux
    call groundwatr(&
                    ! input: model control

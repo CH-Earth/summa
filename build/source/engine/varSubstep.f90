@@ -97,11 +97,12 @@ contains
                        flux_data,         & ! intent(inout) : model fluxes for a local HRU
                        deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                        bvar_data,         & ! intent(in)    : model variables for the local basin
-                       ! output: error control
+                       ! output: model control
+                       ixSaturation,      & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dtMultiplier,      & ! intent(out)   : substep multiplier (-)
                        nSubsteps,         & ! intent(out)   : number of substeps taken for a given split
                        failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
-                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
+                       tooMuchMelt,       & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        err,message)         ! intent(out)   : error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -139,7 +140,8 @@ contains
  type(var_dlength),intent(inout) :: flux_data                     ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
- ! output: error control
+ ! output: model control
+ integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
  integer(i4b),intent(out)        :: nSubsteps                     ! number of substeps taken for a given split
  logical(lgt),intent(out)        :: failedMinimumStep             ! flag to denote success of substepping for a given split
@@ -283,6 +285,7 @@ contains
                   stateVecInit,   & ! intent(in):    initial state vector
                   ! output: model control
                   deriv_data,     & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  ixSaturation,   & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   untappedMelt,   & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                   stateVecTrial,  & ! intent(out):   updated state vector
                   explicitError,  & ! intent(out):   error in the explicit solution

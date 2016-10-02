@@ -126,6 +126,7 @@ contains
                        stateVecInit,   & ! intent(in):    initial state vector
                        ! output
                        deriv_data,     & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                       ixSaturation,   & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        untappedMelt,   & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                        stateVecTrial,  & ! intent(out):   updated state vector
                        explicitError,  & ! intent(out):   error in the explicit solution
@@ -165,6 +166,7 @@ contains
  real(dp),intent(in)             :: stateVecInit(:)               ! initial state vector (mixed units)
  ! output: model control
  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables 
+ integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
  real(dp),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
  real(dp),intent(out)            :: explicitError                 ! error in the explicit solution
@@ -194,7 +196,6 @@ contains
  integer(i4b)                    :: maxiter                       ! maximum number of iterations
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step 
- integer(i4b)                    :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  real(dp)                        :: stateVecNew(nState)           ! new state vector (mixed units)
  real(dp)                        :: rhsFlux0(nState)              ! right-hand-side fluxes (start of step)
