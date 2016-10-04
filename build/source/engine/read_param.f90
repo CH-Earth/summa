@@ -37,10 +37,11 @@ contains
  USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
  USE get_ixname_module,only:get_ixparam              ! access function to find index of elements in structure
+ USE get_ixname_module,only:get_ixbpar               ! access function to find index of elements in structure
  USE data_types,only:gru_hru_int                     ! spatial integer data type: x%hru(:)%var(:)
  USE data_types,only:gru_hru_double                  ! spatial double data type: x%hru(:)%var(:)
  USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
- USE var_lookup,only:iLookTYPE                       ! named variables to index elements of the data vectors
+ USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input
  integer(i4b),        intent(in)    :: nHRU             ! number of global HRUs
