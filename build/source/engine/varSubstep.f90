@@ -365,10 +365,6 @@ contains
 
   ! NOTE: if we get to here then we are accepting the step
 
-  ! print progress
-  if(globalPrintFlag)&
-  write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
-
   ! NOTE: we get to here if iterations are successful
   if(err/=0)then
    message=trim(message)//'expect err=0 if updating fluxes'
@@ -381,6 +377,13 @@ contains
                   nrgFluxModified,err,cmessage)                                                                         ! output: flags and error control
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
 
+  ! recover from errors in prognostic update
+  if(err<0)then
+   err=0
+   dtSubstep = dtSubstep/2._dp
+   cycle substeps
+  endif
+
   ! get the total energy fluxes (modified in updateProg)
   if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
    sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
@@ -392,12 +395,9 @@ contains
    sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   endif  ! if energy fluxes were modified
 
-  ! recover from errors in prognostic update
-  if(err<0)then
-   err=0
-   dtSubstep = dtSubstep/2._dp
-   cycle substeps
-  endif
+  ! print progress
+  if(globalPrintFlag)&
+  write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
   ! increment fluxes
   dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation)
