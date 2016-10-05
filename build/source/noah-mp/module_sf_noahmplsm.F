@@ -2961,6 +2961,7 @@ contains
      ! MPC change: precision issues
      S2 = max(epsilon(VAI),EXP(-EXT*VAI))
      IF (IC .EQ. 0) THEN
+print*,B,C,IB,ALBGRD(IB)
         U1 = B - C/ALBGRD(IB)
         U2 = B - C*ALBGRD(IB)
         U3 = F + C*ALBGRD(IB)
