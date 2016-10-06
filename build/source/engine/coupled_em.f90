@@ -170,7 +170,6 @@ contains
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
- logical(lgt)                         :: tooMuchMelt            ! flag to denote that ice is insufficient to support melt
  logical(lgt)                         :: stepFailure            ! flag to denote that the step failed (reduce step and try again)
  logical(lgt)                         :: pauseFlag              ! flag to pause execution 
  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
@@ -708,7 +707,7 @@ contains
                   model_decisions,                        & ! intent(in):    model decisions
                   ! output: model control
                   dtMultiplier,                           & ! intent(out):   substep multiplier (-)
-                  tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
+                  stepFailure,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
                   err,cmessage)                             ! intent(out):   error code and error message
 
   ! check for all errors (error recovery within opSplittin)
@@ -716,14 +715,11 @@ contains
   !print*, 'completed step'
   !print*, 'PAUSE: '; read(*,*)
 
-  ! handle special case of too much melt
+  ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with, merge the snow layers, and reduce the time step
-  if(tooMuchMelt)then
-   stepFailure = .true.
+  if(stepFailure)then
    dt_sub      = max(dt_init/2._dp, minstep)
    cycle substeps
-  else
-   stepFailure = .false.
   endif
 
   ! update first step
