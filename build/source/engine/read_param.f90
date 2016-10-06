@@ -29,24 +29,26 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(nHRU,typeStruct,mparStruct,err,message)
+ subroutine read_param(nHRU,typeStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
  USE ascii_util_module,only:file_open                ! open file
  USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
- USE get_ixname_module,only:get_ixparam              ! access function to find index of elements in structure
+ USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
  USE data_types,only:gru_hru_int                     ! spatial integer data type: x%hru(:)%var(:)
  USE data_types,only:gru_hru_double                  ! spatial double data type: x%hru(:)%var(:)
+ USE data_types,only:gru_double                      ! spatial double data type: x%gru(:)%var(:)
  USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
- USE var_lookup,only:iLookTYPE                       ! named variables to index elements of the data vectors
+ USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input
  integer(i4b),        intent(in)    :: nHRU             ! number of global HRUs
  type(gru_hru_int),   intent(in)    :: typeStruct       ! local classification of soil veg etc. for each HRU
  ! define output
  type(gru_hru_double),intent(inout) :: mparStruct       ! model parameters
+ type(gru_double)    ,intent(inout) :: bparStruct       ! basin parameters
  integer(i4b),        intent(out)   :: err              ! error code
  character(*),        intent(out)   :: message          ! error message
  ! define local variables
@@ -56,7 +58,7 @@ contains
  integer(i4b)                       :: iline            ! loop through lines in the file
  integer(i4b),parameter             :: maxLines=1000    ! maximum lines in the file
  integer(i4b)                       :: iend             ! check for the end of the file
- integer(i4b),parameter             :: sLen=2048        ! string length for line of parameter data
+ integer(i4b),parameter             :: sLen=4096        ! string length for line of parameter data
  character(LEN=sLen)                :: temp             ! single line of information
  character(LEN=sLen),allocatable    :: charline(:)      ! vector of character strings
  character(LEN=64),allocatable      :: varnames(:)      ! vector of variable names
@@ -146,13 +148,28 @@ contains
      if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iline))//"']"; return; endif                                                                                                                                  
      ! loop through the model parameters
      do ipar=2,nPars  ! start at #2 because the first "word" is the HRU index
+
       ! get the variable index
       jpar = get_ixparam(trim(varnames(ipar)))
-      if(jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
-      ! populate the appropriate element of the parameter vector
+
+      ! if variable does not exist in mpar struc, try bpar struct
+      if(jpar<=0)then
+       jpar = get_ixbpar(trim(varnames(ipar)))
+
+       ! if not in either structure, then spit error
+       if (jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
+
+       ! populate the appropriate element of the basin par vector
+       read(chardata(ipar),*,iostat=err) bparStruct%gru(iGRU)%var(jpar)
+       if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
+      end if
+
+      ! populate the appropriate element of the local parameter vector
       read(chardata(ipar),*,iostat=err) mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)
       if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
+
      end do    ! (looping through model parameters)
+
     end if 
     exit hruLoop
    endif

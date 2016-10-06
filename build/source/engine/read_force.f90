@@ -72,7 +72,7 @@ contains
  integer(i4b)                      :: ncStart(2)       ! start array for reading hru forcing
  ! rest
  real(dp),parameter                :: amiss= -1.d+30   ! missing real
- real(dp),parameter                :: verySmall=1e-6   ! tiny number
+ real(dp),parameter                :: verySmall=1e-3   ! tiny number
  character(len=256)                :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  character(len=256)                :: refTimeString    ! reference time string
