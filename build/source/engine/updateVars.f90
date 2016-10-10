@@ -176,7 +176,7 @@ contains
  real(dp)                        :: tempInc                         ! iteration increment (K)
  integer(i4b)                    :: iter                            ! iteration index
  integer(i4b)                    :: niter                           ! number of iterations
- integer(i4b),parameter          :: maxiter=20                      ! maximum number of iterations
+ integer(i4b),parameter          :: maxiter=100                     ! maximum number of iterations
  real(dp),parameter              :: nrgConvTol=1.e-4_dp             ! convergence tolerance for energy (J m-3)
  real(dp),parameter              :: tempConvTol=1.e-6_dp            ! convergence tolerance for temperature (K)
  real(dp)                        :: critDiff                        ! temperature difference from critical (K)
@@ -440,6 +440,7 @@ contains
   
    ! case of energy state OR coupled solution (or adjusting the temperature)
    ! NOTE: do not go in here if we have the explicit Euler solution for energy state variables (isNrgState or isCoupled)
+   !         --> the explicit Euler updates for ice are done separately, based on the energy partitioning into melt and temperature at the start of the step
    elseif(do_adjustTemp .or. ( (isNrgState .or. isCoupled) .and. .not.explicitEuler ) )then
 
     ! identify domain type

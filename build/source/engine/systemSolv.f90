@@ -342,7 +342,7 @@ contains
  ! try to accelerate solution for energy
  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
- 
+
  ! compute the flux and the residual vector for a given state vector
  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
@@ -816,7 +816,7 @@ contains
     else
      nrg2meltIce = 0._dp
     endif
-  
+
     ! check if the required melt can be satisfied by the available ice
     if(untappedMelt(iState)*dt > nrg2meltIce)then
   
@@ -828,7 +828,7 @@ contains
        untappedNrg            = untappedMelt(iState)*dt - nrg2meltIce     ! extra energy not used in melt (J m-3)
        untappedMelt(iState)   = nrg2meltIce/dt                            ! truncate melt to the energy required to melt all ice (J m-3 s-1)
        stateVecUpdate(iState) = stateVecUpdate(iState) + untappedNrg/real(stateVecMult(iState), dp)  ! use the extra energy to update the state vector
-  
+
       ! --> snow is a problem, as we cannot melt all of the ice in a single time step
       case(iname_snow)
        tooMuchMelt            = .true.

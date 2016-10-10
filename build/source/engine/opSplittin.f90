@@ -157,7 +157,7 @@ contains
                        model_decisions,& ! intent(in):    model decisions
                        ! output: model control
                        dtMultiplier,   & ! intent(out):   substep multiplier (-)
-                       tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
+                       stepFailure,    & ! intent(out):   flag to denote step failure
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -200,7 +200,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
  ! output: model control
  real(dp),intent(out)            :: dtMultiplier                   ! substep multiplier (-)
- logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
+ logical(lgt),intent(out)        :: stepFailure                    ! flag to denote step failure 
  integer(i4b),intent(out)        :: err                            ! error code
  character(*),intent(out)        :: message                        ! error message
  ! *********************************************************************************************************************************************************
@@ -213,6 +213,7 @@ contains
  integer(i4b)                    :: iVar                           ! index of variables in data structures
  logical(lgt)                    :: firstSuccess                   ! flag to define the first flux call
  logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
+ logical(lgt)                    :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
  type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables
  type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
  type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables 
@@ -327,6 +328,9 @@ contains
  ! initialize the first flux call
  firstSuccess=.false.
  firstFluxCall=.true.
+
+ ! initialize the flaf for total step failure
+ stepFailure=.false.
 
  ! initialize flag for the success of the substepping
  failure=.false.
@@ -565,7 +569,10 @@ contains
 
       ! if too much melt then return
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-      if(tooMuchMelt) return
+      if(tooMuchMelt)then
+       stepFailure=.true.
+       return
+      endif
  
       ! define failure
       failure = (failedMinimumStep .or. err<0)
@@ -643,8 +650,8 @@ contains
    
        ! check that did not fail with explicit Euler (this was the last resort!)
        elseif(ixSolution==explicitEuler)then
-        message=trim(message)//'failed with explicit Euler (last resort!)'
-        err=20; return
+        stepFailure=.true.
+        return
    
        ! check that the index of ixSolution is known
        else

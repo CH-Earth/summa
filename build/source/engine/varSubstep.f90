@@ -54,6 +54,7 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
 ! constants
 USE multiconst,only:&
+                    Tfreeze,      & ! freezing temperature                 (K)
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
                     LH_vap,       & ! latent heat of vaporization          (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
@@ -242,6 +243,10 @@ contains
   ! increment substep
   nSubsteps = nSubsteps+1
 
+  !print*, '** new substep'
+  !print*, 'scalarCanopyIce  = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
+  !print*, 'scalarCanopyTemp = ', prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
+
   ! -----
   ! * populate state vectors...
   ! ---------------------------
@@ -312,14 +317,18 @@ contains
   if(failedSubstep)then
 
    ! get time step reduction
+   ! solver failure
    if(err<0)then
+    err=0  ! recover from failed convergence 
     dtMultiplier  = 0.5_dp   ! system failure: step halving
-   else
+   ! large error in explicit solution
+   elseif(explicitEuler .and. explicitError > errTol)then
     dtMultiplier  = max(safety*sqrt(errTol/explicitError), reduceMin)  ! intolerable errors: MUST be explicit Euler
+   ! nothing else defined
+   else
+    message=trim(message)//'unknown failure'
+    err=20; return
    endif
-
-   ! recover from failed convergence
-   err=0 
 
   ! successful step
   else
@@ -365,10 +374,6 @@ contains
 
   ! NOTE: if we get to here then we are accepting the step
 
-  ! print progress
-  if(globalPrintFlag)&
-  write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
-
   ! NOTE: we get to here if iterations are successful
   if(err/=0)then
    message=trim(message)//'expect err=0 if updating fluxes'
@@ -381,6 +386,27 @@ contains
                   nrgFluxModified,err,cmessage)                                                                         ! output: flags and error control
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
 
+  if(globalPrintFlag)&
+  print*, trim(cmessage)//': dt = ', dtSubstep
+
+  ! recover from errors in prognostic update
+  if(err<0)then
+
+   ! modify step
+   err=0  ! error recovery
+   dtSubstep = dtSubstep/2._dp
+
+   ! check minimum: fail minimum step if there is an error in the update
+   if(dtSubstep<dt_min)then
+    failedMinimumStep=.true.
+    exit subSteps
+   ! minimum OK -- try again
+   else
+    cycle substeps
+   endif
+
+  endif  ! if errors in prognostic update
+
   ! get the total energy fluxes (modified in updateProg)
   if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
    sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
@@ -392,12 +418,9 @@ contains
    sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   endif  ! if energy fluxes were modified
 
-  ! recover from errors in prognostic update
-  if(err<0)then
-   err=0
-   dtSubstep = dtSubstep/2._dp
-   cycle substeps
-  endif
+  ! print progress
+  if(globalPrintFlag)&
+  write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
   ! increment fluxes
   dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation)
@@ -579,11 +602,16 @@ contains
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
+ !print*, 'after varExtract: scalarCanopyTempTrial =', scalarCanopyTempTrial   ! trial value of canopy temperature (K)
+ !print*, 'after varExtract: scalarCanopyWatTrial  =', scalarCanopyWatTrial    ! trial value of canopy total water (kg m-2)
+ !print*, 'after varExtract: scalarCanopyLiqTrial  =', scalarCanopyLiqTrial    ! trial value of canopy liquid water (kg m-2)
+ !print*, 'after varExtract: scalarCanopyIceTrial  =', scalarCanopyIceTrial    ! trial value of canopy ice content (kg m-2)
+
  ! update diagnostic variables
  call updateVars(&
                  ! input
                  doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                 explicitEuler,            & ! intent(in)    : flag to denote computing the explicit Euler solution
+                 explicitEuler,            & ! intent(in):    flag to denote computing the explicit Euler solution
                  mpar_data,                & ! intent(in):    model parameters for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
@@ -604,6 +632,11 @@ contains
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ !print*, 'after updateVars: scalarCanopyTempTrial =', scalarCanopyTempTrial   ! trial value of canopy temperature (K)
+ !print*, 'after updateVars: scalarCanopyWatTrial  =', scalarCanopyWatTrial    ! trial value of canopy total water (kg m-2)
+ !print*, 'after updateVars: scalarCanopyLiqTrial  =', scalarCanopyLiqTrial    ! trial value of canopy liquid water (kg m-2)
+ !print*, 'after updateVars: scalarCanopyIceTrial  =', scalarCanopyIceTrial    ! trial value of canopy ice content (kg m-2)
 
  ! -----
  ! * check mass balance...

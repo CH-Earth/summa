@@ -715,7 +715,7 @@ do modelTimeStep=1,numtim
   case(ixProgress_never); printProgress = .false.
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+! if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
  write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
