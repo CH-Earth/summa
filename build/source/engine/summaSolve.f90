@@ -116,6 +116,7 @@ contains
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
                        fNew,                    & ! intent(out):   new function evaluation
+                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        converged,               & ! intent(out):   convergence flag
                        err,message)               ! intent(out):   error control
  USE computJacob_module, only: computJacob
@@ -167,6 +168,7 @@ contains
  real(dp),intent(out)            :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
  real(dp),intent(out)            :: fNew                     ! new function evaluation
+ logical(lgt),intent(out)        :: feasible                 ! flag to denote the feasibility of the solution
  logical(lgt),intent(out)        :: converged                ! convergence flag
  ! output: error control
  integer(i4b),intent(out)        :: err                      ! error code
@@ -192,7 +194,6 @@ contains
  ! general
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
- logical(lgt)                    :: feasible                 ! flag to denote the feasibility of the solution
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -214,7 +215,6 @@ contains
   stateVecNew = stateVecTrial
   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if                  ! (check for errors)
-  if(.not.feasible)then; err=20; message=trim(message)//'solution not feasible'; return; end if  ! (check if the solution is feasible)
   return
  endif
 

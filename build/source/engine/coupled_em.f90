@@ -170,7 +170,9 @@ contains
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
- logical(lgt)                         :: stepFailure            ! flag to denote that the step failed (reduce step and try again)
+ logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
+ logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
+ logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
  logical(lgt)                         :: pauseFlag              ! flag to pause execution 
  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
  type(var_ilength)                    :: indx_temp              ! temporary model index variables
@@ -216,7 +218,8 @@ contains
  pauseFlag=.false.
 
  ! start by assuming that the step is successful 
- stepFailure = .false.
+ stepFailure  = .false.
+ doLayerMerge = .false.
 
  ! initialize flags to mdify the veg layers or modify snow layers
  modifiedLayers    = .false.    ! flag to denote that snow layers were modified
@@ -592,7 +595,7 @@ contains
   ! -----------------------------------
   call volicePack(&
                   ! input/output: model data structures
-                  stepFailure,                 & ! intent(in):    flag to force merge of snow layers
+                  doLayerMerge,                & ! intent(in):    flag to force merge of snow layers
                   model_decisions,             & ! intent(in):    model decisions
                   mpar_data,                   & ! intent(in):    model parameters
                   indx_data,                   & ! intent(inout): type of each layer
@@ -707,7 +710,8 @@ contains
                   model_decisions,                        & ! intent(in):    model decisions
                   ! output: model control
                   dtMultiplier,                           & ! intent(out):   substep multiplier (-)
-                  stepFailure,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
+                  tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
+                  stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed 
                   err,cmessage)                             ! intent(out):   error code and error message
 
   ! check for all errors (error recovery within opSplittin)
@@ -717,9 +721,13 @@ contains
 
   ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with, merge the snow layers, and reduce the time step
-  if(stepFailure)then
-   dt_sub      = max(dt_init/2._dp, minstep)
+  if(tooMuchMelt)then
+   stepFailure  = .true.
+   doLayerMerge = .true.
+   dt_sub       = max(dt_init/2._dp, minstep)
    cycle substeps
+  else
+   doLayerMerge = .false.
   endif
 
   ! update first step
@@ -781,11 +789,13 @@ contains
 
    ! check that we did not remove all the ice
    if(mLayerVolFracIce(iSnow) < verySmall)then
-    stepFailure = .true.
+    stepFailure  = .true.
+    doLayerMerge = .true.
     dt_sub      = max(dt_init/2._dp, minstep)
     cycle substeps
    else
-    stepFailure = .false.
+    stepFailure  = .false.
+    doLayerMerge = .false.
    endif
 
    ! check

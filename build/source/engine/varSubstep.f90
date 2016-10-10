@@ -103,6 +103,7 @@ contains
                        dtMultiplier,      & ! intent(out)   : substep multiplier (-)
                        nSubsteps,         & ! intent(out)   : number of substeps taken for a given split
                        failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
+                       reduceCoupledStep, & ! intent(out)   : flag to denote need to reduce the length of the coupled step
                        tooMuchMelt,       & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        err,message)         ! intent(out)   : error code and error message
  ! ---------------------------------------------------------------------------------------
@@ -146,6 +147,7 @@ contains
  real(dp),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
  integer(i4b),intent(out)        :: nSubsteps                     ! number of substeps taken for a given split
  logical(lgt),intent(out)        :: failedMinimumStep             ! flag to denote success of substepping for a given split
+ logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
@@ -270,38 +272,39 @@ contains
   ! solve the system of equations for a given state subset
   call systemSolv(&
                   ! input: model control
-                  dtSubstep,      & ! intent(in):    time step (s)
-                  nState,         & ! intent(in):    total number of state variables
-                  firstSubStep,   & ! intent(in):    flag to denote first sub-step
-                  firstFluxCall,  & ! intent(inout): flag to indicate if we are processing the first flux call
-                  explicitEuler,  & ! intent(in):    flag to denote computing the explicit Euler solution
-                  computeVegFlux, & ! intent(in):    flag to denote if computing energy flux over vegetation
+                  dtSubstep,         & ! intent(in):    time step (s)
+                  nState,            & ! intent(in):    total number of state variables
+                  firstSubStep,      & ! intent(in):    flag to denote first sub-step
+                  firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
+                  explicitEuler,     & ! intent(in):    flag to denote computing the explicit Euler solution
+                  computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                   ! input/output: data structures
-                  type_data,      & ! intent(in):    type of vegetation and soil
-                  attr_data,      & ! intent(in):    spatial attributes
-                  forc_data,      & ! intent(in):    model forcing data
-                  mpar_data,      & ! intent(in):    model parameters
-                  indx_data,      & ! intent(inout): index data
-                  prog_data,      & ! intent(inout): model prognostic variables for a local HRU
-                  diag_data,      & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_temp,      & ! intent(inout): model fluxes for a local HRU
-                  bvar_data,      & ! intent(in):    model variables for the local basin
-                  model_decisions,& ! intent(in):    model decisions
-                  stateVecInit,   & ! intent(in):    initial state vector
+                  type_data,         & ! intent(in):    type of vegetation and soil
+                  attr_data,         & ! intent(in):    spatial attributes
+                  forc_data,         & ! intent(in):    model forcing data
+                  mpar_data,         & ! intent(in):    model parameters
+                  indx_data,         & ! intent(inout): index data
+                  prog_data,         & ! intent(inout): model prognostic variables for a local HRU
+                  diag_data,         & ! intent(inout): model diagnostic variables for a local HRU
+                  flux_temp,         & ! intent(inout): model fluxes for a local HRU
+                  bvar_data,         & ! intent(in):    model variables for the local basin
+                  model_decisions,   & ! intent(in):    model decisions
+                  stateVecInit,      & ! intent(in):    initial state vector
                   ! output: model control
-                  deriv_data,     & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ixSaturation,   & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                  untappedMelt,   & ! intent(out):   un-tapped melt energy (J m-3 s-1)
-                  stateVecTrial,  & ! intent(out):   updated state vector
-                  explicitError,  & ! intent(out):   error in the explicit solution
-                  tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
-                  niter,          & ! intent(out):   number of iterations taken
-                  err,cmessage)     ! intent(out):   error code and error message
+                  deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                  untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
+                  stateVecTrial,     & ! intent(out):   updated state vector
+                  explicitError,     & ! intent(out):   error in the explicit solution
+                  reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
+                  tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
+                  niter,             & ! intent(out):   number of iterations taken
+                  err,cmessage)        ! intent(out):   error code and error message
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! if too much melt then return
+  ! if too much melt or need to reduce length of the coupled step then return
   ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-  if(tooMuchMelt) return
+  if(tooMuchMelt .or. reduceCoupledStep) return
 
   ! identify failure
   failedSubstep = (err<0)

@@ -157,6 +157,7 @@ contains
                        model_decisions,& ! intent(in):    model decisions
                        ! output: model control
                        dtMultiplier,   & ! intent(out):   substep multiplier (-)
+                       tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
                        stepFailure,    & ! intent(out):   flag to denote step failure
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
@@ -200,6 +201,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
  ! output: model control
  real(dp),intent(out)            :: dtMultiplier                   ! substep multiplier (-)
+ logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
  logical(lgt),intent(out)        :: stepFailure                    ! flag to denote step failure 
  integer(i4b),intent(out)        :: err                            ! error code
  character(*),intent(out)        :: message                        ! error message
@@ -211,9 +213,9 @@ contains
  character(LEN=256)              :: cmessage                       ! error message of downwind routine
  integer(i4b)                    :: iSoil                          ! index of soil layer
  integer(i4b)                    :: iVar                           ! index of variables in data structures
- logical(lgt)                    :: firstSuccess                   ! flag to define the first flux call
+ logical(lgt)                    :: firstSuccess                   ! flag to define the first success
  logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
- logical(lgt)                    :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
+ logical(lgt)                    :: reduceCoupledStep              ! flag to define the need to reduce the length of the coupled step
  type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables
  type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
  type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables 
@@ -329,8 +331,9 @@ contains
  firstSuccess=.false.
  firstFluxCall=.true.
 
- ! initialize the flaf for total step failure
- stepFailure=.false.
+ ! initialize the flags 
+ tooMuchMelt=.false.  ! too much melt (merge snow layers)
+ stepFailure=.false.  ! step failure
 
  ! initialize flag for the success of the substepping
  failure=.false.
@@ -552,24 +555,27 @@ contains
                       dtMultiplier,               & ! intent(out)   : substep multiplier (-)
                       nSubsteps,                  & ! intent(out)   : number of substeps taken for a given split
                       failedMinimumStep,          & ! intent(out)   : flag for failed substeps
+                      reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                       tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                       err,cmessage)                 ! intent(out)   : error code and error message
       if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
 
       ! check 
       if(globalPrintFlag .and. ixSolution>splitStateType)then
+       print*, 'dt = ', dt
+       print*, 'after varSubstep: stateMask      = ', stateMask
        print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
-       print*, 'after filter: stateMask = ', stateMask
        print*, 'nSubset           = ', nSubset
        print*, 'tooMuchMelt       = ', tooMuchMelt
+       print*, 'reduceCoupledStep = ', reduceCoupledStep
        print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
        !print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
       endif    
 
       ! if too much melt then return
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-      if(tooMuchMelt)then
+      if(tooMuchMelt .or. reduceCoupledStep)then
        stepFailure=.true.
        return
       endif
