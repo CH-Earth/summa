@@ -591,8 +591,8 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSnow
    mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
-   !if(iLayer<30) write(*,'(a,1x,i4,1x,2(f16.10,1x))')  'iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1) = ', &
-   !                                                     iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1)
+   !write(*,'(a,1x,i4,1x,2(f16.10,1x))')  'iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1) = ', &
+   !                                       iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1)
   end do
 
   ! compute drainage from the soil zone (needed for mass balance checks)
