@@ -231,7 +231,7 @@ contains
  real(dp),parameter              :: dtmin_explicitEuler=0.1_dp     ! minimum time step for the explicit Euler solution
  ! explicit error tolerance (depends on state type split, so defined here)
  real(dp),parameter              :: errorTolLiqFlux=0.01_dp        ! error tolerance in the explicit solution (liquid flux)
- real(dp),parameter              :: errorTolNrgFlux=100._dp        ! error tolerance in the explicit solution (energy flux)
+ real(dp),parameter              :: errorTolNrgFlux=10._dp         ! error tolerance in the explicit solution (energy flux)
  real(dp)                        :: errTol                         ! error tolerance in the explicit solution
  ! number of substeps taken for a given split
  integer(i4b)                    :: nSubsteps                      ! number of substeps taken for a given split
@@ -508,7 +508,7 @@ contains
 
       ! reset the flag for the first flux call
       if(.not.firstSuccess) firstFluxCall=.true.
-  
+ 
       ! save/recover copies of prognostic variables
       do iVar=1,size(prog_data%var)
        select case(failure)
@@ -559,6 +559,8 @@ contains
                       tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                       err,cmessage)                 ! intent(out)   : error code and error message
       if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
+
+      print*, 'scalarCanopyTemp = ', prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
 
       ! check 
       if(globalPrintFlag .and. ixSolution>splitStateType)then
