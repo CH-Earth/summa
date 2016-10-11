@@ -44,6 +44,7 @@ integer(i4b)          :: nLayers                  ! total number of layers
 ! define missing values
 real(dp)              :: missingDouble=-9999._dp  ! missing value (double precision)
 integer(i4b)          :: missingInteger=-9999     ! missing value (integer)
+
 contains
 
 
@@ -353,8 +354,9 @@ contains
  end if
 
  ! check temperature is within the two temperatures
- if(cTemp > max(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
- if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
+ ! NOTE: use tolerance, for cases of merging a layer that has just been split
+ if(cTemp > max(mLayerTemp(iSnow),mLayerTemp(iSnow+1))+eTol)then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
+ if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
 
  ! compute volumetric fraction of liquid water
  fLiq = fracLiquid(cTemp,snowfrz_scale)
