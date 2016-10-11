@@ -41,6 +41,7 @@ contains
  USE data_types,only:gru_hru_double                  ! spatial double data type: x%hru(:)%var(:)
  USE data_types,only:gru_double                      ! spatial double data type: x%gru(:)%var(:)
  USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
+ USE globalData,only:gru_struc                       ! gru-hru mapping structures
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input
@@ -193,7 +194,68 @@ contains
  deallocate(varnames,charline,chardata,stat=err)
  if(err/=0)then;err=30;message=trim(message)//"problemDeallocate"; return; end if
  ! **********************************************************************************************
+
+ ! check parameters
+ do iGRU=1,size(gru_struc)
+  do iHRU=1,gru_struc(iGRU)%hruCount
+   call checkParam(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+   if(err/=0)then
+    write(message,'(a,i0,a,i0,a)') trim(message)//trim(cmessage)//' (iHRU = ', iHRU, '; iGRU = ', iGRU, ')'
+    return
+   endif
+  end do  ! HRU
+ end do  ! GRU
+
  end subroutine read_param
 
+ ! ************************************************************************************************
+ ! private subroutine checkParam: check trial model parameter values
+ ! ************************************************************************************************
+ subroutine checkParam(mpar_data,err,message)
+ ! used to check model parameters
+ USE data_types,only:var_d                      ! spatial double data type: x%hru(:)%var(:)
+ USE var_lookup,only:iLookPARAM                 ! named variables to index elements of the data vectors
+ implicit none
+ ! dummy 
+ type(var_d), intent(inout) :: mpar_data        ! model parameters
+ integer(i4b),intent(out)   :: err              ! error code
+ character(*),intent(out)   :: message          ! error message
+ ! associations
+ associate(&
+ ! canopy geometry
+ heightCanopyTop        => mpar_data%var(iLookPARAM%heightCanopyTop),   & ! intent(in): [dp] height at the top of the vegetation canopy (m)
+ heightCanopyBottom     => mpar_data%var(iLookPARAM%heightCanopyBottom),& ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
+ ! transpiration
+ critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting),   & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
+ critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire), & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
+ ! soil properties
+ theta_sat              => mpar_data%var(iLookPARAM%theta_sat),         & ! intent(in): soil porosity (-)
+ theta_res              => mpar_data%var(iLookPARAM%theta_res)          & ! intent(in): soil residual volumetric water content (-)
+ ) ! associations to parameters
+ ! Start procedure here
+ err=0; message="checkParam/"
+
+ ! check canopy geometry
+ if(heightCanopyTop < heightCanopyBottom)then
+  write(message,'(a,i0,a)') trim(message)//'height of canopy top is less than the height of the canopy bottom' 
+  err=20; return
+ endif
+
+ ! check transpiration
+ if(critSoilTranspire < critSoilWilting)then
+  write(message,'(a,i0,a)') trim(message)//'critical point for transpiration is less than the wilting point' 
+  err=20; return
+ endif
+
+ ! check porosity
+ if(theta_sat < theta_res)then
+  write(message,'(a,i0,a)') trim(message)//'porosity is less than the residual liquid water content'
+  err=20; return
+ endif
+
+ ! end associations
+ end associate
+
+ end subroutine checkParam
 
 end module read_param_module
