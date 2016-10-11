@@ -560,8 +560,6 @@ contains
                       err,cmessage)                 ! intent(out)   : error code and error message
       if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
 
-      print*, 'scalarCanopyTemp = ', prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
-
       ! check 
       if(globalPrintFlag .and. ixSolution>splitStateType)then
        print*, 'dt = ', dt
@@ -572,7 +570,10 @@ contains
        print*, 'tooMuchMelt       = ', tooMuchMelt
        print*, 'reduceCoupledStep = ', reduceCoupledStep
        print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
-       !print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
+       if(ixSolution==explicitEuler)then
+        print*, trim(message)//trim(cmessage)
+        print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
+       endif
       endif    
 
       ! if too much melt then return

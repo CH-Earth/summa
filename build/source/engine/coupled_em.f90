@@ -148,6 +148,7 @@ contains
  ! =====================================================================================================================================================
  ! local variables
  character(len=256)                   :: cmessage               ! error message
+ real(dp)                             :: dtSave                 ! length of last input model sub-step (seconds)
  real(dp)                             :: dt_sub                 ! length of model sub-step (seconds)
  real(dp)                             :: dt_wght                ! weight applied to model sub-step (dt_sub/data_step)
  real(dp)                             :: dt_solv                ! seconds in the data step that have been completed
@@ -527,6 +528,7 @@ contains
  dt_solv = 0._dp   ! length of time step that has been completed (s)
  dt_init = min(data_step,maxstep)  ! initial substep length (s)
  dt_sub  = dt_init                 ! length of substep
+ dtSave  = dt_init                 ! length of substep
 
  ! initialize the number of sub-steps
  nsub=0
@@ -687,6 +689,9 @@ contains
   ! (9) solve model equations...
   ! ----------------------------
 
+  ! save input step
+  dtSave = dt_sub
+
   ! get the new solution
   call opSplittin(&
                   ! input: model control
@@ -724,7 +729,7 @@ contains
   if(tooMuchMelt)then
    stepFailure  = .true.
    doLayerMerge = .true.
-   dt_sub       = max(dt_init/2._dp, minstep)
+   dt_sub       = max(dtSave/2._dp, minstep)
    cycle substeps
   else
    doLayerMerge = .false.
