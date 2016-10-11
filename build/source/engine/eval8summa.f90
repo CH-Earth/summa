@@ -209,6 +209,7 @@ contains
  integer(i4b),parameter          :: ixVegVolume=1            ! index of the desired vegetation control volumne (currently only one veg layer)
  real(dp)                        :: xMin,xMax                ! minimum and maximum values for water content
  real(dp)                        :: scalarCanopyHydTrial     ! trial value for mass of water on the vegetation canopy (kg m-2)
+ real(dp),parameter              :: canopyTempMax=500._dp    ! expected maximum value for the canopy temperature (K)
  real(dp),dimension(nLayers)     :: mLayerVolFracHydTrial    ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
  real(dp),dimension(nState)      :: rVecScaled               ! scaled residual vector
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
@@ -245,6 +246,8 @@ contains
  dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
  dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat          ,&  ! intent(in): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
  ! indices
+ ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy air space energy state variable (nrg)
+ ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy energy state variable (nrg)
  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,&  ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
@@ -259,6 +262,16 @@ contains
 
  ! check the feasibility of the solution
  feasible=.true.
+
+ ! check that the canopy air space temperature is reasonable
+ if(ixCasNrg/=integerMissing)then
+  if(stateVecTrial(ixCasNrg) > canopyTempMax) feasible=.false.
+ endif
+
+ ! check that the canopy air space temperature is reasonable
+ if(ixVegNrg/=integerMissing)then
+  if(stateVecTrial(ixVegNrg) > canopyTempMax) feasible=.false.
+ endif
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then

@@ -201,7 +201,6 @@ contains
  ! ---------------------------------------------------------------------------------------
  integer(i4b)                    :: local_ixGroundwater         ! local index for groundwater representation
  integer(i4b)                    :: iLayer                      ! index of model layers
- real(dp),parameter              :: canopyTempMax=500._dp       ! expected maximum value for the canopy temperature (K)
  real(dp),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  character(LEN=256)              :: cmessage                    ! error message of downwind routine
  ! --------------------------------------------------------------
@@ -371,13 +370,6 @@ contains
   case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
   case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
  end select ! (modify the groundwater representation for this single-column implementation)
-
- ! check that canopy temperature is reasonable
- if(scalarCanopyTempTrial > canopyTempMax)then
-  print*, 'scalarCanopyTempTrial = ', scalarCanopyTempTrial
-  message=trim(message)//'canopy temperature is > expected maximum'
-  err=20; return
- end if
 
  ! initialize liquid water fluxes throughout the snow and soil domains
  ! NOTE: used in the energy routines, which is called before the hydrology routines
