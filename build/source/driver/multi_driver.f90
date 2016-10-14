@@ -901,9 +901,8 @@ do modelTimeStep=1,numtim
                    ! error control
                    err,message)            ! intent(out): error control
    call handle_err(err,message)
-   !print*, 'PAUSE: after coupled_em'; read(*,*)
-
-   ! save the number of snow and soil layers
+   
+   ! update layer numbers that could be changed in coupled_em()
    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
 
