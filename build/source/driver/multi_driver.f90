@@ -39,6 +39,7 @@ USE allocspace_module,only:allocLocal                       ! module to allocate
 USE childStruc_module,only:childStruc                       ! module to create a child data structure
 USE mDecisions_module,only:mDecisions                       ! module to read model decisions
 USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
+USE flxMapping_module,only:flxMapping                       ! module to map fluxes to states
 USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
 USE def_output_module,only:def_output                       ! module to define model output
 USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
@@ -107,7 +108,6 @@ USE globalData,only:startTime                               ! start time
 USE globalData,only:finshTime                               ! end time
 USE globalData,only:doJacobian                              ! flag to compute the Jacobian
 USE globalData,only:gru_struc                               ! gru-hru mapping structures
-USE globalData,only:index_map                               ! hru-hru mapping structures
 USE globalData,only:localParFallback                        ! local column default parameters
 USE globalData,only:basinParFallback                        ! basin-average default parameters
 USE globalData,only:structInfo                              ! information on the data structures                  
@@ -131,7 +131,6 @@ USE var_lookup,only:iLookPROG                               ! look-up values for
 USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables 
 USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes 
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
-USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
 ! provide access to the named variables that describe elements of child  model structures
@@ -200,7 +199,7 @@ integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable 
 integer(i4b),parameter           :: ixRestart_im=1001          ! named variable to print a re-start file once per month
 integer(i4b),parameter           :: ixRestart_id=1002          ! named variable to print a re-start file once per day
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
-integer(i4b)                     :: ixRestart=ixRestart_iy     ! define frequency to write restart files
+integer(i4b)                     :: ixRestart=ixRestart_never  ! define frequency to write restart files
 ! define output file
 integer(i4b)                     :: ctime1(8)                  ! initial time
 character(len=256)               :: output_fileSuffix=''       ! suffix for the output file
@@ -216,14 +215,12 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
-logical(lgt),parameter           :: printTime=.true.           ! flag to print the time information
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
 integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
 integer(i4b)                     :: forcingStep=-999           ! index of current time step in current forcing file
 real(dp),allocatable             :: zSoilReverseSign(:)        ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)           :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
-real(dp),parameter               :: doubleMissing=-9999._dp    ! missing value
 logical(lgt),parameter           :: overwriteRSMIN=.false.     ! flag to overwrite RSMIN
 real(dp)                         :: notUsed_canopyDepth        ! NOT USED: canopy depth (m)
 real(dp)                         :: notUsed_exposedVAI         ! NOT USED: exposed vegetation area index (m2 m-2)
@@ -293,14 +290,14 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
 
+! define mapping between fluxes and states
+call flxMapping(err,message); call handle_err(err,message)
+
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! define the mask to identify the subset of variables in the "child" data structure
-! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
-!       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
-!        and soil drainage (at interface=nSoil)
-flux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).or.(flux_meta(:)%vartype==iLookVarType%ifcSoil))
+! define the mask to identify the subset of variables in the "child" data structure (just scalar variables)
+flux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv)
 
 ! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
@@ -391,12 +388,12 @@ call mDecisions(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! child metadata structures - so that we do not carry full stats structures around everywhere
 ! only carry stats for variables with output frequency > model time step
-statForc_mask = (forc_meta(:)%outfreq>0)
-statProg_mask = (prog_meta(:)%outfreq>0) 
-statDiag_mask = (diag_meta(:)%outfreq>0) 
-statFlux_mask = (flux_meta(:)%outfreq>0) 
-statIndx_mask = (indx_meta(:)%outfreq>0) 
-statBvar_mask = (bvar_meta(:)%outfreq>0) 
+statForc_mask = ((forc_meta(:)%vartype==iLookVarType%scalarv).and.(forc_meta(:)%outfreq>0))
+statProg_mask = ((prog_meta(:)%vartype==iLookVarType%scalarv).and.(prog_meta(:)%outfreq>0))
+statDiag_mask = ((diag_meta(:)%vartype==iLookVarType%scalarv).and.(diag_meta(:)%outfreq>0))
+statFlux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).and.(flux_meta(:)%outfreq>0))
+statIndx_mask = ((indx_meta(:)%vartype==iLookVarType%scalarv).and.(indx_meta(:)%outfreq>0))
+statBvar_mask = ((bvar_meta(:)%vartype==iLookVarType%scalarv).and.(bvar_meta(:)%outfreq>0))
 
 ! create the stats metadata structures
 do iStruct=1,size(structInfo)
@@ -490,7 +487,7 @@ end do  ! looping through GRUs
 ! *****************************************************************************
 ! (5c) read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
-call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,message)
+call read_param(nHRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
@@ -538,6 +535,7 @@ call read_icond(restartFile,                   & ! name of initial conditions fi
                 err,message)                     ! error control
 call handle_err(err,message)
 
+! check initial conditions
 call check_icond(nGRU,                          & ! number of response units
                  progStruct,                    & ! model prognostic (state) variables
                  mparStruct,                    & ! model parameters
@@ -642,6 +640,7 @@ do iGRU=1,nGRU
 
 end do  ! (looping through GRUs)
 
+
 ! *****************************************************************************
 ! (5e) initialize first output sequence 
 ! *****************************************************************************
@@ -716,7 +715,8 @@ do modelTimeStep=1,numtim
   case(ixProgress_never); printProgress = .false.
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+! if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+ write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
@@ -877,6 +877,8 @@ do modelTimeStep=1,numtim
    ! ****************************************************************************
    ! set the flag to compute the vegetation flux
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
+
+   !print*, 'iHRU = ', iHRU
  
    ! run the model for a single parameter set and time step
    call coupled_em(&
@@ -885,7 +887,6 @@ do modelTimeStep=1,numtim
                    gru_struc(iGRU)%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
                    dt_init(iGRU)%hru(iHRU),                 & ! intent(inout): initial time step
                    computeVegFluxFlag,                          & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                   resumeFailSolver,                            & ! flag whether simulation continues if solver does not converge 
                    ! data structures (input)
                    typeStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local classification of soil veg etc. for each HRU
                    attrStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local attributes for each HRU
@@ -1027,7 +1028,7 @@ do modelTimeStep=1,numtim
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
 
- ! quesry whether this timestep requires a re-start file
+ ! query whether this timestep requires a re-start file
  select case(ixRestart)
   case(ixRestart_iy);    printRestart = (timeStruct%var(iLookTIME%im) == 1 .and. timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0  .and. timeStruct%var(iLookTIME%imin) == 0)
   case(ixRestart_im);    printRestart = (timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
@@ -1200,33 +1201,34 @@ contains
  else
   write(*,'(//a/)') 'WARNING: '//trim(message); print*,'(can keep going, but stopping anyway)'
  endif
- if(iGRU>=1 .and. iGRU<=nGRU)then
-  if(iHRU>=1 .and. iHRU<=gru_struc(iGRU)%hruCount)then
-   ! dump variables
-   print*, 'error, variable dump:'
-   print*, 'modelTimeStep      = ', modelTimeStep
-   print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
-   print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
-   print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
-   print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
-   print*, 'theta_sat          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
-   print*, 'plantWiltPsi       = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
-   print*, 'soilStressParam    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
-   print*, 'critSoilWilting    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
-   print*, 'critSoilTranspire  = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
-   print*, 'scalarSWE          = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
-   print*, 'scalarSnowDepth    = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
-   print*, 'scalarCanopyTemp   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
-   print*, 'scalarRainPlusMelt = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
-   write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat
-   write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
-   write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
-   write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
-   write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
-   print*, 'mLayerMatricHead   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
-   print*, 'column inflow      = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
-  endif  ! if HRU is valid
- endif  ! if GRU is valid
+ ! dump variables
+ print*, 'error, variable dump:'
+ if(allocated(timeStruct%var))then
+  if(iGRU<=nGRU)then
+   if(iHRU<=gru_struc(iGRU)%hruCount)then
+    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
+    print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
+    print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
+    print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)            ! soil residual volumetric water content (-)
+    print*, 'theta_sat          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)            ! soil porosity (-)
+    print*, 'plantWiltPsi       = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%plantWiltPsi)         ! matric head at wilting point (m)
+    print*, 'soilStressParam    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%soilStressParam)      ! parameter in the exponential soil stress function (-)
+    print*, 'critSoilWilting    = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilWilting)      ! critical vol. liq. water content when plants are wilting (-)
+    print*, 'critSoilTranspire  = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%critSoilTranspire)    ! critical vol. liq. water content when transpiration is limited (-)
+    print*, 'scalarSWE          = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)
+    print*, 'scalarSnowDepth    = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowDepth)%dat(1)
+    print*, 'scalarCanopyTemp   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)
+    print*, 'scalarRainPlusMelt = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarRainPlusMelt)%dat(1)
+    write(*,'(a,100(i4,1x))'   ) 'layerType          = ', indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat
+    write(*,'(a,100(f11.5,1x))') 'mLayerDepth        = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat
+    write(*,'(a,100(f11.5,1x))') 'mLayerTemp         = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat
+    write(*,'(a,100(f11.5,1x))') 'mLayerVolFracIce   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat
+    write(*,'(a,100(f11.5,1x))') 'mLayerVolFracLiq   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat
+    print*, 'mLayerMatricHead   = ', progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat
+    print*, 'column inflow      = ', fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat
+   endif  ! if HRU is valid
+  endif  ! if GRU is valid
+ endif  ! if the time structure is allocated
  print*,'error code = ', err
  if(allocated(timeStruct%var)) print*, timeStruct%var
  !write(*,'(a)') trim(message)

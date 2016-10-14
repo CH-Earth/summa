@@ -345,7 +345,6 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookTYPE           ! named variables for structure elements
  USE var_lookup,only:iLookDIAG           ! named variables for structure elements
  USE var_lookup,only:iLookFLUX           ! named variables for structure elements
  USE var_lookup,only:iLookFORCE          ! named variables for structure elements

@@ -80,6 +80,12 @@ MODULE data_types
   integer(i4b)                           :: ixParent         ! index in the parent data structure
  endtype extended_info
 
+ ! define extended data type (includes named variables for the states affected by each flux)
+ type,extends(var_info),public :: flux2state
+  integer(i4b)                           :: state1           ! named variable of the 1st state affected by the flux
+  integer(i4b)                           :: state2           ! named variable of the 2nd state affected by the flux
+ endtype flux2state
+
  ! ***********************************************************************************************************
  ! Define summary of data structures
  ! ***********************************************************************************************************

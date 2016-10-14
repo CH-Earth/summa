@@ -21,8 +21,6 @@
 module volicePack_module
 ! numerical recipes data types
 USE nrtype
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,  & ! freezing point              (K)
@@ -45,6 +43,7 @@ contains
  ! ************************************************************************************************
  subroutine volicePack(&
                        ! input/output: model data structures
+                       tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
@@ -61,15 +60,13 @@ contains
                      var_ilength,      & ! data vector with variable length dimension (i4b)
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
  ! external subroutine
  USE layerMerge_module,only:layerMerge   ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide ! sub-divide layers if they are too thick
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input/output: model data structures
+ logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
@@ -105,6 +102,7 @@ contains
  ! merge snow layers if they are too thin
  call layerMerge(&
                  ! input/output: model data structures
+                 tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                  model_decisions,             & ! intent(in):    model decisions
                  mpar_data,                   & ! intent(in):    model parameters
                  indx_data,                   & ! intent(inout): type of each layer

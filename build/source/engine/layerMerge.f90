@@ -22,7 +22,8 @@ module layerMerge_module
 ! data types
 USE nrtype
 ! access named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
+USE globalData,only:iname_snow        ! named variables for snow
+USE globalData,only:iname_soil        ! named variables for soil
 ! physical constants
 USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
@@ -43,6 +44,7 @@ integer(i4b)          :: nLayers                  ! total number of layers
 ! define missing values
 real(dp)              :: missingDouble=-9999._dp  ! missing value (double precision)
 integer(i4b)          :: missingInteger=-9999     ! missing value (integer)
+
 contains
 
 
@@ -51,6 +53,7 @@ contains
  ! *****************************************************************************************************************
  subroutine layerMerge(&
                        ! input/output: model data structures
+                       tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
                        indx_data,                   & ! intent(inout): type of each layer
@@ -71,11 +74,12 @@ contains
  ! access metadata
  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                   ! named variables for elements of the decision structure
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
+ logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
@@ -158,6 +162,10 @@ contains
     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
    end select ! (option to combine/sub-divide snow layers)
 
+   ! check if we have too much melt
+   ! NOTE: assume that this is the top snow layer; need more trickery to relax this assumption
+   if(tooMuchMelt .and. iSnow==1) removeLayer=.true.
+
    ! check if need to remove a layer
    if(removeLayer)then
 
@@ -178,8 +186,8 @@ contains
      call rmLyAllVars(indx_data,indx_meta,nSnow-1,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
      if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
      ! update the total number of layers
-     nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-     nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+     nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+     nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
      nLayers = nSnow + nSoil
      ! save the number of layers
      indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
@@ -266,7 +274,7 @@ contains
  ! ***********************************************************************************************************
  subroutine layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,iSnow,err,message)
  ! provide access to variables in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX           ! named variables for structure elements
  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
  USE data_types,only:var_ilength,var_dlength                   ! data vectors with variable length dimension
  USE data_types,only:var_d                                     ! data structures with fixed dimension
@@ -346,8 +354,9 @@ contains
  end if
 
  ! check temperature is within the two temperatures
- if(cTemp > max(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
- if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1)))then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
+ ! NOTE: use tolerance, for cases of merging a layer that has just been split
+ if(cTemp > max(mLayerTemp(iSnow),mLayerTemp(iSnow+1))+eTol)then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
+ if(cTemp < min(mLayerTemp(iSnow),mLayerTemp(iSnow+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
 
  ! compute volumetric fraction of liquid water
  fLiq = fracLiquid(cTemp,snowfrz_scale)
@@ -366,11 +375,11 @@ contains
  call rmLyAllVars(indx_data,indx_meta,iSnow,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! define the combined layer as snow
- indx_data%var(iLookINDEX%layerType)%dat(iSnow) = ix_snow
+ indx_data%var(iLookINDEX%layerType)%dat(iSnow) = iname_snow
 
  ! update the total number of layers
- nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+ nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+ nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
  nLayers = nSnow + nSoil
 
  ! save the number of layers in the data structures

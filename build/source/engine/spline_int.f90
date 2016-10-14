@@ -80,7 +80,7 @@ contains
  klo=max(min(locate(xa,x),n-1),1)
  khi=klo+1
  h=xa(khi)-xa(klo)
- if (h == 0.0) then; err=20; message="f-splint/badXinput"; return; end if
+ if (h == 0.0_dp) then; err=20; message="f-splint/badXinput"; return; end if
  a=(xa(khi)-x)/h
  b=(x-xa(klo))/h
  y=a*ya(klo)+b*ya(khi)+((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))*(h**2)/6.0_dp
@@ -142,12 +142,12 @@ contains
  end if
  ! start procedure
  bet=b(1)
- if (bet == 0.0) then; err=20; message="f-tridag/errorAtCodeStage-1"; return; end if
+ if (bet == 0.0_dp) then; err=20; message="f-tridag/errorAtCodeStage-1"; return; end if
  u(1)=r(1)/bet
  do j=2,n
   gam(j)=c(j-1)/bet
   bet=b(j)-a(j-1)*gam(j)
-  if (bet == 0.0) then; err=20; message="f-tridag/errorAtCodeStage-2"; return; end if
+  if (bet == 0.0_dp) then; err=20; message="f-tridag/errorAtCodeStage-2"; return; end if
   u(j)=(r(j)-a(j-1)*u(j-1))/bet
  end do
  do j=n-1,1,-1

@@ -147,6 +147,7 @@ contains
   integer(i4b)              :: iVar        ! index of variable within a data structure
   integer(i4b)              :: jVar        ! index of variable within a data structure (returned from the variable name)
   character(LEN=100)        :: typeName    ! name of variable type to be returned by get_ixUnknown
+  character(len=256)        :: cmessage    ! error message of downwind routine
   ! initialize error control
   err=0; message='checkPopulated/'
  
@@ -160,7 +161,8 @@ contains
    end if
 
    ! look for the populated variable
-   call get_ixUnknown(trim(metadata(iVar)%varname),typeName,jVar,err,message)
+   call get_ixUnknown(trim(metadata(iVar)%varname),typeName,jVar,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors) 
 
    ! check that the variable was found at all
    if (jVar==integerMissing) then

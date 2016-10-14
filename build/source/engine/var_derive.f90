@@ -40,7 +40,8 @@ contains
                        ! output: error control
                        err,message)
  ! access named variables for snow and soil
- USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
+ USE globalData,only:iname_snow     ! named variables for snow
+ USE globalData,only:iname_soil     ! named variables for soil
  ! access to the derived types to define the data structures
  USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
@@ -66,7 +67,7 @@ contains
  associate(&
  ! associate the model index structures
  nLayers        => indx_data%var(iLookINDEX%nLayers)%dat(1),  &   ! total number of layers
- layerType      => indx_data%var(iLookINDEX%layerType)%dat,   &   ! layer type (ix_soil or ix_snow)
+ layerType      => indx_data%var(iLookINDEX%layerType)%dat,   &   ! layer type (iname_soil or iname_snow)
  ! associate the values in the model variable structures
  mLayerDepth    => prog_data%var(iLookPROG%mLayerDepth)%dat,  &   ! depth of the layer (m)
  mLayerHeight   => prog_data%var(iLookPROG%mLayerHeight)%dat, &   ! height of the layer mid-point (m)
@@ -75,8 +76,8 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! initialize layer height as the top of the snowpack -- positive downward
- ixLower=lbound(iLayerHeight); if(ixLower(1) > 0)then; err=20; message=trim(message)//'unexpected lower bound for iLayerHeight'; return; end if
- iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==ix_snow)
+ ixLower=lbound(iLayerHeight); if(ixLower(1) > 0)then; err=20; message=trim(message)//'unexpected lower bound for iLayerHeight'; return; endif
+ iLayerHeight(0) = -sum(mLayerDepth, mask=layerType==iname_snow)
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -114,7 +115,6 @@ contains
  bigBucket,                  & ! a big bucket (lumped aquifer model)
  noExplicit                    ! no explicit groundwater parameterization
  ! named variables
- USE globalData,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
  USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookDIAG        ! named variables for structure elements
  ! data types
  USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
@@ -150,16 +150,12 @@ contains
  ! associate the model index structures
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
  nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! total number of layers
- layerType             =>indx_data%var(iLookINDEX%layerType)%dat,               & ! layer type (ix_soil or ix_snow)
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
  ! associate the values in the model variable structures
  scalarAquiferRootFrac =>diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1), & ! fraction of roots below the soil profile (in the aquifer)
  mLayerRootDensity     =>diag_data%var(iLookDIAG%mLayerRootDensity)%dat         & ! fraction of roots in each soil layer (-)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
-
- print*, 'nSnow   = ', nSnow
- print*, 'nLayers = ', nLayers
 
  ! compute the fraction of roots in each soil layer
  do iLayer=nSnow+1,nLayers
@@ -242,7 +238,6 @@ contains
   constant,                  & ! constant hydraulic conductivity with depth
   powerLaw_profile             ! power-law profile
  ! named variables
- USE globalData,only:ix_soil,ix_snow                                  ! named variables defining snow and soil layers
  USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookFLUX        ! named variables for structure elements
  ! data types
  USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
@@ -271,7 +266,6 @@ contains
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
  nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
- layerType          => indx_data%var(iLookINDEX%layerType)%dat,         & ! layer type (ix_soil or ix_snow)
  ! associate the coordinate variables
  mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
  iLayerHeight       => prog_data%var(iLookPROG%iLayerHeight)%dat,       & ! height at the interface of each layer (m)
@@ -452,7 +446,6 @@ contains
                        gravity,   &            ! gravitational acceleration           (m s-2)
                        Tfreeze                 ! freezing point of pure water         (K)
  ! named variables
- USE globalData,only:ix_soil,ix_snow           ! named variables defining snow and soil layers
  USE var_lookup,only:iLookPARAM,iLookDIAG      ! named variables for structure elements
  ! data types
  USE data_types,only:var_dlength    ! x%var(:)%dat (dp)

@@ -49,6 +49,14 @@ ifeq "$(FC)" "gfortran-6"
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
 endif
 
+# generic gfortran compiler
+ifeq "$(FC)" "gfortran"
+ NCDF_PATH = /opt/netcdf4
+ LAPK_PATH = /opt/local
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
+endif
+
 # Intel fortran compiler
 ifeq "$(FC)" "ifort"
  NCDF_PATH = /opt/netcdf4-intel
@@ -81,6 +89,11 @@ ifeq "$(FC)" "gfortran-6"
  FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+endif
+ifeq "$(FC)" "gfortran"
+ FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+ FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 endif
 ifeq "$(FC)" "ifort"
  FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
@@ -146,6 +159,7 @@ SUMMA_DATAMS= \
 		var_lookup.f90 \
 		data_types.f90 \
 		globalData.f90 \
+		flxMapping.f90 \
 		get_ixname.f90 \
 		ascii_util.f90 \
 		popMetadat.f90 \
@@ -181,6 +195,8 @@ SUMMA_SOLVER= \
 		eval8summa.f90 \
 		summaSolve.f90 \
 		systemSolv.f90 \
+		varSubstep.f90 \
+		opSplittin.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 
@@ -217,6 +233,7 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 SUMMA_MODRUN = \
 		indexState.f90 \
 		getVectorz.f90 \
+		updateVars.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
