@@ -132,7 +132,8 @@ contains
  integer(i4b)                    :: iLayer          ! loop through layers
  real(dp)                        :: fracRootLower   ! fraction of the rooting depth at the lower interface
  real(dp)                        :: fracRootUpper   ! fraction of the rooting depth at the upper interface
-
+ real(dp), parameter             :: rootTolerance = 0.05 ! tolerance for error in doubleExp rooting option
+ real(dp)                        :: error           ! machine precision error in rooting distribution
  ! initialize error control
  err=0; message='rootDensty/'
 
@@ -148,6 +149,7 @@ contains
  rootingDepth          =>parData(iLookPARAM%rootingDepth),                      & ! rooting depth (m)
  rootDistExp           =>parData(iLookPARAM%rootDistExp),                       & ! root distribution exponent (-)
  ! associate the model index structures
+ nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
  nLayers               =>indx_data%var(iLookINDEX%nLayers)%dat(1),              & ! total number of layers
  iLayerHeight          =>prog_data%var(iLookPROG%iLayerHeight)%dat,             & ! height of the layer interface (m)
@@ -187,6 +189,17 @@ contains
     fracRootUpper = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
     ! compute the root density
     mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
+
+print*,'-----------------------'
+print*,iLayer
+print*,rootScaleFactor1,rootScaleFactor2
+print*,iLayerHeight(iLayer-1),iLayerHeight(iLayer)
+print*,fracRootLower,fracRootUpper
+print*,mLayerRootDensity(iLayer-nSnow)
+print*,sum(mLayerRootDensity(1:iLayer-nSnow))
+print*,1-0.5*(exp(-iLayerHeight(iLayer)*rootScaleFactor1)+exp(-iLayerHeight(iLayer)*rootScaleFactor2))
+print*,'-----------------------'
+
     write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
                                  mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
 
@@ -197,10 +210,13 @@ contains
 
  end do  ! (looping thru layers)
 
- ! check that root density is less than one
- if(sum(mLayerRootDensity) > 1._dp + epsilon(rootingDepth))then
+ ! check that root density is within some reaosnable version of machine tolerance
+ error = sum(mLayerRootDensity) - 1._dp
+ if (error > 2._dp*epsilon(rootingDepth)) then
   message=trim(message)//'problem with the root density calaculation'
   err=20; return
+ else
+  mLayerRootDensity = mLayerRootDensity + error/real(nSoil,kind(dp))
  end if
 
  ! compute fraction of roots in the aquifer
@@ -212,7 +228,10 @@ contains
  
  ! check that roots in the aquifer are appropriate
  if(scalarAquiferRootFrac > epsilon(rootingDepth))then
-  if(ixGroundwater /= bigBucket)then
+  if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac < rootTolerance)) then
+   mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(dp))
+   scalarAquiferRootFrac = 0._dp
+  else
    select case(ixRootProfile)
     case(powerLaw);  message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: check that rooting depth < soil depth'
     case(doubleExp); message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: increase soil depth to alow for exponential roots'
