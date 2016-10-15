@@ -2496,7 +2496,7 @@ contains
  end do ! (looping through soil layers)
 
  ! ** compute the factor limiting evaporation in the aquifer
- if(scalarAquiferRootFrac > 0._dp)then
+ if(scalarAquiferRootFrac > verySmall)then
   ! check that aquifer root fraction is allowed
   if(ixGroundwater /= bigBucket)then
    message=trim(message)//'aquifer evaporation only allowed for the big groundwater bucket -- increase the soil depth to account for roots'

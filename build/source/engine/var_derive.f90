@@ -189,17 +189,6 @@ contains
     fracRootUpper = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
     ! compute the root density
     mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
-
-print*,'-----------------------'
-print*,iLayer
-print*,rootScaleFactor1,rootScaleFactor2
-print*,iLayerHeight(iLayer-1),iLayerHeight(iLayer)
-print*,fracRootLower,fracRootUpper
-print*,mLayerRootDensity(iLayer-nSnow)
-print*,sum(mLayerRootDensity(1:iLayer-nSnow))
-print*,1-0.5*(exp(-iLayerHeight(iLayer)*rootScaleFactor1)+exp(-iLayerHeight(iLayer)*rootScaleFactor2))
-print*,'-----------------------'
-
     write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
                                  mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
 
