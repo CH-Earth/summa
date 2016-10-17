@@ -132,7 +132,7 @@ contains
  integer(i4b)                    :: iLayer          ! loop through layers
  real(dp)                        :: fracRootLower   ! fraction of the rooting depth at the lower interface
  real(dp)                        :: fracRootUpper   ! fraction of the rooting depth at the upper interface
- real(dp), parameter             :: rootTolerance = 0.05 ! tolerance for error in doubleExp rooting option
+ real(dp), parameter             :: rootTolerance = 0.05_dp ! tolerance for error in doubleExp rooting option
  real(dp)                        :: error           ! machine precision error in rooting distribution
  ! initialize error control
  err=0; message='rootDensty/'
@@ -200,12 +200,13 @@ contains
  end do  ! (looping thru layers)
 
  ! check that root density is within some reaosnable version of machine tolerance
+ ! This is the case when root density is greater than 1. Can only happen with powerLaw option.
  error = sum(mLayerRootDensity) - 1._dp
  if (error > 2._dp*epsilon(rootingDepth)) then
   message=trim(message)//'problem with the root density calaculation'
   err=20; return
  else
-  mLayerRootDensity = mLayerRootDensity + error/real(nSoil,kind(dp))
+  mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(dp))
  end if
 
  ! compute fraction of roots in the aquifer
@@ -216,8 +217,8 @@ contains
  end if
  
  ! check that roots in the aquifer are appropriate
- if(scalarAquiferRootFrac > epsilon(rootingDepth))then
-  if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac < rootTolerance)) then
+ if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._dp*epsilon(rootingDepth)))then
+  if(scalarAquiferRootFrac < rootTolerance) then
    mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(dp))
    scalarAquiferRootFrac = 0._dp
   else
@@ -226,8 +227,8 @@ contains
     case(doubleExp); message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: increase soil depth to alow for exponential roots'
    end select
    err=10; return
-  end if  ! if not the big bucket
- end if  ! if roots in the aquifer
+  end if  ! if roots in the aquifer
+ end if  ! if not the big bucket
 
  end associate
 
