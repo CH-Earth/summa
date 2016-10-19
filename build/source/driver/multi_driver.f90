@@ -1085,13 +1085,13 @@ contains
   ! print versions if needed
   if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then  
    ! print version numbers
-   print "(70('-'))", ''
+   print "(70('-'))", 
    print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
    print "(28x,2A)", 'Version: ', trim(summaVersion)
    print "(15x,2A)", 'Build Time: ', trim(buildTime)
    print "(8x,2A)",  'Git Branch: ', trim(gitBranch)
    print "(8x,2A)",  'Git Hash:   ', trim(gitHash)
-   print "(70('-'))", ''
+   print "(70('-'))", 
    if (nArgument == 1) stop
   end if 
  end do  
