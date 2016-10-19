@@ -662,7 +662,9 @@ select case (iRunMode)
  case(iRunModeHRU)
   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
 end select
-fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
+write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
+                               timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1, &
+                               trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
  
 ! write local model attributes and parameters to the model output file
