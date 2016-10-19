@@ -259,7 +259,7 @@ DRIVER__EX = summa.exe
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
 VERSION = $(shell git tag | sed 's/v//')
 BULTTIM = $(shell date)
-GITBRCH = $(shell git describe --long --dirty --all --always | sed -e's/heads\///')
+GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
 GITHASH = $(shell git rev-parse HEAD)
 
 #========================================================================
