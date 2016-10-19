@@ -238,6 +238,10 @@ contains
  ixControlVolume( ixNrgLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
  ixControlVolume( ixHydLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
 
+ !print*, 'ixControlVolume = ', ixControlVolume
+ !print*, 'ixDomainType    = ', ixDomainType
+ !print*, 'ixStateType     = ', ixStateType
+
  ! end association to the ALLOCATABLE variables in the data structures
  end associate 
 

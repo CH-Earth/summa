@@ -724,15 +724,19 @@ contains
   !print*, 'completed step'
   !print*, 'PAUSE: '; read(*,*)
 
-  ! handle special case of the step failure
-  ! NOTE: need to revert back to the previous state vector that we were happy with, merge the snow layers, and reduce the time step
+  ! process the flag for too much melt
   if(tooMuchMelt)then
    stepFailure  = .true.
    doLayerMerge = .true.
-   dt_sub       = max(dtSave/2._dp, minstep)
-   cycle substeps
   else
    doLayerMerge = .false.
+  endif
+
+  ! handle special case of the step failure
+  ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
+  if(stepFailure)then
+   dt_sub       = max(dtSave/2._dp, minstep)
+   cycle substeps
   endif
 
   ! update first step
@@ -947,7 +951,9 @@ contains
  mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)                     ,&  ! depth of each soil layer (m)
  mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers)                ,&  ! volumetric ice content in each soil layer (-)
  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)                ,&  ! volumetric liquid water content in each soil layer (-)
- scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                           &  ! aquifer storage (m)
+ scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                          ,&  ! aquifer storage (m)
+ ! error tolerance
+ absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)                                    &  ! absolute convergence tolerance for vol frac liq water (-)
  ) ! (association of local variables with information in the data structures
 
  ! -----
@@ -964,7 +970,7 @@ contains
   ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
   scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                              - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
-  if(abs(scalarCanopyWatBalError) > 1.d-3)then
+  if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._dp)then
    print*, '** canopy water balance error:'
    write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
    write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
@@ -1043,7 +1049,7 @@ contains
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
- if(abs(scalarSoilWatBalError) > 1.d-3)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+ if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._dp)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
   write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq

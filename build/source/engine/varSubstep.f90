@@ -179,6 +179,7 @@ contains
  real(dp)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes
  ! flags
+ logical(lgt)                    :: waterBalanceError              ! flag to denote that there is a water balance error
  logical(lgt)                    :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
  ! energy fluxes
  real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
@@ -386,8 +387,14 @@ contains
   ! update prognostic variables
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                       & ! input-output: data structures
-                  nrgFluxModified,err,cmessage)                                                                         ! output: flags and error control
+                  waterBalanceError,nrgFluxModified,err,cmessage)                                                       ! output: flags and error control
   if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! if water balance error then reduce the length of the coupled step
+  if(waterBalanceError)then
+   reduceCoupledStep=.true.
+   return
+  endif
 
   if(globalPrintFlag)&
   print*, trim(cmessage)//': dt = ', dtSubstep
@@ -465,7 +472,7 @@ contains
  ! **********************************************************************************************************
  subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
                        mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                & ! input-output: data structures
-                       nrgFluxModified,err,message)                                                                   ! output: flags and error control
+                       waterBalanceError,nrgFluxModified,err,message)                                                 ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -487,6 +494,7 @@ contains
  type(var_dlength),intent(inout) :: diag_data                      ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
  ! flags and error control
+ logical(lgt)     ,intent(out)   :: waterBalanceError              ! flag to denote that there is a water balance error
  logical(lgt)     ,intent(out)   :: nrgFluxModified                ! flag to denote that the energy fluxes were modified
  integer(i4b)     ,intent(out)   :: err                            ! error code
  character(*)     ,intent(out)   :: message                        ! error message
@@ -645,6 +653,9 @@ contains
  ! * check mass balance...
  ! -----------------------
 
+ ! initialize water balance error
+ waterBalanceError=.false.
+
  ! NOTE: should not need to do this, since mass balance is checked in the solver
  if(checkMassBalance)then
 
@@ -693,18 +704,18 @@ contains
    ! check the mass balance
    fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
    liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
+   !write(*,'(a,1x,f20.10)') 'dt = ', dt
+   !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial
+   !write(*,'(a,1x,f20.10)') 'canopyBalance0             = ', canopyBalance0
+   !write(*,'(a,1x,f20.10)') 'canopyBalance1             = ', canopyBalance1
+   !write(*,'(a,1x,f20.10)') 'scalarRainfall*dt          = ', scalarRainfall*dt
+   !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt = ', scalarCanopyLiqDrainage*dt
+   !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
+   !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
+   !write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError 
    if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 because of precision issues
-    write(*,'(a,1x,f20.10)') 'dt = ', dt
-    write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial
-    write(*,'(a,1x,f20.10)') 'canopyBalance0             = ', canopyBalance0
-    write(*,'(a,1x,f20.10)') 'canopyBalance1             = ', canopyBalance1
-    write(*,'(a,1x,f20.10)') 'scalarRainfall*dt          = ', scalarRainfall*dt
-    write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt = ', scalarCanopyLiqDrainage*dt
-    write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
-    write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
-    write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError 
-    message=trim(message)//'failed mass balance check for the vegetation canopy'
-    err=20; return  ! NOTE: also possible to recover using negative error codes
+    waterBalanceError = .true.
+    return
    endif  ! if there is a water balance error
   endif  ! if veg canopy
   
@@ -717,9 +728,18 @@ contains
    baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
    compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
    liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
+   !write(*,'(a,1x,f20.10)') 'dt = ', dt
+   !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
+   !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
+   !write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
+   !write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
+   !write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
+   !write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
+   !write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+   !write(*,'(a,1x,f20.10)') 'absConvTol_liquid = ', absConvTol_liquid
    if(abs(liqError) > absConvTol_liquid*10._dp)then   ! *10 because of precision issues
-    message=trim(message)//'failed mass balance check for the soil domain'
-    err=20; return  ! NOTE: also possible to recover using negative error codes
+    waterBalanceError = .true.
+    return
    endif  ! if there is a water balance error
   endif  ! if hydrology states exist in the soil domain
 

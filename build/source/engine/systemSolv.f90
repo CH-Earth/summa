@@ -571,25 +571,27 @@ contains
 
   ! --> estimate the solution error
   ! NOTE: done before the constraints check to return the error
-  solutionError(:) = abs(fluxVec0 - fluxVecNew)
+  solutionError(:) = abs(fluxVec0*dt - cf1*stateVecUpdate)
   errorTemp        = maxval(solutionError)
   explicitError    = max(errorTemp(1), verySmall)
 
   ! print progress in the explicit Euler solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,10(f20.10,1x))') 'cf0           = ', cf0            ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'cf1           = ', cf1            ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'fluxVec0      = ', fluxVec0       ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'fluxVecNew    = ', fluxVecNew     ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'rAdd          = ', rAdd           ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'resSinkNew    = ', resSinkNew     ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'stateVecInit  = ', stateVecInit   ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'stateVecTrial = ', stateVecTrial  ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'stateVecNew   = ', stateVecNew    ( min(nState,iJac1) : min(nState,iJac2) )
-   write(*,'(a,1x,10(f20.10,1x))') 'solutionError = ', solutionError  ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'cf0           = ', cf0            ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'cf1           = ', cf1            ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'fluxVec0      = ', fluxVec0       ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'fluxVecNew    = ', fluxVecNew     ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'rAdd          = ', rAdd           ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'resSinkNew    = ', resSinkNew     ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'stateVecInit  = ', stateVecInit   ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'stateVecTrial = ', stateVecTrial  ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'stateVecNew   = ', stateVecNew    ( min(nState,iJac1) : min(nState,iJac2) )
+   write(*,'(a,1x,10(f20.12,1x))') 'solutionError = ', solutionError  ( min(nState,iJac1) : min(nState,iJac2) )
    print*, 'dt = ', dt
    !print*, 'PAUSE: checking state vector for the explicit Euler solution'; read(*,*)
   endif  ! (if printing)
+
+  
 
   ! check if the state is constrained
   if(stateConstrained)then

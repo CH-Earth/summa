@@ -321,7 +321,7 @@ contains
     err=10; return
   end select
   !if(iLayer > nSnow)& ! avoid layer 0
-  ! write(*,'(i4,1x,2(f11.5,1x,e20.10,1x))') iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow), iLayerHeight(iLayer), iLayerSatHydCond(iLayer-nSnow)
+  ! write(*,'(a,1x,i4,1x,2(f11.5,1x,e20.10,1x))') 'satHydCond: ', iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow), iLayerHeight(iLayer), iLayerSatHydCond(iLayer-nSnow)
  end do  ! looping through soil layers
  !print*, trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)
  !print*, 'k_soil, k_macropore, zScale_TOPMODEL = ', k_soil, k_macropore, zScale_TOPMODEL

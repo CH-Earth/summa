@@ -570,10 +570,10 @@ contains
        print*, 'tooMuchMelt       = ', tooMuchMelt
        print*, 'reduceCoupledStep = ', reduceCoupledStep
        print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
-       if(ixSolution==explicitEuler)then
-        print*, trim(message)//trim(cmessage)
-        print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
-       endif
+       !if(ixSolution==explicitEuler)then
+       ! print*, trim(message)//trim(cmessage)
+       ! print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
+       !endif
       endif    
 
       ! if too much melt then return

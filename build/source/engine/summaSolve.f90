@@ -800,17 +800,13 @@ contains
   logical(lgt)              :: liquidConv             ! flag for residual convergence
   logical(lgt)              :: matricConv             ! flag for matric head convergence
   logical(lgt)              :: energyConv             ! flag for energy convergence
-  ! TEMPORARY CODE: use hard-coded convergence parameters
-  real(dp),parameter        :: absConvTol_energy=1.e-0_dp   ! convergence tolerance for energy (J m-3)
-  real(dp),parameter        :: absConvTol_liquid=1.e-8_dp   ! convergence tolerance for volumetric liquid water content (-)
-  real(dp),parameter        :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
   ! convergence parameters
-  !absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
-  !absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)            ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
-  !absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)            ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
+  absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
+  absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)            ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
+  absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)            ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
   ! model indices
