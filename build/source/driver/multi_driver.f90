@@ -662,9 +662,12 @@ select case (iRunMode)
  case(iRunModeHRU)
   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
 end select
-write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
-                               timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1, &
-                               trim(output_fileSuffix)
+write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
+                               startTime%var(iLookTIME%iyyy), '-', &
+                               startTime%var(iLookTIME%im), '-', &
+                               startTime%var(iLookTIME%id), '-', &
+                               startTime%var(iLookTIME%ih),  &
+                               '_spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
  
 ! write local model attributes and parameters to the model output file
@@ -760,7 +763,7 @@ do modelTimeStep=1,numtim
  ! check the start of a new water year
  if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
     timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
-    timeStruct%var(iLookTIME%ih)  ==1  .and. &   ! hour = 1
+    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
     timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 
   ! close any output files that are already open
