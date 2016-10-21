@@ -157,7 +157,7 @@ contains
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
  type(var_d),intent(in)          :: forc_data                     ! model forcing data
- type(var_d),intent(in)          :: mpar_data                     ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                     ! model parameters
  type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
  type(var_dlength),intent(inout) :: prog_data                     ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                     ! diagnostic variables for a local HRU
@@ -268,7 +268,7 @@ contains
  reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step 
 
  ! define maximum number of iterations
- maxiter = nint(mpar_data%var(iLookPARAM%maxiter))
+ maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
 
  ! modify the groundwater representation for this single-column implementation
  select case(ixSpatialGroundwater)
@@ -920,7 +920,7 @@ contains
  implicit none
  ! input
  type(var_ilength),intent(in)  :: indx_data         ! state indices
- type(var_d)      ,intent(in)  :: mpar_data         ! model parameters
+ type(var_dlength),intent(in)  :: mpar_data         ! model parameters
  type(var_dlength),intent(in)  :: prog_data         ! model prognostic variables
  real(dp)         ,intent(in)  :: stateVecInit(:)   ! initial state vector   
  real(dp)         ,intent(in)  :: stateVecUpdate(:) ! state vector update
@@ -938,8 +938,8 @@ contains
 
  ! make association with model indices defined in indexSplit
  associate(&
-  theta_sat           => mpar_data%var(iLookPARAM%theta_sat),                & ! intent(in): [dp]     soil porosity (-)
-  theta_res           => mpar_data%var(iLookPARAM%theta_res),                & ! intent(in): [dp]     soil residual volumetric water content (-)
+  theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat(1),         & ! intent(in): [dp]     soil porosity (-)
+  theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat(1),         & ! intent(in): [dp]     soil residual volumetric water content (-)
   mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,      & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
   ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,      & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
   ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,     & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset

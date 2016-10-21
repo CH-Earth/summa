@@ -81,7 +81,7 @@ contains
  ! input/output: model data structures
  logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
- type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
@@ -109,12 +109,12 @@ contains
  ix_snowLayers    => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
 
  ! model parameters (control the depth of snow layers)
- zmin             => mpar_data%var(iLookPARAM%zmin),                       & ! minimum layer depth (m)
- zminLayer1       => mpar_data%var(iLookPARAM%zminLayer1),                 & ! minimum layer depth for the 1st (top) layer (m)
- zminLayer2       => mpar_data%var(iLookPARAM%zminLayer2),                 & ! minimum layer depth for the 2nd layer (m)
- zminLayer3       => mpar_data%var(iLookPARAM%zminLayer3),                 & ! minimum layer depth for the 3rd layer (m)
- zminLayer4       => mpar_data%var(iLookPARAM%zminLayer4),                 & ! minimum layer depth for the 4th layer (m)
- zminLayer5       => mpar_data%var(iLookPARAM%zminLayer5),                 & ! minimum layer depth for the 5th (bottom) layer (m)
+ zmin             => mpar_data%var(iLookPARAM%zmin)%dat(1),                & ! minimum layer depth (m)
+ zminLayer1       => mpar_data%var(iLookPARAM%zminLayer1)%dat(1),          & ! minimum layer depth for the 1st (top) layer (m)
+ zminLayer2       => mpar_data%var(iLookPARAM%zminLayer2)%dat(1),          & ! minimum layer depth for the 2nd layer (m)
+ zminLayer3       => mpar_data%var(iLookPARAM%zminLayer3)%dat(1),          & ! minimum layer depth for the 3rd layer (m)
+ zminLayer4       => mpar_data%var(iLookPARAM%zminLayer4)%dat(1),          & ! minimum layer depth for the 4th layer (m)
+ zminLayer5       => mpar_data%var(iLookPARAM%zminLayer5)%dat(1),          & ! minimum layer depth for the 5th (bottom) layer (m)
 
  ! diagnostic scalar variables
  scalarSnowDepth  => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
@@ -284,7 +284,7 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures
- type(var_d),intent(in)          :: mpar_data ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data ! model parameters
  type(var_dlength),intent(inout) :: prog_data ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data ! model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data ! model flux variables
@@ -316,7 +316,7 @@ contains
  ! associate local variables with information in the data structures
  associate(&
  ! model parameters
- snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)       , & ! scaling parameter for the freezing curve for snow (K-1)
+ snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1), & ! scaling parameter for the freezing curve for snow (K-1)
  ! model state variables
  mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat       , & ! temperature of each layer (K)
  mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat      , & ! depth of each layer (m)

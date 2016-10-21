@@ -875,6 +875,7 @@ contains
   case('ifcSnow'); get_ixVarType = iLookVarType%ifcSnow
   case('ifcSoil'); get_ixVarType = iLookVarType%ifcSoil
   case('ifcToto'); get_ixVarType = iLookVarType%ifcToto
+  case('parSoil'); get_ixVarType = iLookVarType%parSoil
   case('routing'); get_ixVarType = iLookVarType%routing
   case('unknown'); get_ixVarType = iLookVarType%unknown
   ! get to here if cannot find the variable
@@ -902,6 +903,7 @@ contains
   case(iLookVarType%ifcSnow);get_varTypeName='ifcSnow'
   case(iLookVarType%ifcSoil);get_varTypeName='ifcSoil'
   case(iLookVarType%ifcToto);get_varTypeName='ifcToto'
+  case(iLookVarType%parSoil);get_varTypeName='parSoil'
   case(iLookVarType%routing);get_varTypeName='routing'
   case(iLookVarType%unknown);get_varTypeName='unknown'
   ! get to here if cannot find the variable

@@ -150,7 +150,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
  type(var_i),        intent(in)  :: type_data                ! type of vegetation and soil
  type(var_d),        intent(in)  :: attr_data                ! spatial attributes
- type(var_d),        intent(in)  :: mpar_data                ! model parameters
+ type(var_dlength),  intent(in)  :: mpar_data                ! model parameters
  type(var_d),        intent(in)  :: forc_data                ! model forcing data
  type(var_dlength),  intent(in)  :: bvar_data                ! model variables for the local basin
  type(var_dlength),  intent(in)  :: prog_data                ! prognostic variables for a local HRU
@@ -804,9 +804,9 @@ contains
   ! association to variables in the data structures
   associate(&
   ! convergence parameters
-  absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
-  absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)            ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
-  absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)            ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
+  absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)     ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
+  absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)%dat(1)     ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
+  absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)%dat(1)     ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
   ! model indices
@@ -1063,7 +1063,7 @@ contains
 
     ! * get the volumetric fraction of liquid water
     select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
-     case(iname_watLayer); volFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)) * stateVecTrial(ixSnowOnlyHyd(iLayer))
+     case(iname_watLayer); volFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)) * stateVecTrial(ixSnowOnlyHyd(iLayer))
      case(iname_liqLayer); volFracLiq = stateVecTrial(ixSnowOnlyHyd(iLayer))
      case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow hydrology'; return
     end select

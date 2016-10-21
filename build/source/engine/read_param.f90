@@ -37,40 +37,39 @@ contains
  USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
- USE data_types,only:gru_hru_int                     ! spatial integer data type: x%hru(:)%var(:)
- USE data_types,only:gru_hru_double                  ! spatial double data type: x%hru(:)%var(:)
- USE data_types,only:gru_double                      ! spatial double data type: x%gru(:)%var(:)
+ USE data_types,only:gru_double                      ! spatial double data type:  x%gru(:)%var(:)
+ USE data_types,only:gru_hru_int                     ! spatial integer data type: x%gru(:)%hru(:)%var(:)
+ USE data_types,only:gru_hru_doubleVec               ! spatial double data type:  x%gru(:)%hru(:)%var(:)%dat(:)
  USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
- USE globalData,only:gru_struc                       ! gru-hru mapping structures
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input
- integer(i4b),        intent(in)    :: nHRU             ! number of global HRUs
- type(gru_hru_int),   intent(in)    :: typeStruct       ! local classification of soil veg etc. for each HRU
+ integer(i4b),        intent(in)       :: nHRU             ! number of global HRUs
+ type(gru_hru_int),   intent(in)       :: typeStruct       ! local classification of soil veg etc. for each HRU
  ! define output
- type(gru_hru_double),intent(inout) :: mparStruct       ! model parameters
- type(gru_double)    ,intent(inout) :: bparStruct       ! basin parameters
- integer(i4b),        intent(out)   :: err              ! error code
- character(*),        intent(out)   :: message          ! error message
+ type(gru_hru_doubleVec),intent(inout) :: mparStruct       ! model parameters
+ type(gru_double)    ,intent(inout)    :: bparStruct       ! basin parameters
+ integer(i4b),        intent(out)      :: err              ! error code
+ character(*),        intent(out)      :: message          ! error message
  ! define local variables
- character(len=1024)                :: cmessage         ! error message for downwind routine
- character(LEN=1024)                :: infile           ! input filename
- integer(i4b)                       :: unt              ! file unit (free unit output from file_open)
- integer(i4b)                       :: iline            ! loop through lines in the file
- integer(i4b),parameter             :: maxLines=1000    ! maximum lines in the file
- integer(i4b)                       :: iend             ! check for the end of the file
- integer(i4b),parameter             :: sLen=4096        ! string length for line of parameter data
- character(LEN=sLen)                :: temp             ! single line of information
- character(LEN=sLen),allocatable    :: charline(:)      ! vector of character strings
- character(LEN=64),allocatable      :: varnames(:)      ! vector of variable names
- character(LEN=64),allocatable      :: chardata(:)      ! vector of character data
- logical(lgt)                       :: foundHRU(nHRU)   ! vector of flags to check that an HRU has been found in parameter data
- integer(i4b)                       :: hruIndex         ! HRU identifier in the file
- integer(i4b)                       :: iHRU             ! index of HRU within data vector
- integer(i4b)                       :: localHRU,iGRU    ! index of HRU and GRU within data structure
- integer(i4b)                       :: ipar,jpar        ! index of model parameter
- integer(i4b)                       :: nPars            ! number of model parameters
- integer(i4b)                       :: nDataLine        ! number of data lines in the file
+ character(len=1024)                   :: cmessage         ! error message for downwind routine
+ character(LEN=1024)                   :: infile           ! input filename
+ integer(i4b)                          :: unt              ! file unit (free unit output from file_open)
+ integer(i4b)                          :: iline            ! loop through lines in the file
+ integer(i4b),parameter                :: maxLines=1000    ! maximum lines in the file
+ integer(i4b)                          :: iend             ! check for the end of the file
+ integer(i4b),parameter                :: sLen=4096        ! string length for line of parameter data
+ character(LEN=sLen)                   :: temp             ! single line of information
+ character(LEN=sLen),allocatable       :: charline(:)      ! vector of character strings
+ character(LEN=64),allocatable         :: varnames(:)      ! vector of variable names
+ character(LEN=64),allocatable         :: chardata(:)      ! vector of character data
+ logical(lgt)                          :: foundHRU(nHRU)   ! vector of flags to check that an HRU has been found in parameter data
+ integer(i4b)                          :: hruIndex         ! HRU identifier in the file
+ integer(i4b)                          :: iHRU             ! index of HRU within data vector
+ integer(i4b)                          :: localHRU,iGRU    ! index of HRU and GRU within data structure
+ integer(i4b)                          :: ipar,jpar        ! index of model parameter
+ integer(i4b)                          :: nPars            ! number of model parameters
+ integer(i4b)                          :: nDataLine        ! number of data lines in the file
  ! Start procedure here
  err=0; message="read_param/"
 
@@ -166,7 +165,7 @@ contains
       end if
 
       ! populate the appropriate element of the local parameter vector
-      read(chardata(ipar),*,iostat=err) mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)
+      read(chardata(ipar),*,iostat=err) mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)%dat(:)
       if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
 
      end do    ! (looping through model parameters)
@@ -195,67 +194,6 @@ contains
  if(err/=0)then;err=30;message=trim(message)//"problemDeallocate"; return; end if
  ! **********************************************************************************************
 
- ! check parameters
- do iGRU=1,size(gru_struc)
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   call checkParam(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
-   if(err/=0)then
-    write(message,'(a,i0,a,i0,a)') trim(message)//trim(cmessage)//' (iHRU = ', iHRU, '; iGRU = ', iGRU, ')'
-    return
-   endif
-  end do  ! HRU
- end do  ! GRU
-
  end subroutine read_param
-
- ! ************************************************************************************************
- ! private subroutine checkParam: check trial model parameter values
- ! ************************************************************************************************
- subroutine checkParam(mpar_data,err,message)
- ! used to check model parameters
- USE data_types,only:var_d                      ! spatial double data type: x%hru(:)%var(:)
- USE var_lookup,only:iLookPARAM                 ! named variables to index elements of the data vectors
- implicit none
- ! dummy 
- type(var_d), intent(inout) :: mpar_data        ! model parameters
- integer(i4b),intent(out)   :: err              ! error code
- character(*),intent(out)   :: message          ! error message
- ! associations
- associate(&
- ! canopy geometry
- heightCanopyTop        => mpar_data%var(iLookPARAM%heightCanopyTop),   & ! intent(in): [dp] height at the top of the vegetation canopy (m)
- heightCanopyBottom     => mpar_data%var(iLookPARAM%heightCanopyBottom),& ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
- ! transpiration
- critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting),   & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
- critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire), & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
- ! soil properties
- theta_sat              => mpar_data%var(iLookPARAM%theta_sat),         & ! intent(in): soil porosity (-)
- theta_res              => mpar_data%var(iLookPARAM%theta_res)          & ! intent(in): soil residual volumetric water content (-)
- ) ! associations to parameters
- ! Start procedure here
- err=0; message="checkParam/"
-
- ! check canopy geometry
- if(heightCanopyTop < heightCanopyBottom)then
-  write(message,'(a,i0,a)') trim(message)//'height of canopy top is less than the height of the canopy bottom' 
-  err=20; return
- endif
-
- ! check transpiration
- if(critSoilTranspire < critSoilWilting)then
-  write(message,'(a,i0,a)') trim(message)//'critical point for transpiration is less than the wilting point' 
-  err=20; return
- endif
-
- ! check porosity
- if(theta_sat < theta_res)then
-  write(message,'(a,i0,a)') trim(message)//'porosity is less than the residual liquid water content'
-  err=20; return
- endif
-
- ! end associations
- end associate
-
- end subroutine checkParam
 
 end module read_param_module

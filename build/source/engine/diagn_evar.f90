@@ -87,7 +87,7 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
  real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input/output: data structures
- type(var_d),intent(in)          :: mpar_data              ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
  type(var_dlength),intent(in)    :: prog_data              ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data              ! model diagnostic variables for a local HRU
@@ -137,15 +137,15 @@ contains
  mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
  iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
  ! input: heat capacity and thermal conductivity
- specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg),                 & ! intent(in): specific heat of vegetation (J kg-1 K-1)
- maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation),               & ! intent(in): maximum mass of vegetation (kg m-2)
- fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow),           & ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
- iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr),                  & ! intent(in): intrinsic density of soil (kg m-3)
- thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil),                     & ! intent(in): thermal conductivity of soil (W m-1 K-1)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat),                       & ! intent(in): soil porosity (-)
- frac_sand               => mpar_data%var(iLookPARAM%frac_sand),                       & ! intent(in): fraction of sand (-)
- frac_silt               => mpar_data%var(iLookPARAM%frac_silt),                       & ! intent(in): fraction of silt (-)
- frac_clay               => mpar_data%var(iLookPARAM%frac_clay),                       & ! intent(in): fraction of clay (-)
+ specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),          & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+ maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in): maximum mass of vegetation (kg m-2)
+ fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow)%dat(1),    & ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
+ iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat(1),           & ! intent(in): intrinsic density of soil (kg m-3)
+ thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat(1),              & ! intent(in): thermal conductivity of soil (W m-1 K-1)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat(1),                & ! intent(in): soil porosity (-)
+ frac_sand               => mpar_data%var(iLookPARAM%frac_sand)%dat(1),                & ! intent(in): fraction of sand (-)
+ frac_silt               => mpar_data%var(iLookPARAM%frac_silt)%dat(1),                & ! intent(in): fraction of silt (-)
+ frac_clay               => mpar_data%var(iLookPARAM%frac_clay)%dat(1),                & ! intent(in): fraction of clay (-)
  ! output: diagnostic variables
  scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),   & ! intent(out): volumetric heat capacity of the vegetation (J m-3 K-1)
  mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)

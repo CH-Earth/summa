@@ -180,7 +180,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)          ! model decisions
  type(var_i),        intent(in)  :: type_data                   ! type of vegetation and soil
  type(var_d),        intent(in)  :: attr_data                   ! spatial attributes
- type(var_d),        intent(in)  :: mpar_data                   ! model parameters
+ type(var_dlength),  intent(in)  :: mpar_data                   ! model parameters
  type(var_d),        intent(in)  :: forc_data                   ! model forcing data
  type(var_dlength),  intent(in)  :: bvar_data                   ! model variables for the local basin
  type(var_dlength),  intent(in)  :: prog_data                   ! prognostic variables for a local HRU
@@ -247,14 +247,14 @@ contains
  nSoilOnlyHyd                 => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
 
  ! snow parameters
- snowfrz_scale                => mpar_data%var(iLookPARAM%snowfrz_scale)                         ,& ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
+ snowfrz_scale                => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)                  ,& ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
 
  ! soil parameters
  vGn_m                        => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)                     ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
- vGn_n                        => mpar_data%var(iLookPARAM%vGn_n)                                 ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_alpha                    => mpar_data%var(iLookPARAM%vGn_alpha)                             ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
- theta_sat                    => mpar_data%var(iLookPARAM%theta_sat)                             ,&  ! intent(in): [dp] soil porosity (-)
- theta_res                    => mpar_data%var(iLookPARAM%theta_res)                             ,&  ! intent(in): [dp] soil residual volumetric water content (-)
+ vGn_n                        => mpar_data%var(iLookPARAM%vGn_n)%dat(1)                          ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
+ vGn_alpha                    => mpar_data%var(iLookPARAM%vGn_alpha)%dat(1)                      ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
+ theta_sat                    => mpar_data%var(iLookPARAM%theta_sat)%dat(1)                      ,&  ! intent(in): [dp] soil porosity (-)
+ theta_res                    => mpar_data%var(iLookPARAM%theta_res)%dat(1)                      ,&  ! intent(in): [dp] soil residual volumetric water content (-)
 
  ! derivatives
  dPsiLiq_dPsi0                => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0   )%dat                 ,&  ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)

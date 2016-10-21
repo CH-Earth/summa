@@ -152,7 +152,7 @@ contains
  real(dp),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
  real(dp),intent(in)              :: scalarRainPlusMelt            ! rain plus melt (m s-1)
  ! input-output: data structures
- type(var_d),intent(in)           :: mpar_data                     ! model parameters
+ type(var_dlength),intent(in)     :: mpar_data                     ! model parameters
  type(var_ilength),intent(in)     :: indx_data                     ! state vector geometry
  type(var_dlength),intent(in)     :: prog_data                     ! prognostic variables for a local HRU
  type(var_dlength),intent(in)     :: diag_data                     ! diagnostic variables for a local HRU
@@ -246,27 +246,27 @@ contains
   mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend),    & ! intent(in): depth of the layer (m)
   mLayerHeight           => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend),   & ! intent(in): height of the layer mid-point (m)
   ! input: upper boundary conditions
-  upperBoundHead         => mpar_data%var(iLookPARAM%upperBoundHead),               & ! intent(in): upper boundary condition for matric head (m)
-  upperBoundTheta        => mpar_data%var(iLookPARAM%upperBoundTheta),              & ! intent(in): upper boundary condition for volumetric liquid water content (-)
+  upperBoundHead         => mpar_data%var(iLookPARAM%upperBoundHead)%dat(1),        & ! intent(in): upper boundary condition for matric head (m)
+  upperBoundTheta        => mpar_data%var(iLookPARAM%upperBoundTheta)%dat(1),       & ! intent(in): upper boundary condition for volumetric liquid water content (-)
   ! input: lower boundary conditions
-  lowerBoundHead         => mpar_data%var(iLookPARAM%lowerBoundHead),               & ! intent(in): lower boundary condition for matric head (m)
-  lowerBoundTheta        => mpar_data%var(iLookPARAM%lowerBoundTheta),              & ! intent(in): lower boundary condition for volumetric liquid water content (-)
+  lowerBoundHead         => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1),        & ! intent(in): lower boundary condition for matric head (m)
+  lowerBoundTheta        => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),       & ! intent(in): lower boundary condition for volumetric liquid water content (-)
   ! input: soil parameters
   vGn_m                  => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),            & ! intent(in): van Genutchen "m" parameter (-)
-  vGn_n                  => mpar_data%var(iLookPARAM%vGn_n),                        & ! intent(in): van Genutchen "n" parameter (-)
-  vGn_alpha              => mpar_data%var(iLookPARAM%vGn_alpha),                    & ! intent(in): van Genutchen "alpha" parameter (m-1)
-  mpExp                  => mpar_data%var(iLookPARAM%mpExp),                        & ! intent(in): empirical exponent in macropore flow equation (-)
-  theta_mp               => mpar_data%var(iLookPARAM%theta_mp),                     & ! intent(in): volumetric liquid water content when macropore flow begins (-)
-  theta_sat              => mpar_data%var(iLookPARAM%theta_sat),                    & ! intent(in): soil porosity (-)
-  theta_res              => mpar_data%var(iLookPARAM%theta_res),                    & ! intent(in): soil residual volumetric water content (-)
-  wettingFrontSuction    => mpar_data%var(iLookPARAM%wettingFrontSuction),          & ! intent(in): Green-Ampt wetting front suction (m)
-  rootingDepth           => mpar_data%var(iLookPARAM%rootingDepth),                 & ! intent(in): rooting depth (m)
-  kAnisotropic           => mpar_data%var(iLookPARAM%kAnisotropic),                 & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
-  zScale_TOPMODEL        => mpar_data%var(iLookPARAM%zScale_TOPMODEL),              & ! intent(in): TOPMODEL scaling factor (m)
-  qSurfScale             => mpar_data%var(iLookPARAM%qSurfScale),                   & ! intent(in): scaling factor in the surface runoff parameterization (-)
-  f_impede               => mpar_data%var(iLookPARAM%f_impede),                     & ! intent(in): ice impedence factor (-)
-  soilIceScale           => mpar_data%var(iLookPARAM%soilIceScale),                 & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
-  soilIceCV              => mpar_data%var(iLookPARAM%soilIceCV),                    & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
+  vGn_n                  => mpar_data%var(iLookPARAM%vGn_n)%dat(1),                 & ! intent(in): van Genutchen "n" parameter (-)
+  vGn_alpha              => mpar_data%var(iLookPARAM%vGn_alpha)%dat(1),             & ! intent(in): van Genutchen "alpha" parameter (m-1)
+  mpExp                  => mpar_data%var(iLookPARAM%mpExp)%dat(1),                 & ! intent(in): empirical exponent in macropore flow equation (-)
+  theta_mp               => mpar_data%var(iLookPARAM%theta_mp)%dat(1),              & ! intent(in): volumetric liquid water content when macropore flow begins (-)
+  theta_sat              => mpar_data%var(iLookPARAM%theta_sat)%dat(1),             & ! intent(in): soil porosity (-)
+  theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat(1),             & ! intent(in): soil residual volumetric water content (-)
+  wettingFrontSuction    => mpar_data%var(iLookPARAM%wettingFrontSuction)%dat(1),   & ! intent(in): Green-Ampt wetting front suction (m)
+  rootingDepth           => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),          & ! intent(in): rooting depth (m)
+  kAnisotropic           => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),          & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
+  zScale_TOPMODEL        => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),       & ! intent(in): TOPMODEL scaling factor (m)
+  qSurfScale             => mpar_data%var(iLookPARAM%qSurfScale)%dat(1),            & ! intent(in): scaling factor in the surface runoff parameterization (-)
+  f_impede               => mpar_data%var(iLookPARAM%f_impede)%dat(1),              & ! intent(in): ice impedence factor (-)
+  soilIceScale           => mpar_data%var(iLookPARAM%soilIceScale)%dat(1),          & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
+  soilIceCV              => mpar_data%var(iLookPARAM%soilIceCV)%dat(1),             & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
   ! input: saturated hydraulic conductivity
   mLayerSatHydCondMP     =>  flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat,        & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
   mLayerSatHydCond       =>  flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)

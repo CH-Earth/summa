@@ -68,7 +68,7 @@ contains
  ! input/output: model data structures
  logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
- type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU

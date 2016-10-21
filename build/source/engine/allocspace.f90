@@ -74,7 +74,6 @@ contains
  USE globalData,only: gru_struc                    ! gru-hru mapping structures
  implicit none
  ! input
-! class(*),intent(in)             :: metaStruct(:)  ! metadata structure
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! output
  class(*),intent(out)            :: dataStruct     ! data structure

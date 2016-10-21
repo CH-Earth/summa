@@ -62,7 +62,7 @@ contains
  real(dp),intent(in)             :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
  real(dp),intent(in)             :: scalarRainfall               ! rainfall (kg m-2 s-1)
  ! input-output: data structures
- type(var_d),intent(in)          :: mpar_data                    ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                    ! model parameters
  type(var_dlength),intent(inout) :: diag_data                    ! model diagnostic variables for the local basin
  ! output
  real(dp),intent(out)            :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -76,8 +76,8 @@ contains
  associate(&
   ixCanopyInterception       => model_decisions(iLookDECISIONS%cIntercept)%iDecision, & ! intent(in): index defining choice of parameterization for canopy interception
   scalarCanopyLiqMax         => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
-  scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain),       & ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
-  scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)         & ! intent(in): canopy drainage coefficient (s-1)
+  scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain)%dat(1),& ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
+  scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1)  & ! intent(in): canopy drainage coefficient (s-1)
  ) ! associating local variables with information in the data structures 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control

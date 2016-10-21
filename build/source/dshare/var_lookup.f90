@@ -704,6 +704,7 @@ MODULE var_lookup
   integer(i4b)    :: ifcSnow   = integerMissing ! interface snow variables
   integer(i4b)    :: ifcSoil   = integerMissing ! interface soil variables
   integer(i4b)    :: ifcToto   = integerMissing ! interface, snow and soil
+  integer(i4b)    :: parSoil   = integerMissing ! soil depth
   integer(i4b)    :: routing   = integerMissing ! routing variables
   integer(i4b)    :: outstat   = integerMissing ! output statistic
   integer(i4b)    :: unknown   = integerMissing ! cath-cal alternative type
@@ -809,7 +810,8 @@ MODULE var_lookup
                                                                          11) 
 
  ! named variables in varibale type structure
- type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11)
+ type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+                                                                         11, 12)
 
  ! number of possible output statistics
  type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)

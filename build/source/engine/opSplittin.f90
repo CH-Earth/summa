@@ -192,7 +192,7 @@ contains
  type(var_i),intent(in)          :: type_data                      ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                      ! spatial attributes
  type(var_d),intent(in)          :: forc_data                      ! model forcing data
- type(var_d),intent(in)          :: mpar_data                      ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(inout) :: indx_data                      ! indices for a local HRU
  type(var_dlength),intent(inout) :: prog_data                      ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                      ! diagnostic variables for a local HRU
@@ -283,14 +283,14 @@ contains
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):    [dp]     canopy depth (m)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ! snow parameters
- snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
+ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
  ! soil parameters
  vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,& ! intent(in):    [dp]     van Genutchen "m" parameter (-)
- vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,& ! intent(in):    [dp]     van Genutchen "n" parameter (-)
- vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)                    ,& ! intent(in):    [dp]     van Genutchen "alpha" parameter (m-1)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat)                    ,& ! intent(in):    [dp]     soil porosity (-)
- theta_res               => mpar_data%var(iLookPARAM%theta_res)                    ,& ! intent(in):    [dp]     soil residual volumetric water content (-)
- specificStorage         => mpar_data%var(iLookPARAM%specificStorage)              ,& ! intent(in):    [dp]     specific storage coefficient (m-1)
+ vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat(1)                 ,& ! intent(in):    [dp]     van Genutchen "n" parameter (-)
+ vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat(1)             ,& ! intent(in):    [dp]     van Genutchen "alpha" parameter (m-1)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat(1)             ,& ! intent(in):    [dp]     soil porosity (-)
+ theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat(1)             ,& ! intent(in):    [dp]     soil residual volumetric water content (-)
+ specificStorage         => mpar_data%var(iLookPARAM%specificStorage)%dat(1)       ,& ! intent(in):    [dp]     specific storage coefficient (m-1)
  ! model diagnostic variables (fraction of liquid water)
  scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out):   [dp]     fraction of liquid water on vegetation (-)
  mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out):   [dp(:)]  fraction of liquid water in each snow layer (-)

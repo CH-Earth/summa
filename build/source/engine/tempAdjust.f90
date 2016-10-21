@@ -61,7 +61,7 @@ contains
  ! input: derived parameters
  real(dp),intent(in)             :: canopyDepth         ! depth of the vegetation canopy (m)
  ! input/output: data structures
- type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
  ! output: error control
@@ -88,9 +88,9 @@ contains
  associate(&
 
  ! model parameters for canopy thermodynamics (input)
- snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale),                     & ! intent(in): [dp] scaling factor for snow freezing curve (K)
- specificHeatVeg           => mpar_data%var(iLookPARAM%specificHeatVeg),                   & ! intent(in): [dp] specific heat of vegetation mass (J kg-1 K-1)
- maxMassVegetation         => mpar_data%var(iLookPARAM%maxMassVegetation),                 & ! intent(in): [dp] maximum mass of vegetation (full foliage) (kg m-2)
+ snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),              & ! intent(in): [dp] scaling factor for snow freezing curve (K)
+ specificHeatVeg           => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),            & ! intent(in): [dp] specific heat of vegetation mass (J kg-1 K-1)
+ maxMassVegetation         => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),          & ! intent(in): [dp] maximum mass of vegetation (full foliage) (kg m-2)
 
  ! state variables (input/output)
  scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),             & ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
