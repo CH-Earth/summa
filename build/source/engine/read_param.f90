@@ -70,6 +70,7 @@ contains
  integer(i4b)                          :: ipar,jpar        ! index of model parameter
  integer(i4b)                          :: nPars            ! number of model parameters
  integer(i4b)                          :: nDataLine        ! number of data lines in the file
+ real(dp)                              :: parData          ! parameter data value
  ! Start procedure here
  err=0; message="read_param/"
 
@@ -165,8 +166,11 @@ contains
       end if
 
       ! populate the appropriate element of the local parameter vector
-      read(chardata(ipar),*,iostat=err) mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)%dat(:)
+      read(chardata(ipar),*,iostat=err) parData
       if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
+
+      ! put the data in the structure
+      mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)%dat(:) = parData
 
      end do    ! (looping through model parameters)
 

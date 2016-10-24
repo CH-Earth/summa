@@ -555,6 +555,7 @@ contains
     case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
     case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown = special (and valid) case that is allocated later (initialize with zero-length vector)

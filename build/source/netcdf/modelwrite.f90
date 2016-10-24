@@ -37,11 +37,11 @@ contains
  ! public subroutine writeParm: write model parameters
  ! **********************************************************************************************************
  subroutine writeParm(iHRU,struct,meta,err,message)
+ USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
  USE data_types,only:var_i,var_d,var_dlength     ! metadata structure type
  USE var_lookup,only:iLookStat                   ! to index into write flag
- USE multiconst,only:integerMissing
- USE globalData,only:ncid                        ! netcdf file ids
+ USE multiconst,only:integerMissing              ! missing value
  implicit none
 
  ! declare input variables
@@ -74,7 +74,7 @@ contains
     type is (var_d)
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iHRU/),count=(/1/))
     type is (var_dlength)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),struct%var(iVar)%dat,start=(/iHRU,1/),count=(/1,size(struct%var(iVar)%dat)/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)%dat/),start=(/iHRU,1/),count=(/1,size(struct%var(iVar)%dat)/))
     class default; err=20; message=trim(message)//'unkonwn variable type (with HRU)'; return
    end select
   else
@@ -365,7 +365,7 @@ contains
  USE globalData,only:gru_struc              ! gru-hru mapping structures
  ! external routines
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
- USE netcdf_util_module,only:nc_file_open  ! close netcdf file
+ USE netcdf_util_module,only:nc_file_open   ! open netcdf file
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input

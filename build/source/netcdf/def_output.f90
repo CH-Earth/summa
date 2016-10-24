@@ -98,23 +98,15 @@ contains
  ! e.g., xxxxxxxxx_1.nc  (for output at every model timestep)
  ! e.g., xxxxxxxxx_24.nc (for daily output with hourly model timestep)
  do iFreq = 1,nFreq
+
+  ! create file
   write(fstring,'(i5)') outFreq(iFreq)
   fstring = adjustl(fstring)
   fname = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print "(A,A)",'Created output file:',trim(fname)
- end do
 
- ! define model decisions
- do iVar = 1,size(model_decisions)
-  if(model_decisions(iVar)%iDecision.ne.integerMissing)then
-   call put_attrib(ncid(modelTime),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  end if
- end do
-
- do iFreq = 1,nFreq
   do iStruct = 1,size(structInfo)
    select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
@@ -134,6 +126,14 @@ contains
    ! error handling
    if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
   end do ! iStruct 
+
+  ! define model decisions
+  do iVar = 1,size(model_decisions)
+   if(model_decisions(iVar)%iDecision.ne.integerMissing)then
+    call put_attrib(ncid(modelTime),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   end if
+  end do
 
  end do ! iFreq 
 

@@ -667,7 +667,7 @@ select case (iRunMode)
 end select
 fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
- 
+
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
  do iHRU=1,gru_struc(iGRU)%hruCount
@@ -677,6 +677,9 @@ do iGRU=1,nGRU
  enddo ! HRU
  call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
 end do ! GRU
+
+! stop
+!call stop_program('testing')
 
 ! ****************************************************************************
 ! (6) loop through time
@@ -1050,14 +1053,6 @@ do modelTimeStep=1,numtim
 
 end do  ! (looping through time)
 
-! close any remaining output files
-do iFreq = 1,nFreq
- if (ncid(iFreq).ne.integerMissing) then
-  call nc_file_close(ncid(iFreq),err,message)
-  call handle_err(err,message)
- end if
-end do
-
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
 
@@ -1218,12 +1213,14 @@ contains
  subroutine handle_err(err,message)
  ! used to handle error codes
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX    ! named variables defining elements in data structure
- USE netcdf
  implicit none
- ! define dummy variables
- integer(i4b),intent(in)::err             ! error code
- character(*),intent(in)::message         ! error message
- integer(i4b)           ::nc_err          ! error code of nc_close
+ ! dummy variables
+ integer(i4b),intent(in) :: err             ! error code
+ character(*),intent(in) :: message         ! error message
+ ! local variables
+ integer(i4b)            :: nc_err          ! error code of nc_close
+ character(len=256)      :: cmessage        ! error message of the downwind routine
+
  ! return if A-OK
  if(err==0) return
  ! process error messages
@@ -1264,10 +1261,14 @@ contains
  if(allocated(timeStruct%var)) print*, timeStruct%var
  !write(*,'(a)') trim(message)
  
- ! close all the netcdf files
+ ! close any remaining output files
  do iFreq = 1,nFreq
-  nc_err = nf90_close(ncid(iFreq))
+  if (ncid(iFreq).ne.integerMissing) then
+   call nc_file_close(ncid(iFreq),nc_err,cmessage)
+   if(nc_err/=0) print*, trim(cmessage)
+  end if
  end do
+
  stop
  end subroutine handle_err
 
@@ -1283,7 +1284,17 @@ contains
  integer(i4b),parameter :: outunit=6               ! write to screen
  integer(i4b)           :: ctime2(8)               ! final time
  real(dp)               :: elpSec                  ! elapsed seconds
+ integer(i4b)           :: nc_err                  ! error code of nc_close
+ character(len=256)     :: cmessage                ! error message of the downwind routine
  
+ ! close any remaining output files
+ do iFreq = 1,nFreq
+  if (ncid(iFreq).ne.integerMissing) then
+   call nc_file_close(ncid(iFreq),nc_err,cmessage)
+   if(nc_err/=0) print*, trim(cmessage)
+  end if
+ end do
+
  ! get the final date and time
  call date_and_time(values=ctime2)
  
