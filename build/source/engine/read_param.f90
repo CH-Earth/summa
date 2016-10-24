@@ -19,7 +19,23 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module read_param_module
+
+! missing values
+USE multiconst,only:integerMissing  ! missing integer
+USE multiconst,only:realMissing     ! missing real number
+
+! common modules
 USE nrtype
+USE netcdf
+USE netcdf_util_module,only:nc_file_close  ! close netcdf file
+USE netcdf_util_module,only:nc_file_open   ! open netcdf file
+USE netcdf_util_module,only:netcdf_err     ! netcdf error handling function
+
+! data types
+USE data_types,only:gru_double             ! spatial double data type:  x%gru(:)%var(:)
+USE data_types,only:gru_hru_int            ! spatial integer data type: x%gru(:)%hru(:)%var(:)
+USE data_types,only:gru_hru_doubleVec      ! spatial double data type:  x%gru(:)%hru(:)%var(:)%dat(:)
+
 implicit none
 private
 public::read_param
@@ -33,13 +49,7 @@ contains
  ! used to read model initial conditions
  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
- USE ascii_util_module,only:file_open                ! open file
- USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
- USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
- USE data_types,only:gru_double                      ! spatial double data type:  x%gru(:)%var(:)
- USE data_types,only:gru_hru_int                     ! spatial integer data type: x%gru(:)%hru(:)%var(:)
- USE data_types,only:gru_hru_doubleVec               ! spatial double data type:  x%gru(:)%hru(:)%var(:)%dat(:)
  USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
@@ -54,149 +64,210 @@ contains
  ! define local variables
  character(len=1024)                   :: cmessage         ! error message for downwind routine
  character(LEN=1024)                   :: infile           ! input filename
- integer(i4b)                          :: unt              ! file unit (free unit output from file_open)
- integer(i4b)                          :: iline            ! loop through lines in the file
- integer(i4b),parameter                :: maxLines=1000    ! maximum lines in the file
- integer(i4b)                          :: iend             ! check for the end of the file
- integer(i4b),parameter                :: sLen=4096        ! string length for line of parameter data
- character(LEN=sLen)                   :: temp             ! single line of information
- character(LEN=sLen),allocatable       :: charline(:)      ! vector of character strings
- character(LEN=64),allocatable         :: varnames(:)      ! vector of variable names
- character(LEN=64),allocatable         :: chardata(:)      ! vector of character data
- logical(lgt)                          :: foundHRU(nHRU)   ! vector of flags to check that an HRU has been found in parameter data
- integer(i4b)                          :: hruIndex         ! HRU identifier in the file
  integer(i4b)                          :: iHRU             ! index of HRU within data vector
  integer(i4b)                          :: localHRU,iGRU    ! index of HRU and GRU within data structure
- integer(i4b)                          :: ipar,jpar        ! index of model parameter
- integer(i4b)                          :: nPars            ! number of model parameters
- integer(i4b)                          :: nDataLine        ! number of data lines in the file
- real(dp)                              :: parData          ! parameter data value
+ integer(i4b)                          :: ixParam          ! index of the model parameter in the data structure
+ ! indices/metadata in the NetCDF file
+ integer(i4b)                          :: ncid             ! netcdf id
+ integer(i4b)                          :: nDims            ! number of dimensions
+ integer(i4b)                          :: nVars            ! number of variables
+ integer(i4b)                          :: idimid           ! dimension index
+ integer(i4b)                          :: ivarid           ! variable index
+ character(LEN=64)                     :: dimName          ! dimension name
+ character(LEN=64)                     :: parName          ! parameter name
+ integer(i4b)                          :: dimLength        ! dimension length
+ integer(i4b)                          :: nHRU_file        ! number of HRUs in the parafile
+ integer(i4b)                          :: nSoil_file       ! number of soil layers in the file
+ integer(i4b)                          :: idim_list(2)     ! list of dimension ids
+ ! data in the netcdf file
+ integer(i4b)                          :: parLength        ! length of the parameter data
+ integer(i4b)                          :: hruId(nHRU)      ! HRU identifier in the file
+ real(dp),allocatable                  :: parVector(:)     ! model parameter vector
+
  ! Start procedure here
  err=0; message="read_param/"
 
  ! **********************************************************************************************
- ! (1) open files, etc.
+ ! * open files, etc.
  ! **********************************************************************************************
+
  ! build filename
  infile = trim(SETNGS_PATH)//trim(PARAMETER_TRIAL)
- ! open file
 
- call file_open(trim(infile),unt,err,cmessage)
+ ! open file
+ call nc_file_open(trim(infile),nf90_nowrite,ncid,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
- ! **********************************************************************************************
- ! (2) read the parameter names
- ! **********************************************************************************************
- ! loop through file until reach the first non-comment line (list of variable names)
- do iline=1,maxLines
-  read(unt,'(a)',iostat=iend)temp; if(iend/=0)exit    ! read line of data
-  if (temp(1:1)=='!')cycle
-  ! extract the list of variable names from the character string
-  call split_line(temp,varnames,err,cmessage)
+ ! get the number of variables in the parameter file
+ err=nf90_inquire(ncid, nDimensions=nDims, nVariables=nVars)
+ call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+ 
+ ! initialize the number of HRUs
+ nHRU_file=integerMissing
+
+ ! get the length of the dimensions
+ do idimid=1,nDims
+  ! get the dimension name and length
+  err=nf90_inquire_dimension(ncid, idimid, name=dimName, len=dimLength)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  exit
+  ! get the number of HRUs
+  if(trim(dimName)=='hru') nHRU_file=dimLength
  end do
- ! save the number of parameters
- nPars = size(varnames)
- ! check that there are at least 2 "words" -- must modify at least one parameter
- if (nPars < 2) return
-! if(nPars < 2)then
-!  message=trim(message)//'expect need to modify at least one parameter [file = '//trim(infile)//']'
-!  err=20; return
-! end if
- ! check that the first parameter is the HRU index
- if(varnames(1) /= 'hruIndex' .and. varnames(1) /= 'hruId')then
-  message=trim(message)//'expect first parameter name to be '//"'hruIndex' or 'hruId' [file = "//trim(infile)//']'
+
+ ! check HRU dimension exists
+ if(nHRU_file==integerMissing)then
+  message=trim(message)//'unable to identify HRU dimension in file '//trim(infile)
   err=20; return
- end if
+ endif
 
- ! **********************************************************************************************
- ! (3) read parameter data (continue reading from previous point in the file)
- ! **********************************************************************************************
- ! get a list of character strings from non-comment lines
- call get_vlines(unt,charline,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- nDataLine = size(charline)
+ ! check have the correct number of HRUs
+ if(nHRU_file/=nHRU)then
+  message=trim(message)//'incorrect number of HRUs in file '//trim(infile)
+  err=20; return
+ endif
+ 
+ ! loop through the parameters in the NetCDF file
+ do ivarid=1,nVars
 
- ! **********************************************************************************************
- ! (4) populate the model parameter vectors
- ! **********************************************************************************************
- ! initialize the check HRU vector
- foundHRU(:) = .false. ! logical array to ensure that all HRUs are populated
+  ! get the parameter name
+  err=nf90_inquire_variable(ncid, ivarid, name=parName)
+  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
 
- ! allocate space for the character data
- allocate(chardata(nPars),stat=err)
- if(err/=0)then;err=30;message=trim(message)//"problem: allocate chardata"; return; end if
+  ! **********************************************************************************************
+  ! * read the HRU index
+  ! **********************************************************************************************
 
- ! loop through the HRUs
- dataLineLoop: do iline=1,nDataLine
+  ! special case of the HRU id
+  if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
 
-  ! get the HRU index
-  read(charline(iline),*,iostat=err) hruIndex
-  if(err/=0)then;err=41;message=trim(message)//"problem: internal read [data='"//trim(charline(iline))//"']"; return; endif
+   ! read HRUs
+   err=nf90_get_var(ncid, ivarid, hruId)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-  ! identify the HRU index
-  hruLoop: do iHRU=1,nHRU
-   iGRU=index_map(iHRU)%gru_ix
-   localHRU=index_map(iHRU)%localHRU  
-   if(hruIndex == typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then    
-    if (foundHRU(iHRU)) then
-     err=51;message=trim(message)//"duplicate HRU found in the parameter file at line: "//new_line(' ')//charline(iline); return
-    else
-     foundHRU(iHRU) = .true. 
-     ! get the vector of parameters for a given layer, and the HRU index                                                            
-     read(charline(iline),*,iostat=err) chardata
-     if(err/=0)then;err=40;message=trim(message)//"problemInternalRead [data='"//trim(charline(iline))//"']"; return; endif                                                                                                                                  
-     ! loop through the model parameters
-     do ipar=2,nPars  ! start at #2 because the first "word" is the HRU index
-
-      ! get the variable index
-      jpar = get_ixparam(trim(varnames(ipar)))
-
-      ! if variable does not exist in mpar struc, try bpar struct
-      if(jpar<=0)then
-       jpar = get_ixbpar(trim(varnames(ipar)))
-
-       ! if not in either structure, then spit error
-       if (jpar<=0)then; err=40; message=trim(message)//"cannotFindVariableIndex[name='"//trim(varnames(ipar))//"']"; return; endif
-
-       ! populate the appropriate element of the basin par vector
-       read(chardata(ipar),*,iostat=err) bparStruct%gru(iGRU)%var(jpar)
-       if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
-      end if
-
-      ! populate the appropriate element of the local parameter vector
-      read(chardata(ipar),*,iostat=err) parData
-      if(err/=0)then;err=42;message=trim(message)//"problemInternalRead[data='"//trim(chardata(ipar))//"']"; return; endif
-
-      ! put the data in the structure
-      mparStruct%gru(iGRU)%hru(localHRU)%var(jpar)%dat(:) = parData
-
-     end do    ! (looping through model parameters)
-
-    end if 
-    exit hruLoop
-   endif
-  end do hruLoop
- end do dataLineLoop    ! (looping through HRUs)
-
- ! check that all HRUs are populated
- if(count(foundHRU) /= nHRU)then
-  do iHRU=1,nHRU
-   if(.not.foundHRU(iHRU))then
+   ! check HRUs  -- expect HRUs to be in the same order as the local attributes
+   do iHRU=1,nHRU
     iGRU=index_map(iHRU)%gru_ix
-    localHRU=index_map(iHRU)%localHRU   
-    write(message,'(a,i0,a)') trim(message)//'unable to identify HRU in parameter file [index = ',&
-                               typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex),'; file='//trim(infile)//']'
-    err=20; return
-   end if
-  end do  ! looping through HRUs
- end if   ! if some HRUs are not populated
+    localHRU=index_map(iHRU)%localHRU
+    if(hruId(iHRU) /= typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+     err=20; return
+    endif
+   end do  ! looping through HRUs
 
- ! **********************************************************************************************
- deallocate(varnames,charline,chardata,stat=err)
- if(err/=0)then;err=30;message=trim(message)//"problemDeallocate"; return; end if
- ! **********************************************************************************************
+  ! all other variables
+  else
+
+   ! **********************************************************************************************
+   ! * read the local parameters
+   ! **********************************************************************************************
+
+   ! get the local parameters
+   ixParam = get_ixparam( trim(parName) )
+   if(ixParam/=integerMissing)then
+
+    ! get the variable shape
+    err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  
+    ! get the length of the depth dimension (if it exists)
+    if(nDims==2)then
+  
+     ! get the information on the 2nd dimension for 2-d variables
+     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+     
+     ! check that it is the depth dimension
+     if(trim(dimName)/='depth')then
+      message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
+      err=20; return
+     endif
+  
+     ! check that the dimension length is correct
+     if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
+      message=trim(message)//'unexpected number of soil layers in parameter file'
+      err=20; return
+     endif
+ 
+     ! define parameter length
+     parLength = nSoil_file
+ 
+    else
+     parLength = 1
+    endif  ! if two dimensions
+  
+    ! allocate space for model parameters
+    allocate(parVector(parLength),stat=err)
+    if(err/=0)then
+     message=trim(message)//'problem allocating space for parameter vector'
+     err=20; return
+    endif
+
+    ! loop through HRUs
+    do iHRU=1,nHRU
+  
+     ! map to the GRUs and HRUs    
+     iGRU=index_map(iHRU)%gru_ix
+     localHRU=index_map(iHRU)%localHRU
+
+     ! read parameter data
+     select case(nDims)
+      case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/iHRU/), count=(/1/) )
+      case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/iHRU,1/), count=(/1,nSoil_file/) )
+      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+     end select
+
+     ! error check for the parameter read
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+     ! populate parameter structures
+     select case(nDims)
+      case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension 
+      case(2); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(:)
+      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+     end select
+
+    end do  ! looping through HRUs
+
+    ! deallocate space for model parameters
+    deallocate(parVector,stat=err)
+    if(err/=0)then
+     message=trim(message)//'problem deallocating space for parameter vector'
+     err=20; return
+    endif
+
+   ! **********************************************************************************************
+   ! * read the basin parameters
+   ! **********************************************************************************************
+
+   ! get the basin parameters
+   else
+
+    ! get the parameter index
+    ixParam = get_ixbpar( trim(parName) )
+
+    ! check that we found it
+    if(ixParam==integerMissing)then
+     message=trim(message)//'parameter '//trim(parName)//' does not exist in the local or basin parameter structure'
+     err=20; return
+    endif
+
+    ! *** NEED TO READ BASIN-AVERAGE PARAMETERS...
+
+
+    ! populate the parameter structure
+    bparStruct%gru(iGRU)%var(ixParam) = realMissing
+
+    ! deliberately spit the dummy
+    message=trim(message)//'gru parameters are not implemented yet'
+    err=20; return
+
+   endif  ! reading the basin parameters
+
+  endif  ! if a "regular" parameter (i.e., not the HRU index)
+
+ end do ! (looping through the parameters in the NetCDF file)
+
+ print*, 'mparStruct%gru(1)%hru(1)%var(iLookPARAM%theta_sat)%dat(:) = ', mparStruct%gru(1)%hru(1)%var(iLookPARAM%theta_sat)%dat(:)
 
  end subroutine read_param
 
