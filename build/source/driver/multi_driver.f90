@@ -683,19 +683,6 @@ outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
- ! set print flag
- globalPrintFlag=.false.
-
- ! print progress
- select case(ixProgress)
-  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_never); printProgress = .false.
-  case default; call handle_err(20,'unable to identify option for the restart file')
- end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-
  ! read forcing data 
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
@@ -716,6 +703,19 @@ do modelTimeStep=1,numtim
    call handle_err(err,message)
   end do 
  end do  ! (end looping through global GRUs)
+
+ ! set print flag
+ globalPrintFlag=.false.
+
+ ! print progress
+ select case(ixProgress)
+  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_never); printProgress = .false.
+  case default; call handle_err(20,'unable to identify option for the restart file')
+ end select
+ if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
