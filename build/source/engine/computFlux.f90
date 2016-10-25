@@ -249,13 +249,6 @@ contains
  ! snow parameters
  snowfrz_scale                => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)                  ,& ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
 
- ! soil parameters
- vGn_m                        => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)                     ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
- vGn_n                        => mpar_data%var(iLookPARAM%vGn_n)%dat(1)                          ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_alpha                    => mpar_data%var(iLookPARAM%vGn_alpha)%dat(1)                      ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
- theta_sat                    => mpar_data%var(iLookPARAM%theta_sat)%dat(1)                      ,&  ! intent(in): [dp] soil porosity (-)
- theta_res                    => mpar_data%var(iLookPARAM%theta_res)%dat(1)                      ,&  ! intent(in): [dp] soil residual volumetric water content (-)
-
  ! derivatives
  dPsiLiq_dPsi0                => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0   )%dat                 ,&  ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
  dPsiLiq_dTemp                => deriv_data%var(iLookDERIV%dPsiLiq_dTemp   )%dat                 ,&  ! intent(in):  [dp(:)] derivative in the liquid water matric potential w.r.t. temperature
@@ -821,7 +814,7 @@ contains
  real(dp),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
  real(dp),intent(in)            :: mLayerdTheta_dPsi(:)      ! derivative in the soil water characteristic (m-1)
  real(dp),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
- real(dp),intent(in)            :: theta_sat                 ! soil porosity (-)
+ real(dp),intent(in)            :: theta_sat(:)              ! soil porosity (-)
  ! output:
  real(dp),intent(out)           :: compress(:)               ! soil compressibility (-)
  real(dp),intent(out)           :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
@@ -841,13 +834,13 @@ contains
    ! compute the total volumetric fraction of water (-)
    volFracWat = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)
    ! compute the compressibility term (-)
-   compress(iLayer) = (specificStorage*volFracWat/theta_sat) * (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))
+   compress(iLayer) = (specificStorage*volFracWat/theta_sat(iLayer)) * (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))
    ! compute the derivative for the compressibility term (m-1)
-   fPart1 = specificStorage*(volFracWat/theta_sat)  ! function for the 1st part (m-1)
-   fPart2 = mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer)   ! function for the 2nd part (m)
-   dPart1 = mLayerdTheta_dPsi(iLayer)*specificStorage/theta_sat        ! derivative for the 1st part (m-2)
-   dPart2 = 1._dp                                                      ! derivative for the 2nd part (-)
-   dCompress_dPsi(iLayer) = fPart1*dPart2 + dPart1*fPart2              ! m-1
+   fPart1 = specificStorage*(volFracWat/theta_sat(iLayer))  ! function for the 1st part (m-1)
+   fPart2 = mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer)     ! function for the 2nd part (m)
+   dPart1 = mLayerdTheta_dPsi(iLayer)*specificStorage/theta_sat(iLayer)  ! derivative for the 1st part (m-2)
+   dPart2 = 1._dp                                                        ! derivative for the 2nd part (-)
+   dCompress_dPsi(iLayer) = fPart1*dPart2 + dPart1*fPart2                ! m-1
   end do
  else
   compress(:)       = 0._dp

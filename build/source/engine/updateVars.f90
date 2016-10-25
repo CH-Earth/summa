@@ -208,13 +208,14 @@ contains
  ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):  [i4b(:)] [state subset] id of domain for desired model state variables
  ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):  [i4b(:)] index of the control volume for different domains (veg, snow, soil)
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):  [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
- ! model parameters
- vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,& ! intent(in):  [dp] van Genutchen "m" parameter (-)
- vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat(1)                 ,& ! intent(in):  [dp] van Genutchen "n" parameter (-)
- vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat(1)             ,& ! intent(in):  [dp] van Genutchen "alpha" parameter (m-1)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat(1)             ,& ! intent(in):  [dp] soil porosity (-)
- theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat(1)             ,& ! intent(in):  [dp] soil residual volumetric water content (-)
+ ! snow parameters
  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
+ ! depth-varying model parameters
+ vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat               ,& ! intent(in):  [dp(:)] van Genutchen "m" parameter (-)
+ vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):  [dp(:)] van Genutchen "n" parameter (-)
+ vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):  [dp(:)] van Genutchen "alpha" parameter (m-1)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in):  [dp(:)] soil porosity (-)
+ theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in):  [dp(:)] soil residual volumetric water content (-)
  ! model diagnostic variables (heat capacity)
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):  [dp   ] canopy depth (m)
  scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in):  [dp   ] volumetric heat capacity of the vegetation (J m-3 K-1)
@@ -333,18 +334,18 @@ contains
     select case( ixStateType(ixFullVector) )
      ! --> update the total water from the liquid water matric potential
      case(iname_lmpLayer)
-      effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! effective saturation
-      avPore = theta_sat - mLayerVolFracIceTrial(iLayer) - theta_res  ! available pore space
-      mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res
+      effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._dp,1._dp,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
+      avPore = theta_sat(ixControlIndex) - mLayerVolFracIceTrial(iLayer) - theta_res(ixControlIndex)  ! available pore space
+      mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
       mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
-      mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+      mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) 
       !write(*,'(a,1x,i4,1x,3(f20.10,1x))') 'mLayerVolFracLiqTrial(iLayer) 1 = ', iLayer, mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer), mLayerVolFracWatTrial(iLayer)
      ! --> update the total water from the total water matric potential
      case(iname_matLayer)
-      mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
      ! --> update the total water matric potential (assume already have mLayerVolFracWatTrial given block above)
      case(iname_liqLayer, iname_watLayer)
-      mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+      mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) 
      case default; err=20; message=trim(message)//'expect iname_lmpLayer, iname_matLayer, iname_liqLayer, or iname_watLayer'; return
     end select
    endif  ! if in the soil domain
@@ -386,8 +387,8 @@ contains
    ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi
    if(ixDomainType==iname_soil)then
     select case( ixStateType(ixFullVector) )
-     case(iname_lmpLayer); dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)*avPore
-     case default;         dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     case(iname_lmpLayer); dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._dp,1._dp,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+     case default;         dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
     end select
    endif
 
@@ -404,7 +405,7 @@ contains
     select case(ixDomainType)
      case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth)
      case(iname_snow); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
-     case(iname_soil); mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
+     case(iname_soil); mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
     end select  ! domain type
 
@@ -481,13 +482,13 @@ contains
      case(iname_soil)
    
       ! compute volumetric fraction of liquid water and ice
-      call updateSoil(xTemp,                                        & ! intent(in)   : temperature (K)
-                      mLayerMatricHeadTrial(ixControlIndex),        & ! intent(in)   : total water matric potential (m)
-                      vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,    & ! intent(in)   : soil parameters
-                      mLayerVolFracWatTrial(iLayer),                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
-                      mLayerVolFracLiqTrial(iLayer),                & ! intent(out)  : trial volumetric fraction of liquid water (-)
-                      mLayerVolFracIceTrial(iLayer),                & ! intent(out)  : trial volumetric fraction if ice (-)
-                      err,cmessage)                                   ! intent(out)  : error control
+      call updateSoil(xTemp,                                                                                                                        & ! intent(in)   : temperature (K)
+                      mLayerMatricHeadTrial(ixControlIndex),                                                                                        & ! intent(in)   : total water matric potential (m)
+                      vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex),    & ! intent(in)   : soil parameters
+                      mLayerVolFracWatTrial(iLayer),                                                                                                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
+                      mLayerVolFracLiqTrial(iLayer),                                                                                                & ! intent(out)  : trial volumetric fraction of liquid water (-)
+                      mLayerVolFracIceTrial(iLayer),                                                                                                & ! intent(out)  : trial volumetric fraction if ice (-)
+                      err,cmessage)                                                                                                                   ! intent(out)  : error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! check
@@ -630,7 +631,7 @@ contains
   if(ixDomainType==iname_soil)then
 
    ! check liquid water
-   if(mLayerVolFracLiqTrial(iLayer) > theta_sat)then
+   if(mLayerVolFracLiqTrial(iLayer) > theta_sat(ixControlIndex) )then
     message=trim(message)//'liquid water greater than porosity'
     err=20; return
    endif
@@ -648,17 +649,17 @@ contains
     ! compute the liquid matric potential (and the derivatives w.r.t. total matric potential and temperature)
     call liquidHead(&
                     ! input
-                    mLayerMatricHeadTrial(ixControlIndex)    ,& ! intent(in)    : total water matric potential (m)
-                    mLayerVolFracLiqTrial(iLayer)            ,& ! intent(in)    : volumetric fraction of liquid water (-)
-                    mLayerVolFracIceTrial(iLayer)            ,& ! intent(in)    : volumetric fraction of ice (-)
-                    vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,& ! intent(in)    : soil parameters
-                    dVolTot_dPsi0(ixControlIndex)            ,& ! intent(in)    : derivative in the soil water characteristic (m-1)
-                    mLayerdTheta_dTk(iLayer)                 ,& ! intent(in)    : derivative in volumetric total water w.r.t. temperature (K-1)
+                    mLayerMatricHeadTrial(ixControlIndex)                                                                                     ,& ! intent(in) : total water matric potential (m)
+                    mLayerVolFracLiqTrial(iLayer)                                                                                             ,& ! intent(in) : volumetric fraction of liquid water (-)
+                    mLayerVolFracIceTrial(iLayer)                                                                                             ,& ! intent(in) : volumetric fraction of ice (-)
+                    vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in) : soil parameters
+                    dVolTot_dPsi0(ixControlIndex)                                                                                             ,& ! intent(in) : derivative in the soil water characteristic (m-1)
+                    mLayerdTheta_dTk(iLayer)                                                                                                  ,& ! intent(in) : derivative in volumetric total water w.r.t. temperature (K-1)
                     ! output
-                    mLayerMatricHeadLiqTrial(ixControlIndex) ,& ! intent(out)   : liquid water matric potential (m)
-                    dPsiLiq_dPsi0(ixControlIndex)            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
-                    dPsiLiq_dTemp(ixControlIndex)            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. temperature (m K-1)
-                    err,cmessage)                               ! intent(out)   : error control
+                    mLayerMatricHeadLiqTrial(ixControlIndex)                                                                                  ,& ! intent(out): liquid water matric potential (m)
+                    dPsiLiq_dPsi0(ixControlIndex)                                                                                             ,& ! intent(out): derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
+                    dPsiLiq_dTemp(ixControlIndex)                                                                                             ,& ! intent(out): derivative in the liquid water matric potential w.r.t. temperature (m K-1)
+                    err,cmessage)                                                                                                                ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    endif  ! switch between hydrology and energy state

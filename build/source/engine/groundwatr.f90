@@ -160,13 +160,13 @@ contains
 
  ! input: baseflow parameters
  fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),         & ! intent(in): [dp] field capacity (-)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat(1),             & ! intent(in): [dp] soil porosity (-)
- theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat(1),             & ! intent(in): [dp] residual volumetric water content (-)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                & ! intent(in): [dp] soil porosity (-)
+ theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                & ! intent(in): [dp] residual volumetric water content (-)
 
  ! input: van Genuchten soil parametrers
- vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat(1),             & ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
- vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat(1),                 & ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),            & ! intent(in): [dp] van Genutchen "m" parameter (-)
+ vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                & ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
+ vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                    & ! intent(in): [dp] van Genutchen "n" parameter (-)
+ vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat,               & ! intent(in): [dp] van Genutchen "m" parameter (-)
 
  ! output: diagnostic variables
  scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),     & ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
@@ -246,7 +246,7 @@ contains
    mLayerMatricHeadPerturbed(iLayer) = mLayerMatricHeadPerturbed(iLayer) + dx
 
    ! compute the columetruc liquid water content
-   mLayerVolFracLiqPerturbed(iLayer) = volFracLiq(mLayerMatricHeadPerturbed(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   mLayerVolFracLiqPerturbed(iLayer) = volFracLiq(mLayerMatricHeadPerturbed(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
 
    ! compute baseflow flux
    ! NOTE: This is an optional second call to computeBaseflow that is invoked when computing numerical derivatives.
@@ -337,7 +337,7 @@ contains
  ! * local variables
  ! ---------------------------------------------------------------------------------------
  ! general local variables
- integer(i4b)                    :: iLayer,jLayer,kLayer     ! index of model layer
+ integer(i4b)                    :: iLayer,jLayer            ! index of model layer
  ! local variables for the exfiltration
  real(dp)                        :: totalColumnInflow        ! total column inflow (m s-1)
  real(dp)                        :: totalColumnOutflow       ! total column outflow (m s-1)
@@ -362,11 +362,7 @@ contains
  real(dp),dimension(nSoil)       :: dExfiltrate_dVolLiq      ! derivative in exfiltration w.r.t. volumetric liquid water content (-)
  ! local variables for testing (debugging)
  logical(lgt),parameter          :: printFlag=.false.        ! flag for printing (debugging)
- logical(lgt),parameter          :: testDerivatives=.false.  ! flag to test derivatives (debugging)
  real(dp)                        :: xDepth,xTran,xFlow       ! temporary variables (depth, transmissivity, flow)
- real(qp)                        :: dPart0,dPart1,dPart2,dPart3  ! derivatives for part of a function
- real(qp)                        :: f0,f1                    ! different function evaluations
- real(qp)                        :: t0,t1,tOld               ! different function evaluations
  ! ---------------------------------------------------------------------------------------
  ! * association to data in structures
  ! ---------------------------------------------------------------------------------------
@@ -386,10 +382,10 @@ contains
  contourLength           => attr_data%var(iLookATTR%contourLength),                   & ! intent(in): [dp] length of contour at downslope edge of HRU (m)
 
  ! input: baseflow parameters
- zScale_TOPMODEL         => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),         & ! intent(in): [dp] TOPMODEL exponent (-)
- kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in): [dp] anisotropy factor for lateral hydraulic conductivity (-
- fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in): [dp] field capacity (-)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat(1),               & ! intent(in): [dp] soil porosity (-)
+ zScale_TOPMODEL         => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),         & ! intent(in): [dp]    TOPMODEL exponent (-)
+ kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in): [dp]    anisotropy factor for lateral hydraulic conductivity (-
+ fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in): [dp]    field capacity (-)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                  & ! intent(in): [dp(:)] soil porosity (-)
 
  ! output: diagnostic variables
  scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),       & ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
@@ -404,14 +400,14 @@ contains
  ! (1) compute the baseflow flux in each soil layer
  ! ***********************************************************************************************************************
 
- ! compute the porosity and the maximum transmissivity
+ ! compute the maximum transmissivity
  ! NOTE: this can be done as a pre-processing step
- activePorosity = theta_sat - fieldCapacity                               ! "active" porosity (-)
- tran0          = kAnisotropic*surfaceHydCond*soilDepth/zScale_TOPMODEL   ! maximum transmissivity (m2 s-1)
+ tran0 = kAnisotropic*surfaceHydCond*soilDepth/zScale_TOPMODEL   ! maximum transmissivity (m2 s-1)
 
  ! compute the water table thickness (m) and transmissivity in each layer (m2 s-1)
  do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
   ! define drainable water in each layer (m)
+  activePorosity = theta_sat(iLayer) - fieldCapacity ! "active" porosity (-)
   drainableWater = mLayerDepth(iLayer)*(max(0._dp,mLayerVolFracLiq(iLayer) - fieldCapacity))/activePorosity
   ! compute layer transmissivity
   if(iLayer==nSoil)then
@@ -451,17 +447,6 @@ contains
   logF = 1._dp / (1._dp + expF)
   ! (compute the derivative in the logistic function w.r.t. volumetric liquid water content in each soil layer)
   dLogFunc_dLiq(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._dp + expF)**2._dp
-  ! (test the derivative)
-  !if(testDerivatives)then
-  ! do iLayer=1,nSoil
-  !  mLayerVolFracLiqCopy(:) = mLayerVolFracLiq(:)
-  !  mLayerVolFracLiqCopy(iLayer) = mLayerVolFracLiq(iLayer) + dx
-  !  t1 = sum(mLayerDepth(1:nSoil)*(theta_sat - (mLayerVolFracLiqCopy(1:nSoil)+mLayerVolFracIce(1:nSoil))) )
-  !  f1 = 1._dp / (1._dp + exp((t1 - xCenter)/xWidth))
-  !  write(*,'(a,1x,i4,1x,10(f30.20,1x))') 'iLayer, dLogFunc_dLiq(iLayer), (f1 - logF)/dx = ', iLayer, dLogFunc_dLiq(iLayer), (f1 - logF)/dx
-  ! end do  ! (testing derivative for individual soil layers)
-  ! !pause ' check logistic'
-  !end if
  else
   logF             = 0._dp
   dLogFunc_dLiq(:) = 0._dp
@@ -492,12 +477,12 @@ contains
 
  ! test
  if(printFlag)then
-  xDepth = sum(mLayerDepth(ixSaturation:nSoil)*(mLayerVolFracLiq(ixSaturation:nSoil) - fieldCapacity))/activePorosity  ! "effective" water table thickness (m)
+  xDepth = sum(mLayerDepth(ixSaturation:nSoil)*(mLayerVolFracLiq(ixSaturation:nSoil) - fieldCapacity))/sum(theta_sat(ixSaturation:nSoil) - fieldCapacity)  ! "effective" water table thickness (m)
   xTran  = tran0*(xDepth/soilDepth)**zScale_TOPMODEL  ! transmissivity for the entire aquifer (m2 s-1)
   xFlow  = xTran*tan_slope*contourLength/HRUarea   ! total column outflow (m s-1)
   print*, 'ixSaturation = ', ixSaturation
+  write(*,'(a,1x,5(f30.20,1x))') 'tran0, soilDepth                 = ', tran0, soilDepth
   write(*,'(a,1x,5(f30.20,1x))') 'surfaceHydCond, zScale_TOPMODEL  = ', surfaceHydCond, zScale_TOPMODEL
-  write(*,'(a,1x,5(f30.20,1x))') 'tran0, activePorosity, soilDepth = ', tran0, activePorosity, soilDepth
   write(*,'(a,1x,5(f30.20,1x))') 'xDepth, zActive(ixSaturation)    = ', xDepth, zActive(ixSaturation)
   write(*,'(a,1x,5(f30.20,1x))') 'xTran, trTotal(ixSaturation)     = ', xTran, trTotal(ixSaturation)
   write(*,'(a,1x,5(f30.20,1x))') 'xFlow, totalColumnOutflow        = ', xFlow, sum(mLayerColumnOutflow(:))/HRUarea
@@ -518,7 +503,7 @@ contains
  length2area = tan_slope*contourLength/HRUarea
 
  ! compute the ratio of layer depth to maximum water holding capacity (-)
- depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/(activePorosity*soilDepth)
+ depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/sum( (theta_sat(1:nSoil) - fieldCapacity)*mLayerDepth(1:nSoil) )
 
  ! compute the change in dimensionless flux w.r.t. change in dimensionless storage (-)
  dXdS(1:nSoil) = zScale_TOPMODEL*(zActive(1:nSoil)/SoilDepth)**(zScale_TOPMODEL - 1._dp)
@@ -540,60 +525,6 @@ contains
   end do  ! looping through soil layers
   dBaseflow_dVolLiq(1,1:nSoil) = dBaseflow_dVolLiq(1,1:nSoil) - dExfiltrate_dVolLiq(1:nSoil)
  end if
-
-
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
- ! ***********************************************************************************************************************
-
- ! test derivatives
- if(testDerivatives)then
-
-  iLayer = 1
-  jLayer = 6
-
-  ! compute analytical derivatives for baseflow w.r.t. volumetric liquid water content (m s-1)
-  dPart1 = mLayerDepth(iLayer)/(activePorosity*soilDepth)
-  dPart2 = tran0*zScale_TOPMODEL*(zActive(iLayer)/SoilDepth)**(zScale_TOPMODEL - 1._dp)
-  write(*,'(a,1x,e20.10,1x)') 'anal deriv   = ', dPart1*dPart2*tan_slope*contourLength/HRUarea
-
-  ! check x-derivative terms....
-
-  ! check water table depth
-  f0 = zActive(iLayer)
-  if(jLayer<nSoil)then
-   f1 = zActive(jLayer+1) + mLayerDepth(jLayer)*((mLayerVolFracLiq(jLayer)+dx) - fieldCapacity)/activePorosity
-  else
-   f1 = mLayerDepth(jLayer)*((mLayerVolFracLiq(jLayer)+dx) - fieldCapacity)/activePorosity
-  end if
-  if(jLayer==iLayer+1) tOld = tran0*(f1/soilDepth)**zScale_TOPMODEL
-  do kLayer=jLayer-1,iLayer,-1
-   f1 = f1 + mLayerDepth(kLayer)*(mLayerVolFracLiq(kLayer) - fieldCapacity)/activePorosity
-   if(kLayer==iLayer+1) tOld = tran0*(f1/soilDepth)**zScale_TOPMODEL
-  end do
-  write(*,'(a,1x,e20.10,1x)') '(f1 - f0)/dx                       = ', (f1 - f0)/dx
-  write(*,'(a,1x,e20.10,1x)') 'mLayerDepth(jLayer)/activePorosity = ', mLayerDepth(jLayer)/activePorosity
-
-  ! check total transmissivity
-  t0 = (tran0*(f0/soilDepth)**zScale_TOPMODEL - trTotal(iLayer+1))*tan_slope*contourLength
-  t1 = (tran0*(f1/soilDepth)**zScale_TOPMODEL - tOld             )*tan_slope*contourLength
-  write(*,'(a,1x,2(f20.15,1x))') 'f0, f1    = ', f0, f1
-  write(*,'(a,1x,2(f20.15,1x))') 't0, t1    = ', t0, t1
-  write(*,'(a,1x,e20.10,1x)') '(t1 - t0)/dx = ', (t1 - t0)/dx
-
-  dPart0 = mLayerDepth(jLayer)/(activePorosity*SoilDepth)
-  dPart1 = tan_slope*contourLength*tran0
-  dPart2 = zScale_TOPMODEL*(zActive(iLayer)/SoilDepth)**(zScale_TOPMODEL - 1._dp)
-  dPart3 = zScale_TOPMODEL*(zActive(iLayer+1)/SoilDepth)**(zScale_TOPMODEL - 1._dp)
-
-  write(*,'(a,1x,2(e20.10,1x))') 'dPart0, depth2capacity(jLayer) = ', dPart0, depth2capacity(jLayer)
-  write(*,'(a,1x,2(e20.10,1x))') 'dPart1/HRUarea, tran0*tan_slope*contourLength/HRUarea = ', dPart1/HRUarea, tran0*tan_slope*contourLength/HRUarea
-  write(*,'(a,1x,2(e20.10,1x))') 'dPart2 - dPart3, dXdS(iLayer) - dXdS(iLayer+1) = ', dPart2 - dPart3, dXdS(iLayer) - dXdS(iLayer+1)
-  write(*,'(a,1x,2(e20.10,1x))') 'anal x-deriv   = ', dPart0*dPart1*(dPart2 - dPart3)/HRUarea, dBaseflow_dVolLiq(iLayer,jLayer) + dExfiltrate_dVolLiq(jLayer)
-  !pause ' check x-deriv'
-
- end if  ! if testing derivatives
 
  ! end association to data in structures
  end associate

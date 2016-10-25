@@ -222,11 +222,7 @@ contains
  ! snow parameters
  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,&  ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
  ! soil parameters
- vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,&  ! intent(in):  [dp]    van Genutchen "m" parameter (-)
- vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat(1)                 ,&  ! intent(in):  [dp]    van Genutchen "n" parameter (-)
- vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat(1)             ,&  ! intent(in):  [dp]    van Genutchen "alpha" parameter (m-1)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat(1)             ,&  ! intent(in):  [dp]    soil porosity (-)
- theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat(1)             ,&  ! intent(in):  [dp]    soil residual volumetric water content (-)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,&  ! intent(in):  [dp(:)] soil porosity (-)
  specificStorage         => mpar_data%var(iLookPARAM%specificStorage)%dat(1)       ,&  ! intent(in):  [dp]    specific storage coefficient (m-1)
  ! canopy and layer depth
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in):  [dp   ] canopy depth (m)
@@ -290,12 +286,12 @@ contains
   if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
 
    ! --> minimum
-   xMin = merge(theta_sat, 0._dp, layerType(iLayer)==iname_soil)
+   xMin = merge(theta_sat(iLayer-nSnow), 0._dp, layerType(iLayer)==iname_soil)
 
    ! --> maximum
    select case( layerType(iLayer) )
     case(iname_snow); xMax = merge(iden_ice,  mLayerPoreSpace(iLayer), ixHydType(iLayer)==iname_watLayer)
-    case(iname_soil); xMax = merge(theta_sat, theta_sat - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+    case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
    end select
 
    ! --> check

@@ -442,18 +442,6 @@ contains
  ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
  subroutine v_shortcut(mpar_data,diag_data,err,message)
- ! used to compute derived model variables
- USE multiconst, only:&
-                       LH_fus,    &            ! latent heat of fusion                (J kg-1)
-                       Cp_air,    &            ! specific heat of air                 (J kg-1 K-1)
-                       Cp_ice,    &            ! specific heat of ice                 (J kg-1 K-1)
-                       Cp_soil,   &            ! specific heat of soil                (J kg-1 K-1)
-                       Cp_water,  &            ! specific heat of liquid water        (J kg-1 K-1)
-                       iden_air,  &            ! intrinsic density of air             (kg m-3)
-                       iden_ice,  &            ! intrinsic density of ice             (kg m-3)
-                       iden_water,&            ! intrinsic density of liquid water    (kg m-3)
-                       gravity,   &            ! gravitational acceleration           (m s-2)
-                       Tfreeze                 ! freezing point of pure water         (K)
  ! named variables
  USE var_lookup,only:iLookPARAM,iLookDIAG      ! named variables for structure elements
  ! data types
@@ -465,55 +453,19 @@ contains
  ! declare output variables
  integer(i4b),intent(out)        :: err             ! error code
  character(*),intent(out)        :: message         ! error message
- ! declare local variables
- real(dp)                        :: bulkden_soil    ! bulk density of soil (kg m-3)
  ! initialize error control
  err=0; message='v_shortcut/'
  ! ----------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
  ! associate values in the parameter structures
- iden_soil      =>mpar_data%var(iLookPARAM%soil_dens_intr)%dat(1),      & ! intrinsic soil density (kg m-3)
- frac_sand      =>mpar_data%var(iLookPARAM%frac_sand)%dat(1),           & ! fraction of sand (-)
- frac_silt      =>mpar_data%var(iLookPARAM%frac_silt)%dat(1),           & ! fraction of silt (-)
- frac_clay      =>mpar_data%var(iLookPARAM%frac_clay)%dat(1),           & ! fraction of clay (-)
- theta_sat      =>mpar_data%var(iLookPARAM%theta_sat)%dat(1),           & ! soil porosity (-)
- vGn_n          =>mpar_data%var(iLookPARAM%vGn_n)%dat(1),               & ! van Genutchen "n" parameter (-)
- ! associate values in the model variable structures
- vGn_m          =>diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),          & ! van Genutchen "m" parameter (-)
- kappa          =>diag_data%var(iLookDIAG%scalarKappa)%dat(1),          & ! constant in the freezing curve function (m K-1)
- volHtCap_air   =>diag_data%var(iLookDIAG%scalarVolHtCap_air)%dat(1),   & ! volumetric heat capacity of air (J m-3 K-1)
- volHtCap_ice   =>diag_data%var(iLookDIAG%scalarVolHtCap_ice)%dat(1),   & ! volumetric heat capacity of ice (J m-3 K-1)
- volHtCap_soil  =>diag_data%var(iLookDIAG%scalarVolHtCap_soil)%dat(1),  & ! volumetric heat capacity of soil (J m-3 K-1)
- volHtCap_water =>diag_data%var(iLookDIAG%scalarVolHtCap_water)%dat(1), & ! volumetric heat capacity of water (J m-3 K-1)
- volLatHt_fus   =>diag_data%var(iLookDIAG%scalarvolLatHt_fus)%dat(1),   & ! volumetric latent heat of fusion (J m-3)
- lambda_drysoil =>diag_data%var(iLookDIAG%scalarLambda_drysoil)%dat(1), & ! thermal conductivity of dry soil (W m-1)
- lambda_wetsoil =>diag_data%var(iLookDIAG%scalarLambda_wetsoil)%dat(1)  & ! thermal conductivity of wet soil (W m-1)
+ vGn_n          =>mpar_data%var(iLookPARAM%vGn_n)%dat,                  & ! van Genutchen "n" parameter (-)
+ vGn_m          =>diag_data%var(iLookDIAG%scalarVGn_m)%dat              & ! van Genutchen "m" parameter (-)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
- ! ************************************************************************************************************************
  ! compute the van Genutchen "m" parameter
  vGn_m = 1._dp - 1._dp/vGn_n
- ! ************************************************************************************************************************
- ! compute the constant in the freezing curve function (m K-1)
- kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
- ! ************************************************************************************************************************
- ! compute volumetric heat capacity (J m-3 K-1)
- volHtCap_air   = iden_air   * Cp_air
- volHtCap_ice   = iden_ice   * Cp_Ice
- volHtCap_soil  = iden_soil  * Cp_soil
- volHtCap_water = iden_water * Cp_water
- ! compute the thermal conductivity of dry and wet soils (W m-1)
- bulkden_soil   = iden_soil*(1._dp - theta_sat)
- lambda_drysoil = (0.135_dp*bulkden_soil + 64.7_dp) / (iden_soil - 0.947_dp*bulkden_soil)
- lambda_wetsoil = (8.80_dp*frac_sand + 2.92_dp*frac_clay) / (frac_sand + frac_clay)
- !print*, 'frac_sand, frac_silt, frac_clay = ', frac_sand, frac_silt, frac_clay
- !print*, 'lambda_drysoil, lambda_wetsoil = ', lambda_drysoil, lambda_wetsoil
- !print*, 'volHtCap_soil = ', volHtCap_soil
- ! compute the volumetric latent heat of fusion (J m-3)
- volLatHt_fus = iden_ice   * LH_fus
- ! ************************************************************************************************************************
  end associate
 
  end subroutine v_shortcut

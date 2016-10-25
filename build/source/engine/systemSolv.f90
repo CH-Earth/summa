@@ -938,8 +938,8 @@ contains
 
  ! make association with model indices defined in indexSplit
  associate(&
-  theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat(1),         & ! intent(in): [dp]     soil porosity (-)
-  theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat(1),         & ! intent(in): [dp]     soil residual volumetric water content (-)
+  theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in): [dp]     soil porosity (-)
+  theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat,            & ! intent(in): [dp]     soil residual volumetric water content (-)
   mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,      & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
   ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,      & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
   ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,     & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
@@ -978,8 +978,8 @@ contains
      valueMin = 0._dp
      valueMax = merge(iden_ice/iden_water, 1._dp - mLayerVolFracIce(ixControlIndex), ixStateType_subset(iState)==iname_watLayer)
     case(iname_soil)
-     valueMin = theta_res
-     valueMax = theta_sat
+     valueMin = theta_res(ixControlIndex)
+     valueMax = theta_sat(ixControlIndex)
     case default; err=20; message=trim(message)//'expect domain type to be iname_snow or iname_soil'; return
    end select
    if(stateVecNew(iState) < valueMin)then
