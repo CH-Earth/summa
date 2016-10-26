@@ -301,7 +301,10 @@ contains
                   tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                   niter,             & ! intent(out):   number of iterations taken
                   err,cmessage)        ! intent(out):   error code and error message
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then
+   message=trim(message)//trim(cmessage)
+   if(err>0) return
+  endif
 
   ! if too much melt or need to reduce length of the coupled step then return
   ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
@@ -388,7 +391,10 @@ contains
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                       & ! input-output: data structures
                   waterBalanceError,nrgFluxModified,err,cmessage)                                                       ! output: flags and error control
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then
+   message=trim(message)//trim(cmessage)
+   if(err>0) return
+  endif
 
   ! if water balance error then reduce the length of the coupled step
   if(waterBalanceError)then
@@ -581,6 +587,9 @@ contains
  ! initialize error control
  err=0; message='updateProg/'
 
+ ! initialize water balance error
+ waterBalanceError=.false.
+
  ! get storage at the start of the step
  canopyBalance0 = merge(scalarCanopyWat, realMissing, computeVegFlux)
  soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers)  + mLayerVolFracIce(nSnow+1:nLayers)  )*mLayerDepth(nSnow+1:nLayers) )
@@ -652,9 +661,6 @@ contains
  ! -----
  ! * check mass balance...
  ! -----------------------
-
- ! initialize water balance error
- waterBalanceError=.false.
 
  ! NOTE: should not need to do this, since mass balance is checked in the solver
  if(checkMassBalance)then
