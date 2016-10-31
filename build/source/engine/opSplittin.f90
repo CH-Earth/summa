@@ -564,11 +564,16 @@ contains
                       reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                       tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                       err,cmessage)                 ! intent(out)   : error code and error message
-      if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
+      if(err/=0)then
+       message=trim(message)//trim(cmessage)
+       if(err>0) return
+      endif  ! (check for errors)
 
       ! check 
       if(globalPrintFlag .and. ixSolution>splitStateType)then
        print*, 'dt = ', dt
+       print*, 'after varSubstep: err            = ', err
+       print*, 'after varSubstep: cmessage       = ', trim(cmessage)
        print*, 'after varSubstep: stateMask      = ', stateMask
        print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
