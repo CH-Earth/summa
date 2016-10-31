@@ -155,7 +155,7 @@ contains
    !print*, 'volFracIceLoss = ', volFracIceLoss
   else
    scalarDepthNew = mLayerDepth(iSnow)
-  endif
+  end if
   ! compute the total compaction rate associated with metamorphism
   CR_metamorph = CR_grainGrowth + CR_ovrvdnPress
   ! update depth due to metamorphism (implicit solution)

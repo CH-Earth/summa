@@ -52,10 +52,4 @@ MODULE multiconst
  REAL(DP), PARAMETER           :: secprhour      = 3600._dp     ! number of seconds in an hour
  REAL(DP), PARAMETER           :: secprmin       = 60._dp       ! number of seconds in a minute
  REAL(DP), PARAMETER           :: minprhour      = 60._dp       ! number of minutes in an hour
-
-! define missing values
-real(dp),parameter,public      :: quadMissing    = -9999._qp    ! missing quadruple precision number
-real(dp),parameter,public      :: realMissing    = -9999._dp    ! missing double precision number
-integer(i4b),parameter,public  :: integerMissing = -9999        ! missing integer 
-
 END MODULE multiconst

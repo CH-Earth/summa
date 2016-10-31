@@ -176,27 +176,8 @@ contains
    ! increment iFile so we open next forcing file
    iFile = iFile+1
 
+   ! open up the forcing file
    call openForcingFile()
-
-   ! get definition of time data
-   err = nf90_inq_varid(ncid,'time',varId);              if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
-   err = nf90_get_att(ncid,varid,'units',refTimeString); if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
-  
-   ! define the reference time for the model simulation
-   call extractTime(refTimeString, iyyy, im, id, ih, imin, dsec, err, cmessage)    
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  
-   ! convert the reference time to days since the beginning of time
-   call compjulday(iyyy, im, id, ih, imin, dsec, refJulDay, err, cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-   ! get the time multiplier needed to convert time to units of days
-   select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
-    case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._dp
-    case('hours');   forcFileInfo(iFile)%convTime2Days=24._dp
-    case('days');    forcFileInfo(iFile)%convTime2Days=1._dp
-    case default;    message=trim(message)//'unable to identify time units'; err=20; return
-   end select
 
    ! reset iRead since we opened a new file
    iRead=1

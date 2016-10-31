@@ -1231,8 +1231,12 @@ contains
  ! dump variables
  print*, 'error, variable dump:'
  if(allocated(timeStruct%var))then
+  ! print time step
+  print*, 'modelTimeStep = ', modelTimeStep
+  ! print information for the HRUs
   if(iGRU<=nGRU)then
    if(iHRU<=gru_struc(iGRU)%hruCount)then
+    print*, 'initial time step  = ', dt_init(iGRU)%hru(iHRU)
     print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
     print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
     print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)

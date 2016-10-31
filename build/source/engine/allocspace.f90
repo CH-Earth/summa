@@ -48,18 +48,14 @@ USE data_types,only:&
 USE data_types,only:var_info               ! data type for metadata
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
 
 implicit none
 private
 public::allocGlobal
 public::allocLocal
 public::resizeData
-
-! define missing values
-integer(i4b),parameter :: missingInteger=-9999
-real(dp),parameter     :: missingDouble=-9999._dp
 
 ! define fixed dimensions
 integer(i4b),parameter :: nBand=2         ! number of spectral bands
@@ -566,7 +562,7 @@ contains
    ! check error
    if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; end if
    ! set to missing
-   varData%var(iVar)%dat(:) = missingDouble
+   varData%var(iVar)%dat(:) = realMissing
   end if  ! if not allocated
 
  end do  ! looping through variables
@@ -628,7 +624,7 @@ contains
    ! check error
    if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; end if
    ! set to missing
-   varData%var(iVar)%dat(:) = missingInteger
+   varData%var(iVar)%dat(:) = integerMissing
   end if  ! if not allocated
 
  end do  ! looping through variables
