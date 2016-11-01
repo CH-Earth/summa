@@ -19,9 +19,9 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module modelwrite_module
-USE nrtype
 USE netcdf
 USE netcdf_util_module,only:netcdf_err                    ! netcdf error handling function
+USE nrtype, integerMissing=>nr_integerMissing             ! top-level data types
 implicit none
 private
 public::writeParm
@@ -39,7 +39,6 @@ contains
  subroutine writeParm(iHRU,dat,meta,err,message)
  USE data_types,only:var_info,var_d,var_i        ! metadata structure type
  USE var_lookup,only:iLookStat                   ! to index into write flag
- USE multiconst,only:integerMissing
  USE globalData,only:ncid                        ! netcdf file ids
  implicit none
 

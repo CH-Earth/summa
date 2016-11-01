@@ -1,5 +1,5 @@
 module popMetadat_module
-USE nrtype
+USE nrtype, integerMissing=>nr_integerMissing
 implicit none
 ! define indices in metadata structures
 integer(i4b),parameter   :: modelTime=1     ! to force index variables to be output at model timestep
@@ -17,7 +17,6 @@ public::popMetadat
 contains
 
  subroutine popMetadat(err,message)
- USE multiconst,only:integerMissing
  ! data structures
  USE data_types, only: var_info   ! data type for metadata structure
  USE globalData, only: time_meta  ! data structure for time metadata
@@ -659,7 +658,6 @@ contains
  ! subroutine to populate write commands from file input
  ! ------------------------------------------------
  subroutine read_output_file(err,message)
- USE multiconst,only:integerMissing
  USE get_ixName_module,only:get_ixUnknown
 
  ! some dimensional parameters

@@ -20,8 +20,7 @@
 
 MODULE var_lookup
  ! defines named variables used to index array elements
- USE nrtype
- USE multiconst,only:integerMissing 
+ USE nrtype, integerMissing=>nr_integerMissing
  implicit none
  private
  ! local variables

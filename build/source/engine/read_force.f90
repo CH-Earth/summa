@@ -47,7 +47,7 @@ contains
  USE globalData,only:time_meta,forc_meta               ! metadata structures
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
- USE multiconst,only:integerMissing                    ! integer missing value
+ USE globalData,only:integerMissing                    ! integer missing value
  implicit none
  ! define input variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
@@ -87,8 +87,8 @@ contains
  integer(i4b)                      :: nFiles           ! number of forcing files
  real(dp),allocatable              :: fileTime(:)      ! array of time from netcdf file
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
- integer(i4b)                      :: iyyy,im,id       ! year, month, day 
- integer(i4b)                      :: ih,imin          ! hour, minute   
+ !integer(i4b)                      :: iyyy,im,id       ! year, month, day 
+ !integer(i4b)                      :: ih,imin          ! hour, minute   
  real(dp)                          :: dsec             ! double precision seconds (not used)
  ! Start procedure here
  err=0; message="read_force/"

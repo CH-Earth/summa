@@ -50,9 +50,9 @@ MODULE globalData
  private
 
  ! define missing values
- real(qp),parameter,public                   :: quadMissing=-9999._qp   ! missing quadruple precision number
- real(dp),parameter,public                   :: realMissing=-9999._dp   ! missing double precision number
- integer(i4b),parameter,public               :: integerMissing=-9999    ! missing integer 
+ real(qp),parameter,public                   :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
+ real(dp),parameter,public                   :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
+ integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer 
 
  ! define limit checks
  real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number

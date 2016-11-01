@@ -114,7 +114,7 @@ USE globalData,only:structInfo                              ! information on the
 USE globalData,only:numtim                                  ! number of time steps
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:globalPrintFlag                         ! global print flag
-USE multiconst,only:integerMissing                          ! missing integer value
+USE globalData,only:integerMissing                          ! missing integer value
 ! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
