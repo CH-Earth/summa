@@ -20,8 +20,7 @@
 
 module get_ixname_module
 ! used to get the index of a named variable
-USE nrtype                                          ! variable types, etc.
-USE multiconst,only:integerMissing
+USE nrtype, integerMissing=>nr_integerMissing
 implicit none
 private
 public::get_ixdecisions

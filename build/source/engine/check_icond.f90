@@ -22,8 +22,8 @@ module check_icond_module
 USE nrtype
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
 
 ! define modeling decisions
 USE mDecisions_module,only:  &

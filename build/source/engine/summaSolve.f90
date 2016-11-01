@@ -27,9 +27,9 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
-USE multiconst,only:quadMissing     ! missing quadruple precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands
@@ -963,8 +963,8 @@ contains
   
   ! ** limit temperature increment to zMaxTempIncrement
   if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
-   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
-   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
+   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                            ! index of maximum temperature increment
+   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) + epsT )  ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   end if
   

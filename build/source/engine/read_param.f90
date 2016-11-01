@@ -21,8 +21,8 @@
 module read_param_module
 
 ! missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! common modules
 USE nrtype

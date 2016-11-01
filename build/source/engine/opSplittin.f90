@@ -27,9 +27,9 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
-USE multiconst,only:quadMissing     ! missing quadruple precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
@@ -134,6 +134,12 @@ contains
 
  ! **********************************************************************************************************
  ! public subroutine opSplittin: run the coupled energy-mass model for one timestep
+ !
+ ! The logic of the solver is as follows:
+ ! (1) Attempt different solutions in the following order: (a) fully coupled; (b) split by state type (energy
+ !      and mass); (c) split by domain type or a given energy and mass split (vegetation, snow, and soil);
+ !      and (d) explicit Euler solution for a given state type and domain subset.
+ ! (2) For a given split, compute a variable number of substeps (in varSubstep).
  ! **********************************************************************************************************
  subroutine opSplittin(&
                        ! input: model control
@@ -559,11 +565,16 @@ contains
                       reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                       tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                       err,cmessage)                 ! intent(out)   : error code and error message
-      if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
+      if(err/=0)then
+       message=trim(message)//trim(cmessage)
+       if(err>0) return
+      endif  ! (check for errors)
 
       ! check 
       if(globalPrintFlag .and. ixSolution>splitStateType)then
        print*, 'dt = ', dt
+       print*, 'after varSubstep: err            = ', err
+       print*, 'after varSubstep: cmessage       = ', trim(cmessage)
        print*, 'after varSubstep: stateMask      = ', stateMask
        print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit

@@ -390,7 +390,7 @@ contains
                   err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
- ! vegetation is completely buried by snow (or no veg exisits at all)
+ ! vegetation is completely buried by snow (or no veg exists at all)
  else
   diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._dp
   dCanopyWetFraction_dWat                                 = 0._dp
@@ -735,7 +735,14 @@ contains
   ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
   if(stepFailure)then
-   dt_sub       = max(dtSave/2._dp, minstep)
+   ! halve step
+   dt_sub = dtSave/2._dp
+   ! check that the step is not tiny
+   if(dt_sub < minstep)then
+    message=trim(message)//'length of the coupled step is below the minimum step length'
+    err=20; return
+   endif
+   ! try again
    cycle substeps
   endif
 

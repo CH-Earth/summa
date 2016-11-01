@@ -27,9 +27,9 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
-USE multiconst,only:quadMissing     ! missing quadruple precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix

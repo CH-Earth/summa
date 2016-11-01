@@ -38,8 +38,8 @@ USE multiconst,only:&
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! named variables that define the layer type
 USE globalData,only:iname_snow     ! snow

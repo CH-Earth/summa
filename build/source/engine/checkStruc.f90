@@ -20,12 +20,10 @@
 
 module checkStruc_module
 USE nrtype
+USE globalData,only:integerMissing
 implicit none
 private
 public::checkStruc
-! define missing values
-integer(i4b),parameter :: missingInteger=-9999
-real(dp),parameter     :: missingDouble=-9999._dp
 contains
 
 
@@ -136,7 +134,6 @@ contains
   USE data_types,only:var_info 
   ! get index from character string
   USE get_ixname_module,only: get_ixUnknown! variable lookup structure
-  USE multiconst,only:integerMissing       ! missing integer value
   implicit none
   ! dummy variables
   integer(i4b),intent(in)   :: iStruct     ! index of data structure

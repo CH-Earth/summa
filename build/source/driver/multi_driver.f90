@@ -114,7 +114,7 @@ USE globalData,only:structInfo                              ! information on the
 USE globalData,only:numtim                                  ! number of time steps
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:globalPrintFlag                         ! global print flag
-USE multiconst,only:integerMissing                          ! missing integer value
+USE globalData,only:integerMissing                          ! missing integer value
 ! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
@@ -690,19 +690,6 @@ outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
- ! set print flag
- globalPrintFlag=.false.
-
- ! print progress
- select case(ixProgress)
-  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_never); printProgress = .false.
-  case default; call handle_err(20,'unable to identify option for the restart file')
- end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
-
  ! read forcing data 
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
@@ -723,6 +710,19 @@ do modelTimeStep=1,numtim
    call handle_err(err,message)
   end do 
  end do  ! (end looping through global GRUs)
+
+ ! set print flag
+ globalPrintFlag=.false.
+
+ ! print progress
+ select case(ixProgress)
+  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_never); printProgress = .false.
+  case default; call handle_err(20,'unable to identify option for the restart file')
+ end select
+ if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
@@ -1232,8 +1232,12 @@ contains
  ! dump variables
  print*, 'error, variable dump:'
  if(allocated(timeStruct%var))then
+  ! print time step
+  print*, 'modelTimeStep = ', modelTimeStep
+  ! print information for the HRUs
   if(iGRU<=nGRU)then
    if(iHRU<=gru_struc(iGRU)%hruCount)then
+    print*, 'initial time step  = ', dt_init(iGRU)%hru(iHRU)
     print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
     print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
     print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)

@@ -19,11 +19,10 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module def_output_module
-USE nrtype
 USE netcdf
-USE netcdf_util_module,only:netcdf_err    ! netcdf error handling function
-USE f2008funcs_module,only:cloneStruc     ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
-USE multiconst,only:integerMissing
+USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
+USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
+USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
 implicit none
 private
 public :: def_output
@@ -74,7 +73,6 @@ contains
  USE globalData,only:model_decisions
  USE globalData,only:ncid
  USE globalData,only:nFreq,outFreq                            ! output frequencies
- USE multiconst,only:integerMissing
  ! declare dummy variables
  integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
  integer(i4b),intent(in)     :: nSoil                         ! number of soil layers in the first HRU (used to define fixed length dimensions)
