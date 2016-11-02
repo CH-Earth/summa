@@ -306,12 +306,10 @@ contains
  ! local variables
  real(dp)            :: effSat      ! effective saturation (-)
  ! compute effective saturation
- effSat = (theta - theta_res) / (theta_sat - theta_res)
+ effSat = max(1e-3,(theta - theta_res) / (theta_sat - theta_res))
  ! compute matric head
  if ((effSat < 1._dp).and.(effSat>0._dp))then
   matricHead = (1._dp/alpha)*( effSat**(-1._dp/m) - 1._dp)**(1._dp/n)
- else if (effSat <= 0._dp) then
-  matricHead = 1.e-12
  else
   matricHead = 0._dp
  end if
