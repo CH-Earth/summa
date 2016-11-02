@@ -1,4 +1,4 @@
-! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+!i SUMMA - Structure for Unifying Multiple Modeling Alternatives
 ! Copyright (C) 2014-2015 NCAR/RAL
 !
 ! This file is part of SUMMA
@@ -192,7 +192,7 @@ integer(i4b),parameter           :: ixProgress_im=1000         ! named variable 
 integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
 integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
 integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
-integer(i4b)                     :: ixProgress=ixProgress_ih   ! define frequency to write progress
+integer(i4b)                     :: ixProgress=ixProgress_id   ! define frequency to write progress
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
