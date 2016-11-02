@@ -286,7 +286,12 @@ contains
   if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
 
    ! --> minimum
-   xMin = merge(theta_sat(iLayer-nSnow), 0._dp, layerType(iLayer)==iname_soil)
+   if (layerType(iLayer) == iname_soil) then
+    xMin = theta_sat(iLayer-nSnow)
+   else
+    xMin = 0
+   endif
+!   xMin = merge(theta_sat(iLayer-nSnow), 0._dp, layerType(iLayer)==iname_soil)
 
    ! --> maximum
    select case( layerType(iLayer) )

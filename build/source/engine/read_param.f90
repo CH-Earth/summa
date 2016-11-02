@@ -66,6 +66,7 @@ contains
  character(LEN=1024)                   :: infile           ! input filename
  integer(i4b)                          :: iHRU             ! index of HRU within data vector
  integer(i4b)                          :: localHRU,iGRU    ! index of HRU and GRU within data structure
+ integer(i4b)                          :: lastGRU          ! to check consistency of basin parms over different HRUs
  integer(i4b)                          :: ixParam          ! index of the model parameter in the data structure
  ! indices/metadata in the NetCDF file
  integer(i4b)                          :: ncid             ! netcdf id
@@ -251,23 +252,49 @@ contains
      err=20; return
     endif
 
-    ! *** NEED TO READ BASIN-AVERAGE PARAMETERS...
+    ! allocate space for model parameters
+    allocate(parVector(nHRU),stat=err)
+    if(err/=0)then
+     message=trim(message)//'problem allocating space for parameter vector'
+     err=20; return
+    endif
 
+    ! read parameter data
+    err=nf90_get_var(ncid, ivarid, parVector )
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-    ! populate the parameter structure
-    bparStruct%gru(iGRU)%var(ixParam) = realMissing
+    ! ensure no conflicting GRU data
+    lastGRU = integerMissing
 
-    ! deliberately spit the dummy
-    message=trim(message)//'gru parameters are not implemented yet'
-    err=20; return
+    ! loop through HRUs
+    do iHRU=1,nHRU
+  
+     ! map to the GRUs and HRUs    
+     iGRU=index_map(iHRU)%gru_ix
+
+     ! check for GRU data conflict
+     if ((lastGRU==iGRU).and.(parVector(iHRU)/=bparStruct%gru(iGRU)%var(ixParam))) then
+      err=20; message=trim(message)//'basin parameter conflict: '//trim(parName); return
+     endif
+     lastGRU = iGRU
+
+     ! populate parameter structures
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iHRU) 
+
+    end do  ! looping through HRUs
+
+    ! deallocate space for model parameters
+    deallocate(parVector,stat=err)
+    if(err/=0)then
+     message=trim(message)//'problem deallocating space for parameter vector'
+     err=20; return
+    endif
 
    endif  ! reading the basin parameters
 
   endif  ! if a "regular" parameter (i.e., not the HRU index)
 
  end do ! (looping through the parameters in the NetCDF file)
-
- print*, 'mparStruct%gru(1)%hru(1)%var(iLookPARAM%theta_sat)%dat(:) = ', mparStruct%gru(1)%hru(1)%var(iLookPARAM%theta_sat)%dat(:)
 
  end subroutine read_param
 
