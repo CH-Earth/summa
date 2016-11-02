@@ -328,16 +328,14 @@ contains
     ! get variable id in file
     err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
     if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
-!    call netcdf_err(err,message)
-if(err/=0) print*,trim(meta(iVar)%varName)
-!    if (err/=0) then; err=20; return; end if
+    call netcdf_err(err,message)
+    if (err/=0) then; err=20; return; end if
 
     ! add to file
     err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
     if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
-!    call netcdf_err(err,message)
-if(err/=0) print*,trim(meta(iVar)%varName)
-!    if (err/=0) then; err=20; return; end if
+    call netcdf_err(err,message)
+    if (err/=0) then; err=20; return; end if
 
    end do ! iVar
   end do ! iFreq
