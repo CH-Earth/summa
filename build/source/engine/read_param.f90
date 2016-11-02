@@ -45,7 +45,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(nHRU,typeStruct,mparStruct,bparStruct,err,message)
+ subroutine read_param(nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
@@ -55,6 +55,7 @@ contains
  implicit none
  ! define input
  integer(i4b),        intent(in)       :: nHRU             ! number of global HRUs
+ integer(i4b),        intent(in)       :: nGRU             ! number of global GRUs
  type(gru_hru_int),   intent(in)       :: typeStruct       ! local classification of soil veg etc. for each HRU
  ! define output
  type(gru_hru_doubleVec),intent(inout) :: mparStruct       ! model parameters
@@ -66,7 +67,6 @@ contains
  character(LEN=1024)                   :: infile           ! input filename
  integer(i4b)                          :: iHRU             ! index of HRU within data vector
  integer(i4b)                          :: localHRU,iGRU    ! index of HRU and GRU within data structure
- integer(i4b)                          :: lastGRU          ! to check consistency of basin parms over different HRUs
  integer(i4b)                          :: ixParam          ! index of the model parameter in the data structure
  ! indices/metadata in the NetCDF file
  integer(i4b)                          :: ncid             ! netcdf id
@@ -78,6 +78,7 @@ contains
  character(LEN=64)                     :: parName          ! parameter name
  integer(i4b)                          :: dimLength        ! dimension length
  integer(i4b)                          :: nHRU_file        ! number of HRUs in the parafile
+ integer(i4b)                          :: nGRU_file        ! number of GRUs in the parafile
  integer(i4b)                          :: nSoil_file       ! number of soil layers in the file
  integer(i4b)                          :: idim_list(2)     ! list of dimension ids
  ! data in the netcdf file
@@ -105,6 +106,7 @@ contains
  
  ! initialize the number of HRUs
  nHRU_file=integerMissing
+ nGRU_file=integerMissing
 
  ! get the length of the dimensions
  do idimid=1,nDims
@@ -113,6 +115,7 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   ! get the number of HRUs
   if(trim(dimName)=='hru') nHRU_file=dimLength
+  if(trim(dimName)=='gru') nGRU_file=dimLength
  end do
 
  ! check HRU dimension exists
@@ -124,6 +127,12 @@ contains
  ! check have the correct number of HRUs
  if(nHRU_file/=nHRU)then
   message=trim(message)//'incorrect number of HRUs in file '//trim(infile)
+  err=20; return
+ endif
+ 
+ ! check have the correct number of GRUs
+ if((nGRU_file/=nGRU).and.(nGRU_file/=integerMissing))then
+  message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
   err=20; return
  endif
  
@@ -253,7 +262,7 @@ contains
     endif
 
     ! allocate space for model parameters
-    allocate(parVector(nHRU),stat=err)
+    allocate(parVector(nGRU),stat=err)
     if(err/=0)then
      message=trim(message)//'problem allocating space for parameter vector'
      err=20; return
@@ -263,25 +272,10 @@ contains
     err=nf90_get_var(ncid, ivarid, parVector )
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-    ! ensure no conflicting GRU data
-    lastGRU = integerMissing
-
-    ! loop through HRUs
-    do iHRU=1,nHRU
-  
-     ! map to the GRUs and HRUs    
-     iGRU=index_map(iHRU)%gru_ix
-
-     ! check for GRU data conflict
-     if ((lastGRU==iGRU).and.(parVector(iHRU)/=bparStruct%gru(iGRU)%var(ixParam))) then
-      err=20; message=trim(message)//'basin parameter conflict: '//trim(parName); return
-     endif
-     lastGRU = iGRU
-
-     ! populate parameter structures
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iHRU) 
-
-    end do  ! looping through HRUs
+    ! populate parameter structures
+    do iGRU=1,nGRU
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
+    end do  ! looping through GRUs
 
     ! deallocate space for model parameters
     deallocate(parVector,stat=err)
