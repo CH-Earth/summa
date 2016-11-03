@@ -213,7 +213,7 @@ contains
  ! Procedure starts here
 
  ! initialize error control
- err=20; message='varSubstep/'
+ err=0; message='varSubstep/'
 
  ! initialize flag for the success of the substepping
  failedMinimumStep=.false.
@@ -242,6 +242,9 @@ contains
  ! loop through substeps
  ! NOTE: continuous do statement with exit clause
  substeps: do
+
+  ! initialize error control
+  err=0; message='varSubstep/'
 
   ! increment substep
   nSubsteps = nSubsteps+1
@@ -316,7 +319,7 @@ contains
 
   ! check
   if(globalPrintFlag)then
-   print*, 'niter, failedSubstep = ', niter, failedSubstep
+   print*, 'niter, failedSubstep, dtSubstep = ', niter, failedSubstep, dtSubstep
    print*, trim(cmessage)
   endif
 
@@ -326,8 +329,8 @@ contains
    ! get time step reduction
    ! solver failure
    if(err<0)then
-    err=0  ! recover from failed convergence 
-    dtMultiplier  = 0.5_dp   ! system failure: step halving
+    err=0; message='varSubstep/'  ! recover from failed convergence 
+    dtMultiplier  = 0.5_dp        ! system failure: step halving
    ! large error in explicit solution
    elseif(explicitEuler .and. explicitError > errTol)then
     dtMultiplier  = max(safety*sqrt(errTol/explicitError), reduceMin)  ! intolerable errors: MUST be explicit Euler
