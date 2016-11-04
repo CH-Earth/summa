@@ -307,6 +307,10 @@ contains
 
  ! identify the number of layers that contain roots
  nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
+ if(nRoots==0)then
+  message=trim(message)//'no layers with roots'
+  err=20; return
+ endif
 
  ! identify lowest soil layer with ice
  ! NOTE: cannot use count because there may be an unfrozen wedge
@@ -1166,6 +1170,7 @@ contains
  real(dp)                      :: fInfRaw                   ! infiltrating area before imposing solution constraints (-)
  real(dp),parameter            :: maxFracCap=0.995_dp       ! maximum fraction capacity -- used to avoid numerical problems associated with an enormous derivative
  real(dp),parameter            :: scaleFactor=0.000001_dp   ! scale factor for the smoothing function (-)
+ real(dp),parameter            :: qSurfScaleMax=1000._dp    ! maximum surface runoff scaling factor (-)
  ! (fraction of impermeable area associated with frozen ground)
  real(dp)                      :: alpha                     ! shape parameter in the Gamma distribution
  real(dp)                      :: xLimg                     ! upper limit of the integral
@@ -1244,10 +1249,8 @@ contains
      end do
     end if
     ! (process layers where the roots end in the current layer)
-    if(nRoots>0)then
-     rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-     rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
-    endif
+    rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
+    rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
 
     ! define available capacity to hold water (m)
     availCapacity = theta_sat*rootingDepth - rootZoneIce
@@ -1257,32 +1260,24 @@ contains
     end if
 
     ! define the depth to the wetting front (m)
-    if(availCapacity > verySmall)then
-     depthWettingFront = (rootZoneLiq/availCapacity)*rootingDepth
-    else
-     depthWettingFront = 0._dp
-    endif
+    depthWettingFront = (rootZoneLiq/availCapacity)*rootingDepth
 
     ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
     hydCondWettingFront =  surfaceSatHydCond * ( (1._dp - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 1._dp) )
 
     ! define the maximum infiltration rate (m s-1)
-    if(depthWettingFront > verySmall)then
-     xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
-     !write(*,'(a,1x,f9.3,1x,10(e20.10,1x))') 'depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate = ', depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate
-    else
-     xMaxInfilRate = surfaceSatHydCond
-    endif
+    xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
+    !write(*,'(a,1x,f9.3,1x,10(e20.10,1x))') 'depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate = ', depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate
 
     ! define the infiltrating area for the non-frozen part of the cell/basin
-    if(availCapacity > verySmall)then
+    if(qSurfScale < qSurfScaleMax)then
      fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                              ! fraction of available root zone filled with water
      fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))                          ! infiltrating area -- allowed to violate solution constraints
      scalarInfilArea = min(0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor)), 1._dp)   ! infiltrating area -- constrained
+     !print*, 'qSurfScale, fracCap, scalarInfilArea = ', qSurfScale, fracCap, scalarInfilArea
     else
      scalarInfilArea = 1._dp
     endif
-    !print*, 'scalarInfilArea = ', scalarInfilArea
 
     ! check to ensure we are not infiltrating into a fully saturated column
     if(ixIce<nRoots)then

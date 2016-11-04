@@ -301,6 +301,10 @@ contains
 
  ! compute the number of layers with roots
  nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
+ if(nLayersRoots == 0)then
+  message=trim(message)//'no roots within the soil profile'
+  err=20; return
+ end if
 
  ! define the foliage nitrogen factor
  diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1) = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
@@ -314,11 +318,7 @@ contains
  ! ------------------------
 
  ! compute the temperature of the root zone: used in vegetation phenology
- if(nLayersRoots==0)then
-  diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1)
- else
-  diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
- endif
+ diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
 
  ! remember if we compute the vegetation flux on the previous sub-step
  computeVegFluxOld = computeVegFlux  
