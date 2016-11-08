@@ -255,6 +255,9 @@ contains
  mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat                 ,&  ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
  dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)              ,&  ! intent(in):  [dp]    derivative of volumetric liquid water content w.r.t. temperature
 
+ ! number of flux calls
+ numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1)                    ,&  ! intent(out): [dp] number of flux calls (-) 
+
  ! net fluxes over the vegetation domain
  scalarCanairNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)          ,&  ! intent(out): [dp] net energy flux for the canopy air space        (W m-2)
  scalarCanopyNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)          ,&  ! intent(out): [dp] net energy flux for the vegetation canopy       (W m-2)
@@ -356,6 +359,9 @@ contains
  ! *****
  ! * PRELIMINARIES... 
  ! ******************
+
+ ! increment the number of flux calls
+ numFluxCalls = numFluxCalls+1
 
  ! modify the groundwater representation for this single-column implementation
  select case(ixSpatialGroundwater)

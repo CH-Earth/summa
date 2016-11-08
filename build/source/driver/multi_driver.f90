@@ -886,6 +886,9 @@ do modelTimeStep=1,numtim
 
    !print*, 'iHRU = ', iHRU
  
+   ! initialize the number of flux calls
+   diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._dp
+
    ! run the model for a single parameter set and time step
    call coupled_em(&
                    ! model control
