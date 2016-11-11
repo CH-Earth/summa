@@ -253,27 +253,30 @@ contains
  USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
- type(var_dlength),intent(in)    :: mpar_data       ! data structure of model parameters for a local HRU
- type(var_ilength),intent(in)    :: indx_data       ! data structure of model indices for a local HRU
- type(var_dlength),intent(in)    :: prog_data       ! data structure of model prognostic (state) variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data       ! data structure of model fluxes for a local HRU
+ type(var_dlength),intent(in)    :: mpar_data           ! data structure of model parameters for a local HRU
+ type(var_ilength),intent(in)    :: indx_data           ! data structure of model indices for a local HRU
+ type(var_dlength),intent(in)    :: prog_data           ! data structure of model prognostic (state) variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data           ! data structure of model fluxes for a local HRU
  ! declare output variables
- integer(i4b),intent(out)        :: err             ! error code
- character(*),intent(out)        :: message         ! error message
+ integer(i4b),intent(out)        :: err                 ! error code
+ character(*),intent(out)        :: message             ! error message
  ! declare local variables
- integer(i4b)                    :: iLayer          ! loop through layers
+ integer(i4b)                    :: iLayer              ! loop through layers
+ real(dp)                        :: ifcDepthScaleFactor ! depth scaling factor (layer interfaces)
+ real(dp)                        :: midDepthScaleFactor ! depth scaling factor (layer midpoints)
  ! initialize error control
  err=0; message='satHydCond/'
  ! ----------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
  ! associate the values in the parameter structures
- k_soil             => mpar_data%var(iLookPARAM%k_soil)%dat(1),         & ! saturated hydraulic conductivity at the compacted depth (m s-1)
- k_macropore        => mpar_data%var(iLookPARAM%k_macropore)%dat(1),    & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
+ k_soil             => mpar_data%var(iLookPARAM%k_soil)%dat,            & ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ k_macropore        => mpar_data%var(iLookPARAM%k_macropore)%dat,       & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
  compactedDepth     => mpar_data%var(iLookPARAM%compactedDepth)%dat(1), & ! the depth at which k_soil reaches the compacted value given by CH78 (m)
  zScale_TOPMODEL    => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),& ! exponent for the TOPMODEL-ish baseflow parameterization (-)
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
+ nSoil              => indx_data%var(iLookINDEX%nSoil)%dat(1),          & ! number of soil layers
  nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
  ! associate the coordinate variables
  mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
@@ -289,36 +292,55 @@ contains
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
  do iLayer=nSnow,nLayers
   select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
+
    ! constant hydraulic conductivity with depth
    case(constant)
-    iLayerSatHydCond(iLayer-nSnow) = k_soil
-    if(iLayer > nSnow)then ! avoid layer 0
-     mLayerSatHydCond(iLayer-nSnow)   = k_soil
-     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore
-    end if  ! if the mid-point of a layer
+    ! - conductivity at layer interfaces 
+    !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
+    if(iLayer==nSnow)then
+     iLayerSatHydCond(iLayer-nSnow) = k_soil(1)
+    else
+     if(iLayer==nLayers)then
+      iLayerSatHydCond(iLayer-nSnow) = k_soil(nSoil)
+     else
+      iLayerSatHydCond(iLayer-nSnow)   = 0.5_dp * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) )
+     endif
+     ! - conductivity at layer midpoints
+     mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)
+     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow)
+    end if ! if iLayer>nSnow
+
    ! power-law profile
    case(powerLaw_profile)
-    ! (saturated hydraulic conductivity at layer interfaces)
-    iLayerSatHydCond(iLayer-nSnow) = k_soil * ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
-                                            / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
-    ! (saturated hydraulic conductivity at layer mid-points)
-    if(iLayer > nSnow)then ! avoid layer 0
-     ! (--> micropores)
-     mLayerSatHydCond(iLayer-nSnow) = k_soil * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
-                                             / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
-     ! (--> macropores)
-     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
-                                                    / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+    ! - conductivity at layer interfaces 
+    !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
+    ifcDepthScaleFactor = ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
+                          ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) 
+    if(iLayer==nSnow)then
+     iLayerSatHydCond(iLayer-nSnow) = k_soil(1) * ifcDepthScaleFactor
+    else
+     if(iLayer==nLayers)then
+      iLayerSatHydCond(iLayer-nSnow) = k_soil(nSoil) * ifcDepthScaleFactor
+     else
+      iLayerSatHydCond(iLayer-nSnow)   = 0.5_dp * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) ) * ifcDepthScaleFactor
+     endif
+     ! - conductivity at layer midpoints
+     midDepthScaleFactor = ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
+                           ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)      * midDepthScaleFactor
+     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow) * midDepthScaleFactor
      !print*, 'compactedDepth = ', compactedDepth
      !print*, 'k_macropore    = ', k_macropore
      !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
      !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
      !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
     end if  ! if the mid-point of a layer
+
    ! error check (errors checked earlier also, so should not get here)
    case default
     message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
     err=10; return
+
   end select
   !if(iLayer > nSnow)& ! avoid layer 0
   ! write(*,'(a,1x,i4,1x,2(f11.5,1x,e20.10,1x))') 'satHydCond: ', iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow), iLayerHeight(iLayer), iLayerSatHydCond(iLayer-nSnow)

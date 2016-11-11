@@ -231,9 +231,9 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! minimum time step
  real(dp)                        :: dt_min                         ! minimum time step (seconds)
- real(dp),parameter              :: dtmin_fullyCoupled=3600._dp    ! minimum time step for the fully coupled solution
- real(dp),parameter              :: dtmin_splitStateType=3600._dp  ! minimum time step for the split by state type 
- real(dp),parameter              :: dtmin_splitDomainType=3600._dp ! minimum time step for the split by domain type 
+ real(dp),parameter              :: dtmin_fullyCoupled=10._dp      ! minimum time step for the fully coupled solution
+ real(dp),parameter              :: dtmin_splitStateType=1._dp     ! minimum time step for the split by state type 
+ real(dp),parameter              :: dtmin_splitDomainType=0.1_dp   ! minimum time step for the split by domain type 
  real(dp),parameter              :: dtmin_explicitEuler=0.1_dp     ! minimum time step for the explicit Euler solution
  ! explicit error tolerance (depends on state type split, so defined here)
  real(dp),parameter              :: errorTolLiqFlux=0.01_dp        ! error tolerance in the explicit solution (liquid flux)
@@ -443,6 +443,9 @@ contains
       ! *******************************************************************************************************************************
       ! ***** trial with a given solution method...
      
+      ! initialize error control
+      err=0; message="opSplittin/"
+
       ! -----
       ! * define subsets for a given split...
       ! -------------------------------------

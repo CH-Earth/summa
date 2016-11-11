@@ -301,7 +301,10 @@ contains
 
  ! compute the number of layers with roots
  nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
- if(nLayersRoots == 0)then; err=20; message=trim(message)//'no roots within the soil profile'; return; end if
+ if(nLayersRoots == 0)then
+  message=trim(message)//'no roots within the soil profile'
+  err=20; return
+ end if
 
  ! define the foliage nitrogen factor
  diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1) = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
@@ -900,7 +903,7 @@ contains
 
   ! check
   if(globalPrintFlag)&
-  write(*,'(a,1x,3(f13.5,1x))') 'dt_sub, dt_solv, data_step: ', dt_sub, dt_solv, data_step
+  write(*,'(a,1x,3(f18.5,1x))') 'dt_sub, dt_solv, data_step: ', dt_sub, dt_solv, data_step
 
   ! check that we have completed the sub-step
   if(dt_solv >= data_step-verySmall) exit substeps

@@ -192,7 +192,7 @@ integer(i4b),parameter           :: ixProgress_im=1000         ! named variable 
 integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
 integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
 integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
-integer(i4b)                     :: ixProgress=ixProgress_id   ! define frequency to write progress
+integer(i4b)                     :: ixProgress=ixProgress_ih   ! define frequency to write progress
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
@@ -886,6 +886,9 @@ do modelTimeStep=1,numtim
 
    !print*, 'iHRU = ', iHRU
  
+   ! initialize the number of flux calls
+   diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._dp
+
    ! run the model for a single parameter set and time step
    call coupled_em(&
                    ! model control
