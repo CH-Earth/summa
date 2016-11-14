@@ -134,6 +134,7 @@ contains
    ! NOTE: This could be faster by checking just the start and the end times
    err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
+
    fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday ! convert time to units of days, and add reference julian day
 
    ! find difference of fileTime from currentJulday
@@ -141,6 +142,7 @@ contains
 
    ! start time is in the current file
    if(any(diffTime < verySmall))then
+
     iRead=minloc(diffTime,1)
     exit
 
@@ -327,7 +329,9 @@ contains
   
    ! get definition of time data
    err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
+
    err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=nf90_noerr)then; message=trim(message)//'cannot find time units/'//trim(nf90_strerror(err));    return; endif
+
    err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
 
    ! define the reference time for the model simulation

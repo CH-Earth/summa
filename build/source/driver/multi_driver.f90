@@ -95,6 +95,8 @@ USE data_types,only:&
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
 USE data_types,only:extended_info          ! extended metadata structure
+! provide access to runtime options
+USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
 ! provide access to metadata structures
 USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
 USE globalData,only:prog_meta,diag_meta,flux_meta           ! metadata structures
@@ -131,6 +133,7 @@ USE var_lookup,only:iLookPROG                               ! look-up values for
 USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables 
 USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes 
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
+USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
 ! provide access to the named variables that describe elements of child  model structures
@@ -258,9 +261,6 @@ integer(i4b)                     :: checkHRU                   ! index of the HR
 integer(i4b)                     :: fileGRU                    ! number of GRUs in the input file
 integer(i4b)                     :: fileHRU                    ! number of HRUs in the input file
 integer(i4b)                     :: iRunMode                   ! define the current running mode
-integer(i4b),parameter           :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
-integer(i4b),parameter           :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
-integer(i4b),parameter           :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! option to resume simulation even solver fails
 logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
@@ -491,7 +491,7 @@ end do  ! looping through GRUs
 ! *****************************************************************************
 ! (5c) read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
-call read_param(nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
+call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
@@ -665,7 +665,7 @@ select case (iRunMode)
  case(iRunModeHRU)
   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
 end select
-fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
+fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
 ! write local model attributes and parameters to the model output file
@@ -1387,7 +1387,6 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
      CALL wrf_error_fatal ( message )
   END IF
 
-
   LUMATCH=0
 
   FIND_LUTYPE : DO WHILE (LUMATCH == 0)
@@ -1434,7 +1433,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
              EMISSMAXTBL(LC), ALBEDOMINTBL(LC),         &
              ALBEDOMAXTBL(LC), Z0MINTBL(LC), Z0MAXTBL(LC)
      ENDDO
-!
+
      READ (19,*)
      READ (19,*)TOPT_DATA
      READ (19,*)
@@ -1448,7 +1447,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
      READ (19,*)
      READ (19,*)NATURAL
   ENDIF
-!
+
 2002 CONTINUE
 
   CLOSE (19)
@@ -1470,8 +1469,6 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
   ! CALL wrf_message( mess )
 
   LUMATCH=0
-
-
 
   ! MPC add a new soil table
   FIND_soilTYPE : DO WHILE (LUMATCH == 0)

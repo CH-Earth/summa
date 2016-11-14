@@ -24,6 +24,9 @@ module read_param_module
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
+! runtime options
+USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU ! run modes
+
 ! common modules
 USE nrtype
 USE netcdf
@@ -45,15 +48,18 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message)
+ subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
- USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
+ USE globalData,only:index_map,gru_struc             ! mapping from global HRUs to the elements in the data structures
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input
+ integer(i4b),        intent(in)       :: iRunMode         ! run mode
+ integer(i4b),        intent(in)       :: checkHRU         ! index of single HRU if runMode = checkHRU
+ integer(i4b),        intent(in)       :: startGRU         ! index of single GRU if runMode = startGRU
  integer(i4b),        intent(in)       :: nHRU             ! number of global HRUs
  integer(i4b),        intent(in)       :: nGRU             ! number of global GRUs
  type(gru_hru_int),   intent(in)       :: typeStruct       ! local classification of soil veg etc. for each HRU
@@ -83,8 +89,10 @@ contains
  integer(i4b)                          :: idim_list(2)     ! list of dimension ids
  ! data in the netcdf file
  integer(i4b)                          :: parLength        ! length of the parameter data
- integer(i4b)                          :: hruId(nHRU)      ! HRU identifier in the file
+ integer(i4b),allocatable              :: hruId(:)      ! HRU identifier in the file
  real(dp),allocatable                  :: parVector(:)     ! model parameter vector
+ logical                               :: fexist           ! inquire whether the parmTrial file exists 
+ integer(i4b)                          :: fHRU             ! index of HRU in input file
 
  ! Start procedure here
  err=0; message="read_param/"
@@ -96,6 +104,10 @@ contains
  ! build filename
  infile = trim(SETNGS_PATH)//trim(PARAMETER_TRIAL)
 
+ ! do we need the file?
+ inquire(file=trim(infile),exist=fexist)
+ if (.not.fexist) return
+
  ! open file
  call nc_file_open(trim(infile),nf90_nowrite,ncid,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -103,7 +115,7 @@ contains
  ! get the number of variables in the parameter file
  err=nf90_inquire(ncid, nDimensions=nDims, nVariables=nVars)
  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
- 
+
  ! initialize the number of HRUs
  nHRU_file=integerMissing
  nGRU_file=integerMissing
@@ -118,6 +130,9 @@ contains
   if(trim(dimName)=='gru') nGRU_file=dimLength
  end do
 
+ ! allocate hruID vector
+ allocate(hruId(nHRU_file))
+
  ! check HRU dimension exists
  if(nHRU_file==integerMissing)then
   message=trim(message)//'unable to identify HRU dimension in file '//trim(infile)
@@ -125,13 +140,21 @@ contains
  endif
 
  ! check have the correct number of HRUs
- if(nHRU_file/=nHRU)then
+ if ((irunMode==irunModeFull).and.(nHRU_file/=nHRU)) then
   message=trim(message)//'incorrect number of HRUs in file '//trim(infile)
+  err=20; return
+ endif
+ if ((irunMode==irunModeHRU).and.(nHRU_file<checkHRU)) then
+  message=trim(message)//'not enough HRUs in file '//trim(infile)
   err=20; return
  endif
  
  ! check have the correct number of GRUs
- if((nGRU_file/=nGRU).and.(nGRU_file/=integerMissing))then
+ if ((irunMode==irunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
+  message=trim(message)//'not enough GRUs in file '//trim(infile)
+  err=20; return
+ endif
+ if ((irunMode==irunModeFull).and.(nGRU_file/=nGRU).and.(nGRU_file/=integerMissing)) then
   message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
   err=20; return
  endif
@@ -155,14 +178,38 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! check HRUs  -- expect HRUs to be in the same order as the local attributes
-   do iHRU=1,nHRU
-    iGRU=index_map(iHRU)%gru_ix
-    localHRU=index_map(iHRU)%localHRU
-    if(hruId(iHRU) /= typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
+   if (iRunMode==iRunModeFull) then
+    do iHRU=1,nHRU
+     iGRU=index_map(iHRU)%gru_ix
+     localHRU=index_map(iHRU)%localHRU
+     if(hruId(iHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
+      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+      err=20; return
+     endif
+    end do  ! looping through HRUs
+
+   else if (iRunMode==iRunModeGRU) then
+    do iHRU=1,nHRU
+     iGRU=index_map(iHRU)%gru_ix
+     localHRU=index_map(iHRU)%localHRU
+     fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
+     if(hruId(fHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
      err=20; return
     endif
-   end do  ! looping through HRUs
+   enddo
+
+   else if (iRunMode==iRunModeHRU) then
+    iGRU=index_map(1)%gru_ix
+    localHRU=index_map(1)%localHRU
+    if(hruId(checkHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+     err=20; return
+    endif
+
+   else 
+    err = 20; message = 'run mode not recognized'; return;
+   end if
 
   ! all other variables
   else
@@ -218,11 +265,12 @@ contains
      ! map to the GRUs and HRUs    
      iGRU=index_map(iHRU)%gru_ix
      localHRU=index_map(iHRU)%localHRU
+     fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
 
      ! read parameter data
      select case(nDims)
-      case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/iHRU/), count=(/1/) )
-      case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/iHRU,1/), count=(/1,nSoil_file/) )
+      case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU/), count=(/1/) )
+      case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
       case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
      end select
 
@@ -262,7 +310,7 @@ contains
     endif
 
     ! allocate space for model parameters
-    allocate(parVector(nGRU),stat=err)
+    allocate(parVector(nGRU_file),stat=err)
     if(err/=0)then
      message=trim(message)//'problem allocating space for parameter vector'
      err=20; return
@@ -273,9 +321,17 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! populate parameter structures
-    do iGRU=1,nGRU
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
-    end do  ! looping through GRUs
+    if (iRunMode==iRunModeGRU) then
+     do iGRU=1,nGRU
+      bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1) 
+     end do  ! looping through GRUs
+    else if (iRunMode==iRunModeFull) then
+     do iGRU=1,nGRU
+      bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
+     end do  ! looping through GRUs
+    else if (iRunMode==iRunModeHRU) then
+     err = 20; message='checkHRU run mode not working'; return; 
+    endif
 
     ! deallocate space for model parameters
     deallocate(parVector,stat=err)

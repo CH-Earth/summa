@@ -54,6 +54,11 @@ MODULE globalData
  real(dp),parameter,public                   :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
  integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer 
 
+ ! define run modes
+ integer(i4b),parameter,public               :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
+ integer(i4b),parameter,public               :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
+ integer(i4b),parameter,public               :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
+
  ! define limit checks
  real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
  real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number

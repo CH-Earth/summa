@@ -149,6 +149,7 @@ else ! allocate space for anything except a single HRU run
  
  iHRU = 1
  do iGRU = 1,nGRU 
+
   if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
   gru_struc(iGRU)%gruId             = gru_id(iGRU+sGRU-1)                                      ! set gru id
