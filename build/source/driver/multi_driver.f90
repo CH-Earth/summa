@@ -1035,6 +1035,7 @@ do modelTimeStep=1,numtim
   case(ixRestart_never); printRestart = .false.
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select
+ if (modelTimeStep == numtim) printRestart = .true.
 
  ! print a restart file if requested
  if(printRestart)then
