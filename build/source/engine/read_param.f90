@@ -182,7 +182,7 @@ contains
     do iHRU=1,nHRU
      iGRU=index_map(iHRU)%gru_ix
      localHRU=index_map(iHRU)%localHRU
-     if(hruId(iHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
+     if((hruId(iHRU)>0).and.(hruId(iHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex)))then
       write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
       err=20; return
      endif

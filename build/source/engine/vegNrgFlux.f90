@@ -2115,10 +2115,10 @@ contains
     ! (compute zero-plane displacement)
     funcLAI          = sqrt(c_d1*exposedVAI)
     fracCanopyHeight = -(1._dp - exp(-funcLAI))/funcLAI + 1._dp
-    zeroPlaneDisplacement = fracCanopyHeight*heightCanopyTop
+    zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTop-heightCanopyBottom)+heightCanopyBottom
     ! (coupute roughness length of the veg canopy)
     approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._dp), approxDragCoef_max)
-    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * heightCanopyTop
+    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTop-heightCanopyBottom)
 
    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
    case(CM_QJRMS1998)
@@ -2224,6 +2224,7 @@ contains
   end if
 
   ! compute the leaf boundary layer resistance (s m-1)
+
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
   leaf2CanopyScaleFactor = (2._dp/windReductionFactor) * (1._dp - exp(-windReductionFactor/2._dp)) ! factor to scale from the leaf to the canopy
   canopyLeafConductance  = singleLeafConductance*leaf2CanopyScaleFactor
