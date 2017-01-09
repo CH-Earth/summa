@@ -1035,6 +1035,7 @@ do modelTimeStep=1,numtim
   case(ixRestart_never); printRestart = .false.
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select
+ if (modelTimeStep == numtim) printRestart = .true.
 
  ! print a restart file if requested
  if(printRestart)then
@@ -1093,7 +1094,7 @@ contains
   if (nLocalArgument>0) then; nLocalArgument = nLocalArgument -1; cycle; end if ! skip the arguments have been read 
   select case (trim(argString(iArgument)))
 
-   case ('-r', '--resume')
+   case ('-c', '--continue') ! TODO: this option will be deprecated after the explicit Euler and split operator solutions are implemented
     nLocalArgument = 0
     resumeFailSolver = .true.
     print "(A)", "Simulation will continue even if the solver does NOT converge."
@@ -1114,7 +1115,7 @@ contains
     output_fileSuffix=trim(argString(iArgument+1))
     print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
 
-   case ('-c', '--checkhru')
+   case ('-h', '--hru')
     ! define a single HRU run
     if (iRunMode == iRunModeGRU) call handle_err(1,"single-HRU run and GRU-parallelization run cannot be both selected.")
     iRunMode=iRunModeHRU
@@ -1145,18 +1146,44 @@ contains
      print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
     end if
 
-   case ('-h','--help')
+   case ('-p', '--progress')
+    ! define the frequency to print progress
+    nLocalArgument = 1
+    ! check if the number of command line arguments is correct
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1, "missing argument freqProgress; type 'summa.exe --help' for correct usage")
+    select case (trim(argString(iArgument+1)))
+     case ('m' , 'month'); ixProgress = ixProgress_im
+     case ('d' , 'day');   ixProgress = ixProgress_id
+     case ('h' , 'hour');  ixProgress = ixProgress_ih
+     case ('n' , 'never'); ixProgress = ixProgress_never
+     case default;         call handle_err(1,'unknown frequency to print progress')
+    end select 
+  
+   case ('-r', '--restart')
+    ! define the frequency to write restart files
+    nLocalArgument = 1
+    ! check if the number of command line arguments is correct
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1, "missing argument freqRestart; type 'summa.exe --help' for correct usage")
+    select case (trim(argString(iArgument+1)))
+     case ('y' , 'year');  ixRestart = ixRestart_iy
+     case ('m' , 'month'); ixRestart = ixRestart_im
+     case ('d' , 'day');   ixRestart = ixRestart_id
+     case ('n' , 'never'); ixRestart = ixRestart_never
+     case default;         call handle_err(1,'unknown frequency to write restart files')
+    end select 
+  
+   case ('--help')
     call printCommandHelp
 
    case default
     call printCommandHelp
-    call handle_err(1,'unknown command line option')
+    call handle_err(1, 'unknown command line option')
 
   end select
  end do  ! looping through command line arguments 
 
  ! check if master_file has been received.
- if (len(trim(summaFileManagerFile))==0) call handle_err(1,"master_file is not received; type 'summa.exe --help' for correct usage")
+ if (len(trim(summaFileManagerFile))==0) call handle_err(1, "master_file is not received; type 'summa.exe --help' for correct usage")
 
  ! set startGRU for full run
  if (iRunMode==iRunModeFull) startGRU=1
@@ -1169,14 +1196,16 @@ contains
  subroutine printCommandHelp()  
  implicit none
  ! command line usage
- print "(//A)",'Usage: summa.exe -m master_file [-s file_suffix] [-g startGRU countGRU] [-c checkHRU] [-r resume]'
+ print "(//A)",'Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]'
  print "(A,/)",  ' summa.exe          summa executable'
  print "(A)",  'Running options:'
- print "(A)",  ' -m --master        path/name of master file (required)'
- print "(A)",  ' -s --suffix        Add file_suffix to the output files'
+ print "(A)",  ' -m --master        Define path/name of master file (required)'
+ print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
- print "(A)",  ' -c --checkhru      Run a single HRU with index of checkHRU'
- print "(A)",  ' -r --resume        Continue simulation when solver failed convergence'
+ print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
+ print "(A)",  ' -c --continue      Continue simulation when solver failed convergence'
+ print "(A)",  ' -r --restart       Define frequency [y,m,d] to write restart files'
+ print "(A)",  ' -p --progress      Define frequency [m,d,h] to print progress'
  stop 
  end subroutine printCommandHelp
 
