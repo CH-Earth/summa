@@ -266,6 +266,8 @@ integer(i4b),parameter           :: iRunModeHRU=3              ! named variable 
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! option to resume simulation even solver fails
 logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
+ ! version information generated during compiling
+INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
@@ -1080,6 +1082,18 @@ contains
  allocate(argString(nArgument))
  do iArgument = 1,nArgument
   call get_command_argument(iArgument,argString(iArgument))   
+  ! print versions if needed
+  if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then  
+   ! print version numbers
+   print "(70('-'))", 
+   print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
+   print "(28x,2A)", 'Version: ', trim(summaVersion)
+   print "(15x,2A)", 'Build Time: ', trim(buildTime)
+   print "(8x,2A)",  'Git Branch: ', trim(gitBranch)
+   print "(8x,2A)",  'Git Hash:   ', trim(gitHash)
+   print "(70('-'))", 
+   if (nArgument == 1) stop
+  end if 
  end do  
 
  ! initialize command line argument variables
@@ -1145,6 +1159,9 @@ contains
      print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
     end if
 
+   case ('-v','--version')   
+    ! do nothing
+    
    case ('-h','--help')
     call printCommandHelp
 
@@ -1177,6 +1194,7 @@ contains
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -c --checkhru      Run a single HRU with index of checkHRU'
  print "(A)",  ' -r --resume        Continue simulation when solver failed convergence'
+ print "(A)",  ' -v --version       Display version infotmation of the current built'
  stop 
  end subroutine printCommandHelp
 
