@@ -132,7 +132,8 @@ contains
    ! error handling
    if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
   end do ! iStruct 
-
+  ! write HRU dimension for each output file
+  call write_hru_dim(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
  end do ! iFreq 
 
  end subroutine def_output
@@ -166,6 +167,9 @@ contains
  integer(i4b)                :: meanSnowLayersPerStep      ! mean number of snow layers per time step
  integer(i4b)                :: maxStepsPerFile            ! maximum number of time steps to be stored in each file
  integer(i4b)                :: maxLength                  ! maximum length of the variable vector
+ integer(i4b)                :: iHRU                       ! local HRU index 
+ integer(i4b)                :: iGRU                       ! GRU index 
+ integer(i4b)                :: hruVarID                   ! HRU varID in netcdf 
  ! initialize error control
  err=0;message="f-iniCreate/"
 
@@ -196,9 +200,9 @@ contains
  err = nf90_def_dim(ncid, trim(ifcSoilAndTime_DimName), maxLength,  ifcSoilAndTime_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(ifcTotoAndTime_DimName), maxLength,  ifcTotoAndTime_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
 
- ! close NetCDF file
- err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
-
+ ! Leave define mode of NetCDF files
+ err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
+ 
  end subroutine ini_create
 
  ! **********************************************************************************************************
@@ -361,4 +365,43 @@ contains
 
  end subroutine def_variab
 
+ ! **********************************************************************************************************
+ ! internal subroutine write_hru_dim: write HRU dimension
+ ! **********************************************************************************************************
+ subroutine write_hru_dim(ncid, err, message)  
+ use globalData,only:gru_struc                    ! gru-hru mapping structures  
+ ! input
+ integer(i4b)  ,intent(in)   :: ncid              ! netcdf file id
+ ! output
+ integer(i4b),intent(out)    :: err               ! error code
+ character(*),intent(out)    :: message           ! error message
+ ! define local variables
+ integer(i4b)                :: iHRU              ! local HRU index 
+ integer(i4b)                :: iGRU              ! GRU index 
+ integer(i4b)                :: hruVarID          ! HRU varID in netcdf 
+ 
+ ! initialize error control
+ err=0; message='write_hru_dim/'
+ 
+ ! allow re-definition of variables
+ err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
+ 
+ ! define HRU var
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if 
+ err = nf90_put_att(ncid, hruVarID, 'long_name', 'hru index in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if 
+ err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if 
+ 
+ ! Leave define mode of NetCDF files
+ err = nf90_enddef(ncid);  message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); if (err/=nf90_NoErr) return
+ 
+ ! write the HRU dimension to record position in the input netcdf file for concatenation of outputs of a parallelized run.
+ do iGRU = 1, size(gru_struc)
+  do iHRU = 1, gru_struc(iGRU)%hruCount
+   err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_nc, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
+   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruVar'; call netcdf_err(err,message); return; end if
+  end do
+ end do 
+ 
+ end subroutine
+ 
 end module def_output_module

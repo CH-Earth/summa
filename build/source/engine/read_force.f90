@@ -85,6 +85,7 @@ contains
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
+ real(dp)                          :: timeMult         ! multiplier to convert time to days
  real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
  real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
  integer(i4b)                      :: nFiles           ! number of forcing files

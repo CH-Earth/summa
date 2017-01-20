@@ -160,6 +160,9 @@ contains
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
+ print*, 'nSnow   = ', nSnow
+ print*, 'nLayers = ', nLayers
+
  ! compute the fraction of roots in each soil layer
  do iLayer=nSnow+1,nLayers
 
