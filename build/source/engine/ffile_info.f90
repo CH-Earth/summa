@@ -75,6 +75,7 @@ contains
  integer(i4b)                         :: iGRU,localHRU  ! index of GRU and HRU
  integer(i4b)                         :: ncHruId(1)     ! hruID from the forcing files
  real(dp)                             :: dataStep_iFile ! data step for a given forcing data file
+ logical(lgt)                         :: xist           ! .TRUE. if the file exists
 
  ! Start procedure here
  err=0; message="ffile_info/"
@@ -133,7 +134,13 @@ contains
 
   ! build filename for actual forcing file
   infile = trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
-
+  ! check if file exists
+  inquire(file=trim(infile),exist=xist)
+  if(.not.xist)then
+   message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
+   err=10; return
+  end if
+  
   ! open file
   mode=nf90_NoWrite
   call nc_file_open(trim(infile), mode, ncid, err, cmessage)

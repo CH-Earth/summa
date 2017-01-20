@@ -77,7 +77,6 @@ contains
  character(len=256)                :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  character(len=256)                :: refTimeString    ! reference time string
- logical(lgt)                      :: xist             ! .TRUE. if the file exists
  integer(i4b),parameter            :: baseUnit=28      ! DK: need to either define units globally, or use getSpareUnit
  integer(i4b)                      :: iline            ! loop through lines in the file
  integer(i4b)                      :: iNC              ! loop through variables in forcing file
@@ -110,88 +109,19 @@ contains
  ! **********************************************************************************************
  ! ***** part 0: if initial step, then open first file and find initial model time step
  ! *****         loop through as many forcing files as necessary to find the initial model step
- ! **********************************************************************************************
-
+ ! ********************************************************************************************** 
  ! check if file is open
  if(ncid==integerMissing)then ! file is closed if ncid==integerMissing
-
-  ! ***
-  ! * get the time information from the NetCDF file...
-  ! **************************************************
-
-  ! define filename
-  infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
-
-  ! check if the forcing file exists
-  inquire(file=trim(infile),exist=xist)
-  if(.not.xist)then
-   message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
-   err=10; return
-  end if
-
-  ! open forcing data file
-  mode=nf90_NoWrite
-  call nc_file_open(trim(infile),mode,ncid,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-  ! get definition of time data
-  err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
-  err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=nf90_noerr)then; message=trim(message)//'cannot find time units/'//trim(nf90_strerror(err));    return; endif
-  err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
- 
-  ! define the reference time for the model simulation
-  call extractTime(refTimeString,                         & ! input  = units string for time data
-                   refTime%var(iLookTIME%iyyy),           & ! output = year
-                   refTime%var(iLookTIME%im),             & ! output = month
-                   refTime%var(iLookTIME%id),             & ! output = day
-                   refTime%var(iLookTIME%ih),             & ! output = hour
-                   refTime%var(iLookTIME%imin),dsec,      & ! output = minute/second
-                   err,cmessage)                            ! output = error code and error message
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-  ! convert the reference time to days since the beginning of time
-  call compjulday(refTime%var(iLookTIME%iyyy),            & ! input  = year
-                  refTime%var(iLookTIME%im),              & ! input  = month
-                  refTime%var(iLookTIME%id),              & ! input  = day
-                  refTime%var(iLookTIME%ih),              & ! input  = hour
-                  refTime%var(iLookTIME%imin),dsec,       & ! input  = minute/second
-                  refJulday,err,cmessage)                   ! output = julian day (fraction of day) + error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-  ! close netCDF file
-  err = nf90_close(ncid)
-  if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
   ! ***
   ! * find first timestep in any of the forcing files...
   ! ****************************************************
 
   ! keep going until we find the file containing the first time step
-  do iFFile=1,nFiles
+  do iFile=1,nFiles
 
-   ! create netCDF file name
-   infile=trim(INPUT_PATH)//trim(forcFileInfo(iFFile)%filenmData)
-   inquire(file=trim(infile),exist=xist)
-   if(.not.xist)then
-    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
-    err=10; return
-   end if
-
-   ! open file
-   mode=nf90_NoWrite
-   call nc_file_open(trim(infile),mode,ncid,err,cmessage)
-
-   ! get definition of time data
-   err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
-   err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
-
-   ! get the time multiplier needed to convert time to units of days
-   select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
-    case('seconds'); forcFileInfo(iFFile)%convTime2Days=86400._dp
-    case('hours');   forcFileInfo(iFFile)%convTime2Days=24._dp
-    case('days');    forcFileInfo(iFFile)%convTime2Days=1._dp
-    case default;    message=trim(message)//'unable to identify time units'; err=20; return
-   end select
+   ! open netCDF file
+   call openForcingFile()
  
    ! how many time steps in current file?
    err = nf90_inq_dimid(ncid,'time',dimId);             if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time dimension/'//trim(nf90_strerror(err)); return; endif
@@ -207,7 +137,7 @@ contains
    ! NOTE: This could be faster by checking just the start and the end times
    err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
-   fileTime=fileTime/forcFileInfo(iFFile)%convTime2Days + refJulday ! convert time to units of days, and add reference julian day
+   fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday ! convert time to units of days, and add reference julian day
 
    ! find difference of fileTime from currentJulday
    diffTime=abs(fileTime-currentJulday)
@@ -215,7 +145,6 @@ contains
    ! start time is in the current file
    if(any(diffTime < verySmall))then
     iRead=minloc(diffTime,1)
-    iFile=iFFile
     exit
 
    else ! time step is not in current file
@@ -225,7 +154,7 @@ contains
     if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
     ! check that it is not the last file
-    if(iFFile==nFiles)then; err=99; message=trim(message)//'first requested simulation timestep not in any forcing file'; return; end if
+    if(iFile==nFiles)then; err=99; message=trim(message)//'first requested simulation timestep not in any forcing file'; return; end if
 
    end if  ! first time step is not in any forcing files
 
@@ -250,18 +179,7 @@ contains
    ! increment iFile so we open next forcing file
    iFile = iFile+1
 
-   ! define new filename, and check that it exists
-   infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
-   inquire(file=trim(infile),exist=xist)
-   if(.not.xist)then
-    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
-    err=10; return
-   end if
-
-   ! open forcing data file
-   mode=nf90_NoWrite
-   call nc_file_open(trim(infile),mode,ncid,err,cmessage)
-   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; endif
+   call openForcingFile()
 
    ! reset iRead since we opened a new file
    iRead=1
@@ -393,7 +311,54 @@ contains
                                          yearLength                             ! number of days in the current year
   !pause ' checking time'
  end if
+ 
+ contains
+ 
+  ! **************************************************
+  ! * open the NetCDF forcing file and get the time information 
+  ! **************************************************
+  subroutine openForcingFile()
+   
+   ! define new filename
+   infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
+   ! open file
+   mode=nf90_NoWrite
+   call nc_file_open(trim(infile),mode,ncid,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  
+   ! get definition of time data
+   err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
+   err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=nf90_noerr)then; message=trim(message)//'cannot find time units/'//trim(nf90_strerror(err));    return; endif
+   err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
+
+   ! define the reference time for the model simulation
+   call extractTime(refTimeString,                         & ! input  = units string for time data
+                    refTime%var(iLookTIME%iyyy),           & ! output = year
+                    refTime%var(iLookTIME%im),             & ! output = month
+                    refTime%var(iLookTIME%id),             & ! output = day
+                    refTime%var(iLookTIME%ih),             & ! output = hour
+                    refTime%var(iLookTIME%imin),dsec,      & ! output = minute/second
+                    err,cmessage)                            ! output = error code and error message
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+   ! convert the reference time to days since the beginning of time
+   call compjulday(refTime%var(iLookTIME%iyyy),            & ! input  = year
+                   refTime%var(iLookTIME%im),              & ! input  = month
+                   refTime%var(iLookTIME%id),              & ! input  = day
+                   refTime%var(iLookTIME%ih),              & ! input  = hour
+                   refTime%var(iLookTIME%imin),dsec,       & ! input  = minute/second
+                   refJulday,err,cmessage)                   ! output = julian day (fraction of day) + error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   
+   ! get the time multiplier needed to convert time to units of days
+   select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
+    case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._dp
+    case('hours');   forcFileInfo(iFile)%convTime2Days=24._dp
+    case('days');    forcFileInfo(iFile)%convTime2Days=1._dp
+    case default;    message=trim(message)//'unable to identify time units'; err=20; return
+   end select
+  end subroutine openForcingFile
  end subroutine read_force
 
 end module read_force_module

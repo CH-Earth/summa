@@ -94,7 +94,7 @@ contains
  if(istart > len_trim(refdate)) return
  iend   = index(refdate(istart:n)," ")
  read(refdate(istart:n),*) dsec
- write(*,'(a,i4,1x,4(i2,1x))') 'refdate: iyyy, im, id, ih, imin = ', iyyy, im, id, ih, imin
+ !write(*,'(a,i4,1x,4(i2,1x))') 'refdate: iyyy, im, id, ih, imin = ', iyyy, im, id, ih, imin
 
  contains
 
