@@ -123,7 +123,7 @@ contains
  USE var_lookup,only:iLookProg                          ! variable lookup structure
  USE var_lookup,only:iLookIndex                         ! variable lookup structure
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
- USE globaldata,only:ix_soil,ix_snow                    ! named variables to describe the type of layer
+ USE globaldata,only:iname_soil,iname_snow              ! named variables to describe the type of layer
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
  USE netcdf_util_module,only:nc_file_open               ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
@@ -146,7 +146,6 @@ contains
 
  ! locals
  character(len=256)                     :: cmessage     ! downstream error message
- logical(lgt)                           :: snowExists   ! query whether to read snow layers
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
  integer(i4b)                           :: iVar         ! loop index 
  integer(i4b)                           :: iGRU         ! loop index 
@@ -158,7 +157,7 @@ contains
  integer(i4b)                           :: ncID         ! netcdf file ID
  real(dp),allocatable                   :: varData(:,:) ! variable data storage        
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
-
+ integer(i4b),parameter                 :: nBand=2      ! number of spectral bands
 
  character(len=32),parameter            :: hruDimName    ='hru'      ! dimension name for HRUs
  character(len=32),parameter            :: specDimName   ='spectral' ! dimension name for spectral bands
@@ -253,6 +252,9 @@ contains
       err=20; return
     end select
 
+    ! initialize the spectral albedo
+    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
+
    end do ! iHRU
   end do ! iGRU
 
@@ -282,8 +284,8 @@ contains
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
 
    ! set layer type
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:gru_struc(iGRU)%hruInfo(iHRU)%nSnow) = ix_snow
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1):(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)) = ix_soil
+   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:gru_struc(iGRU)%hruInfo(iHRU)%nSnow) = iname_snow
+   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat((gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1):(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)) = iname_soil
 
   end do
  end do

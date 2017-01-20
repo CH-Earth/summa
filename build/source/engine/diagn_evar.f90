@@ -38,11 +38,9 @@ USE multiconst,only:&
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
 
 ! named variables that define the layer type
-USE globalData,only:ix_soil        ! soil
-USE globalData,only:ix_snow        ! snow
-! model decisions
-USE mDecisions_module,only:Smirnova2000 ! provide access to the Smirnova et al. (2000) thermal conductivity options (temporally constant)
-
+USE globalData,only:iname_snow     ! snow
+USE globalData,only:iname_soil     ! soil
+USE mDecisions_module,only:Smirnova2000  ! option for temporally constant thermal conductivity
 implicit none
 private
 public::diagn_evar
@@ -134,7 +132,7 @@ contains
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers 
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in): number of soil layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
- layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (ix_soil or ix_snow)
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
  mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
  iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
  ! input: heat capacity and thermal conductivity
@@ -183,8 +181,8 @@ contains
   ! * compute the volumetric fraction of air in each layer...
   ! *********************************************************
   select case(layerType(iLayer))
-   case(ix_soil); mLayerVolFracAir(iLayer) = theta_sat - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-   case(ix_snow); mLayerVolFracAir(iLayer) = 1._dp - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+   case(iname_soil); mLayerVolFracAir(iLayer) = theta_sat - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+   case(iname_snow); mLayerVolFracAir(iLayer) = 1._dp - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
   end select
 
@@ -193,13 +191,13 @@ contains
   ! *******************************************************************
   select case(layerType(iLayer))
    ! * soil
-   case(ix_soil)
+   case(iname_soil)
     mLayerVolHtCapBulk(iLayer) = iden_soil  * Cp_soil  * (1._dp - theta_sat)      + & ! soil component
                                  iden_ice   * Cp_Ice   * mLayerVolFracIce(iLayer) + & ! ice component
                                  iden_water * Cp_water * mLayerVolFracLiq(iLayer) + & ! liquid water component
                                  iden_air   * Cp_air   * mLayerVolFracAir(iLayer)     ! air component
    ! * snow
-   case(ix_snow)
+   case(iname_snow)
     mLayerVolHtCapBulk(iLayer) = iden_ice   * Cp_ice   * mLayerVolFracIce(iLayer) + & ! ice component
                                  iden_water * Cp_water * mLayerVolFracLiq(iLayer) + & ! liquid water component
                                  iden_air   * Cp_air   * mLayerVolFracAir(iLayer)     ! air component
@@ -212,7 +210,7 @@ contains
   select case(layerType(iLayer))
 
    ! ***** soil
-   case(ix_soil)
+   case(iname_soil)
 
     ! select option for thermal conductivity of soil
     select case(ixThCondSoil)
@@ -246,7 +244,7 @@ contains
     end select  ! option for the thermal conductivity of soil
     
    ! ***** snow
-   case(ix_snow)
+   case(iname_snow)
     ! temporally constant thermal conductivity
     if(ixThCondSnow==Smirnova2000)then
      mLayerThermalC(iLayer) = fixedThermalCond_snow
@@ -257,8 +255,10 @@ contains
                      err,cmessage)                         ! output: error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     endif
+
    ! * error check
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
+
   end select
   !print*, 'iLayer, mLayerThermalC(iLayer) = ', iLayer, mLayerThermalC(iLayer)
 

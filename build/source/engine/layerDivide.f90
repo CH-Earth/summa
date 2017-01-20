@@ -29,7 +29,8 @@ USE multiconst,only:&
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
 
 ! access named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
+USE globalData,only:iname_snow        ! named variables for snow
+USE globalData,only:iname_soil        ! named variables for soil
 
 ! define look-up values for the choice of method to combine and sub-divide snow layers
 USE mDecisions_module,only:&
@@ -311,19 +312,19 @@ contains
   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat        ,& ! depth of the layer (m)
   mLayerHeight     => prog_data%var(iLookPROG%mLayerHeight)%dat       ,& ! height of the layer mid-point (m)
   iLayerHeight     => prog_data%var(iLookPROG%iLayerHeight)%dat       ,& ! height of the layer interface (m)
-  layerType        => indx_data%var(iLookINDEX%layerType)%dat         ,& ! type of each layer (ix_snow or ix_soil)
+  layerType        => indx_data%var(iLookINDEX%layerType)%dat         ,& ! type of each layer (iname_snow or iname_soil)
   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! number of snow layers
   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! number of soil layers
   nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)         & ! total number of layers
   )  ! (association of local variables with coordinate variab;es in data structures)
 
   ! update the layer type
-  layerType(1:nSnow+1)         = ix_snow
-  layerType(nSnow+2:nLayers+1) = ix_soil
+  layerType(1:nSnow+1)         = iname_snow
+  layerType(nSnow+2:nLayers+1) = iname_soil
 
   ! identify the number of snow and soil layers, and check all is a-OK
-  nSnow   = count(layerType==ix_snow)
-  nSoil   = count(layerType==ix_soil)
+  nSnow   = count(layerType==iname_snow)
+  nSoil   = count(layerType==iname_soil)
   nLayers = nSnow + nSoil
 
   ! re-set coordinate variables
