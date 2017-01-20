@@ -23,6 +23,7 @@ USE nrtype
 implicit none
 private
 public::cloneStruc
+public::findIndex
 
 ! define generic interface
 interface cloneStruc
@@ -30,6 +31,43 @@ interface cloneStruc
 end interface cloneStruc
 
 contains
+
+ ! ************************************************************************************************
+ ! public function findIndex: find the first index within a vector
+ ! ************************************************************************************************
+ function findIndex(vector,desiredValue,missingValue)
+ ! finds the first index within a vector
+ !  -- if the index does not exist, returns zero
+ ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
+ implicit none
+ ! dummy variables
+ integer(i4b),intent(in)            :: vector(:)    ! vector to search
+ integer(i4b),intent(in)            :: desiredValue ! desired value in the vector
+ integer(i4b),intent(in),optional   :: missingValue ! desired missing value if desiredValue is not found
+ integer(i4b)                       :: findIndex    ! first index of the desired value in the vector
+ ! local variables
+ integer(i4b),dimension(1)          :: vecIndex     ! first index of the desired value in the vector (vec of length=1) 
+
+ ! check if the value exisits
+ if(any(vector==desiredValue))then
+
+  ! get the index: merge provides a vector with 1s where mask is true and 0s otherwise, so maxloc(merge) is the first index of value=1
+  ! NOTE: workaround for (not-yet-implemented) f2008 intrinsic findloc
+  vecIndex=maxloc( merge(1, 0, vector==desiredValue) )
+
+ ! value does not exist
+ else
+  if(present(missingValue))then
+   vecIndex=missingValue
+  else
+   vecIndex=0
+  endif
+ endif
+
+ ! return function value (extract into a scalar)
+ findIndex=vecIndex(1)
+
+ end function findIndex
 
  ! ************************************************************************************************
  ! public subroutine cloneStruc_rv: clone a data structure (real vector)

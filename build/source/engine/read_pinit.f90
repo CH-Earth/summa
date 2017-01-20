@@ -23,6 +23,7 @@ USE nrtype
 ! check for when model decisions are undefined
 USE mDecisions_module,only: unDefined
 USE globalData,only:model_decisions
+USE globalData,only:realMissing
 USE var_lookup,only:iLookDECISIONS,iLookPARAM
 implicit none
 private
@@ -53,7 +54,6 @@ contains
  character(*),intent(out)               :: message        ! error message
  ! define general variables
  logical(lgt),parameter                 :: backwardsCompatible=.true. ! .true. if skip check that all parameters are populated
- real(dp),parameter                     :: amiss=1.d+30   ! missing data
  character(len=256)                     :: cmessage       ! error message for downwind routine
  character(LEN=256)                     :: infile         ! input filename
  integer(i4b)                           :: unt            ! file unit (free unit output from file_open)
@@ -84,9 +84,9 @@ contains
  ! (2) read default model parameter values and constraints
  ! **********************************************************************************************
  ! fill parameter vector with missing data
- parFallback(:)%default_val = amiss
- parFallback(:)%lower_limit = amiss
- parFallback(:)%upper_limit = amiss
+ parFallback(:)%default_val = realMissing
+ parFallback(:)%lower_limit = realMissing
+ parFallback(:)%upper_limit = realMissing
  ! ---------------------------------------------------------------------------------------------
  ! read format code
  ! ---------------------------------------------------------------------------------------------
@@ -133,9 +133,9 @@ contains
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file 
-  if(any(parFallback(:)%default_val > 0.99_dp*amiss))then
+  if(any(parFallback(:)%default_val < 0.99_dp*realMissing))then
    do ivar=1,size(parFallback)
-    if(parFallback(ivar)%default_val > 0.99_dp*amiss)then
+    if(parFallback(ivar)%default_val < 0.99_dp*realMissing)then
      err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
     end if
    end do

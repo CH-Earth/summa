@@ -82,13 +82,15 @@ contains
  USE var_lookup,only:iLookFORCE             ! named variables for structure elements
  USE var_lookup,only:iLookPARAM             ! named variables for structure elements
  USE var_lookup,only:iLookINDEX             ! named variables for structure elements
- USE globalData,only:ix_soil,ix_snow        ! named variables for snow and soil
+ USE globalData,only:iname_snow             ! named variables for snow
+ USE globalData,only:iname_soil             ! named variables for soil
  ! named variables for child structures
  USE var_lookup,only:childFLUX_MEAN
  ! global data
  USE globalData,only:data_step              ! time step of forcing data (s)
  USE globalData,only:model_decisions        ! model decision structure
  ! structure allocations
+ USE globalData,only:prog_meta              ! metadata on model prognostic variables
  USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
  USE allocspace_module,only:allocLocal      ! allocate local data structures
  ! preliminary subroutines
@@ -163,12 +165,12 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! define other local variables
  character(len=256)                   :: cmessage               ! error message
+ type(var_dlength)                    :: prog_temp              ! TEMPORARY prognostic variables for a local HRU
  logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
  logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
  logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
  type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
- real(dp)                             :: canopyDepth            ! canopy depth (m)
  real(dp)                             :: exposedVAI             ! exposed vegetation area index
  real(dp)                             :: dt_wght                ! weight applied to each sub-step, to compute time step average
  real(dp)                             :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -213,14 +215,17 @@ contains
 
  ! This is the start of a data step for a local HRU
 
+ ! link canopy depth to the information in the data structure
+ canopy: associate(canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1) )  ! intent(out): [dp] canopy depth (m)
+
  ! define the first step
  firstStep = (istep==1)
 
  ! count the number of snow and soil layers
  ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
  !         (nSnow and nSoil are shared in the data structure)
- nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
- nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+ nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+ nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
 
  ! compute the total number of snow and soil layers
  nLayers = nSnow + nSoil
@@ -556,8 +561,8 @@ contains
 
     ! recompute the number of snow and soil layers
     ! NOTE: do this here for greater visibility
-    nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_snow)
-    nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==ix_soil)
+    nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+    nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
     nLayers = nSnow+nSoil
 
     ! put the data in the structures
@@ -568,6 +573,7 @@ contains
     ! compute the indices for the model state variables
     if(firstStep .or. modifiedVegState .or. modifiedLayers)then
      call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                     nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
                      indx_data,               & ! intent(inout): indices defining model states and layers
                      err,cmessage)              ! intent(out):   error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -622,7 +628,8 @@ contains
     end if
 
    ! ** if previous step is not rejected
-   end if
+   end if  ! ***************************
+   ! **********************************
 
    ! test: recompute snow depth and SWE
    if(nSnow > 0)then
@@ -642,6 +649,19 @@ contains
    ! (9) solve model equations...
    ! ----------------------------
 
+   ! get a copy of the prognostic structure 
+   if(.not.rejectedStep)then
+
+    ! allocate space for the temporary prognostic structure
+    call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+    ! copy the data from prog_data to prog_temp
+    forall(iVar=1:size(prog_temp%var)) prog_temp%var(iVar)%dat = prog_data%var(iVar)%dat
+
+   endif  ! if the step was not rejected
+
+
    ! get the new solution
    call systemSolv(&
                    ! input: model control
@@ -658,7 +678,7 @@ contains
                    attr_data,                              & ! intent(in):    spatial attributes
                    forc_data,                              & ! intent(in):    model forcing data
                    mpar_data,                              & ! intent(in):    model parameters
-                   indx_data,                              & ! intent(in):    index data
+                   indx_data,                              & ! intent(inout): index data
                    prog_data,                              & ! intent(inout): model prognostic variables for a local HRU
                    diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
                    flux_data,                              & ! intent(inout): model fluxes for a local HRU
@@ -666,21 +686,25 @@ contains
                    model_decisions,                        & ! intent(in):    model decisions
                    ! output: model control
                    niter,                                  & ! intent(out): number of iterations
-                   resumeSubStepSolver,                    & ! intent(in):  resume the solver even it is not 
                    err,cmessage)                             ! intent(out): error code and error message
 
    ! check for fatal errors
    if(err>0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+   !print*, trim(cmessage)
+   !pause 'completed step!'
 
    ! update first step
    firstStep=.false.
 
    ! if err<0 (warnings) and hence non-convergence
    if(err<0)then
+
     ! (adjust time step length)
     dt_temp = dt_temp*0.5_dp ! halve the sub-step
     write(*,'(a,1x,2(f13.3,1x),A,I0)') trim(cmessage), dt_temp, minstep,' at HRU ',hruId
     rejectedStep=.true.
+
     ! (check that time step greater than the minimum step)
     if(dt_temp < minstep)then
      if (resumeFailSolver) then 
@@ -691,16 +715,36 @@ contains
       err=20; return
      end if 
     endif
-    !pause 'failed step'
+
+    ! copy the data from prog_temp to prog_data
+    forall(iVar=1:size(prog_temp%var)) prog_data%var(iVar)%dat = prog_temp%var(iVar)%dat
+
     ! (try again)
     cycle  ! try again
+
+   ! step accepted
    else
+
+    ! set flag
     rejectedStep=.false.
-    !pause 'accepted step'
-   end if
+    
+    ! deallocate space for prog_temp
+    do iVar=1,size(prog_temp%var)
+     deallocate(prog_temp%var(iVar)%dat, stat=err)
+     if(err/=0)then; err=20; write(message,'(a,i0)') trim(message)//'problem deallocating space for prog_temp structure for variable ', iVar; return; endif
+    enddo
+    deallocate(prog_temp%var, stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'problem deallocating space for prog_temp structure for all variables'; return; endif
+
+   end if  ! check on whether step is rejected
 
    ! check that err=0 at this point (it should be)
    if(err/=0)then; message=trim(message)//'expect err=0'; return; end if
+
+
+   ! NOTE: Can't we exit the multiple trial loop at this point????
+   ! Or do we keep going to complete the substep??
+
 
 
    ! (10a) compute change in canopy ice content due to sublimation...
@@ -851,6 +895,8 @@ contains
 
   end do  ! (multiple attempts for non-convergence)
   !print*, 'after do loop: dt_sub = ', dt_sub
+  !print*, 'PAUSE: completed substep'; read(*,*)
+  
 
   ! ****************************************************************************************************
   ! *** END MAIN SOLVER ********************************************************************************
@@ -918,7 +964,7 @@ contains
   !print*, 'in substep loop: dt_sub = ', dt_sub
 
  end do  ! (sub-step loop)
- !pause 'completed time step'
+ !print*, 'PAUSE: completed time step'; read(*,*)
 
  ! ---
  ! (14) balance checks...
@@ -995,6 +1041,8 @@ contains
  if(abs(scalarSoilWatBalError) > 1.d-2)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   write(*,'(a,1x,f20.10)') 'dt                        = ', dt
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
+  write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq
+  write(*,'(a,1x,f20.10)') 'scalarTotalSoilIce        = ', scalarTotalSoilIce
   write(*,'(a,1x,f20.10)') 'balanceSoilWater0         = ', balanceSoilWater0
   write(*,'(a,1x,f20.10)') 'balanceSoilWater1         = ', balanceSoilWater1
   write(*,'(a,1x,f20.10)') 'balanceSoilInflux         = ', balanceSoilInflux
@@ -1005,8 +1053,8 @@ contains
   ! check the water balance in each layer
   do iLayer=1,nSoil
    xCompress = diag_data%var(iLookDIAG%mLayerCompress)%dat(iLayer)
-   xFlux0    = flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(iLayer-1)*dt
-   xFlux1    = flux_mean%var(iLookFLUX%iLayerLiqFluxSoil)%dat(iLayer)*dt
+   xFlux0    = flux_mean%var( childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil) )%dat(iLayer-1)*dt
+   xFlux1    = flux_mean%var( childFLUX_MEAN(iLookFLUX%iLayerLiqFluxSoil) )%dat(iLayer)*dt
    write(*,'(a,1x,i4,1x,10(e20.10,1x))') 'iLayer, xFlux0, xFlux1, (xFlux1 - xFlux0)/mLayerDepth(iLayer), xCompress = ', &
                                           iLayer, xFlux0, xFlux1, (xFlux1 - xFlux0)/mLayerDepth(iLayer), xCompress
   end do
@@ -1017,6 +1065,9 @@ contains
 
  ! end association of local variables with information in the data structures
  end associate
+
+ ! end association to canopy depth
+ end associate canopy
 
  ! save the surface temperature (just to make things easier to visualize)
  prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)

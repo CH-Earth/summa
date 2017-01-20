@@ -69,8 +69,6 @@ USE mDecisions_module,only:  &
 USE mDecisions_module,only:  &
  localColumn,                & ! separate groundwater representation in each local soil column
  singleBasin                   ! single groundwater store over the entire basin
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow            ! named variables for snow and soil
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -518,7 +516,7 @@ contains
  scalarCanopyWetFraction         => diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1),        & ! intent(out): [dp] fraction of canopy that is wet
  scalarGroundSnowFraction        => diag_data%var(iLookDIAG%scalarGroundSnowFraction)%dat(1),       & ! intent(out): [dp] fraction of ground covered with snow (-)
 
- ! output: longwave radiation fluxesdiag
+ ! output: longwave radiation fluxes
  scalarCanopyEmissivity          => diag_data%var(iLookDIAG%scalarCanopyEmissivity)%dat(1),         & ! intent(out): [dp] effective emissivity of the canopy (-)
  scalarLWRadCanopy               => flux_data%var(iLookFLUX%scalarLWRadCanopy)%dat(1),              & ! intent(out): [dp] longwave radiation emitted from the canopy (W m-2)
  scalarLWRadGround               => flux_data%var(iLookFLUX%scalarLWRadGround)%dat(1),              & ! intent(out): [dp] longwave radiation emitted at the ground surface (W m-2)
@@ -1418,7 +1416,6 @@ contains
     scalarSnowSublimation   = 0._dp  ! no sublimation from snow if no snow layers have formed
    end if
    !print*, 'scalarSnowSublimation, scalarLatHeatGround = ', scalarSnowSublimation, scalarLatHeatGround
-
 
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
@@ -2779,7 +2776,7 @@ contains
  if(computeVegFlux)then
   evapConductance    = canopyWetFraction*leafConductance
   transConductance   = (1._dp - canopyWetFraction) * leafConductanceTr
-  !write(*,'(a,10(f20.10,1x))') 'canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction = ', &
+  !write(*,'(a,10(f14.8,1x))') 'canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction = ', &
   !                              canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction
  else
   evapConductance    = 0._dp
@@ -2848,6 +2845,7 @@ contains
   latHeatCanopyTrans =              -LH_vap*latentHeatConstant*transConductance*(satVP_CanopyTemp - VP_CanopyAir)   ! (positive downwards)
   !write(*,'(a,10(f25.15,1x))') 'latHeatCanopyEvap, VP_CanopyAir = ', latHeatCanopyEvap, VP_CanopyAir
   !write(*,'(a,10(f25.15,1x))') 'latHeatCanopyTrans, VP_CanopyAir = ', latHeatCanopyTrans, VP_CanopyAir
+  !write(*,'(a,10(f25.15,1x))') 'transConductance = ', transConductance
 
   ! check that energy for canopy evaporation does not exhaust the available water
   ! NOTE: do this here, rather than enforcing solution constraints, because energy and mass solutions may be uncoupled

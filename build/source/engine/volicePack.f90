@@ -21,8 +21,6 @@
 module volicePack_module
 ! numerical recipes data types
 USE nrtype
-! named variables for snow and soil
-USE globalData,only:ix_soil,ix_snow
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,  & ! freezing point              (K)
@@ -101,6 +99,8 @@ contains
                   divideLayer,                 & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+
+ if(divideLayer) print*, '*** layer was divided!!!'
 
  ! merge snow layers if they are too thin
  call layerMerge(&

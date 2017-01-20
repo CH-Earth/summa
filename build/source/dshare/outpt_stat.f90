@@ -34,7 +34,6 @@ contains
  subroutine calcStats(stat,dat,meta,iStep,err,message)
  USE nrtype
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
- USE globalData,only:nFreq                          ! output frequencies
  USE var_lookup,only:iLookVarType                   ! named variables for variable types 
  USE var_lookup,only:iLookStat                      ! named variables for output statistics types 
  implicit none
@@ -65,6 +64,7 @@ contains
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
    ! don't do anything if var is not requested
+   ! WHY is this needed when included above?
    if (meta(iVar)%outFreq<0) cycle
 
    ! index into parent structure
@@ -73,7 +73,7 @@ contains
    select type (dat)
     type is (real(dp)); tdata = dat(pVar)
     type is (dlength) ; tdata = dat(pVar)%dat(1)
-    type is (ilength) ; tdata = real(dat(pVar)%dat(1))
+    type is (ilength) ; tdata = real(dat(pVar)%dat(1), kind(dp))
     class default;err=20;message=trim(message)//'dat type not found';return
    end select
 

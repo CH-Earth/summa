@@ -1,11 +1,22 @@
 module popMetadat_module
+USE nrtype
 implicit none
+! define indices in metadata structures
+integer(i4b),parameter   :: modelTime=1     ! to force index variables to be output at model timestep
+integer(i4b),parameter   :: nameIndex=1     ! index of the variable name
+integer(i4b),parameter   :: freqIndex=3     ! index of the output frequency
+! define indices in flag vectors
+integer(i4b),parameter   :: indexMidSnow=1  ! index of flag vector: midSnow
+integer(i4b),parameter   :: indexMidSoil=2  ! index of flag vector: midSoil
+integer(i4b),parameter   :: indexMidToto=3  ! index of flag vector: midToto
+integer(i4b),parameter   :: indexIfcSnow=4  ! index of flag vector: ifcSnow
+integer(i4b),parameter   :: indexIfcSoil=5  ! index of flag vector: ifcSoil
+integer(i4b),parameter   :: indexIfcToto=6  ! index of flag vector: ifcToto
 private
 public::popMetadat
 contains
 
  subroutine popMetadat(err,message)
- USE nrtype
  USE multiconst,only:integerMissing
  ! data structures
  USE data_types, only: var_info   ! data type for metadata structure
@@ -106,8 +117,9 @@ contains
  mpar_meta(iLookPARAM%tempCritRain)          = var_info('tempCritRain'          , 'critical temperature where precipitation is rain'                 , 'K'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%tempRangeTimestep)     = var_info('tempRangeTimestep'     , 'temperature range over the time step'                             , 'K'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%frozenPrecipMultip)    = var_info('frozenPrecipMultip'    , 'frozen precipitation multiplier'                                  , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- ! freezing curve for snow
+ ! snow properties
  mpar_meta(iLookPARAM%snowfrz_scale)         = var_info('snowfrz_scale'         , 'scaling parameter for the freezing curve for snow'                , 'K-1'             , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%fixedThermalCond_snow) = var_info('fixedThermalCond_snow' , 'temporally constant thermal conductivity for snow'                , 'W m-1 K-1'       , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! snow albedo
  mpar_meta(iLookPARAM%albedoMax)             = var_info('albedoMax'             , 'maximum snow albedo (single spectral band)'                       , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%albedoMinWinter)       = var_info('albedoMinWinter'       , 'minimum snow albedo during winter (single spectral band)'         , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -306,6 +318,7 @@ contains
  ! * local model diagnostic variables...
  ! -------------------------------------
  ! local properties
+ diag_meta(iLookDIAG%scalarCanopyDepth)               = var_info('scalarCanopyDepth'              , 'canopy depth'                                                     , 'm'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarGreenVegFraction)          = var_info('scalarGreenVegFraction'         , 'green vegetation fraction (used to compute LAI)'                  , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarBulkVolHeatCapVeg)         = var_info('scalarBulkVolHeatCapVeg'        , 'bulk volumetric heat capacity of vegetation'                      , 'J m-3 K-1'       , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarCanopyEmissivity)          = var_info('scalarCanopyEmissivity'         , 'effective canopy emissivity'                                      , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -384,6 +397,7 @@ contains
  diag_meta(iLookDIAG%mLayerTcrit)                     = var_info('mLayerTcrit'                    , 'critical soil temperature above which all water is unfrozen'      , 'K'               , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%mLayerCompress)                  = var_info('mLayerCompress'                 , 'change in volumetric water content due to compression of soil'    , '-'               , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarSoilCompress)              = var_info('scalarSoilCompress'             , 'change in total soil storage due to compression of soil matrix'   , 'kg m-2'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ diag_meta(iLookDIAG%mLayerMatricHeadLiq)             = var_info('mLayerMatricHeadLiq'            , 'matric potential of liquid water'                                 , 'm'               , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
  ! mass balance check
  diag_meta(iLookDIAG%scalarSoilWatBalError)           = var_info('scalarSoilWatBalError'          , 'error in the total soil water balance'                            , 'kg m-2'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarAquiferBalError)           = var_info('scalarAquiferBalError'          , 'error in the aquifer water balance'                               , 'kg m-2'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -537,10 +551,11 @@ contains
  deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
  deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
  ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
- deriv_meta(iLookDERIV%dPsiLiq_dTemp)                 = var_info('dPsiLiq_dTemp'                , 'derivative in the liquid water matric potential w.r.t. temperature'   , 'm K-1'          , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
- deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
  deriv_meta(iLookDERIV%dq_dNrgStateAbove)             = var_info('dq_dNrgStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
  deriv_meta(iLookDERIV%dq_dNrgStateBelow)             = var_info('dq_dNrgStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
+ deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ deriv_meta(iLookDERIV%dPsiLiq_dTemp)                 = var_info('dPsiLiq_dTemp'                , 'derivative in the liquid water matric potential w.r.t. temperature'   , 'm K-1'          , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
+ deriv_meta(iLookDERIV%dPsiLiq_dPsi0)                 = var_info('dPsiLiq_dPsi0'                , 'derivative in liquid matric potential w.r.t. total  matric potential' , '-'              , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
 
  ! -----
  ! * basin-wide runoff and aquifer fluxes...
@@ -561,60 +576,88 @@ contains
  ! * model indices...
  ! ------------------
 
- ! number of state variables of different type
- indx_meta(iLookINDEX%nVegNrg)           = var_info('nVegNrg'          , 'number of energy state variables for vegetation'                 , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nVegMass)          = var_info('nVegMass'         , 'number of hydrology states for vegetation (mass of water)'       , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nVegState)         = var_info('nVegState'        , 'number of vegetation state variables'                            , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nNrgState)         = var_info('nNrgState'        , 'number of energy state variables'                                , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nWatState)         = var_info('nWatState'        , 'number of "total water" states (vol. total water content)'       , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nMatState)         = var_info('nMatState'        , 'number of matric head state variables'                           , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nMassState)        = var_info('nMassState'       , 'number of hydrology state variables (mass of water)'             , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nState)            = var_info('nState'           , 'total number of model state variables'                           , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! number of model layers, and layer indices
- indx_meta(iLookINDEX%nSnow)             = var_info('nSnow'            , 'number of snow layers'                                           , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nSoil)             = var_info('nSoil'            , 'number of soil layers'                                           , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%nLayers)           = var_info('nLayers'          , 'total number of layers'                                          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%layerType)         = var_info('layerType'        , 'index defining type of layer (soil or snow)'                     , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
- ! indices of model state variables
- indx_meta(iLookINDEX%ixCasNrg)          = var_info('ixCasNrg'         , 'index of canopy air space energy state variable'                 , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixVegNrg)          = var_info('ixVegNrg'         , 'index of canopy energy state variable'                           , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixVegWat)          = var_info('ixVegWat'         , 'index of canopy hydrology state variable (mass)'                 , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixTopNrg)          = var_info('ixTopNrg'         , 'index of upper-most energy state in the snow-soil subdomain'     , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixTopWat)          = var_info('ixTopWat'         , 'index of upper-most total water state in the snow-soil subdomain', '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixTopMat)          = var_info('ixTopMat'         , 'index of upper-most matric head state in the soil subdomain'     , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixSnowSoilNrg)     = var_info('ixSnowSoilNrg'    , 'indices for energy states in the snow-soil subdomain'            , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixSnowSoilWat)     = var_info('ixSnowSoilWat'    , 'indices for total water states in the snow-soil subdomain'       , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixSnowOnlyNrg)     = var_info('ixSnowOnlyNrg'    , 'indices for energy states in the snow subdomain'                 , '-', get_ixVarType('midSnow'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixSnowOnlyWat)     = var_info('ixSnowOnlyWat'    , 'indices for total water states in the snow subdomain'            , '-', get_ixVarType('midSnow'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixSoilOnlyNrg)     = var_info('ixSoilOnlyNrg'    , 'indices for energy states in the soil subdomain'                 , '-', get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixSoilOnlyHyd)     = var_info('ixSoilOnlyHyd'    , 'indices for hydrology states in the soil subdomain'              , '-', get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nSnow)               = var_info('nSnow'               , 'number of snow layers'                                                   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nSoil)               = var_info('nSoil'               , 'number of soil layers'                                                   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nLayers)             = var_info('nLayers'             , 'total number of layers'                                                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%layerType)           = var_info('layerType'           , 'index defining type of layer (snow or soil)'                             , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ ! number of state variables of different type
+ indx_meta(iLookINDEX%nCasNrg)             = var_info('nCasNrg'             , 'number of energy state variables for the canopy air space'               , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nVegNrg)             = var_info('nVegNrg'             , 'number of energy state variables for the vegetation canopy'              , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nVegMass)            = var_info('nVegMass'            , 'number of hydrology states for vegetation (mass of water)'               , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nVegState)           = var_info('nVegState'           , 'number of vegetation state variables'                                    , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nNrgState)           = var_info('nNrgState'           , 'number of energy state variables'                                        , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nWatState)           = var_info('nWatState'           , 'number of "total water" states (vol. total water content)'               , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nMatState)           = var_info('nMatState'           , 'number of matric head state variables'                                   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nMassState)          = var_info('nMassState'          , 'number of hydrology state variables (mass of water)'                     , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nState)              = var_info('nState'              , 'total number of model state variables'                                   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ ! number of state variables within different domains in the snow+soil system
+ indx_meta(iLookINDEX%nSnowSoilNrg)        = var_info('nSnowSoilNrg'        , 'number of energy states in the snow+soil domain'                         , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nSnowOnlyNrg)        = var_info('nSnowOnlyNrg'        , 'number of energy states in the snow domain'                              , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nSoilOnlyNrg)        = var_info('nSoilOnlyNrg'        , 'number of energy states in the soil domain'                              , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nSnowSoilHyd)        = var_info('nSnowSoilHyd'        , 'number of hydrology states in the snow+soil domain'                      , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nSnowOnlyHyd)        = var_info('nSnowOnlyHyd'        , 'number of hydrology states in the snow domain'                           , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%nSoilOnlyHyd)        = var_info('nSoilOnlyHyd'        , 'number of hydrology states in the soil domain'                           , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! type of model state variables
- indx_meta(iLookINDEX%ixStateType)       = var_info('ixStateType'      , 'indices defining the type of the state (ixNrgState...)'          , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixAllState)        = var_info('ixAllState'       , 'list of indices for all model state variables'                   , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixSoilState)       = var_info('ixSoilState'      , 'list of indices for all soil layers'                             , '-', get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixLayerState)      = var_info('ixLayerState'     , 'list of indices for all model layers'                            , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixNrgOnly)         = var_info('ixNrgOnly'        , 'list of indices for all energy states'                           , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixWatOnly)         = var_info('ixWatOnly'        , 'list of indices for all "total water" states'                    , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixMatOnly)         = var_info('ixMatOnly'        , 'list of indices for matric head state variables'                 , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ixMassOnly)        = var_info('ixMassOnly'       , 'list of indices for hydrology states (mass of water)'            , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixControlVolume)     = var_info('ixControlVolume'     , 'index of the control volume for different domains (veg, snow, soil)'     , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixDomainType)        = var_info('ixDomainType'        , 'index of the type of domain (iname_veg, iname_snow, iname_soil)'         , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixStateType)         = var_info('ixStateType'         , 'index of the type of every state variable (iname_nrgCanair, ...)'        , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixHydType)           = var_info('ixHydType'           , 'index of the type of hydrology states in snow+soil domain'               , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ ! type of model state variables (state subset)
+ indx_meta(iLookINDEX%ixDomainType_subset) = var_info('ixDomainType_subset' , '[state subset] id of domain for desired model state variables'           , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixStateType_subset)  = var_info('ixStateType_subset'  , '[state subset] type of desired model state variables'                    , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ ! mapping between state subset and the full state vector
+ indx_meta(iLookINDEX%ixMapFull2Subset)    = var_info('ixMapFull2Subset'    , 'list of indices of the state subset in the full state vector'            , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixMapSubset2Full)    = var_info('ixMapSubset2Full'    , 'list of indices of the full state vector in the state subset'            , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ ! indices of model specific state variables
+ indx_meta(iLookINDEX%ixCasNrg)            = var_info('ixCasNrg'            , 'index of canopy air space energy state variable'                         , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixVegNrg)            = var_info('ixVegNrg'            , 'index of canopy energy state variable'                                   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixVegHyd)            = var_info('ixVegHyd'            , 'index of canopy hydrology state variable (mass)'                         , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixTopNrg)            = var_info('ixTopNrg'            , 'index of upper-most energy state in the snow+soil subdomain'             , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixTopHyd)            = var_info('ixTopHyd'            , 'index of upper-most hydrology state in the snow+soil subdomain'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ ! vectors of indices for specific state types
+ indx_meta(iLookINDEX%ixNrgOnly)           = var_info('ixNrgOnly'           , 'indices IN THE STATE SUBSET for energy states'                           , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixHydOnly)           = var_info('ixHydOnly'           , 'indices IN THE STATE SUBSET for hydrology states in the snow+soil domain', '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixMatOnly)           = var_info('ixMatOnly'           , 'indices IN THE STATE SUBSET for matric head state variables'             , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixMassOnly)          = var_info('ixMassOnly'          , 'indices IN THE STATE SUBSET for hydrology states (mass of water)'        , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ ! vectors of indices for specific state types within specific sub-domains
+ indx_meta(iLookINDEX%ixSnowSoilNrg)       = var_info('ixSnowSoilNrg'       , 'indices IN THE STATE SUBSET for energy states in the snow+soil domain'   , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixSnowOnlyNrg)       = var_info('ixSnowOnlyNrg'       , 'indices IN THE STATE SUBSET for energy states in the snow domain'        , '-', get_ixVarType('midSnow'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixSoilOnlyNrg)       = var_info('ixSoilOnlyNrg'       , 'indices IN THE STATE SUBSET for energy states in the soil domain'        , '-', get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixSnowSoilHyd)       = var_info('ixSnowSoilHyd'       , 'indices IN THE STATE SUBSET for hydrology states in the snow+soil domain', '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixSnowOnlyHyd)       = var_info('ixSnowOnlyHyd'       , 'indices IN THE STATE SUBSET for hydrology states in the snow domain'     , '-', get_ixVarType('midSnow'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixSoilOnlyHyd)       = var_info('ixSoilOnlyHyd'       , 'indices IN THE STATE SUBSET for hydrology states in the soil domain'     , '-', get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
+ ! vectors of indices for specfic state types within specific sub-domains
+ indx_meta(iLookINDEX%ixNrgCanair)         = var_info('ixNrgCanair'         , 'indices IN THE FULL VECTOR for energy states in canopy air space domain' , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixNrgCanopy)         = var_info('ixNrgCanopy'         , 'indices IN THE FULL VECTOR for energy states in the canopy domain'       , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixHydCanopy)         = var_info('ixHydCanopy'         , 'indices IN THE FULL VECTOR for hydrology states in the canopy domain'    , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixNrgLayer)          = var_info('ixNrgLayer'          , 'indices IN THE FULL VECTOR for energy states in the snow+soil domain'    , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixHydLayer)          = var_info('ixHydLayer'          , 'indices IN THE FULL VECTOR for hydrology states in the snow+soil domain' , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
+ indx_meta(iLookINDEX%ixVolFracWat)        = var_info('ixVolFracWat'        , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                          , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixMatricHead)        = var_info('ixMatricHead'        , 'indices IN THE SOIL VECTOR for hyd states'                               , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ ! indices within state vectors
+ indx_meta(iLookINDEX%ixAllState)          = var_info('ixAllState'          , 'list of indices for all model state variables'                           , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixSoilState)         = var_info('ixSoilState'         , 'list of indices for all soil layers'                                     , '-', get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixLayerState)        = var_info('ixLayerState'        , 'list of indices for all model layers'                                    , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
  ! indices for the model output files
- indx_meta(iLookINDEX%midSnowStartIndex) = var_info('midSnowStartIndex', 'start index of the midSnow vector for a given timestep'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%midSoilStartIndex) = var_info('midSoilStartIndex', 'start index of the midSoil vector for a given timestep'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%midTotoStartIndex) = var_info('midTotoStartIndex', 'start index of the midToto vector for a given timestep'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ifcSnowStartIndex) = var_info('ifcSnowStartIndex', 'start index of the ifcSnow vector for a given timestep'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ifcSoilStartIndex) = var_info('ifcSoilStartIndex', 'start index of the ifcSoil vector for a given timestep'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- indx_meta(iLookINDEX%ifcTotoStartIndex) = var_info('ifcTotoStartIndex', 'start index of the ifcToto vector for a given timestep'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%midSnowStartIndex)   = var_info('midSnowStartIndex'   , 'start index of the midSnow vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%midSoilStartIndex)   = var_info('midSoilStartIndex'   , 'start index of the midSoil vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%midTotoStartIndex)   = var_info('midTotoStartIndex'   , 'start index of the midToto vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ifcSnowStartIndex)   = var_info('ifcSnowStartIndex'   , 'start index of the ifcSnow vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ifcSoilStartIndex)   = var_info('ifcSoilStartIndex'   , 'start index of the ifcSoil vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ifcTotoStartIndex)   = var_info('ifcTotoStartIndex'   , 'start index of the ifcToto vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
 
+ ! read file to define model output (modifies metadata structures
  call read_output_file(err,cmessage)
  if (err.ne.0) message=trim(message)//trim(cmessage)
 
  end subroutine popMetadat
 
-! ------------------------------------------------
-! subroutine to populate write commands from file input
-! ------------------------------------------------
+ ! ------------------------------------------------
+ ! subroutine to populate write commands from file input
+ ! ------------------------------------------------
  subroutine read_output_file(err,message)
- USE nrtype
  USE multiconst,only:integerMissing
  USE get_ixName_module,only:get_ixUnknown
 
@@ -662,7 +705,6 @@ contains
  character(LEN=64),allocatable      :: lineWords(:)    ! vector to parse textline
  integer(i4b)                       :: nWords          ! number of words in line
  integer(i4b)                       :: oFreq           ! output frequencies read from file
- integer(i4b),parameter             :: modelTime=1     ! to force index variables to be output at model timestep
  character(LEN=5)                   :: structName      ! name of structure
 
  ! indices
@@ -695,7 +737,7 @@ contains
  ! (3) loop to parse individual file lines 
  ! **********************************************************************************************
  ! flag whether or not the user has requested an output variable that requires output of layer information
- indexFlags = .false.
+ indexFlags(:) = .false.
 
  ! initialize output frequency
  nFreq = 1
@@ -713,29 +755,45 @@ contains
   if (trim(lineWords(1))=='time') cycle
 
   ! read output frequency
-  read(lineWords(3),*) oFreq
+  read(lineWords(freqIndex),*,iostat=err) oFreq
+  if(err/=0)then
+   message=trim(message)//'problem reading the output frequency: check format of model control file "'//trim(outfile)//'"'
+   err=20; return
+  endif
 
   ! --- variables with multiple statistics options --------------------------
-  call get_ixUnknown(trim(lineWords(1)),structName,vDex,err,cmessage)
-  if (err.ne.0) then; message=trim(message)//trim(cmessage)//trim(linewords(1)); return; end if;
+
+  ! idenify the data structure for the given variable (structName) and the variable index (vDex)
+  call get_ixUnknown(trim(lineWords(nameIndex)),structName,vDex,err,cmessage)
+  if (err/=0) then; message=trim(message)//trim(cmessage)//trim(linewords(nameIndex)); return; end if;
+
+  ! populate the metadata that controls the model output
   select case (trim(structName))
-   case('time' ); if (oFreq.ne.0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modelTime ! timing data
-   case('bpar' ); if (oFreq.ne.0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modelTime ! basin parameters
-   case('attr' ); if (oFreq.ne.0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modelTime ! local attributes 
-   case('type' ); if (oFreq.ne.0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification 
-   case('mpar' ); if (oFreq.ne.0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
+
+   ! temporally constant structures
+   case('time' ); if (oFreq/=0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modelTime ! timing data
+   case('bpar' ); if (oFreq/=0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modelTime ! basin parameters
+   case('attr' ); if (oFreq/=0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modelTime ! local attributes 
+   case('type' ); if (oFreq/=0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification 
+   case('mpar' ); if (oFreq/=0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
+
+   ! index structures -- can only be output at the model time step
    case('indx' )
     if (oFreq==modelTime)       indx_meta(vDex)%statFlag(iLookStat%inst)=.true.; indx_meta(vDex)%outFreq=modelTime      ! indexex
     if (oFreq>modelTime) then; err=20; message=trim(message)//'index variables can only be output at model timestep'; return; end if
-   case('forc' ); call popStat(forc_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model forcing data
-   case('prog' ); call popStat(prog_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model prognostics 
-   case('diag' ); call popStat(diag_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model diagnostics
-   case('flux' ); call popStat(flux_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! model fluxes
-   case('bvar' ); call popStat(bvar_meta(vDex) ,lineWords,nWords,indexFlags,err,cmessage)    ! basin variables
-   case('deriv'); call popStat(deriv_meta(vDex),lineWords,nWords,indexFlags,err,cmessage)    ! model derivs 
+
+   ! temporally varying structures
+   case('forc' ); call popStat(forc_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model forcing data
+   case('prog' ); call popStat(prog_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model prognostics 
+   case('diag' ); call popStat(diag_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model diagnostics
+   case('flux' ); call popStat(flux_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! model fluxes
+   case('bvar' ); call popStat(bvar_meta(vDex) ,lineWords,indexFlags,err,cmessage)    ! basin variables
+   case('deriv'); call popStat(deriv_meta(vDex),lineWords,indexFlags,err,cmessage)    ! model derivs 
+
+   ! error control
    case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
-  end select
-  if (err.ne.0) then; message=trim(message)//trim(cmessage);return; end if
+  end select  ! select data structure
+  if (err/=0) then; message=trim(message)//trim(cmessage);return; end if
 
   ! Ensure that time is turned on: it doens't matter what this value is as long as it is >0.
   forc_meta(iLookForce%time)%outFreq = abs(integerMissing)
@@ -745,41 +803,44 @@ contains
  ! **********************************************************************************************
  ! (4) see if we need any index variables 
  ! **********************************************************************************************
- if (indexFlags(1)) then
+
+ ! if any layered variables at all, then output the number of layers
+ if(any(indexFlags))then
+  ! (snow layers)
+  indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
+  indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
+  ! (soil layers)
+  indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
+  indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
+  ! (total layers)
+  indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
+  indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
+ endif  ! if any layered variables at all
+
+ ! output the start index in the ragged arrays
+ if (indexFlags(indexMidSnow)) then
   indx_meta(iLookINDEX%midSnowStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midSnowStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
  end if
- if (indexFlags(2)) then
+ if (indexFlags(indexMidSoil)) then
   indx_meta(iLookINDEX%midSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midSoilStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
  end if
- if (indexFlags(3)) then
+ if (indexFlags(indexMidToto)) then
   indx_meta(iLookINDEX%midTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%midTotoStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
-  indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
  end if
- if (indexFlags(4)) then
+ if (indexFlags(indexIfcSnow)) then
   indx_meta(iLookINDEX%ifcSnowStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSnowStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
  end if
- if (indexFlags(5)) then
+ if (indexFlags(indexIfcSoil)) then
   indx_meta(iLookINDEX%ifcSoilStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcSoilStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
-  indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
  end if
- if (indexFlags(6)) then
+ if (indexFlags(indexIfcToto)) then
   indx_meta(iLookINDEX%ifcTotoStartIndex)%statFlag(iLookStat%inst) = .true.
   indx_meta(iLookINDEX%ifcTotoStartIndex)%outFreq                  = modelTime 
-  indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
-  indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
  end if
 
  return
@@ -789,8 +850,7 @@ contains
  ! Subroutine popStat for populating the meta_data structures with information read in from file.
  ! This routine is called by read_output_file
  ! ********************************************************************************************
- subroutine popStat(meta,lineWords,nWords,indexFlags,err,message)
- USE nrtype
+ subroutine popStat(meta,lineWords,indexFlags,err,message)
  USE multiconst,only:integerMissing
  USE globalData,only:outFreq,nFreq             ! maximum number of output files
  USE data_types,only:var_info                  ! meta_data type declaration
@@ -798,121 +858,123 @@ contains
  USE var_lookup,only:maxvarStat                ! number of possible output statistics
  USE var_lookup,only:iLookVarType              ! variable type lookup structure
  USE var_lookup,only:iLookStat                 ! output statistic lookup structure
+ USE f2008funcs_module,only:findIndex          ! finds the index of the first value within a vector
  implicit none
  ! dummy variables
- class(var_info),intent(inout)                 :: meta        ! dummy meta_data structure
- integer(i4b),intent(in)                       :: nWords      ! number of words in line
- character(LEN=64),intent(in)                  :: lineWords(nWords)   ! vector to parse textline
- logical(lgt),dimension(6)                     :: indexFlags  ! logical flags to turn on index variables 
- integer(i4b),intent(out)                      :: err         ! error code
- character(*),intent(out)                      :: message     ! error message
-
+ class(var_info),intent(inout)                 :: meta         ! dummy meta_data structure
+ character(*),intent(in)                       :: lineWords(:) ! vector to parse textline
+ logical(lgt),dimension(6),intent(inout)       :: indexFlags   ! logical flags to turn on index variables 
+ integer(i4b),intent(out)                      :: err          ! error code
+ character(*),intent(out)                      :: message      ! error message
  ! internals 
- integer(i4b)                                  :: oFreq       ! output frequency
- integer(i4b),parameter                        :: modelTime=1 ! frequency of model timestep 
+ integer(i4b)                                  :: oFreq        ! output frequency
+ integer(i4b)                                  :: nWords       ! number of words in a line
  ! indexes 
- integer(i4b) :: iFreq ! into frequency array
- integer(i4b) :: cFreq ! current index into frequency array
- integer(i4b) :: iStat ! into statistics array
- logical(lgt) :: found ! for establishign frequencies
+ integer(i4b) :: cFreq ! current index into frequency vector
+ integer(i4b) :: iStat ! index of statistics vector
 
  ! initiate error handling
  err=0; message='popStat/'
 
+ ! get the number of words in a line
+ nWords = size(lineWords)
+
  ! make sure the variable only has one output frequency
- found = .false.
- do iFreq = 1,nFreq
-  do iStat = 1,maxVarStat
-   if (meta%statFlag(iStat)) then
-    if (found) then
-     err=20
-     message=trim(message)//'cannot have more than one file line per variable:'//trim(meta%varName)
-     return
-    end if
-    found = .true.
-    exit
-   end if
-  end do
- end do
+ if(count(meta%statFlag)>0)then
+  message=trim(message)//'model output for variable '//trim(meta%varName)//' already defined (can only be defined once)'
+  err=20; return
+ endif
+
+ ! check to make sure there are sufficient statistics flags
+ read(lineWords(freqIndex),*) oFreq
+ if (oFreq <0)then
+  message=trim(message)//'expect output frequency to be positive for variable: '//trim(lineWords(nameIndex))
+  err=20; return
+ end if
+ if (oFreq==0) return
 
  ! check to make sure there are sufficient statistics flags
  ! varName | outFreq | inst | sum | mean | var | min | max | mode
- if ((meta%varType==iLookVarType%scalarv).and.(nwords.lt.3+2*maxVarStat)) then
-   err=-20
-   message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(1))
-   return
- elseif (nwords.lt.3) then ! varName | outFreq 
-   err=-20
-   message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(1))
-   return
- end if
+ if (oFreq>modelTime .and. (nWords /= freqIndex + 2*maxVarStat)) then
+  message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
+  err=-20; return
+ endif
 
- ! check to make sure there are sufficient statistics flags
- ! read output frequency
- read(lineWords(3),*) oFreq
- if (oFreq.le.0) return
+ ! check to make sure non-scalar variables have the correct number of elements
+ if (meta%varType/=iLookVarType%scalarv)then
+  ! (ensure that statistics flags are not defined for non-scalar variables)
+  if(nWords/=freqIndex) then ! format = "varName | outFreq"
+   message=trim(message)//'wrong number of stats flags in Model Output file for variable: '//trim(lineWords(nameIndex))
+   err=-20; return
+  endif
+  ! (check that the output frequency is equal to one)
+  if(oFreq/=modelTime)then
+   message=trim(message)//'expect the output frequency in Model output file to equal modelTime for non-scalar variables: '//trim(lineWords(nameIndex))
+   err=-20; return
+  endif
+ end if  ! if non-scalar variables
 
- ! check to make sure there are sufficient statistics flags
+ ! define a new output frequency
  ! scalar variables can have multiple statistics
- if (meta%varType==iLookVarType%scalarv) then
+ if (oFreq>modelTime) then
 
- ! check to make sure there are sufficient statistics flags
-  ! check whether any of these output frequencies exist yet
-  found = .false.                                        ! found flag
-  do iFreq = 1,nFreq                                     ! loop through the existing frequencies
-   if (oFreq==outFreq(iFreq)) then                     ! if frequency already exists, set current index
-    found = .true.
-    cFreq = iFreq
-   exit
-  end if
-  end do
-  if ((.not.found).and.(nFreq.lt.maxFreq)) then          ! if it doesn't exist and we have room, put it in
+  ! identify index of oFreq witin outFreq (cFreq=0 if oFreq is not in outfreq)
+  if(nFreq>0)then
+   cFreq=findIndex(outFreq(1:nFreq),oFreq)  ! index of oFreq, cFreq=0 if not in oFreq
+  else
+   cFreq=0
+  endif
+
+  ! index not found: define index
+  if(cFreq==0)then
+
+   ! check that there is room in the vector
+   if(nFreq==maxFreq)then
+    message=trim(message)//'too many output frequencies - variable:'//trim(lineWords(nameIndex))
+    err=20; return
+   endif
+
+   ! add indices
    nFreq = nFreq + 1
    cFreq = nFreq
    outFreq(nFreq) = oFreq
-  elseif ((.not.found).and.(nFreq.ge.maxFreq)) then      ! if it doesn't exist and we don't have room, spit an error
-   err=20
-   message = trim(message)//'too many output frequencies - variable:'//trim(lineWords(1))
-   return
-  end if
+
+  endif   ! if the index is not found (creating a new output frequency)
 
   ! pull the stats flags
   do iStat = 1,maxVarStat
-   if (lineWords(3+2*iStat)=='1') then 
+   if (lineWords(freqIndex + 2*iStat)=='1') then 
     meta%statFlag(iStat)=.true.
     meta%outFreq = cFreq
    end if
   end do
 
- ! if not a scalar variable and requested output at frequency of model timestep
+ ! if requested output at frequency of model timestep
  elseif (oFreq==modelTime) then
+
+  ! set the stat flag
   meta%statFlag(iLookStat%inst) = .true.
   meta%outFreq = modelTime
+
   ! force appropriate layer indexes 
   select case(meta%varType)
-   case (iLookVarType%midSnow)
-    indexFlags(1) = .true.
-   case (iLookVarType%midSoil)
-    indexFlags(2) = .true.
-   case (iLookVarType%midToto)
-    indexFlags(3) = .true.
-   case (iLookVarType%ifcSnow)
-    indexFlags(4) = .true.
-   case (iLookVarType%ifcSoil)
-    indexFlags(5) = .true.
-   case (iLookVarType%ifcToto)
-    indexFlags(6) = .true.
-   case (iLookVarType%wLength)
-   case (iLookVarType%routing)
+   case (iLookVarType%midSnow); indexFlags(indexMidSnow) = .true.
+   case (iLookVarType%midSoil); indexFlags(indexMidSoil) = .true.
+   case (iLookVarType%midToto); indexFlags(indexMidToto) = .true.
+   case (iLookVarType%ifcSnow); indexFlags(indexIfcSnow) = .true.
+   case (iLookVarType%ifcSoil); indexFlags(indexIfcSoil) = .true.
+   case (iLookVarType%ifcToto); indexFlags(indexIfcToto) = .true.
+   case (iLookVarType%scalarv)   ! do nothing
+   case (iLookVarType%wLength)   ! do nothing
+   case (iLookVarType%routing)   ! do nothing
    case default
     err=20; message=trim(message)//trim(meta%varName)//':variable type not found'
   end select ! variable type
 
- ! if not a scalay and requested any other output frequency
+ ! if requested any other output frequency
  else
-  err=20
-  message=trim(message)//'layered variabless can only be output at model timestep:'//trim(meta%varName)
-  return
+  message=trim(message)//'wrong output frequency for variable: '//trim(meta%varName)
+  err=-20; return
  end if
 
  return
