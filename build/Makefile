@@ -272,6 +272,13 @@ DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 # Define the executable
 DRIVER__EX = summa.exe
 
+# Define version number
+VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
+VERSION = $(shell git tag | sed 's/v//')
+BULTTIM = $(shell date)
+GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
+GITHASH = $(shell git rev-parse HEAD)
+
 #========================================================================
 # PART 3: Checks
 #======================================================================
@@ -313,6 +320,13 @@ check:
 	$(info Add $(NCDF_PATH)/lib to your LD_LIBRARY_PATH)
 	$(info)
 
+# update version information
+update_version:
+	sed -i "s|character(len=64), parameter     :: summaVersion.*|character(len=64), parameter     :: summaVersion = '${VERSION}'|" $(VERSIONFILE)
+	sed -i "s|character(len=64), parameter     :: buildTime.*|character(len=64), parameter     :: buildTime = '${BULTTIM}'|" $(VERSIONFILE)
+	sed -i "s|character(len=64), parameter     :: gitBranch.*|character(len=64), parameter     :: gitBranch = '${GITBRCH}'|" $(VERSIONFILE)
+	sed -i "s|character(len=64), parameter     :: gitHash.*|character(len=64), parameter     :: gitHash = '${GITHASH}'|" $(VERSIONFILE)
+
 # compile Noah-MP routines
 compile_noah:
 	$(FC) $(FLAGS_NOAH) -c $(NOAHMP)
@@ -322,7 +336,7 @@ compile_comm:
 	$(FC) $(FLAGS_COMM) -c $(COMM_ALL)
 
 # compile SUMMA routines
-compile_summa:
+compile_summa: update_version
 	$(FC) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
 	$(INCNETCDF)
 
