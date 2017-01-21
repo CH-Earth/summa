@@ -170,7 +170,7 @@ contains
  real(dp)                             :: subLoss                ! sublimation loss (kg m-2)
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
- logical(lgt)                         :: firstStep              ! flag to denote if the first time step
+ logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
  logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
  logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
@@ -225,7 +225,7 @@ contains
  modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
 
  ! define the first step
- firstStep = (istep==1)
+ firstSubStep = .true.
 
  ! count the number of snow and soil layers
  ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
@@ -639,7 +639,7 @@ contains
   indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
   ! compute the indices for the model state variables
-  if(firstStep .or. modifiedVegState .or. modifiedLayers)then
+  if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
    call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
                    nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
                    indx_data,               & ! intent(inout): indices defining model states and layers
@@ -740,7 +740,7 @@ contains
   endif
 
   ! update first step
-  firstStep=.false.
+  firstSubStep=.false.
 
   ! (10) remove ice due to sublimation...
   ! --------------------------------------------------------------
