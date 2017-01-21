@@ -273,7 +273,6 @@ contains
  real(dp)                       :: VAI                              ! vegetation area index (m2 m-2)
  real(dp)                       :: exposedVAI                       ! exposed vegetation area index (m2 m-2)
  real(dp)                       :: totalCanopyWater                 ! total water on the vegetation canopy (kg m-2)
- real(dp),parameter             :: scalarVegFraction=1._dp          ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
  real(dp)                       :: scalarAquiferStorage             ! aquifer storage (m)
 
  ! local (compute numerical derivatives)
@@ -1417,6 +1416,8 @@ contains
    end if
    !print*, 'scalarSnowSublimation, scalarLatHeatGround = ', scalarSnowSublimation, scalarLatHeatGround
 
+   !print*, 'canopyWetFraction, scalarCanopyEvaporation = ', canopyWetFraction, scalarCanopyEvaporation
+
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
    ! ***** AND STITCH EVERYTHING TOGETHER  *****************************************************************************************************************************
@@ -1539,9 +1540,7 @@ contains
  integer(i4b),intent(out)      :: err                     ! error code
  character(*),intent(out)      :: message                 ! error message
  ! local variables
- logical(lgt),parameter        :: noDerivs=.false.        ! flag to denote that derivatives are not required
  logical(lgt),parameter        :: smoothing=.true.        ! flag to denote that smoothing is required
- logical(lgt),parameter        :: noSmoothing=.false.     ! flag to denote that no smoothing is required
  real(dp)                      :: canopyWetFractionPert   ! canopy wetted fraction after state perturbations (-)
  real(dp)                      :: canopyWetFractionDeriv  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -2497,7 +2496,7 @@ contains
  end do ! (looping through soil layers)
 
  ! ** compute the factor limiting evaporation in the aquifer
- if(scalarAquiferRootFrac > 0._dp)then
+ if(scalarAquiferRootFrac > verySmall)then
   ! check that aquifer root fraction is allowed
   if(ixGroundwater /= bigBucket)then
    message=trim(message)//'aquifer evaporation only allowed for the big groundwater bucket -- increase the soil depth to account for roots'
@@ -2704,7 +2703,6 @@ contains
  ! local variables -- general
  real(dp)                      :: fpart1,fpart2         ! different parts of a function
  real(dp)                      :: dPart0,dpart1,dpart2         ! derivatives for different parts of a function
- real(dp),parameter            :: evapSmooth=1._dp             ! smoothing parameter for latent heat (W m-2)
  ! local variables -- "constants"
  real(dp)                      :: volHeatCapacityAir           ! volumetric heat capacity of air (J m-3)
  real(dp)                      :: latentHeatConstant           ! latent heat constant (kg m-3 K-1)
@@ -2777,7 +2775,7 @@ contains
   evapConductance    = canopyWetFraction*leafConductance
   transConductance   = (1._dp - canopyWetFraction) * leafConductanceTr
   !write(*,'(a,10(f14.8,1x))') 'canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction = ', &
-  !                              canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction
+  !                             canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction
  else
   evapConductance    = 0._dp
   transConductance   = 0._dp

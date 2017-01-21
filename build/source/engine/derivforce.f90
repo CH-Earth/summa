@@ -247,7 +247,7 @@ contains
     end if
    ! Constant new snow density
    case(constDens)
-    newSnowDensity = constSnowDen; ! new snow density (kg m-3)
+    newSnowDensity = constSnowDen ! new snow density (kg m-3)
    case default; message=trim(message)//'unable to identify option for new snow density'; err=20; return
   end select ! identifying option for new snow density
  else

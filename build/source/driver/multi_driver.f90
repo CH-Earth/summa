@@ -131,7 +131,6 @@ USE var_lookup,only:iLookPROG                               ! look-up values for
 USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables 
 USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes 
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
-USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
 ! provide access to the named variables that describe elements of child  model structures
@@ -193,14 +192,14 @@ integer(i4b),parameter           :: ixProgress_im=1000         ! named variable 
 integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
 integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
 integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
-integer(i4b)                     :: ixProgress=ixProgress_never! define frequency to write progress
+integer(i4b)                     :: ixProgress=ixProgress_ih   ! define frequency to write progress
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
 integer(i4b),parameter           :: ixRestart_im=1001          ! named variable to print a re-start file once per month
 integer(i4b),parameter           :: ixRestart_id=1002          ! named variable to print a re-start file once per day
 integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
-integer(i4b)                     :: ixRestart=ixRestart_iy     ! define frequency to write restart files
+integer(i4b)                     :: ixRestart=ixRestart_never  ! define frequency to write restart files
 ! define output file
 integer(i4b)                     :: ctime1(8)                  ! initial time
 character(len=256)               :: output_fileSuffix=''       ! suffix for the output file
@@ -216,14 +215,12 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
-logical(lgt),parameter           :: printTime=.true.           ! flag to print the time information
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
 integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
-integer(i4b)                     :: forcingStep=-999           ! index of current time step in current forcing file
+integer(i4b)                     :: forcingStep=integerMissing ! index of current time step in current forcing file
 real(dp),allocatable             :: zSoilReverseSign(:)        ! height at bottom of each soil layer, negative downwards (m)
 real(dp),dimension(12)           :: greenVegFrac_monthly       ! fraction of green vegetation in each month (0-1)
-real(dp),parameter               :: doubleMissing=-9999._dp    ! missing value
 logical(lgt),parameter           :: overwriteRSMIN=.false.     ! flag to overwrite RSMIN
 real(dp)                         :: notUsed_canopyDepth        ! NOT USED: canopy depth (m)
 real(dp)                         :: notUsed_exposedVAI         ! NOT USED: exposed vegetation area index (m2 m-2)
@@ -301,11 +298,8 @@ call flxMapping(err,message); call handle_err(err,message)
 ! check data structures
 call checkStruc(err,message); call handle_err(err,message)
 
-! define the mask to identify the subset of variables in the "child" data structure
-! NOTE: The mask is true if (1) the variable is a scalar; *OR* (2) the variable is a flux at the layer interfaces.
-!       The interface variables are included because there is a need to calculate the mean flux of surface infiltration (at interface=0)
-!        and soil drainage (at interface=nSoil)
-flux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).or.(flux_meta(:)%vartype==iLookVarType%ifcSoil))
+! define the mask to identify the subset of variables in the "child" data structure (just scalar variables)
+flux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv)
 
 ! create the averageFlux metadata structure
 call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, message)
@@ -396,12 +390,12 @@ call mDecisions(err,message); call handle_err(err,message)
 ! *****************************************************************************
 ! child metadata structures - so that we do not carry full stats structures around everywhere
 ! only carry stats for variables with output frequency > model time step
-statForc_mask = (forc_meta(:)%outfreq>0)
-statProg_mask = (prog_meta(:)%outfreq>0) 
-statDiag_mask = (diag_meta(:)%outfreq>0) 
-statFlux_mask = (flux_meta(:)%outfreq>0) 
-statIndx_mask = (indx_meta(:)%outfreq>0) 
-statBvar_mask = (bvar_meta(:)%outfreq>0) 
+statForc_mask = ((forc_meta(:)%vartype==iLookVarType%scalarv).and.(forc_meta(:)%outfreq>0))
+statProg_mask = ((prog_meta(:)%vartype==iLookVarType%scalarv).and.(prog_meta(:)%outfreq>0))
+statDiag_mask = ((diag_meta(:)%vartype==iLookVarType%scalarv).and.(diag_meta(:)%outfreq>0))
+statFlux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).and.(flux_meta(:)%outfreq>0))
+statIndx_mask = ((indx_meta(:)%vartype==iLookVarType%scalarv).and.(indx_meta(:)%outfreq>0))
+statBvar_mask = ((bvar_meta(:)%vartype==iLookVarType%scalarv).and.(bvar_meta(:)%outfreq>0))
 
 ! create the stats metadata structures
 do iStruct=1,size(structInfo)
@@ -495,7 +489,7 @@ end do  ! looping through GRUs
 ! *****************************************************************************
 ! (5c) read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
-call read_param(nHRU,typeStruct,mparStruct,err,message); call handle_err(err,message)
+call read_param(nHRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
@@ -699,6 +693,16 @@ do modelTimeStep=1,numtim
  ! set print flag
  globalPrintFlag=.false.
 
+ ! print progress
+ select case(ixProgress)
+  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
+  case(ixProgress_never); printProgress = .false.
+  case default; call handle_err(20,'unable to identify option for the restart file')
+ end select
+ if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+
  ! read forcing data 
  do iGRU=1,nGRU
   do iHRU=1,gru_struc(iGRU)%hruCount
@@ -719,17 +723,6 @@ do modelTimeStep=1,numtim
    call handle_err(err,message)
   end do 
  end do  ! (end looping through global GRUs)
-
- ! print progress
- select case(ixProgress)
-  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
-  case(ixProgress_never); printProgress = .false.
-  case default; call handle_err(20,'unable to identify option for the restart file')
- end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
- write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
@@ -890,6 +883,8 @@ do modelTimeStep=1,numtim
    ! ****************************************************************************
    ! set the flag to compute the vegetation flux
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
+
+   !print*, 'iHRU = ', iHRU
  
    ! run the model for a single parameter set and time step
    call coupled_em(&
@@ -898,7 +893,6 @@ do modelTimeStep=1,numtim
                    gru_struc(iGRU)%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
                    dt_init(iGRU)%hru(iHRU),                 & ! intent(inout): initial time step
                    computeVegFluxFlag,                          & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                   resumeFailSolver,                            & ! flag whether simulation continues if solver does not converge 
                    ! data structures (input)
                    typeStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local classification of soil veg etc. for each HRU
                    attrStruct%gru(iGRU)%hru(iHRU),          & ! intent(in):    local attributes for each HRU
@@ -1040,7 +1034,7 @@ do modelTimeStep=1,numtim
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
 
- ! quesry whether this timestep requires a re-start file
+ ! query whether this timestep requires a re-start file
  select case(ixRestart)
   case(ixRestart_iy);    printRestart = (timeStruct%var(iLookTIME%im) == 1 .and. timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0  .and. timeStruct%var(iLookTIME%imin) == 0)
   case(ixRestart_im);    printRestart = (timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
@@ -1118,7 +1112,7 @@ contains
   if (nLocalArgument>0) then; nLocalArgument = nLocalArgument -1; cycle; end if ! skip the arguments have been read 
   select case (trim(argString(iArgument)))
 
-   case ('-r', '--resume')
+   case ('-c', '--continue') ! TODO: this option will be deprecated after the explicit Euler and split operator solutions are implemented
     nLocalArgument = 0
     resumeFailSolver = .true.
     print "(A)", "Simulation will continue even if the solver does NOT converge."
@@ -1139,7 +1133,7 @@ contains
     output_fileSuffix=trim(argString(iArgument+1))
     print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
 
-   case ('-c', '--checkhru')
+   case ('-h', '--hru')
     ! define a single HRU run
     if (iRunMode == iRunModeGRU) call handle_err(1,"single-HRU run and GRU-parallelization run cannot be both selected.")
     iRunMode=iRunModeHRU
@@ -1170,21 +1164,48 @@ contains
      print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
     end if
 
+   case ('-p', '--progress')
+    ! define the frequency to print progress
+    nLocalArgument = 1
+    ! check if the number of command line arguments is correct
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1, "missing argument freqProgress; type 'summa.exe --help' for correct usage")
+    select case (trim(argString(iArgument+1)))
+     case ('m' , 'month'); ixProgress = ixProgress_im
+     case ('d' , 'day');   ixProgress = ixProgress_id
+     case ('h' , 'hour');  ixProgress = ixProgress_ih
+     case ('n' , 'never'); ixProgress = ixProgress_never
+     case default;         call handle_err(1,'unknown frequency to print progress')
+    end select 
+  
+   case ('-r', '--restart')
+    ! define the frequency to write restart files
+    nLocalArgument = 1
+    ! check if the number of command line arguments is correct
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1, "missing argument freqRestart; type 'summa.exe --help' for correct usage")
+    select case (trim(argString(iArgument+1)))
+     case ('y' , 'year');  ixRestart = ixRestart_iy
+     case ('m' , 'month'); ixRestart = ixRestart_im
+     case ('d' , 'day');   ixRestart = ixRestart_id
+     case ('n' , 'never'); ixRestart = ixRestart_never
+     case default;         call handle_err(1,'unknown frequency to write restart files')
+    end select 
+
+   ! do nothing  
    case ('-v','--version')   
-    ! do nothing
-    
-   case ('-h','--help')
+
+   ! print help message    
+   case ('--help')
     call printCommandHelp
 
    case default
     call printCommandHelp
-    call handle_err(1,'unknown command line option')
+    call handle_err(1, 'unknown command line option')
 
   end select
  end do  ! looping through command line arguments 
 
  ! check if master_file has been received.
- if (len(trim(summaFileManagerFile))==0) call handle_err(1,"master_file is not received; type 'summa.exe --help' for correct usage")
+ if (len(trim(summaFileManagerFile))==0) call handle_err(1, "master_file is not received; type 'summa.exe --help' for correct usage")
 
  ! set startGRU for full run
  if (iRunMode==iRunModeFull) startGRU=1
@@ -1197,14 +1218,15 @@ contains
  subroutine printCommandHelp()  
  implicit none
  ! command line usage
- print "(//A)",'Usage: summa.exe -m master_file [-s file_suffix] [-g startGRU countGRU] [-c checkHRU] [-r resume]'
+ print "(//A)",'Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]'
  print "(A,/)",  ' summa.exe          summa executable'
  print "(A)",  'Running options:'
- print "(A)",  ' -m --master        path/name of master file (required)'
- print "(A)",  ' -s --suffix        Add file_suffix to the output files'
+ print "(A)",  ' -m --master        Define path/name of master file (required)'
+ print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
- print "(A)",  ' -c --checkhru      Run a single HRU with index of checkHRU'
- print "(A)",  ' -r --resume        Continue simulation when solver failed convergence'
+ print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
+ print "(A)",  ' -r --restart       Define frequency [y,m,d] to write restart files'
+ print "(A)",  ' -p --progress      Define frequency [m,d,h] to print progress'
  print "(A)",  ' -v --version       Display version infotmation of the current built'
  stop 
  end subroutine printCommandHelp

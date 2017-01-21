@@ -106,6 +106,7 @@ contains
  real(dp)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
  real(dp)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
  real(dp)                          :: lambda_wet             ! thermal conductivity of the wet material
+ real(dp)                          :: relativeSat            ! relative saturation (-)
  real(dp)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
  real(dp)                          :: den                    ! denominator in the thermal conductivity calculations
  ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
@@ -219,9 +220,14 @@ contains
      case(funcSoilWet)
 
       ! compute the thermal conductivity of the wet material (W m-1)
-      lambda_wet = lambda_wetsoil**(1._dp - theta_sat) * lambda_water**theta_sat * lambda_ice**(theta_sat - mLayerVolFracLiq(iLayer))
+      lambda_wet  = lambda_wetsoil**(1._dp - theta_sat) * lambda_water**theta_sat * lambda_ice**(theta_sat - mLayerVolFracLiq(iLayer))
+      relativeSat = (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat  ! relative saturation
       ! compute the Kersten number (-)
-      kerstenNum = log10( (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat ) + 1._dp
+      if(relativeSat > 0.1_dp)then ! log10(0.1) = -1
+       kerstenNum = log10(relativeSat) + 1._dp
+      else
+       kerstenNum = 0._dp  ! dry thermal conductivity
+      endif
       ! ...and, compute the thermal conductivity
       mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._dp - kerstenNum)*lambda_drysoil
 

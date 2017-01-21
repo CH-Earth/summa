@@ -112,6 +112,9 @@ contains
  ! check that the maximum transpiration limit is within bounds
  if(mpar_data(iLookPARAM%critSoilTranspire)>mpar_data(iLookPARAM%theta_sat) .or. &
     mpar_data(iLookPARAM%critSoilTranspire)<mpar_data(iLookPARAM%theta_res))then
+  print*, 'mpar_data(iLookPARAM%theta_res) = ', mpar_data(iLookPARAM%theta_res)
+  print*, 'mpar_data(iLookPARAM%theta_sat) = ', mpar_data(iLookPARAM%theta_sat)
+  print*, 'mpar_data(iLookPARAM%critSoilTranspire) = ', mpar_data(iLookPARAM%critSoilTranspire)
   message=trim(message)//'critSoilTranspire parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
@@ -122,6 +125,7 @@ contains
     mpar_data(iLookPARAM%critSoilWilting)<mpar_data(iLookPARAM%theta_res))then
   print*, 'mpar_data(iLookPARAM%theta_res) = ', mpar_data(iLookPARAM%theta_res)
   print*, 'mpar_data(iLookPARAM%theta_sat) = ', mpar_data(iLookPARAM%theta_sat)
+  print*, 'mpar_data(iLookPARAM%critSoilWilting) = ', mpar_data(iLookPARAM%critSoilWilting)
   message=trim(message)//'critSoilWilting parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
   err=20; return
@@ -130,6 +134,8 @@ contains
  ! check that the field capacity is within bounds
  if(mpar_data(iLookPARAM%fieldCapacity)>mpar_data(iLookPARAM%theta_sat) .or. &
     mpar_data(iLookPARAM%fieldCapacity)<mpar_data(iLookPARAM%theta_res))then
+  print*, 'mpar_data(iLookPARAM%theta_res) = ', mpar_data(iLookPARAM%theta_res)
+  print*, 'mpar_data(iLookPARAM%theta_sat) = ', mpar_data(iLookPARAM%theta_sat)
   print*, 'mpar_data(iLookPARAM%fieldCapacity) = ', mpar_data(iLookPARAM%fieldCapacity)
   message=trim(message)//'fieldCapacity parameter is out of range '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'

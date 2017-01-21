@@ -63,10 +63,6 @@ contains
   ! only treat stats of scalars - all others handled separately
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
-   ! don't do anything if var is not requested
-   ! WHY is this needed when included above?
-   if (meta(iVar)%outFreq<0) cycle
-
    ! index into parent structure
    pVar = meta(iVar)%ixParent
 
@@ -119,7 +115,6 @@ contains
  real(dp),dimension(maxvarStat+1)  :: tstat       ! temporary stats vector
  integer(i4b)                      :: iStat       ! statistics loop
  integer(i4b)                      :: iFreq       ! statistics loop
- integer(i4b)   ,parameter         :: modelTime=1 ! model timestep
  ! initialize error control
  err=0; message='calc_stats/'
 

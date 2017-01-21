@@ -504,6 +504,7 @@ MODULE var_lookup
   integer(i4b)    :: iLayerNrgFlux                   = integerMissing ! energy flux at layer interfaces (W m-2)
   integer(i4b)    :: mLayerNrgFlux                   = integerMissing ! net energy flux for each layer in the snow+soil domain (J m-3 s-1)
   ! liquid water fluxes for the snow domain
+  integer(i4b)    :: scalarSnowDrainage              = integerMissing ! drainage from the bottom of the snow profile (m s-1)
   integer(i4b)    :: iLayerLiqFluxSnow               = integerMissing ! liquid flux at snow layer interfaces (m s-1)
   integer(i4b)    :: mLayerLiqFluxSnow               = integerMissing ! net liquid water flux for each snow layer (s-1)
   ! liquid water fluxes for the soil domain
@@ -784,7 +785,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85)
+                                                                         81, 82, 83, 84, 85, 86)
 
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

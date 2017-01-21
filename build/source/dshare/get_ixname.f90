@@ -619,6 +619,7 @@ contains
   case('iLayerNrgFlux'                  ); get_ixflux = iLookFLUX%iLayerNrgFlux                    ! energy flux at layer interfaces at the end of the time step (W m-2)
   case('mLayerNrgFlux'                  ); get_ixflux = iLookFLUX%mLayerNrgFlux                    ! net energy flux for each layer in the snow+soil domain (J m-3 s-1)
   ! liquid water fluxes for the snow domain 
+  case('scalarSnowDrainage'             ); get_ixflux = iLookFLUX%scalarSnowDrainage               ! drainage from the bottom of the snow profile (m s-1)
   case('iLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('mLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%mLayerLiqFluxSnow                ! net liquid water flux for each snow layer (s-1)
   ! liquid water fluxes for the soil domain 
@@ -636,8 +637,8 @@ contains
   case('mLayerBaseflow'                 ); get_ixflux = iLookFLUX%mLayerBaseflow                   ! baseflow from each soil layer (m s-1)
   case('mLayerColumnInflow'             ); get_ixflux = iLookFLUX%mLayerColumnInflow               ! total inflow to each layer in a given soil column (m3 s-1)
   case('mLayerColumnOutflow'            ); get_ixflux = iLookFLUX%mLayerColumnOutflow              ! total outflow from each layer in a given soil column (m3 s-1)
-  case('scalarSoilBaseflow'             ); get_ixflux = iLookFLUX%scalarSoilBaseflow               ! sub-step average: total baseflow from throughout the soil profile (m s-1)
-  case('scalarSoilDrainage'             ); get_ixflux = iLookFLUX%scalarSoilDrainage               ! sub-step average: drainage from the bottom of the soil profile (m s-1)
+  case('scalarSoilBaseflow'             ); get_ixflux = iLookFLUX%scalarSoilBaseflow               ! total baseflow from throughout the soil profile (m s-1)
+  case('scalarSoilDrainage'             ); get_ixflux = iLookFLUX%scalarSoilDrainage               ! drainage from the bottom of the soil profile (m s-1)
   case('scalarAquiferRecharge'          ); get_ixflux = iLookFLUX%scalarAquiferRecharge            ! recharge to the aquifer (m s-1)
   case('scalarAquiferTranspire'         ); get_ixflux = iLookFLUX%scalarAquiferTranspire           ! transpiration from the aquifer (m s-1)
   case('scalarAquiferBaseflow'          ); get_ixflux = iLookFLUX%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
@@ -916,7 +917,6 @@ contains
  subroutine get_ixUnknown(varName,typeName,vDex,err,message)
  USE nrtype
  USE globalData,only:structInfo        ! information on the data structures                  
- USE multiconst,only:integerMissing    ! missing integer value
  implicit none
 
  ! dummies

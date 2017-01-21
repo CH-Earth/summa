@@ -87,9 +87,7 @@ contains
  ! ************************************************************************************************************************
  subroutine E2T_nosoil(Ey,BulkDenWater,fc_param,Tk,err,message)
  ! compute temperature based on enthalpy -- appropriate when no dry mass, as in snow
- USE multiconst, only: Tfreeze, &                   ! freezing point of water (K)
-                       Cp_soil,Cp_water,Cp_ice,&    ! specific heat of soil, water and ice (J kg-1 K-1)
-                       LH_fus                       ! latent heat of fusion (J kg-1)
+ USE multiconst, only: Cp_ice ! specific heat of ice (J kg-1 K-1)
  implicit none
  ! declare dummy variables
  real(dp),intent(in)      :: Ey            ! total enthalpy (J m-3)

@@ -228,8 +228,6 @@ contains
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
- USE var_lookup,only:iLookIndex                     ! index into index structure
- USE var_lookup,only:iLookStat                      ! index into stat structure
  USE globalData,only:outFreq,nFreq,ncid             ! output file information
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
@@ -296,8 +294,8 @@ contains
  ! **************************************************************************************
  subroutine writeTime(modelTimestep,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info,dlength,ilength       ! type structures for passing
- USE var_lookup,only:maxVarStat,iLookStat           ! index into stats structure
  USE globalData,only:outFreq,nFreq,ncid             ! output file information
+ USE var_lookup,only:iLookStat                      ! index into stat structure
  implicit none
 
  ! declare dummy variables
@@ -358,7 +356,6 @@ contains
  USE data_types,only:gru_hru_intVec         ! actual data
  USE data_types,only:var_info               ! metadata 
  ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookPROG              ! named variables for structure elements
  USE var_lookup,only:iLookINDEX             ! named variables for structure elements
  USE var_lookup,only:iLookVarType           ! named variables for structure elements
  ! constants
@@ -419,6 +416,7 @@ contains
  integer(i4b)                       :: iHRU          ! index of HRUs
  integer(i4b)                       :: iGRU          ! index of GRUs
  integer(i4b)                       :: iVar          ! variable index
+ logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
  character(len=256)                 :: cmessage      ! downstream error message
  ! --------------------------------------------------------------------------------------------------------
 
@@ -523,16 +521,38 @@ contains
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
     nLayers = nSoil + nSnow
 
-    ! take action depending on variable type    
+    ! check size
+    ! NOTE: this may take time that we do not wish to use
+    okLength=.true.
     select case (prog_meta(iVar)%varType)
-     case(iLookVarType%scalarv);                err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nScalar  /))
-     case(iLookVarType%wlength);                err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSpectral/))
-     case(iLookVarType%midSoil);                err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil    /))
-     case(iLookVarType%midToto);                err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers  /))
-     case(iLookVarType%ifcSoil);                err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil+1  /))
-     case(iLookVarType%ifcToto);                err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers+1/))
-     case(iLookVarType%midSnow); if (maxSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow    /))
-     case(iLookVarType%ifcSnow); if (maxSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow+1  /))
+     case(iLookVarType%scalarv);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nScalar  )
+     case(iLookVarType%wlength);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSpectral)
+     case(iLookVarType%midSoil);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSoil    )
+     case(iLookVarType%midToto);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nLayers  )
+     case(iLookVarType%ifcSoil);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSoil+1  )
+     case(iLookVarType%ifcToto);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nLayers+1)
+     case(iLookVarType%midSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow    )
+     case(iLookVarType%ifcSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow+1  )
+     case default; err=20; message=trim(message)//'unknown var type'; return
+    end select 
+
+    ! error check
+    if(.not.okLength)then
+     message=trim(message)//'bad vector length for variable '//trim(prog_meta(iVar)%varname)
+     err=20; return
+    endif
+
+    ! write data 
+    select case (prog_meta(iVar)%varType)
+     case(iLookVarType%scalarv);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nScalar  /))
+     case(iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSpectral/))
+     case(iLookVarType%midSoil);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil    /))
+     case(iLookVarType%midToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers  /))
+     case(iLookVarType%ifcSoil);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil+1  /))
+     case(iLookVarType%ifcToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers+1/))
+     case(iLookVarType%midSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow    /))
+     case(iLookVarType%ifcSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow+1  /))
+     case default; err=20; message=trim(message)//'unknown var type'; return
     end select 
 
     ! error check
@@ -541,7 +561,7 @@ contains
     err=0; message='writeRestart/'
 
    end do ! iVar 
-  
+
    ! write index variables 
    err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat/),start=(/cHRU/),count=(/1/))
    err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat/),start=(/cHRU/),count=(/1/))

@@ -92,13 +92,13 @@ USE soil_utils_module,only:liquidHead     ! compute the liquid water matric pote
 implicit none
 private
 public::popStateVec
+public::getScaling
 public::varExtract
 
 ! common variables
 real(dp),parameter :: valueMissing=-9999._dp ! missing value
 
 contains
-
 
  ! **********************************************************************************************************
  ! public subroutine popStateVec: populate model state vectors 
@@ -111,39 +111,20 @@ contains
                         indx_data,               & ! intent(in):    indices defining model states and layers
                         ! output
                         stateVec,                & ! intent(out):   model state vector
-                        fScale,                  & ! intent(out):   function scaling vector (mixed units)
-                        xScale,                  & ! intent(out):   variable scaling vector (mixed units)
-                        sMul,                    & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                        dMat,                    & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
                         err,message)               ! intent(out):   error control
- ! --------------------------------------------------------------------------------------------------------------------------------
- USE nr_utility_module,only:arth                   ! get a sequence of numbers arth(start, incr, count)
- USE f2008funcs_module,only:findIndex              ! finds the index of the first value within a vector
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: data structures
  integer(i4b),intent(in)         :: nState                 ! number of desired state variables
  type(var_dlength),intent(in)    :: prog_data              ! prognostic variables for a local HRU
  type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
- ! output: state vectors
+ ! output
  real(dp),intent(out)            :: stateVec(:)            ! model state vector (mixed units)
- real(dp),intent(out)            :: fScale(:)              ! function scaling vector (mixed units)
- real(dp),intent(out)            :: xScale(:)              ! variable scaling vector (mixed units)
- real(qp),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
- real(dp),intent(out)            :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
- ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
- ! scaling parameters
- real(dp),parameter              :: fScaleLiq=0.01_dp      ! func eval: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: fScaleMat=10._dp       ! func eval: characteristic scale for matric head (m)
- real(dp),parameter              :: fScaleNrg=1000000._dp  ! func eval: characteristic scale for energy (J m-3)
- real(dp),parameter              :: xScaleLiq=0.1_dp       ! state var: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: xScaleMat=10._dp       ! state var: characteristic scale for matric head (m)
- real(dp),parameter              :: xScaleTemp=1._dp       ! state var: characteristic scale for temperature (K)
  ! state subsets
  integer(i4b)                    :: iState                 ! index of state within the snow+soil domain
  integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
@@ -163,10 +144,6 @@ contains
  mLayerVolFracWat    => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in) : [dp(:)]  volumetric fraction of total water (-)
  mLayerVolFracLiq    => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in) : [dp(:)]  volumetric fraction of liquid water (-)
  mLayerMatricHead    => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in) : [dp(:)]  matric head (m)
- ! model diagnostic variables
- canopyDepth         => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in) : [dp]     canopy depth (m)
- volHeatCapVeg       => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in) : [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
- mLayerVolHeatCap    => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in) : [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
  mLayerMatricHeadLiq => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in) : [dp(:)]  matric potential of liquid water (m)
  ! indices defining specific model states
  ixCasNrg            => indx_data%var(iLookINDEX%ixCasNrg)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy air space energy state variable
@@ -177,8 +154,7 @@ contains
  ixSnowSoilHyd       => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
  nSnowSoilNrg        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the snow+soil domain
  nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
- ! type of hydrology states in the snow+soil domain
- ixDomainType_subset => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in) : [i4b(:)] [state subset] domain of desired model state variables
+ ! type of model state variabless
  ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
  ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in snow+soil domain
  ! number of layers
@@ -249,11 +225,83 @@ contains
 
  ! check that we populated all state variables
  if(count(stateFlag)/=nState)then
-  print*, 'ixStateType_subset = ', ixStateType_subset
   print*, 'stateFlag = ', stateFlag
   message=trim(message)//'some state variables unpopulated'
   err=20; return
  endif
+
+ end associate fixedLength      ! end association to variables in the data structure where vector length does not change
+ end subroutine popStateVec
+
+
+ ! **********************************************************************************************************
+ ! public subroutine getScaling: get scale factors 
+ ! **********************************************************************************************************
+ subroutine getScaling(&
+                       ! input: data structures
+                       diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
+                       indx_data,               & ! intent(in):    indices defining model states and layers
+                       ! output
+                       fScale,                  & ! intent(out):   function scaling vector (mixed units)
+                       xScale,                  & ! intent(out):   variable scaling vector (mixed units)
+                       sMul,                    & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                       dMat,                    & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
+                       err,message)               ! intent(out):   error control
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ USE nr_utility_module,only:arth                   ! get a sequence of numbers arth(start, incr, count)
+ USE f2008funcs_module,only:findIndex              ! finds the index of the first value within a vector
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! input: data structures
+ type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
+ type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
+ ! output: state vectors
+ real(dp),intent(out)            :: fScale(:)              ! function scaling vector (mixed units)
+ real(dp),intent(out)            :: xScale(:)              ! variable scaling vector (mixed units)
+ real(qp),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
+ real(dp),intent(out)            :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
+ ! output: error control
+ integer(i4b),intent(out)        :: err                    ! error code
+ character(*),intent(out)        :: message                ! error message
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! local variables
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! scaling parameters
+ real(dp),parameter              :: fScaleLiq=0.01_dp      ! func eval: characteristic scale for volumetric liquid water content (-)
+ real(dp),parameter              :: fScaleMat=10._dp       ! func eval: characteristic scale for matric head (m)
+ real(dp),parameter              :: fScaleNrg=1000000._dp  ! func eval: characteristic scale for energy (J m-3)
+ real(dp),parameter              :: xScaleLiq=0.1_dp       ! state var: characteristic scale for volumetric liquid water content (-)
+ real(dp),parameter              :: xScaleMat=10._dp       ! state var: characteristic scale for matric head (m)
+ real(dp),parameter              :: xScaleTemp=1._dp       ! state var: characteristic scale for temperature (K)
+ ! state subsets
+ integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
+ integer(i4b)                    :: ixStateSubset          ! index within the state subset
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! make association with variables in the data structures
+ fixedLength: associate(&
+ ! model diagnostic variables
+ canopyDepth         => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):  [dp]     canopy depth (m)
+ volHeatCapVeg       => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(in) : [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ mLayerVolHeatCap    => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        ,& ! intent(in) : [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
+ ! indices defining specific model states
+ ixCasNrg            => indx_data%var(iLookINDEX%ixCasNrg)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy air space energy state variable
+ ixVegNrg            => indx_data%var(iLookINDEX%ixVegNrg)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy energy state variable
+ ixVegHyd            => indx_data%var(iLookINDEX%ixVegHyd)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy hydrology state variable (mass)
+ ! vector of energy and hydrology indices for the snow and soil domains
+ ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+ ixSnowSoilHyd       => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+ nSnowSoilNrg        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the snow+soil domain
+ nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
+ ! type of model state variabless
+ ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
+ ! number of layers
+ nSnow               => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in) : [i4b]    number of snow layers
+ nSoil               => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in) : [i4b]    number of soil layers
+ nLayers             => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in) : [i4b]    total number of layers
+ )  ! end association with variables in the data structures
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message='getScaling/'
 
  ! -----
  ! * define scaling vectors...
@@ -325,8 +373,7 @@ contains
  ! ------------------------------------------------------------------------------------------
  
  end associate fixedLength      ! end association to variables in the data structure where vector length does not change
- end subroutine popStateVec
-
+ end subroutine getScaling
 
 
 
@@ -448,11 +495,6 @@ contains
    end select
   endif
  
- ! not computing the vegetation flux (veg buried with snow, or bare ground)
- else
-  scalarCanairTempTrial = realMissing
-  scalarCanopyTempTrial = realMissing
-  scalarCanopyWatTrial  = realMissing
  endif  ! not computing the vegetation flux
 
  ! *** extract state variables from the snow+soil sub-domain

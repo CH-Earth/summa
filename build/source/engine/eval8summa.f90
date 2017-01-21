@@ -35,6 +35,11 @@ USE globalData,only:globalPrintFlag
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
+! domain types
+USE globalData,only:iname_veg       ! named variables for vegetation
+USE globalData,only:iname_snow      ! named variables for snow
+USE globalData,only:iname_soil      ! named variables for soil
+
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
@@ -136,15 +141,10 @@ contains
  USE computResid_module,only:computResid          ! compute residuals given a state vector 
  ! provide access to indices that define elements of the data structures
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
- USE var_lookup,only:iLookTYPE                    ! named variables for structure elements
- USE var_lookup,only:iLookATTR                    ! named variables for structure elements
  USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
- USE var_lookup,only:iLookFORCE                   ! named variables for structure elements
- USE var_lookup,only:iLookBVAR                    ! named variables for structure elements
  USE var_lookup,only:iLookPROG                    ! named variables for structure elements
  USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
  USE var_lookup,only:iLookDIAG                    ! named variables for structure elements
- USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
  USE var_lookup,only:iLookDERIV                   ! named variables for structure elements
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -205,10 +205,11 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial    ! trial value for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial    ! trial value for volumetric fraction of ice (-)
  ! other local variables
- logical(lgt),dimension(nSnow)   :: snowFlags                ! flags for layers in the snow domain
- logical(lgt),dimension(nLayers) :: layerFlags               ! flags for layers in the snow+soil domain
+ integer(i4b)                    :: iLayer                   ! index of model layer in the snow+soil domain
  integer(i4b),parameter          :: ixVegVolume=1            ! index of the desired vegetation control volumne (currently only one veg layer)
+ real(dp)                        :: xMin,xMax                ! minimum and maximum values for water content
  real(dp)                        :: scalarCanopyHydTrial     ! trial value for mass of water on the vegetation canopy (kg m-2)
+ real(dp),parameter              :: canopyTempMax=500._dp    ! expected maximum value for the canopy temperature (K)
  real(dp),dimension(nLayers)     :: mLayerVolFracHydTrial    ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
  real(dp),dimension(nState)      :: rVecScaled               ! scaled residual vector
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
@@ -230,25 +231,30 @@ contains
  ! canopy and layer depth
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in):  [dp   ] canopy depth (m)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in):  [dp(:)] depth of each layer in the snow-soil sub-domain (m)
- ! model state variables (ponded water)
+ ! model state variables
  scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
+ mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of ice (-)
  mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,&  ! intent(in):  [dp(:)] liquid water matric potential (m)
- ! model diagnostic variables (fraction of liquid water)
- scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(out): [dp]    fraction of liquid water on vegetation (-)
- mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(out): [dp(:)] fraction of liquid water in each snow layer (-)
+ ! model diagnostic variables
+ scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
+ mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
+ mLayerPoreSpace         => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat           ,&  ! intent(in):  [dp(:)] pore space in each snow layer (-)
  ! soil compression
- scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)     ,&  ! intent(out): [dp]    total change in storage associated with compression of the soil matrix (kg m-2)
- mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(out): [dp(:)] change in storage associated with compression of the soil matrix (-)
+ scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)     ,&  ! intent(in): [dp]    total change in storage associated with compression of the soil matrix (kg m-2)
+ mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(in): [dp(:)] change in storage associated with compression of the soil matrix (-)
  ! derivatives
- dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(out): [dp(:)] derivative in total water content w.r.t. total water matric potential
- dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat          ,&  ! intent(out): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
+ dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
+ dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat          ,&  ! intent(in): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
  ! indices
+ ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy air space energy state variable (nrg)
+ ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy energy state variable (nrg)
  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,&  ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
  ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
- ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                 &  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
+ ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,&  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat                 &  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -257,9 +263,15 @@ contains
  ! check the feasibility of the solution
  feasible=.true.
 
- ! get flags
- snowFlags  = (ixSnowOnlyNrg/=integerMissing)  ! check snow temperature is not below freezing
- layerFlags = (ixSnowSoilHyd/=integerMissing .and. (ixHydType==iname_watLayer .or. ixHydType==iname_liqLayer) )  ! check water not <0
+ ! check that the canopy air space temperature is reasonable
+ if(ixCasNrg/=integerMissing)then
+  if(stateVecTrial(ixCasNrg) > canopyTempMax) feasible=.false.
+ endif
+
+ ! check that the canopy air space temperature is reasonable
+ if(ixVegNrg/=integerMissing)then
+  if(stateVecTrial(ixVegNrg) > canopyTempMax) feasible=.false.
+ endif
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then
@@ -267,14 +279,32 @@ contains
  end if
 
  ! check snow temperature is below freezing
- if(count(snowFlags)>0)then
-  if(any(stateVecTrial( pack(ixSnowOnlyNrg,snowFlags) ) > Tfreeze)) feasible=.false.
+ if(count(ixSnowOnlyNrg/=integerMissing)>0)then
+  if(any(stateVecTrial( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
  endif
 
- ! check total water is not negative
- if(count(layerFlags)>0)then
-  if(any(stateVecTrial( pack(ixSnowSoilHyd,layerFlags) ) < 0._dp)  ) feasible=.false.
- end if
+ ! loop through non-missing hydrology state variables in the snow+soil domain
+ do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
+
+  ! check the minimum and maximum water constraints
+  if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
+
+   ! --> minimum
+   xMin = merge(theta_sat, 0._dp, layerType(iLayer)==iname_soil)
+
+   ! --> maximum
+   select case( layerType(iLayer) )
+    case(iname_snow); xMax = merge(iden_ice,  mLayerPoreSpace(iLayer), ixHydType(iLayer)==iname_watLayer)
+    case(iname_soil); xMax = merge(theta_sat, theta_sat - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+   end select
+
+   ! --> check
+   if(stateVecTrial( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVecTrial( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
+   !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax 
+
+  endif  ! if water states
+
+ end do  ! loop through non-missing hydrology state variables in the snow+soil domain
 
  ! early return for non-feasible solutions
  if(.not.feasible)then
@@ -312,6 +342,7 @@ contains
  call updateVars(&
                  ! input
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 .false.,                                   & ! intent(in):    logical flag to denote the need for the explicit Euler update
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
@@ -333,8 +364,20 @@ contains
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- ! print the temperature
- !write(*,'(a,1x,2(f20.10,1x))') 'canopyTemp, canairTemp = ', scalarCanopyTempTrial, scalarCanairTempTrial
+ ! print the states in the canopy domain
+ !print*, 'dt = ', dt
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyTempTrial    = ', scalarCanopyTempTrial
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyWatTrial     = ', scalarCanopyWatTrial
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyLiqTrial     = ', scalarCanopyLiqTrial
+ !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyIceTrial     = ', scalarCanopyIceTrial
+ 
+ ! print the states in the snow+soil domain
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerTempTrial          = ', mLayerTempTrial(iJac1:min(nLayers,iJac2))
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracWatTrial    = ', mLayerVolFracWatTrial(iJac1:min(nLayers,iJac2))
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracLiqTrial    = ', mLayerVolFracLiqTrial(iJac1:min(nLayers,iJac2))
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracIceTrial    = ', mLayerVolFracIceTrial(iJac1:min(nLayers,iJac2))
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadTrial    = ', mLayerMatricHeadTrial(iJac1:min(nSoil,iJac2))
+ !write(*,'(a,1x,10(f20.10,1x))') 'mLayerMatricHeadLiqTrial = ', mLayerMatricHeadLiqTrial(iJac1:min(nSoil,iJac2))
 
  ! print the water content
  if(globalPrintFlag)then
@@ -384,7 +427,6 @@ contains
                  ! output: error control
                  err,cmessage)              ! intent(out):   error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
 
  ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
  ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations

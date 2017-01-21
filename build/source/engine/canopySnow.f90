@@ -59,8 +59,8 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTIME,iLookTYPE,iLookATTR,iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX,iLookBVAR,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX ! named variables for structure elements
+ USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: model control
@@ -239,6 +239,9 @@ contains
  ! *****
  ! update mass of ice on the canopy (kg m-2)
  scalarCanopyIce = scalarCanopyIceIter
+
+ !print*, 'scalarCanopySnowUnloading    = ', scalarCanopySnowUnloading
+ !print*, 'scalarCanopySnowUnloading*dt = ', scalarCanopySnowUnloading*dt
 
  ! end association to variables in the data structure
  end associate

@@ -196,7 +196,6 @@ end subroutine read_dimension
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru-hru mapping structure
  USE globalData,only:attr_meta,type_meta                    ! metadata structures
- USE var_lookup,only:iLookATTR,iLookTYPE                    ! named variables for elements of the data structures
  USE get_ixname_module,only:get_ixAttr,get_ixType           ! access function to find index of elements in structure
  implicit none
 

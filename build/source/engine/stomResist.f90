@@ -345,7 +345,6 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookTYPE           ! named variables for structure elements
  USE var_lookup,only:iLookDIAG           ! named variables for structure elements
  USE var_lookup,only:iLookFLUX           ! named variables for structure elements
  USE var_lookup,only:iLookFORCE          ! named variables for structure elements
@@ -543,10 +542,6 @@ contains
    x0 = fT(vcmax_Ha,scalarVegetationTemp,Tref)
    x1 = fhigh(vcmax_Hd,vcmax_Sv,Tref) / fhigh(vcmax_Hd,vcmax_Sv,scalarVegetationTemp)
    vcmax = scalarTranspireLim*vcmax25*x0*x1
-   ! compute the maximum electron transport rate (umol electron m-2 s-1)
-   x0 = fT(jmax_Ha,scalarVegetationTemp,Tref)
-   x1 = fhigh(jmax_Hd,jmax_Sv,Tref) / fhigh(jmax_Hd,jmax_Sv,scalarVegetationTemp)
-   jmax = jmax25*x0*x1
 
   ! check found an appropriate option
   case default; err=20; message=trim(message)//'unable to find option for leaf temperature controls on stomatal conductance'; return
@@ -556,6 +551,11 @@ contains
  ! *****
  ! * compute electron transport controls on stomatal conductance...
  ! ****************************************************************
+
+ ! compute the maximum electron transport rate (umol electron m-2 s-1)
+ x0 = fT(jmax_Ha,scalarVegetationTemp,Tref)
+ x1 = fhigh(jmax_Hd,jmax_Sv,Tref) / fhigh(jmax_Hd,jmax_Sv,scalarVegetationTemp)
+ jmax = jmax25*x0*x1
 
  ! identify the electron transport function
  select case(ix_bbElecFunc)

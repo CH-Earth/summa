@@ -146,11 +146,8 @@ contains
  USE groundwatr_module,only:groundwatr            ! compute the baseflow flux
  ! provide access to indices that define elements of the data structures
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
- USE var_lookup,only:iLookTYPE                    ! named variables for structure elements
- USE var_lookup,only:iLookATTR                    ! named variables for structure elements
  USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
  USE var_lookup,only:iLookFORCE                   ! named variables for structure elements
- USE var_lookup,only:iLookBVAR                    ! named variables for structure elements
  USE var_lookup,only:iLookPROG                    ! named variables for structure elements
  USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
  USE var_lookup,only:iLookDIAG                    ! named variables for structure elements
@@ -204,7 +201,6 @@ contains
  ! ---------------------------------------------------------------------------------------
  integer(i4b)                    :: local_ixGroundwater         ! local index for groundwater representation
  integer(i4b)                    :: iLayer                      ! index of model layers
- real(dp),parameter              :: canopyTempMax=500._dp       ! expected maximum value for the canopy temperature (K)
  real(dp),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  character(LEN=256)              :: cmessage                    ! error message of downwind routine
  ! --------------------------------------------------------------
@@ -289,6 +285,8 @@ contains
  iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat                  ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
  mLayerHydCond                => flux_data%var(iLookFLUX%mLayerHydCond)%dat                      ,&  ! intent(out): [dp(:)]  hydraulic conductivity in each soil layer (m s-1)
  mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                     ,&  ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+ scalarSnowDrainage           => flux_data%var(iLookFLUX%scalarSnowDrainage)%dat(1)              ,&  ! intent(out): [dp]     drainage from the snow profile (m s-1)
+ scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)              ,&  ! intent(out): [dp]     drainage from the soil profile (m s-1)
  scalarSoilBaseflow           => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1)              ,&  ! intent(out): [dp]     total baseflow from the soil profile (m s-1)
 
  ! infiltration
@@ -373,13 +371,6 @@ contains
   case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
  end select ! (modify the groundwater representation for this single-column implementation)
 
- ! check that canopy temperature is reasonable
- if(scalarCanopyTempTrial > canopyTempMax)then
-  print*, 'scalarCanopyTempTrial = ', scalarCanopyTempTrial
-  message=trim(message)//'canopy temperature is > expected maximum'
-  err=20; return
- end if
-
  ! initialize liquid water fluxes throughout the snow and soil domains
  ! NOTE: used in the energy routines, which is called before the hydrology routines
  if(firstFluxCall)then
@@ -460,13 +451,16 @@ contains
 
   ! check fluxes
   if(globalPrintFlag)then
-   write(*,'(a,1x,f30.20)') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
-   write(*,'(a,1x,f30.20)') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
-   write(*,'(a,1x,f30.20)') 'mLayerTempTrial(1)    = ',  mLayerTempTrial(1)      ! trial value of ground temperature (K)
-   write(*,'(a,1x,f30.20)') 'scalarCanairNetNrgFlux = ', scalarCanairNetNrgFlux
-   write(*,'(a,1x,f30.20)') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
-   write(*,'(a,1x,f30.20)') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
-   write(*,'(a,1x,f30.20)') 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
+   print*, '**'
+   write(*,'(a,1x,10(f30.20))') 'canopyDepth           = ',  canopyDepth
+   write(*,'(a,1x,10(f30.20))') 'mLayerDepth(1:2)      = ',  mLayerDepth(1:2)
+   write(*,'(a,1x,10(f30.20))') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
+   write(*,'(a,1x,10(f30.20))') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
+   write(*,'(a,1x,10(f30.20))') 'mLayerTempTrial(1:2)  = ',  mLayerTempTrial(1:2)    ! trial value of ground temperature (K)
+   write(*,'(a,1x,10(f30.20))') 'scalarCanairNetNrgFlux = ', scalarCanairNetNrgFlux
+   write(*,'(a,1x,10(f30.20))') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
+   write(*,'(a,1x,10(f30.20))') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
+   write(*,'(a,1x,10(f30.20))') 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
   endif ! if checking fluxes
 
  endif ! if calculating the energy fluxes over vegetation
@@ -544,11 +538,13 @@ contains
   
   ! test
   if(globalPrintFlag)then
+   print*, '**'
    print*, 'scalarRainfall          = ', scalarRainfall
    print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
    print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
    print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
    print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
+   print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
   endif
 
  endif  ! computing the liquid water fluxes through vegetation
@@ -587,9 +583,12 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSnow
    mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
-   !if(iLayer<30) write(*,'(a,1x,i4,1x,2(f16.10,1x))')  'iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1) = ', &
-   !                                                     iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1)
+   !write(*,'(a,1x,i4,1x,2(f16.10,1x))')  'iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1) = ', &
+   !                                       iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1)
   end do
+
+  ! compute drainage from the soil zone (needed for mass balance checks)
+  scalarSnowDrainage = iLayerLiqFluxSnow(nSnow)
 
  else
 
@@ -660,8 +659,9 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSoil
    mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
+   !print*, 'iLayerLiqFluxSoil(iLayer-1), mLayerLiqFluxSoil(iLayer) = ', iLayerLiqFluxSoil(iLayer-1), mLayerLiqFluxSoil(iLayer)
   end do
-  
+ 
   ! calculate the soil control on infiltration
   if(nSnow==0) then
    ! * case of infiltration into soil
@@ -675,6 +675,9 @@ contains
    scalarSoilControl = 1._dp
   endif
   
+  ! compute drainage from the soil zone (needed for mass balance checks)
+  scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
+
   ! expand derivatives to the total water matric potential
   ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
   if(globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)
@@ -706,7 +709,7 @@ contains
     message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
     err=20; return
    endif
-  
+ 
    ! compute the baseflow flux
    call groundwatr(&
                    ! input: model control

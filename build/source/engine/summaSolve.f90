@@ -75,6 +75,7 @@ contains
  subroutine summaSolve(&
                        ! input: model control
                        dt,                      & ! intent(in):    length of the time step (seconds)
+                       funcOnly,                & ! intent(in):    logical flag to only return the flux and function evaluation
                        iter,                    & ! intent(in):    iteration index
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
@@ -115,6 +116,7 @@ contains
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
                        fNew,                    & ! intent(out):   new function evaluation
+                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        converged,               & ! intent(out):   convergence flag
                        err,message)               ! intent(out):   error control
  USE computJacob_module, only: computJacob
@@ -125,6 +127,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)             :: dt                       ! length of the time step (seconds)
+ logical(lgt),intent(in)         :: funcOnly                 ! logical flag to only return the flux and function evaluation
  integer(i4b),intent(in)         :: iter                     ! interation index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
@@ -165,6 +168,7 @@ contains
  real(dp),intent(out)            :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
  real(dp),intent(out)            :: fNew                     ! new function evaluation
+ logical(lgt),intent(out)        :: feasible                 ! flag to denote the feasibility of the solution
  logical(lgt),intent(out)        :: converged                ! convergence flag
  ! output: error control
  integer(i4b),intent(out)        :: err                      ! error code
@@ -201,6 +205,18 @@ contains
 
  ! initialize the global print flag
  globalPrintFlagInit=globalPrintFlag
+
+ ! -----
+ ! * only compute the function evaluation and return...
+ ! ----------------------------------------------------
+
+ ! this is done if using the explicit Euler solution
+ if(funcOnly)then
+  stateVecNew = stateVecTrial
+  call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if                  ! (check for errors)
+  return
+ endif
 
  ! -----
  ! * compute the Jacobian matrix...
@@ -261,7 +277,7 @@ contains
   print*, '** SCALED banded analytical Jacobian:'
   write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
   do iLayer=kl+1,nBands
-   write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=iJac1,iJac2)
+   write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
   end do
  end if
 
@@ -273,7 +289,8 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  if(globalPrintFlag)&
- write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(iJac1:iJac2)
+ write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(min(iJac1,nState):min(iJac2,nState))
+ !print*, 'PAUSE'; read(*,*)
 
  ! -----
  ! * update, evaluate, and refine the state vector...
@@ -396,8 +413,8 @@ contains
     write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
     write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
     write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
-    write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(iJac1:iJac2)
-    write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(iJac1:iJac2)
+    write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(min(iJac1,nState):min(iJac2,nState))
+    write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(min(iJac1,nState):min(iJac2,nState))
    end if
 
    ! check feasibility
@@ -783,17 +800,13 @@ contains
   logical(lgt)              :: liquidConv             ! flag for residual convergence
   logical(lgt)              :: matricConv             ! flag for matric head convergence
   logical(lgt)              :: energyConv             ! flag for energy convergence
-  ! TEMPORARY CODE: use hard-coded convergence parameters
-  real(dp),parameter        :: absConvTol_energy=1.e-0_dp   ! convergence tolerance for energy (J m-3)
-  real(dp),parameter        :: absConvTol_liquid=1.e-8_dp   ! convergence tolerance for volumetric liquid water content (-)
-  real(dp),parameter        :: absConvTol_matric=1.e-3_dp   ! convergence tolerance for matric head increment in soil layers (m)
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
   ! convergence parameters
-  !absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
-  !absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)            ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
-  !absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)            ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
+  absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)            ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
+  absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)            ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
+  absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)            ,&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
   ! model indices
@@ -811,7 +824,7 @@ contains
   ! check convergence based on the canopy water balance
   if(ixVegHyd/=integerMissing)then
    canopy_max = real(abs(rVec(ixVegHyd)), dp)*iden_water
-   canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (m)
+   canopyConv = (canopy_max    < absConvTol_liquid)  ! absolute error in canopy water balance (mm)
   else
    canopy_max = realMissing
    canopyConv = .true.
@@ -882,8 +895,6 @@ contains
   USE var_lookup,only:iLookINDEX                                  ! named variables for elements of the index structure
   ! physical constants
   USE multiconst,only:Tfreeze                                     ! temperature at freezing (K)
-  USE multiconst,only:gravity                                     ! acceleration of gravity (m s-2)
-  USE multiconst,only:LH_fus                                      ! latent heat of fusion (J kg-1)
   ! external functions
   USE soil_utils_module,only:crit_soilT                           ! compute the critical temperature below which ice exists
   implicit none

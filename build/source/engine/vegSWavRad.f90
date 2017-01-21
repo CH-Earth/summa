@@ -104,7 +104,6 @@ contains
  associate(&
   ! input: control
   vegTypeIndex               => type_data%var(iLookTYPE%vegTypeIndex),                            & ! intent(in): vegetation type index
-  soilTypeIndex              => type_data%var(iLookTYPE%soilTypeIndex),                           & ! intent(in): soil type index
   ix_canopySrad              => model_decisions(iLookDECISIONS%canopySrad)%iDecision,             & ! intent(in): index defining method for canopy shortwave radiation
   ! input: forcing at the upper boundary
   scalarSnowfall             => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),                   & ! intent(in): computed snowfall rate (kg m-2 s-1)
@@ -213,7 +212,7 @@ contains
    call canopy_SW(&
                   ! input: model control
                   vegTypeIndex,                                       & ! intent(in): index of vegetation type
-                  soilTypeIndex,                                      & ! intent(in): index of soil type
+                  isc,                                                & ! intent(in): index of soil type
                   computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                   ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
                   ! input: model variables
@@ -263,7 +262,7 @@ contains
  subroutine canopy_SW(&
                       ! input: model control
                       vegTypeIndex,                                       & ! intent(in): index of vegetation type
-                      soilTypeIndex,                                      & ! intent(in): index of soil type
+                      isc,                                                & ! intent(in): index of soil color
                       computeVegFlux,                                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                       ix_canopySrad,                                      & ! intent(in): index of method used for transmission of shortwave rad through the canopy
                       ! input: model variables
@@ -303,7 +302,7 @@ contains
  USE NOAHMP_VEG_PARAMETERS, only: TAUS,TAUL                                  ! Noah-MP: stem and leaf transmittance for each wave band
  ! input
  integer(i4b),intent(in)        :: vegTypeIndex                              ! vegetation type index
- integer(i4b),intent(in)        :: soilTypeIndex                             ! soil type index
+ integer(i4b),intent(in)        :: isc                                       ! soil color index
  logical(lgt),intent(in)        :: computeVegFlux                            ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  integer(i4b),intent(in)        :: ix_canopySrad                             ! choice of canopy shortwave radiation method
  real(dp),intent(in)            :: scalarCosZenith                           ! cosine of the solar zenith angle (0-1)
@@ -417,7 +416,7 @@ contains
  ! compute the albedo of the ground surface
  call gndAlbedo(&
                 ! input
-                soilTypeIndex,                         & ! intent(in): index of soil type
+                isc,                                   & ! intent(in): index of soil color
                 scalarGroundSnowFraction,              & ! intent(in): fraction of ground that is snow covered (-)
                 scalarVolFracLiqUpper,                 & ! intent(in): volumetric liquid water content in upper-most soil layer (-)
                 spectralSnowAlbedoDirect,              & ! intent(in): direct albedo of snow in each spectral band (-)
@@ -901,7 +900,7 @@ contains
  ! *************************************************************************************************************************************
  subroutine gndAlbedo(&
                       ! input
-                      soilTypeIndex,                         & ! intent(in): index of soil type
+                      isc,                                   & ! intent(in): index of soil color
                       scalarGroundSnowFraction,              & ! intent(in): fraction of ground that is snow covered (-)
                       scalarVolFracLiqUpper,                 & ! intent(in): volumetric liquid water content in upper-most soil layer (-)
                       spectralSnowAlbedoDirect,              & ! intent(in): direct albedo of snow in each spectral band (-)
@@ -915,7 +914,7 @@ contains
  USE NOAHMP_RAD_PARAMETERS, only: ALBSAT,ALBDRY  ! Noah-MP: saturated and dry soil albedos for each wave band
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- integer(i4b),intent(in)        :: soilTypeIndex                ! index of soil type
+ integer(i4b),intent(in)        :: isc                          ! index of soil color
  real(dp),intent(in)            :: scalarGroundSnowFraction     ! fraction of ground that is snow covered (-)
  real(dp),intent(in)            :: scalarVolFracLiqUpper        ! volumetric liquid water content in upper-most soil layer (-)
  real(dp),intent(in)            :: spectralSnowAlbedoDirect(:)  ! direct albedo of snow in each spectral band (-)
@@ -935,7 +934,7 @@ contains
  ! compute soil albedo
  do iBand=1,nBands   ! loop through spectral bands
   xInc = max(0.11_dp - 0.40_dp*scalarVolFracLiqUpper, 0._dp)
-  spectralSoilAlbedo(iBand)  = min(ALBSAT(soilTypeIndex,iBand)+xInc,ALBDRY(soilTypeIndex,iBand))
+  spectralSoilAlbedo(iBand)  = min(ALBSAT(isc,iBand)+xInc,ALBDRY(isc,iBand))
  end do  ! (looping through spectral bands)
 
  ! compute surface albedo (weighted combination of snow and soil)

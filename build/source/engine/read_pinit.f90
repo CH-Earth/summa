@@ -53,7 +53,7 @@ contains
  integer(i4b),intent(out)               :: err            ! error code
  character(*),intent(out)               :: message        ! error message
  ! define general variables
- logical(lgt),parameter                 :: backwardsCompatible=.true. ! .true. if skip check that all parameters are populated
+ logical(lgt),parameter                 :: backwardsCompatible=.false. ! .true. if skip check that all parameters are populated
  character(len=256)                     :: cmessage       ! error message for downwind routine
  character(LEN=256)                     :: infile         ! input filename
  integer(i4b)                           :: unt            ! file unit (free unit output from file_open)
@@ -127,7 +127,7 @@ contains
    !write(*,'(a,1x,i4,1x,a30,1x,f20.10,1x)') 'ivar, trim(varname), parFallback(ivar)%default_val = ', &
    !                                          ivar, trim(varname), parFallback(ivar)%default_val
   else
-   err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return
+   err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varname)//"]"; return
   end if
  end do  ! (looping through lines in the file)
  ! check we have populated all variables

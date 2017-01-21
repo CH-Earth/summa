@@ -239,14 +239,20 @@ contains
    mLayerVolFracHyd(iLayer)      = merge(mLayerVolFracWat(iLayer), mLayerVolFracLiq(iLayer), (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
    ! (compute the residual)
    rVec( ixSnowSoilHyd(iLayer) ) = mLayerVolFracHydTrial(iLayer) - ( (mLayerVolFracHyd(iLayer) + fVec( ixSnowSoilHyd(iLayer) )*dt) + rAdd( ixSnowSoilHyd(iLayer) ) )
-
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
  ! print result
  if(globalPrintFlag)then
-  write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(iJac1:iJac2)
-  write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(iJac1:iJac2)
+  write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
+  write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
+  !print*, 'PAUSE:'; read(*,*)
+ endif
+
+ ! check
+ if(any(isNan(rVec)))then
+  message=trim(message)//'we found some Indian bread (NaN)'
+  err=20; return
  endif
 
  ! end association with the necessary variabiles for the residual calculations
