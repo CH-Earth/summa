@@ -1077,7 +1077,7 @@ contains
  integer(i4b)                     :: nArgument                  ! number of command line arguments 
  character(len=256),allocatable   :: argString(:)               ! string to store command line arguments
  integer(i4b)                     :: nLocalArgument             ! number of command line arguments to read for a switch
-
+ character(len=70), parameter     :: spaces = ''
  nArgument = command_argument_count()   
  ! check numbers of command-line arguments and obtain all arguments 
  if (nArgument < 1) then 
@@ -1090,13 +1090,14 @@ contains
   ! print versions if needed
   if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then  
    ! print version numbers
-   print "(70('-'),A)", ''
+
+   print "(A)", '----------------------------------------------------------------------'
    print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
-   print "(28x,2A)", 'Version: ', trim(summaVersion)
-   print "(15x,2A)", 'Build Time: ', trim(buildTime)
-   print "(8x,2A)",  'Git Branch: ', trim(gitBranch)
-   print "(8x,2A)",  'Git Hash:   ', trim(gitHash)
-   print "(70('-'),A)", ''
+   print "(A)", spaces(1:int((70 - len_trim(summaVersion) - 9) / 2))//'Version: '   //trim(summaVersion)
+   print "(A)", spaces(1:int((70 - len_trim(buildTime) - 12) / 2))  //'Build Time: '//trim(buildTime)
+   print "(A)", spaces(1:int((70 - len_trim(gitBranch) - 12) / 2))  //'Git Branch: '//trim(gitBranch)
+   print "(A)", spaces(1:int((70 - len_trim(gitHash) - 10) / 2))    //'Git Hash: '  //trim(gitHash)
+   print "(A)", '----------------------------------------------------------------------'
    if (nArgument == 1) stop
   end if 
  end do  
