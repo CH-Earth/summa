@@ -1090,13 +1090,13 @@ contains
   ! print versions if needed
   if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then  
    ! print version numbers
-   print "(70('-'))", 
+   print "(70('-'),A)", ''
    print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
    print "(28x,2A)", 'Version: ', trim(summaVersion)
    print "(15x,2A)", 'Build Time: ', trim(buildTime)
    print "(8x,2A)",  'Git Branch: ', trim(gitBranch)
    print "(8x,2A)",  'Git Hash:   ', trim(gitHash)
-   print "(70('-'))", 
+   print "(70('-'),A)", ''
    if (nArgument == 1) stop
   end if 
  end do  
@@ -1111,11 +1111,6 @@ contains
  do iArgument = 1,nArgument
   if (nLocalArgument>0) then; nLocalArgument = nLocalArgument -1; cycle; end if ! skip the arguments have been read 
   select case (trim(argString(iArgument)))
-
-   case ('-c', '--continue') ! TODO: this option will be deprecated after the explicit Euler and split operator solutions are implemented
-    nLocalArgument = 0
-    resumeFailSolver = .true.
-    print "(A)", "Simulation will continue even if the solver does NOT converge."
 
    case ('-m', '--master')
     ! update arguments
@@ -1144,7 +1139,7 @@ contains
     nHRU=1; nGRU=1                          ! nHRU and nGRU are both one in this case
     ! examines the checkHRU is correct 
     if (checkHRU<1) then
-     call handle_err(1,"illegal checkHRU specification; type 'summa.exe --help' for correct usage") 
+     call handle_err(1,"illegal iHRU specification; type 'summa.exe --help' for correct usage") 
     else
      print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgument+1))//' is selected for simulation.'
     end if
@@ -1225,8 +1220,8 @@ contains
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
- print "(A)",  ' -r --restart       Define frequency [y,m,d] to write restart files'
- print "(A)",  ' -p --progress      Define frequency [m,d,h] to print progress'
+ print "(A)",  ' -r --restart       Define frequency [y,m,d,never] to write restart files'
+ print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
  print "(A)",  ' -v --version       Display version infotmation of the current built'
  stop 
  end subroutine printCommandHelp
