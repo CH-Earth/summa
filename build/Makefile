@@ -322,10 +322,10 @@ check:
 
 # update version information
 update_version:
-	sed -i -e "s|character(len=64), parameter     :: summaVersion.*|character(len=64), parameter     :: summaVersion = '${VERSION}'|" $(VERSIONFILE)
-	sed -i -e "s|character(len=64), parameter     :: buildTime.*|character(len=64), parameter     :: buildTime = '${BULTTIM}'|" $(VERSIONFILE)
-	sed -i -e "s|character(len=64), parameter     :: gitBranch.*|character(len=64), parameter     :: gitBranch = '${GITBRCH}'|" $(VERSIONFILE)
-	sed -i -e "s|character(len=64), parameter     :: gitHash.*|character(len=64), parameter     :: gitHash = '${GITHASH}'|" $(VERSIONFILE)
+	echo "character(len=64), parameter     :: summaVersion = '${VERSION}'" > $(VERSIONFILE)
+	echo "character(len=64), parameter     :: buildTime = '${BULTTIM}'" >> $(VERSIONFILE)
+	echo "character(len=64), parameter     :: gitBranch = '${GITBRCH}'" >> $(VERSIONFILE)
+	echo "character(len=64), parameter     :: gitHash = '${GITHASH}'" >> $(VERSIONFILE)
 
 # compile Noah-MP routines
 compile_noah:
