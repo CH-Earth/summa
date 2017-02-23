@@ -456,7 +456,7 @@ contains
       ! -----
       ! * assemble vectors for a given split...
       ! ---------------------------------------
-    
+
       ! define minimum time step
       select case(ixSolution)
        case(fullyCoupled);    dt_min = dtmin_fullyCoupled
@@ -580,6 +580,7 @@ contains
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
       if(tooMuchMelt .or. reduceCoupledStep)then
        stepFailure=.true.
+       err=0 ! recovering
        return
       endif
  
