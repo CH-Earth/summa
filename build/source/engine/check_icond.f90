@@ -36,7 +36,7 @@ public::check_icond
 contains
 
  ! ************************************************************************************************
- ! public subroutine read_icond: read model initial conditions
+ ! public subroutine check_icond: read model initial conditions
  ! ************************************************************************************************
  subroutine check_icond(nGRU,                          & ! number of GRUs and HRUs
                         progData,                      & ! model prognostic (state) variables

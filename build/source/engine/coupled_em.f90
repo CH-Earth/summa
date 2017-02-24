@@ -171,7 +171,7 @@ contains
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
- logical(lgt)                         :: firstStep              ! flag to denote if the first time step
+ logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
  logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
  logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
@@ -194,8 +194,6 @@ contains
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
  real(dp)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
  real(dp)                             :: scalarInitCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
- real(dp)                             :: scalarTotalSoilLiq     ! total liquid water in the soil column (kg m-2)
- real(dp)                             :: scalarTotalSoilIce     ! total ice in the soil column (kg m-2)
  real(dp)                             :: balanceCanopyWater0    ! total water stored in the vegetation canopy at the start of the step (kg m-2)
  real(dp)                             :: balanceCanopyWater1    ! total water stored in the vegetation canopy at the end of the step (kg m-2)
  real(dp)                             :: balanceSoilWater0      ! total soil storage at the start of the step (kg m-2)
@@ -227,7 +225,7 @@ contains
  modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
 
  ! define the first step
- firstStep = (istep==1)
+ firstSubStep = .true.
 
  ! count the number of snow and soil layers
  ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
@@ -271,7 +269,9 @@ contains
  mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)       ,&  ! depth of each soil layer (m)
  mLayerVolFracIce     => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers)  ,&  ! volumetric ice content in each soil layer (-)
  mLayerVolFracLiq     => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)  ,&  ! volumetric liquid water content in each soil layer (-)
- scalarAquiferStorage => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)             &  ! aquifer storage (m)
+ scalarAquiferStorage => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)            ,&  ! aquifer storage (m)
+ scalarTotalSoilIce   => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)              ,&  ! total ice in the soil column (kg m-2)
+ scalarTotalSoilLiq   => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)               &  ! total liquid water in the soil column (kg m-2)
  ) ! (association of local variables with information in the data structures
 
  ! save the liquid water and ice on the vegetation canopy
@@ -623,7 +623,7 @@ contains
   indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
   ! compute the indices for the model state variables
-  if(firstStep .or. modifiedVegState .or. modifiedLayers)then
+  if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
    call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
                    nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
                    indx_data,               & ! intent(inout): indices defining model states and layers
@@ -760,7 +760,7 @@ print*,ixSolution
   endif
 
   ! update first step
-  firstStep=.false.
+  firstSubStep=.false.
 
   ! (10) remove ice due to sublimation...
   ! --------------------------------------------------------------
@@ -973,6 +973,8 @@ print*,ixSolution
  ! error tolerance
  absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                            ,&  ! absolute convergence tolerance for vol frac liq water (-)
  totalSoilCompress          => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)                             &  ! total soil compression over whole later (kg/m^2)
+ scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
+ scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
  ) ! (association of local variables with information in the data structures
 
  ! -----

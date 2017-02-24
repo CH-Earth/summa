@@ -352,6 +352,13 @@ contains
 
   endif  ! if hydrology state variable or uncoupled solution
 
+  ! compute the critical soil temperature below which ice exists
+  select case(ixDomainType)
+   case(iname_veg, iname_snow); Tcrit = Tfreeze
+   case(iname_soil);            Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
+   case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
+  end select
+  
   ! initialize temperature 
   select case(ixDomainType)
    case(iname_veg);              xTemp = scalarCanopyTempTrial
@@ -363,7 +370,7 @@ contains
   ! NOTE: start with an enormous range; updated quickly in the iterations
   tempMin = xTemp - 10._dp
   tempMax = xTemp + 10._dp
-  
+
   ! get iterations (set to maximum iterations if adjusting the temperature)
   niter = merge(maxiter, 1, do_adjustTemp)
 
@@ -392,13 +399,6 @@ contains
     end select
    endif
 
-   ! compute the critical soil temperature below which ice exists
-   select case(ixDomainType)
-    case(iname_veg, iname_snow); Tcrit = Tfreeze
-    case(iname_soil);            Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
-    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
-   end select
-  
    ! compute the derivative in liquid water content w.r.t. temperature
    ! --> partially frozen: dependence of liquid water on temperature
    if(xTemp<Tcrit)then

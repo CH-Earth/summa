@@ -264,6 +264,8 @@ integer(i4b)                     :: iRunMode                   ! define the curr
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! option to resume simulation even solver fails
 logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
+ ! version information generated during compiling
+INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! (1) inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
@@ -665,7 +667,14 @@ select case (iRunMode)
  case(iRunModeHRU)
   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
 end select
+
 fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
+!write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
+!                               startTime%var(iLookTIME%iyyy), '-', &
+!                               startTime%var(iLookTIME%im), '-', &
+!                               startTime%var(iLookTIME%id), '-', &
+!                               startTime%var(iLookTIME%ih),  &
+!                               '_spinup'//trim(output_fileSuffix)
 call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
 ! write local model attributes and parameters to the model output file
@@ -763,7 +772,7 @@ do modelTimeStep=1,numtim
  ! (7) create a new NetCDF output file, and write parameters and forcing data
  ! *****************************************************************************
  ! check the start of a new water year
-! if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
+!if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
 !    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
 !    timeStruct%var(iLookTIME%ih)  ==1  .and. &   ! hour = 1
 !    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
@@ -804,6 +813,48 @@ do modelTimeStep=1,numtim
 !  end do  ! (looping through GRUs)
 !
 ! end if  ! if start of a new water year, and defining a new file
+ if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
+    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
+    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
+    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
+
+  ! close any output files that are already open
+  do iFreq = 1,nFreq
+   if (ncid(iFreq).ne.integerMissing) then
+    call nc_file_close(ncid(iFreq),err,message)
+    call handle_err(err,message)
+   end if
+  end do
+ 
+  ! define the filename
+  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
+                                 timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
+                                 trim(output_fileSuffix)
+
+  ! define the file
+  call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+
+  ! write parameters for each HRU, and re-set indices
+  do iGRU=1,nGRU
+   do iHRU=1,gru_struc(iGRU)%hruCount
+    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
+    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
+    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
+    ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
+    waterYearTimeStep=1
+    outputTimeStep=1
+    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
+    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
+    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
+    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
+    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
+    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
+   end do  ! (looping through HRUs)
+   call writeParm(integerMissing,bparStruct%gru(iGRU)%var,bpar_meta,err,message); call handle_err(err,message)
+  end do  ! (looping through GRUs)
+
+ end if  ! if start of a new water year, and defining a new file
+>>>>>>> ncar/develop
 
  ! ****************************************************************************
  ! (8) loop through HRUs and GRUs
@@ -1073,7 +1124,7 @@ contains
  integer(i4b)                     :: nArgument                  ! number of command line arguments 
  character(len=256),allocatable   :: argString(:)               ! string to store command line arguments
  integer(i4b)                     :: nLocalArgument             ! number of command line arguments to read for a switch
-
+ character(len=70), parameter     :: spaces = ''
  nArgument = command_argument_count()   
  ! check numbers of command-line arguments and obtain all arguments 
  if (nArgument < 1) then 
@@ -1083,6 +1134,19 @@ contains
  allocate(argString(nArgument))
  do iArgument = 1,nArgument
   call get_command_argument(iArgument,argString(iArgument))   
+  ! print versions if needed
+  if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then  
+   ! print version numbers
+
+   print "(A)", '----------------------------------------------------------------------'
+   print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
+   print "(A)", spaces(1:int((70 - len_trim(summaVersion) - 9) / 2))//'Version: '   //trim(summaVersion)
+   print "(A)", spaces(1:int((70 - len_trim(buildTime) - 12) / 2))  //'Build Time: '//trim(buildTime)
+   print "(A)", spaces(1:int((70 - len_trim(gitBranch) - 12) / 2))  //'Git Branch: '//trim(gitBranch)
+   print "(A)", spaces(1:int((70 - len_trim(gitHash) - 10) / 2))    //'Git Hash: '  //trim(gitHash)
+   print "(A)", '----------------------------------------------------------------------'
+   if (nArgument == 1) stop
+  end if 
  end do  
 
  ! initialize command line argument variables
@@ -1095,11 +1159,6 @@ contains
  do iArgument = 1,nArgument
   if (nLocalArgument>0) then; nLocalArgument = nLocalArgument -1; cycle; end if ! skip the arguments have been read 
   select case (trim(argString(iArgument)))
-
-   case ('-c', '--continue') ! TODO: this option will be deprecated after the explicit Euler and split operator solutions are implemented
-    nLocalArgument = 0
-    resumeFailSolver = .true.
-    print "(A)", "Simulation will continue even if the solver does NOT converge."
 
    case ('-m', '--master')
     ! update arguments
@@ -1128,7 +1187,7 @@ contains
     nHRU=1; nGRU=1                          ! nHRU and nGRU are both one in this case
     ! examines the checkHRU is correct 
     if (checkHRU<1) then
-     call handle_err(1,"illegal checkHRU specification; type 'summa.exe --help' for correct usage") 
+     call handle_err(1,"illegal iHRU specification; type 'summa.exe --help' for correct usage") 
     else
      print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgument+1))//' is selected for simulation.'
     end if
@@ -1173,7 +1232,11 @@ contains
      case ('n' , 'never'); ixRestart = ixRestart_never
      case default;         call handle_err(1,'unknown frequency to write restart files')
     end select 
-  
+
+   ! do nothing  
+   case ('-v','--version')   
+
+   ! print help message    
    case ('--help')
     call printCommandHelp
 
@@ -1205,9 +1268,9 @@ contains
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
- print "(A)",  ' -c --continue      Continue simulation when solver failed convergence'
- print "(A)",  ' -r --restart       Define frequency [y,m,d] to write restart files'
- print "(A)",  ' -p --progress      Define frequency [m,d,h] to print progress'
+ print "(A)",  ' -r --restart       Define frequency [y,m,d,never] to write restart files'
+ print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
+ print "(A)",  ' -v --version       Display version infotmation of the current built'
  stop 
  end subroutine printCommandHelp
 
