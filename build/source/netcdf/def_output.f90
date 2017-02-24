@@ -70,7 +70,6 @@ contains
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
- USE globalData,only:model_decisions
  USE globalData,only:ncid
  USE globalData,only:nFreq,outFreq                            ! output frequencies
  ! declare dummy variables
@@ -80,7 +79,6 @@ contains
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
  ! local variables
- integer(i4b)                :: iVar                          ! loop through model variables
  integer(i4b)                :: iFreq                         ! loop through output frequencies
  integer(i4b)                :: iStruct                       ! loop through structure types 
  integer(i4b),parameter      :: modelTime=1                   ! model timestep output frequency
@@ -163,9 +161,6 @@ contains
  integer(i4b)                :: meanSnowLayersPerStep      ! mean number of snow layers per time step
  integer(i4b)                :: maxStepsPerFile            ! maximum number of time steps to be stored in each file
  integer(i4b)                :: maxLength                  ! maximum length of the variable vector
- integer(i4b)                :: iHRU                       ! local HRU index 
- integer(i4b)                :: iGRU                       ! GRU index 
- integer(i4b)                :: hruVarID                   ! HRU varID in netcdf 
  ! initialize error control
  err=0;message="f-iniCreate/"
 

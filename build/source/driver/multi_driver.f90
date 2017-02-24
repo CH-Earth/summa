@@ -262,8 +262,6 @@ integer(i4b)                     :: fileGRU                    ! number of GRUs 
 integer(i4b)                     :: fileHRU                    ! number of HRUs in the input file
 integer(i4b)                     :: iRunMode                   ! define the current running mode
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
-! option to resume simulation even solver fails
-logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
  ! version information generated during compiling
 INCLUDE 'summaversion.inc'
 ! *****************************************************************************
@@ -772,9 +770,9 @@ do modelTimeStep=1,numtim
  ! (7) create a new NetCDF output file, and write parameters and forcing data
  ! *****************************************************************************
  ! check the start of a new water year
-!if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
+! if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
 !    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
-!    timeStruct%var(iLookTIME%ih)  ==1  .and. &   ! hour = 1
+!    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
 !    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 !
 !  ! close any output files that are already open
@@ -796,9 +794,9 @@ do modelTimeStep=1,numtim
 !  ! write parameters for each HRU, and re-set indices
 !  do iGRU=1,nGRU
 !   do iHRU=1,gru_struc(iGRU)%hruCount
-!    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
-!    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
-!    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
+!    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
+!    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
+!    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
 !    ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
 !    waterYearTimeStep=1
 !    outputTimeStep=1
@@ -809,52 +807,10 @@ do modelTimeStep=1,numtim
 !    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
 !    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
 !   end do  ! (looping through HRUs)
-!   call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
+!   call writeParm(integerMissing,bparStruct%gru(iGRU)%var,bpar_meta,err,message); call handle_err(err,message)
 !  end do  ! (looping through GRUs)
 !
 ! end if  ! if start of a new water year, and defining a new file
- if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
-    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
-    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
-    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
-
-  ! close any output files that are already open
-  do iFreq = 1,nFreq
-   if (ncid(iFreq).ne.integerMissing) then
-    call nc_file_close(ncid(iFreq),err,message)
-    call handle_err(err,message)
-   end if
-  end do
- 
-  ! define the filename
-  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
-                                 timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
-                                 trim(output_fileSuffix)
-
-  ! define the file
-  call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
-
-  ! write parameters for each HRU, and re-set indices
-  do iGRU=1,nGRU
-   do iHRU=1,gru_struc(iGRU)%hruCount
-    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU)%var,attr_meta,err,message); call handle_err(err,message)
-    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU)%var,type_meta,err,message); call handle_err(err,message)
-    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU)%var,mpar_meta,err,message); call handle_err(err,message)
-    ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
-    waterYearTimeStep=1
-    outputTimeStep=1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
-   end do  ! (looping through HRUs)
-   call writeParm(integerMissing,bparStruct%gru(iGRU)%var,bpar_meta,err,message); call handle_err(err,message)
-  end do  ! (looping through GRUs)
-
- end if  ! if start of a new water year, and defining a new file
->>>>>>> ncar/develop
 
  ! ****************************************************************************
  ! (8) loop through HRUs and GRUs
@@ -944,7 +900,6 @@ do modelTimeStep=1,numtim
    ! run the model for a single parameter set and time step
    call coupled_em(&
                    ! model control
-                   modelTimeStep,                               & ! intent(in):    time step index
                    gru_struc(iGRU)%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
                    dt_init(iGRU)%hru(iHRU),                 & ! intent(inout): initial time step
                    computeVegFluxFlag,                          & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)

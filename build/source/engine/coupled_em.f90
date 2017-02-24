@@ -55,7 +55,6 @@ contains
  ! ************************************************************************************************
  subroutine coupled_em(&
                        ! model control
-                       istep,             & ! intent(in):    index of the model time step
                        hruId,             & ! intent(in):    hruId
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                        computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -126,7 +125,6 @@ contains
                        lightSnow            ! maximum interception capacity an inverse function of new snow density
  implicit none
  ! model control
- integer(i4b),intent(in)              :: istep                  ! index of model time step
  integer(i4b),intent(in)              :: hruId                  ! hruId
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -972,7 +970,7 @@ print*,ixSolution
  scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                          ,&  ! aquifer storage (m)
  ! error tolerance
  absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                            ,&  ! absolute convergence tolerance for vol frac liq water (-)
- totalSoilCompress          => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)                             &  ! total soil compression over whole later (kg/m^2)
+ totalSoilCompress          => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)                            ,&  ! total soil compression over whole later (kg/m^2)
  scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
  scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
  ) ! (association of local variables with information in the data structures
