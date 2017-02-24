@@ -1,0 +1,856 @@
+diff --git a/build/source/driver/multi_driver.f90 b/build/source/driver/multi_driver.f90
+index 0bd28d6..c81c322 100755
+--- a/build/source/driver/multi_driver.f90
++++ b/build/source/driver/multi_driver.f90
+@@ -95,6 +95,8 @@ USE data_types,only:&
+                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
+                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
+ USE data_types,only:extended_info          ! extended metadata structure
++! provide access to runtime options
++USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
+ ! provide access to metadata structures
+ USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
+ USE globalData,only:prog_meta,diag_meta,flux_meta           ! metadata structures
+@@ -131,6 +133,7 @@ USE var_lookup,only:iLookPROG                               ! look-up values for
+ USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables 
+ USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes 
+ USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
++USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
+ USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
+ USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
+ ! provide access to the named variables that describe elements of child  model structures
+@@ -192,7 +195,7 @@ integer(i4b),parameter           :: ixProgress_im=1000         ! named variable
+ integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
+ integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
+ integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
+-integer(i4b)                     :: ixProgress=ixProgress_ih   ! define frequency to write progress
++integer(i4b)                     :: ixProgress=ixProgress_id! define frequency to write progress
+ ! define the re-start file
+ logical(lgt)                     :: printRestart               ! flag to print a re-start file
+ integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
+@@ -216,8 +219,6 @@ type(hru_d),allocatable          :: upArea(:)                  ! area upslope of
+ ! general local variables        
+ integer(i4b)                     :: ivar                       ! index of model variable
+ real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
+-real(dp)                         :: timestepFluxEval           ! number of flux evaluations over the time step
+-real(dp)                         :: totalFluxEval              ! total number of flux evaluations
+ logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
+ integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
+ integer(i4b)                     :: iFile=1                    ! index of current forcing file from forcing file list
+@@ -260,9 +261,6 @@ integer(i4b)                     :: checkHRU                   ! index of the HR
+ integer(i4b)                     :: fileGRU                    ! number of GRUs in the input file
+ integer(i4b)                     :: fileHRU                    ! number of HRUs in the input file
+ integer(i4b)                     :: iRunMode                   ! define the current running mode
+-integer(i4b),parameter           :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
+-integer(i4b),parameter           :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
+-integer(i4b),parameter           :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
+ character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
+ ! option to resume simulation even solver fails
+ logical(lgt)                     :: resumeFailSolver=.false.   ! flag to resume solver when it failed (not converged)
+@@ -279,9 +277,6 @@ print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
+ ! set directories and files -- summaFileManager used as command-line argument
+ call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
+ 
+-! initialize the total number of flux evaluations
+-totalFluxEval = 0._dp
+-
+ ! initialize the Jacobian flag
+ doJacobian=.false.
+ 
+@@ -496,7 +491,7 @@ end do  ! looping through GRUs
+ ! *****************************************************************************
+ ! (5c) read trial model parameter values for each HRU, and populate initial data structures
+ ! *****************************************************************************
+-call read_param(nHRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
++call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
+ 
+ ! *****************************************************************************
+ ! (5d) compute derived model variables that are pretty much constant for the basin as a whole
+@@ -670,7 +665,7 @@ select case (iRunMode)
+  case(iRunModeHRU)
+   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
+ end select
+-fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
++fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
+ call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+ 
+ ! write local model attributes and parameters to the model output file
+@@ -695,9 +690,6 @@ outputTimeStep(1:nFreq) = 1
+ 
+ do modelTimeStep=1,numtim
+ 
+- ! initialize the number of flux evaluations per time step
+- timestepFluxEval = 0._dp
+-
+  ! read forcing data 
+  do iGRU=1,nGRU
+   do iHRU=1,gru_struc(iGRU)%hruCount
+@@ -722,6 +714,16 @@ do modelTimeStep=1,numtim
+  ! set print flag
+  globalPrintFlag=.false.
+ 
++ ! print progress
++ select case(ixProgress)
++  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
++  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
++  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
++  case(ixProgress_never); printProgress = .false.
++  case default; call handle_err(20,'unable to identify option for the restart file')
++ end select
++ if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
++
+  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
+  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
+  ! compute the exposed LAI and SAI and whether veg is buried by snow
+@@ -760,47 +762,47 @@ do modelTimeStep=1,numtim
+  ! (7) create a new NetCDF output file, and write parameters and forcing data
+  ! *****************************************************************************
+  ! check the start of a new water year
+- if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
+-    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
+-    timeStruct%var(iLookTIME%ih)  ==1  .and. &   ! hour = 1
+-    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
+-
+-  ! close any output files that are already open
+-  do iFreq = 1,nFreq
+-   if (ncid(iFreq).ne.integerMissing) then
+-    call nc_file_close(ncid(iFreq),err,message)
+-    call handle_err(err,message)
+-   end if
+-  end do
+- 
+-  ! define the filename
+-  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
+-                                 timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
+-                                 trim(output_fileSuffix)
+-
+-  ! define the file
+-  call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+-
+-  ! write parameters for each HRU, and re-set indices
+-  do iGRU=1,nGRU
+-   do iHRU=1,gru_struc(iGRU)%hruCount
+-    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
+-    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
+-    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
+-    ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
+-    waterYearTimeStep=1
+-    outputTimeStep=1
+-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
+-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
+-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
+-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
+-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
+-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
+-   end do  ! (looping through HRUs)
+-   call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
+-  end do  ! (looping through GRUs)
+-
+- end if  ! if start of a new water year, and defining a new file
++! if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
++!    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
++!    timeStruct%var(iLookTIME%ih)  ==1  .and. &   ! hour = 1
++!    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
++!
++!  ! close any output files that are already open
++!  do iFreq = 1,nFreq
++!   if (ncid(iFreq).ne.integerMissing) then
++!    call nc_file_close(ncid(iFreq),err,message)
++!    call handle_err(err,message)
++!   end if
++!  end do
++! 
++!  ! define the filename
++!  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
++!                                 timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
++!                                 trim(output_fileSuffix)
++!
++!  ! define the file
++!  call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
++!
++!  ! write parameters for each HRU, and re-set indices
++!  do iGRU=1,nGRU
++!   do iHRU=1,gru_struc(iGRU)%hruCount
++!    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
++!    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
++!    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
++!    ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
++!    waterYearTimeStep=1
++!    outputTimeStep=1
++!    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
++!    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
++!    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
++!    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
++!    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
++!    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
++!   end do  ! (looping through HRUs)
++!   call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
++!  end do  ! (looping through GRUs)
++!
++! end if  ! if start of a new water year, and defining a new file
+ 
+  ! ****************************************************************************
+  ! (8) loop through HRUs and GRUs
+@@ -913,9 +915,6 @@ do modelTimeStep=1,numtim
+    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
+ 
+-   ! increment the timestep flux evaluations
+-   timestepFluxEval = timestepFluxEval + diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%numFluxCalls)%dat(1)
+-
+ !   ! check feasibiility of certain states
+ !   call check_icond(nGRU,nHRU,                     & ! number of response units
+ !                    progStruct,                    & ! model prognostic (state) variables
+@@ -962,21 +961,21 @@ do modelTimeStep=1,numtim
+    end if
+ 
+    ! calculate output Statistics
+-   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+-   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,statProg_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+-   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,statDiag_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+-   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+-   call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
++   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,modelTimeStep,err,message);       call handle_err(err,message)
++   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,statProg_meta,modelTimeStep,err,message);       call handle_err(err,message)
++   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,statDiag_meta,modelTimeStep,err,message);       call handle_err(err,message)
++   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,modelTimeStep,err,message);       call handle_err(err,message)
++   call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,modelTimeStep,err,message);       call handle_err(err,message)
+ 
+    ! write the model output to the NetCDF file
+    ! Passes the full metadata structure rather than the stats metadata structure because 
+    !  we have the option to write out data of types other than statistics. 
+    !  Thus, we must also pass the stats parent->child maps from childStruct.
+-   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+-   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+-   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+-   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,fluxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+-   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
++   call writeData(modelTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
++   call writeData(modelTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
++   call writeData(modelTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
++   call writeData(modelTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,fluxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
++   call writeData(modelTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
+   
+    ! increment the model indices
+    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
+@@ -1012,32 +1011,19 @@ do modelTimeStep=1,numtim
+   end associate
+  
+   ! calc basin stats 
+-  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
++  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,modelTimeStep,err,message); call handle_err(err,message)
+ 
+   ! write basin-average variables
+-  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
++  call writeBasin(modelTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
+ 
+  end do  ! (looping through GRUs)
+ 
+- ! increment the total number of flux evaluations
+- totalFluxEval = totalFluxEval + timestepFluxEval
+-
+- ! print progress
+- select case(ixProgress)
+-  case(ixProgress_im);    printProgress = (timeStruct%var(iLookTIME%id)   == 1 .and. timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+-  case(ixProgress_id);    printProgress = (timeStruct%var(iLookTIME%ih)   == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
+-  case(ixProgress_ih);    printProgress = (timeStruct%var(iLookTIME%imin) == 0)
+-  case(ixProgress_never); printProgress = .false.
+-  case default; call handle_err(20,'unable to identify option for the restart file')
+- end select
+- if(printProgress) write(*,'(i4,1x,4(i2,1x),a,1x,f20.1)') timeStruct%var, 'nFluxEval = ', timestepFluxEval
+-
+  ! write current time to all files
+- call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
++ call WriteTime(modelTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
+ 
+  ! increment output file timestep
+  do iFreq = 1,nFreq
+-  if (mod(waterYearTimeStep,outFreq(iFreq))==0) then
++  if (mod(modelTimeStep,outFreq(iFreq))==0) then
+    outputTimeStep(iFreq) = outputTimeStep(iFreq) + 1
+   end if
+  end do
+@@ -1329,8 +1315,6 @@ contains
+  write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/60_dp,    ' m'
+  write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/3600_dp,  ' h'
+  write(outunit,"(A,1PG15.7,A/)"),                                           '       or           ', elpSec/86400_dp, ' d'
+- ! print the total number of flux evaluations
+- write(outunit,'(a,1x,f30.1)') 'Total flux evaluations = ', totalFluxEval
+  ! stop with message
+  print*,'FORTRAN STOP: '//trim(message)
+  stop
+@@ -1403,7 +1387,6 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
+      CALL wrf_error_fatal ( message )
+   END IF
+ 
+-
+   LUMATCH=0
+ 
+   FIND_LUTYPE : DO WHILE (LUMATCH == 0)
+@@ -1450,7 +1433,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
+              EMISSMAXTBL(LC), ALBEDOMINTBL(LC),         &
+              ALBEDOMAXTBL(LC), Z0MINTBL(LC), Z0MAXTBL(LC)
+      ENDDO
+-!
++
+      READ (19,*)
+      READ (19,*)TOPT_DATA
+      READ (19,*)
+@@ -1464,7 +1447,7 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
+      READ (19,*)
+      READ (19,*)NATURAL
+   ENDIF
+-!
++
+ 2002 CONTINUE
+ 
+   CLOSE (19)
+@@ -1487,8 +1470,6 @@ SUBROUTINE SOIL_VEG_GEN_PARM(FILENAME_VEGTABLE, FILENAME_SOILTABLE, FILENAME_GEN
+ 
+   LUMATCH=0
+ 
+-
+-
+   ! MPC add a new soil table
+   FIND_soilTYPE : DO WHILE (LUMATCH == 0)
+    READ (19,*)
+diff --git a/build/source/dshare/globalData.f90 b/build/source/dshare/globalData.f90
+index 92cee99..7e6576b 100644
+--- a/build/source/dshare/globalData.f90
++++ b/build/source/dshare/globalData.f90
+@@ -54,6 +54,11 @@ MODULE globalData
+  real(dp),parameter,public                   :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
+  integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer 
+ 
++ ! define run modes
++ integer(i4b),parameter,public               :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
++ integer(i4b),parameter,public               :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
++ integer(i4b),parameter,public               :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
++
+  ! define limit checks
+  real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
+  real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
+diff --git a/build/source/engine/conv_funcs.f90 b/build/source/engine/conv_funcs.f90
+index d2b04fc..2632ba0 100644
+--- a/build/source/engine/conv_funcs.f90
++++ b/build/source/engine/conv_funcs.f90
+@@ -85,6 +85,7 @@ logical(lgt),parameter          :: testDeriv=.false. ! flag to test the derivati
+ !---------------------------------------------------------------------------------------------------
+ ! Units note :              Pa = N m-2 = kg m-1 s-2
+ ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
++
+ SVP     = SATVPFRZ * EXP( (X1*TC)/(X2 + TC) ) ! Saturated Vapour Press (Pa)
+ dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2._dp)
+ if(testDeriv) print*, 'dSVP_dT check... ', SVP, dSVP_dT, (SATVPRESS(TC+dx) - SVP)/dx
+diff --git a/build/source/engine/read_attrb.f90 b/build/source/engine/read_attrb.f90
+index 7360d78..75efa5d 100644
+--- a/build/source/engine/read_attrb.f90
++++ b/build/source/engine/read_attrb.f90
+@@ -149,6 +149,7 @@ else ! allocate space for anything except a single HRU run
+  
+  iHRU = 1
+  do iGRU = 1,nGRU 
++
+   if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
+   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
+   gru_struc(iGRU)%gruId             = gru_id(iGRU+sGRU-1)                                      ! set gru id
+diff --git a/build/source/engine/read_force.f90 b/build/source/engine/read_force.f90
+index 9306da4..c896338 100644
+--- a/build/source/engine/read_force.f90
++++ b/build/source/engine/read_force.f90
+@@ -134,6 +134,7 @@ contains
+    ! NOTE: This could be faster by checking just the start and the end times
+    err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
+    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
++
+    fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday ! convert time to units of days, and add reference julian day
+ 
+    ! find difference of fileTime from currentJulday
+@@ -141,6 +142,7 @@ contains
+ 
+    ! start time is in the current file
+    if(any(diffTime < verySmall))then
++
+     iRead=minloc(diffTime,1)
+     exit
+ 
+@@ -327,7 +329,9 @@ contains
+   
+    ! get definition of time data
+    err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
++
+    err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=nf90_noerr)then; message=trim(message)//'cannot find time units/'//trim(nf90_strerror(err));    return; endif
++
+    err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
+ 
+    ! define the reference time for the model simulation
+diff --git a/build/source/engine/read_param.f90 b/build/source/engine/read_param.f90
+index 445bdea..8419f8d 100644
+--- a/build/source/engine/read_param.f90
++++ b/build/source/engine/read_param.f90
+@@ -24,6 +24,9 @@ module read_param_module
+ USE globalData,only:integerMissing  ! missing integer
+ USE globalData,only:realMissing     ! missing real number
+ 
++! runtime options
++USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU ! run modes
++
+ ! common modules
+ USE nrtype
+ USE netcdf
+@@ -45,16 +48,20 @@ contains
+  ! ************************************************************************************************
+  ! public subroutine read_param: read trial model parameter values
+  ! ************************************************************************************************
+- subroutine read_param(nHRU,typeStruct,mparStruct,bparStruct,err,message)
++ subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message)
+  ! used to read model initial conditions
+  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
+  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
+  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
+- USE globalData,only:index_map                       ! mapping from global HRUs to the elements in the data structures
++ USE globalData,only:index_map,gru_struc             ! mapping from global HRUs to the elements in the data structures
+  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
+  implicit none
+  ! define input
++ integer(i4b),        intent(in)       :: iRunMode         ! run mode
++ integer(i4b),        intent(in)       :: checkHRU         ! index of single HRU if runMode = checkHRU
++ integer(i4b),        intent(in)       :: startGRU         ! index of single GRU if runMode = startGRU
+  integer(i4b),        intent(in)       :: nHRU             ! number of global HRUs
++ integer(i4b),        intent(in)       :: nGRU             ! number of global GRUs
+  type(gru_hru_int),   intent(in)       :: typeStruct       ! local classification of soil veg etc. for each HRU
+  ! define output
+  type(gru_hru_doubleVec),intent(inout) :: mparStruct       ! model parameters
+@@ -66,7 +73,6 @@ contains
+  character(LEN=1024)                   :: infile           ! input filename
+  integer(i4b)                          :: iHRU             ! index of HRU within data vector
+  integer(i4b)                          :: localHRU,iGRU    ! index of HRU and GRU within data structure
+- integer(i4b)                          :: lastGRU          ! to check consistency of basin parms over different HRUs
+  integer(i4b)                          :: ixParam          ! index of the model parameter in the data structure
+  ! indices/metadata in the NetCDF file
+  integer(i4b)                          :: ncid             ! netcdf id
+@@ -78,12 +84,15 @@ contains
+  character(LEN=64)                     :: parName          ! parameter name
+  integer(i4b)                          :: dimLength        ! dimension length
+  integer(i4b)                          :: nHRU_file        ! number of HRUs in the parafile
++ integer(i4b)                          :: nGRU_file        ! number of GRUs in the parafile
+  integer(i4b)                          :: nSoil_file       ! number of soil layers in the file
+  integer(i4b)                          :: idim_list(2)     ! list of dimension ids
+  ! data in the netcdf file
+  integer(i4b)                          :: parLength        ! length of the parameter data
+- integer(i4b)                          :: hruId(nHRU)      ! HRU identifier in the file
++ integer(i4b),allocatable              :: hruId(:)      ! HRU identifier in the file
+  real(dp),allocatable                  :: parVector(:)     ! model parameter vector
++ logical                               :: fexist           ! inquire whether the parmTrial file exists 
++ integer(i4b)                          :: fHRU             ! index of HRU in input file
+ 
+  ! Start procedure here
+  err=0; message="read_param/"
+@@ -95,6 +104,10 @@ contains
+  ! build filename
+  infile = trim(SETNGS_PATH)//trim(PARAMETER_TRIAL)
+ 
++ ! do we need the file?
++ inquire(file=trim(infile),exist=fexist)
++ if (.not.fexist) return
++
+  ! open file
+  call nc_file_open(trim(infile),nf90_nowrite,ncid,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+@@ -102,9 +115,10 @@ contains
+  ! get the number of variables in the parameter file
+  err=nf90_inquire(ncid, nDimensions=nDims, nVariables=nVars)
+  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+- 
++
+  ! initialize the number of HRUs
+  nHRU_file=integerMissing
++ nGRU_file=integerMissing
+ 
+  ! get the length of the dimensions
+  do idimid=1,nDims
+@@ -113,8 +127,12 @@ contains
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   ! get the number of HRUs
+   if(trim(dimName)=='hru') nHRU_file=dimLength
++  if(trim(dimName)=='gru') nGRU_file=dimLength
+  end do
+ 
++ ! allocate hruID vector
++ allocate(hruId(nHRU_file))
++
+  ! check HRU dimension exists
+  if(nHRU_file==integerMissing)then
+   message=trim(message)//'unable to identify HRU dimension in file '//trim(infile)
+@@ -122,15 +140,25 @@ contains
+  endif
+ 
+  ! check have the correct number of HRUs
+- if(nHRU_file/=nHRU)then
++ if ((irunMode==irunModeFull).and.(nHRU_file/=nHRU)) then
+   message=trim(message)//'incorrect number of HRUs in file '//trim(infile)
+   err=20; return
+  endif
++ if ((irunMode==irunModeHRU).and.(nHRU_file<checkHRU)) then
++  message=trim(message)//'not enough HRUs in file '//trim(infile)
++  err=20; return
++ endif
++ 
++ ! check have the correct number of GRUs
++ if ((irunMode==irunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
++  message=trim(message)//'not enough GRUs in file '//trim(infile)
++  err=20; return
++ endif
++ if ((irunMode==irunModeFull).and.(nGRU_file/=nGRU).and.(nGRU_file/=integerMissing)) then
++  message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
++  err=20; return
++ endif
+  
+- ! **********************************************************************************************
+- ! * read the HRU index
+- ! **********************************************************************************************
+-
+  ! loop through the parameters in the NetCDF file
+  do ivarid=1,nVars
+ 
+@@ -138,6 +166,10 @@ contains
+   err=nf90_inquire_variable(ncid, ivarid, name=parName)
+   call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+ 
++  ! **********************************************************************************************
++  ! * read the HRU index
++  ! **********************************************************************************************
++
+   ! special case of the HRU id
+   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
+ 
+@@ -146,167 +178,171 @@ contains
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ 
+    ! check HRUs  -- expect HRUs to be in the same order as the local attributes
+-   do iHRU=1,nHRU
+-    iGRU=index_map(iHRU)%gru_ix
+-    localHRU=index_map(iHRU)%localHRU
+-    if(hruId(iHRU) /= typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
++   if (iRunMode==iRunModeFull) then
++    do iHRU=1,nHRU
++     iGRU=index_map(iHRU)%gru_ix
++     localHRU=index_map(iHRU)%localHRU
++     if((hruId(iHRU)>0).and.(hruId(iHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex)))then
++      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
++      err=20; return
++     endif
++    end do  ! looping through HRUs
++
++   else if (iRunMode==iRunModeGRU) then
++    do iHRU=1,nHRU
++     iGRU=index_map(iHRU)%gru_ix
++     localHRU=index_map(iHRU)%localHRU
++     fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
++     if(hruId(fHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
+      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+      err=20; return
+     endif
+-   end do  ! looping through HRUs
+-
+-  endif   ! if the HRUid
+-
+- end do  ! loop through parameters
++   enddo
+ 
+- ! **********************************************************************************************
+- ! * read parameters
+- ! **********************************************************************************************
+-
+- ! loop through the parameters in the NetCDF file
+- do ivarid=1,nVars
++   else if (iRunMode==iRunModeHRU) then
++    iGRU=index_map(1)%gru_ix
++    localHRU=index_map(1)%localHRU
++    if(hruId(checkHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
++     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
++     err=20; return
++    endif
+ 
+-  ! get the parameter name
+-  err=nf90_inquire_variable(ncid, ivarid, name=parName)
+-  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
++   else 
++    err = 20; message = 'run mode not recognized'; return;
++   end if
+ 
+-  ! skip special case of the HRU id
+-  if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId') cycle
++  ! all other variables
++  else
+ 
+-  ! **********************************************************************************************
+-  ! * read the local parameters
+-  ! **********************************************************************************************
++   ! **********************************************************************************************
++   ! * read the local parameters
++   ! **********************************************************************************************
+ 
+-  ! get the local parameters
+-  ixParam = get_ixparam( trim(parName) )
+-  if(ixParam/=integerMissing)then
++   ! get the local parameters
++   ixParam = get_ixparam( trim(parName) )
++   if(ixParam/=integerMissing)then
+ 
+-   ! get the variable shape
+-   err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
+-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
++    ! get the variable shape
++    err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
++    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
++  
++    ! get the length of the depth dimension (if it exists)
++    if(nDims==2)then
++  
++     ! get the information on the 2nd dimension for 2-d variables
++     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
++     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
++     
++     ! check that it is the depth dimension
++     if(trim(dimName)/='depth')then
++      message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
++      err=20; return
++     endif
++  
++     ! check that the dimension length is correct
++     if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
++      message=trim(message)//'unexpected number of soil layers in parameter file'
++      err=20; return
++     endif
+  
+-   ! get the length of the depth dimension (if it exists)
+-   if(nDims==2)then
++     ! define parameter length
++     parLength = nSoil_file
+  
+-    ! get the information on the 2nd dimension for 2-d variables
+-    err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
+-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+-    
+-    ! check that it is the depth dimension
+-    if(trim(dimName)/='depth')then
+-     message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
++    else
++     parLength = 1
++    endif  ! if two dimensions
++  
++    ! allocate space for model parameters
++    allocate(parVector(parLength),stat=err)
++    if(err/=0)then
++     message=trim(message)//'problem allocating space for parameter vector'
+      err=20; return
+     endif
+ 
+-    ! check that the dimension length is correct
+-    if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
+-     message=trim(message)//'unexpected number of soil layers in parameter file'
++    ! loop through HRUs
++    do iHRU=1,nHRU
++  
++     ! map to the GRUs and HRUs    
++     iGRU=index_map(iHRU)%gru_ix
++     localHRU=index_map(iHRU)%localHRU
++     fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
++
++     ! read parameter data
++     select case(nDims)
++      case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU/), count=(/1/) )
++      case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
++      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
++     end select
++
++     ! error check for the parameter read
++     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
++
++     ! populate parameter structures
++     select case(nDims)
++      case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension 
++      case(2); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(:)
++      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
++     end select
++
++    end do  ! looping through HRUs
++
++    ! deallocate space for model parameters
++    deallocate(parVector,stat=err)
++    if(err/=0)then
++     message=trim(message)//'problem deallocating space for parameter vector'
+      err=20; return
+     endif
+ 
+-    ! define parameter length
+-    parLength = nSoil_file
++   ! **********************************************************************************************
++   ! * read the basin parameters
++   ! **********************************************************************************************
+ 
++   ! get the basin parameters
+    else
+-    parLength = 1
+-   endif  ! if two dimensions
+- 
+-   ! allocate space for model parameters
+-   allocate(parVector(parLength),stat=err)
+-   if(err/=0)then
+-    message=trim(message)//'problem allocating space for parameter vector'
+-    err=20; return
+-   endif
+-
+-   ! loop through HRUs
+-   do iHRU=1,nHRU
+- 
+-    ! map to the GRUs and HRUs    
+-    iGRU=index_map(iHRU)%gru_ix
+-    localHRU=index_map(iHRU)%localHRU
+-
+-    ! read parameter data
+-    select case(nDims)
+-     case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/iHRU/), count=(/1/) )
+-     case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/iHRU,1/), count=(/1,nSoil_file/) )
+-     case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+-    end select
+-
+-    ! error check for the parameter read
+-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+-
+-    ! populate parameter structures
+-    select case(nDims)
+-     case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension 
+-     case(2); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(:)
+-     case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+-    end select
+-
+-   end do  ! looping through HRUs
+-
+-   ! deallocate space for model parameters
+-   deallocate(parVector,stat=err)
+-   if(err/=0)then
+-    message=trim(message)//'problem deallocating space for parameter vector'
+-    err=20; return
+-   endif
+-
+-  ! **********************************************************************************************
+-  ! * read the basin parameters
+-  ! **********************************************************************************************
+-
+-  ! get the basin parameters
+-  else
+ 
+-   ! get the parameter index
+-   ixParam = get_ixbpar( trim(parName) )
+-
+-   ! check that we found it
+-   if(ixParam==integerMissing) cycle  ! allow parameters in file that are not used
+-   !if(ixParam==integerMissing)then
+-   ! message=trim(message)//'parameter "'//trim(parName)//'" does not exist in the local or basin parameter structure'
+-   ! err=20; return
+-   !endif
+-
+-   ! allocate space for model parameters
+-   allocate(parVector(nHRU),stat=err)
+-   if(err/=0)then
+-    message=trim(message)//'problem allocating space for parameter vector'
+-    err=20; return
+-   endif
+-
+-   ! read parameter data
+-   err=nf90_get_var(ncid, ivarid, parVector )
+-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+-
+-   ! ensure no conflicting GRU data
+-   lastGRU = integerMissing
++    ! get the parameter index
++    ixParam = get_ixbpar( trim(parName) )
+ 
+-   ! loop through HRUs
+-   do iHRU=1,nHRU
+- 
+-    ! map to the GRUs and HRUs    
+-    iGRU=index_map(iHRU)%gru_ix
++    ! check that we found it
++    if(ixParam==integerMissing)then
++     message=trim(message)//'parameter '//trim(parName)//' does not exist in the local or basin parameter structure'
++     err=20; return
++    endif
+ 
+-    ! check for GRU data conflict
+-    if ((lastGRU==iGRU).and.(parVector(iHRU)/=bparStruct%gru(iGRU)%var(ixParam))) then
+-     err=20; message=trim(message)//'basin parameter conflict: '//trim(parName); return
++    ! allocate space for model parameters
++    allocate(parVector(nGRU_file),stat=err)
++    if(err/=0)then
++     message=trim(message)//'problem allocating space for parameter vector'
++     err=20; return
+     endif
+-    lastGRU = iGRU
++
++    ! read parameter data
++    err=nf90_get_var(ncid, ivarid, parVector )
++    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ 
+     ! populate parameter structures
+-    bparStruct%gru(iGRU)%var(ixParam) = parVector(iHRU) 
++    if (iRunMode==iRunModeGRU) then
++     do iGRU=1,nGRU
++      bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1) 
++     end do  ! looping through GRUs
++    else if (iRunMode==iRunModeFull) then
++     do iGRU=1,nGRU
++      bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
++     end do  ! looping through GRUs
++    else if (iRunMode==iRunModeHRU) then
++     err = 20; message='checkHRU run mode not working'; return; 
++    endif
+ 
+-   end do  ! looping through HRUs
++    ! deallocate space for model parameters
++    deallocate(parVector,stat=err)
++    if(err/=0)then
++     message=trim(message)//'problem deallocating space for parameter vector'
++     err=20; return
++    endif
+ 
+-   ! deallocate space for model parameters
+-   deallocate(parVector,stat=err)
+-   if(err/=0)then
+-    message=trim(message)//'problem deallocating space for parameter vector'
+-    err=20; return
+-   endif
++   endif  ! reading the basin parameters
+ 
+-  endif  ! reading the basin parameters
++  endif  ! if a "regular" parameter (i.e., not the HRU index)
+ 
+  end do ! (looping through the parameters in the NetCDF file)
+ 
+diff --git a/build/source/engine/vegNrgFlux.f90 b/build/source/engine/vegNrgFlux.f90
+index a350442..52f0be1 100644
+--- a/build/source/engine/vegNrgFlux.f90
++++ b/build/source/engine/vegNrgFlux.f90
+@@ -2115,10 +2115,10 @@ contains
+     ! (compute zero-plane displacement)
+     funcLAI          = sqrt(c_d1*exposedVAI)
+     fracCanopyHeight = -(1._dp - exp(-funcLAI))/funcLAI + 1._dp
+-    zeroPlaneDisplacement = fracCanopyHeight*heightCanopyTop
++    zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTop-heightCanopyBottom)+heightCanopyBottom
+     ! (coupute roughness length of the veg canopy)
+     approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._dp), approxDragCoef_max)
+-    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * heightCanopyTop
++    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTop-heightCanopyBottom)
+ 
+    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+    case(CM_QJRMS1998)
+@@ -2224,6 +2224,7 @@ contains
+   end if
+ 
+   ! compute the leaf boundary layer resistance (s m-1)
++
+   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
+   leaf2CanopyScaleFactor = (2._dp/windReductionFactor) * (1._dp - exp(-windReductionFactor/2._dp)) ! factor to scale from the leaf to the canopy
+   canopyLeafConductance  = singleLeafConductance*leaf2CanopyScaleFactor

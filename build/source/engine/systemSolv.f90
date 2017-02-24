@@ -388,7 +388,7 @@ contains
                  fOld,                    & ! intent(out):   function evaluation
                  err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
+
  ! check feasibility (state vector SHOULD be feasible at this point)
  if(.not.feasible)then
   reduceCoupledStep=.true.

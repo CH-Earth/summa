@@ -353,6 +353,7 @@ contains
  ! compute diagnostic variables at the nodes throughout the soil profile
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  do iSoil=1,nSoil ! (loop through soil layers)
+
   call diagv_node(&
                   ! input: model control
                   desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
@@ -392,6 +393,7 @@ contains
                   ! output: error control
                   err,cmessage)                      ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
  end do  ! (looping through soil layers)
 
  ! *************************************************************************************************************************************************
@@ -443,6 +445,7 @@ contains
   ! =====
   ! compute surface flux and its derivative...
   ! ==========================================
+
   call surfaceFlx(&
                   ! input: model control
                   doInfiltrate,                       & ! intent(in): flag indicating if desire to compute infiltration
@@ -587,6 +590,7 @@ contains
    ! =====
    ! compute vertical flux at layer interface and its derivative w.r.t. the state above and the state below...
    ! =========================================================================================================
+
    call iLayerFlux(&
                    ! input: model control
                    desireAnal,                         & ! intent(in): flag indicating if derivatives are desired
@@ -712,6 +716,7 @@ contains
   ! =====
   ! compute drainage flux and its derivative...
   ! ===========================================
+
   call qDrainFlux(&
                   ! input: model control
                   desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
@@ -932,14 +937,12 @@ contains
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  end select
 
-
  ! *****
  ! compute hydraulic conductivity and its derivative in each soil layer
 
  ! compute the ice impedence factor and its derivative w.r.t. volumetric liquid water content (-)
  call iceImpede(scalarVolFracIceTrial,f_impede, &  ! input
                 iceImpedeFac,dIceImpede_dLiq)      ! output
-
 
  select case(ixRichards)
   ! ***** moisture-based form of Richards' equation

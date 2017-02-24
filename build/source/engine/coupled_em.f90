@@ -170,6 +170,7 @@ contains
  real(dp)                             :: subLoss                ! sublimation loss (kg m-2)
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+ integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
  logical(lgt)                         :: firstStep              ! flag to denote if the first time step
  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
  logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
@@ -189,7 +190,6 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! balance checks
  integer(i4b)                         :: iVar                   ! loop through model variables
- real(dp)                             :: totalSoilCompress      ! change in storage associated with compression of the soil matrix (kg m-2)
  real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
  real(dp)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
@@ -255,7 +255,6 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! initialize compression and surface melt pond
- totalSoilCompress = 0._dp  ! change in storage associated with compression of the soil matrix (kg m-2)
  sfcMeltPond       = 0._dp  ! change in storage associated with the surface melt pond (kg m-2)
 
  ! initialize mean fluxes
@@ -612,24 +611,6 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
-  ! recreate the temporary data structures
-  ! NOTE: resizeData(meta, old, new, ..)
-  if(modifiedVegState .or. modifiedLayers)then
-
-   ! create temporary data structures for prognostic variables
-   call resizeData(prog_meta(:),prog_data,prog_temp,copy=.true.,err=err,message=cmessage)
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-  
-   ! create temporary data structures for diagnostic variables
-   call resizeData(diag_meta(:),diag_data,diag_temp,copy=.true.,err=err,message=cmessage)
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-  
-   ! create temporary data structures for index variables
-   call resizeData(indx_meta(:),indx_data,indx_temp,copy=.true.,err=err,message=cmessage)
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-  endif  ! if modified the states
-
   ! recompute the number of snow and soil layers
   ! NOTE: do this here for greater visibility
   nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
@@ -649,6 +630,32 @@ contains
                    err,cmessage)              ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   end if
+
+  ! recreate the temporary data structures
+  ! NOTE: resizeData(meta, old, new, ..)
+  if(modifiedVegState .or. modifiedLayers)then
+
+   ! create temporary data structures for prognostic variables
+   call resizeData(prog_meta(:),prog_data,prog_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! create temporary data structures for diagnostic variables
+   call resizeData(diag_meta(:),diag_data,diag_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! create temporary data structures for index variables
+   call resizeData(indx_meta(:),indx_data,indx_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   do iVar=1,size(indx_data%var)
+    !print*, 'indx_meta(iVar)%varname = ', trim(indx_meta(iVar)%varname)
+    select case(stepFailure)
+     case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
+     case(.true.);  indx_data%var(iVar)%dat(:) = indx_temp%var(iVar)%dat(:)
+    end select
+   end do  ! looping through variables
+
+  endif  ! if modified the states
 
   ! define the number of state variables
   nState = indx_data%var(iLookINDEX%nState)%dat(1)
@@ -720,7 +727,9 @@ contains
                   dtMultiplier,                           & ! intent(out):   substep multiplier (-)
                   tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
                   stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed 
+                  ixSolution,                             & ! intent(out):   solution method used in this iteration
                   err,cmessage)                             ! intent(out):   error code and error message
+
 
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -742,6 +751,7 @@ contains
    dt_sub = dtSave/2._dp
    ! check that the step is not tiny
    if(dt_sub < minstep)then
+print*,ixSolution
     message=trim(message)//'length of the coupled step is below the minimum step length'
     err=20; return
    endif
@@ -885,9 +895,6 @@ contains
    flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght 
   end do
 
-  ! increment change in storage associated with compression of the soil matrix (kg m-2)
-  totalSoilCompress = totalSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)
-
   ! increment change in storage associated with the surface melt pond (kg m-2)
   if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
 
@@ -906,7 +913,9 @@ contains
   write(*,'(a,1x,3(f18.5,1x))') 'dt_sub, dt_solv, data_step: ', dt_sub, dt_solv, data_step
 
   ! check that we have completed the sub-step
-  if(dt_solv >= data_step-verySmall) exit substeps
+  if(dt_solv >= data_step-verySmall) then
+   exit substeps
+  endif
 
   ! adjust length of the sub-step (make sure that we don't exceed the step)
   dt_sub = min(data_step - dt_solv, dt_sub)
@@ -930,7 +939,6 @@ contains
  ! ----------------------
 
  ! save the average compression and melt pond storage in the data structures
- diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = totalSoilCompress
  prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)  = sfcMeltPond
 
  ! associate local variables with information in the data structures
@@ -963,7 +971,8 @@ contains
  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)                ,&  ! volumetric liquid water content in each soil layer (-)
  scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                          ,&  ! aquifer storage (m)
  ! error tolerance
- absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                             &  ! absolute convergence tolerance for vol frac liq water (-)
+ absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                            ,&  ! absolute convergence tolerance for vol frac liq water (-)
+ totalSoilCompress          => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)                             &  ! total soil compression over whole later (kg/m^2)
  ) ! (association of local variables with information in the data structures
 
  ! -----
@@ -1060,6 +1069,7 @@ contains
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
  if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._dp)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+  write(*,*)               'solution method           = ', ixSolution
   write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
   write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq
@@ -1071,6 +1081,8 @@ contains
   write(*,'(a,1x,f20.10)') 'balanceSoilDrainage       = ', balanceSoilDrainage
   write(*,'(a,1x,f20.10)') 'balanceSoilET             = ', balanceSoilET
   write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
+  write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError/iden_water
+  write(*,'(a,1x,f20.10)') 'absConvTol_liquid         = ', absConvTol_liquid
   ! error control
   message=trim(message)//'soil hydrology does not balance'
   err=20; return

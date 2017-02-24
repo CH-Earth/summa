@@ -165,6 +165,7 @@ contains
                        dtMultiplier,   & ! intent(out):   substep multiplier (-)
                        tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
                        stepFailure,    & ! intent(out):   flag to denote step failure
+                       ixSolution,     & ! intent(out):   solution method used in this iteration
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -486,7 +487,7 @@ contains
       ! define the mask of the fluxes used
       stateSubset: associate(ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat)
       do iVar=1,size(flux_meta)
-  
+
        ! * split solution
        if(ixSolution/=fullyCoupled)then
         select case(iStateTypeSplit)

@@ -185,6 +185,8 @@ contains
  real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
  real(dp)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  real(dp)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+ real(dp)                        :: sumSoilCompress 
+ real(dp),allocatable            :: sumLayerCompress(:) 
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -234,6 +236,8 @@ contains
  sumCanopyEvaporation = 0._dp  ! canopy evaporation/condensation (kg m-2 s-1)
  sumLatHeatCanopyEvap = 0._dp  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  sumSenHeatCanopy     = 0._dp  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+ sumSoilCompress      = 0._dp  ! total soil compression
+ allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._dp ! soil compression by layer 
 
  ! initialize subStep
  dtSum     = 0._dp  ! keep track of the portion of the time step that is completed
@@ -437,6 +441,12 @@ contains
    sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   endif  ! if energy fluxes were modified
 
+  ! get the total soil compressions
+  if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
+   sumSoilCompress = sumSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
+   sumLayerCompress = sumLayerCompress + diag_data%var(iLookDIAG%mLayerCompress)%dat ! soil compression in layers
+  endif
+
   ! print progress
   if(globalPrintFlag)&
   write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
@@ -469,6 +479,11 @@ contains
  flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
  flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
+
+ ! save the soil compression diagnostics 
+ diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
+ diag_data%var(iLookDIAG%mLayerCompress)%dat = sumLayerCompress
+ deallocate(sumLayerCompress)
 
  ! end associate statements
  end associate globalVars
