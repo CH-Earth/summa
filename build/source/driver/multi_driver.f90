@@ -1305,13 +1305,13 @@ contains
  elpSec = elapsedSec(ctime1,ctime2)
  
  ! print initial and final date and time
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'initial date/time = ',ctime1(1:3),ctime1(5:8)
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)"),'  final date/time = ',ctime2(1:3),ctime2(5:8)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',ctime1(1:3),ctime1(5:8)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") '  final date/time = ',ctime2(1:3),ctime2(5:8)
  ! print elapsed time
- write(outunit,"(/,A,1PG15.7,A)"),                                          '     elapsed time = ', elpSec,          ' s'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/60_dp,    ' m'
- write(outunit,"(A,1PG15.7,A)"),                                            '       or           ', elpSec/3600_dp,  ' h'
- write(outunit,"(A,1PG15.7,A/)"),                                           '       or           ', elpSec/86400_dp, ' d'
+ write(outunit,"(/,A,1PG15.7,A)")                                           '     elapsed time = ', elpSec,          ' s'
+ write(outunit,"(A,1PG15.7,A)")                                             '       or           ', elpSec/60_dp,    ' m'
+ write(outunit,"(A,1PG15.7,A)")                                             '       or           ', elpSec/3600_dp,  ' h'
+ write(outunit,"(A,1PG15.7,A/)")                                            '       or           ', elpSec/86400_dp, ' d'
  ! stop with message
  print*,'FORTRAN STOP: '//trim(message)
  stop

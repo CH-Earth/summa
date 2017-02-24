@@ -934,6 +934,7 @@ contains
  integer(i4b)                  :: ixFullVector      ! index in the full state vector
  integer(i4b)                  :: ixControlIndex    ! index of the control volume for different domains (veg, snow, soil) 
  real(dp)                      :: valueMin,valueMax ! minimum and maximum state values    
+ real(dp),parameter            :: tempChangeMax=1._dp  ! maximum temperature change
  ! --------------------------------------------------------------------------------------------------------------
 
  ! make association with model indices defined in indexSplit
@@ -999,6 +1000,14 @@ contains
     constrained=.true.
    endif
   endif
+
+  ! ensure that temperature change is less than a specified threshold
+  if(ixStateType_subset(iState)==iname_nrgCanair .or. ixStateType_subset(iState)==iname_nrgCanopy .or. ixStateType_subset(iState)==iname_nrgLayer)then
+   if(abs( stateVecUpdate(iState) ) > tempChangeMax)then
+    stateVecNew(iState)=stateVecInit(iState) + sign(tempChangeMax,stateVecUpdate(iState))
+    constrained=.true.
+   endif  ! if constraining temperatures
+  endif  ! if an energy state
 
  end do ! looping through states
 
