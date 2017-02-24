@@ -195,7 +195,7 @@ integer(i4b),parameter           :: ixProgress_im=1000         ! named variable 
 integer(i4b),parameter           :: ixProgress_id=1001         ! named variable to print progress once per day
 integer(i4b),parameter           :: ixProgress_ih=1002         ! named variable to print progress once per hour
 integer(i4b),parameter           :: ixProgress_never=1003      ! named variable to print progress never
-integer(i4b)                     :: ixProgress=ixProgress_id! define frequency to write progress
+integer(i4b)                     :: ixProgress=ixProgress_id   ! define frequency to write progress
 ! define the re-start file
 logical(lgt)                     :: printRestart               ! flag to print a re-start file
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
@@ -723,6 +723,7 @@ do modelTimeStep=1,numtim
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select
  if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+! write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
  !  (if computeVegFlux changes, then the number of state variables changes, and we need to reoranize the data structures)
