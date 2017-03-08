@@ -163,7 +163,6 @@ contains
  integer(i4b)                :: maxLength                  ! maximum length of the variable vector
  ! initialize error control
  err=0;message="f-iniCreate/"
-
  ! identify length of the variable vector
  maxStepsPerFile = nint(366._dp * secprday/data_step)
  if(maxStepsPerFile < numtim) maxStepsPerFile=numtim
@@ -174,6 +173,8 @@ contains
  end select ! (option to combine/sub-divide snow layers)
  maxLength = maxStepsPerFile*(nSoil+1 + meanSnowLayersPerStep)
  print*, 'maxStepsPerFile, maxLength = ', maxStepsPerFile, maxLength
+
+print*,data_step,secprday/data_step,maxStepsPerFile,meanSnowLayersPerStep
 
  ! create output file
  err = nf90_create(trim(infile),nf90_classic_model,ncid)
