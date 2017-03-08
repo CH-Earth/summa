@@ -690,30 +690,31 @@ contains
 
  ! modules for smart file reading
  USE ascii_util_module,only:get_vlines                 ! get a vector of non-comment lines
+ USE ascii_util_module,only:linewidth                  ! max character number for one line
  USE ascii_util_module,only:file_open                  ! open file
  USE ascii_util_module,only:split_line                 ! split a line into words
  implicit none
 
  ! dummy variables
- integer(i4b),intent(out)           :: err             ! error code
- character(*),intent(out)           :: message         ! error message
+ integer(i4b),intent(out)             :: err             ! error code
+ character(*),intent(out)             :: message         ! error message
 
  ! local variables
- character(LEN=256)                 :: cmessage        ! error message of downwind routine
- character(LEN=256)                 :: outfile         ! full path of model output file 
- integer(i4b)                       :: unt             ! file unit
- character(LEN=512),allocatable     :: charlines(:)    ! vector of character strings
- character(LEN=64),allocatable      :: lineWords(:)    ! vector to parse textline
- integer(i4b)                       :: nWords          ! number of words in line
- integer(i4b)                       :: oFreq           ! output frequencies read from file
- character(LEN=5)                   :: structName      ! name of structure
+ character(LEN=256)                   :: cmessage        ! error message of downwind routine
+ character(LEN=256)                   :: outfile         ! full path of model output file 
+ integer(i4b)                         :: unt             ! file unit
+ character(LEN=linewidth),allocatable :: charlines(:)    ! vector of character strings
+ character(LEN=64),allocatable        :: lineWords(:)    ! vector to parse textline
+ integer(i4b)                         :: nWords          ! number of words in line
+ integer(i4b)                         :: oFreq           ! output frequencies read from file
+ character(LEN=5)                     :: structName      ! name of structure
 
  ! indices
- integer(i4b)                       :: vLine           ! index for loop through variables
- integer(i4b)                       :: vDex            ! index into type lists
+ integer(i4b)                         :: vLine           ! index for loop through variables
+ integer(i4b)                         :: vDex            ! index into type lists
 
  ! flags
- logical(lgt),dimension(6)          :: indexFlags      ! logical flags to turn on index variables 
+ logical(lgt),dimension(6)            :: indexFlags      ! logical flags to turn on index variables 
 
  ! initialize error control
  err=0; message='read_output_file/'
