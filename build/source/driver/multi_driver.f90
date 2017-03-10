@@ -1063,6 +1063,14 @@ do modelTimeStep=1,numtim
 
 end do  ! (looping through time)
 
+! close any remaining output files
+do iFreq = 1,nFreq
+ if (ncid(iFreq).ne.integerMissing) then
+  call nc_file_close(ncid(iFreq),err,message)
+  call handle_err(err,message)
+ end if
+end do
+
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
 
