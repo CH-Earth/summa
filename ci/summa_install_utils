@@ -78,8 +78,10 @@ function summa_before_install {
 function summa_install {
     echo summa_install
     cd ${TRAVIS_BUILD_DIR}
-    export FC=gfortran-6
     export F_MASTER=${TRAVIS_BUILD_DIR}
+    export FC=gfortran
+    export FC_EXE=gfortran-6
+    export FC_ENV=gfortran-6-travis
     export NCDF_PATH=${INSTALLDIR}
     make -C build/ -f Makefile &> make.log
 }
