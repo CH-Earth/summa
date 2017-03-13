@@ -16,8 +16,19 @@
 ##F_MASTER =
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
-# to be version 4.8 or higher
+# to be version 4.8 or higher. This variable is simply used to select the right
+# compiler flags in the ifeq statements in this Makefile. The compiler
+# executable is set separately as FC_EXE
 ##FC =
+
+# Define the path for the compiler executable. This is the actual executable
+# that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin-gfortran-mp-6
+# FC and FC_EXE have to be consistent
+##FC_EXE =
+
+# Define the compiler environment. This is used in the ifeq statements in this
+# Makefile to set the include and library paths and the libraries
+##FC_ENV =
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
 # that the default paths defined are those that work for our compilers
@@ -30,66 +41,9 @@
 # please add your configuration (operating system and compiler plus
 # part 0 of the Makefile) to the SUMMA wiki on github.
 
-# gfortran compiler on OS X tested with 4.8 and higher
-# (works on Mac OS X with Macports)
-ifeq "$(FC)" "gfortran-mp-6"
- NCDF_PATH = /opt/local
- LAPK_PATH = /opt/local
- # define the lapack libraries - on OS X you need atlas and
- # blas as well
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
-endif
-
-# Ubuntu gfortran compiler tested with 4.6 and higher
-# also used for the travis build
-ifeq "$(FC)" "gfortran-6"
- NCDF_PATH ?= /usr/local
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
-endif
-
-# generic gfortran compiler
-ifeq "$(FC)" "gfortran"
- NCDF_PATH = /opt/netcdf4
- LAPK_PATH = /opt/local
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
-endif
-
-# Intel fortran compiler
-ifeq "$(FC)" "ifort"
- NCDF_PATH = /opt/netcdf4-intel
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
-endif
-
-# Portland compiler
-ifeq "$(FC)" "pgfortran"
- NCDF_PATH = /opt/netcdf4-pgi
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
-endif
-
-# define netcdf libraries and include files
-LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
-INCNETCDF = -I$(NCDF_PATH)/include
-
 # Define compiler flags. If you use a different compiler,
 # you will need to figure out what the equivalent flags are
 # and may need to update this section
-ifeq "$(FC)" "gfortran-mp-6"
- FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
-endif
-ifeq "$(FC)" "gfortran-6"
- FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
-endif
 ifeq "$(FC)" "gfortran"
  FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
  FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
@@ -106,6 +60,52 @@ ifeq "$(FC)" "pgfortran"
  FLAGS_SUMMA = -O0 -pg -g -traceback -Mfree -Mbounds -Minfo -Mnoautoinline -Ktrap=inv,denorm,divz,ovf,unf,inexact
 endif
 
+# gfortran-6 compiler used in Docker builds
+ifeq "$(FC_ENV)" "gfortran-6-docker"
+ NCDF_PATH = /usr
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
+endif
+
+# Ubuntu gfortran compiler tested with 4.6 and higher
+# also used for the travis build
+ifeq "$(FC_ENV)" "gfortran-6-travis"
+ NCDF_PATH = /usr/local
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
+endif
+
+# gfortran compiler on OS X tested with 4.8 and higher
+# (works on Mac OS X with Macports)
+ifeq "$(FC_ENV)" "gfortran-6-macports"
+ NCDF_PATH = /opt/local
+ LAPK_PATH = /opt/local
+ # define the lapack libraries - on OS X you need atlas and
+ # blas as well
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
+endif
+
+# Intel fortran compiler
+ifeq "$(FC_ENV)" "ifort"
+ NCDF_PATH = /opt/netcdf4-intel
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+endif
+
+# Portland compiler
+ifeq "$(FC_ENV)" "pgfortran"
+ NCDF_PATH = /opt/netcdf4-pgi
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+endif
+
+# define netcdf libraries and include files
+LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
+INCNETCDF = -I$(NCDF_PATH)/include
 
 #========================================================================
 # PART 1: Define directory paths
@@ -289,6 +289,12 @@ endif
 ifndef FC
  $(error FC is undefined: Specify your compiler)
 endif
+ifndef FC_EXE
+ $(error FC_EXE is undefined: Specify your compiler executable)
+endif
+ifndef FC_ENV
+ $(error FC_ENV is undefined: Specify your compiler environment)
+endif
 ifndef FLAGS_SUMMA
  $(error Specify flags for your compiler: $(FC))
 endif
@@ -329,20 +335,20 @@ update_version:
 
 # compile Noah-MP routines
 compile_noah:
-	$(FC) $(FLAGS_NOAH) -c $(NOAHMP)
+	$(FC_EXE) $(FLAGS_NOAH) -c $(NOAHMP)
 
 # compile common routines
 compile_comm:
-	$(FC) $(FLAGS_COMM) -c $(COMM_ALL)
+	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL)
 
 # compile SUMMA routines
 compile_summa: update_version
-	$(FC) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
 	$(INCNETCDF)
 
 # link routines
 link:
-	$(FC) -pg -g *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
+	$(FC_EXE) -pg -g *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

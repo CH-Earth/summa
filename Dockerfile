@@ -1,24 +1,29 @@
-FROM phusion/baseimage:0.9.19
+# use the zesty distribution, which has gcc-6
+FROM ubuntu:zesty
 
-USER root
-
+# install only the packages that are needed
 RUN apt-get update && \
-    add-apt-repository ppa:ubuntu-toolchain-r/test && \
-    apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
-    libnetcdff-dev \
-    netcdf-bin \
-    liblapack-dev \
+    git \
+    make \
     gfortran-6 \
-    gcc && apt-get clean
+    libnetcdff-dev \
+    liblapack-dev \
+    && apt-get clean
 
-ENV FC gfortran-6
+# set environment variables for docker build
 ENV F_MASTER /code
-ENV NCDF_PATH /usr
-ENV LD_LIBRARY_PATH ${NCDF_PATH}/lib
+ENV FC gfortran
+ENV FC_EXE gfortran
+ENV FC_ENV gfortran-6-docker
 
+# add code directory
 WORKDIR /code
 ADD . /code
 
+# build summa
 RUN make -C build/ -f Makefile
+
+# run summa when running the docker image
+WORKDIR bin
+ENTRYPOINT ["./summa.exe"]
