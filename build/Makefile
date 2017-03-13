@@ -71,7 +71,6 @@ endif
 # Ubuntu gfortran compiler tested with 4.6 and higher
 # also used for the travis build
 ifeq "$(FC_ENV)" "gfortran-6-travis"
- NCDF_PATH = /usr/local
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas

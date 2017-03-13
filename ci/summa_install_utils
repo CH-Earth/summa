@@ -82,6 +82,7 @@ function summa_install {
     export FC=gfortran
     export FC_EXE=gfortran-6
     export FC_ENV=gfortran-6-travis
+    export NCDF_PATH=${INSTALLDIR}
     make -C build/ -f Makefile &> make.log
 }
 
