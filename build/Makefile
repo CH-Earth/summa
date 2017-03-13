@@ -13,11 +13,11 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =
+##F_MASTER =
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 4.8 or higher
-FC =
+##FC =
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
 # that the default paths defined are those that work for our compilers
@@ -43,7 +43,7 @@ endif
 # Ubuntu gfortran compiler tested with 4.6 and higher
 # also used for the travis build
 ifeq "$(FC)" "gfortran-6"
- NCDF_PATH = /usr/local
+ NCDF_PATH ?= /usr/local
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
