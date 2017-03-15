@@ -80,7 +80,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_i),intent(in)          :: type_data           ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data           ! spatial attributes
- type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_dlength),intent(in)    :: prog_data           ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! diagnostic variables for a local HRU
  ! output
@@ -112,9 +112,9 @@ contains
  scalarCanopyTemp                => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
 
  ! diagnostic variables and parameters (input)
+ heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),          & ! intent(in):    [dp] height of the top of the canopy layer (m)
+ heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),       & ! intent(in):    [dp] height of the bottom of the canopy layer (m)
  scalarRootZoneTemp              => diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1),        & ! intent(in):    [dp] root zone temperature (K)
- heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop),                 & ! intent(in):    [dp] height of the top of the canopy layer (m)
- heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom),              & ! intent(in):    [dp] height of the bottom of the canopy layer (m)
 
  ! diagnostic variables and parameters (input/output)
  scalarLAI                       => diag_data%var(iLookDIAG%scalarLAI)%dat(1),                 & ! intent(inout): [dp] one-sided leaf area index (m2 m-2)

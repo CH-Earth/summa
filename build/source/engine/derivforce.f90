@@ -52,10 +52,10 @@ contains
  ! compute derived forcing data variables
  implicit none
  ! input variables
- integer(i4b),intent(in)         :: time_data(:)             ! vector of time data for a given time step
- real(dp),    intent(inout)      :: forc_data(:)             ! vector of forcing data for a given time step
- real(dp),    intent(in)         :: attr_data(:)             ! vector of model attributes
- real(dp),    intent(in)         :: mpar_data(:)             ! vector of model parameters
+ integer(i4b),     intent(in)    :: time_data(:)             ! vector of time data for a given time step
+ real(dp),         intent(inout) :: forc_data(:)             ! vector of forcing data for a given time step
+ real(dp),         intent(in)    :: attr_data(:)             ! vector of model attributes
+ type(var_dlength),intent(in)    :: mpar_data                ! vector of model parameters
  ! output variables
  type(var_dlength),intent(inout) :: diag_data                ! data structure of model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                ! data structure of model fluxes for a local HRU
@@ -87,23 +87,23 @@ contains
  ! associate local variables with the information in the data structures
  associate(&
  ! model parameters
- Frad_vis                => mpar_data(iLookPARAM%Frad_vis)                        , & ! fraction radiation absorbed in visible part of spectrum (-)
- directScale             => mpar_data(iLookPARAM%directScale)                     , & ! scaling factor for fractional driect radiaion parameterization (-)
- Frad_direct             => mpar_data(iLookPARAM%Frad_direct)                     , & ! maximum fraction direct radiation (-)
- minwind                 => mpar_data(iLookPARAM%minwind)                         , & ! minimum windspeed (m s-1)
- fc_param                => mpar_data(iLookPARAM%snowfrz_scale)                   , & ! freezing curve parameter for snow (K-1)
- tempCritRain            => mpar_data(iLookPARAM%tempCritRain)                    , & ! critical temperature where precipitation is rain (K)
- tempRangeTimestep       => mpar_data(iLookPARAM%tempRangeTimestep)               , & ! temperature range over the time step (K)
- frozenPrecipMultip      => mpar_data(iLookPARAM%frozenPrecipMultip)              , & ! frozen precipitation multiplier (-)
- newSnowDenMin           => mpar_data(iLookPARAM%newSnowDenMin)                   , & ! minimum new snow density (kg m-3)
- newSnowDenMult          => mpar_data(iLookPARAM%newSnowDenMult)                  , & ! multiplier for new snow density (kg m-3)
- newSnowDenScal          => mpar_data(iLookPARAM%newSnowDenScal)                  , & ! scaling factor for new snow density (K)
- constSnowDen            => mpar_data(iLookPARAM%constSnowDen)                    , & ! Constant new snow density (kg m-3)
- newSnowDenAdd           => mpar_data(iLookPARAM%newSnowDenAdd)                   , & ! Pahaut 1976, additive factor for new snow density (kg m-3)
- newSnowDenMultTemp      => mpar_data(iLookPARAM%newSnowDenMultTemp)              , & ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
- newSnowDenMultWind      => mpar_data(iLookPARAM%newSnowDenMultWind)              , & ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
- newSnowDenMultAnd       => mpar_data(iLookPARAM%newSnowDenMultAnd)               , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
- newSnowDenBase          => mpar_data(iLookPARAM%newSnowDenBase)                  , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
+ Frad_vis                => mpar_data%var(iLookPARAM%Frad_vis)%dat(1)             , & ! fraction radiation absorbed in visible part of spectrum (-)
+ directScale             => mpar_data%var(iLookPARAM%directScale)%dat(1)          , & ! scaling factor for fractional driect radiaion parameterization (-)
+ Frad_direct             => mpar_data%var(iLookPARAM%Frad_direct)%dat(1)          , & ! maximum fraction direct radiation (-)
+ minwind                 => mpar_data%var(iLookPARAM%minwind)%dat(1)              , & ! minimum windspeed (m s-1)
+ fc_param                => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)        , & ! freezing curve parameter for snow (K-1)
+ tempCritRain            => mpar_data%var(iLookPARAM%tempCritRain)%dat(1)         , & ! critical temperature where precipitation is rain (K)
+ tempRangeTimestep       => mpar_data%var(iLookPARAM%tempRangeTimestep)%dat(1)    , & ! temperature range over the time step (K)
+ frozenPrecipMultip      => mpar_data%var(iLookPARAM%frozenPrecipMultip)%dat(1)   , & ! frozen precipitation multiplier (-)
+ newSnowDenMin           => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1)        , & ! minimum new snow density (kg m-3)
+ newSnowDenMult          => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1)       , & ! multiplier for new snow density (kg m-3)
+ newSnowDenScal          => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1)       , & ! scaling factor for new snow density (K)
+ constSnowDen            => mpar_data%var(iLookPARAM%constSnowDen)%dat(1)         , & ! Constant new snow density (kg m-3)
+ newSnowDenAdd           => mpar_data%var(iLookPARAM%newSnowDenAdd)%dat(1)        , & ! Pahaut 1976, additive factor for new snow density (kg m-3)
+ newSnowDenMultTemp      => mpar_data%var(iLookPARAM%newSnowDenMultTemp)%dat(1)   , & ! Pahaut 1976, multiplier for new snow density applied to air temperature (kg m-3 K-1)
+ newSnowDenMultWind      => mpar_data%var(iLookPARAM%newSnowDenMultWind)%dat(1)   , & ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
+ newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
+ newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! radiation geometry variables
  im                      => time_data(iLookTIME%im)                               , & ! month
  id                      => time_data(iLookTIME%id)                               , & ! day

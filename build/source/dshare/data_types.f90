@@ -20,8 +20,7 @@
 
 MODULE data_types
  ! used to define model data structures
- USE nrtype
- USE multiconst,only:integerMissing
+ USE nrtype, integerMissing=>nr_integerMissing
  USE var_lookup,only:maxvarStat
  implicit none
  ! constants necessary for variable defs

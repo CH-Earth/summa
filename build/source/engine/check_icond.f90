@@ -20,10 +20,16 @@
 
 module check_icond_module
 USE nrtype
+
+! access missing values
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+
 ! define modeling decisions
 USE mDecisions_module,only:  &
  moisture,                   & ! moisture-based form of Richards' equation
  mixdform                      ! mixed form of Richards' equation
+
 implicit none
 private
 public::check_icond
@@ -46,7 +52,6 @@ contains
  USE globalData,only:gru_struc                           ! gru-hru mapping structures
  USE data_types,only:gru_hru_doubleVec                   ! actual data
  USE data_types,only:gru_hru_intVec                      ! actual data
- USE data_types,only:gru_hru_double                      ! actual data
  USE globaldata,only:iname_soil,iname_snow               ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
@@ -64,7 +69,7 @@ contains
  ! dummies
  integer(i4b)           ,intent(in)    :: nGRU           ! number of grouped response units
  type(gru_hru_doubleVec),intent(inout) :: progData       ! prognostic vars 
- type(gru_hru_double)   ,intent(in)    :: mparData       ! parameters 
+ type(gru_hru_doubleVec),intent(in)    :: mparData       ! parameters 
  type(gru_hru_intVec)   ,intent(in)    :: indxData       ! layer indexes 
  integer(i4b)           ,intent(out)   :: err            ! error code
  character(*)           ,intent(out)   :: message        ! returned error message
@@ -75,7 +80,8 @@ contains
  integer(i4b)                           :: iHRU          ! loop index 
 
  ! temporary variables for realism checks
- integer(i4b)                      :: iLayer             ! layer index
+ integer(i4b)                      :: iLayer             ! index of model layer
+ integer(i4b)                      :: iSoil              ! index of soil layer
  real(dp)                          :: fLiq               ! fraction of liquid water on the vegetation canopy (-)
  real(dp)                          :: vGn_m              ! van Genutchen "m" parameter (-)
  real(dp)                          :: tWat               ! total water on the vegetation canopy (kg m-2)
@@ -83,7 +89,6 @@ contains
  real(dp)                          :: h1,h2              ! used to check depth and height are consistent
  integer(i4b)                      :: nLayers            ! total number of layers
  real(dp)                          :: kappa              ! constant in the freezing curve function (m K-1)
- real(dp)                          :: maxVolFracLiq      ! maximum volumetric fraction of liquid water (used in moisture-based form of Richards' equation)
  integer(i4b)                      :: nSnow              ! number of snow layers
 
  ! --------------------------------------------------------------------------------------------------------
@@ -97,20 +102,20 @@ contains
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    ! ensure the spectral average albedo is realistic
-   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)) &
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)
-   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinWinter)) &
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinWinter)
+   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)) &
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
+   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinWinter)%dat(1)) &
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinWinter)%dat(1)
    ! ensure the visible albedo is realistic
-   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)) &
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)
-   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinVisible)) &
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinVisible)
+   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)%dat(1)) &
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxVisible)%dat(1)
+   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinVisible)%dat(1)) &
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinVisible)%dat(1)
    ! ensure the nearIR albedo is realistic
-   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxNearIR)) &
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxNearIR)
-   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinNearIR)) &
-      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinNearIR)
+   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) > mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxNearIR)%dat(1)) &
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMaxNearIR)%dat(1)
+   if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) < mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinNearIR)%dat(1)) &
+      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinNearIR)%dat(1)
   end do
  end do
  
@@ -130,20 +135,15 @@ contains
    mLayerVolFracIce  => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat      , & ! volumetric fraction of ice in each snow layer (-)
    mLayerMatricHead  => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat      , & ! matric head (m)
    mLayerLayerType   => indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat            , & ! type of layer (ix_soil or ix_snow)
-   ! model parameters
-   vGn_alpha         => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_alpha)                , & ! van Genutchen "alpha" parameter (m-1)
-   vGn_n             => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)                    , & ! van Genutchen "n" parameter (-)
-   theta_sat         => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)                , & ! soil porosity (-)
-   theta_res         => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)                , & ! soil residual volumetric water content (-)
-   snowfrz_scale     => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%snowfrz_scale)            , & ! scaling parameter for the snow freezing curve (K-1)
-   FCapil            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%FCapil)                     & ! fraction of pore space in tension storage (-)
+   ! depth varying soil properties
+   vGn_alpha         => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_alpha)%dat            , & ! van Genutchen "alpha" parameter (m-1)
+   vGn_n             => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)%dat                , & ! van Genutchen "n" parameter (-)
+   theta_sat         => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)%dat            , & ! soil porosity (-)
+   theta_res         => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)%dat            , & ! soil residual volumetric water content (-)
+   ! snow parameters
+   snowfrz_scale     => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%snowfrz_scale)%dat(1)     , & ! scaling parameter for the snow freezing curve (K-1)
+   FCapil            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%FCapil)%dat(1)              & ! fraction of pore space in tension storage (-)
    )  ! (associate local variables with model parameters)
-
-   ! compute the maximum volumetric fraction of liquid water -- used to avoid problems of super-saturation in the moisture-based form of Richards' equation
-   maxVolFracLiq = theta_sat - 1.e-4_dp
-
-   ! compute the van Genutchen "m" parameter (-)
-   vGn_m = 1._dp - 1._dp/vGn_n
 
    ! compute the constant in the freezing curve function (m K-1)
    kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
@@ -167,8 +167,12 @@ contains
 
     ! compute liquid water equivalent of total water (liquid plus ice)
     if (iLayer>nSnow) then ! soil layer = no volume expansion
+     iSoil       = iLayer - nSnow
+     vGn_m       = 1._dp - 1._dp/vGn_n(iSoil)
      scalarTheta = mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)
     else ! snow layer = volume expansion allowed
+     iSoil       = integerMissing
+     vGn_m       = realMissing
      scalarTheta = mLayerVolFracIce(iLayer)*(iden_ice/iden_water) + mLayerVolFracLiq(iLayer)
     end if
 
@@ -192,14 +196,14 @@ contains
      ! ***** soil
      case(iname_soil)
       ! (check liquid water)
-      if(mLayerVolFracLiq(iLayer) < theta_res)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
-      if(mLayerVolFracLiq(iLayer) > theta_sat)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracLiq(iLayer) < theta_res(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
       ! (check ice)
-      if(mLayerVolFracIce(iLayer) < 0._dp    )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '        ,iLayer; err=20; return; end if
-      if(mLayerVolFracIce(iLayer) > theta_sat)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > theta_sat: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracIce(iLayer) < 0._dp            )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '        ,iLayer; err=20; return; end if
+      if(mLayerVolFracIce(iLayer) > theta_sat(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > theta_sat: layer = ',iLayer; err=20; return; end if
       ! check total water
-      if(scalarTheta < theta_res)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < theta_res: layer = ',iLayer; err=20; return; end if 
-      if(scalarTheta > theta_sat)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
+      if(scalarTheta < theta_res(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < theta_res: layer = ',iLayer; err=20; return; end if 
+      if(scalarTheta > theta_sat(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
 
      case default
       err=20; message=trim(message)//'cannot identify layer type'; return
@@ -238,14 +242,14 @@ contains
       ! ensure consistency among state variables
       call updateSoil(&
                       ! input
-                      mLayerTemp(iLayer),                        & ! intent(in): layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow),            & ! intent(in): matric head (m)
-                      vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m, & ! intent(in): van Genutchen soil parameters
+                      mLayerTemp(iLayer),                                                    & ! intent(in): layer temperature (K)
+                      mLayerMatricHead(iLayer-nSnow),                                        & ! intent(in): matric head (m)
+                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
                       ! output
-                      scalarTheta,                               & ! intent(out): volumetric fraction of total water (-)
-                      mLayerVolFracLiq(iLayer),                  & ! intent(out): volumetric fraction of liquid water (-)
-                      mLayerVolFracIce(iLayer),                  & ! intent(out): volumetric fraction of ice (-)
-                      err,cmessage)                                ! intent(out): error control
+                      scalarTheta,                                                           & ! intent(out): volumetric fraction of total water (-)
+                      mLayerVolFracLiq(iLayer),                                              & ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce(iLayer),                                              & ! intent(out): volumetric fraction of ice (-)
+                      err,cmessage)                                                            ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
   
      case default; err=10; message=trim(message)//'unknown case for model layer'; return

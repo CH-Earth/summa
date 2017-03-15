@@ -305,10 +305,11 @@ contains
  real(dp)            :: matricHead  ! matric head (m)
  ! local variables
  real(dp)            :: effSat      ! effective saturation (-)
+ real(dp),parameter  :: verySmall=epsilon(1._dp)  ! a very small number (avoid effective saturation of zero)
  ! compute effective saturation
- effSat = (theta - theta_res) / (theta_sat - theta_res)
+ effSat = max(verySmall, (theta - theta_res) / (theta_sat - theta_res))
  ! compute matric head
- if(effSat < 1._dp)then
+ if (effSat < 1._dp .and. effSat > 0._dp)then
   matricHead = (1._dp/alpha)*( effSat**(-1._dp/m) - 1._dp)**(1._dp/n)
  else
   matricHead = 0._dp
@@ -358,7 +359,7 @@ contains
  ! check if less than saturation
  if(volFracLiq < theta_sat)then
   ! compute effective water content
-  theta_e = (volFracLiq - theta_res) / (theta_sat - theta_res)
+  theta_e = max(0.001,(volFracLiq - theta_res) / (theta_sat - theta_res))
   ! compute the 1st function and derivative
   y1 = theta_e**(-1._dp/m) - 1._dp
   d1 = (-1._dp/m)*theta_e**(-1._dp/m - 1._dp) / (theta_sat - theta_res)

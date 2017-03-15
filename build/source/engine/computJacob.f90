@@ -48,14 +48,7 @@ USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
-USE globalData,only: ixSup3         ! index for the 3rd super-diagonal band
-USE globalData,only: ixSup2         ! index for the 2nd super-diagonal band
-USE globalData,only: ixSup1         ! index for the 1st super-diagonal band
 USE globalData,only: ixDiag         ! index for the diagonal band
-USE globalData,only: ixSub1         ! index for the 1st sub-diagonal band
-USE globalData,only: ixSub2         ! index for the 2nd sub-diagonal band
-USE globalData,only: ixSub3         ! index for the 3rd sub-diagonal band
-USE globalData,only: ixSub4         ! index for the 3rd sub-diagonal band
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix

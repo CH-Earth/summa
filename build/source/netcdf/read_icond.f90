@@ -226,6 +226,12 @@ contains
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message) 
   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
+  ! check data are not set to the fill value
+  if( any( abs(varData - nf90_fill_double) < epsilon(varData) ) )then   
+   message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"
+   err=20; return
+  endif
+
   ! store data in prognostics structure 
   ! loop through GRUs
   do iGRU = 1,nGRU

@@ -216,7 +216,7 @@ contains
  type(var_i),intent(in)          :: type_data                       ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                       ! spatial attributes
  type(var_d),intent(in)          :: forc_data                       ! model forcing data
- type(var_d),intent(in)          :: mpar_data                       ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                       ! model parameters
  type(var_ilength),intent(in)    :: indx_data                       ! state vector geometry
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
@@ -441,10 +441,10 @@ contains
  soilTypeIndex                   => type_data%var(iLookTYPE%soilTypeIndex),                         & ! intent(in): [i4b] soil type index
 
  ! input: vegetation parameters
- heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop),                      & ! intent(in): [dp] height at the top of the vegetation canopy (m)
- heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom),                   & ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
- canopyWettingFactor             => mpar_data%var(iLookPARAM%canopyWettingFactor),                  & ! intent(in): [dp] maximum wetted fraction of the canopy (-)
- canopyWettingExp                => mpar_data%var(iLookPARAM%canopyWettingExp),                     & ! intent(in): [dp] exponent in canopy wetting function (-)
+ heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),               & ! intent(in): [dp] height at the top of the vegetation canopy (m)
+ heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),            & ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
+ canopyWettingFactor             => mpar_data%var(iLookPARAM%canopyWettingFactor)%dat(1),           & ! intent(in): [dp] maximum wetted fraction of the canopy (-)
+ canopyWettingExp                => mpar_data%var(iLookPARAM%canopyWettingExp)%dat(1),              & ! intent(in): [dp] exponent in canopy wetting function (-)
  scalarCanopyIceMax              => diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1),             & ! intent(in): [dp] maximum interception storage capacity for ice (kg m-2)
  scalarCanopyLiqMax              => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),             & ! intent(in): [dp] maximum interception storage capacity for liquid water (kg m-2)
 
@@ -457,27 +457,27 @@ contains
  scalarFoliageNitrogenFactor     => diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
 
  ! input: aerodynamic resistance parameters
- z0Snow                          => mpar_data%var(iLookPARAM%z0Snow),                               & ! intent(in): [dp] roughness length of snow (m)
- z0Soil                          => mpar_data%var(iLookPARAM%z0Soil),                               & ! intent(in): [dp] roughness length of soil (m)
- z0CanopyParam                   => mpar_data%var(iLookPARAM%z0Canopy),                             & ! intent(in): [dp] roughness length of the canopy (m)
- zpdFraction                     => mpar_data%var(iLookPARAM%zpdFraction),                          & ! intent(in): [dp] zero plane displacement / canopy height (-)
- critRichNumber                  => mpar_data%var(iLookPARAM%critRichNumber),                       & ! intent(in): [dp] critical value for the bulk Richardson number where turbulence ceases (-)
- Louis79_bparam                  => mpar_data%var(iLookPARAM%Louis79_bparam),                       & ! intent(in): [dp] parameter in Louis (1979) stability function
- Louis79_cStar                   => mpar_data%var(iLookPARAM%Louis79_cStar),                        & ! intent(in): [dp] parameter in Louis (1979) stability function
- Mahrt87_eScale                  => mpar_data%var(iLookPARAM%Mahrt87_eScale),                       & ! intent(in): [dp] exponential scaling factor in the Mahrt (1987) stability function
- windReductionParam              => mpar_data%var(iLookPARAM%windReductionParam),                   & ! intent(in): [dp] canopy wind reduction parameter (-)
- leafExchangeCoeff               => mpar_data%var(iLookPARAM%leafExchangeCoeff),                    & ! intent(in): [dp] turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
- leafDimension                   => mpar_data%var(iLookPARAM%leafDimension),                        & ! intent(in): [dp] characteristic leaf dimension (m)
+ z0Snow                          => mpar_data%var(iLookPARAM%z0Snow)%dat(1),                        & ! intent(in): [dp] roughness length of snow (m)
+ z0Soil                          => mpar_data%var(iLookPARAM%z0Soil)%dat(1),                        & ! intent(in): [dp] roughness length of soil (m)
+ z0CanopyParam                   => mpar_data%var(iLookPARAM%z0Canopy)%dat(1),                      & ! intent(in): [dp] roughness length of the canopy (m)
+ zpdFraction                     => mpar_data%var(iLookPARAM%zpdFraction)%dat(1),                   & ! intent(in): [dp] zero plane displacement / canopy height (-)
+ critRichNumber                  => mpar_data%var(iLookPARAM%critRichNumber)%dat(1),                & ! intent(in): [dp] critical value for the bulk Richardson number where turbulence ceases (-)
+ Louis79_bparam                  => mpar_data%var(iLookPARAM%Louis79_bparam)%dat(1),                & ! intent(in): [dp] parameter in Louis (1979) stability function
+ Louis79_cStar                   => mpar_data%var(iLookPARAM%Louis79_cStar)%dat(1),                 & ! intent(in): [dp] parameter in Louis (1979) stability function
+ Mahrt87_eScale                  => mpar_data%var(iLookPARAM%Mahrt87_eScale)%dat(1),                & ! intent(in): [dp] exponential scaling factor in the Mahrt (1987) stability function
+ windReductionParam              => mpar_data%var(iLookPARAM%windReductionParam)%dat(1),            & ! intent(in): [dp] canopy wind reduction parameter (-)
+ leafExchangeCoeff               => mpar_data%var(iLookPARAM%leafExchangeCoeff)%dat(1),             & ! intent(in): [dp] turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
+ leafDimension                   => mpar_data%var(iLookPARAM%leafDimension)%dat(1),                 & ! intent(in): [dp] characteristic leaf dimension (m)
 
  ! input: soil stress parameters
- theta_sat                       => mpar_data%var(iLookPARAM%theta_sat),                            & ! intent(in): [dp] soil porosity (-)
- theta_res                       => mpar_data%var(iLookPARAM%theta_res),                            & ! intent(in): [dp] residual volumetric liquid water content (-)
- plantWiltPsi                    => mpar_data%var(iLookPARAM%plantWiltPsi),                         & ! intent(in): [dp] matric head at wilting point (m)
- soilStressParam                 => mpar_data%var(iLookPARAM%soilStressParam),                      & ! intent(in): [dp] parameter in the exponential soil stress function (-)
- critSoilWilting                 => mpar_data%var(iLookPARAM%critSoilWilting),                      & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
- critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire),                    & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
- critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire),                 & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
- minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance),                & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
+ theta_sat                       => mpar_data%var(iLookPARAM%theta_sat)%dat(1),                     & ! intent(in): [dp] soil porosity (-)
+ theta_res                       => mpar_data%var(iLookPARAM%theta_res)%dat(1),                     & ! intent(in): [dp] residual volumetric liquid water content (-)
+ plantWiltPsi                    => mpar_data%var(iLookPARAM%plantWiltPsi)%dat(1),                  & ! intent(in): [dp] matric head at wilting point (m)
+ soilStressParam                 => mpar_data%var(iLookPARAM%soilStressParam)%dat(1),               & ! intent(in): [dp] parameter in the exponential soil stress function (-)
+ critSoilWilting                 => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),               & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
+ critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1),             & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
+ critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
+ minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
 
  ! input: forcing at the upper boundary
  mHeight                         => attr_data%var(iLookATTR%mHeight),                               & ! intent(in): [dp] measurement height (m)
@@ -2115,10 +2115,10 @@ contains
     ! (compute zero-plane displacement)
     funcLAI          = sqrt(c_d1*exposedVAI)
     fracCanopyHeight = -(1._dp - exp(-funcLAI))/funcLAI + 1._dp
-    zeroPlaneDisplacement = fracCanopyHeight*heightCanopyTop
+    zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTop-heightCanopyBottom)+heightCanopyBottom
     ! (coupute roughness length of the veg canopy)
     approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._dp), approxDragCoef_max)
-    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * heightCanopyTop
+    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTop-heightCanopyBottom)
 
    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
    case(CM_QJRMS1998)
@@ -2224,6 +2224,7 @@ contains
   end if
 
   ! compute the leaf boundary layer resistance (s m-1)
+
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
   leaf2CanopyScaleFactor = (2._dp/windReductionFactor) * (1._dp - exp(-windReductionFactor/2._dp)) ! factor to scale from the leaf to the canopy
   canopyLeafConductance  = singleLeafConductance*leaf2CanopyScaleFactor

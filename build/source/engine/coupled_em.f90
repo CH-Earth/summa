@@ -55,7 +55,6 @@ contains
  ! ************************************************************************************************
  subroutine coupled_em(&
                        ! model control
-                       istep,             & ! intent(in):    index of the model time step
                        hruId,             & ! intent(in):    hruId
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
                        computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -126,7 +125,6 @@ contains
                        lightSnow            ! maximum interception capacity an inverse function of new snow density
  implicit none
  ! model control
- integer(i4b),intent(in)              :: istep                  ! index of model time step
  integer(i4b),intent(in)              :: hruId                  ! hruId
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -134,7 +132,7 @@ contains
  type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
  type(var_d),intent(in)               :: attr_data              ! spatial attributes
  type(var_d),intent(in)               :: forc_data              ! model forcing data
- type(var_d),intent(in)               :: mpar_data              ! model parameters
+ type(var_dlength),intent(in)         :: mpar_data              ! model parameters
  type(var_dlength),intent(in)         :: bvar_data              ! basin-average model variables
  ! data structures (input-output)
  type(var_ilength),intent(inout)      :: indx_data              ! state vector geometry
@@ -170,6 +168,7 @@ contains
  real(dp)                             :: subLoss                ! sublimation loss (kg m-2)
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+ integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
  logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
  logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
@@ -189,7 +188,6 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! balance checks
  integer(i4b)                         :: iVar                   ! loop through model variables
- real(dp)                             :: totalSoilCompress      ! change in storage associated with compression of the soil matrix (kg m-2)
  real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
  real(dp)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
@@ -253,7 +251,6 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! initialize compression and surface melt pond
- totalSoilCompress = 0._dp  ! change in storage associated with compression of the soil matrix (kg m-2)
  sfcMeltPond       = 0._dp  ! change in storage associated with the surface melt pond (kg m-2)
 
  ! initialize mean fluxes
@@ -295,13 +292,16 @@ contains
 
  ! short-cut to the algorithmic control parameters
  ! NOTE - temporary assignment of minstep to foce something reasonable
- minstep = 10._dp  ! mpar_data%var(iLookPARAM%minstep)  ! minimum time step (s)
- maxstep = mpar_data%var(iLookPARAM%maxstep)  ! maximum time step (s)
+ minstep = 10._dp  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
+ maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
  !print*, 'minstep, maxstep = ', minstep, maxstep
 
  ! compute the number of layers with roots
- nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)-verySmall)
- if(nLayersRoots == 0)then; err=20; message=trim(message)//'no roots within the soil profile'; return; end if
+ nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
+ if(nLayersRoots == 0)then
+  message=trim(message)//'no roots within the soil profile'
+  err=20; return
+ end if
 
  ! define the foliage nitrogen factor
  diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1) = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
@@ -351,15 +351,15 @@ contains
  ! ---------------------------------
 
  ! compute maximum canopy liquid water (kg m-2)
- diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)*exposedVAI
+ diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = mpar_data%var(iLookPARAM%refInterceptCapRain)%dat(1)*exposedVAI
 
  ! compute maximum canopy ice content (kg m-2)
  ! NOTE 1: this is used to compute the snow fraction on the canopy, as used in *BOTH* the radiation AND canopy sublimation routines
  ! NOTE 2: this is a different variable than the max ice used in the throughfall (snow interception) calculations
  ! NOTE 3: use maximum per unit leaf area storage capacity for snow (kg m-2)
  select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
-  case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)
-  case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)*4._dp
+  case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)
+  case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)*4._dp
   case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
  end select ! identifying option for maximum branch interception capacity
  !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
@@ -381,8 +381,8 @@ contains
                   prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
                   diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
                   diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
-                  mpar_data%var(iLookPARAM%canopyWettingFactor),                & ! maximum wetted fraction of the canopy (-)
-                  mpar_data%var(iLookPARAM%canopyWettingExp),                   & ! exponent in canopy wetting function (-)
+                  mpar_data%var(iLookPARAM%canopyWettingFactor)%dat(1),         & ! maximum wetted fraction of the canopy (-)
+                  mpar_data%var(iLookPARAM%canopyWettingExp)%dat(1),            & ! exponent in canopy wetting function (-)
                   ! output
                   diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1),      & ! canopy wetted fraction (-)
                   dCanopyWetFraction_dWat,                                      & ! derivative in wetted fraction w.r.t. canopy liquid water content (kg-1 m2)
@@ -390,7 +390,7 @@ contains
                   err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
- ! vegetation is completely buried by snow (or no veg exisits at all)
+ ! vegetation is completely buried by snow (or no veg exists at all)
  else
   diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._dp
   dCanopyWetFraction_dWat                                 = 0._dp
@@ -485,7 +485,7 @@ contains
                 ! input: model control
                 data_step,                                                 & ! time step (seconds)
                 (nSnow > 0),                                               & ! logical flag if snow layers exist
-                mpar_data%var(iLookPARAM%snowfrz_scale),                   & ! freeezing curve parameter for snow (K-1)
+                mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),            & ! freeezing curve parameter for snow (K-1)
                 ! input: diagnostic scalar variables
                 diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),        & ! computed temperature of fresh snow (K)
                 diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),      & ! computed density of new snow (kg m-3)
@@ -609,24 +609,6 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
-  ! recreate the temporary data structures
-  ! NOTE: resizeData(meta, old, new, ..)
-  if(modifiedVegState .or. modifiedLayers)then
-
-   ! create temporary data structures for prognostic variables
-   call resizeData(prog_meta(:),prog_data,prog_temp,copy=.true.,err=err,message=cmessage)
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-  
-   ! create temporary data structures for diagnostic variables
-   call resizeData(diag_meta(:),diag_data,diag_temp,copy=.true.,err=err,message=cmessage)
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-  
-   ! create temporary data structures for index variables
-   call resizeData(indx_meta(:),indx_data,indx_temp,copy=.true.,err=err,message=cmessage)
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-  endif  ! if modified the states
-
   ! recompute the number of snow and soil layers
   ! NOTE: do this here for greater visibility
   nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
@@ -646,6 +628,32 @@ contains
                    err,cmessage)              ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   end if
+
+  ! recreate the temporary data structures
+  ! NOTE: resizeData(meta, old, new, ..)
+  if(modifiedVegState .or. modifiedLayers)then
+
+   ! create temporary data structures for prognostic variables
+   call resizeData(prog_meta(:),prog_data,prog_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! create temporary data structures for diagnostic variables
+   call resizeData(diag_meta(:),diag_data,diag_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! create temporary data structures for index variables
+   call resizeData(indx_meta(:),indx_data,indx_temp,copy=.true.,err=err,message=cmessage)
+   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   do iVar=1,size(indx_data%var)
+    !print*, 'indx_meta(iVar)%varname = ', trim(indx_meta(iVar)%varname)
+    select case(stepFailure)
+     case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
+     case(.true.);  indx_data%var(iVar)%dat(:) = indx_temp%var(iVar)%dat(:)
+    end select
+   end do  ! looping through variables
+
+  endif  ! if modified the states
 
   ! define the number of state variables
   nState = indx_data%var(iLookINDEX%nState)%dat(1)
@@ -717,7 +725,9 @@ contains
                   dtMultiplier,                           & ! intent(out):   substep multiplier (-)
                   tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
                   stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed 
+                  ixSolution,                             & ! intent(out):   solution method used in this iteration
                   err,cmessage)                             ! intent(out):   error code and error message
+
 
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -735,7 +745,15 @@ contains
   ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
   if(stepFailure)then
-   dt_sub       = max(dtSave/2._dp, minstep)
+   ! halve step
+   dt_sub = dtSave/2._dp
+   ! check that the step is not tiny
+   if(dt_sub < minstep)then
+print*,ixSolution
+    message=trim(message)//'length of the coupled step is below the minimum step length'
+    err=20; return
+   endif
+   ! try again
    cycle substeps
   endif
 
@@ -831,18 +849,18 @@ contains
   if(nSnow>0)then
    call snwDensify(&
                    ! intent(in): variables
-                   dt_sub,                                                & ! intent(in): time step (s)
+                   dt_sub,                                                 & ! intent(in): time step (s)
                    indx_data%var(iLookINDEX%nSnow)%dat(1),                 & ! intent(in): number of snow layers
                    prog_data%var(iLookPROG%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
                    diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
                    flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),  & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
                    ! intent(in): parameters
-                   mpar_data%var(iLookPARAM%densScalGrowth),               & ! intent(in): density scaling factor for grain growth (kg-1 m3)
-                   mpar_data%var(iLookPARAM%tempScalGrowth),               & ! intent(in): temperature scaling factor for grain growth (K-1)
-                   mpar_data%var(iLookPARAM%grainGrowthRate),              & ! intent(in): rate of grain growth (s-1)
-                   mpar_data%var(iLookPARAM%densScalOvrbdn),               & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
-                   mpar_data%var(iLookPARAM%tempScalOvrbdn),               & ! intent(in): temperature scaling factor for overburden pressure (K-1)
-                   mpar_data%var(iLookPARAM%baseViscosity),                & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                   mpar_data%var(iLookPARAM%densScalGrowth)%dat(1),        & ! intent(in): density scaling factor for grain growth (kg-1 m3)
+                   mpar_data%var(iLookPARAM%tempScalGrowth)%dat(1),        & ! intent(in): temperature scaling factor for grain growth (K-1)
+                   mpar_data%var(iLookPARAM%grainGrowthRate)%dat(1),       & ! intent(in): rate of grain growth (s-1)
+                   mpar_data%var(iLookPARAM%densScalOvrbdn)%dat(1),        & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
+                   mpar_data%var(iLookPARAM%tempScalOvrbdn)%dat(1),        & ! intent(in): temperature scaling factor for overburden pressure (K-1)
+                   mpar_data%var(iLookPARAM%baseViscosity)%dat(1),         & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
                    ! intent(inout): state variables
                    prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow),      & ! intent(inout): depth of each layer (m)
                    prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
@@ -875,9 +893,6 @@ contains
    flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght 
   end do
 
-  ! increment change in storage associated with compression of the soil matrix (kg m-2)
-  totalSoilCompress = totalSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)
-
   ! increment change in storage associated with the surface melt pond (kg m-2)
   if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
 
@@ -893,10 +908,12 @@ contains
 
   ! check
   if(globalPrintFlag)&
-  write(*,'(a,1x,3(f13.5,1x))') 'dt_sub, dt_solv, data_step: ', dt_sub, dt_solv, data_step
+  write(*,'(a,1x,3(f18.5,1x))') 'dt_sub, dt_solv, data_step: ', dt_sub, dt_solv, data_step
 
   ! check that we have completed the sub-step
-  if(dt_solv >= data_step-verySmall) exit substeps
+  if(dt_solv >= data_step-verySmall) then
+   exit substeps
+  endif
 
   ! adjust length of the sub-step (make sure that we don't exceed the step)
   dt_sub = min(data_step - dt_solv, dt_sub)
@@ -920,7 +937,6 @@ contains
  ! ----------------------
 
  ! save the average compression and melt pond storage in the data structures
- diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = totalSoilCompress
  prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)  = sfcMeltPond
 
  ! associate local variables with information in the data structures
@@ -953,7 +969,8 @@ contains
  mLayerVolFracLiq           => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)                ,&  ! volumetric liquid water content in each soil layer (-)
  scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                          ,&  ! aquifer storage (m)
  ! error tolerance
- absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)                                   ,&  ! absolute convergence tolerance for vol frac liq water (-)
+ absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                            ,&  ! absolute convergence tolerance for vol frac liq water (-)
+ totalSoilCompress          => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)                            ,&  ! total soil compression over whole later (kg/m^2)
  scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
  scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
  ) ! (association of local variables with information in the data structures
@@ -1052,6 +1069,7 @@ contains
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
  if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._dp)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+  write(*,*)               'solution method           = ', ixSolution
   write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
   write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq
@@ -1063,6 +1081,8 @@ contains
   write(*,'(a,1x,f20.10)') 'balanceSoilDrainage       = ', balanceSoilDrainage
   write(*,'(a,1x,f20.10)') 'balanceSoilET             = ', balanceSoilET
   write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
+  write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError/iden_water
+  write(*,'(a,1x,f20.10)') 'absConvTol_liquid         = ', absConvTol_liquid
   ! error control
   message=trim(message)//'soil hydrology does not balance'
   err=20; return

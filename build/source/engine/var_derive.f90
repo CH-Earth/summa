@@ -102,7 +102,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine rootDensty: compute vertical distribution of root density
  ! **********************************************************************************************************
- subroutine rootDensty(parData,indx_data,prog_data,diag_data,err,message)
+ subroutine rootDensty(mpar_data,indx_data,prog_data,diag_data,err,message)
  ! model decision structures
  USE globalData,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -121,7 +121,7 @@ contains
  USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
- real(dp),intent(in)             :: parData(:)      ! vector of model parameters
+ type(var_dlength),intent(in)    :: mpar_data       ! data structure of model parameters for a local HRU
  type(var_ilength),intent(in)    :: indx_data       ! data structure of model indices for a local HRU
  type(var_dlength),intent(in)    :: prog_data       ! data structure of model prognostic (state) variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data       ! data structure of model diagnostic variables for a local HRU
@@ -144,10 +144,10 @@ contains
  ixRootProfile         =>model_decisions(iLookDECISIONS%rootProfil)%iDecision,  & ! choice of the rooting profile
  ixGroundwater         =>model_decisions(iLookDECISIONS%groundwatr)%iDecision,  & ! choice of groundwater parameterization
  ! associate the values in the model parameter structures
- rootScaleFactor1      =>parData(iLookPARAM%rootScaleFactor1),                  & ! 1st scaling factor (m-1)
- rootScaleFactor2      =>parData(iLookPARAM%rootScaleFactor2),                  & ! 2nd scaling factor (m-1)
- rootingDepth          =>parData(iLookPARAM%rootingDepth),                      & ! rooting depth (m)
- rootDistExp           =>parData(iLookPARAM%rootDistExp),                       & ! root distribution exponent (-)
+ rootScaleFactor1      =>mpar_data%var(iLookPARAM%rootScaleFactor1)%dat(1),     & ! 1st scaling factor (m-1)
+ rootScaleFactor2      =>mpar_data%var(iLookPARAM%rootScaleFactor2)%dat(1),     & ! 2nd scaling factor (m-1)
+ rootingDepth          =>mpar_data%var(iLookPARAM%rootingDepth)%dat(1),         & ! rooting depth (m)
+ rootDistExp           =>mpar_data%var(iLookPARAM%rootDistExp)%dat(1),          & ! root distribution exponent (-)
  ! associate the model index structures
  nSoil                 =>indx_data%var(iLookINDEX%nSoil)%dat(1),                & ! number of soil layers
  nSnow                 =>indx_data%var(iLookINDEX%nSnow)%dat(1),                & ! number of snow layers
@@ -159,8 +159,8 @@ contains
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
- print*, 'nSnow   = ', nSnow
- print*, 'nLayers = ', nLayers
+! print*, 'nSnow   = ', nSnow
+! print*, 'nLayers = ', nLayers
 
  ! compute the fraction of roots in each soil layer
  do iLayer=nSnow+1,nLayers
@@ -241,7 +241,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine satHydCond: compute vertical profile of saturated hydraulic conductivity
  ! **********************************************************************************************************
- subroutine satHydCond(parData,indx_data,prog_data,flux_data,err,message)
+ subroutine satHydCond(mpar_data,indx_data,prog_data,flux_data,err,message)
  ! model decision structures
  USE globalData,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -256,27 +256,30 @@ contains
  USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
- real(dp),intent(in)             :: parData(:)      ! vector of model parameters
- type(var_ilength),intent(in)    :: indx_data       ! data structure of model indices for a local HRU
- type(var_dlength),intent(in)    :: prog_data       ! data structure of model prognostic (state) variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data       ! data structure of model fluxes for a local HRU
+ type(var_dlength),intent(in)    :: mpar_data           ! data structure of model parameters for a local HRU
+ type(var_ilength),intent(in)    :: indx_data           ! data structure of model indices for a local HRU
+ type(var_dlength),intent(in)    :: prog_data           ! data structure of model prognostic (state) variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data           ! data structure of model fluxes for a local HRU
  ! declare output variables
- integer(i4b),intent(out)        :: err             ! error code
- character(*),intent(out)        :: message         ! error message
+ integer(i4b),intent(out)        :: err                 ! error code
+ character(*),intent(out)        :: message             ! error message
  ! declare local variables
- integer(i4b)                    :: iLayer          ! loop through layers
+ integer(i4b)                    :: iLayer              ! loop through layers
+ real(dp)                        :: ifcDepthScaleFactor ! depth scaling factor (layer interfaces)
+ real(dp)                        :: midDepthScaleFactor ! depth scaling factor (layer midpoints)
  ! initialize error control
  err=0; message='satHydCond/'
  ! ----------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
  ! associate the values in the parameter structures
- k_soil             => parData(iLookPARAM%k_soil),                      & ! saturated hydraulic conductivity at the compacted depth (m s-1)
- k_macropore        => parData(iLookPARAM%k_macropore),                 & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
- compactedDepth     => parData(iLookPARAM%compactedDepth),              & ! the depth at which k_soil reaches the compacted value given by CH78 (m)
- zScale_TOPMODEL    => parData(iLookPARAM%zScale_TOPMODEL),             & ! exponent for the TOPMODEL-ish baseflow parameterization (-)
+ k_soil             => mpar_data%var(iLookPARAM%k_soil)%dat,            & ! saturated hydraulic conductivity at the compacted depth (m s-1)
+ k_macropore        => mpar_data%var(iLookPARAM%k_macropore)%dat,       & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
+ compactedDepth     => mpar_data%var(iLookPARAM%compactedDepth)%dat(1), & ! the depth at which k_soil reaches the compacted value given by CH78 (m)
+ zScale_TOPMODEL    => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),& ! exponent for the TOPMODEL-ish baseflow parameterization (-)
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
+ nSoil              => indx_data%var(iLookINDEX%nSoil)%dat(1),          & ! number of soil layers
  nLayers            => indx_data%var(iLookINDEX%nLayers)%dat(1),        & ! total number of layers
  ! associate the coordinate variables
  mLayerHeight       => prog_data%var(iLookPROG%mLayerHeight)%dat,       & ! height at the mid-point of each layer (m)
@@ -292,36 +295,55 @@ contains
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
  do iLayer=nSnow,nLayers
   select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
+
    ! constant hydraulic conductivity with depth
    case(constant)
-    iLayerSatHydCond(iLayer-nSnow) = k_soil
-    if(iLayer > nSnow)then ! avoid layer 0
-     mLayerSatHydCond(iLayer-nSnow)   = k_soil
-     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore
-    end if  ! if the mid-point of a layer
+    ! - conductivity at layer interfaces 
+    !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
+    if(iLayer==nSnow)then
+     iLayerSatHydCond(iLayer-nSnow) = k_soil(1)
+    else
+     if(iLayer==nLayers)then
+      iLayerSatHydCond(iLayer-nSnow) = k_soil(nSoil)
+     else
+      iLayerSatHydCond(iLayer-nSnow)   = 0.5_dp * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) )
+     endif
+     ! - conductivity at layer midpoints
+     mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)
+     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow)
+    end if ! if iLayer>nSnow
+
    ! power-law profile
    case(powerLaw_profile)
-    ! (saturated hydraulic conductivity at layer interfaces)
-    iLayerSatHydCond(iLayer-nSnow) = k_soil * ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
-                                            / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
-    ! (saturated hydraulic conductivity at layer mid-points)
-    if(iLayer > nSnow)then ! avoid layer 0
-     ! (--> micropores)
-     mLayerSatHydCond(iLayer-nSnow) = k_soil * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
-                                             / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
-     ! (--> macropores)
-     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore * ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) &
-                                                    / ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+    ! - conductivity at layer interfaces 
+    !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
+    ifcDepthScaleFactor = ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
+                          ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) 
+    if(iLayer==nSnow)then
+     iLayerSatHydCond(iLayer-nSnow) = k_soil(1) * ifcDepthScaleFactor
+    else
+     if(iLayer==nLayers)then
+      iLayerSatHydCond(iLayer-nSnow) = k_soil(nSoil) * ifcDepthScaleFactor
+     else
+      iLayerSatHydCond(iLayer-nSnow)   = 0.5_dp * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) ) * ifcDepthScaleFactor
+     endif
+     ! - conductivity at layer midpoints
+     midDepthScaleFactor = ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
+                           ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)      * midDepthScaleFactor
+     mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow) * midDepthScaleFactor
      !print*, 'compactedDepth = ', compactedDepth
      !print*, 'k_macropore    = ', k_macropore
      !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
      !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
      !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
     end if  ! if the mid-point of a layer
+
    ! error check (errors checked earlier also, so should not get here)
    case default
     message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"
     err=10; return
+
   end select
   !if(iLayer > nSnow)& ! avoid layer 0
   ! write(*,'(a,1x,i4,1x,2(f11.5,1x,e20.10,1x))') 'satHydCond: ', iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow), iLayerHeight(iLayer), iLayerSatHydCond(iLayer-nSnow)
@@ -444,79 +466,31 @@ contains
  ! **********************************************************************************************************
  ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
- subroutine v_shortcut(parData,diag_data,err,message)
- ! used to compute derived model variables
- USE multiconst, only:&
-                       LH_fus,    &            ! latent heat of fusion                (J kg-1)
-                       Cp_air,    &            ! specific heat of air                 (J kg-1 K-1)
-                       Cp_ice,    &            ! specific heat of ice                 (J kg-1 K-1)
-                       Cp_soil,   &            ! specific heat of soil                (J kg-1 K-1)
-                       Cp_water,  &            ! specific heat of liquid water        (J kg-1 K-1)
-                       iden_air,  &            ! intrinsic density of air             (kg m-3)
-                       iden_ice,  &            ! intrinsic density of ice             (kg m-3)
-                       iden_water,&            ! intrinsic density of liquid water    (kg m-3)
-                       gravity,   &            ! gravitational acceleration           (m s-2)
-                       Tfreeze                 ! freezing point of pure water         (K)
+ subroutine v_shortcut(mpar_data,diag_data,err,message)
  ! named variables
  USE var_lookup,only:iLookPARAM,iLookDIAG      ! named variables for structure elements
  ! data types
  USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
  implicit none
  ! declare input variables
- real(dp),intent(in)             :: parData(:)      ! vector of model parameters
- type(var_dlength),intent(inout) :: diag_data         ! data structure of model variables for a local HRU
+ type(var_dlength),intent(in)    :: mpar_data       ! data structure of model parameters for a local HRU
+ type(var_dlength),intent(inout) :: diag_data       ! data structure of model variables for a local HRU
  ! declare output variables
  integer(i4b),intent(out)        :: err             ! error code
  character(*),intent(out)        :: message         ! error message
- ! declare local variables
- real(dp)                        :: bulkden_soil    ! bulk density of soil (kg m-3)
  ! initialize error control
  err=0; message='v_shortcut/'
  ! ----------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
  ! associate values in the parameter structures
- iden_soil      =>parData(iLookPARAM%soil_dens_intr),                   & ! intrinsic soil density (kg m-3)
- frac_sand      =>parData(iLookPARAM%frac_sand),                        & ! fraction of sand (-)
- frac_silt      =>parData(iLookPARAM%frac_silt),                        & ! fraction of silt (-)
- frac_clay      =>parData(iLookPARAM%frac_clay),                        & ! fraction of clay (-)
- theta_sat      =>parData(iLookPARAM%theta_sat),                        & ! soil porosity (-)
- vGn_n          =>parData(iLookPARAM%vGn_n),                            & ! van Genutchen "n" parameter (-)
- ! associate values in the model variable structures
- vGn_m          =>diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),          & ! van Genutchen "m" parameter (-)
- kappa          =>diag_data%var(iLookDIAG%scalarKappa)%dat(1),          & ! constant in the freezing curve function (m K-1)
- volHtCap_air   =>diag_data%var(iLookDIAG%scalarVolHtCap_air)%dat(1),   & ! volumetric heat capacity of air (J m-3 K-1)
- volHtCap_ice   =>diag_data%var(iLookDIAG%scalarVolHtCap_ice)%dat(1),   & ! volumetric heat capacity of ice (J m-3 K-1)
- volHtCap_soil  =>diag_data%var(iLookDIAG%scalarVolHtCap_soil)%dat(1),  & ! volumetric heat capacity of soil (J m-3 K-1)
- volHtCap_water =>diag_data%var(iLookDIAG%scalarVolHtCap_water)%dat(1), & ! volumetric heat capacity of water (J m-3 K-1)
- volLatHt_fus   =>diag_data%var(iLookDIAG%scalarvolLatHt_fus)%dat(1),   & ! volumetric latent heat of fusion (J m-3)
- lambda_drysoil =>diag_data%var(iLookDIAG%scalarLambda_drysoil)%dat(1), & ! thermal conductivity of dry soil (W m-1)
- lambda_wetsoil =>diag_data%var(iLookDIAG%scalarLambda_wetsoil)%dat(1)  & ! thermal conductivity of wet soil (W m-1)
+ vGn_n          =>mpar_data%var(iLookPARAM%vGn_n)%dat,                  & ! van Genutchen "n" parameter (-)
+ vGn_m          =>diag_data%var(iLookDIAG%scalarVGn_m)%dat              & ! van Genutchen "m" parameter (-)
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
- ! ************************************************************************************************************************
  ! compute the van Genutchen "m" parameter
  vGn_m = 1._dp - 1._dp/vGn_n
- ! ************************************************************************************************************************
- ! compute the constant in the freezing curve function (m K-1)
- kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
- ! ************************************************************************************************************************
- ! compute volumetric heat capacity (J m-3 K-1)
- volHtCap_air   = iden_air   * Cp_air
- volHtCap_ice   = iden_ice   * Cp_Ice
- volHtCap_soil  = iden_soil  * Cp_soil
- volHtCap_water = iden_water * Cp_water
- ! compute the thermal conductivity of dry and wet soils (W m-1)
- bulkden_soil   = iden_soil*(1._dp - theta_sat)
- lambda_drysoil = (0.135_dp*bulkden_soil + 64.7_dp) / (iden_soil - 0.947_dp*bulkden_soil)
- lambda_wetsoil = (8.80_dp*frac_sand + 2.92_dp*frac_clay) / (frac_sand + frac_clay)
- !print*, 'frac_sand, frac_silt, frac_clay = ', frac_sand, frac_silt, frac_clay
- !print*, 'lambda_drysoil, lambda_wetsoil = ', lambda_drysoil, lambda_wetsoil
- !print*, 'volHtCap_soil = ', volHtCap_soil
- ! compute the volumetric latent heat of fusion (J m-3)
- volLatHt_fus = iden_ice   * LH_fus
- ! ************************************************************************************************************************
  end associate
 
  end subroutine v_shortcut

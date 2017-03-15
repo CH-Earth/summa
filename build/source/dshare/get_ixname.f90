@@ -20,8 +20,7 @@
 
 module get_ixname_module
 ! used to get the index of a named variable
-USE nrtype                                          ! variable types, etc.
-USE multiconst,only:integerMissing
+USE nrtype, integerMissing=>nr_integerMissing
 implicit none
 private
 public::get_ixdecisions
@@ -528,6 +527,8 @@ contains
   case('scalarVGn_m'                    ); get_ixdiag = iLookDIAG%scalarVGn_m                      ! van Genuchten "m" parameter (-)
   case('scalarKappa'                    ); get_ixdiag = iLookDIAG%scalarKappa                      ! constant in the freezing curve function (m K-1)
   case('scalarVolLatHt_fus'             ); get_ixdiag = iLookDIAG%scalarVolLatHt_fus               ! volumetric latent heat of fusion     (J m-3)
+  ! number of function evaluations
+  case('numFluxCalls'                   ); get_ixdiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
   ! get to here if cannot find the variable
   case default
    get_ixdiag = integerMissing
@@ -875,6 +876,7 @@ contains
   case('ifcSnow'); get_ixVarType = iLookVarType%ifcSnow
   case('ifcSoil'); get_ixVarType = iLookVarType%ifcSoil
   case('ifcToto'); get_ixVarType = iLookVarType%ifcToto
+  case('parSoil'); get_ixVarType = iLookVarType%parSoil
   case('routing'); get_ixVarType = iLookVarType%routing
   case('unknown'); get_ixVarType = iLookVarType%unknown
   ! get to here if cannot find the variable
@@ -902,6 +904,7 @@ contains
   case(iLookVarType%ifcSnow);get_varTypeName='ifcSnow'
   case(iLookVarType%ifcSoil);get_varTypeName='ifcSoil'
   case(iLookVarType%ifcToto);get_varTypeName='ifcToto'
+  case(iLookVarType%parSoil);get_varTypeName='parSoil'
   case(iLookVarType%routing);get_varTypeName='routing'
   case(iLookVarType%unknown);get_varTypeName='unknown'
   ! get to here if cannot find the variable

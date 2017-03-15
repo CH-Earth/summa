@@ -47,7 +47,7 @@ contains
  USE globalData,only:time_meta,forc_meta               ! metadata structures
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
- USE multiconst,only:integerMissing                    ! integer missing value
+ USE globalData,only:integerMissing                    ! integer missing value
  implicit none
  ! define input variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
@@ -82,14 +82,13 @@ contains
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
- real(dp)                          :: timeMult         ! multiplier to convert time to days
  real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
  real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
  integer(i4b)                      :: nFiles           ! number of forcing files
  real(dp),allocatable              :: fileTime(:)      ! array of time from netcdf file
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
- integer(i4b)                      :: iyyy,im,id       ! year, month, day 
- integer(i4b)                      :: ih,imin          ! hour, minute   
+ !integer(i4b)                      :: iyyy,im,id       ! year, month, day 
+ !integer(i4b)                      :: ih,imin          ! hour, minute   
  real(dp)                          :: dsec             ! double precision seconds (not used)
  ! Start procedure here
  err=0; message="read_force/"
@@ -135,6 +134,7 @@ contains
    ! NOTE: This could be faster by checking just the start and the end times
    err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
+
    fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday ! convert time to units of days, and add reference julian day
 
    ! find difference of fileTime from currentJulday
@@ -142,6 +142,7 @@ contains
 
    ! start time is in the current file
    if(any(diffTime < verySmall))then
+
     iRead=minloc(diffTime,1)
     exit
 
@@ -177,27 +178,8 @@ contains
    ! increment iFile so we open next forcing file
    iFile = iFile+1
 
+   ! open up the forcing file
    call openForcingFile()
-
-   ! get definition of time data
-   err = nf90_inq_varid(ncid,'time',varId);              if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
-   err = nf90_get_att(ncid,varid,'units',refTimeString); if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
-  
-   ! define the reference time for the model simulation
-   call extractTime(refTimeString, iyyy, im, id, ih, imin, dsec, err, cmessage)    
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  
-   ! convert the reference time to days since the beginning of time
-   call compjulday(iyyy, im, id, ih, imin, dsec, refJulDay, err, cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-   ! get the time multiplier needed to convert time to units of days
-   select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
-    case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._dp
-    case('hours');   forcFileInfo(iFile)%convTime2Days=24._dp
-    case('days');    forcFileInfo(iFile)%convTime2Days=1._dp
-    case default;    message=trim(message)//'unable to identify time units'; err=20; return
-   end select
 
    ! reset iRead since we opened a new file
    iRead=1
@@ -347,7 +329,9 @@ contains
   
    ! get definition of time data
    err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
+
    err = nf90_inquire_attribute(ncid,varId,'units',len = attLen); if(err/=nf90_noerr)then; message=trim(message)//'cannot find time units/'//trim(nf90_strerror(err));    return; endif
+
    err = nf90_get_att(ncid,varid,'units',refTimeString);          if(err/=nf90_noerr)then; message=trim(message)//'cannot read time units/'//trim(nf90_strerror(err));    return; endif
 
    ! define the reference time for the model simulation

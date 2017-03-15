@@ -19,17 +19,17 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module def_output_module
-USE nrtype
 USE netcdf
-USE netcdf_util_module,only:netcdf_err    ! netcdf error handling function
-USE f2008funcs_module,only:cloneStruc     ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
-USE multiconst,only:integerMissing
+USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
+USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
+USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
 implicit none
 private
 public :: def_output
 
 ! define dimension names
 character(len=32),parameter :: hru_DimName            = 'hru'              ! dimension name for the HRUs
+character(len=32),parameter :: depth_DimName          = 'depth'            ! dimension name for soil depth
 character(len=32),parameter :: scalar_DimName         = 'scalar'           ! dimension name for scalar variables
 character(len=32),parameter :: wLength_dimName        = 'spectral_bands'   ! dimension name for the number of spectral bands
 character(len=32),parameter :: timestep_DimName       = 'time'             ! dimension name for the time step
@@ -43,6 +43,7 @@ character(len=32),parameter :: ifcTotoAndTime_DimName = 'ifcTotoAndTime'   ! dim
 
 ! define the dimension IDs
 integer(i4b)                :: hru_DimID                               ! dimension name for the HRUs
+integer(i4b)                :: depth_DimID                             ! dimension name for the soil depth
 integer(i4b)                :: scalar_DimID                            ! dimension name for scalar variables
 integer(i4b)                :: wLength_dimID                           ! dimension name for the number of spectral bands
 integer(i4b)                :: timestep_DimID                          ! dimension name for the time step
@@ -69,10 +70,8 @@ contains
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
- USE globalData,only:model_decisions
  USE globalData,only:ncid
  USE globalData,only:nFreq,outFreq                            ! output frequencies
- USE multiconst,only:integerMissing
  ! declare dummy variables
  integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
  integer(i4b),intent(in)     :: nSoil                         ! number of soil layers in the first HRU (used to define fixed length dimensions)
@@ -80,7 +79,6 @@ contains
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
  ! local variables
- integer(i4b)                :: iVar                          ! loop through model variables
  integer(i4b)                :: iFreq                         ! loop through output frequencies
  integer(i4b)                :: iStruct                       ! loop through structure types 
  integer(i4b),parameter      :: modelTime=1                   ! model timestep output frequency
@@ -96,23 +94,18 @@ contains
  ! e.g., xxxxxxxxx_1.nc  (for output at every model timestep)
  ! e.g., xxxxxxxxx_24.nc (for daily output with hourly model timestep)
  do iFreq = 1,nFreq
+
+  ! create file
   write(fstring,'(i5)') outFreq(iFreq)
   fstring = adjustl(fstring)
   fname = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print "(A,A)",'Created output file:',trim(fname)
- end do
 
- ! define model decisions
- do iVar = 1,size(model_decisions)
-  if(model_decisions(iVar)%iDecision.ne.integerMissing)then
-   call put_attrib(ncid(modelTime),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  end if
- end do
+  ! ensure that all time variables are written to all files
+  time_meta(:)%outFreq = iFreq
 
- do iFreq = 1,nFreq
   do iStruct = 1,size(structInfo)
    select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
@@ -132,6 +125,7 @@ contains
    ! error handling
    if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
   end do ! iStruct 
+
   ! write HRU dimension for each output file
   call write_hru_dim(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
  end do ! iFreq 
@@ -155,7 +149,7 @@ contains
  implicit none
  ! declare dummy variables
  integer(i4b),intent(in)     :: nHRU                       ! number of HRUs
- integer(i4b), intent(in)    :: nSoil                      ! number of soil layers in the first HRU (used to define fixed length dimensions)
+ integer(i4b),intent(in)     :: nSoil                      ! number of soil layers in the first HRU (used to define fixed length dimensions)
  character(*),intent(in)     :: infile                     ! filename
  integer(i4b),intent(out)    :: ncid                       ! netcdf file id
  integer(i4b),intent(out)    :: err                        ! error code
@@ -167,14 +161,11 @@ contains
  integer(i4b)                :: meanSnowLayersPerStep      ! mean number of snow layers per time step
  integer(i4b)                :: maxStepsPerFile            ! maximum number of time steps to be stored in each file
  integer(i4b)                :: maxLength                  ! maximum length of the variable vector
- integer(i4b)                :: iHRU                       ! local HRU index 
- integer(i4b)                :: iGRU                       ! GRU index 
- integer(i4b)                :: hruVarID                   ! HRU varID in netcdf 
  ! initialize error control
  err=0;message="f-iniCreate/"
-
  ! identify length of the variable vector
- maxStepsPerFile = min(numtim, nint(366._dp * secprday/data_step) )
+ maxStepsPerFile = min(numtim,nint(366._dp * secprday/data_step))
+ if(maxStepsPerFile < numtim) maxStepsPerFile=numtim
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
   case(sameRulesAllLayers);    meanSnowLayersPerStep = 100
   case(rulesDependLayerIndex); meanSnowLayersPerStep = 5
@@ -188,14 +179,15 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
- err = nf90_def_dim(ncid, trim(      timestep_DimName), nf90_unlimited,   timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(        scalar_DimName), scalarLength,       scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(           hru_DimName), nHRU,                  hru_DimID); message='iCreate[HRU]';      call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(      timestep_DimName), nf90_unlimited,   timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(         depth_DimName), nSoil,               depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(        scalar_DimName), scalarLength,       scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(       wLength_DimName), maxSpectral,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(       routing_DimName), maxRouting,        routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(midSnowAndTime_DimName), maxLength,  midSnowAndTime_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(midSoilAndTime_DimName), maxLength,  midSoilAndTime_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(midTotoAndTime_DimName), maxLength,  midTotoAndTime_DimID); message='iCreate[minToto]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(midTotoAndTime_DimName), maxLength,  midTotoAndTime_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(ifcSnowAndTime_DimName), maxLength,  ifcSnowAndTime_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(ifcSoilAndTime_DimName), maxLength,  ifcSoilAndTime_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(ifcTotoAndTime_DimName), maxLength,  ifcTotoAndTime_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
@@ -294,6 +286,7 @@ contains
     case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnowAndTime_DimID               /), err=err, message=cmessage)
     case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoilAndTime_DimID               /), err=err, message=cmessage)
     case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcTotoAndTime_DimID               /), err=err, message=cmessage)
+    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                        /), err=err, message=cmessage)
     case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                 /), err=err, message=cmessage)
    end select
    ! check errors

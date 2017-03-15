@@ -19,9 +19,9 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module modelwrite_module
-USE nrtype
 USE netcdf
 USE netcdf_util_module,only:netcdf_err                    ! netcdf error handling function
+USE nrtype, integerMissing=>nr_integerMissing             ! top-level data types
 implicit none
 private
 public::writeParm
@@ -36,16 +36,17 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeParm: write model parameters
  ! **********************************************************************************************************
- subroutine writeParm(iHRU,dat,meta,err,message)
- USE data_types,only:var_info,var_d,var_i        ! metadata structure type
- USE var_lookup,only:iLookStat                   ! to index into write flag
- USE multiconst,only:integerMissing
+ subroutine writeParm(iHRU,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
+ USE globalData,only:integerMissing              ! missing value
+ USE data_types,only:var_info                    ! metadata info
+ USE data_types,only:var_i,var_d,var_dlength     ! derived data types
+ USE var_lookup,only:iLookStat                   ! to index into write flag
  implicit none
 
  ! declare input variables
  integer(i4b)  ,intent(in)   :: iHRU             ! hydrologic response unit
- class(*)      ,intent(in)   :: dat(:)           ! local attributes
+ class(*)      ,intent(in)   :: struct           ! data structure
  type(var_info),intent(in)   :: meta(:)          ! metadata structure
  integer(i4b)  ,intent(out)  :: err              ! error code
  character(*)  ,intent(out)  :: message          ! error message
@@ -67,18 +68,20 @@ contains
 
   ! write data
   if (iHRU.ne.integerMissing) then
-   select type (dat)
-    type is (integer)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/iHRU/),count=(/1/))
-    type is (real(dp))
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/iHRU/),count=(/1/))
-    class default; err=20; message=trim(message)//'unkonwn dat type (with HRU)'; return
+   select type (struct)
+    type is (var_i)
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iHRU/),count=(/1/))
+    type is (var_d)
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iHRU/),count=(/1/))
+    type is (var_dlength)
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)%dat/),start=(/iHRU,1/),count=(/1,size(struct%var(iVar)%dat)/))
+    class default; err=20; message=trim(message)//'unkonwn variable type (with HRU)'; return
    end select
   else
-   select type (dat)
-    type is (real(dp))
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/dat(iVar)/),start=(/1/),count=(/1/))
-    class default; err=20; message=trim(message)//'unkonwn dat type (no HRU)'; return
+   select type (struct)
+    type is (var_d)
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/1/),count=(/1/))
+    class default; err=20; message=trim(message)//'unkonwn variable type (no HRU)'; return
    end select
   end if
   call netcdf_err(err,message); if (err/=0) return
@@ -324,13 +327,15 @@ contains
 
     ! get variable id in file
     err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
-    if (err.gt.0) message=trim(message)//trim(meta(iVar)%varName)
-    call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
+    call netcdf_err(err,message)
+    if (err/=0) then; err=20; return; end if
 
     ! add to file
     err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
-    if (err.gt.0) message=trim(message)//trim(meta(iVar)%varName)
-    call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
+    call netcdf_err(err,message)
+    if (err/=0) then; err=20; return; end if
 
    end do ! iVar
   end do ! iFreq
@@ -362,7 +367,7 @@ contains
  USE globalData,only:gru_struc              ! gru-hru mapping structures
  ! external routines
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
- USE netcdf_util_module,only:nc_file_open  ! close netcdf file
+ USE netcdf_util_module,only:nc_file_open   ! open netcdf file
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input

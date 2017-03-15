@@ -98,7 +98,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
- type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
@@ -135,30 +135,30 @@ contains
  associate(&
  ! model decisions
  ix_snowLayers          => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
- ! model parameters (new snow density)
- newSnowDenMin          => mpar_data%var(iLookPARAM%newSnowDenMin),            & ! minimum new snow density (kg m-3)
- newSnowDenMult         => mpar_data%var(iLookPARAM%newSnowDenMult),           & ! multiplier for new snow density (kg m-3)
- newSnowDenScal         => mpar_data%var(iLookPARAM%newSnowDenScal),           & ! scaling factor for new snow density (K)
- ! model parameters (control the depth of snow layers)
- zmax                   => mpar_data%var(iLookPARAM%zmax),                     & ! maximum layer depth (m)
- zmaxLayer1_lower       => mpar_data%var(iLookPARAM%zmaxLayer1_lower),         & ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
- zmaxLayer2_lower       => mpar_data%var(iLookPARAM%zmaxLayer2_lower),         & ! maximum layer depth for the 2nd layer when only 2 layers (m)
- zmaxLayer3_lower       => mpar_data%var(iLookPARAM%zmaxLayer3_lower),         & ! maximum layer depth for the 3rd layer when only 3 layers (m)
- zmaxLayer4_lower       => mpar_data%var(iLookPARAM%zmaxLayer4_lower),         & ! maximum layer depth for the 4th layer when only 4 layers (m)
- zmaxLayer1_upper       => mpar_data%var(iLookPARAM%zmaxLayer1_upper),         & ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
- zmaxLayer2_upper       => mpar_data%var(iLookPARAM%zmaxLayer2_upper),         & ! maximum layer depth for the 2nd layer when > 2 layers (m)
- zmaxLayer3_upper       => mpar_data%var(iLookPARAM%zmaxLayer3_upper),         & ! maximum layer depth for the 3rd layer when > 3 layers (m)
- zmaxLayer4_upper       => mpar_data%var(iLookPARAM%zmaxLayer4_upper),         & ! maximum layer depth for the 4th layer when > 4 layers (m)
  ! model parameters (compute layer temperature)
- fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale),            & ! freezing curve parameter for snow (K-1)
+ fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
+ ! model parameters (new snow density)
+ newSnowDenMin          => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1),       & ! minimum new snow density (kg m-3)
+ newSnowDenMult         => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1),      & ! multiplier for new snow density (kg m-3)
+ newSnowDenScal         => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1),      & ! scaling factor for new snow density (K)
+ ! model parameters (control the depth of snow layers)
+ zmax                   => mpar_data%var(iLookPARAM%zmax)%dat(1),                & ! maximum layer depth (m)
+ zmaxLayer1_lower       => mpar_data%var(iLookPARAM%zmaxLayer1_lower)%dat(1),    & ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
+ zmaxLayer2_lower       => mpar_data%var(iLookPARAM%zmaxLayer2_lower)%dat(1),    & ! maximum layer depth for the 2nd layer when only 2 layers (m)
+ zmaxLayer3_lower       => mpar_data%var(iLookPARAM%zmaxLayer3_lower)%dat(1),    & ! maximum layer depth for the 3rd layer when only 3 layers (m)
+ zmaxLayer4_lower       => mpar_data%var(iLookPARAM%zmaxLayer4_lower)%dat(1),    & ! maximum layer depth for the 4th layer when only 4 layers (m)
+ zmaxLayer1_upper       => mpar_data%var(iLookPARAM%zmaxLayer1_upper)%dat(1),    & ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
+ zmaxLayer2_upper       => mpar_data%var(iLookPARAM%zmaxLayer2_upper)%dat(1),    & ! maximum layer depth for the 2nd layer when > 2 layers (m)
+ zmaxLayer3_upper       => mpar_data%var(iLookPARAM%zmaxLayer3_upper)%dat(1),    & ! maximum layer depth for the 3rd layer when > 3 layers (m)
+ zmaxLayer4_upper       => mpar_data%var(iLookPARAM%zmaxLayer4_upper)%dat(1),    & ! maximum layer depth for the 4th layer when > 4 layers (m)
  ! diagnostic scalar variables
- scalarSnowfall         => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),     & ! snowfall flux (kg m-2 s-1)
- scalarSnowfallTemp     => diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1), & ! computed temperature of fresh snow (K)
- scalarSnowDepth        => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),    & ! total snow depth (m)
- scalarSWE              => prog_data%var(iLookPROG%scalarSWE)%dat(1)           & ! SWE (kg m-2)
+ scalarSnowfall         => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),       & ! snowfall flux (kg m-2 s-1)
+ scalarSnowfallTemp     => diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),   & ! computed temperature of fresh snow (K)
+ scalarSnowDepth        => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
+ scalarSWE              => prog_data%var(iLookPROG%scalarSWE)%dat(1)             & ! SWE (kg m-2)
  )  ! end associate statement
 
- ! --------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------
 
  ! initialize flag to denote that a layer was divided
  divideLayer=.false.
@@ -231,14 +231,14 @@ contains
     select case(model_decisions(iLookDECISIONS%alb_method)%iDecision)
      ! (constant decay rate -- albedo the same for all spectral bands)
      case(constantDecay)
-      prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)          = mpar_data%var(iLookPARAM%albedoMax)
-      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(:) = mpar_data%var(iLookPARAM%albedoMax)
+      prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)          = mpar_data%var(iLookPARAM%albedoMax)%dat(1)
+      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(:) = mpar_data%var(iLookPARAM%albedoMax)%dat(1)
      ! (variable decay rate)
      case(variableDecay)
-      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixVisible) = mpar_data%var(iLookPARAM%albedoMaxVisible)
-      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixNearIR)  = mpar_data%var(iLookPARAM%albedoMaxNearIR)
-      prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)                  = (        mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxVisible) + &
-                                                                          (1._dp - mpar_data%var(iLookPARAM%Frad_vis))*mpar_data%var(iLookPARAM%albedoMaxNearIR)
+      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixVisible) = mpar_data%var(iLookPARAM%albedoMaxVisible)%dat(1)
+      prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixNearIR)  = mpar_data%var(iLookPARAM%albedoMaxNearIR)%dat(1)
+      prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)                  = (        mpar_data%var(iLookPARAM%Frad_vis)%dat(1))*mpar_data%var(iLookPARAM%albedoMaxVisible)%dat(1) + &
+                                                                          (1._dp - mpar_data%var(iLookPARAM%Frad_vis)%dat(1))*mpar_data%var(iLookPARAM%albedoMaxNearIR)%dat(1)
      case default; err=20; message=trim(message)//'unable to identify option for snow albedo'; return
     end select  ! identify option for snow albedo
     ! set direct albedo to diffuse albedo

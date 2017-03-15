@@ -20,8 +20,7 @@
 
 MODULE var_lookup
  ! defines named variables used to index array elements
- USE nrtype
- USE multiconst,only:integerMissing 
+ USE nrtype, integerMissing=>nr_integerMissing
  implicit none
  private
  ! local variables
@@ -425,6 +424,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarVGn_m                     = integerMissing ! van Genuchten "m" parameter (-)
   integer(i4b)    :: scalarKappa                     = integerMissing ! constant in the freezing curve function (m K-1)
   integer(i4b)    :: scalarVolLatHt_fus              = integerMissing ! volumetric latent heat of fusion     (J m-3)
+  ! number of function evaluations
+  integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -704,6 +705,7 @@ MODULE var_lookup
   integer(i4b)    :: ifcSnow   = integerMissing ! interface snow variables
   integer(i4b)    :: ifcSoil   = integerMissing ! interface soil variables
   integer(i4b)    :: ifcToto   = integerMissing ! interface, snow and soil
+  integer(i4b)    :: parSoil   = integerMissing ! soil depth
   integer(i4b)    :: routing   = integerMissing ! routing variables
   integer(i4b)    :: outstat   = integerMissing ! output statistic
   integer(i4b)    :: unknown   = integerMissing ! cath-cal alternative type
@@ -775,7 +777,8 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72, 73, 74, 75, 76, 77, 78, 79, 80)
+                                                                         71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
+                                                                         81)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -809,7 +812,8 @@ MODULE var_lookup
                                                                          11) 
 
  ! named variables in varibale type structure
- type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11)
+ type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+                                                                         11, 12)
 
  ! number of possible output statistics
  type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
