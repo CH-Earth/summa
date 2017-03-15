@@ -35,6 +35,7 @@ contains
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
  USE ascii_util_module,only:file_open                ! open file
  USE ascii_util_module,only:split_line               ! extract the list of variable names from the character string
+ USE ascii_util_module,only:linewidth                ! max character number for one line
  USE ascii_util_module,only:get_vlines               ! get a list of character strings from non-comment lines
  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
  USE data_types,only:gru_hru_int                     ! spatial integer data type: x%hru(:)%var(:)
@@ -45,32 +46,32 @@ contains
  USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
  implicit none
  ! define input
- integer(i4b),        intent(in)    :: nHRU             ! number of global HRUs
- type(gru_hru_int),   intent(in)    :: typeStruct       ! local classification of soil veg etc. for each HRU
+ integer(i4b),        intent(in)      :: nHRU             ! number of global HRUs
+ type(gru_hru_int),   intent(in)      :: typeStruct       ! local classification of soil veg etc. for each HRU
  ! define output
- type(gru_hru_double),intent(inout) :: mparStruct       ! model parameters
- type(gru_double)    ,intent(inout) :: bparStruct       ! basin parameters
- integer(i4b),        intent(out)   :: err              ! error code
- character(*),        intent(out)   :: message          ! error message
+ type(gru_hru_double),intent(inout)   :: mparStruct       ! model parameters
+ type(gru_double)    ,intent(inout)   :: bparStruct       ! basin parameters
+ integer(i4b),        intent(out)     :: err              ! error code
+ character(*),        intent(out)     :: message          ! error message
  ! define local variables
- character(len=1024)                :: cmessage         ! error message for downwind routine
- character(LEN=1024)                :: infile           ! input filename
- integer(i4b)                       :: unt              ! file unit (free unit output from file_open)
- integer(i4b)                       :: iline            ! loop through lines in the file
- integer(i4b),parameter             :: maxLines=1000    ! maximum lines in the file
- integer(i4b)                       :: iend             ! check for the end of the file
- integer(i4b),parameter             :: sLen=4096        ! string length for line of parameter data
- character(LEN=sLen)                :: temp             ! single line of information
- character(LEN=sLen),allocatable    :: charline(:)      ! vector of character strings
- character(LEN=64),allocatable      :: varnames(:)      ! vector of variable names
- character(LEN=64),allocatable      :: chardata(:)      ! vector of character data
- logical(lgt)                       :: foundHRU(nHRU)   ! vector of flags to check that an HRU has been found in parameter data
- integer(i4b)                       :: hruIndex         ! HRU identifier in the file
- integer(i4b)                       :: iHRU             ! index of HRU within data vector
- integer(i4b)                       :: localHRU,iGRU    ! index of HRU and GRU within data structure
- integer(i4b)                       :: ipar,jpar        ! index of model parameter
- integer(i4b)                       :: nPars            ! number of model parameters
- integer(i4b)                       :: nDataLine        ! number of data lines in the file
+ character(len=1024)                  :: cmessage         ! error message for downwind routine
+ character(LEN=1024)                  :: infile           ! input filename
+ integer(i4b)                         :: unt              ! file unit (free unit output from file_open)
+ integer(i4b)                         :: iline            ! loop through lines in the file
+ integer(i4b),parameter               :: maxLines=1000    ! maximum lines in the file
+ integer(i4b)                         :: iend             ! check for the end of the file
+ integer(i4b),parameter               :: sLen=linewidth   ! string length for line of parameter data
+ character(LEN=linewidth)             :: temp             ! single line of information
+ character(LEN=linewidth),allocatable :: charline(:)      ! vector of character strings
+ character(LEN=64),allocatable        :: varnames(:)      ! vector of variable names
+ character(LEN=64),allocatable        :: chardata(:)      ! vector of character data
+ logical(lgt)                         :: foundHRU(nHRU)   ! vector of flags to check that an HRU has been found in parameter data
+ integer(i4b)                         :: hruIndex         ! HRU identifier in the file
+ integer(i4b)                         :: iHRU             ! index of HRU within data vector
+ integer(i4b)                         :: localHRU,iGRU    ! index of HRU and GRU within data structure
+ integer(i4b)                         :: ipar,jpar        ! index of model parameter
+ integer(i4b)                         :: nPars            ! number of model parameters
+ integer(i4b)                         :: nDataLine        ! number of data lines in the file
  ! Start procedure here
  err=0; message="read_param/"
 

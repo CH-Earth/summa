@@ -41,6 +41,7 @@ contains
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
  USE globalData,only:forc_meta               ! forcing metadata
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
+ USE ascii_util_module,only:linewidth        ! max character number for one line
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
  USE multiconst,only:integerMissing          ! integer missing value
@@ -60,7 +61,7 @@ contains
  integer(i4b)                         :: iNC            ! index of a variable in netcdf file
  integer(i4b)                         :: nvar           ! number of variables in netcdf local attribute file
  ! the rest
- character(LEN=1024),allocatable      :: dataLines(:)   ! vector of lines of information (non-comment lines)
+ character(LEN=linewidth),allocatable :: dataLines(:)   ! vector of lines of information (non-comment lines)
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
