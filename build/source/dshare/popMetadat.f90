@@ -563,7 +563,7 @@ contains
  ! -----
  ! * basin-wide runoff and aquifer fluxes...
  ! -----------------------------------------
- bvar_meta(iLookBVAR%basin__totalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                       , 'm2'    , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ bvar_meta(iLookBVAR%basin__TotalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                       , 'm2'    , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  bvar_meta(iLookBVAR%basin__SurfaceRunoff)    = var_info('basin__SurfaceRunoff'   , 'surface runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  bvar_meta(iLookBVAR%basin__ColumnOutflow)    = var_info('basin__ColumnOutflow'   , 'outflow from all "outlet" HRUs (with no downstream HRU)', 'm3 s-1', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  bvar_meta(iLookBVAR%basin__AquiferStorage)   = var_info('basin__AquiferStorage'  , 'aquifer storage'                                        , 'm'     , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
