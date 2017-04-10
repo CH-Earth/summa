@@ -159,6 +159,10 @@ contains
   err=20; return
  endif
  
+ ! **********************************************************************************************
+ ! * read the HRU index
+ ! **********************************************************************************************
+
  ! loop through the parameters in the NetCDF file
  do ivarid=1,nVars
 
@@ -166,9 +170,7 @@ contains
   err=nf90_inquire_variable(ncid, ivarid, name=parName)
   call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
 
-  ! **********************************************************************************************
-  ! * read the HRU index
-  ! **********************************************************************************************
+  print*, trim(parName)
 
   ! special case of the HRU id
   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
@@ -207,142 +209,150 @@ contains
      err=20; return
     endif
 
+   ! error check
    else 
     err = 20; message = 'run mode not recognized'; return;
    end if
 
-  ! all other variables
-  else
+  endif   ! if the HRU id
+
+ end do  ! looping through variables in the file
+
+ ! **********************************************************************************************
+ ! * read the local parameters and the basin parameters
+ ! **********************************************************************************************
+
+ ! loop through the parameters in the NetCDF file
+ do ivarid=1,nVars
+
+  ! get the parameter name
+  err=nf90_inquire_variable(ncid, ivarid, name=parName)
+  call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
+
+  ! get the local parameters
+  ixParam = get_ixparam( trim(parName) )
+  if(ixParam/=integerMissing)then
 
    ! **********************************************************************************************
    ! * read the local parameters
    ! **********************************************************************************************
 
-   ! get the local parameters
-   ixParam = get_ixparam( trim(parName) )
-   if(ixParam/=integerMissing)then
+   ! get the variable shape
+   err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-    ! get the variable shape
-    err=nf90_inquire_variable(ncid, ivarid, nDims=nDims, dimids=idim_list)
+   ! get the length of the depth dimension (if it exists)
+   if(nDims==2)then
+ 
+    ! get the information on the 2nd dimension for 2-d variables
+    err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  
-    ! get the length of the depth dimension (if it exists)
-    if(nDims==2)then
-  
-     ! get the information on the 2nd dimension for 2-d variables
-     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     
-     ! check that it is the depth dimension
-     if(trim(dimName)/='depth')then
-      message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
-      err=20; return
-     endif
-  
-     ! check that the dimension length is correct
-     if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
-      message=trim(message)//'unexpected number of soil layers in parameter file'
-      err=20; return
-     endif
- 
-     ! define parameter length
-     parLength = nSoil_file
- 
-    else
-     parLength = 1
-    endif  ! if two dimensions
-  
-    ! allocate space for model parameters
-    allocate(parVector(parLength),stat=err)
-    if(err/=0)then
-     message=trim(message)//'problem allocating space for parameter vector'
+    
+    ! check that it is the depth dimension
+    if(trim(dimName)/='depth')then
+     message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
      err=20; return
     endif
 
-    ! loop through HRUs
-    do iHRU=1,nHRU
-  
-     ! map to the GRUs and HRUs    
-     iGRU=index_map(iHRU)%gru_ix
-     localHRU=index_map(iHRU)%localHRU
-     fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
-
-     ! read parameter data
-     select case(nDims)
-      case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU/), count=(/1/) )
-      case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
-      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
-     end select
-
-     ! error check for the parameter read
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-     ! populate parameter structures
-     select case(nDims)
-      case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension 
-      case(2); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(:)
-      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
-     end select
-
-    end do  ! looping through HRUs
-
-    ! deallocate space for model parameters
-    deallocate(parVector,stat=err)
-    if(err/=0)then
-     message=trim(message)//'problem deallocating space for parameter vector'
+    ! check that the dimension length is correct
+    if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
+     message=trim(message)//'unexpected number of soil layers in parameter file'
      err=20; return
     endif
 
-   ! **********************************************************************************************
-   ! * read the basin parameters
-   ! **********************************************************************************************
+    ! define parameter length
+    parLength = nSoil_file
 
-   ! get the basin parameters
    else
+    parLength = 1
+   endif  ! if two dimensions
+ 
+   ! allocate space for model parameters
+   allocate(parVector(parLength),stat=err)
+   if(err/=0)then
+    message=trim(message)//'problem allocating space for parameter vector'
+    err=20; return
+   endif
 
-    ! get the parameter index
-    ixParam = get_ixbpar( trim(parName) )
-
-    ! check that we found it
-    if(ixParam==integerMissing)then
-     message=trim(message)//'parameter '//trim(parName)//' does not exist in the local or basin parameter structure'
-     err=20; return
-    endif
-
-    ! allocate space for model parameters
-    allocate(parVector(nGRU_file),stat=err)
-    if(err/=0)then
-     message=trim(message)//'problem allocating space for parameter vector'
-     err=20; return
-    endif
+   ! loop through HRUs
+   do iHRU=1,nHRU
+ 
+    ! map to the GRUs and HRUs    
+    iGRU=index_map(iHRU)%gru_ix
+    localHRU=index_map(iHRU)%localHRU
+    fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
 
     ! read parameter data
-    err=nf90_get_var(ncid, ivarid, parVector )
+    select case(nDims)
+     case(1); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU/), count=(/1/) )
+     case(2); err=nf90_get_var(ncid, ivarid, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
+     case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+    end select
+
+    ! error check for the parameter read
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! populate parameter structures
-    if (iRunMode==iRunModeGRU) then
-     do iGRU=1,nGRU
-      bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1) 
-     end do  ! looping through GRUs
-    else if (iRunMode==iRunModeFull) then
-     do iGRU=1,nGRU
-      bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
-     end do  ! looping through GRUs
-    else if (iRunMode==iRunModeHRU) then
-     err = 20; message='checkHRU run mode not working'; return; 
-    endif
+    select case(nDims)
+     case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension 
+     case(2); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(:)
+     case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+    end select
 
-    ! deallocate space for model parameters
-    deallocate(parVector,stat=err)
-    if(err/=0)then
-     message=trim(message)//'problem deallocating space for parameter vector'
-     err=20; return
-    endif
+   end do  ! looping through HRUs
 
-   endif  ! reading the basin parameters
+   ! deallocate space for model parameters
+   deallocate(parVector,stat=err)
+   if(err/=0)then
+    message=trim(message)//'problem deallocating space for parameter vector'
+    err=20; return
+   endif
 
-  endif  ! if a "regular" parameter (i.e., not the HRU index)
+  ! **********************************************************************************************
+  ! * read the basin parameters
+  ! **********************************************************************************************
+
+  ! get the basin parameters
+  else
+
+   ! get the parameter index
+   ixParam = get_ixbpar( trim(parName) )
+
+   ! allow extra variables in the file that are not used
+   if(ixParam==integerMissing) cycle
+
+   ! allocate space for model parameters
+   allocate(parVector(nGRU_file),stat=err)
+   if(err/=0)then
+    message=trim(message)//'problem allocating space for parameter vector'
+    err=20; return
+   endif
+
+   ! read parameter data
+   err=nf90_get_var(ncid, ivarid, parVector )
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+   ! populate parameter structures
+   if (iRunMode==iRunModeGRU) then
+    do iGRU=1,nGRU
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1) 
+    end do  ! looping through GRUs
+   else if (iRunMode==iRunModeFull) then
+    do iGRU=1,nGRU
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
+    end do  ! looping through GRUs
+   else if (iRunMode==iRunModeHRU) then
+    err = 20; message='checkHRU run mode not working'; return; 
+   endif
+
+   ! deallocate space for model parameters
+   deallocate(parVector,stat=err)
+   if(err/=0)then
+    message=trim(message)//'problem deallocating space for parameter vector'
+    err=20; return
+   endif
+
+  endif  ! reading the basin parameters
 
  end do ! (looping through the parameters in the NetCDF file)
 
