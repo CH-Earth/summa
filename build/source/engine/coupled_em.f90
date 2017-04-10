@@ -451,7 +451,6 @@ contains
                  ! output: error control
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
- !print*, 'after canopySnow: canopyIce = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
 
  ! adjust canopy temperature to account for new snow
  call tempAdjust(&
@@ -749,7 +748,7 @@ contains
    dt_sub = dtSave/2._dp
    ! check that the step is not tiny
    if(dt_sub < minstep)then
-print*,ixSolution
+    print*,ixSolution
     message=trim(message)//'length of the coupled step is below the minimum step length'
     err=20; return
    endif
