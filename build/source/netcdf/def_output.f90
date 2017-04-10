@@ -70,6 +70,7 @@ contains
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
+ USE globalData,only:model_decisions                          ! model decisions
  USE globalData,only:ncid
  USE globalData,only:nFreq,outFreq                            ! output frequencies
  ! declare dummy variables
@@ -79,6 +80,7 @@ contains
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
  ! local variables
+ integer(i4b)                :: ivar                          ! loop through model decisions
  integer(i4b)                :: iFreq                         ! loop through output frequencies
  integer(i4b)                :: iStruct                       ! loop through structure types 
  integer(i4b),parameter      :: modelTime=1                   ! model timestep output frequency
@@ -103,9 +105,18 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print "(A,A)",'Created output file:',trim(fname)
 
+  ! define model decisions
+  do iVar = 1,size(model_decisions)
+   if(model_decisions(iVar)%iDecision.ne.integerMissing)then
+    call put_attrib(ncid(modelTime),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   end if
+  end do
+
   ! ensure that all time variables are written to all files
   time_meta(:)%outFreq = iFreq
 
+  ! define variables
   do iStruct = 1,size(structInfo)
    select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU

@@ -574,7 +574,7 @@ contains
   end do ! iGRU
  end do ! iHRU
 
- ! close file 
+ ! close file
  call nc_file_close(ncid,err,cmessage)
  if(err/=0)then;message=trim(message)//trim(cmessage);return;end if
 
