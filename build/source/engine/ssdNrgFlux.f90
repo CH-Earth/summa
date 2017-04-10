@@ -110,7 +110,7 @@ contains
  ! input: trial value of model state variables
  real(dp),intent(in)             :: mLayerTempTrial(:)         ! trial temperature of each snow/soil layer at the current iteration (K)
  ! input-output: data structures
- type(var_d),intent(in)          :: mpar_data                  ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                  ! model parameters
  type(var_ilength),intent(in)    :: indx_data                  ! state vector geometry
  type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
  type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
@@ -140,7 +140,7 @@ contains
   mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
   mLayerHeight         => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
   iLayerThermalC       => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
-  lowerBoundTemp       => mpar_data%var(iLookPARAM%lowerBoundTemp),             & ! intent(in): temperature of the lower boundary (K)
+  lowerBoundTemp       => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in): temperature of the lower boundary (K)
   ! output: diagnostic fluxes
   iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,    & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
   iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat      & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)

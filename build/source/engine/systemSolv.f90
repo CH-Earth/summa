@@ -27,9 +27,9 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
-USE multiconst,only:quadMissing     ! missing quadruple precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
@@ -157,7 +157,7 @@ contains
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
  type(var_d),intent(in)          :: forc_data                     ! model forcing data
- type(var_d),intent(in)          :: mpar_data                     ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                     ! model parameters
  type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
  type(var_dlength),intent(inout) :: prog_data                     ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                     ! diagnostic variables for a local HRU
@@ -268,7 +268,7 @@ contains
  reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step 
 
  ! define maximum number of iterations
- maxiter = nint(mpar_data%var(iLookPARAM%maxiter))
+ maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
 
  ! modify the groundwater representation for this single-column implementation
  select case(ixSpatialGroundwater)
@@ -388,7 +388,7 @@ contains
                  fOld,                    & ! intent(out):   function evaluation
                  err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
+
  ! check feasibility (state vector SHOULD be feasible at this point)
  if(.not.feasible)then
   reduceCoupledStep=.true.
@@ -920,7 +920,7 @@ contains
  implicit none
  ! input
  type(var_ilength),intent(in)  :: indx_data         ! state indices
- type(var_d)      ,intent(in)  :: mpar_data         ! model parameters
+ type(var_dlength),intent(in)  :: mpar_data         ! model parameters
  type(var_dlength),intent(in)  :: prog_data         ! model prognostic variables
  real(dp)         ,intent(in)  :: stateVecInit(:)   ! initial state vector   
  real(dp)         ,intent(in)  :: stateVecUpdate(:) ! state vector update
@@ -939,8 +939,8 @@ contains
 
  ! make association with model indices defined in indexSplit
  associate(&
-  theta_sat           => mpar_data%var(iLookPARAM%theta_sat),                & ! intent(in): [dp]     soil porosity (-)
-  theta_res           => mpar_data%var(iLookPARAM%theta_res),                & ! intent(in): [dp]     soil residual volumetric water content (-)
+  theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in): [dp]     soil porosity (-)
+  theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat,            & ! intent(in): [dp]     soil residual volumetric water content (-)
   mLayerVolFracIce    => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,      & ! intent(in): [dp(:)]  volumetric fraction of ice (-)
   ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat,      & ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
   ixMapSubset2Full    => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat,     & ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
@@ -979,8 +979,8 @@ contains
      valueMin = 0._dp
      valueMax = merge(iden_ice/iden_water, 1._dp - mLayerVolFracIce(ixControlIndex), ixStateType_subset(iState)==iname_watLayer)
     case(iname_soil)
-     valueMin = theta_res
-     valueMax = theta_sat
+     valueMin = theta_res(ixControlIndex)
+     valueMax = theta_sat(ixControlIndex)
     case default; err=20; message=trim(message)//'expect domain type to be iname_snow or iname_soil'; return
    end select
    if(stateVecNew(iState) < valueMin)then

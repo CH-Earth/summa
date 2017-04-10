@@ -21,6 +21,7 @@
 module ffile_info_module
 USE nrtype
 USE netcdf
+USE globalData,only:integerMissing
 implicit none
 private
 public::ffile_info
@@ -43,7 +44,6 @@ contains
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
- USE multiconst,only:integerMissing          ! integer missing value
  USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output

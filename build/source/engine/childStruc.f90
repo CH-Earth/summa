@@ -20,7 +20,7 @@
 
 module childStruc_module
 USE nrtype
-USE multiconst,only:integerMissing ! missing value
+USE globalData,only:integerMissing ! missing value
 USE nr_utility_module,only:arth    ! get a sequence of numbers
 
 implicit none

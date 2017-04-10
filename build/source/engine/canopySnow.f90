@@ -70,7 +70,7 @@ contains
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: forc_data           ! model forcing data
- type(var_d),intent(in)          :: mpar_data           ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_dlength),intent(in)    :: diag_data           ! model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data           ! model flux variables
@@ -107,9 +107,9 @@ contains
  scalarAirtemp             => forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): [dp] air temperature (K)
 
  ! model parameters
- refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow),               & ! intent(in): [dp] reference canopy interception capacity for snow per unit leaf area (kg m-2)
- ratioDrip2Unloading       => mpar_data%var(iLookPARAM%ratioDrip2Unloading),               & ! intent(in): [dp] ratio of canopy drip to snow unloading (-)
- snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff),                & ! intent(in): [dp] time constant for unloading of snow from the forest canopy (s-1)
+ refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1),        & ! intent(in): [dp] reference canopy interception capacity for snow per unit leaf area (kg m-2)
+ ratioDrip2Unloading       => mpar_data%var(iLookPARAM%ratioDrip2Unloading)%dat(1),        & ! intent(in): [dp] ratio of canopy drip to snow unloading (-)
+ snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff)%dat(1),         & ! intent(in): [dp] time constant for unloading of snow from the forest canopy (s-1)
 
  ! model diagnostic variables
  scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),        & ! intent(in): [dp] density of new snow (kg m-3)

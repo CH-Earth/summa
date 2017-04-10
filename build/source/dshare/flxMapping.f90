@@ -16,15 +16,15 @@ contains
  USE globalData, only: flux2state_orig ! data structure for flux-to-state mapping (original state variables)
  USE globalData, only: flux2state_liq  ! data structure for flux-to-state mapping (liquid water state variables)
  ! named variables to describe the state variable type
- USE globalData,only:iname_nrgCanair   ! named variable defining the energy of the canopy air space
- USE globalData,only:iname_nrgCanopy   ! named variable defining the energy of the vegetation canopy
- USE globalData,only:iname_watCanopy   ! named variable defining the mass of total water on the vegetation canopy
- USE globalData,only:iname_liqCanopy   ! named variable defining the mass of liquid water on the vegetation canopy
- USE globalData,only:iname_nrgLayer    ! named variable defining the energy state variable for snow+soil layers
- USE globalData,only:iname_watLayer    ! named variable defining the total water state variable for snow+soil layers
- USE globalData,only:iname_liqLayer    ! named variable defining the liquid  water state variable for snow+soil layers
- USE globalData,only:iname_matLayer    ! named variable defining the matric head state variable for soil layers
- USE globalData,only:iname_lmpLayer    ! named variable defining the liquid matric potential state variable for soil layers
+ USE globalData, only: iname_nrgCanair ! named variable defining the energy of the canopy air space
+ USE globalData, only: iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
+ USE globalData, only: iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
+ USE globalData, only: iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
+ USE globalData, only: iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
+ USE globalData, only: iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
+ USE globalData, only: iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+ USE globalData, only: iname_matLayer  ! named variable defining the matric head state variable for soil layers
+ USE globalData, only: iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
  ! access missing values
  USE globalData,only:integerMissing    ! missing integer
  implicit none
@@ -33,16 +33,20 @@ contains
  character(*),intent(out)       :: message             ! error message
  ! local variables
  integer(i4b)                   :: iVar                ! variable index
+ integer(i4b)                   :: nFlux               ! number of fluxes
  integer(i4b),parameter         :: integerUndefined=0  ! named variable to denote that the flux is undefined
  ! initialize error control
  err=0; message='flxMapping/'
+
+ ! get the number of fluxes
+ nFlux = size(flux_meta)
 
  ! -----
  ! - original state variables...
  ! -----------------------------
 
  ! ** initialize flux-to-state mapping
- do iVar=1,size(flux_meta)
+ do iVar=1,nFlux
   flux2state_orig(iVar)%state1 = integerUndefined
   flux2state_orig(iVar)%state2 = integerUndefined
  end do
@@ -160,12 +164,12 @@ contains
  flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! ** copy across flux metadata
- do iVar=1,size(flux_meta)
+ do iVar=1,nFlux
   flux2state_orig(iVar)%var_info = flux_meta(iVar)
  end do
 
  ! ** check all variables are defined
- do iVar=1,size(flux_meta)
+ do iVar=1,nFlux
   if(flux2state_orig(iVar)%state1==integerUndefined .or. flux2state_orig(iVar)%state2==integerUndefined)then
    message=trim(message)//'flux-to-state mapping is undefined for variable "'//trim(flux_meta(iVar)%varname)//'"'
    err=20; return
@@ -177,13 +181,13 @@ contains
  ! ---------------------------------
 
  ! initialize to the original structure
- do iVar=1,size(flux_meta)
+ do iVar=1,nFlux
   flux2state_liq(iVar)%state1 = flux2state_orig(iVar)%state1 
   flux2state_liq(iVar)%state2 = flux2state_orig(iVar)%state2
  end do
 
  ! modify the state type names associated with the flux mapping structure
- do iVar=1,size(flux_meta)
+ do iVar=1,nFlux
   ! (mass of total water on the vegetation canopy --> mass of liquid water)
   if(flux2state_liq(iVar)%state1==iname_watCanopy) flux2state_liq(iVar)%state1=iname_liqCanopy
   if(flux2state_liq(iVar)%state2==iname_watCanopy) flux2state_liq(iVar)%state2=iname_liqCanopy
@@ -196,7 +200,7 @@ contains
  end do
 
  ! copy across flux metadata
- do iVar=1,size(flux_meta)
+ do iVar=1,nFlux
   flux2state_liq(iVar)%var_info = flux_meta(iVar)
  end do
 

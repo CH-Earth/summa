@@ -24,8 +24,8 @@ module computFlux_module
 USE nrtype
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! layer types
 USE globalData,only:iname_snow      ! named variables for snow
@@ -180,7 +180,7 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)          ! model decisions
  type(var_i),        intent(in)  :: type_data                   ! type of vegetation and soil
  type(var_d),        intent(in)  :: attr_data                   ! spatial attributes
- type(var_d),        intent(in)  :: mpar_data                   ! model parameters
+ type(var_dlength),  intent(in)  :: mpar_data                   ! model parameters
  type(var_d),        intent(in)  :: forc_data                   ! model forcing data
  type(var_dlength),  intent(in)  :: bvar_data                   ! model variables for the local basin
  type(var_dlength),  intent(in)  :: prog_data                   ! prognostic variables for a local HRU
@@ -247,20 +247,16 @@ contains
  nSoilOnlyHyd                 => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
 
  ! snow parameters
- snowfrz_scale                => mpar_data%var(iLookPARAM%snowfrz_scale)                         ,& ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
-
- ! soil parameters
- vGn_m                        => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)                     ,&  ! intent(in): [dp] van Genutchen "m" parameter (-)
- vGn_n                        => mpar_data%var(iLookPARAM%vGn_n)                                 ,&  ! intent(in): [dp] van Genutchen "n" parameter (-)
- vGn_alpha                    => mpar_data%var(iLookPARAM%vGn_alpha)                             ,&  ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
- theta_sat                    => mpar_data%var(iLookPARAM%theta_sat)                             ,&  ! intent(in): [dp] soil porosity (-)
- theta_res                    => mpar_data%var(iLookPARAM%theta_res)                             ,&  ! intent(in): [dp] soil residual volumetric water content (-)
+ snowfrz_scale                => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)                  ,& ! intent(in): [dp] scaling parameter for the snow freezing curve (K-1)
 
  ! derivatives
  dPsiLiq_dPsi0                => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0   )%dat                 ,&  ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
  dPsiLiq_dTemp                => deriv_data%var(iLookDERIV%dPsiLiq_dTemp   )%dat                 ,&  ! intent(in):  [dp(:)] derivative in the liquid water matric potential w.r.t. temperature
  mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat                 ,&  ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
  dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)              ,&  ! intent(in):  [dp]    derivative of volumetric liquid water content w.r.t. temperature
+
+ ! number of flux calls
+ numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1)                    ,&  ! intent(out): [dp] number of flux calls (-) 
 
  ! net fluxes over the vegetation domain
  scalarCanairNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)          ,&  ! intent(out): [dp] net energy flux for the canopy air space        (W m-2)
@@ -363,6 +359,9 @@ contains
  ! *****
  ! * PRELIMINARIES... 
  ! ******************
+
+ ! increment the number of flux calls
+ numFluxCalls = numFluxCalls+1
 
  ! modify the groundwater representation for this single-column implementation
  select case(ixSpatialGroundwater)
@@ -821,7 +820,7 @@ contains
  real(dp),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
  real(dp),intent(in)            :: mLayerdTheta_dPsi(:)      ! derivative in the soil water characteristic (m-1)
  real(dp),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
- real(dp),intent(in)            :: theta_sat                 ! soil porosity (-)
+ real(dp),intent(in)            :: theta_sat(:)              ! soil porosity (-)
  ! output:
  real(dp),intent(out)           :: compress(:)               ! soil compressibility (-)
  real(dp),intent(out)           :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
@@ -841,13 +840,13 @@ contains
    ! compute the total volumetric fraction of water (-)
    volFracWat = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)
    ! compute the compressibility term (-)
-   compress(iLayer) = (specificStorage*volFracWat/theta_sat) * (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))
+   compress(iLayer) = (specificStorage*volFracWat/theta_sat(iLayer)) * (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))
    ! compute the derivative for the compressibility term (m-1)
-   fPart1 = specificStorage*(volFracWat/theta_sat)  ! function for the 1st part (m-1)
-   fPart2 = mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer)   ! function for the 2nd part (m)
-   dPart1 = mLayerdTheta_dPsi(iLayer)*specificStorage/theta_sat        ! derivative for the 1st part (m-2)
-   dPart2 = 1._dp                                                      ! derivative for the 2nd part (-)
-   dCompress_dPsi(iLayer) = fPart1*dPart2 + dPart1*fPart2              ! m-1
+   fPart1 = specificStorage*(volFracWat/theta_sat(iLayer))  ! function for the 1st part (m-1)
+   fPart2 = mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer)     ! function for the 2nd part (m)
+   dPart1 = mLayerdTheta_dPsi(iLayer)*specificStorage/theta_sat(iLayer)  ! derivative for the 1st part (m-2)
+   dPart2 = 1._dp                                                        ! derivative for the 2nd part (-)
+   dCompress_dPsi(iLayer) = fPart1*dPart2 + dPart1*fPart2                ! m-1
   end do
  else
   compress(:)       = 0._dp

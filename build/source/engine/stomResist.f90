@@ -118,7 +118,7 @@ contains
  ! input: data structures
  type(var_i),intent(in)          :: type_data                 ! type of vegetation and soil
  type(var_d),intent(in)          :: forc_data                 ! model forcing data
- type(var_d),intent(in)          :: mpar_data                 ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                 ! model parameters
  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
  ! input-output: data structures
  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
@@ -146,8 +146,8 @@ contains
 
  ! input: physical attributes
  vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                          & ! intent(in): [i4b] vegetation type index
- minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance),                & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
- vcmax25_canopyTop               => mpar_data%var(iLookPARAM%vcmax25_canopyTop),                    & ! intent(in): [dp] potential carboxylation rate at 25 degrees C at the canopy top (umol co2 m-2 s-1)
+ minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
+ vcmax25_canopyTop               => mpar_data%var(iLookPARAM%vcmax25_canopyTop)%dat(1),             & ! intent(in): [dp] potential carboxylation rate at 25 degrees C at the canopy top (umol co2 m-2 s-1)
 
  ! input: forcing at the upper boundary
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
@@ -358,7 +358,7 @@ contains
  real(dp),intent(in)             :: absorbedPAR                ! absorbed PAR (W m-2)
  ! input: data structures
  type(var_d),intent(in)          :: forc_data                  ! model forcing data
- type(var_d),intent(in)          :: mpar_data                  ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                  ! model parameters
  type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: flux_data                  ! model fluxes for a local HRU
  type(model_options),intent(in)  :: model_decisions(:)         ! model decisions
@@ -441,27 +441,27 @@ contains
  ix_bbCanIntg8                   => model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision,           & ! intent(in): [i4b] scaling of photosynthesis from the leaf to the canopy 
 
  ! input: model parameters
- Kc25                            => mpar_data%var(iLookPARAM%Kc25),                                 & ! intent(in): [dp] Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
- Ko25                            => mpar_data%var(iLookPARAM%Ko25),                                 & ! intent(in): [dp] Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
- Kc_qFac                         => mpar_data%var(iLookPARAM%Kc_qFac),                              & ! intent(in): [dp] factor in the q10 function defining temperature controls on Kc (-)
- Ko_qFac                         => mpar_data%var(iLookPARAM%Ko_qFac),                              & ! intent(in): [dp] factor in the q10 function defining temperature controls on Ko (-)
- kc_Ha                           => mpar_data%var(iLookPARAM%kc_Ha),                                & ! intent(in): [dp] activation energy for the Michaelis-Menten constant for CO2 (J mol-1)
- ko_Ha                           => mpar_data%var(iLookPARAM%ko_Ha),                                & ! intent(in): [dp] activation energy for the Michaelis-Menten constant for O2 (J mol-1)
- vcmax25_canopyTop               => mpar_data%var(iLookPARAM%vcmax25_canopyTop),                    & ! intent(in): [dp] potential carboxylation rate at 25 degrees C at the canopy top (umol co2 m-2 s-1)
- vcmax_qFac                      => mpar_data%var(iLookPARAM%vcmax_qFac),                           & ! intent(in): [dp] factor in the q10 function defining temperature controls on vcmax (-)
- vcmax_Ha                        => mpar_data%var(iLookPARAM%vcmax_Ha),                             & ! intent(in): [dp] activation energy in the vcmax function (J mol-1)
- vcmax_Hd                        => mpar_data%var(iLookPARAM%vcmax_Hd),                             & ! intent(in): [dp] deactivation energy in the vcmax function (J mol-1)
- vcmax_Sv                        => mpar_data%var(iLookPARAM%vcmax_Sv),                             & ! intent(in): [dp] entropy term in the vcmax function (J mol-1 K-1)
- vcmax_Kn                        => mpar_data%var(iLookPARAM%vcmax_Kn),                             & ! intent(in): [dp] foliage nitrogen decay coefficient (-) 
- jmax25_scale                    => mpar_data%var(iLookPARAM%jmax25_scale),                         & ! intent(in): [dp] scaling factor to relate jmax25 to vcmax25 (-)
- jmax_Ha                         => mpar_data%var(iLookPARAM%jmax_Ha),                              & ! intent(in): [dp] activation energy in the jmax function (J mol-1)
- jmax_Hd                         => mpar_data%var(iLookPARAM%jmax_Hd),                              & ! intent(in): [dp] deactivation energy in the jmax function (J mol-1)
- jmax_Sv                         => mpar_data%var(iLookPARAM%jmax_Sv),                              & ! intent(in): [dp] entropy term in the jmax function (J mol-1 K-1)
- fractionJ                       => mpar_data%var(iLookPARAM%fractionJ),                            & ! intent(in): [dp] fraction of light lost by other than the chloroplast lamellae (-)
- quantamYield                    => mpar_data%var(iLookPARAM%quantamYield),                         & ! intent(in): [dp] quantam yield (mol e mol-1 q)
- vpScaleFactor                   => mpar_data%var(iLookPARAM%vpScaleFactor),                        & ! intent(in): [dp] vapor pressure scaling factor in stomatal conductance function (Pa)
- cond2photo_slope                => mpar_data%var(iLookPARAM%cond2photo_slope),                     & ! intent(in): [dp] slope of conductance-photosynthesis relationship (-)
- minStomatalConductance          => mpar_data%var(iLookPARAM%minStomatalConductance),               & ! intent(in): [dp] mimimum stomatal conductance (umol H2O m-2 s-1)
+ Kc25                            => mpar_data%var(iLookPARAM%Kc25)%dat(1),                          & ! intent(in): [dp] Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
+ Ko25                            => mpar_data%var(iLookPARAM%Ko25)%dat(1),                          & ! intent(in): [dp] Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
+ Kc_qFac                         => mpar_data%var(iLookPARAM%Kc_qFac)%dat(1),                       & ! intent(in): [dp] factor in the q10 function defining temperature controls on Kc (-)
+ Ko_qFac                         => mpar_data%var(iLookPARAM%Ko_qFac)%dat(1),                       & ! intent(in): [dp] factor in the q10 function defining temperature controls on Ko (-)
+ kc_Ha                           => mpar_data%var(iLookPARAM%kc_Ha)%dat(1),                         & ! intent(in): [dp] activation energy for the Michaelis-Menten constant for CO2 (J mol-1)
+ ko_Ha                           => mpar_data%var(iLookPARAM%ko_Ha)%dat(1),                         & ! intent(in): [dp] activation energy for the Michaelis-Menten constant for O2 (J mol-1)
+ vcmax25_canopyTop               => mpar_data%var(iLookPARAM%vcmax25_canopyTop)%dat(1),             & ! intent(in): [dp] potential carboxylation rate at 25 degrees C at the canopy top (umol co2 m-2 s-1)
+ vcmax_qFac                      => mpar_data%var(iLookPARAM%vcmax_qFac)%dat(1),                    & ! intent(in): [dp] factor in the q10 function defining temperature controls on vcmax (-)
+ vcmax_Ha                        => mpar_data%var(iLookPARAM%vcmax_Ha)%dat(1),                      & ! intent(in): [dp] activation energy in the vcmax function (J mol-1)
+ vcmax_Hd                        => mpar_data%var(iLookPARAM%vcmax_Hd)%dat(1),                      & ! intent(in): [dp] deactivation energy in the vcmax function (J mol-1)
+ vcmax_Sv                        => mpar_data%var(iLookPARAM%vcmax_Sv)%dat(1),                      & ! intent(in): [dp] entropy term in the vcmax function (J mol-1 K-1)
+ vcmax_Kn                        => mpar_data%var(iLookPARAM%vcmax_Kn)%dat(1),                      & ! intent(in): [dp] foliage nitrogen decay coefficient (-) 
+ jmax25_scale                    => mpar_data%var(iLookPARAM%jmax25_scale)%dat(1),                  & ! intent(in): [dp] scaling factor to relate jmax25 to vcmax25 (-)
+ jmax_Ha                         => mpar_data%var(iLookPARAM%jmax_Ha)%dat(1),                       & ! intent(in): [dp] activation energy in the jmax function (J mol-1)
+ jmax_Hd                         => mpar_data%var(iLookPARAM%jmax_Hd)%dat(1),                       & ! intent(in): [dp] deactivation energy in the jmax function (J mol-1)
+ jmax_Sv                         => mpar_data%var(iLookPARAM%jmax_Sv)%dat(1),                       & ! intent(in): [dp] entropy term in the jmax function (J mol-1 K-1)
+ fractionJ                       => mpar_data%var(iLookPARAM%fractionJ)%dat(1),                     & ! intent(in): [dp] fraction of light lost by other than the chloroplast lamellae (-)
+ quantamYield                    => mpar_data%var(iLookPARAM%quantamYield)%dat(1),                  & ! intent(in): [dp] quantam yield (mol e mol-1 q)
+ vpScaleFactor                   => mpar_data%var(iLookPARAM%vpScaleFactor)%dat(1),                 & ! intent(in): [dp] vapor pressure scaling factor in stomatal conductance function (Pa)
+ cond2photo_slope                => mpar_data%var(iLookPARAM%cond2photo_slope)%dat(1),              & ! intent(in): [dp] slope of conductance-photosynthesis relationship (-)
+ minStomatalConductance          => mpar_data%var(iLookPARAM%minStomatalConductance)%dat(1),        & ! intent(in): [dp] mimimum stomatal conductance (umol H2O m-2 s-1)
 
  ! input: forcing at the upper boundary
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)

@@ -24,8 +24,8 @@ module getVectorz_module
 USE nrtype
 
 ! missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag

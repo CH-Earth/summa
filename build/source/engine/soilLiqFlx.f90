@@ -152,7 +152,7 @@ contains
  real(dp),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
  real(dp),intent(in)              :: scalarRainPlusMelt            ! rain plus melt (m s-1)
  ! input-output: data structures
- type(var_d),intent(in)           :: mpar_data                     ! model parameters
+ type(var_dlength),intent(in)     :: mpar_data                     ! model parameters
  type(var_ilength),intent(in)     :: indx_data                     ! state vector geometry
  type(var_dlength),intent(in)     :: prog_data                     ! prognostic variables for a local HRU
  type(var_dlength),intent(in)     :: diag_data                     ! diagnostic variables for a local HRU
@@ -246,35 +246,36 @@ contains
   mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend),    & ! intent(in): depth of the layer (m)
   mLayerHeight           => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend),   & ! intent(in): height of the layer mid-point (m)
   ! input: upper boundary conditions
-  upperBoundHead         => mpar_data%var(iLookPARAM%upperBoundHead),               & ! intent(in): upper boundary condition for matric head (m)
-  upperBoundTheta        => mpar_data%var(iLookPARAM%upperBoundTheta),              & ! intent(in): upper boundary condition for volumetric liquid water content (-)
+  upperBoundHead         => mpar_data%var(iLookPARAM%upperBoundHead)%dat(1),        & ! intent(in): upper boundary condition for matric head (m)
+  upperBoundTheta        => mpar_data%var(iLookPARAM%upperBoundTheta)%dat(1),       & ! intent(in): upper boundary condition for volumetric liquid water content (-)
   ! input: lower boundary conditions
-  lowerBoundHead         => mpar_data%var(iLookPARAM%lowerBoundHead),               & ! intent(in): lower boundary condition for matric head (m)
-  lowerBoundTheta        => mpar_data%var(iLookPARAM%lowerBoundTheta),              & ! intent(in): lower boundary condition for volumetric liquid water content (-)
-  ! input: soil parameters
-  vGn_m                  => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1),            & ! intent(in): van Genutchen "m" parameter (-)
-  vGn_n                  => mpar_data%var(iLookPARAM%vGn_n),                        & ! intent(in): van Genutchen "n" parameter (-)
-  vGn_alpha              => mpar_data%var(iLookPARAM%vGn_alpha),                    & ! intent(in): van Genutchen "alpha" parameter (m-1)
-  mpExp                  => mpar_data%var(iLookPARAM%mpExp),                        & ! intent(in): empirical exponent in macropore flow equation (-)
-  theta_mp               => mpar_data%var(iLookPARAM%theta_mp),                     & ! intent(in): volumetric liquid water content when macropore flow begins (-)
-  theta_sat              => mpar_data%var(iLookPARAM%theta_sat),                    & ! intent(in): soil porosity (-)
-  theta_res              => mpar_data%var(iLookPARAM%theta_res),                    & ! intent(in): soil residual volumetric water content (-)
-  wettingFrontSuction    => mpar_data%var(iLookPARAM%wettingFrontSuction),          & ! intent(in): Green-Ampt wetting front suction (m)
-  rootingDepth           => mpar_data%var(iLookPARAM%rootingDepth),                 & ! intent(in): rooting depth (m)
-  kAnisotropic           => mpar_data%var(iLookPARAM%kAnisotropic),                 & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
-  zScale_TOPMODEL        => mpar_data%var(iLookPARAM%zScale_TOPMODEL),              & ! intent(in): TOPMODEL scaling factor (m)
-  qSurfScale             => mpar_data%var(iLookPARAM%qSurfScale),                   & ! intent(in): scaling factor in the surface runoff parameterization (-)
-  f_impede               => mpar_data%var(iLookPARAM%f_impede),                     & ! intent(in): ice impedence factor (-)
-  soilIceScale           => mpar_data%var(iLookPARAM%soilIceScale),                 & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
-  soilIceCV              => mpar_data%var(iLookPARAM%soilIceCV),                    & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
+  lowerBoundHead         => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1),        & ! intent(in): lower boundary condition for matric head (m)
+  lowerBoundTheta        => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),       & ! intent(in): lower boundary condition for volumetric liquid water content (-)
+  ! input: vertically variable soil parameters
+  vGn_m                  => diag_data%var(iLookDIAG%scalarVGn_m)%dat,               & ! intent(in): van Genutchen "m" parameter (-)
+  vGn_n                  => mpar_data%var(iLookPARAM%vGn_n)%dat,                    & ! intent(in): van Genutchen "n" parameter (-)
+  vGn_alpha              => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                & ! intent(in): van Genutchen "alpha" parameter (m-1)
+  theta_sat              => mpar_data%var(iLookPARAM%theta_sat)%dat,                & ! intent(in): soil porosity (-)
+  theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat,                & ! intent(in): soil residual volumetric water content (-)
+  ! input: vertically constant soil parameters
+  wettingFrontSuction    => mpar_data%var(iLookPARAM%wettingFrontSuction)%dat(1),   & ! intent(in): Green-Ampt wetting front suction (m)
+  rootingDepth           => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),          & ! intent(in): rooting depth (m)
+  kAnisotropic           => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),          & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
+  zScale_TOPMODEL        => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),       & ! intent(in): TOPMODEL scaling factor (m)
+  qSurfScale             => mpar_data%var(iLookPARAM%qSurfScale)%dat(1),            & ! intent(in): scaling factor in the surface runoff parameterization (-)
+  f_impede               => mpar_data%var(iLookPARAM%f_impede)%dat(1),              & ! intent(in): ice impedence factor (-)
+  soilIceScale           => mpar_data%var(iLookPARAM%soilIceScale)%dat(1),          & ! intent(in): scaling factor for depth of soil ice, used to get frozen fraction (m)
+  soilIceCV              => mpar_data%var(iLookPARAM%soilIceCV)%dat(1),             & ! intent(in): CV of depth of soil ice, used to get frozen fraction (-)
+  theta_mp               => mpar_data%var(iLookPARAM%theta_mp)%dat(1),              & ! intent(in): volumetric liquid water content when macropore flow begins (-)
+  mpExp                  => mpar_data%var(iLookPARAM%mpExp)%dat(1),                 & ! intent(in): empirical exponent in macropore flow equation (-)
   ! input: saturated hydraulic conductivity
-  mLayerSatHydCondMP     =>  flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat,        & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
-  mLayerSatHydCond       =>  flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
-  iLayerSatHydCond       =>  flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
+  mLayerSatHydCondMP     =>  flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat,       & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
+  mLayerSatHydCond       =>  flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,         & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+  iLayerSatHydCond       =>  flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,         & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
   ! input: factors limiting transpiration (from vegFlux routine)
-  mLayerRootDensity      =>  diag_data%var(iLookDIAG%mLayerRootDensity)%dat,         & ! intent(in): root density in each layer (-)
-  scalarTranspireLim     =>  diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
-  mLayerTranspireLim     =>  diag_data%var(iLookDIAG%mLayerTranspireLim)%dat         & ! intent(in): transpiration limiting factor in each layer (-)
+  mLayerRootDensity      =>  diag_data%var(iLookDIAG%mLayerRootDensity)%dat,        & ! intent(in): root density in each layer (-)
+  scalarTranspireLim     =>  diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),    & ! intent(in): weighted average of the transpiration limiting factor (-)
+  mLayerTranspireLim     =>  diag_data%var(iLookDIAG%mLayerTranspireLim)%dat        & ! intent(in): transpiration limiting factor in each layer (-)
  )  ! associating local variables with the information in the data structures
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -305,7 +306,11 @@ contains
  end if
 
  ! identify the number of layers that contain roots
- nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth)
+ nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
+ if(nRoots==0)then
+  message=trim(message)//'no layers with roots'
+  err=20; return
+ endif
 
  ! identify lowest soil layer with ice
  ! NOTE: cannot use count because there may be an unfrozen wedge
@@ -348,6 +353,7 @@ contains
  ! compute diagnostic variables at the nodes throughout the soil profile
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  do iSoil=1,nSoil ! (loop through soil layers)
+
   call diagv_node(&
                   ! input: model control
                   desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
@@ -361,12 +367,12 @@ contains
                   mLayerdTheta_dTk(iSoil),         & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                   dPsiLiq_dTemp(iSoil),            & ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
                   ! input: soil parameters
-                  vGn_alpha,                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                  vGn_n,                           & ! intent(in): van Genutchen "n" parameter (-)
-                  VGn_m,                           & ! intent(in): van Genutchen "m" parameter (-)
+                  vGn_alpha(iSoil),                & ! intent(in): van Genutchen "alpha" parameter (m-1)
+                  vGn_n(iSoil),                    & ! intent(in): van Genutchen "n" parameter (-)
+                  VGn_m(iSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
                   mpExp,                           & ! intent(in): empirical exponent in macropore flow equation (-)
-                  theta_sat,                       & ! intent(in): soil porosity (-)
-                  theta_res,                       & ! intent(in): soil residual volumetric water content (-)
+                  theta_sat(iSoil),                & ! intent(in): soil porosity (-)
+                  theta_res(iSoil),                & ! intent(in): soil residual volumetric water content (-)
                   theta_mp,                        & ! intent(in): volumetric liquid water content when macropore flow begins (-)
                   f_impede,                        & ! intent(in): ice impedence factor (-)
                   ! input: saturated hydraulic conductivity
@@ -387,6 +393,7 @@ contains
                   ! output: error control
                   err,cmessage)                      ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
  end do  ! (looping through soil layers)
 
  ! *************************************************************************************************************************************************
@@ -438,6 +445,7 @@ contains
   ! =====
   ! compute surface flux and its derivative...
   ! ==========================================
+
   call surfaceFlx(&
                   ! input: model control
                   doInfiltrate,                       & ! intent(in): flag indicating if desire to compute infiltration
@@ -464,11 +472,11 @@ contains
                   dHydCond_dTemp(1),                  & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                   iceImpedeFac(1),                    & ! intent(in): ice impedence factor in the upper-most soil layer (-)
                   ! input: soil parameters
-                  vGn_alpha,                          & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                  vGn_n,                              & ! intent(in): van Genutchen "n" parameter (-)
-                  VGn_m,                              & ! intent(in): van Genutchen "m" parameter (-)
-                  theta_sat,                          & ! intent(in): soil porosity (-)
-                  theta_res,                          & ! intent(in): soil residual volumetric water content (-)
+                  vGn_alpha(1),                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
+                  vGn_n(1),                           & ! intent(in): van Genutchen "n" parameter (-)
+                  VGn_m(1),                           & ! intent(in): van Genutchen "m" parameter (-)
+                  theta_sat(1),                       & ! intent(in): soil porosity (-)
+                  theta_res(1),                       & ! intent(in): soil residual volumetric water content (-)
                   qSurfScale,                         & ! intent(in): scaling factor in the surface runoff parameterization (-)
                   zScale_TOPMODEL,                    & ! intent(in): scaling factor used to describe decrease in hydraulic conductivity with depth (m)
                   rootingDepth,                       & ! intent(in): rooting depth (m)
@@ -567,13 +575,13 @@ contains
    if(ixPerturb > 0)then
     select case(ixRichards)
      case(moisture)
-      scalardPsi_dTheta             = dPsi_dTheta(vectorVolFracLiqTrial(ixPerturb),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      vectorHydCondTrial(ixPerturb) = hydCond_liq(vectorVolFracLiqTrial(ixPerturb),mLayerSatHydCond(ixOriginal),theta_res,theta_sat,vGn_m) * iceImpedeFac(ixOriginal)
+      scalardPsi_dTheta             = dPsi_dTheta(vectorVolFracLiqTrial(ixPerturb),vGn_alpha(ixPerturb),theta_res(ixPerturb),theta_sat(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb))
+      vectorHydCondTrial(ixPerturb) = hydCond_liq(vectorVolFracLiqTrial(ixPerturb),mLayerSatHydCond(ixOriginal),theta_res(ixPerturb),theta_sat(ixPerturb),vGn_m(ixPerturb)) * iceImpedeFac(ixOriginal)
       vectorDiffuseTrial(ixPerturb) = scalardPsi_dTheta * vectorHydCondTrial(ixPerturb)
      case(mixdform)
-      scalarVolFracLiqTrial = volFracLiq(vectorMatricHeadTrial(ixPerturb),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      scalarHydCondMicro    = hydCond_psi(vectorMatricHeadTrial(ixPerturb),mLayerSatHydCond(ixOriginal),vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(ixOriginal)
-      scalarHydCondMacro    = hydCondMP_liq(scalarVolFracLiqTrial,theta_sat,theta_mp,mpExp,mLayerSatHydCondMP(ixOriginal),mLayerSatHydCond(ixOriginal))
+      scalarVolFracLiqTrial = volFracLiq(vectorMatricHeadTrial(ixPerturb),vGn_alpha(ixPerturb),theta_res(ixPerturb),theta_sat(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb))
+      scalarHydCondMicro    = hydCond_psi(vectorMatricHeadTrial(ixPerturb),mLayerSatHydCond(ixOriginal),vGn_alpha(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb)) * iceImpedeFac(ixOriginal)
+      scalarHydCondMacro    = hydCondMP_liq(scalarVolFracLiqTrial,theta_sat(ixPerturb),theta_mp,mpExp,mLayerSatHydCondMP(ixOriginal),mLayerSatHydCond(ixOriginal))
       vectorHydCondTrial(ixPerturb) = scalarHydCondMicro + scalarHydCondMacro
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select ! (form of Richards' equation)
@@ -582,6 +590,7 @@ contains
    ! =====
    ! compute vertical flux at layer interface and its derivative w.r.t. the state above and the state below...
    ! =========================================================================================================
+
    call iLayerFlux(&
                    ! input: model control
                    desireAnal,                         & ! intent(in): flag indicating if derivatives are desired
@@ -694,8 +703,8 @@ contains
    ! compute perturbed value of hydraulic conductivity
    case(perturbStateAbove)
     select case(ixRichards)
-     case(moisture); scalarHydCondTrial = hydCond_liq(scalarVolFracLiqTrial,mLayerSatHydCond(nSoil),theta_res,theta_sat,vGn_m) * iceImpedeFac(nSoil)
-     case(mixdform); scalarHydCondTrial = hydCond_psi(scalarMatricHeadTrial,mLayerSatHydCond(nSoil),vGn_alpha,vGn_n,vGn_m) * iceImpedeFac(nSoil)
+     case(moisture); scalarHydCondTrial = hydCond_liq(scalarVolFracLiqTrial,mLayerSatHydCond(nSoil),theta_res(nSoil),theta_sat(nSoil),vGn_m(nSoil)) * iceImpedeFac(nSoil)
+     case(mixdform); scalarHydCondTrial = hydCond_psi(scalarMatricHeadTrial,mLayerSatHydCond(nSoil),vGn_alpha(nSoil),vGn_n(nSoil),vGn_m(nSoil)) * iceImpedeFac(nSoil)
     end select
 
    ! (use un-perturbed value)
@@ -707,6 +716,7 @@ contains
   ! =====
   ! compute drainage flux and its derivative...
   ! ===========================================
+
   call qDrainFlux(&
                   ! input: model control
                   desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
@@ -733,11 +743,11 @@ contains
                   dHydCond_dMatric(nSoil),         & ! intent(in): derivative in hydraulic conductivity w.r.t. matric head (s-1)
                   dHydCond_dTemp(nSoil),           & ! intent(in): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
                   ! input: soil parameters
-                  vGn_alpha,                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
-                  vGn_n,                           & ! intent(in): van Genutchen "n" parameter (-)
-                  VGn_m,                           & ! intent(in): van Genutchen "m" parameter (-)
-                  theta_sat,                       & ! intent(in): soil porosity (-)
-                  theta_res,                       & ! intent(in): soil residual volumetric water content (-)
+                  vGn_alpha(nSoil),                & ! intent(in): van Genutchen "alpha" parameter (m-1)
+                  vGn_n(nSoil),                    & ! intent(in): van Genutchen "n" parameter (-)
+                  VGn_m(nSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
+                  theta_sat(nSoil),                & ! intent(in): soil porosity (-)
+                  theta_res(nSoil),                & ! intent(in): soil residual volumetric water content (-)
                   kAnisotropic,                    & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
                   zScale_TOPMODEL,                 & ! intent(in): TOPMODEL scaling factor (m)
                   ! output: hydraulic conductivity and diffusivity at the surface
@@ -927,14 +937,12 @@ contains
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  end select
 
-
  ! *****
  ! compute hydraulic conductivity and its derivative in each soil layer
 
  ! compute the ice impedence factor and its derivative w.r.t. volumetric liquid water content (-)
  call iceImpede(scalarVolFracIceTrial,f_impede, &  ! input
                 iceImpedeFac,dIceImpede_dLiq)      ! output
-
 
  select case(ixRichards)
   ! ***** moisture-based form of Richards' equation
@@ -967,6 +975,7 @@ contains
    localVolFracLiq = volFracLiq(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    scalarHydCondMP = hydCondMP_liq(localVolFracLiq,theta_sat,theta_mp,mpExp,scalarSatHydCondMP,scalarSatHydCond)
    scalarHydCond   = hydCond_noIce*iceImpedeFac + scalarHydCondMP
+
    ! compute derivative in hydraulic conductivity (m s-1)
    if(deriv_desired)then
     ! (compute derivative for macropores)
@@ -1164,6 +1173,7 @@ contains
  real(dp)                      :: fInfRaw                   ! infiltrating area before imposing solution constraints (-)
  real(dp),parameter            :: maxFracCap=0.995_dp       ! maximum fraction capacity -- used to avoid numerical problems associated with an enormous derivative
  real(dp),parameter            :: scaleFactor=0.000001_dp   ! scale factor for the smoothing function (-)
+ real(dp),parameter            :: qSurfScaleMax=1000._dp    ! maximum surface runoff scaling factor (-)
  ! (fraction of impermeable area associated with frozen ground)
  real(dp)                      :: alpha                     ! shape parameter in the Gamma distribution
  real(dp)                      :: xLimg                     ! upper limit of the integral
@@ -1241,14 +1251,16 @@ contains
       rootZoneIce = rootZoneIce + mLayerVolFracIce(iLayer)*mLayerDepth(iLayer)
      end do
     end if
-    if(rootingDepth < iLayerHeight(nRoots-1))then; err=20; message=trim(message)//'problem with definition of nRoots'; return; end if
     ! (process layers where the roots end in the current layer)
     rootZoneLiq = rootZoneLiq + mLayerVolFracLiq(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
     rootZoneIce = rootZoneIce + mLayerVolFracIce(nRoots)*(rootingDepth - iLayerHeight(nRoots-1))
 
     ! define available capacity to hold water (m)
     availCapacity = theta_sat*rootingDepth - rootZoneIce
-    if(rootZoneLiq > availCapacity)then; err=20; message=trim(message)//'liquid water in the root zone exceeds capacity'; return; end if
+    if(rootZoneLiq > availCapacity+verySmall)then
+     message=trim(message)//'liquid water in the root zone exceeds capacity'
+     err=20; return
+    end if
 
     ! define the depth to the wetting front (m)
     depthWettingFront = (rootZoneLiq/availCapacity)*rootingDepth
@@ -1261,16 +1273,22 @@ contains
     !write(*,'(a,1x,f9.3,1x,10(e20.10,1x))') 'depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate = ', depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate
 
     ! define the infiltrating area for the non-frozen part of the cell/basin
-    fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                              ! fraction of available root zone filled with water
-    fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))                          ! infiltrating area -- allowed to violate solution constraints
-    scalarInfilArea = min(0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor)), 1._dp)   ! infiltrating area -- constrained
-    !print*, 'scalarInfilArea = ', scalarInfilArea
+    if(qSurfScale < qSurfScaleMax)then
+     fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                              ! fraction of available root zone filled with water
+     fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))                          ! infiltrating area -- allowed to violate solution constraints
+     scalarInfilArea = min(0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor)), 1._dp)   ! infiltrating area -- constrained
+     !print*, 'qSurfScale, fracCap, scalarInfilArea = ', qSurfScale, fracCap, scalarInfilArea
+    else
+     scalarInfilArea = 1._dp
+    endif
 
     ! check to ensure we are not infiltrating into a fully saturated column
-    if(sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_dp*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) scalarInfilArea=0._dp
-    !print*, 'ixIce, nRoots, scalarInfilArea = ', ixIce, nRoots, scalarInfilArea
-    !print*, 'sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) = ', sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots))
-    !print*, 'theta_sat*sum(mLayerDepth(ixIce+1:nRoots)) = ', theta_sat*sum(mLayerDepth(ixIce+1:nRoots))
+    if(ixIce<nRoots)then
+     if(sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) > 0.9999_dp*theta_sat*sum(mLayerDepth(ixIce+1:nRoots))) scalarInfilArea=0._dp
+     !print*, 'ixIce, nRoots, scalarInfilArea = ', ixIce, nRoots, scalarInfilArea
+     !print*, 'sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots)) = ', sum(mLayerVolFracLiq(ixIce+1:nRoots)*mLayerDepth(ixIce+1:nRoots))
+     !print*, 'theta_sat*sum(mLayerDepth(ixIce+1:nRoots)) = ', theta_sat*sum(mLayerDepth(ixIce+1:nRoots))
+    endif
 
     ! define the impermeable area due to frozen ground
     if(rootZoneIce > tiny(rootZoneIce))then  ! (avoid divide by zero)
@@ -1287,11 +1305,12 @@ contains
 
    ! compute infiltration (m s-1)
    scalarSurfaceInfiltration = (1._dp - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-   !print*, 'scalarSurfaceInfiltration = ', scalarSurfaceInfiltration
-   !print*, '(1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea = ', (1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea
 
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
+   !print*, 'scalarRainPlusMelt, xMaxInfilRate = ', scalarRainPlusMelt, xMaxInfilRate
+   !print*, 'scalarSurfaceInfiltration, scalarSurfaceRunoff = ', scalarSurfaceInfiltration, scalarSurfaceRunoff
+   !print*, '(1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea = ', (1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea
 
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
    surfaceHydCond = valueMissing

@@ -24,9 +24,9 @@ module varSubstep_module
 USE nrtype
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
-USE multiconst,only:quadMissing     ! missing quadruple precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -135,7 +135,7 @@ contains
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
  type(var_d),intent(in)          :: forc_data                     ! model forcing data
- type(var_d),intent(in)          :: mpar_data                     ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                     ! model parameters
  type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
  type(var_dlength),intent(inout) :: prog_data                     ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                     ! diagnostic variables for a local HRU
@@ -185,6 +185,8 @@ contains
  real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
  real(dp)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  real(dp)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+ real(dp)                        :: sumSoilCompress 
+ real(dp),allocatable            :: sumLayerCompress(:) 
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -213,7 +215,7 @@ contains
  ! Procedure starts here
 
  ! initialize error control
- err=20; message='varSubstep/'
+ err=0; message='varSubstep/'
 
  ! initialize flag for the success of the substepping
  failedMinimumStep=.false.
@@ -234,6 +236,8 @@ contains
  sumCanopyEvaporation = 0._dp  ! canopy evaporation/condensation (kg m-2 s-1)
  sumLatHeatCanopyEvap = 0._dp  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  sumSenHeatCanopy     = 0._dp  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+ sumSoilCompress      = 0._dp  ! total soil compression
+ allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._dp ! soil compression by layer 
 
  ! initialize subStep
  dtSum     = 0._dp  ! keep track of the portion of the time step that is completed
@@ -242,6 +246,9 @@ contains
  ! loop through substeps
  ! NOTE: continuous do statement with exit clause
  substeps: do
+
+  ! initialize error control
+  err=0; message='varSubstep/'
 
   ! increment substep
   nSubsteps = nSubsteps+1
@@ -301,7 +308,10 @@ contains
                   tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                   niter,             & ! intent(out):   number of iterations taken
                   err,cmessage)        ! intent(out):   error code and error message
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then
+   message=trim(message)//trim(cmessage)
+   if(err>0) return
+  endif
 
   ! if too much melt or need to reduce length of the coupled step then return
   ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
@@ -313,7 +323,7 @@ contains
 
   ! check
   if(globalPrintFlag)then
-   print*, 'niter, failedSubstep = ', niter, failedSubstep
+   print*, 'niter, failedSubstep, dtSubstep = ', niter, failedSubstep, dtSubstep
    print*, trim(cmessage)
   endif
 
@@ -323,8 +333,8 @@ contains
    ! get time step reduction
    ! solver failure
    if(err<0)then
-    err=0  ! recover from failed convergence 
-    dtMultiplier  = 0.5_dp   ! system failure: step halving
+    err=0; message='varSubstep/'  ! recover from failed convergence 
+    dtMultiplier  = 0.5_dp        ! system failure: step halving
    ! large error in explicit solution
    elseif(explicitEuler .and. explicitError > errTol)then
     dtMultiplier  = max(safety*sqrt(errTol/explicitError), reduceMin)  ! intolerable errors: MUST be explicit Euler
@@ -388,7 +398,10 @@ contains
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                       & ! input-output: data structures
                   waterBalanceError,nrgFluxModified,err,cmessage)                                                       ! output: flags and error control
-  if(err>0)then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0)then
+   message=trim(message)//trim(cmessage)
+   if(err>0) return
+  endif
 
   ! if water balance error then reduce the length of the coupled step
   if(waterBalanceError)then
@@ -428,6 +441,12 @@ contains
    sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   endif  ! if energy fluxes were modified
 
+  ! get the total soil compressions
+  if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
+   sumSoilCompress = sumSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
+   sumLayerCompress = sumLayerCompress + diag_data%var(iLookDIAG%mLayerCompress)%dat ! soil compression in layers
+  endif
+
   ! print progress
   if(globalPrintFlag)&
   write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
@@ -461,6 +480,11 @@ contains
  flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
 
+ ! save the soil compression diagnostics 
+ diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
+ diag_data%var(iLookDIAG%mLayerCompress)%dat = sumLayerCompress
+ deallocate(sumLayerCompress)
+
  ! end associate statements
  end associate globalVars
 
@@ -487,7 +511,7 @@ contains
  real(dp)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
  real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
  ! data structures 
- type(var_d)      ,intent(in)    :: mpar_data                      ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
  type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: prog_data                      ! prognostic variables for a local HRU
@@ -575,11 +599,14 @@ contains
  mLayerMatricHead          => prog_data%var(iLookPROG%mLayerMatricHead)%dat              ,& ! intent(inout) : [dp(:)]  matric head (m)
  mLayerMatricHeadLiq       => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat           ,& ! intent(inout) : [dp(:)]  matric potential of liquid water (m)
  ! error tolerance
- absConvTol_liquid         => mpar_data%var(iLookPARAM%absConvTol_liquid)                 & ! intent(in)    : [dp]     absolute convergence tolerance for vol frac liq water (-)
+ absConvTol_liquid         => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)          & ! intent(in)    : [dp]     absolute convergence tolerance for vol frac liq water (-)
  ) ! associating flux variables in the data structure
  ! -------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='updateProg/'
+
+ ! initialize water balance error
+ waterBalanceError=.false.
 
  ! get storage at the start of the step
  canopyBalance0 = merge(scalarCanopyWat, realMissing, computeVegFlux)
@@ -652,9 +679,6 @@ contains
  ! -----
  ! * check mass balance...
  ! -----------------------
-
- ! initialize water balance error
- waterBalanceError=.false.
 
  ! NOTE: should not need to do this, since mass balance is checked in the solver
  if(checkMassBalance)then

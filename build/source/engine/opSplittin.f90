@@ -27,9 +27,9 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE multiconst,only:integerMissing  ! missing integer
-USE multiconst,only:realMissing     ! missing double precision number
-USE multiconst,only:quadMissing     ! missing quadruple precision number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
@@ -134,6 +134,12 @@ contains
 
  ! **********************************************************************************************************
  ! public subroutine opSplittin: run the coupled energy-mass model for one timestep
+ !
+ ! The logic of the solver is as follows:
+ ! (1) Attempt different solutions in the following order: (a) fully coupled; (b) split by state type (energy
+ !      and mass); (c) split by domain type or a given energy and mass split (vegetation, snow, and soil);
+ !      and (d) explicit Euler solution for a given state type and domain subset.
+ ! (2) For a given split, compute a variable number of substeps (in varSubstep).
  ! **********************************************************************************************************
  subroutine opSplittin(&
                        ! input: model control
@@ -159,6 +165,7 @@ contains
                        dtMultiplier,   & ! intent(out):   substep multiplier (-)
                        tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
                        stepFailure,    & ! intent(out):   flag to denote step failure
+                       ixSolution,     & ! intent(out):   solution method used in this iteration
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -192,7 +199,7 @@ contains
  type(var_i),intent(in)          :: type_data                      ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                      ! spatial attributes
  type(var_d),intent(in)          :: forc_data                      ! model forcing data
- type(var_d),intent(in)          :: mpar_data                      ! model parameters
+ type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(inout) :: indx_data                      ! indices for a local HRU
  type(var_dlength),intent(inout) :: prog_data                      ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                      ! diagnostic variables for a local HRU
@@ -225,9 +232,9 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! minimum time step
  real(dp)                        :: dt_min                         ! minimum time step (seconds)
- real(dp),parameter              :: dtmin_fullyCoupled=3600._dp    ! minimum time step for the fully coupled solution
- real(dp),parameter              :: dtmin_splitStateType=3600._dp  ! minimum time step for the split by state type 
- real(dp),parameter              :: dtmin_splitDomainType=3600._dp ! minimum time step for the split by domain type 
+ real(dp),parameter              :: dtmin_fullyCoupled=10._dp      ! minimum time step for the fully coupled solution
+ real(dp),parameter              :: dtmin_splitStateType=1._dp     ! minimum time step for the split by state type 
+ real(dp),parameter              :: dtmin_splitDomainType=0.1_dp   ! minimum time step for the split by domain type 
  real(dp),parameter              :: dtmin_explicitEuler=0.1_dp     ! minimum time step for the explicit Euler solution
  ! explicit error tolerance (depends on state type split, so defined here)
  real(dp),parameter              :: errorTolLiqFlux=0.01_dp        ! error tolerance in the explicit solution (liquid flux)
@@ -283,14 +290,15 @@ contains
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):    [dp]     canopy depth (m)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ! snow parameters
- snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)                ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
+ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
+ ! depth-varying soil parameters
+ vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat               ,& ! intent(in):    [dp(:)]  van Genutchen "m" parameter (-)
+ vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):    [dp(:)]  van Genutchen "n" parameter (-)
+ vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):    [dp(:)]  van Genutchen "alpha" parameter (m-1)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in):    [dp(:)]  soil porosity (-)
+ theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in):    [dp(:)]  soil residual volumetric water content (-)
  ! soil parameters
- vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat(1)            ,& ! intent(in):    [dp]     van Genutchen "m" parameter (-)
- vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)                        ,& ! intent(in):    [dp]     van Genutchen "n" parameter (-)
- vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)                    ,& ! intent(in):    [dp]     van Genutchen "alpha" parameter (m-1)
- theta_sat               => mpar_data%var(iLookPARAM%theta_sat)                    ,& ! intent(in):    [dp]     soil porosity (-)
- theta_res               => mpar_data%var(iLookPARAM%theta_res)                    ,& ! intent(in):    [dp]     soil residual volumetric water content (-)
- specificStorage         => mpar_data%var(iLookPARAM%specificStorage)              ,& ! intent(in):    [dp]     specific storage coefficient (m-1)
+ specificStorage         => mpar_data%var(iLookPARAM%specificStorage)%dat(1)       ,& ! intent(in):    [dp]     specific storage coefficient (m-1)
  ! model diagnostic variables (fraction of liquid water)
  scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out):   [dp]     fraction of liquid water on vegetation (-)
  mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out):   [dp(:)]  fraction of liquid water in each snow layer (-)
@@ -359,7 +367,7 @@ contains
  ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
  do iSoil=1,nSoil
   call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+iSoil),  & ! input:  state variables
-                  vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,                                            & ! input:  parameters
+                  vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),         & ! input:  parameters
                   matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                             & ! output: liquid water matric potential (m)
                   err=err,message=cmessage)                                                               ! output: error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -436,6 +444,9 @@ contains
       ! *******************************************************************************************************************************
       ! ***** trial with a given solution method...
      
+      ! initialize error control
+      err=0; message="opSplittin/"
+
       ! -----
       ! * define subsets for a given split...
       ! -------------------------------------
@@ -476,7 +487,7 @@ contains
       ! define the mask of the fluxes used
       stateSubset: associate(ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat)
       do iVar=1,size(flux_meta)
-  
+
        ! * split solution
        if(ixSolution/=fullyCoupled)then
         select case(iStateTypeSplit)
@@ -558,11 +569,16 @@ contains
                       reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                       tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                       err,cmessage)                 ! intent(out)   : error code and error message
-      if(err>0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for FATAL errors)
+      if(err/=0)then
+       message=trim(message)//trim(cmessage)
+       if(err>0) return
+      endif  ! (check for errors)
 
       ! check 
       if(globalPrintFlag .and. ixSolution>splitStateType)then
        print*, 'dt = ', dt
+       print*, 'after varSubstep: err            = ', err
+       print*, 'after varSubstep: cmessage       = ', trim(cmessage)
        print*, 'after varSubstep: stateMask      = ', stateMask
        print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit

@@ -1,5 +1,5 @@
 module popMetadat_module
-USE nrtype
+USE nrtype, integerMissing=>nr_integerMissing
 implicit none
 ! define indices in metadata structures
 integer(i4b),parameter   :: modelTime=1     ! to force index variables to be output at model timestep
@@ -17,7 +17,6 @@ public::popMetadat
 contains
 
  subroutine popMetadat(err,message)
- USE multiconst,only:integerMissing
  ! data structures
  USE data_types, only: var_info   ! data type for metadata structure
  USE globalData, only: time_meta  ! data structure for time metadata
@@ -142,17 +141,17 @@ contains
  mpar_meta(iLookPARAM%newSnowDenScal)        = var_info('newSnowDenScal'        , 'scaling factor for new snow density'                              , 'K'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%constSnowDen)          = var_info('constSnowDen'          , 'Constant new snow density'                                        , 'kg m-3'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%newSnowDenAdd)         = var_info('newSnowDenAdd'         , 'Pahaut 1976, additive factor for new snow density'                , 'kg m-3'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%newSnowDenMultTemp)    = var_info('newSnowDenMultTemp'    , 'Pahaut 1976, multiplier for new snow density applied to air temperature'              , 'kg m-3 K-1'     , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%newSnowDenMultWind)    = var_info('newSnowDenMultWind'    , 'Pahaut 1976, multiplier for new snow density applied to wind speed'                   , 'kg m-7/2 s-1/2' , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%newSnowDenMultAnd)      = var_info('newSnowDenMultAnd'    , 'Anderson 1976, multiplier for new snow density for Anderson function'                 , 'K-1'            , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%newSnowDenBase)         = var_info('newSnowDenBase'       , 'Anderson 1976, base value that is rasied to the (3/2) power'                          , 'K'              , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%newSnowDenMultTemp)    = var_info('newSnowDenMultTemp'    , 'Pahaut 1976, multiplier for new snow density for air temperature' , 'kg m-3 K-1'      , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%newSnowDenMultWind)    = var_info('newSnowDenMultWind'    , 'Pahaut 1976, multiplier for new snow density for wind speed'      , 'kg m-7/2 s-1/2'  , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%newSnowDenMultAnd)     = var_info('newSnowDenMultAnd'     , 'Anderson 1976, multiplier for new snow density (Anderson func)'   , 'K-1'             , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%newSnowDenBase)        = var_info('newSnowDenBase'        , 'Anderson 1976, base value that is rasied to the (3/2) power'      , 'K'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! snow compaction
  mpar_meta(iLookPARAM%densScalGrowth)        = var_info('densScalGrowth'        , 'density scaling factor for grain growth'                          , 'kg-1 m3'         , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%tempScalGrowth)        = var_info('tempScalGrowth'        , 'temperature scaling factor for grain growth'                      , 'K-1'             , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%grainGrowthRate)       = var_info('grainGrowthRate'       , 'rate of grain growth'                                             , 's-1'             , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%densScalOvrbdn)        = var_info('densScalOvrbdn'        , 'density scaling factor for overburden pressure'                   , 'kg-1 m3'         , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%tempScalOvrbdn)        = var_info('tempScalOvrbdn'        , 'temperature scaling factor for overburden pressure'               , 'K-1'             , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%baseViscosity )        = var_info('baseViscosity '         , 'viscosity coefficient at T=T_frz and snow density=0'              , 'kg s m-2'        , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%baseViscosity )        = var_info('baseViscosity '        , 'viscosity coefficient at T=T_frz and snow density=0'              , 'kg s m-2'        , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! water flow through snow
  mpar_meta(iLookPARAM%Fcapil)                = var_info('Fcapil'                , 'capillary retention (fraction of total pore volume)'              , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%k_snow)                = var_info('k_snow'                , 'hydraulic conductivity of snow'                                   , 'm s-1'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -218,21 +217,22 @@ contains
  mpar_meta(iLookPARAM%canopyWettingFactor)   = var_info('canopyWettingFactor'   , 'maximum wetted fraction of the canopy'                            , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%canopyWettingExp)      = var_info('canopyWettingExp'      , 'exponent in canopy wetting function'                              , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! soil properties
- mpar_meta(iLookPARAM%soil_dens_intr)        = var_info('soil_dens_intr'        , 'intrinsic soil density'                                           , 'kg m-3'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%thCond_soil)           = var_info('thCond_soil'           , 'thermal conductivity of soil (includes quartz and other minerals)', 'W m-1 K-1'       , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%frac_sand)             = var_info('frac_sand'             , 'fraction of sand'                                                 , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%frac_silt)             = var_info('frac_silt'             , 'fraction of silt'                                                 , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%frac_clay)             = var_info('frac_clay'             , 'fraction of clay'                                                 , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%soil_dens_intr)        = var_info('soil_dens_intr'        , 'intrinsic soil density'                                           , 'kg m-3'          , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%thCond_soil)           = var_info('thCond_soil'           , 'thermal conductivity of soil (includes quartz and other minerals)', 'W m-1 K-1'       , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%frac_sand)             = var_info('frac_sand'             , 'fraction of sand'                                                 , '-'               , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%frac_silt)             = var_info('frac_silt'             , 'fraction of silt'                                                 , '-'               , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%frac_clay)             = var_info('frac_clay'             , 'fraction of clay'                                                 , '-'               , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%theta_sat)             = var_info('theta_sat'             , 'soil porosity'                                                    , '-'               , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%theta_res)             = var_info('theta_res'             , 'volumetric residual water content'                                , '-'               , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%vGn_alpha)             = var_info('vGn_alpha'             , 'van Genuchten "alpha" parameter'                                  , 'm-1'             , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%vGn_n)                 = var_info('vGn_n'                 , 'van Genuchten "n" parameter'                                      , '-'               , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%k_soil)                = var_info('k_soil'                , 'saturated hydraulic conductivity'                                 , 'm s-1'           , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%k_macropore)           = var_info('k_macropore'           , 'saturated hydraulic conductivity for macropores'                  , 'm s-1'           , get_ixVarType('parSoil'), lFalseArry, integerMissing, iMissArry)
+ ! scalar soil properties
  mpar_meta(iLookPARAM%fieldCapacity)         = var_info('fieldCapacity'         , 'soil field capacity (vol liq water content when baseflow begins)' , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%wettingFrontSuction)   = var_info('wettingFrontSuction'   , 'Green-Ampt wetting front suction'                                 , 'm'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%theta_mp)              = var_info('theta_mp'              , 'volumetric liquid water content when macropore flow begins'       , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%theta_sat)             = var_info('theta_sat'             , 'soil porosity'                                                    , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%theta_res)             = var_info('theta_res'             , 'volumetric residual water content'                                , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%vGn_alpha)             = var_info('vGn_alpha'             , 'van Genuchten "alpha" parameter'                                  , 'm-1'             , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%vGn_n)                 = var_info('vGn_n'                 , 'van Genuchten "n" parameter'                                      , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%mpExp)                 = var_info('mpExp'                 , 'empirical exponent in macropore flow equation'                    , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%k_soil)                = var_info('k_soil'                , 'saturated hydraulic conductivity'                                 , 'm s-1'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
- mpar_meta(iLookPARAM%k_macropore)           = var_info('k_macropore'           , 'saturated hydraulic conductivity for macropores'                  , 'm s-1'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%kAnisotropic)          = var_info('kAnisotropic'          , 'anisotropy factor for lateral hydraulic conductivity'             , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%zScale_TOPMODEL)       = var_info('zScale_TOPMODEL'       , 'TOPMODEL scaling factor used in lower boundary condition for soil', 'm'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%compactedDepth)        = var_info('compactedDepth'        , 'depth where k_soil reaches the compacted value given by CH78'     , 'm'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -404,9 +404,11 @@ contains
  diag_meta(iLookDIAG%scalarTotalSoilLiq)              = var_info('scalarTotalSoilLiq'             , 'total mass of liquid water in the soil'                           , 'kg m-2'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarTotalSoilIce)              = var_info('scalarTotalSoilIce'             , 'total mass of ice in the soil'                                    , 'kg m-2'          , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! variable shortcuts
- diag_meta(iLookDIAG%scalarVGn_m)                     = var_info('scalarVGn_m'                    , 'van Genuchten "m" parameter'                                      , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ diag_meta(iLookDIAG%scalarVGn_m)                     = var_info('scalarVGn_m'                    , 'van Genuchten "m" parameter'                                      , '-'               , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarKappa)                     = var_info('scalarKappa'                    , 'constant in the freezing curve function'                          , 'm K-1'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ ! number of function evaluations
+ diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry) 
 
  ! -----
  ! * local model fluxes...
@@ -561,7 +563,7 @@ contains
  ! -----
  ! * basin-wide runoff and aquifer fluxes...
  ! -----------------------------------------
- bvar_meta(iLookBVAR%basin__totalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                       , 'm2'    , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ bvar_meta(iLookBVAR%basin__TotalArea)        = var_info('basin__TotalArea'       , 'total basin area'                                       , 'm2'    , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  bvar_meta(iLookBVAR%basin__SurfaceRunoff)    = var_info('basin__SurfaceRunoff'   , 'surface runoff'                                         , 'm s-1' , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  bvar_meta(iLookBVAR%basin__ColumnOutflow)    = var_info('basin__ColumnOutflow'   , 'outflow from all "outlet" HRUs (with no downstream HRU)', 'm3 s-1', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  bvar_meta(iLookBVAR%basin__AquiferStorage)   = var_info('basin__AquiferStorage'  , 'aquifer storage'                                        , 'm'     , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -659,7 +661,6 @@ contains
  ! subroutine to populate write commands from file input
  ! ------------------------------------------------
  subroutine read_output_file(err,message)
- USE multiconst,only:integerMissing
  USE get_ixName_module,only:get_ixUnknown
 
  ! some dimensional parameters

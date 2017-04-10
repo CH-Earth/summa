@@ -72,15 +72,11 @@ contains
  integer(i4b),intent(in)    :: ncid         ! file id of netcdf file to close
  integer(i4b),intent(out)   :: err          ! error code
  character(*),intent(out)   :: message      ! error message
- ! internals
- character(64)              :: cmessage     ! netcdf error message
-
  ! initialize error control
  err=0; message = 'nc_file_close/'
 
  err = nf90_close(ncid); 
- call netcdf_err(err,cmessage);
- message=trim(message)//trim(cmessage)
+ call netcdf_err(err,message)
 
  end subroutine nc_file_close
 
@@ -96,7 +92,9 @@ contains
   character(*), intent(inout)   :: message
   ! start procedure here
   if (err/=nf90_noerr) then
+   print*, 'trim(nf90_strerror(err) = ', trim(nf90_strerror(err))
    message=trim(message)//"["//trim(nf90_strerror(err))//"]"
+   print*, trim(message)
    err=200
   end if
  end subroutine netcdf_err

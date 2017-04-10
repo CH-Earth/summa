@@ -50,15 +50,20 @@ MODULE globalData
  private
 
  ! define missing values
- real(dp),parameter,public                   :: quadMissing=-9999._qp   ! missing quadruple precision number
- real(dp),parameter,public                   :: realMissing=-9999._dp   ! missing double precision number
- integer(i4b),parameter,public               :: integerMissing=-9999    ! missing integer 
+ real(qp),parameter,public                   :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
+ real(dp),parameter,public                   :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
+ integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer 
+
+ ! define run modes
+ integer(i4b),parameter,public               :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
+ integer(i4b),parameter,public               :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
+ integer(i4b),parameter,public               :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
 
  ! define limit checks
  real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
  real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
 
- ! define algorithmix control parameters
+ ! define algorithmic control parameters
  real(dp),parameter,public                   :: dx = 1.e-8_dp            ! finite difference increment
 
  ! Define the model decisions
@@ -107,7 +112,7 @@ MODULE globalData
                    struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
 
  ! define named variables to describe the domain type
- integer(i4b),parameter,public               :: iname_cas =1000         ! named variable to denote a vegetation state variable
+ integer(i4b),parameter,public               :: iname_cas =1000         ! named variable to denote a canopy air space state variable
  integer(i4b),parameter,public               :: iname_veg =1001         ! named variable to denote a vegetation state variable
  integer(i4b),parameter,public               :: iname_soil=1002         ! named variable to denote a soil layer
  integer(i4b),parameter,public               :: iname_snow=1003         ! named variable to denote a snow layer
@@ -129,14 +134,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: nRHS=1                  ! number of unknown variables on the RHS of the linear system A.X=B
  integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands
  integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands
- integer(i4b),parameter,public               :: ixSup3=kl+1             ! index for the 3rd super-diagonal band
- integer(i4b),parameter,public               :: ixSup2=kl+2             ! index for the 2nd super-diagonal band
- integer(i4b),parameter,public               :: ixSup1=kl+3             ! index for the 1st super-diagonal band
- integer(i4b),parameter,public               :: ixDiag=kl+4             ! index for the diagonal band
- integer(i4b),parameter,public               :: ixSub1=kl+5             ! index for the 1st sub-diagonal band
- integer(i4b),parameter,public               :: ixSub2=kl+6             ! index for the 2nd sub-diagonal band
- integer(i4b),parameter,public               :: ixSub3=kl+7             ! index for the 3rd sub-diagonal band
- integer(i4b),parameter,public               :: ixSub4=kl+8             ! index for the 3rd sub-diagonal band
+ integer(i4b),parameter,public               :: ixDiag=kl+ku+1          ! index for the diagonal band
  integer(i4b),parameter,public               :: nBands=2*kl+ku+1        ! length of the leading dimension of the band diagonal matrix
 
  ! define named variables for the type of matrix used in the numerical solution.
