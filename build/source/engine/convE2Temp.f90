@@ -35,14 +35,15 @@ contains
  ! ************************************************************************************************************************
  ! public subroutine E2T_lookup: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
  ! ************************************************************************************************************************
- subroutine E2T_lookup(err,message)
+ subroutine E2T_lookup(mpar_data,err,message)
  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
  USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
  USE multiconst,only:Tfreeze                           ! freezing point (K)
- USE data_struc,only:mpar_data                         ! model parameter structures (use snowfrz_scale)
  USE var_lookup,only:iLookPARAM                        ! named variables to define structure element
+ USE data_types,only:var_dlength                       ! data vector with variable length dimension (dp): x%var(:)%dat(:)
  implicit none
  ! declare dummy variables
+ type(var_dlength),intent(in)  :: mpar_data            ! model parameters
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! declare local variables
@@ -57,9 +58,7 @@ contains
  ! initialize error control
  err=0; message="E2T_lookup/"
  ! associate
- associate(&
-  snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale) &
- )
+ associate( snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) )
  ! define initial temperature vector
  T_incr = (Tfreeze - T_start) / real(nlook-1, kind(dp))  ! temperature increment
  Tk     = arth(T_start,T_incr,nlook)
@@ -72,10 +71,10 @@ contains
  E_lookup = arth(Ey(1),E_incr,nlook)
  ! use cubic spline interpolation to obtain temperature values at the desired values of enthalpy
  call spline(Ey,Tk,1.e30_dp,1.e30_dp,T2deriv,err,cmessage)  ! get the second derivatives
- if(err/=0) then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
  do ilook=1,nlook
   call splint(Ey,Tk,T2deriv,E_lookup(ilook),T_lookup(ilook),err,cmessage)
-  if(err/=0) then; message=trim(message)//trim(cmessage); return; endif
+  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
   !write(*,'(i6,1x,2(f20.4,1x))') ilook, E_lookup(ilook), T_lookup(ilook)
  end do
  end associate
@@ -87,9 +86,7 @@ contains
  ! ************************************************************************************************************************
  subroutine E2T_nosoil(Ey,BulkDenWater,fc_param,Tk,err,message)
  ! compute temperature based on enthalpy -- appropriate when no dry mass, as in snow
- USE multiconst, only: Tfreeze, &                   ! freezing point of water (K)
-                       Cp_soil,Cp_water,Cp_ice,&    ! specific heat of soil, water and ice (J kg-1 K-1)
-                       LH_fus                       ! latent heat of fusion (J kg-1)
+ USE multiconst, only: Cp_ice ! specific heat of ice (J kg-1 K-1)
  implicit none
  ! declare dummy variables
  real(dp),intent(in)      :: Ey            ! total enthalpy (J m-3)
@@ -139,14 +136,14 @@ contains
   if(E_spec < E_lookup(i0) .or. E_spec > E_lookup(i0+1) .or. &
      i0 < 1 .or. i0+1 > nlook)then
    err=10; message=trim(message)//'problem finding appropriate value in lookup table'; return
-  endif
+  end if
   ! get temperature guess
   Tg0 = T_lookup(i0)
   Tg1 = T_lookup(i0+1)
   ! compute function evaluations
   f0  = E_lookup(i0) - E_spec
   f1  = E_lookup(i0+1) - E_spec
- endif
+ end if
 
  ! compute initial derivative
  dh  = (f1 - f0) / (Tg1 - Tg0)
@@ -157,7 +154,7 @@ contains
  if(abs(dT)<atol)then
   Tk = Tg0+dT
   return
- endif
+ end if
 
  ! **** iterate a little
  do iter=1,niter
@@ -176,13 +173,13 @@ contains
   if(abs(dT)<atol)then
    Tk = Tg1+dT
    return
-  endif
+  end if
   ! get ready for next iteration -- save old function evaluation and temperature
   f0  = f1
   Tg0 = Tg1
   ! and check for convergence
-  if(iter==niter)then; err=20; message=trim(message)//"failedToConverge"; return; endif
- enddo  ! (iteration loop)
+  if(iter==niter)then; err=20; message=trim(message)//"failedToConverge"; return; end if
+ end do  ! (iteration loop)
  end subroutine E2T_nosoil
 
 

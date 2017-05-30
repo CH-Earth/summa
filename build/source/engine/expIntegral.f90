@@ -14,7 +14,8 @@ contains
  REAL(DP) LAI
  REAL(DP) EXPINT
  REAL(DP) a0,a1,a2,a3,a4,a5,b1,b2,b3,b4
- IF (LAI.EQ.0)THEN
+ real(dp),parameter :: verySmall=tiny(1.0_dp)     ! a very small number
+ IF (LAI < verySmall)THEN
   EXPINT=1._dp
 
  ELSEIF (LAI.LE.1.0) THEN

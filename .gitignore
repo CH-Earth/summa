@@ -20,3 +20,15 @@ summa.exe
 .tags*
 # OS X .DS_Store files
 .DS_Store
+*-local
+*_local
+*log
+*.cbp
+*.layout
+gmon.out
+summa.exe.dSYM*
+# makefile
+make.out
+Makefile-*
+# backup files
+*.backup

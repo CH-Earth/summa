@@ -47,7 +47,7 @@ Using Github to host the central or truth repository of our models allows us to 
 
  2. Model Admins have full access to specific repositories. They may push, pull, or make administrative changes to those repositories associated with their model. However, they should generally not push to the truth repo directly. Instead, they should fork, clone, edit locally, update their fork and then issue a pull request. This pull request should preferably be reviewed by someone else before it is merged.
 
- 3. Developers have read-only access (pull, clone, fork) to any of the publically listed repositories under the NCAR name. If a developer would like a feature branch merged into the main repository, a pull request must be submitted and a Model Admin may merge it in.
+ 3. Developers have read-only access (pull, clone, fork) to any of the publicly listed repositories under the UW-hydro name. If a developer would like a feature branch merged into the main repository, a pull request must be submitted and a Model Admin may merge it in.
 
 ## Workflow examples
 
@@ -81,7 +81,7 @@ The process would be as follows:
 
         git push
 
- * Now make as many changes as you need to, commit them to your local repo and push them to your remote on GitHub. This is just like any other work you would do using Git. Once everything is working and eevrything is sufficiently tested, you will be ready to share your code with others.
+ * Now make as many changes as you need to, commit them to your local repo and push them to your remote on GitHub. This is just like any other work you would do using Git. Once everything is working and everything is sufficiently tested, you will be ready to share your code with others.
 
 
  * Before you do that, merge any changes that have been made in the develop branch in the main SUMMA repo into the `feature/resistance` branch of your local repo. Assuming you are already on the `feature/resistance` branch:
@@ -96,8 +96,3 @@ The process would be as follows:
  * Issue a pull request. You do that on GitHub. Make sure that you make the pull request with respect to the correct branches. On your end this should be the `feature/resistance` branch and on the other end the `develop` branch.
 
  * You changes will be reviewed and merged or more likely there will be some back-and-forth with suggested changes and clarifications.
-
-
-
-
-

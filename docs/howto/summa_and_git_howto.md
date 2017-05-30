@@ -18,7 +18,7 @@ In general, if you plan to apply the model rather than work directly on the sour
 If you plan on contributing to model development or would like a systematic way to incorporate updates to the SUMMA source code, we encourage you to use Git. The following sections are designed to get you started using Git and working with the SUMMA source code repository.
 
 ### Git resources
-If you are SUMMA familiar with Git yet, we encourage you to spend a few minutes getting antiquated with the system before you starting working with the SUMMA source code and Git. It's not difficult to use and a few minutes of learning about Git will go along way in helping you manage your code development.
+If you are not familiar with Git yet, we encourage you to spend a few minutes getting acquainted with the system before you starting working with the SUMMA source code and Git. It's not difficult to use and a few minutes of learning about Git will go along way in helping you manage your code development.
 
 There are a number of good Git learning resources that will provide a basic introduction to the version control system.
 * http://git-scm.com/about

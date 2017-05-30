@@ -25,7 +25,7 @@ contains
   do k=2,n
    arth_r(k) = arth_r(k-1) + increment
   end do
- endif
+ end if
  END FUNCTION arth_r
  ! ------------------------------------------------------------------------------------------------
  FUNCTION arth_d(first,increment,n)
@@ -39,7 +39,7 @@ contains
   do k=2,n
    arth_d(k) = arth_d(k-1) + increment
   end do
- endif
+ end if
  END FUNCTION arth_d
  ! ------------------------------------------------------------------------------------------------
  FUNCTION arth_i(first,increment,n)
@@ -52,7 +52,7 @@ contains
   do k=2,n
    arth_i(k) = arth_i(k-1) + increment
   end do
- endif
+ end if
  END FUNCTION arth_i
 
 end module nr_utility_module
