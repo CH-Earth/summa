@@ -83,9 +83,9 @@ contains
  ! ***********************************************************************************************************
  subroutine tcond_snow(BulkDenIce,thermlcond,err,message)
  USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- USE mDecisions_module,only:Yen1965,Mellor1977,Jordan1991,Smirnova2000 ! named variables defining thermal conductivity options
+ USE mDecisions_module,only:Yen1965,Mellor1977,Jordan1991 ! named variables defining thermal conductivity options
  implicit none
  real(dp),intent(in)      :: BulkDenIce     ! bulk density of ice (kg m-3)
  real(dp),intent(out)     :: thermlcond     ! thermal conductivity of snow (W m-1 K-1)
@@ -99,7 +99,6 @@ contains
   case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2._dp + 7.4d-2      ! Mellor (1977)
   case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._dp)) &
                                      * (lambda_ice-lambda_air)                ! Jordan (1991)
-  case(Smirnova2000); thermlcond = 0.35_dp                                    ! Smirnova et al. (2000)
   case default
    err=10; message=trim(message)//"unknownOption"; return
  end select

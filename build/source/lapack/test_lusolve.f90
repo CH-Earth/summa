@@ -47,11 +47,11 @@ b = bb(1,1:3)
 
 ! decompose the matrix
 call ludcmp(a,indx,d,err,cmessage)
-if(err/=0)then; print*, trim(cmessage); stop; endif
+if(err/=0)then; print*, trim(cmessage); stop; end if
 
 ! solve the equations
 call lubksb(a,indx,b,err,cmessage)
-if(err/=0)then; print*, trim(cmessage); stop; endif
+if(err/=0)then; print*, trim(cmessage); stop; end if
 write(*,'(a,1x,3(f9.3,1x),a)') 'numrec: b = ', b, '; should be (1,2,-1)'
 
 ! set a and b (overwritten in lapack)

@@ -42,7 +42,7 @@ if(T > Tfreeze)then
  getLatentHeatValue = LH_vap     ! latent heat of vaporization          (J kg-1)
 else
  getLatentHeatValue = LH_sub     ! latent heat of sublimation           (J kg-1)
-endif
+end if
 end function getLatentHeatValue
 
 
@@ -80,13 +80,15 @@ real(dp), intent(out)           :: dSVP_dT  ! d(SVP)/dT
 real(dp), parameter             :: X1 = 17.27_dp
 real(dp), parameter             :: X2 = 237.30_dp
 ! local (use to test derivative calculations)
-real(dp),parameter              :: dx = 1.e-8_dp  ! finite difference increment
+real(dp),parameter              :: dx = 1.e-8_dp     ! finite difference increment
+logical(lgt),parameter          :: testDeriv=.false. ! flag to test the derivative
 !---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
+
 SVP     = SATVPFRZ * EXP( (X1*TC)/(X2 + TC) ) ! Saturated Vapour Press (Pa)
 dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2._dp)
-!print*, 'dSVP_dT check... ', SVP, dSVP_dT, (SATVPRESS(TC+dx) - SVP)/dx
+if(testDeriv) print*, 'dSVP_dT check... ', SVP, dSVP_dT, (SATVPRESS(TC+dx) - SVP)/dx
 END SUBROUTINE satVapPress
 
 
@@ -340,7 +342,7 @@ do iter=1,maxiter
  if(abs(f0) < Xtol) exit
  ! check convergence
  if(iter==maxiter)stop 'failed to converge in WETBULBTMP'
-enddo  ! (iterating)
+end do  ! (iterating)
 
 ! return value in K
 WETBULBTMP = TWcel + TFREEZE

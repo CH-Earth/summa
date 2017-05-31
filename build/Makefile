@@ -13,11 +13,22 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =
+##F_MASTER =
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
-# to be version 4.8 or higher
-FC =
+# to be version 4.8 or higher. This variable is simply used to select the right
+# compiler flags in the ifeq statements in this Makefile. The compiler
+# executable is set separately as FC_EXE
+##FC =
+
+# Define the path for the compiler executable. This is the actual executable
+# that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin-gfortran-mp-6
+# FC and FC_EXE have to be consistent
+##FC_EXE =
+
+# Define the compiler environment. This is used in the ifeq statements in this
+# Makefile to set the include and library paths and the libraries
+##FC_ENV =
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note
 # that the default paths defined are those that work for our compilers
@@ -30,9 +41,44 @@ FC =
 # please add your configuration (operating system and compiler plus
 # part 0 of the Makefile) to the SUMMA wiki on github.
 
+# Define compiler flags. If you use a different compiler,
+# you will need to figure out what the equivalent flags are
+# and may need to update this section
+ifeq "$(FC)" "gfortran"
+ FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+ FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+ FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+endif
+ifeq "$(FC)" "ifort"
+ FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
+ FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
+ FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
+endif
+ifeq "$(FC)" "pgfortran"
+ FLAGS_NOAH = -O0 -pg -g -traceback -r8 -Mfree -Mbounds
+ FLAGS_COMM = -O0 -pg -g -traceback -Mfree -Mbounds
+ FLAGS_SUMMA = -O0 -pg -g -traceback -Mfree -Mbounds -Minfo -Mnoautoinline -Ktrap=inv,denorm,divz,ovf,unf,inexact
+endif
+
+# gfortran-6 compiler used in Docker builds
+ifeq "$(FC_ENV)" "gfortran-6-docker"
+ NCDF_PATH = /usr
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
+endif
+
+# Ubuntu gfortran compiler tested with 4.6 and higher
+# also used for the travis build
+ifeq "$(FC_ENV)" "gfortran-6-travis"
+ LAPK_PATH = /usr
+ # define the lapack libraries
+ LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
+endif
+
 # gfortran compiler on OS X tested with 4.8 and higher
 # (works on Mac OS X with Macports)
-ifeq "$(FC)" "gfortran-mp-6"
+ifeq "$(FC_ENV)" "gfortran-6-macports"
  NCDF_PATH = /opt/local
  LAPK_PATH = /opt/local
  # define the lapack libraries - on OS X you need atlas and
@@ -40,52 +86,25 @@ ifeq "$(FC)" "gfortran-mp-6"
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
 endif
 
-# Ubuntu gfortran compiler tested with 6.0 and higher
-# also used for the travis build
-ifeq "$(FC)" "gfortran-6"
- NCDF_PATH = /usr/local
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
-endif
-
 # Intel fortran compiler
-ifeq "$(FC)" "ifort"
+ifeq "$(FC_ENV)" "ifort"
  NCDF_PATH = /opt/netcdf4-intel
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 endif
 
-# Intel fortran compiler
-ifeq "$(FC)" "ifort"
- NCDF_PATH = /opt/netcdf-4.3.0+ifort-12.1
+# Portland compiler
+ifeq "$(FC_ENV)" "pgfortran"
+ NCDF_PATH = /opt/netcdf4-pgi
  LAPK_PATH = /usr
  # define the lapack libraries
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
 endif
 
+# define netcdf libraries and include files
 LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
 INCNETCDF = -I$(NCDF_PATH)/include
-
-# Define compiler flags. If you use a different compiler,
-# you will need to figure out what the equivalent flags are
-# and may need to update this section
-ifeq "$(FC)" "gfortran-mp-6"
- FLAGS_NOAH = -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -g -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_COMM = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_SUMMA = -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
-endif
-ifeq "$(FC)" "gfortran-6"
- FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
-endif
-ifeq "$(FC)" "ifort"
- FLAGS_NOAH = -warn nounused -autodouble -noerror_limit -FR -O0 -auto -WB -traceback -g -fltconsistency
- FLAGS_COMM = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
- FLAGS_SUMMA = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
-endif
 
 #========================================================================
 # PART 1: Define directory paths
@@ -116,6 +135,7 @@ ENGINE_DIR = $(F_KORE_DIR)/engine
 #  utilities
 SUMMA_NRUTIL= \
 		nrtype.f90 \
+		f2008funcs.f90 \
 		nr_utility.f90
 NRUTIL = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRUTIL))
 
@@ -136,13 +156,20 @@ HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 SUMMA_DATAMS= \
 		multiconst.f90 \
 		var_lookup.f90 \
-		data_struc.f90 \
-		popMetadat.f90
+		data_types.f90 \
+		globalData.f90 \
+		flxMapping.f90 \
+		get_ixname.f90 \
+		ascii_util.f90 \
+		popMetadat.f90 \
+		outpt_stat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 
 # utility modules
 SUMMA_UTILMS= \
-		time_utils.f90
+		time_utils.f90 \
+		matrixOper.f90 \
+		mDecisions.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
 # Model guts
@@ -153,6 +180,7 @@ SUMMA_MODGUT= \
 SUMMA_SOLVER= \
 		vegPhenlgy.f90 \
 		diagn_evar.f90 \
+		stomResist.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
@@ -160,29 +188,35 @@ SUMMA_SOLVER= \
 		vegLiqFlux.f90 \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
+		computFlux.f90 \
+		computResid.f90 \
+		computJacob.f90 \
+		eval8summa.f90 \
+		summaSolve.f90 \
 		systemSolv.f90 \
+		varSubstep.f90 \
+		opSplittin.f90 \
 		coupled_em.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 
 # Define routines for SUMMA preliminaries
 SUMMA_PRELIM= \
 		conv_funcs.f90 \
-		ascii_util.f90 \
 		sunGeomtry.f90 \
-		get_ixname.f90 \
-		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
 		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
+		checkStruc.f90 \
+		childStruc.f90 \
 		ffile_info.f90 \
 		read_attrb.f90 \
 		read_pinit.f90 \
 		pOverwrite.f90 \
 		read_param.f90 \
 		paramCheck.f90 \
-		read_icond.f90
+		check_icond.f90
 PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_PRELIM))
 
 SUMMA_NOAHMP= \
@@ -196,6 +230,9 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 
 # Define routines for the SUMMA model runs
 SUMMA_MODRUN = \
+		indexState.f90 \
+		getVectorz.f90 \
+		updateVars.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
@@ -214,15 +251,17 @@ SUMMA_MSOLVE = \
 
 # Define NetCDF routines
 SUMMA_NETCDF = \
+		netcdf_util.f90 \
 		def_output.f90 \
-		modelwrite.f90
+		modelwrite.f90 \
+		read_icond.f90
 NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(SUMMA_NETCDF))
 
 # ... stitch together common programs
 COMM_ALL = $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) $(UTILMS)
 
 # ... stitch together SUMMA programs
-SUMMA_ALL = $(PRELIM) $(MODRUN) $(SOLVER) $(NETCDF)
+SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER)
 
 # Define the driver routine
 SUMMA_DRIVER= \
@@ -231,6 +270,13 @@ DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 
 # Define the executable
 DRIVER__EX = summa.exe
+
+# Define version number
+VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
+VERSION = $(shell git tag | sed 's/v//')
+BULTTIM = $(shell date)
+GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
+GITHASH = $(shell git rev-parse HEAD)
 
 #========================================================================
 # PART 3: Checks
@@ -241,6 +287,12 @@ ifndef F_MASTER
 endif
 ifndef FC
  $(error FC is undefined: Specify your compiler)
+endif
+ifndef FC_EXE
+ $(error FC_EXE is undefined: Specify your compiler executable)
+endif
+ifndef FC_ENV
+ $(error FC_ENV is undefined: Specify your compiler environment)
 endif
 ifndef FLAGS_SUMMA
  $(error Specify flags for your compiler: $(FC))
@@ -273,22 +325,29 @@ check:
 	$(info Add $(NCDF_PATH)/lib to your LD_LIBRARY_PATH)
 	$(info)
 
+# update version information
+update_version:
+	echo "character(len=64), parameter     :: summaVersion = '${VERSION}'" > $(VERSIONFILE)
+	echo "character(len=64), parameter     :: buildTime = '${BULTTIM}'" >> $(VERSIONFILE)
+	echo "character(len=64), parameter     :: gitBranch = '${GITBRCH}'" >> $(VERSIONFILE)
+	echo "character(len=64), parameter     :: gitHash = '${GITHASH}'" >> $(VERSIONFILE)
+
 # compile Noah-MP routines
 compile_noah:
-	$(FC) $(FLAGS_NOAH) -c $(NOAHMP)
+	$(FC_EXE) $(FLAGS_NOAH) -c $(NOAHMP)
 
 # compile common routines
 compile_comm:
-	$(FC) $(FLAGS_COMM) -c $(COMM_ALL)
+	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL)
 
 # compile SUMMA routines
-compile_summa:
-	$(FC) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
+compile_summa: update_version
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
 	$(INCNETCDF)
 
 # link routines
 link:
-	$(FC) *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
+	$(FC_EXE) -pg -g *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

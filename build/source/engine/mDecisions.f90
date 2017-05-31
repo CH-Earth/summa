@@ -24,96 +24,126 @@ USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
-! -----------------------------------------------------------------------------------------------------------
-! ***** define look-up values for different Noah-MP decisions *****
-! -----------------------------------------------------------------------------------------------------------
 ! look-up values for the choice of function for the soil moisture control on stomatal resistance
-integer(i4b),parameter,public :: NoahType          = 1    ! thresholded linear function of volumetric liquid water content
-integer(i4b),parameter,public :: CLM_Type          = 2    ! thresholded linear function of matric head
-integer(i4b),parameter,public :: SiB_Type          = 3    ! exponential of the log of matric head
+integer(i4b),parameter,public :: NoahType             =   1    ! thresholded linear function of volumetric liquid water content
+integer(i4b),parameter,public :: CLM_Type             =   2    ! thresholded linear function of matric head
+integer(i4b),parameter,public :: SiB_Type             =   3    ! exponential of the log of matric head
 ! look-up values for the choice of stomatal resistance formulation
-integer(i4b),parameter,public :: BallBerry         = 1    ! Ball-Berry
-integer(i4b),parameter,public :: Jarvis            = 2    ! Jarvis
-integer(i4b),parameter,public :: simpleResistance  = 3    ! simple resistance formulation
-! -----------------------------------------------------------------------------------------------------------
-! ***** define look-up values for different SUMMA model decisions *****
-! -----------------------------------------------------------------------------------------------------------
+integer(i4b),parameter,public :: BallBerry            =   1    ! Ball-Berry
+integer(i4b),parameter,public :: Jarvis               =   2    ! Jarvis
+integer(i4b),parameter,public :: simpleResistance     =   3    ! simple resistance formulation
+integer(i4b),parameter,public :: BallBerryFlex        =   4    ! flexible Ball-Berry scheme
+integer(i4b),parameter,public :: BallBerryTest        =   5    ! flexible Ball-Berry scheme (testing)
+! look-up values to define leaf temperature controls on photosynthesis + stomatal resistance
+integer(i4b),parameter,public :: q10Func              =  11    ! the q10 function used in CLM4 and Noah-MP 
+integer(i4b),parameter,public :: Arrhenius            =  12    ! the Arrhenious functions used in CLM5 and Cable
+! look-up values to define humidity controls on stomatal resistance
+integer(i4b),parameter,public :: humidLeafSurface     =  21    ! humidity at the leaf surface [Bonan et al., 2011]
+integer(i4b),parameter,public :: scaledHyperbolic     =  22    ! scaled hyperbolic function [Leuning et al., 1995]
+! look-up values to define the electron transport function (dependence of photosynthesis on PAR)
+integer(i4b),parameter,public :: linear               =  31    ! linear function used in CLM4 and Noah-MP
+integer(i4b),parameter,public :: linearJmax           =  32    ! linear jmax function used in Cable [Wang et al., Ag Forest Met 1998, eq D5]
+integer(i4b),parameter,public :: quadraticJmax        =  33    ! the quadratic Jmax function, used in SSiB and CLM5
+! look up values to define the use of CO2 compensation point to calculate stomatal resistance
+integer(i4b),parameter,public :: origBWB              =  41    ! the original BWB approach
+integer(i4b),parameter,public :: Leuning              =  42    ! the Leuning approach
+! look up values to define the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
+integer(i4b),parameter,public :: NoahMPsolution       =  51    ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
+integer(i4b),parameter,public :: newtonRaphson        =  52    ! full Newton-Raphson iterative solution to convergence
+! look up values to define the controls on carbon assimilation
+integer(i4b),parameter,public :: colimitation         =  61    ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
+integer(i4b),parameter,public :: minFunc              =  62    ! do not enable colimitation: use minimum of the three controls on carbon assimilation
+! look up values to define the scaling of photosynthesis from the leaves to the canopy
+integer(i4b),parameter,public :: constantScaling      =  71    ! constant scaling factor
+integer(i4b),parameter,public :: laiScaling           =  72    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
 ! look-up values for the choice of numerical method
-integer(i4b),parameter,public :: iterative            =  11    ! iterative
-integer(i4b),parameter,public :: nonIterative         =  12    ! non-iterative
-integer(i4b),parameter,public :: iterSurfEnergyBal    =  13    ! iterate only on the surface energy balance
+integer(i4b),parameter,public :: iterative            =  81    ! iterative
+integer(i4b),parameter,public :: nonIterative         =  82    ! non-iterative
+integer(i4b),parameter,public :: iterSurfEnergyBal    =  83    ! iterate only on the surface energy balance
 ! look-up values for method used to compute derivative
-integer(i4b),parameter,public :: numerical            =  21    ! numerical solution
-integer(i4b),parameter,public :: analytical           =  22    ! analytical solution
+integer(i4b),parameter,public :: numerical            =  91    ! numerical solution
+integer(i4b),parameter,public :: analytical           =  92    ! analytical solution
 ! look-up values for method used to determine LAI and SAI
-integer(i4b),parameter,public :: monthlyTable         =  31    ! LAI/SAI taken directly from a monthly table for different vegetation classes
-integer(i4b),parameter,public :: specified            =  32    ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+integer(i4b),parameter,public :: monthlyTable         = 101    ! LAI/SAI taken directly from a monthly table for different vegetation classes
+integer(i4b),parameter,public :: specified            = 102    ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+! look-up values for the choice of the canopy interception parameterization
+integer(i4b),parameter,public :: sparseCanopy         = 111    ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
+integer(i4b),parameter,public :: storageFunc          = 112    ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
+integer(i4b),parameter,public :: unDefined            = 113    ! option is undefined (backwards compatibility)
 ! look-up values for the form of Richards' equation
-integer(i4b),parameter,public :: moisture             =  41    ! moisture-based form of Richards' equation
-integer(i4b),parameter,public :: mixdform             =  42    ! mixed form of Richards' equation
+integer(i4b),parameter,public :: moisture             = 121    ! moisture-based form of Richards' equation
+integer(i4b),parameter,public :: mixdform             = 122    ! mixed form of Richards' equation
 ! look-up values for the choice of groundwater parameterization
-integer(i4b),parameter,public :: qbaseTopmodel        =  51    ! TOPMODEL-ish baseflow parameterization
-integer(i4b),parameter,public :: bigBucket            =  52    ! a big bucket (lumped aquifer model)
-integer(i4b),parameter,public :: noExplicit           =  53    ! no explicit groundwater parameterization
+integer(i4b),parameter,public :: qbaseTopmodel        = 131    ! TOPMODEL-ish baseflow parameterization
+integer(i4b),parameter,public :: bigBucket            = 132    ! a big bucket (lumped aquifer model)
+integer(i4b),parameter,public :: noExplicit           = 133    ! no explicit groundwater parameterization
 ! look-up values for the choice of hydraulic conductivity profile
-integer(i4b),parameter,public :: constant             =  61    ! constant hydraulic conductivity with depth
-integer(i4b),parameter,public :: powerLaw_profile     =  62    ! power-law profile
+integer(i4b),parameter,public :: constant             = 141    ! constant hydraulic conductivity with depth
+integer(i4b),parameter,public :: powerLaw_profile     = 142    ! power-law profile
 ! look-up values for the choice of boundary conditions for thermodynamics
-integer(i4b),parameter,public :: prescribedTemp       =  71    ! prescribed temperature
-integer(i4b),parameter,public :: energyFlux           =  72    ! energy flux
-integer(i4b),parameter,public :: zeroFlux             =  73    ! zero flux
+integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
+integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
+integer(i4b),parameter,public :: zeroFlux             = 153    ! zero flux
 ! look-up values for the choice of boundary conditions for hydrology
-integer(i4b),parameter,public :: liquidFlux           =  81    ! liquid water flux
-integer(i4b),parameter,public :: prescribedHead       =  82    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
-integer(i4b),parameter,public :: funcBottomHead       =  83    ! function of matric head in the lower-most layer
-integer(i4b),parameter,public :: freeDrainage         =  84    ! free drainage
+integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water flux
+integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+integer(i4b),parameter,public :: funcBottomHead       = 163    ! function of matric head in the lower-most layer
+integer(i4b),parameter,public :: freeDrainage         = 164    ! free drainage
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
-integer(i4b),parameter,public :: Raupach_BLM1994      =  91    ! Raupach (BLM 1994) "Simplified expressions..."
-integer(i4b),parameter,public :: CM_QJRMS1998         =  92    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
-integer(i4b),parameter,public :: vegTypeTable         =  93    ! constant parameters dependent on the vegetation type
+integer(i4b),parameter,public :: Raupach_BLM1994      = 171    ! Raupach (BLM 1994) "Simplified expressions..."
+integer(i4b),parameter,public :: CM_QJRMS1998         = 172    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+integer(i4b),parameter,public :: vegTypeTable         = 173    ! constant parameters dependent on the vegetation type
+! look-up values for the choice of parameterization for the rooting profile
+integer(i4b),parameter,public :: powerLaw             = 181    ! simple power-law rooting profile
+integer(i4b),parameter,public :: doubleExp            = 182    ! the double exponential function of Xeng et al. (JHM 2001)
 ! look-up values for the choice of parameterization for canopy emissivity
-integer(i4b),parameter,public :: simplExp             = 101    ! simple exponential function
-integer(i4b),parameter,public :: difTrans             = 102    ! parameterized as a function of diffuse transmissivity
+integer(i4b),parameter,public :: simplExp             = 191    ! simple exponential function
+integer(i4b),parameter,public :: difTrans             = 192    ! parameterized as a function of diffuse transmissivity
 ! look-up values for the choice of parameterization for snow interception
-integer(i4b),parameter,public :: stickySnow           = 111    ! maximum interception capacity an increasing function of temerature
-integer(i4b),parameter,public :: lightSnow            = 112    ! maximum interception capacity an inverse function of new snow densit
+integer(i4b),parameter,public :: stickySnow           = 201    ! maximum interception capacity an increasing function of temerature
+integer(i4b),parameter,public :: lightSnow            = 202    ! maximum interception capacity an inverse function of new snow densit
 ! look-up values for the choice of wind profile
-integer(i4b),parameter,public :: exponential          = 121    ! exponential wind profile extends to the surface
-integer(i4b),parameter,public :: logBelowCanopy       = 122    ! logarithmic profile below the vegetation canopy
+integer(i4b),parameter,public :: exponential          = 211    ! exponential wind profile extends to the surface
+integer(i4b),parameter,public :: logBelowCanopy       = 212    ! logarithmic profile below the vegetation canopy
 ! look-up values for the choice of stability function
-integer(i4b),parameter,public :: standard             = 131    ! standard MO similarity, a la Anderson (1976)
-integer(i4b),parameter,public :: louisInversePower    = 132    ! Louis (1979) inverse power function
-integer(i4b),parameter,public :: mahrtExponential     = 133    ! Mahrt (1987) exponential
+integer(i4b),parameter,public :: standard             = 221    ! standard MO similarity, a la Anderson (1976)
+integer(i4b),parameter,public :: louisInversePower    = 222    ! Louis (1979) inverse power function
+integer(i4b),parameter,public :: mahrtExponential     = 223    ! Mahrt (1987) exponential
 ! look-up values for the choice of canopy shortwave radiation method
-integer(i4b),parameter,public :: noah_mp              = 141    ! full Noah-MP implementation (including albedo)
-integer(i4b),parameter,public :: CLM_2stream          = 142    ! CLM 2-stream model (see CLM documentation)
-integer(i4b),parameter,public :: UEB_2stream          = 143    ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
-integer(i4b),parameter,public :: NL_scatter           = 144    ! Simplified method Nijssen and Lettenmaier (JGR 1999)
-integer(i4b),parameter,public :: BeersLaw             = 145    ! Beer's Law (as implemented in VIC)
+integer(i4b),parameter,public :: noah_mp              = 231    ! full Noah-MP implementation (including albedo)
+integer(i4b),parameter,public :: CLM_2stream          = 232    ! CLM 2-stream model (see CLM documentation)
+integer(i4b),parameter,public :: UEB_2stream          = 233    ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+integer(i4b),parameter,public :: NL_scatter           = 234    ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+integer(i4b),parameter,public :: BeersLaw             = 235    ! Beer's Law (as implemented in VIC)
 ! look-up values for the choice of albedo representation
-integer(i4b),parameter,public :: constantDecay        = 151    ! constant decay (e.g., VIC, CLASS)
-integer(i4b),parameter,public :: variableDecay        = 152    ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
+integer(i4b),parameter,public :: constantDecay        = 241    ! constant decay (e.g., VIC, CLASS)
+integer(i4b),parameter,public :: variableDecay        = 242    ! variable decay (e.g., BATS approach, with destructive metamorphism + soot content)
 ! look-up values for the choice of compaction routine
-integer(i4b),parameter,public :: constantSettlement   = 161    ! constant settlement rate
-integer(i4b),parameter,public :: andersonEmpirical    = 162    ! semi-empirical method of Anderson (1976)
+integer(i4b),parameter,public :: constantSettlement   = 251    ! constant settlement rate
+integer(i4b),parameter,public :: andersonEmpirical    = 252    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
-integer(i4b),parameter,public :: sameRulesAllLayers   = 171    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 172    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: sameRulesAllLayers   = 261    ! same combination/sub-division rules applied to all layers
+integer(i4b),parameter,public :: rulesDependLayerIndex= 262    ! combination/sub-dividion rules depend on layer index
 ! look-up values for the choice of thermal conductivity representation for snow
-integer(i4b),parameter,public :: Yen1965              = 181    ! Yen (1965)
-integer(i4b),parameter,public :: Mellor1977           = 182    ! Mellor (1977)
-integer(i4b),parameter,public :: Jordan1991           = 183    ! Jordan (1991)
-integer(i4b),parameter,public :: Smirnova2000         = 184    ! Smirnova et al. (2000)
+integer(i4b),parameter,public :: Yen1965              = 271    ! Yen (1965)
+integer(i4b),parameter,public :: Mellor1977           = 272    ! Mellor (1977)
+integer(i4b),parameter,public :: Jordan1991           = 273    ! Jordan (1991)
+integer(i4b),parameter,public :: Smirnova2000         = 274    ! Smirnova et al. (2000)
 ! look-up values for the choice of thermal conductivityi representation for soil
-integer(i4b),parameter,public :: funcSoilWet          = 191    ! function of soil wetness
-integer(i4b),parameter,public :: mixConstit           = 192    ! mixture of constituents
-integer(i4b),parameter,public :: hanssonVZJ           = 193    ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
+integer(i4b),parameter,public :: funcSoilWet          = 281    ! function of soil wetness
+integer(i4b),parameter,public :: mixConstit           = 282    ! mixture of constituents
+integer(i4b),parameter,public :: hanssonVZJ           = 283    ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
 ! look-up values for the choice of method for the spatial representation of groundwater
-integer(i4b),parameter,public :: localColumn          = 201    ! separate groundwater representation in each local soil column
-integer(i4b),parameter,public :: singleBasin          = 202    ! single groundwater store over the entire basin
+integer(i4b),parameter,public :: localColumn          = 291    ! separate groundwater representation in each local soil column
+integer(i4b),parameter,public :: singleBasin          = 292    ! single groundwater store over the entire basin
 ! look-up values for the choice of sub-grid routing method
-integer(i4b),parameter,public :: timeDelay            = 211    ! time-delay histogram
-integer(i4b),parameter,public :: qInstant             = 212    ! instantaneous routing
+integer(i4b),parameter,public :: timeDelay            = 301    ! time-delay histogram
+integer(i4b),parameter,public :: qInstant             = 302    ! instantaneous routing
+! look-up values for the choice of new snow density method
+integer(i4b),parameter,public :: constDens            = 311    ! Constant new snow density
+integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976 
+integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
+integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 ! -----------------------------------------------------------------------------------------------------------
 contains
 
@@ -124,15 +154,14 @@ contains
  subroutine mDecisions(err,message)
  ! model time structures
  USE multiconst,only:secprday               ! number of seconds in a day
- USE data_struc,only:time_meta              ! time metadata
  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
- USE data_struc,only:startTime,finshTime    ! start/end time of simulation
- USE data_struc,only:dJulianStart           ! julian day of start time of simulation
- USE data_struc,only:dJulianFinsh           ! julian day of end time of simulation
- USE data_struc,only:data_step              ! length of data step (s)
- USE data_struc,only:numtim                 ! number of time steps in the simulation
+ USE globalData,only:startTime,finshTime    ! start/end time of simulation
+ USE globalData,only:dJulianStart           ! julian day of start time of simulation
+ USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
+ USE globalData,only:data_step              ! length of data step (s)
+ USE globalData,only:numtim                 ! number of time steps in the simulation
  ! model decision structures
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globaldata,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
  ! Noah-MP decision structures
  USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
@@ -147,7 +176,6 @@ contains
  character(*),intent(out)             :: message        ! error message
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
- integer(i4b)                         :: nAtt           ! number of attributes in the time structures
  real(dp)                             :: dsec           ! second
  ! initialize error control
  err=0; message='mDecisions/'
@@ -157,16 +185,9 @@ contains
 
  ! read information from model decisions file, and populate model decisions structure
  call readoption(err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! -------------------------------------------------------------------------------------------------
-
- ! allocate space for start/end time structures
- nAtt = size(time_meta)  ! number of attributes in the time structure
- allocate(startTime,finshTime, stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structures'; return; endif
- allocate(startTime%var(nAtt),finshTime%var(nAtt), stat=err)
- if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the time structure components'; return; endif
 
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
@@ -177,7 +198,7 @@ contains
                   startTime%var(iLookTIME%imin),                         & ! minute
                   dsec,                                                  & ! second
                   err,cmessage)                                            ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! put simulation end time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
@@ -188,7 +209,7 @@ contains
                   finshTime%var(iLookTIME%imin),                         & ! minute
                   dsec,                                                  & ! second
                   err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the start of the simulation
  call compjulday(&
@@ -200,7 +221,7 @@ contains
                  0._dp,                                                 & ! second
                  dJulianStart,                                          & ! julian date for the start of the simulation
                  err, cmessage)                                           ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the end of the simulation
  call compjulday(&
@@ -212,10 +233,14 @@ contains
                  0._dp,                                                 & ! second
                  dJulianFinsh,                                          & ! julian date for the end of the simulation
                  err, cmessage)                                           ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ ! check start and finish time
+ write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
+ write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var
 
  ! check that simulation end time is > start time
- if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; endif
+ if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
  ! compute the number of time steps
  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
@@ -233,7 +258,7 @@ contains
   case('CLM_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = CLM_Type             ! thresholded linear function of matric head
   case('SiB_Type'); model_decisions(iLookDECISIONS%soilStress)%iDecision = SiB_Type             ! exponential of the log of matric head
   case default
-   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%soilStress)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown soil moisture function [option="//trim(model_decisions(iLookDECISIONS%soilStress)%cDecision)//"]"; return
  end select
 
  ! identify the choice of function for stomatal resistance
@@ -241,11 +266,82 @@ contains
   case('BallBerry'          ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerry           ! Ball-Berry
   case('Jarvis'             ); model_decisions(iLookDECISIONS%stomResist)%iDecision = Jarvis              ! Jarvis
   case('simpleResistance'   ); model_decisions(iLookDECISIONS%stomResist)%iDecision = simpleResistance    ! simple resistance formulation
+  case('BallBerryFlex'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryFlex       ! flexible Ball-Berry scheme
+  case('BallBerryTest'      ); model_decisions(iLookDECISIONS%stomResist)%iDecision = BallBerryTest       ! flexible Ball-Berry scheme (testing)
   case default
-   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown stomatal resistance function [option="//trim(model_decisions(iLookDECISIONS%stomResist)%cDecision)//"]"; return
  end select
 
- ! -------------------------------------------------------------------------------------------------
+ ! identify the leaf temperature controls on photosynthesis + stomatal resistance
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision))
+   case('q10Func'            ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = q10Func
+   case('Arrhenius'          ); model_decisions(iLookDECISIONS%bbTempFunc)%iDecision = Arrhenius
+   case default
+    err=10; message=trim(message)//"unknown leaf temperature function [option="//trim(model_decisions(iLookDECISIONS%bbTempFunc)%cDecision)//"]"; return
+  end select
+ end if
+
+ ! identify the humidity controls on stomatal resistance
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision))
+   case('humidLeafSurface'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = humidLeafSurface
+   case('scaledHyperbolic'   ); model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision = scaledHyperbolic
+   case default
+    err=10; message=trim(message)//"unknown humidity function [option="//trim(model_decisions(iLookDECISIONS%bbHumdFunc)%cDecision)//"]"; return
+  end select
+ end if
+
+ ! identify functions for electron transport function (dependence of photosynthesis on PAR)
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision))
+   case('linear'             ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linear
+   case('linearJmax'         ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = linearJmax
+   case('quadraticJmax'      ); model_decisions(iLookDECISIONS%bbElecFunc)%iDecision = quadraticJmax
+   case default
+    err=10; message=trim(message)//"unknown electron transport function [option="//trim(model_decisions(iLookDECISIONS%bbElecFunc)%cDecision)//"]"; return
+  end select
+ end if
+
+ ! identify the use of the co2 compensation point in the stomatal conductance calaculations
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision))
+   case('origBWB'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = origBWB
+   case('Leuning'            ); model_decisions(iLookDECISIONS%bbCO2point)%iDecision = Leuning
+   case default
+    err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
+  end select
+ end if
+ 
+ ! identify the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision))
+   case('NoahMPsolution'     ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = NoahMPsolution  ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
+   case('newtonRaphson'      ); model_decisions(iLookDECISIONS%bbNumerics)%iDecision = newtonRaphson   ! full Newton-Raphson iterative solution to convergence
+   case default
+    err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
+  end select
+ end if
+ 
+ ! identify the controls on carbon assimilation
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
+   case('colimitation'       ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = colimitation    ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
+   case('minFunc'            ); model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision = minFunc         ! do not enable colimitation: use minimum of the three controls on carbon assimilation
+   case default
+    err=10; message=trim(message)//"unknown option for the controls on carbon assimilation [option="//trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision)//"]"; return
+  end select
+ end if
+
+ ! identify the scaling of photosynthesis from the leaf to the canopy
+ if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
+  select case(trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision))
+   case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor 
+   case('laiScaling'         ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = laiScaling      ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
+   case default
+    err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
+  end select
+ end if
 
  ! identify the numerical method
  select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
@@ -253,7 +349,7 @@ contains
   case('non_iter'); model_decisions(iLookDECISIONS%num_method)%iDecision = nonIterative        ! non-iterative
   case('itersurf'); model_decisions(iLookDECISIONS%num_method)%iDecision = iterSurfEnergyBal   ! iterate only on the surface energy balance
   case default
-   err=10; message=trim(message)//"unknown numerical [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
+   err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
  end select
 
  ! identify the method used to calculate flux derivatives
@@ -270,6 +366,15 @@ contains
   case('specified'); model_decisions(iLookDECISIONS%LAI_method)%iDecision = specified          ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
   case default
    err=10; message=trim(message)//"unknown method to determine LAI and SAI [option="//trim(model_decisions(iLookDECISIONS%LAI_method)%cDecision)//"]"; return
+ end select
+
+ ! identify the canopy interception parameterization
+ select case(trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision))
+  case('notPopulatedYet'); model_decisions(iLookDECISIONS%cIntercept)%iDecision = unDefined
+  case('sparseCanopy');    model_decisions(iLookDECISIONS%cIntercept)%iDecision = sparseCanopy
+  case('storageFunc');     model_decisions(iLookDECISIONS%cIntercept)%iDecision = storageFunc
+  case default
+   err=10; message=trim(message)//"unknown canopy interception parameterization [option="//trim(model_decisions(iLookDECISIONS%cIntercept)%cDecision)//"]"; return
  end select
 
  ! identify the form of Richards' equation
@@ -339,6 +444,15 @@ contains
   case('vegTypeTable'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = vegTypeTable     ! constant parameters dependent on the vegetation type
   case default
    err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height [option="//trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision)//"]"; return
+ end select
+
+ ! identify the choice of parameterization for the rooting profile
+ ! NOTE: for backwards compatibility select powerLaw if rooting profile is undefined
+ select case(trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision))
+  case('powerLaw','notPopulatedYet');  model_decisions(iLookDECISIONS%rootProfil)%iDecision = powerLaw      ! simple power-law rooting profile
+  case('doubleExp');                   model_decisions(iLookDECISIONS%rootProfil)%iDecision = doubleExp     ! the double exponential function of Xeng et al. (JHM 2001)
+  case default
+   err=10; message=trim(message)//"unknown parameterization for rooting profile [option="//trim(model_decisions(iLookDECISIONS%rootProfil)%cDecision)//"]"; return
  end select
 
  ! identify the choice of parameterization for canopy emissivity
@@ -444,6 +558,17 @@ contains
    err=10; message=trim(message)//"unknown option for sub-grid routing [option="//trim(model_decisions(iLookDECISIONS%subRouting)%cDecision)//"]"; return
  end select
 
+ ! choice of new snow density
+ ! NOTE: use hedAndPom as the default, where density method is undefined (not populated yet)
+ select case(trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision))
+  case('hedAndPom','notPopulatedYet'); model_decisions(iLookDECISIONS%snowDenNew)%iDecision = hedAndPom           ! Hedstrom and Pomeroy (1998), expoential increase
+  case('anderson');                    model_decisions(iLookDECISIONS%snowDenNew)%iDecision = anderson            ! Anderson 1976
+  case('pahaut_76');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = pahaut_76           ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+  case('constDens');                   model_decisions(iLookDECISIONS%snowDenNew)%iDecision = constDens           ! Constant new snow density
+  case default
+   err=10; message=trim(message)//"unknown option for new snow density [option="//trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision)//"]"; return
+ end select
+
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! check for consistency among options
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -454,7 +579,7 @@ contains
  !  if(model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision /= prescribedHead)then
  !   message=trim(message)//'upper boundary condition for soil hydology must be presHead with presTemp and zeroFlux options for thermodynamics'
  !   err=20; return
- !  endif
+ !  end if
  !end select
 
  ! check there is prescribedTemp or zeroFlux for thermodynamics when using prescribedHead for soil hydrology
@@ -475,7 +600,7 @@ contains
    if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision /= zeroFlux)then
     message=trim(message)//'lower boundary condition for soil hydology must be zeroFlux with qbaseTopmodel option for groundwater'
     err=20; return
-   endif
+   end if
  end select
 
  ! check power-law profile is selected when using topmodel baseflow option
@@ -484,7 +609,7 @@ contains
    if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
     message=trim(message)//'power-law transmissivity profile must be selected when using topmodel baseflow option'
     err=20; return
-   endif
+   end if
  end select
 
  ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
@@ -492,15 +617,15 @@ contains
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then
    message=trim(message)//'groundwater parameterization must be bigBucket when using singleBasin for spatial_gw'
    err=20; return
-  endif
- endif
+  end if
+ end if
 
  ! ensure that the LAI seaonality option is switched off (this was a silly idea, in retrospect)
  !if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
  ! message=trim(message)//'parameterization of LAI in terms of seasonal cycle of green veg fraction was a silly idea '&
  !                      //' -- the LAI_method option ["specified"] is no longer supported'
  ! err=20; return
- !endif
+ !end if
 
  end subroutine mDecisions
 
@@ -515,7 +640,7 @@ contains
  USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
  USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
- USE data_struc,only:model_decisions        ! model decision structure
+ USE globalData,only:model_decisions        ! model decision structure
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
@@ -523,7 +648,7 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
- integer(i4b),parameter               :: unt=99         ! DK: need to either define units globally, or use getSpareUnit
+ integer(i4b)                         :: unt            ! file unit (free unit output from file_open) 
  character(LEN=256),allocatable       :: charline(:)    ! vector of character strings
  integer(i4b)                         :: nDecisions     ! number of model decisions
  integer(i4b)                         :: iDecision      ! index of model decisions
@@ -537,26 +662,23 @@ contains
  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! get a list of character strings from non-comment lines
  call get_vlines(unt,charline,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! close the file unit
  close(unt)
  ! get the number of model decisions
  nDecisions = size(charline)
- ! allocate space for the model decisions
- if(associated(model_decisions)) deallocate(model_decisions)
- allocate(model_decisions(maxvarDecisions),stat=err)
- if(err/=0)then;err=30;message=trim(message)//"problemAllocateModelDecisions"; return; endif
  ! populate the model decisions structure
  do iDecision=1,nDecisions
   ! extract name of decision and the decision selected
   read(charline(iDecision),*,iostat=err) option, decision
-  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; endif
+  if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
   ! get the index of the decision in the data structure
   iVar = get_ixdecisions(trim(option))
-  if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; endif
+  write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
+  if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; end if
   ! populate the model decisions structure
   model_decisions(iVar)%cOption   = trim(option)
   model_decisions(iVar)%cDecision = trim(decision)

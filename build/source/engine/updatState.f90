@@ -28,8 +28,6 @@ USE multiconst,only:&
                     iden_water,  & ! intrinsic density of water    (kg m-3)
                     gravity,     & ! gravitational acceleteration  (m s-2)
                     LH_fus         ! latent heat of fusion         (J kg-1)
-! named variables
-USE data_struc,only:ix_soil,ix_snow ! named variables for snow and soil
 implicit none
 private
 public::updateSnow
@@ -38,7 +36,7 @@ contains
 
 
  ! *************************************************************************************************************
- ! public subroutine updateSnow: compute phase change impacts on matric head and volumetric liquid water and ice
+ ! public subroutine updateSnow: compute phase change impacts on volumetric liquid water and ice
  ! *************************************************************************************************************
  subroutine updateSnow(&
                        ! input
@@ -92,7 +90,7 @@ contains
                        theta_res        ,& ! intent(in): soil residual volumetric water content (-)
                        vGn_m            ,& ! intent(in): van Genutchen "m" parameter (-)
                        ! output
-                       mLayerPsiLiq,     & ! intent(out): liquid water matric potential (m)
+                       mLayerVolFracWat ,& ! intent(out): volumetric fraction of total water (-)
                        mLayerVolFracLiq ,& ! intent(out): volumetric fraction of liquid water (-)
                        mLayerVolFracIce ,& ! intent(out): volumetric fraction of ice (-)
                        err,message)        ! intent(out): error control
@@ -109,21 +107,21 @@ contains
  real(dp),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
  real(dp),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
  ! output variables
- real(dp),intent(out)          :: mLayerPsiLiq         ! liquid water matric potential (m)
+ real(dp),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
  real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
  real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
- real(dp)                      :: vTheta               ! fractional volume of total water (-)
  real(dp)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
  real(dp)                      :: xConst               ! constant in the freezing curve function (m K-1)
+ real(dp)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  ! initialize error control
  err=0; message="updateSoil/"
 
  ! compute fractional **volume** of total water (liquid plus ice)
- vTheta = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
- if(vTheta > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; endif
+ mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+ if(mLayerVolFracWat > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
@@ -133,22 +131,24 @@ contains
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
 
   ! - volumetric liquid water content (-)
-  xConst           = LH_fus/(gravity*Tfreeze)                            ! m K-1 (NOTE: J = kg m2 s-2)
-  mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)
+  ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
+  !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
+  xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
+  mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
   ! - volumetric ice content (-)
-  mLayerVolFracIce = vTheta - mLayerVolFracLiq
+  mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
 
  ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
  else
 
   ! all water is unfrozen
   mLayerPsiLiq     = mLayerMatricHead
-  mLayerVolFracLiq = vTheta
+  mLayerVolFracLiq = mLayerVolFracWat
   mLayerVolFracIce = 0._dp
 
- endif  ! (check if soil is partially frozen)
+ end if  ! (check if soil is partially frozen)
 
  end subroutine updateSoil
 

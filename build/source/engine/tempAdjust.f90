@@ -42,16 +42,17 @@ contains
                        canopyDepth,                 & ! intent(in): canopy depth (m)
                        ! input/output: data structures
                        mpar_data,                   & ! intent(in):    model parameters
-                       mvar_data,                   & ! intent(inout): model variables for a local HRU
+                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                       diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
  ! provide access to the derived types to define the data structures
- USE data_struc,only:&
+ USE data_types,only:&
                      var_d,              & ! data vector (dp)
                      var_dlength           ! data vector with variable length dimension (dp)
  ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookMVAR  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG  ! named variables for structure elements
  ! utility routines
  USE snow_utils_module,only:fracliquid     ! compute fraction of liquid water
  USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
@@ -60,8 +61,9 @@ contains
  ! input: derived parameters
  real(dp),intent(in)             :: canopyDepth         ! depth of the vegetation canopy (m)
  ! input/output: data structures
- type(var_d),intent(in)          :: mpar_data           ! model parameters
- type(var_dlength),intent(inout) :: mvar_data           ! model variables for a local HRU
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
+ type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
  ! output: error control
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
@@ -70,7 +72,6 @@ contains
  integer(i4b)                  :: iTry                       ! trial index
  integer(i4b)                  :: iter                       ! iteration index
  integer(i4b),parameter        :: maxiter=100                ! maximum number of iterations
- real(dp),parameter            :: dx=1.e-6_dp                ! finite difference increment (used to test derivatives)
  real(dp)                      :: fLiq                       ! fraction of liquid water (-)
  real(dp)                      :: tempMin,tempMax            ! solution constraints for temperature (K)
  real(dp)                      :: nrgMeltFreeze              ! energy required to melt-freeze the water to the current canopy temperature (J m-3)
@@ -87,17 +88,17 @@ contains
  associate(&
 
  ! model parameters for canopy thermodynamics (input)
- snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale),                     & ! intent(in): [dp] scaling factor for snow freezing curve (K)
- specificHeatVeg           => mpar_data%var(iLookPARAM%specificHeatVeg),                   & ! intent(in): [dp] specific heat of vegetation mass (J kg-1 K-1)
- maxMassVegetation         => mpar_data%var(iLookPARAM%maxMassVegetation),                 & ! intent(in): [dp] maximum mass of vegetation (full foliage) (kg m-2)
+ snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),              & ! intent(in): [dp] scaling factor for snow freezing curve (K)
+ specificHeatVeg           => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),            & ! intent(in): [dp] specific heat of vegetation mass (J kg-1 K-1)
+ maxMassVegetation         => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),          & ! intent(in): [dp] maximum mass of vegetation (full foliage) (kg m-2)
 
  ! state variables (input/output)
- scalarCanopyLiq           => mvar_data%var(iLookMVAR%scalarCanopyLiq)%dat(1),             & ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
- scalarCanopyIce           => mvar_data%var(iLookMVAR%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyTemp          => mvar_data%var(iLookMVAR%scalarCanopyTemp)%dat(1),            & ! intent(inout): [dp] temperature of the vegetation canopy (K)
+ scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),             & ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),            & ! intent(inout): [dp] temperature of the vegetation canopy (K)
 
  ! diagnostic variables (output)
- scalarBulkVolHeatCapVeg   => mvar_data%var(iLookMVAR%scalarBulkVolHeatCapVeg)%dat(1)      & ! intent(out): [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
+ scalarBulkVolHeatCapVeg   => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)      & ! intent(out): [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
 
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -152,9 +153,9 @@ contains
    if(iter==maxiter)then
     message=trim(message)//'unable to bracket the root'
     err=20; return
-   endif
+   end if
   end do ! trying to bracket the root
- endif  ! first check that we bracketed the root
+ end if  ! first check that we bracketed the root
  !print*, 'x1, x2 = ', x1, x2
  !print*, 'f1, f2 = ', f1, f2
 
@@ -165,7 +166,7 @@ contains
  else
   tempMin = x2
   tempMax = x1
- endif
+ end if
  !print*, 'tempMin, tempMax = ', tempMin, tempMax
 
  ! get starting trial
@@ -196,7 +197,7 @@ contains
    xTry = xTry + xInc
    fBis = .false.
 
-  endif  ! (switch between bi-section and newton)
+  end if  ! (switch between bi-section and newton)
 
   ! compute new function and derivative
   fTry = resNrgFunc(xTry,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
@@ -208,7 +209,7 @@ contains
    tempMax = min(xTry,tempMax)
   else
    tempMin = max(tempMin,xTry)
-  endif
+  end if
 
   ! check the functions at the limits (should be of opposing sign)
   !f1 = resNrgFunc(tempMax,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
@@ -232,7 +233,7 @@ contains
    ! (return with error)
    message=trim(message)//'unable to converge'
    err=20; return
-  endif
+  end if
 
  end do  ! iterating
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------

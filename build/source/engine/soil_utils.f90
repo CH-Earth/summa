@@ -30,7 +30,6 @@ public::hydCond_liq
 public::hydCondMP_liq
 public::dHydCond_dPsi
 public::dHydCond_dLiq
-public::satDeficit
 public::volFracLiq
 public::matricHead
 public::dTheta_dPsi
@@ -39,6 +38,7 @@ public::dPsi_dTheta2
 public::RH_soilair
 public::dTheta_dTk
 public::crit_soilT
+public::liquidHead
 public::gammp
 ! constant parameters
 real(dp),parameter     :: valueMissing=-9999._dp    ! missing value parameter
@@ -85,6 +85,115 @@ contains
 
 
  ! ******************************************************************************************************************************
+ ! public subroutine: compute the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)  
+ ! ******************************************************************************************************************************
+ subroutine liquidHead(&
+                       ! input
+                       matricHeadTotal                          ,& ! intent(in)    : total water matric potential (m)
+                       volFracLiq                               ,& ! intent(in)    : volumetric fraction of liquid water (-)
+                       volFracIce                               ,& ! intent(in)    : volumetric fraction of ice (-)
+                       vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,& ! intent(in)    : soil parameters
+                       dVolTot_dPsi0                            ,& ! intent(in)    : derivative in the soil water characteristic (m-1)
+                       dTheta_dT                                ,& ! intent(in)    : derivative in volumetric total water w.r.t. temperature (K-1)
+                       ! output
+                       matricHeadLiq                            ,& ! intent(out)   : liquid water matric potential (m)
+                       dPsiLiq_dPsi0                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
+                       dPsiLiq_dTemp                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. temperature (m K-1)
+                       err,message)                                ! intent(out)   : error control 
+ ! computes the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
+ implicit none
+ ! input
+ real(dp),intent(in)            :: matricHeadTotal                           ! total water matric potential (m)
+ real(dp),intent(in)            :: volFracLiq                                ! volumetric fraction of liquid water (-)
+ real(dp),intent(in)            :: volFracIce                                ! volumetric fraction of ice (-)
+ real(dp),intent(in)            :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
+ real(dp),intent(in)  ,optional :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
+ real(dp),intent(in)  ,optional :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
+ ! output
+ real(dp),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
+ real(dp),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
+ real(dp),intent(out) ,optional :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
+ ! output: error control
+ integer(i4b),intent(out)       :: err                                       ! error code
+ character(*),intent(out)       :: message                                   ! error message
+ ! local
+ real(dp)                       :: xNum,xDen                                 ! temporary variables (numeratir, denominator)
+ real(dp)                       :: effSat                                    ! effective saturation (-)
+ real(dp)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
+ real(dp)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
+ ! ------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message='liquidHead/'
+
+ ! ** partially frozen soil
+ if(volFracIce > verySmall .and. matricHeadTotal < 0._dp)then  ! check that ice exists and that the soil is unsaturated
+
+  ! -----
+  ! - compute liquid water matric potential...
+  ! ------------------------------------------
+
+  ! - compute effective saturation
+  ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
+  ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
+  xNum   = volFracLiq - theta_res
+  xDen   = theta_sat - volFracIce - theta_res
+  effSat = xNum/xDen          ! effective saturation
+
+  ! - matric head associated with liquid water
+  matricHeadLiq = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
+
+  ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
+  if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
+   dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m) 
+  endif
+
+  ! -----
+  ! - compute derivative in the liquid water matric potential w.r.t. the total water matric potential...
+  ! ----------------------------------------------------------------------------------------------------
+
+  ! check if the derivative is desired
+  if(present(dPsiLiq_dTemp))then
+
+   ! (check required input derivative is present)
+   if(.not.present(dVolTot_dPsi0))then
+    message=trim(message)//'dVolTot_dPsi0 argument is missing'
+    err=20; return
+   endif
+
+   ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
+   dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2._dp)
+
+  endif  ! if dPsiLiq_dTemp is desired
+
+  ! -----
+  ! - compute the derivative in the liquid water matric potential w.r.t. temperature...
+  ! -----------------------------------------------------------------------------------
+
+  ! check if the derivative is desired
+  if(present(dPsiLiq_dTemp))then
+
+   ! (check required input derivative is present)
+   if(.not.present(dTheta_dT))then
+    message=trim(message)//'dTheta_dT argument is missing'
+    err=20; return
+   endif
+
+   ! (compute the derivative in the liquid water matric potential w.r.t. temperature)
+   dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2._dp) + dTheta_dT/xDen
+   dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
+
+  endif  ! if dPsiLiq_dTemp is desired
+
+ ! ** unfrozen soil
+ else   ! (no ice)
+  matricHeadLiq = matricHeadTotal
+  if(present(dPsiLiq_dTemp)) dPsiLiq_dPsi0 = 1._dp  ! derivative=1 because values are identical
+  if(present(dPsiLiq_dTemp)) dPsiLiq_dTemp = 0._dp  ! derivative=0 because no impact of temperature for unfrozen conditions
+ end if  ! (if ice exists)
+
+ end subroutine liquidHead
+
+ ! ******************************************************************************************************************************
  ! public function hydCondMP_liq: compute the hydraulic conductivity of macropores as a function of liquid water content (m s-1)
  ! ******************************************************************************************************************************
  function hydCondMP_liq(volFracLiq,theta_sat,theta_mp,mpExp,satHydCond_ma,satHydCond_mi)
@@ -106,7 +215,7 @@ contains
   hydCondMP_liq = (satHydCond_ma - satHydCond_mi) * (theta_e**mpExp)
  else
   hydCondMP_liq = 0._dp
- endif
+ end if
  !write(*,'(a,4(f9.3,1x),2(e20.10))') 'in soil_utils: theta_mp, theta_sat, volFracLiq, hydCondMP_liq, satHydCond_ma, satHydCond_mi = ', &
  !                                                    theta_mp, theta_sat, volFracLiq, hydCondMP_liq, satHydCond_ma, satHydCond_mi
  end function hydCondMP_liq
@@ -131,7 +240,7 @@ contains
                  / ( (1._dp + (psi*alpha)**n)**(m/2._dp) ) )
  else
   hydCond_psi = k_sat
- endif
+ end if
  end function hydCond_psi
 
 
@@ -155,39 +264,8 @@ contains
   hydCond_liq = k_sat*theta_e**(1._dp/2._dp) * (1._dp - (1._dp - theta_e**(1._dp/m) )**m)**2._dp
  else
   hydCond_liq = k_sat
- endif
+ end if
  end function hydCond_liq
-
-
- ! ******************************************************************************************************************************
- ! public function satDeficit: compute the saturation deficit -- amount of water required to bring soil to saturation (-)
- ! ******************************************************************************************************************************
- function satDeficit(psi)
- ! model variables and parameters
- USE data_struc,only:mpar_data,mvar_data    ! data structures
- USE var_lookup,only:iLookPARAM,iLookMVAR   ! named variables for structure elements
- implicit none
- ! define dummy variables
- real(dp),dimension(:),intent(in)    :: psi
- real(dp),dimension(size(psi))       :: satDeficit
- ! define diagnostic variables and paramaters
- real(dp),pointer                     :: alpha
- real(dp),pointer                     :: n
- real(dp),pointer                     :: m
- real(dp),pointer                     :: theta_sat
- real(dp),pointer                     :: theta_res
- ! define local variables
- real(dp),dimension(size(psi))        :: volFracLiq
- ! assign pointers
- alpha     => mpar_data%var(iLookPARAM%vGn_alpha)          ! van Genutchen "alpha" parameter (m-1)
- n         => mpar_data%var(iLookPARAM%vGn_n)              ! van Genutchen "n" parameter (-)
- m         => mvar_data%var(iLookMVAR%scalarVGn_m)%dat(1)  ! van Genutchen "m" parameter (-)
- theta_sat => mpar_data%var(iLookPARAM%theta_sat)          ! soil porosity (-)
- theta_res => mpar_data%var(iLookPARAM%theta_res)          ! soil residual volumetric water content (-)
- ! define function value
- volFracLiq = theta_res + (theta_sat - theta_res) / (1._dp + (psi*alpha)**n)**(m)
- satDeficit = theta_sat - volFracLiq
- end function satDeficit
 
 
  ! ******************************************************************************************************************************
@@ -207,7 +285,7 @@ contains
   volFracLiq = theta_res + (theta_sat - theta_res)*(1._dp + (alpha*psi)**n)**(-m)
  else
   volFracLiq = theta_sat
- endif
+ end if
  end function volFracLiq
 
 
@@ -227,14 +305,15 @@ contains
  real(dp)            :: matricHead  ! matric head (m)
  ! local variables
  real(dp)            :: effSat      ! effective saturation (-)
+ real(dp),parameter  :: verySmall=epsilon(1._dp)  ! a very small number (avoid effective saturation of zero)
  ! compute effective saturation
- effSat = (theta - theta_res) / (theta_sat - theta_res)
+ effSat = max(verySmall, (theta - theta_res) / (theta_sat - theta_res))
  ! compute matric head
- if(effSat < 1._dp)then
+ if (effSat < 1._dp .and. effSat > 0._dp)then
   matricHead = (1._dp/alpha)*( effSat**(-1._dp/m) - 1._dp)**(1._dp/n)
  else
   matricHead = 0._dp
- endif
+ end if
  end function matricHead
 
 
@@ -256,7 +335,7 @@ contains
   if(abs(dTheta_dPsi) < epsilon(psi)) dTheta_dPsi = epsilon(psi)
  else
   dTheta_dPsi = epsilon(psi)
- endif
+ end if
  end function dTheta_dPsi
 
 
@@ -280,7 +359,7 @@ contains
  ! check if less than saturation
  if(volFracLiq < theta_sat)then
   ! compute effective water content
-  theta_e = (volFracLiq - theta_res) / (theta_sat - theta_res)
+  theta_e = max(0.001,(volFracLiq - theta_res) / (theta_sat - theta_res))
   ! compute the 1st function and derivative
   y1 = theta_e**(-1._dp/m) - 1._dp
   d1 = (-1._dp/m)*theta_e**(-1._dp/m - 1._dp) / (theta_sat - theta_res)
@@ -291,7 +370,7 @@ contains
   dPsi_dTheta = d1*d2/alpha
  else
   dPsi_dTheta = 0._dp
- endif
+ end if
  end function dPsi_dTheta
 
 
@@ -336,11 +415,11 @@ contains
    func0 = dPsi_dTheta(volFracLiq,   alpha,theta_res,theta_sat,n,m)
    func1 = dPsi_dTheta(volFracLiq+dx,alpha,theta_res,theta_sat,n,m)
    dPsi_dTheta2 = (func1 - func0)/dx
-  endif
+  end if
  ! (case where volumetric liquid water content exceeds porosity)
  else
   dPsi_dTheta2 = 0._dp
- endif
+ end if
  end function dPsi_dTheta2
 
 
@@ -392,10 +471,10 @@ contains
    hydcond0  = hydCond_psi(psi,   k_sat,alpha,n,m)
    hydcond1  = hydCond_psi(psi+dx,k_sat,alpha,n,m)
    dHydCond_dPsi = (hydcond1 - hydcond0)/dx
-  endif
+  end if
  else
   dHydCond_dPsi = 0._dp
- endif
+ end if
  end function dHydCond_dPsi
 
 
@@ -454,10 +533,10 @@ contains
    hydcond0 = hydCond_liq(volFracLiq,   k_sat,theta_res,theta_sat,m)
    hydcond1 = hydCond_liq(volFracLiq+dx,k_sat,theta_res,theta_sat,m)
    dHydCond_dLiq = (hydcond1 - hydcond0)/dx
-  endif
+  end if
  else
   dHydCond_dLiq = 0._dp
- endif
+ end if
  end function dHydCond_dLiq
 
 
@@ -479,32 +558,14 @@ contains
  ! ******************************************************************************************************************************
  ! public function crit_soilT: compute the critical temperature above which all water is unfrozen
  ! ******************************************************************************************************************************
- function crit_soilT(theta,theta_res,theta_sat,alpha,n,m)
+ function crit_soilT(psi)
  USE multiconst,only: gravity,   &    ! acceleration of gravity    (m s-2)
                       Tfreeze,   &    ! temperature at freezing    (K)
-                      LH_fus,    &    ! latent heat of fusion      (J kg-1, or m2 s-2)
-                      iden_ice,  &    ! intrinsic density of ice   (kg m-3)
-                      iden_water      ! intrinsic density of water (kg m-3)
+                      LH_fus          ! latent heat of fusion      (J kg-1, or m2 s-2)
  implicit none
- ! dummy variables
- real(dp),intent(in) :: theta         ! total soil water content, frozen plus unfrozen (-)
- real(dp),intent(in) :: theta_res     ! residual liquid water content (-)
- real(dp),intent(in) :: theta_sat     ! porosity (-)
- real(dp),intent(in) :: alpha         ! vGn scaling parameter (m-1)
- real(dp),intent(in) :: n             ! vGn "n" parameter (-)
- real(dp),intent(in) :: m             ! vGn "m" parameter (-)
+ real(dp),intent(in) :: psi           ! matric head (m)
  real(dp)            :: crit_soilT    ! critical soil temperature (K)
- ! local variables
- real(dp),parameter  :: verySmall=1.e-8_dp  ! a very small number to avoid numerical problems when there is zero storage
- real(dp)            :: relsat        ! relative saturation (-)
- real(dp)            :: kappa         ! constant (m K-1)
- ! compute kappa (m K-1)
- kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
- ! compute relative saturation (-)
- relsat = (min(theta,theta_sat) - theta_res)/(theta_sat - theta_res)
- ! compute the critical temperature above which all water is unfrozen (K)
- !print*,'in soil_utils',Tfreeze,relsat,m,n,alpha,kappa
- crit_soilT = Tfreeze + ((max(verySmall, relsat)**(-1._dp/m) - 1._dp)**(1._dp/n))/(alpha*kappa)
+ crit_soilT = Tfreeze + min(psi,0._dp)*gravity*Tfreeze/LH_fus
  end function crit_soilT
 
 
@@ -514,9 +575,7 @@ contains
  function dTheta_dTk(Tk,theta_res,theta_sat,alpha,n,m)
  USE multiconst,only: gravity,   &    ! acceleration of gravity    (m s-2)
                       Tfreeze,   &    ! temperature at freezing    (K)
-                      LH_fus,    &    ! latent heat of fusion      (J kg-1, or m2 s-2)
-                      iden_ice,  &    ! intrinsic density of ice   (kg m-3)
-                      iden_water      ! intrinsic density of water (kg m-3)
+                      LH_fus          ! latent heat of fusion      (J kg-1, or m2 s-2)
  implicit none
  real(dp),intent(in) :: Tk            ! temperature (K)
  real(dp),intent(in) :: theta_res     ! residual liquid water content (-)
@@ -528,16 +587,11 @@ contains
  ! local variables
  real(dp)            :: kappa         ! constant (m K-1)
  real(dp)            :: xtemp         ! alpha*kappa*(Tk-Tfreeze) -- dimensionless variable (used more than once)
-
-
-
  ! compute kappa (m K-1)
- kappa = (LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
+ kappa =  LH_fus/(gravity*Tfreeze)    ! NOTE: J = kg m2 s-2
  ! define a tempory variable that is used more than once (-)
  xtemp = alpha*kappa*(Tk-Tfreeze)
  ! differentiate the freezing curve w.r.t. temperature -- making use of the chain rule
-
-
  dTheta_dTk = (alpha*kappa) * n*xtemp**(n - 1._dp) * (-m)*(1._dp + xtemp**n)**(-m - 1._dp) * (theta_sat - theta_res)
  end function dTheta_dTk
 
