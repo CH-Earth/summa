@@ -18,6 +18,20 @@
     implicit none
     ```
 
+## Hard-coded numbers, physical constants and parameters
+
+ 1. Do not use hard-coded numbers in equations to represent physical constants or model parameters.
+
+ 1. All physical constants are defined in `/build/source/dshare/multiconst.f90` and should *not* be redefined elsewhere in the code. If you add physical constants, they must be added to `/build/source/dshare/multiconst.f90`.
+
+ 1. All model parameters are ideally read in from model configuration files to allow model users to experiment with parameter values without requiring code changes. During model development, it it sometimes easier to skip this step. In that case, at the very least, model parameters must be identified at the top of a routine as part of the variable definition section, e.g.
+    ```fortran
+    real(dp),parameter              :: facTrustDec=0.25_dp          ! factor decrease in the trust region
+    ```
+ All the coding conventions for variable names apply in that case.
+
+ When development is _code complete_, all model parameters must be converted to inputs for a pull request to be accepted.
+
 ## Commenting
 
  1. Include a comment block at the start of each subroutine or function, providing a brief description of what the subroutine does (including references). To indicate that this is the start of a subroutine or function, the comment should start with `! <scope> subroutine <subroutine name>: <description>` or `! <scope> function <function name>: <description>`, where `<scope>` is `private|public|internal`. The line above and after this one lines has the form `! *****`. For example:
@@ -154,4 +168,3 @@ contains
     ! You should have received a copy of the GNU General Public License
     ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
     ```
-

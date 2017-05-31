@@ -96,8 +96,3 @@ The process would be as follows:
  * Issue a pull request. You do that on GitHub. Make sure that you make the pull request with respect to the correct branches. On your end this should be the `feature/resistance` branch and on the other end the `develop` branch.
 
  * You changes will be reviewed and merged or more likely there will be some back-and-forth with suggested changes and clarifications.
-
-
-
-
-
