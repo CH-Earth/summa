@@ -31,7 +31,7 @@ SUMMA's initial implementation is described in two papers published in [Water Re
 
 We have successfully installed SUMMA on a number of Unix-like (*nix) operating systems, including Linux and Darwin (Mac OS X). To compile SUMMA, you will need:
 
- * a Fortran compiler. We have successfully used the intel Fortran compiler (`ifort`) and the GNU Fortran compiler (`gfortran`, version 4.8 or higher), the latter of which is freely available. Since we do not use any compiler-specific extensions, you should be able to compile SUMMA with other Fortran compilers as well.
+ * a Fortran compiler. We have successfully used the intel Fortran compiler (`ifort`) and the GNU Fortran compiler (`gfortran`, version 6 or higher), the latter of which is freely available. Since we do not use any compiler-specific extensions, you should be able to compile SUMMA with other Fortran compilers as well.
 
     If you do not have a Fortran compiler, you can install `gfortran` for free. The easiest way is to use a package manager. Which package manager depends on your *nix flavor. On OS X, you can use any of the free OS X package managers, including [MacPorts](http://www.macports.org), [fink](http://www.finkproject.org), or [homebrew](http://brew.sh). Note that `gfortran` is installed as part of the `gcc` compiler suite.
 
