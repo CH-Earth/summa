@@ -289,6 +289,7 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 ! *****************************************************************************
 ! (2) populate/check metadata structures
 ! *****************************************************************************
+
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
 
@@ -894,7 +895,7 @@ do modelTimeStep=1,numtim
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
 
    !print*, 'iHRU = ', iHRU
- 
+
    ! initialize the number of flux calls
    diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._dp
 
