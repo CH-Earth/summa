@@ -1,4 +1,4 @@
 character(len=64), parameter     :: summaVersion = '1.0.0'
-character(len=64), parameter     :: buildTime = 'Sun Apr  9 09:49:57 MDT 2017'
-character(len=64), parameter     :: gitBranch = 'feature/checkChanges-0-ge264732'
-character(len=64), parameter     :: gitHash = 'e264732f654fc7d11d7e91e807da8cf1ba6bd3d9'
+character(len=64), parameter     :: buildTime = 'Fri Jul  7 12:40:45 MDT 2017'
+character(len=64), parameter     :: gitBranch = 'develop-0-g4695339'
+character(len=64), parameter     :: gitHash = '46953394f01ed94ca1252c445d3b7aa95a2f54a4'
