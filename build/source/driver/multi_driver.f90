@@ -1234,7 +1234,7 @@ contains
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
  print "(A)",  ' -r --restart       Define frequency [y,m,d,never] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
- print "(A)",  ' -v --version       Display version infotmation of the current built'
+ print "(A)",  ' -v --version       Display version information of the current built'
  stop 
  end subroutine printCommandHelp
 
