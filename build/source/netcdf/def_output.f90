@@ -186,7 +186,7 @@ contains
  print*, 'maxStepsPerFile, maxLength = ', maxStepsPerFile, maxLength
 
  ! create output file
- err = nf90_create(trim(infile),nf90_classic_model,ncid)
+ err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
