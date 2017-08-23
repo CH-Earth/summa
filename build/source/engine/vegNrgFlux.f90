@@ -2078,6 +2078,8 @@ contains
  real(dp)                      :: windConvFactorBottom          ! factor to convert wind speed at top of canopy to wind speed at bottom of canopy (-)
  real(dp)                      :: referenceHeight               ! reference height used to compute above-ground windspeed (m)
  real(dp)                      :: heightAboveGround             ! height above the snow surface (m)
+ real(dp)                      :: heightCanopyTopAboveSnow      ! height at the top of the vegetation canopy relative to snowpack (m)
+ real(dp)                      :: heightCanopyBottomAboveSnow   ! height at the bottom of the vegetation canopy relative to snowpack (m)
  ! local variables: derivatives
  real(dp)                      :: dFV_dT                        ! derivative in friction velocity w.r.t. canopy air temperature
  real(dp)                      :: dED_dT                        ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -2108,6 +2110,8 @@ contains
  if(computeVegFlux) then ! (if vegetation is exposed)
 
   ! ***** identify zero plane displacement, roughness length, and surface temperature for the canopy (m)
+  heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
+  heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0.0_dp)
   select case(ixVegTraits)
 
    ! Raupach (BLM 1994) "Simplified expressions..."
@@ -2115,25 +2119,25 @@ contains
     ! (compute zero-plane displacement)
     funcLAI          = sqrt(c_d1*exposedVAI)
     fracCanopyHeight = -(1._dp - exp(-funcLAI))/funcLAI + 1._dp
-    zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTop-heightCanopyBottom)+heightCanopyBottom
+    zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)+heightCanopyBottomAboveSnow
     ! (coupute roughness length of the veg canopy)
     approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._dp), approxDragCoef_max)
-    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTop-heightCanopyBottom)
+    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)
 
    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
    case(CM_QJRMS1998)
     funcLAI =  cd_CM*exposedVAI
-    zeroPlaneDisplacement = 1.1_dp*heightCanopyTop*log(1._dp + funcLAI**0.25_dp)
+    zeroPlaneDisplacement = 1.1_dp*heightCanopyTopAboveSnow*log(1._dp + funcLAI**0.25_dp)
     if(funcLAI < 0.2_dp)then
-     z0Canopy = z0Ground + 0.3_dp*heightCanopyTop*funcLAI**0.5_dp
+     z0Canopy = z0Ground + 0.3_dp*heightCanopyTopAboveSnow*funcLAI**0.5_dp
     else
-     z0Canopy = 0.3_dp*heightCanopyTop*(1._dp - zeroPlaneDisplacement/heightCanopyTop)
+     z0Canopy = 0.3_dp*heightCanopyTopAboveSnow*(1._dp - zeroPlaneDisplacement/heightCanopyTopAboveSnow)
     end if
 
    ! constant parameters dependent on the vegetation type
    case(vegTypeTable)
-    zeroPlaneDisplacement = zpdFraction*heightCanopyTop  ! zero-plane displacement (m)
-    z0Canopy = z0CanopyParam                             ! roughness length of the veg canopy (m)
+    zeroPlaneDisplacement = zpdFraction*heightCanopyTopAboveSnow  ! zero-plane displacement (m)
+    z0Canopy = z0CanopyParam                                      ! roughness length of the veg canopy (m)
 
    ! check
    case default
@@ -2142,10 +2146,13 @@ contains
   end select  ! vegetation traits (z0, zpd)
 
   ! correct for snow depth
-  if(zeroPlaneDisplacement < snowDepth) zeroPlaneDisplacement = snowDepth
+  if(zeroPlaneDisplacement < snowDepth) then 
+      print*, 'setting zeroPlaneDisplacement to snowDepth'
+      zeroPlaneDisplacement = snowDepth
+  endif
 
   ! check that everything is consistent
-  if(zeroPlaneDisplacement < heightCanopyBottom)then; err=20; message=trim(message)//'zero plane displacement is below the canopy bottom'; return; end if
+  if(zeroPlaneDisplacement < heightCanopyBottomAboveSnow)then; err=20; message=trim(message)//'zero plane displacement is below the canopy bottom'; return; end if
   if(mHeight < zeroPlaneDisplacement)then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; end if
   if(mHeight < z0Canopy)then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; end if
 
@@ -2196,7 +2203,7 @@ contains
 
   ! compute windspeed at the top of the canopy (m s-1)
   ! NOTE: stability corrections cancel out
-  windConvFactorTop = log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - zeroPlaneDisplacement)/z0Canopy)
+  windConvFactorTop = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - zeroPlaneDisplacement)/z0Canopy)
   windspdCanopyTop  = windspd*windConvFactorTop
   !windConvFactorTop = log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy)/(sqrt(canopyStabilityCorrection)*vkc)
   !windspdCanopyTop  = frictionVelocity*windConvFactorTop
@@ -2207,21 +2214,20 @@ contains
   !windReductionFactor = 3._dp
 
   ! compute windspeed at the bottom of the canopy (m s-1)
-  !referenceHeight      = max(heightCanopyBottom, min(0.5_dp, heightCanopyTop))
-  referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground)
-  windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
+  !referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground)
+  windConvFactorBottom = exp(-windReductionFactor*(1._dp - heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow))
   windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
-  if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then
-   print*, 'heightCanopyTop       = ', heightCanopyTop
-   print*, 'heightCanopyBottom    = ', heightCanopyBottom
-   print*, 'snowDepth             = ', snowDepth
-   print*, 'z0Ground              = ', z0Ground
-   print*, 'referenceHeight       = ', referenceHeight
-   print*, 'z0Canopy              = ', z0Canopy
-   print*, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
-   message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'
-   err=20; return
-  end if
+  !if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then
+  ! print*, 'heightCanopyTop       = ', heightCanopyTop
+  ! print*, 'heightCanopyBottom    = ', heightCanopyBottom
+  ! print*, 'snowDepth             = ', snowDepth
+  ! print*, 'z0Ground              = ', z0Ground
+  ! print*, 'referenceHeight       = ', referenceHeight
+  ! print*, 'z0Canopy              = ', z0Canopy
+  ! print*, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
+  ! message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'
+  ! err=20; return
+  !end if
 
   ! compute the leaf boundary layer resistance (s m-1)
 
@@ -2233,7 +2239,7 @@ contains
 
   ! compute eddy diffusivity for heat at the top of the canopy (m2 s-1)
   !   Note: use of friction velocity here includes stability adjustments
-  eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTop - zeroPlaneDisplacement), mpe)  ! (avoid divide by zero)
+  eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTopAboveSnow - zeroPlaneDisplacement), mpe)  ! (avoid divide by zero)
 
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
   select case(ixWindProfile)
@@ -2244,13 +2250,13 @@ contains
     groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
    ! case 2: logarithmic profile below the canopy
    case(logBelowCanopy)
-    tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTop)
-    tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTop)
-    if(referenceHeight > heightCanopyBottom)then  ! snow is above the bottom of the canopy -- just use the exponential profile
+    tmp1 = exp(-windReductionFactor* heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)
+    tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
+    if(heightCanopyBottomAboveSnow == 0.0_dp)then  ! snow is above the bottom of the canopy -- just use the exponential profile
      groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
     else  ! snow is below the bottom of the canopy
-     groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
-                                  + (1._dp/(max(0.1_dp,windspdCanopyBottom)*vkc**2._dp))*(log((referenceHeight - snowDepth)/z0Ground))**2._dp
+     groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
+                                  + (1._dp/(max(0.1_dp,windspdCanopyBottom)*vkc**2._dp))*(log((heightCanopyBottomAboveSnow)/z0Ground))**2._dp
     end if
    ! check that we identified the option
    case default
