@@ -2198,7 +2198,7 @@ contains
   windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
 
   ! compute windspeed at the bottom of the canopy (m s-1)
-  referenceHeight      = min(heightCanopyBottomAboveSnow, z0Ground)
+  referenceHeight      = max(heightCanopyBottomAboveSnow, z0Ground)
   windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
   windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
 
