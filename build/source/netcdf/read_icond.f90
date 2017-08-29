@@ -40,15 +40,15 @@ contains
  USE netcdf_util_module,only:nc_file_open              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                ! netcdf error handling
  USE data_types,only:gru_hru_intVec                    ! actual data
- USE data_types,only:var_info                          ! metadata 
+ USE data_types,only:var_info                          ! metadata
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file 
- integer(i4b)        ,intent(in)     :: nGRU           ! total # of GRUs in run domain 
- type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata 
+ character(*)        ,intent(in)     :: iconFile       ! name of input (restart) file
+ integer(i4b)        ,intent(in)     :: nGRU           ! total # of GRUs in run domain
+ type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata
  integer(i4b)        ,intent(out)    :: err            ! error code
  character(*)        ,intent(out)    :: message        ! returned error message
 
@@ -60,7 +60,7 @@ contains
  integer(i4b)             :: iGRU, iHRU                 ! loop indexes
  integer(i4b),allocatable :: snowData(:)                ! number of snow layers in all HRUs
  integer(i4b),allocatable :: soilData(:)                ! number of soil layers in all HRUs
- character(len=256)       :: cmessage                   ! downstream error message 
+ character(len=256)       :: cmessage                   ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
@@ -86,8 +86,8 @@ contains
  err = nf90_inq_varid(ncid,trim(indx_meta(iLookIndex%nSoil)%varName),soilid); call netcdf_err(err,message)
 
  ! get data
- err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message) 
- err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message) 
+ err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message)
+ err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message)
 
  ! assign to index structure - gru by hru
  do iGRU = 1,nGRU
@@ -111,7 +111,7 @@ contains
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
  subroutine read_icond(iconFile,                      & ! name of initial conditions file
-                       nGRU,                          & ! number of GRUs 
+                       nGRU,                          & ! number of GRUs
                        prog_meta,                     & ! metadata
                        progData,                      & ! model prognostic (state) variables
                        indxData,                      & ! layer index data
@@ -129,7 +129,7 @@ contains
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
  USE data_types,only:gru_hru_doubleVec                  ! actual data
  USE data_types,only:gru_hru_intVec                     ! actual data
- USE data_types,only:var_info                           ! metadata 
+ USE data_types,only:var_info                           ! metadata
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
  implicit none
 
@@ -139,23 +139,23 @@ contains
  character(*)           ,intent(in)     :: iconFile     ! name of netcdf file containing the initial conditions
  integer(i4b)           ,intent(in)     :: nGRU         ! number of grouped response units in simulation domain
  type(var_info)         ,intent(in)     :: prog_meta(:) ! prognostic metadata
- type(gru_hru_doubleVec),intent(inout)  :: progData     ! prognostic vars 
- type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! layer indexes 
+ type(gru_hru_doubleVec),intent(inout)  :: progData     ! prognostic vars
+ type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! layer indexes
  integer(i4b)           ,intent(out)    :: err          ! error code
  character(*)           ,intent(out)    :: message      ! returned error message
 
  ! locals
  character(len=256)                     :: cmessage     ! downstream error message
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
- integer(i4b)                           :: iVar         ! loop index 
- integer(i4b)                           :: iGRU         ! loop index 
- integer(i4b)                           :: iHRU         ! loop index 
+ integer(i4b)                           :: iVar         ! loop index
+ integer(i4b)                           :: iGRU         ! loop index
+ integer(i4b)                           :: iHRU         ! loop index
  integer(i4b)                           :: dimID        ! varible dimension ids
  integer(i4b)                           :: ncVarID      ! variable ID in netcdf file
  character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                           :: dimLen       ! data dimensions
  integer(i4b)                           :: ncID         ! netcdf file ID
- real(dp),allocatable                   :: varData(:,:) ! variable data storage        
+ real(dp),allocatable                   :: varData(:,:) ! variable data storage
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
  integer(i4b),parameter                 :: nBand=2      ! number of spectral bands
 
@@ -207,7 +207,7 @@ contains
     message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
     err=20; return
   end select
-  
+
   ! check errors
   if(err/=0)then
    message=trim(message)//': problem with dimension ids, var='//trim(prog_meta(iVar)%varName)
@@ -223,35 +223,45 @@ contains
   if(err/=0)then; message=trim(message)//'problem allocating variable data'; return; endif
 
   ! get data
-  err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message) 
+  err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
   ! check data are not set to the fill value
-  if( any( abs(varData - nf90_fill_double) < epsilon(varData) ) )then   
+  if(any(abs(varData - nf90_fill_double) < epsilon(varData)))then
    message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"
    err=20; return
   endif
 
-  ! store data in prognostics structure 
+  ! store data in prognostics structure
   ! loop through GRUs
   do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
 
     ! get ther number of layers
-    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow 
-    nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil 
-    nToto = nSnow + nSoil 
-   
-    ! put the data into data structures
+    nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
+    nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
+    nToto = nSnow + nSoil
+
+    ! put the data into data structures and check that none of the values are set to nf90_fill_double
     select case (prog_meta(iVar)%varType)
-     case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1        ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1        ) 
-     case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil  ) 
-     case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto  ) 
-     case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1) 
+     case (iLookVarType%scalarv)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1)
+      if(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
+     case (iLookVarType%midSoil)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil  )
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     case (iLookVarType%midToto)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto  )
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     case (iLookVarType%ifcToto)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1)
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
      case default
       message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
       err=20; return
     end select
+
+    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
 
     ! initialize the spectral albedo
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
@@ -263,16 +273,16 @@ contains
   deallocate(varData, stat=err)
   if(err/=0)then; message=trim(message)//'problem deallocating variable data'; return; endif
 
- end do ! iVar 
+ end do ! iVar
 
  ! --------------------------------------------------------------------------------------------------------
- ! (2) set number of layers 
+ ! (2) set number of layers
  ! --------------------------------------------------------------------------------------------------------
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
 
    ! save the number of layers
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)   = gru_struc(iGRU)%hruInfo(iHRU)%nSnow 
+   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)   = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)   = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1) = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
 
