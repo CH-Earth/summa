@@ -27,6 +27,7 @@ summa.exe
 *.layout
 gmon.out
 summa.exe.dSYM*
+summaversion.inc
 # makefile
 make.out
 Makefile-*
