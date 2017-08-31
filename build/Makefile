@@ -16,7 +16,7 @@
 ##F_MASTER =
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
-# to be version 4.8 or higher. This variable is simply used to select the right
+# to be version 6 or higher. This variable is simply used to select the right
 # compiler flags in the ifeq statements in this Makefile. The compiler
 # executable is set separately as FC_EXE
 ##FC =
@@ -76,7 +76,7 @@ ifeq "$(FC_ENV)" "gfortran-6-travis"
  LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
 endif
 
-# gfortran compiler on OS X tested with 4.8 and higher
+# gfortran compiler on OS X tested with 6 and higher
 # (works on Mac OS X with Macports)
 ifeq "$(FC_ENV)" "gfortran-6-macports"
  NCDF_PATH = /opt/local
@@ -273,7 +273,7 @@ DRIVER__EX = summa.exe
 
 # Define version number
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
-VERSION = $(shell git tag | sed 's/v//')
+VERSION = $(shell git describe --tags --abbrev=0)
 BULTTIM = $(shell date)
 GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
 GITHASH = $(shell git rev-parse HEAD)
