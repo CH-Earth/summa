@@ -41,7 +41,7 @@ contains
  USE globalData,only:forcFileInfo                      ! forcing file info
  USE globalData,only:data_step                         ! length of the data step (s)
  USE globalData,only:dJulianStart                      ! julian day of start time of simulation
- USE globalData,only:refTime,refJulday                 ! reference time
+ USE globalData,only:refJulday                         ! reference time (fractional julian days)
  USE globalData,only:fracJulDay                        ! fractional julian days since the start of year
  USE globalData,only:yearLength                        ! number of days in the current year
  USE globalData,only:time_meta,forc_meta               ! metadata structures
@@ -70,10 +70,11 @@ contains
  integer(i4b)                      :: attLen           ! attribute length
  character(len = nf90_max_name)    :: varName          ! dimenison name
  integer(i4b)                      :: ncStart(2)       ! start array for reading hru forcing
+ integer(i4b),save                 :: nHRU             ! number of HRUs
  ! rest
  real(dp),parameter                :: amiss= -1.d+30   ! missing real
  real(dp),parameter                :: verySmall=1e-3   ! tiny number
- character(len=256)                :: infile           ! filename
+ character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  character(len=256)                :: refTimeString    ! reference time string
  integer(i4b)                      :: iline            ! loop through lines in the file
@@ -81,6 +82,7 @@ contains
  integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
+ real(dp),save                     :: refJulday_data   ! reference julian day for the data file (can differ from refJulday)
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
  real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
@@ -124,6 +126,10 @@ contains
    err = nf90_inq_dimid(ncid,'time',dimId);             if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time dimension/'//trim(nf90_strerror(err)); return; endif
    err = nf90_inquire_dimension(ncid,dimId,len=dimLen); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time dimension size/'//trim(nf90_strerror(err)); return; endif
 
+   ! how many HRUs in current file?
+   err = nf90_inq_dimid(ncid,'hru',dimId);            if(err/=nf90_noerr)then; message=trim(message)//'trouble finding hru dimension/'//trim(nf90_strerror(err)); return; endif
+   err = nf90_inquire_dimension(ncid,dimId,len=nHRU); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading hru dimension size/'//trim(nf90_strerror(err)); return; endif
+
    ! allocate space for time vectors
    if(allocated(fileTime)) deallocate(fileTime)
    if(allocated(diffTime)) deallocate(diffTime)
@@ -135,7 +141,7 @@ contains
    err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
 
-   fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday ! convert time to units of days, and add reference julian day
+   fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday_data ! convert time to units of days, and add reference julian day
 
    ! find difference of fileTime from currentJulday
    diffTime=abs(fileTime-currentJulday)
@@ -194,12 +200,18 @@ contains
   time_data(:) = integerMissing
   forc_data(:) = amiss
 
+  ! check the number of HRUs
+  if(iHRU_global > nHRU)then
+   message=trim(message)//'HRU index exceeds the number of HRUs'
+   err=20; return
+  endif
+
   ! read time data from iRead location in netcdf file
   err = nf90_inq_varid(ncid,'time',varId);                   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time variable/'//trim(nf90_strerror(err)); return; endif
   err = nf90_get_var(ncid,varId,varTime,start=(/iRead/));    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time variable/'//trim(nf90_strerror(err)); return; endif
 
-  ! check that the compted julian day matches the time information in the NetCDF file
-  dataJulDay = varTime(1)/forcFileInfo(iFile)%convTime2Days + refJulday
+  ! check that the computed julian day matches the time information in the NetCDF file
+  dataJulDay = varTime(1)/forcFileInfo(iFile)%convTime2Days + refJulday_data
   if(abs(currentJulday - dataJulDay) > verySmall)then
    write(message,'(a,i0,f18.8,a,f18.8,a)') trim(message)//'date for time step: ',iStep,dataJulDay,' differs from the expected date: ',currentJulDay,' in file: '//trim(infile)
    err=40; return
@@ -223,10 +235,6 @@ contains
 
   ! setup count,start arrays
   ncStart = (/iHRU_global,iRead/)
-
-  ! read data into forcing structure
-  ! assign the time var, convert days since reference to seconds since reference
-  forc_data(get_ixforce('time')) = (varTime(1)/forcFileInfo(iFile)%convTime2Days)*secprday
 
   ! other forcing var
   do iNC=1,forcFileInfo(iFile)%nVars
@@ -318,6 +326,8 @@ contains
   ! * open the NetCDF forcing file and get the time information 
   ! **************************************************
   subroutine openForcingFile()
+  ! variables with local scope
+  integer(i4b) :: iyyy,im,id,ih,imin
    
    ! define new filename
    infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
@@ -336,21 +346,13 @@ contains
 
    ! define the reference time for the model simulation
    call extractTime(refTimeString,                         & ! input  = units string for time data
-                    refTime%var(iLookTIME%iyyy),           & ! output = year
-                    refTime%var(iLookTIME%im),             & ! output = month
-                    refTime%var(iLookTIME%id),             & ! output = day
-                    refTime%var(iLookTIME%ih),             & ! output = hour
-                    refTime%var(iLookTIME%imin),dsec,      & ! output = minute/second
+                    iyyy,im,id,ih,imin,dsec,               & ! output = year, month, day, hour, minute, second
                     err,cmessage)                            ! output = error code and error message
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! convert the reference time to days since the beginning of time
-   call compjulday(refTime%var(iLookTIME%iyyy),            & ! input  = year
-                   refTime%var(iLookTIME%im),              & ! input  = month
-                   refTime%var(iLookTIME%id),              & ! input  = day
-                   refTime%var(iLookTIME%ih),              & ! input  = hour
-                   refTime%var(iLookTIME%imin),dsec,       & ! input  = minute/second
-                   refJulday,err,cmessage)                   ! output = julian day (fraction of day) + error control
+   call compjulday(iyyy,im,id,ih,imin,dsec,                & ! output = year, month, day, hour, minute, second
+                   refJulday_data,err,cmessage)              ! output = julian day (fraction of day) + error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
    
    ! get the time multiplier needed to convert time to units of days

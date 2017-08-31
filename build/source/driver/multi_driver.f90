@@ -289,6 +289,7 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 ! *****************************************************************************
 ! (2) populate/check metadata structures
 ! *****************************************************************************
+
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
 
@@ -894,7 +895,7 @@ do modelTimeStep=1,numtim
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
 
    !print*, 'iHRU = ', iHRU
- 
+
    ! initialize the number of flux calls
    diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._dp
 
@@ -1234,7 +1235,7 @@ contains
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
  print "(A)",  ' -r --restart       Define frequency [y,m,d,never] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
- print "(A)",  ' -v --version       Display version infotmation of the current built'
+ print "(A)",  ' -v --version       Display version information of the current built'
  stop 
  end subroutine printCommandHelp
 

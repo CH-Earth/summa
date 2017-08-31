@@ -158,6 +158,7 @@ contains
 
     ! handle time first
     if (meta(iVar)%varName=='time') then    
+
      select type(stat)
       type is (dlength)
        err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
