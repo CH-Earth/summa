@@ -1,0 +1,6 @@
+site_name: SUMMA
+site_description: Structure for Unifying Multiple Modeling Alternatives
+site_author: NCAR | SUMMA
+repo_url: https://www.github.com/NCAR/summa
+site_url: https://summa.readthedocs.org
+theme: readthedocs
