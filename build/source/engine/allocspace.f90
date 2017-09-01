@@ -94,15 +94,15 @@ contains
  ! * allocate GRU dimension
  select type(dataStruct)
   ! gru dimension only
-  type is (gru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
   ! gru+hru dimensions
-  type is (gru_hru_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
  end select
 
  ! check errors
@@ -113,10 +113,10 @@ contains
  do iGRU=1,nGRU
   ! allocate the HRU dimension
   select type(dataStruct)
-   type is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   type is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   type is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   type is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
    class default  ! do nothing: It is acceptable to not be any of these specified cases
   end select
   ! check errors
@@ -140,10 +140,10 @@ contains
 
    ! allocate space for structures WITH an HRU dimension
    select type(dataStruct)
-    type is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    type is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    type is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    type is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
     class default; exit hruLoop
    end select
 
@@ -157,8 +157,8 @@ contains
 
   ! allocate space for structures *WITHOUT* an HRU dimension
   select type(dataStruct)
-   type is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
-   type is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+   class is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+   class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
    class default
     if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
     cycle gruLoop  ! can have an HRU dimension if we get to here
@@ -171,10 +171,10 @@ contains
 
  ! * allocate local data structures where there is no spatial dimension
  select type(dataStruct)
-  type is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
-  type is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  type is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  type is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
+  class is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
   ! check identified the data type
   class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; end if
  end select
@@ -219,8 +219,8 @@ contains
  ! It is possible that nSnow and nSoil are actually needed here, so we return an error if the optional arguments are missing when needed
  else
   select type(dataStruct)
-   type is (var_ilength); err=20
-   type is (var_dlength); err=20
+   class is (var_ilength); err=20
+   class is (var_dlength); err=20
   end select
   if(err/=0)then; message=trim(message)//'expect nSnow and nSoil to be present for variable-length data structures'; return; end if
  end if
@@ -230,10 +230,10 @@ contains
 
  ! allocate the dimension for model variables
  select type(dataStruct)
-  type is (var_i);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
-  type is (var_d);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
-  type is (var_ilength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
-  type is (var_dlength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
+  class is (var_i);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
+  class is (var_d);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
+  class is (var_ilength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
+  class is (var_dlength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
  end select
  ! check errors
@@ -242,8 +242,8 @@ contains
 
  ! allocate the dimension for model data
  select type(dataStruct)
-  type is (var_ilength); call allocateDat_int(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
-  type is (var_dlength); call allocateDat_dp( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class is (var_ilength); call allocateDat_int(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class is (var_dlength); call allocateDat_dp( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
  
@@ -286,16 +286,16 @@ contains
 
  ! check that the input data structure is allocated
  select type(dataStructOrig)
-  type is (var_ilength); err=merge(0, 20, allocated(dataStructOrig%var))
-  type is (var_dlength); err=merge(0, 20, allocated(dataStructOrig%var))
+  class is (var_ilength); err=merge(0, 20, allocated(dataStructOrig%var))
+  class is (var_dlength); err=merge(0, 20, allocated(dataStructOrig%var))
   class default; err=20; message=trim(message)//'unable to identify type of data structure'; return
  end select
  if(err/=0)then; message=trim(message)//'input data structure dataStructOrig%var'; return; end if
 
  ! allocate the dimension for model variables
  select type(dataStructNew)
-  type is (var_ilength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err) 
-  type is (var_dlength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
+  class is (var_ilength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err) 
+  class is (var_dlength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
  end select
  if(err/=0)then; message=trim(message)//'problem allocating space for dataStructNew%var'; return; end if
@@ -307,16 +307,16 @@ contains
   select type(dataStructOrig)
 
    ! double precision
-   type is (var_dlength)
+   class is (var_dlength)
     select type(dataStructNew) 
-     type is (var_dlength); call copyStruct_dp( dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
+     class is (var_dlength); call copyStruct_dp( dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
      class default; err=20; message=trim(message)//'mismatch data structure for variable'//trim(metaStruct(iVar)%varname); return
     end select
 
    ! integer
-   type is (var_ilength)
+   class is (var_ilength)
     select type(dataStructNew)
-     type is (var_ilength); call copyStruct_i4b(dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
+     class is (var_ilength); call copyStruct_i4b(dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
      class default; err=20; message=trim(message)//'mismatch data structure for variable'//trim(metaStruct(iVar)%varname); return
     end select
 
