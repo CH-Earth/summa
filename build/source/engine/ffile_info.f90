@@ -34,6 +34,7 @@ contains
  subroutine ffile_info(nGRU,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
+ USE ascii_util_module,only:linewidth
  USE netcdf_util_module,only:nc_file_open    ! open netCDF file
  USE netcdf_util_module,only:netcdf_err      ! netcdf error handling function
  USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
@@ -60,7 +61,7 @@ contains
  integer(i4b)                         :: iNC            ! index of a variable in netcdf file
  integer(i4b)                         :: nvar           ! number of variables in netcdf local attribute file
  ! the rest
- character(LEN=1024),allocatable      :: dataLines(:)   ! vector of lines of information (non-comment lines)
+ character(LEN=linewidth),allocatable :: dataLines(:)   ! vector of lines of information (non-comment lines)
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b)                         :: unt            ! file unit (free unit output from file_open)

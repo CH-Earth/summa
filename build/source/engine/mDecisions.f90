@@ -663,6 +663,7 @@ contains
  subroutine readoption(err,message)
  ! used to read information from model decisions file
  USE ascii_util_module,only:file_open       ! open file
+ USE ascii_util_module,only:linewidth       ! max character number for one line
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
  USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
@@ -676,7 +677,7 @@ contains
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b)                         :: unt            ! file unit (free unit output from file_open) 
- character(LEN=256),allocatable       :: charline(:)    ! vector of character strings
+ character(LEN=linewidth),allocatable :: charline(:)    ! vector of character strings
  integer(i4b)                         :: nDecisions     ! number of model decisions
  integer(i4b)                         :: iDecision      ! index of model decisions
  character(len=32)                    :: decision       ! name of model decision
