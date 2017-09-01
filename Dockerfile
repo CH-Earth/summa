@@ -4,6 +4,7 @@ FROM ubuntu:zesty
 # install only the packages that are needed
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    ca-certificates \
     git \
     make \
     gfortran-6 \
@@ -21,8 +22,8 @@ ENV FC_ENV gfortran-6-docker
 WORKDIR /code
 ADD . /code
 
-# build summa
-RUN make -C build/ -f Makefile
+# fetch tags and build summa
+RUN git fetch --tags && make -C build/ -f Makefile
 
 # run summa when running the docker image
 WORKDIR bin
