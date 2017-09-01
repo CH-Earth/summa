@@ -68,8 +68,8 @@ contains
 
    select type (dat)
     type is (real(dp)); tdata = dat(pVar)
-    type is (dlength) ; tdata = dat(pVar)%dat(1)
-    type is (ilength) ; tdata = real(dat(pVar)%dat(1), kind(dp))
+    class is (dlength) ; tdata = dat(pVar)%dat(1)
+    class is (ilength) ; tdata = real(dat(pVar)%dat(1), kind(dp))
     class default;err=20;message=trim(message)//'dat type not found';return
    end select
 
@@ -124,8 +124,8 @@ contains
 
  ! pack back into struc
  select type (stat)
-  type is (ilength); tstat = real(stat%dat)
-  type is (dlength); tstat = stat%dat
+  class is (ilength); tstat = real(stat%dat)
+  class is (dlength); tstat = stat%dat
   class default;err=20;message=trim(message)//'stat type not found';return
  end select
 
@@ -200,8 +200,8 @@ contains
 
  ! pack back into struc
  select type (stat)
-  type is (ilength); stat%dat = int(tstat)
-  type is (dlength); stat%dat = tstat
+  class is (ilength); stat%dat = int(tstat)
+  class is (dlength); stat%dat = tstat
   class default;err=20;message=trim(message)//'stat type not found';return
  end select
 
