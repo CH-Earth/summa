@@ -750,7 +750,6 @@ contains
  do vLine = 1,size(charLines)
 
   ! parse the current line
-  print*, trim(charLines(vLine))
   call split_line(charLines(vLine),lineWords,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   nWords = size(lineWords)
