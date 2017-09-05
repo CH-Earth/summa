@@ -33,3 +33,5 @@ make.out
 Makefile-*
 # backup files
 *.backup
+# site directory from mkdocs
+site/
