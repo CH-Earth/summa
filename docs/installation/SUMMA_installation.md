@@ -24,10 +24,9 @@ We have successfully installed SUMMA on a number of Unix-like (*nix) operating s
 
     Note that you will not be able to contribute to the main SUMMA repo directly. If you are seriously interested in contributing, spend a little time learning git. It will be useful anyway. For more information about working with the SUMMA code, please see the following documents:
 
-    * [SUMMA and Git](https://github.com/NCAR/summa/blob/master/docs/howto/summa_and_git_howto.md)
-    * [Git workflow for SUMMA](https://github.com/NCAR/summa/blob/master/docs/howto/summa_git_workflow.md)
-    * [Git commands](https://github.com/NCAR/summa/blob/master/docs/howto/git_howto.md)
-    * [SUMMA coding conventions](https://github.com/NCAR/summa/blob/master/docs/howto/summa_coding_conventions.md)
+    * [SUMMA and Git](../development/SUMMA_and_git.md)
+    * [Git Workflow for SUMMA](../development/SUMMA_git_workflow.md)
+    * [SUMMA Coding Conventions](../development/SUMMA_coding_conventions.md)
 
 Once you have all the above, you can compile SUMMA using the following steps:
 
@@ -53,4 +52,4 @@ Once you have all the above, you can compile SUMMA using the following steps:
 
 If you get this far then SUMMA is installed correctly and functional.
 
-Continue reading [SUMMA configuration](https://github.com/NCAR/summa/blob/master/docs/howto/summa_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa) to help you get started.
+Continue reading [SUMMA configuration](../configuration/SUMMA_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa) to help you get started.

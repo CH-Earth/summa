@@ -2,7 +2,7 @@
 
 ## Introduction
 
-SUMMA configuration is  performed via a large number of configuration files. The format of these files is likely to change (and simplified) as we build out SUMMA's infrastructure. The following may be somewhat difficult to follow without a working example. We strongly recommend that you get the [test applications](http://ral.ucar.edu/projects/summa) to help you get started.
+SUMMA configuration is  performed via a large number of configuration files. The format of these files is likely to change (and simplified) as we build out SUMMA's infrastructure. The following may be somewhat difficult to follow without a working example. We strongly recommend that you get the [test applications](../installation/SUMMA_test_cases.md) to help you get started.
 
 In the following we will assume that your SUMMA source installation is in the directory `<localInstallation>` on your  machine (this is not actually the name of the directory, but can be whatever you call) and that the test applications are installed in the directory `<localApplications>`. Note that these two directories can be the same, in which case everything would be in the same directory tree.
 
@@ -63,7 +63,7 @@ After building SUMMA and installing the test applications, you will have the fol
 
 The main SUMMA configuration file (the one that you specify on the command-line) simply provides a listing of other SUMMA input files. The following provides a very brief overview of the main SUMMA configuration file. We are not going into great detail, because this will all change as we build out SUMMA. Dedicated users who want to develop their own SUMMA applications are referred to the comments and documentation in the input files for the test applications as well as to the SUMMA source code. You can trace the location of all the files by starting with the main configuration file described below.
 
-In the following we will use the first test case that is used for figure 1 in [Clark et al., 2015](http://dx.doi.org/10.1002/2015WR017200) to discuss briefly the model setup. This test case is described in `<localApplications>/settings/README` as "Figure 1: Radiation transmission through an Aspen stand, Reynolds Mountain East"`".
+In the following we will use the first test case that is used for figure 1 in [Clark et al., 2015b](../references.md#clark_2015b) to discuss briefly the model setup. This test case is described in `<localApplications>/settings/README` as "Figure 1: Radiation transmission through an Aspen stand, Reynolds Mountain East"`".
 
 A few rules apply to all the configuration files:
 
