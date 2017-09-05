@@ -98,7 +98,7 @@ If you have already made changes to the code, this command by itself will not ov
 
 ##### 4.b. Merge changes
 
-Determine which branches you will need to work with. At the very least, this will include the master branch. If you are working on a hotfix or a feature branch that already exists, you will need this branch as well; the SUMMA administrator has likely given you the name of the appropriate branch to use. Alternatively, you may want to create a new branch (e.g., if you are the first person to work on a new feature or bug fix). For more information about the branches in the SUMMA archive, see the [Git workflow for SUMMA](summa_git_workflow.md).
+Determine which branches you will need to work with. At the very least, this will include the master branch. If you are working on a hotfix or a feature branch that already exists, you will need this branch as well; the SUMMA administrator has likely given you the name of the appropriate branch to use. Alternatively, you may want to create a new branch (e.g., if you are the first person to work on a new feature or bug fix). For more information about the branches in the SUMMA archive, see the [Git workflow for SUMMA](SUMMA_git_workflow.md).
 
 For each branch, merge any changes from the truth repo into your local version:
 
@@ -189,4 +189,4 @@ The SUMMA administrator and other developers will review your pull request and d
 
 ### Git workflow
 
-For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found in the document describing the [Git workflow for SUMMA](summa_git_workflow.md).
+For us to leverage Git to its full potential, we have implemented a Git-oriented workflow. This requires developers to adhere to a few rules regarding branch names and merge requests. A full description of the workflow we use can be found in the document describing the [Git workflow for SUMMA](SUMMA_git_workflow.md).

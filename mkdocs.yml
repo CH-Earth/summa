@@ -6,16 +6,18 @@ site_url: https://summa.readthedocs.org
 docs_dir: docs
 theme: readthedocs
 pages:
-- Home: 'index.md'
+- Home:
+  - SUMMA Overview: 'index.md'
+  - SUMMA Documentation: 'SUMMA_documentation.md'
 - Installation:
-  - 'installation/SUMMA_installation.md'
-  - 'installation/SUMMA_on_OS_X.md'
+  - SUMMA Installation: 'installation/SUMMA_installation.md'
+  - SUMMA on OS X: 'installation/SUMMA_on_OS_X.md'
 - Configuration:
-  - 'configuration/SUMMA_configuration.md'
+  - SUMMA Configuration: 'configuration/SUMMA_configuration.md'
 - Input/Output:
-  - 'input_output/SUMMA_output.md'
+  - SUMMA Output: 'input_output/SUMMA_output.md'
 - Development:
-  - 'development/SUMMA_coding_conventions.md'
-  - 'development/SUMMA_and_git.md'
-  - 'development/SUMMA_git_workflow.md'
+  - SUMMA Coding Conventions: 'development/SUMMA_coding_conventions.md'
+  - SUMMA and Git: 'development/SUMMA_and_git.md'
+  - SUMMA Git Workflow: 'development/SUMMA_git_workflow.md'
 - References: 'references.md'
