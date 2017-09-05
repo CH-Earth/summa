@@ -3,4 +3,19 @@ site_description: Structure for Unifying Multiple Modeling Alternatives
 site_author: NCAR | SUMMA
 repo_url: https://www.github.com/NCAR/summa
 site_url: https://summa.readthedocs.org
+docs_dir: docs
 theme: readthedocs
+pages:
+- Home: 'index.md'
+- Installation:
+  - 'installation/SUMMA_installation.md'
+  - 'installation/SUMMA_on_OS_X.md'
+- Configuration:
+  - 'configuration/SUMMA_configuration.md'
+- Input/Output:
+  - 'input_output/SUMMA_output.md'
+- Development:
+  - 'development/SUMMA_coding_conventions.md'
+  - 'development/SUMMA_and_git.md'
+  - 'development/SUMMA_git_workflow.md'
+- References: 'references.md'
