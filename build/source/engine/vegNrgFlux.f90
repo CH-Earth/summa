@@ -2109,7 +2109,7 @@ contains
  if(computeVegFlux) then ! (if vegetation is exposed)
 
   ! ***** identify zero plane displacement, roughness length, and surface temperature for the canopy (m)
-  ! First, calculate offset from snow depth - use these to 
+  ! First, calculate offset from snow depth - use these to
   ! scale wind profiles and resistances
   heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
   heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0.0_dp)
@@ -2190,7 +2190,7 @@ contains
 
   ! compute windspeed at the top of the canopy (m s-1)
   ! NOTE: stability corrections cancel out
-  windConvFactorTop = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - zeroPlaneDisplacement)/z0Canopy)
+  windConvFactorTop = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
   windspdCanopyTop  = windspd*windConvFactorTop
 
   ! compute the windspeed reduction
@@ -2199,7 +2199,7 @@ contains
 
   ! compute windspeed at the bottom of the canopy (m s-1)
   referenceHeight      = max(heightCanopyBottomAboveSnow, z0Ground)
-  windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
+  windConvFactorBottom = exp(-windReductionFactor*(1._dp - (referenceHeight/heightCanopyTopAboveSnow)))
   windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
 
   ! compute the leaf boundary layer resistance (s m-1)
