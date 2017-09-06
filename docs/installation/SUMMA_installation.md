@@ -43,6 +43,8 @@ Once you have all the above, you can compile SUMMA using the following steps:
 
     If you are using the `bash` shell, then you would set these environment variables with `export FC=gfortran` for example. You may need to modify the `Makefile` if you are using a different Fortran compiler or your setup is different. If someone wants to contribute an actual `configure` script that would be great.
 
+ 1. Check that all variables in the Makefile are set correctly by typing `make check`. Inspect the variables and make sure that they make sense. If not, modify the Makefile further.
+
  1. Type `make` (if you are in the `build` directory). If all goes well, this will build SUMMA and move the executable `summa.exe` to the `bin` directory. You may get some warnings (depending on your compiler settings), but you should not get any errors;
 
  1. Pay attention to the `make` output. You may need to set some environment variables (`LD_LIBRARY_PATH` in particular) to support dynamic linking;
