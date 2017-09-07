@@ -52,17 +52,17 @@ Once you have all the above, you can compile SUMMA using the following steps:
  1. If the code compiles successfully, then the last line of output from the make process will tell you where the SUMMA executable is installed (it goes into `summa/bin`). Run `summa.exe` in that directory (you may need to provide the full path). If all goes well, you should get a usage message that looks something like (depending on the SUMMA version):
 
 ```
-Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]
- summa.exe          summa executable
+    Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]
+     summa.exe          summa executable
 
-Running options:
- -m --master        Define path/name of master file (required)
- -s --suffix        Add fileSuffix to the output files
- -g --gru           Run a subset of countGRU GRUs starting from index startGRU
- -h --hru           Run a single HRU with index of iHRU
- -r --restart       Define frequency [y,m,d,never] to write restart files
- -p --progress      Define frequency [m,d,h,never] to print progress
- -v --version       Display version information of the current built
+    Running options:
+     -m --master        Define path/name of master file (required)
+     -s --suffix        Add fileSuffix to the output files
+     -g --gru           Run a subset of countGRU GRUs starting from index startGRU
+     -h --hru           Run a single HRU with index of iHRU
+     -r --restart       Define frequency [y,m,d,never] to write restart files
+     -p --progress      Define frequency [m,d,h,never] to print progress
+     -v --version       Display version information of the current built
 ```
 
 If you get this far then SUMMA is installed correctly and functional.
