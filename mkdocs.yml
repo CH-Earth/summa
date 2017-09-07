@@ -12,6 +12,7 @@ pages:
 - Installation:
   - SUMMA Installation: 'installation/SUMMA_installation.md'
   - SUMMA on OS X: 'installation/SUMMA_on_OS_X.md'
+  - SUMMA using Docker: 'installation/SUMMA_docker.md'
   - SUMMA Test Cases: 'installation/SUMMA_test_cases.md'
 - Configuration:
   - SUMMA Configuration: 'configuration/SUMMA_configuration.md'
