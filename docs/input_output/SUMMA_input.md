@@ -1,6 +1,6 @@
 # SUMMA Input Files
 
-SUMMA has a large number of input files that configure the model and provide the necessary initial conditions and time-varying boundary conditions to make a model simulation. This can at times be confusing. We encourage the user to look at the [SUMMA test cases](SUMMA_test_cases.md), which provide working SUMMA setups.
+SUMMA has a large number of input files that configure the model and provide the necessary initial conditions and time-varying boundary conditions to make a model simulation. This can at times be confusing. We encourage the user to look at the [SUMMA test cases](../installation/SUMMA_test_cases.md), which provide working SUMMA setups.
 
 ## Master configuration file
 <a id="infile_master_configuration"></a>
