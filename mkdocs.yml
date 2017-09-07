@@ -17,6 +17,7 @@ pages:
 - Configuration:
   - SUMMA Configuration: 'configuration/SUMMA_configuration.md'
 - Input/Output:
+  - SUMMA Input: 'input_output/SUMMA_input.md'
   - SUMMA Output: 'input_output/SUMMA_output.md'
 - Development:
   - SUMMA Coding Conventions: 'development/SUMMA_coding_conventions.md'
