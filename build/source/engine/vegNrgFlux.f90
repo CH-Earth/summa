@@ -2225,7 +2225,7 @@ contains
    case(logBelowCanopy)
     tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTopAboveSnow)
     tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
-    if(referenceHeight > 0.0_dp)then  ! snow is above the bottom of the canopy -- just use the exponential profile
+    if(referenceHeight > z0Ground) then  ! snow is above the bottom of the canopy -- just use the exponential profile
      groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
     else  ! snow is below the bottom of the canopy
      groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
