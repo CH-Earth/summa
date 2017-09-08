@@ -2188,7 +2188,7 @@ contains
   canopyResistance = 1._dp/(sfc2AtmExchangeCoeff_canopy*windspd)
   if(canopyResistance < 0._dp)then; err=20; message=trim(message)//'canopy resistance < 0'; return; end if
 
-  ! compute windspeed at the top of the canopy (m s-1)
+  ! compute windspeed at the top of the canopy above snow depth (m s-1)
   ! NOTE: stability corrections cancel out
   windConvFactorTop = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
   windspdCanopyTop  = windspd*windConvFactorTop
@@ -2197,7 +2197,7 @@ contains
   ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
   windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
 
-  ! compute windspeed at the bottom of the canopy (m s-1)
+  ! compute windspeed at the bottom of the canopy relative to the snow depth (m s-1)
   referenceHeight      = max(heightCanopyBottomAboveSnow, z0Ground)
   windConvFactorBottom = exp(-windReductionFactor*(1._dp - (referenceHeight/heightCanopyTopAboveSnow)))
   windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
@@ -2216,12 +2216,12 @@ contains
 
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
   select case(ixWindProfile)
-   ! case 1: assume exponential profile extends from the surface roughness length to the displacement height plus vegetation roughness
+   ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
    case(exponential)
     tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTopAboveSnow)
     tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
     groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor/heightCanopyTopAboveSnow) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
-   ! case 2: logarithmic profile below the canopy
+   ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
    case(logBelowCanopy)
     tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTopAboveSnow)
     tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
