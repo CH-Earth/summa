@@ -243,11 +243,11 @@ contains
  endif
 
  ! print result
- if(globalPrintFlag)then
+ !if(globalPrintFlag)then
   write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
   write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
   !print*, 'PAUSE:'; read(*,*)
- endif
+ !endif
 
  ! check
  if(any(isNan(rVec)))then

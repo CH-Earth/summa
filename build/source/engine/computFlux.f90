@@ -759,6 +759,7 @@ contains
  ! *****
  ! (X) WRAP UP...
  ! *************
+
  ! define model flux vector for the vegetation sub-domain
  if(ixCasNrg/=integerMissing) fluxVec(ixCasNrg) = scalarCanairNetNrgFlux/canopyDepth
  if(ixVegNrg/=integerMissing) fluxVec(ixVegNrg) = scalarCanopyNetNrgFlux/canopyDepth
@@ -801,6 +802,8 @@ contains
                        ! input:
                        ixRichards,                         & ! intent(in): choice of option for Richards' equation
                        mLayerMatricHead,                   & ! intent(in): matric head at the start of the time step (m)
+                       mLayerVolFracLiq,                   & ! intent(in): volumetric liquid water content in each soil layer at the start of the time step (-)
+                       mLayerVolFracIce,                   & ! intent(in): volumetric ice content in each soil layer at the start of the time step (-)
                        mLayerMatricHeadTrial,              & ! intent(in): trial value of matric head (m)
                        mLayerVolFracLiqTrial,              & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
                        mLayerVolFracIceTrial,              & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
@@ -815,6 +818,8 @@ contains
  ! input:
  integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
  real(dp),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
+ real(dp),intent(in)            :: mLayerVolFracLiq(:)       ! volumetric liquid water content at the start of the time step (m)
+ real(dp),intent(in)            :: mLayerVolFracIce(:)       ! volumetric ice content at the start of the time step (m)
  real(dp),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
  real(dp),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
  real(dp),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
@@ -828,8 +833,7 @@ contains
  character(*),intent(out)       :: message                   ! error message
  ! local variables
  real(dp)                       :: volFracWat                ! total volumetric fraction of water (-)
- real(dp)                       :: fPart1,fPart2             ! different parts of the function
- real(dp)                       :: dPart1,dPart2             ! derivatives for different parts of the function
+ real(dp)                       :: volFracWatTrial           ! total volumetric fraction of water (-)
  integer(i4b)                   :: iLayer                    ! index of soil layer
  ! --------------------------------------------------------------
  ! initialize error control
@@ -838,15 +842,13 @@ contains
  if(ixRichards==mixdform)then
   do iLayer=1,size(mLayerMatricHead)
    ! compute the total volumetric fraction of water (-)
-   volFracWat = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)
+   volFracWat      = mLayerVolFracLiq(iLayer)      + mLayerVolFracIce(iLayer)
+   volFracWatTrial = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)
    ! compute the compressibility term (-)
-   compress(iLayer) = (specificStorage*volFracWat/theta_sat(iLayer)) * (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))
+   compress(iLayer) = mLayerMatricHeadTrial(iLayer)*specificStorage*volFracWatTrial/theta_sat(iLayer) - &
+                      mLayerMatricHead(iLayer)*specificStorage*volFracWat/theta_sat(iLayer)
    ! compute the derivative for the compressibility term (m-1)
-   fPart1 = specificStorage*(volFracWat/theta_sat(iLayer))  ! function for the 1st part (m-1)
-   fPart2 = mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer)     ! function for the 2nd part (m)
-   dPart1 = mLayerdTheta_dPsi(iLayer)*specificStorage/theta_sat(iLayer)  ! derivative for the 1st part (m-2)
-   dPart2 = 1._dp                                                        ! derivative for the 2nd part (-)
-   dCompress_dPsi(iLayer) = fPart1*dPart2 + dPart1*fPart2                ! m-1
+   dCompress_dPsi(iLayer) = specificStorage*(mLayerMatricHeadTrial(iLayer)*mLayerdTheta_dPsi(iLayer) + volFracWatTrial)/theta_sat(iLayer)
   end do
  else
   compress(:)       = 0._dp

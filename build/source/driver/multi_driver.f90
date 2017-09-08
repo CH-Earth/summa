@@ -25,6 +25,7 @@ program multi_driver
 ! *****************************************************************************
 USE nrtype                                                  ! variable types, etc.
 USE netcdf                                                  ! netcdf libraries
+USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
 ! provide access to subroutines and functions
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
@@ -106,6 +107,7 @@ USE globalData,only:bpar_meta,bvar_meta                     ! metadata structure
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 USE globalData,only:model_decisions                         ! model decision structure
 ! provide access to global data
+USE globalData,only:dNaN                                    ! double precision NaN
 USE globalData,only:refTime                                 ! reference time
 USE globalData,only:startTime                               ! start time
 USE globalData,only:finshTime                               ! end time
@@ -270,6 +272,9 @@ INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! get the command line arguments
 call getCommandArguments()
+
+! define double precision NaNs (shared in globalData)
+dNaN = ieee_value(1._dp, ieee_quiet_nan)
 
 ! get the initial time
 call date_and_time(values=ctime1)

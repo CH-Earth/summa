@@ -338,6 +338,9 @@ contains
  ! - preliminaries...
  ! ------------------
 
+ print*, 'stateSubsetMask = ', stateSubsetMask
+ print*, 'nSubset = ', nSubset
+
  ! define the type of variable in the snow+soil domain
  ixHydType(1:nLayers) = ixStateType( ixHydLayer(1:nLayers) )
 
@@ -372,6 +375,8 @@ contains
 
  ! make association to variables in the data structures
  subsetState: associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! named variables defining the states in the subset
+
+ print*, 'ixStateType_subset = ', ixStateType_subset
 
  ! -----
  ! - get indices for the (currently) scalar states in the vegetation domain...

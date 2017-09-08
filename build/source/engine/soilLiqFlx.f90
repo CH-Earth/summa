@@ -285,6 +285,8 @@ contains
  ! define the pethod to compute derivatives
  !print*, 'numerical derivatives = ', (ixDerivMethod==numerical)
 
+ print*, 'mLayerMatricHeadTrial = ', mLayerMatricHeadTrial
+
  ! numerical derivatives are not implemented yet
  if(ixDerivMethod==numerical)then
   message=trim(message)//'numerical derivates do not account for the cross derivatives between hydrology and thermodynamics'
@@ -1277,7 +1279,7 @@ contains
      fracCap         = rootZoneLiq/(maxFracCap*availCapacity)                              ! fraction of available root zone filled with water
      fInfRaw         = 1._dp - exp(-qSurfScale*(1._dp - fracCap))                          ! infiltrating area -- allowed to violate solution constraints
      scalarInfilArea = min(0.5_dp*(fInfRaw + sqrt(fInfRaw**2._dp + scaleFactor)), 1._dp)   ! infiltrating area -- constrained
-     !print*, 'qSurfScale, fracCap, scalarInfilArea = ', qSurfScale, fracCap, scalarInfilArea
+     print*, 'qSurfScale, fracCap, scalarInfilArea = ', qSurfScale, fracCap, scalarInfilArea
     else
      scalarInfilArea = 1._dp
     endif
@@ -1308,8 +1310,8 @@ contains
 
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
-   !print*, 'scalarRainPlusMelt, xMaxInfilRate = ', scalarRainPlusMelt, xMaxInfilRate
-   !print*, 'scalarSurfaceInfiltration, scalarSurfaceRunoff = ', scalarSurfaceInfiltration, scalarSurfaceRunoff
+   print*, 'scalarRainPlusMelt, xMaxInfilRate = ', scalarRainPlusMelt, xMaxInfilRate
+   print*, 'scalarSurfaceInfiltration, scalarSurfaceRunoff = ', scalarSurfaceInfiltration, scalarSurfaceRunoff
    !print*, '(1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea = ', (1._dp - scalarFrozenArea), (1._dp - scalarFrozenArea)*scalarInfilArea
 
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)

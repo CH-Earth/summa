@@ -516,6 +516,9 @@ contains
 
  ! overwrite with the hydrology values from the state vector
  if(nSnowSoilHyd>0)then
+
+  print*, 'ixSnowSoilHyd = ', ixSnowSoilHyd
+
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
    select case( ixHydType(iLayer) )
     case(iname_watLayer); mLayerVolFracWatTrial(iLayer)          = stateVec( ixSnowSoilHyd(iLayer) ) ! total water state variable for snow+soil layers

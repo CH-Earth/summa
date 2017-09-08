@@ -218,7 +218,7 @@ contains
  stepFailure  = .false.
  doLayerMerge = .false.
 
- ! initialize flags to mdify the veg layers or modify snow layers
+ ! initialize flags to modify the veg layers or modify snow layers
  modifiedLayers    = .false.    ! flag to denote that snow layers were modified
  modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
 
@@ -698,6 +698,7 @@ contains
 
   ! save input step
   dtSave = dt_sub
+  print*, trim(message)//'before opSplittin: dtSave = ', dtSave
 
   ! get the new solution
   call opSplittin(&
@@ -727,7 +728,6 @@ contains
                   ixSolution,                             & ! intent(out):   solution method used in this iteration
                   err,cmessage)                             ! intent(out):   error code and error message
 
-
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
   !print*, 'completed step'
@@ -744,16 +744,21 @@ contains
   ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
   if(stepFailure)then
+
    ! halve step
    dt_sub = dtSave/2._dp
+
    ! check that the step is not tiny
    if(dt_sub < minstep)then
     print*,ixSolution
+    print*, 'dtSave, dt_sub', dtSave, dt_sub
     message=trim(message)//'length of the coupled step is below the minimum step length'
     err=20; return
    endif
+
    ! try again
    cycle substeps
+
   endif
 
   ! update first step

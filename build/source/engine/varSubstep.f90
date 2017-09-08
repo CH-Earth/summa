@@ -78,13 +78,12 @@ contains
                        ! input: model control
                        dt,                & ! intent(in)    : time step (s)
                        dt_min,            & ! intent(in)    : minimum time step (seconds)
-                       errTol,            & ! intent(in)    : error tolerance for the explicit solution
                        nState,            & ! intent(in)    : total number of state variables
                        doAdjustTemp,      & ! intent(in)    : flag to indicate if we adjust the temperature
                        firstSubStep,      & ! intent(in)    : flag to denote first sub-step
                        firstFluxCall,     & ! intent(inout) : flag to indicate if we are processing the first flux call
-                       explicitEuler,     & ! intent(in)    : flag to denote computing the explicit Euler solution
                        computeVegFlux,    & ! intent(in)    : flag to denote if computing energy flux over vegetation
+                       scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
                        fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
                        ! input/output: data structures
                        model_decisions,   & ! intent(in)    : model decisions
@@ -122,13 +121,12 @@ contains
  ! input: model control
  real(dp),intent(in)             :: dt                            ! time step (seconds)
  real(dp),intent(in)             :: dt_min                        ! minimum time step (seconds)
- real(dp),intent(in)             :: errTol                        ! error tolerance in the explicit solution
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
- logical(lgt),intent(in)         :: explicitEuler                 ! flag to denote computing the explicit Euler solution
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ logical(lgt),intent(in)         :: scalarSolution                ! flag to denote implementing the scalar solution
  logical(lgt),intent(in)         :: fluxMask(:)                   ! flags to denote if the flux is calculated in the given state subset
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
@@ -163,7 +161,6 @@ contains
  integer(i4b)                    :: iVar                          ! index of variables in data structures
  ! adaptive sub-stepping for the explicit solution
  logical(lgt)                    :: failedSubstep                 ! flag to denote success of substepping for a given split
- real(dp)                        :: explicitError                 ! error in the explicit solution
  real(dp),parameter              :: safety=0.85_dp                ! safety factor in adaptive sub-stepping
  real(dp),parameter              :: reduceMin=0.1_dp              ! mimimum factor that time step is reduced
  real(dp),parameter              :: increaseMax=4.0_dp            ! maximum factor that time step is increased
@@ -222,6 +219,7 @@ contains
 
  ! initialize the length of the substep
  dtSubstep    = dt
+ print*, 'dtSubstep = ', dtSubstep
 
  ! allocate space for the temporary model flux structure
  call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -272,6 +270,9 @@ contains
                    stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+  
+  print*, 'stateVecInit = ', stateVecInit 
+  print*, 'dtSubstep    = ', dtSubstep
 
   ! -----
   ! * iterative solution...
@@ -284,8 +285,8 @@ contains
                   nState,            & ! intent(in):    total number of state variables
                   firstSubStep,      & ! intent(in):    flag to denote first sub-step
                   firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
-                  explicitEuler,     & ! intent(in):    flag to denote computing the explicit Euler solution
                   computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
+                  scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
                   ! input/output: data structures
                   type_data,         & ! intent(in):    type of vegetation and soil
                   attr_data,         & ! intent(in):    spatial attributes
@@ -303,13 +304,13 @@ contains
                   ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                   stateVecTrial,     & ! intent(out):   updated state vector
-                  explicitError,     & ! intent(out):   error in the explicit solution
                   reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                   tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                   niter,             & ! intent(out):   number of iterations taken
                   err,cmessage)        ! intent(out):   error code and error message
   if(err/=0)then
    message=trim(message)//trim(cmessage)
+   print*, trim(message)//' [after systemSolv]'
    if(err>0) return
   endif
 
@@ -319,7 +320,6 @@ contains
 
   ! identify failure
   failedSubstep = (err<0)
-  if(explicitEuler .and. explicitError > errTol) failedSubstep=.true.
 
   ! check
   if(globalPrintFlag)then
@@ -335,9 +335,6 @@ contains
    if(err<0)then
     err=0; message='varSubstep/'  ! recover from failed convergence 
     dtMultiplier  = 0.5_dp        ! system failure: step halving
-   ! large error in explicit solution
-   elseif(explicitEuler .and. explicitError > errTol)then
-    dtMultiplier  = max(safety*sqrt(errTol/explicitError), reduceMin)  ! intolerable errors: MUST be explicit Euler
    ! nothing else defined
    else
     message=trim(message)//'unknown failure'
@@ -348,7 +345,6 @@ contains
   else
 
    ! ** implicit Euler: adjust step length based on iteration count
-   if(.not.explicitEuler)then
     if(niter<n_inc)then
      dtMultiplier = F_inc
     elseif(niter>n_dec)then
@@ -357,10 +353,6 @@ contains
      dtMultiplier = 1._dp
     endif
 
-   ! ** explicit Euler: adjust step based on error estimate
-   else
-    dtMultiplier  = min(safety*sqrt(errTol/explicitError), increaseMax)
-   endif  ! switch between explicit and implicit Euler
   endif  ! switch between failure and success
 
   ! check if we failed the substep
@@ -370,7 +362,7 @@ contains
    if(dtSubstep*dtMultiplier<dt_min)then
 
     ! --> if not explicit Euler, then exit and try another solution method
-    if(.not.explicitEuler)then
+    if(.not.scalarSolution)then
      failedMinimumStep=.true.
      exit subSteps
     endif
@@ -395,7 +387,7 @@ contains
   endif
 
   ! update prognostic variables
-  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
+  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,scalarSolution,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                       & ! input-output: data structures
                   waterBalanceError,nrgFluxModified,err,cmessage)                                                       ! output: flags and error control
   if(err/=0)then
@@ -405,8 +397,9 @@ contains
 
   ! if water balance error then reduce the length of the coupled step
   if(waterBalanceError)then
+   message=trim(message)//'water balance error'
    reduceCoupledStep=.true.
-   return
+   err=-20; return
   endif
 
   if(globalPrintFlag)&
@@ -561,7 +554,7 @@ contains
  associate(&
  ! get indices for mass balance
  ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in)    : [i4b]    index of canopy hydrology state variable (mass)
- ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in)    : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+ ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                ,& ! intent(in)    : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
  ! get indices for the un-tapped melt
  ixNrgOnly                 => indx_data%var(iLookINDEX%ixNrgOnly)%dat                    ,& ! intent(in)    : [i4b(:)] list of indices for all energy states
  ixDomainType              => indx_data%var(iLookINDEX%ixDomainType)%dat                 ,& ! intent(in)    : [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
@@ -742,7 +735,7 @@ contains
     return
    endif  ! if there is a water balance error
   endif  ! if veg canopy
-  
+ 
   ! check mass balance for soil
   ! NOTE: fatal errors, though possible to recover using negative error codes
   if(count(ixSoilOnlyHyd/=integerMissing)>0)then
@@ -752,15 +745,15 @@ contains
    baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
    compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
    liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
-   !write(*,'(a,1x,f20.10)') 'dt = ', dt
-   !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
-   !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
-   !write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
-   !write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
-   !write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
-   !write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
-   !write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
-   !write(*,'(a,1x,f20.10)') 'absConvTol_liquid = ', absConvTol_liquid
+   write(*,'(a,1x,f20.10)') 'dt = ', dt
+   write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
+   write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
+   write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
+   write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
+   write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
+   write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
+   write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+   write(*,'(a,1x,f20.10)') 'absConvTol_liquid = ', absConvTol_liquid
    if(abs(liqError) > absConvTol_liquid*10._dp)then   ! *10 because of precision issues
     waterBalanceError = .true.
     return

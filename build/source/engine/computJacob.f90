@@ -742,11 +742,13 @@ contains
    endif   ! (if there are state variables for both water and energy in the soil domain)
   
    ! print the Jacobian
-   if(globalPrintFlag)then
-    print*, '** analytical Jacobian:'
-    write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
-    do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer); end do
-   end if
+   !if(globalPrintFlag)then
+    print*, '** analytical Jacobian (full):'
+    print*, 'size(aJac) = ', size(aJac)
+    print*, 'aJac = ', aJac
+    ! write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+    ! do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer); end do
+   !end if
 
   ! ***
   ! check
