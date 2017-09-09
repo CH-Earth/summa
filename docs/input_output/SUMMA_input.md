@@ -2,12 +2,24 @@
 
 SUMMA has a large number of input files that configure the model and provide the necessary initial conditions and time-varying boundary conditions to make a model simulation. This can at times be confusing. We encourage the user to look at the [SUMMA test cases](../installation/SUMMA_test_cases.md), which provide working SUMMA setups.
 
+## Input file formats
+<a id="infile_file_formats"></a>
+SUMMA input files are either ASCII format or NetCDF. The general characteristics of these files are described in the next two subsections, while the contents of the individual input files are described after that.
+
+### ASCII
+<a id="infile_format_ASCII"></a>
+ASCII or text files are in a format that can be modified using a text editor. Comments can be added to any SUMMA text file by starting the comments with  a `!`. Anything after the `!` will be discarded till the end of the line. You can include as many comments as you want, as they will be stripped as SUMMA processes the file.
+
+
+### NetCDF
+<a id="infile_format_nc"></a>
+[NetCDF](https://www.unidata.ucar.edu/software/netcdf/) or Network Common Data Format is a file format that is widely used in geosciences to organize large data sets. The main advantages of using NetCDF files is that they are machine independent, they allow the user to include meta data directly in the data file, and they can be read by, visualized and analyzed using a large number of freely available software packages. The SUMMA documentation is not the place to learn about NetCDF. We assume that you know the difference between NetCDF dimensions, NetCDF variables, and NetCDF attributes (global and local). If you don't, then there are many tutorials available online. Note that the latter are different from the local SUMMA attributes that we are describing [below](#infile_local_attributes).
+
+
 ## Master configuration file
 <a id="infile_master_configuration"></a>
 
-The master configuration file is provided to SUMMA at run-time as a command-line option. The path to this file needs to be supplied with the `-m` or `--master` command-line flag. The contents of this file orchestrate the remainder of the SUMMA run and are processed by the code in `build/source/hookup/summaFileManager.f90`. The file contents mostly consist of file paths that provide the actual information about the model configuration.
-
-Comments can be added to the file by starting them with `!`. Anything after the `!` will be discarded till the end of the line. You can include as many comments as you want, as they will be stripped as SUMMA processes the file.
+The master configuration file is an [ASCII file](#infile_format_ASCII) and is provided to SUMMA at run-time as a command-line option. The path to this file needs to be supplied with the `-m` or `--master` command-line flag. The contents of this file orchestrate the remainder of the SUMMA run and are processed by the code in `build/source/hookup/summaFileManager.f90`. The file contents mostly consist of file paths that provide the actual information about the model configuration.
 
 The following items must be provided in order in the master configuration file. Each item must be on its own line, but may be followed by a comment and you can add lines of comments between the items. Each entry must be enclosed in single quotes `'entry'`. In the following, I start each enumerated entry with the actual variable name that is used in the SUMMA source code to refer to each of the entries (in `summaFileManager.f90`) and its default value in case you are trying to trace a problem.
 
@@ -56,7 +68,7 @@ The following items must be provided in order in the master configuration file. 
 
 ## Model decisions file
 <a id="infile_model_decisions"></a>
-The model decisions file is an ASCII file that indicates the model decisions with which SUMMA is configured. Comments can be added to the file by starting them with `!`. Anything after the `!` will be discarded till the end of the line. You can include as many comments as you want, as they will be stripped as SUMMA processes the file. The model decisions file is parsed by `build/source/engine/mDecisions.f90`, which also serves as the file of record for all available options for the individual model decisions. The names for the model decisions are found in `build/source/dshare/get_ixname.f90:function get_ixdecisions(varName)`. Detailed information about the individual model decisions and their associated options can be found in the [configuration section](../configuration/SUMMA_model_decisions.md).
+The model decisions file is an [ASCII file](#infile_format_ASCII) that indicates the model decisions with which SUMMA is configured. The model decisions file is parsed by `build/source/engine/mDecisions.f90`, which also serves as the file of record for all available options for the individual model decisions. The names for the model decisions are found in `build/source/dshare/get_ixname.f90:function get_ixdecisions(varName)`. Detailed information about the individual model decisions and their associated options can be found in the [configuration section](../configuration/SUMMA_model_decisions.md).
 
 Model decisions can be specified in any order with one decision per line. The decisions take the form `<keyword> <value>`, where `<keyword>` is the decision to be made and `<value>` is the option that is selected for that decision. For example, the line `f_Richards mixdform` indicates that the mixed form (liquid/frozen) of the Richards's equation should be used in the simulation(`mixdform` option for the `f_Richards` decision). Another option for this model decision would be `moisture`, which would be the moisture-based form.
 
@@ -110,7 +122,7 @@ The model decisions for each simulation are included as global attributes in [SU
 
 ## Output control file
 <a id="infile_output_control"></a>
-The output control file is an ASCII file that specifies which variables are retained in the [SUMMA output files](SUMMA_output.md). Comments can be added to the file by starting them with `!`. Anything after the `!` will be discarded till the end of the line. You can include as many comments as you want, as they will be stripped as SUMMA processes the file. The output control file is parsed by `build/source/dshare/popMetadat.f90:read_output_file()`
+The output control file is an [ASCII file](#infile_format_ASCII) that specifies which variables are retained in the [SUMMA output files](SUMMA_output.md). The output control file is parsed by `build/source/dshare/popMetadat.f90:read_output_file()`
 
 SUMMA is pretty flexible in its output. There are many variables that you can output and for most of them you can also choose to record summary statistics. For example, you can configure the model to run with meteorological forcings that are defined every hour, but only save summary output with a daily time step. This flexibility comes at the small price that you need to be clear in specifying what output you want.
 
@@ -132,14 +144,37 @@ In this example, the first line is a comment (starts with `!`) and then the sum,
 <a id="infile_initial_conditions"></a>
 
 ## Attribute and parameter files
+SUMMA uses a number of files to specify model attributes and parameters. Although SUMMA's distinction between attributes and parameters is somewhat arbitrary, attributes generally describe chracteristics of the model domain that are time-invariant during the simulation, such as GRU and HRU identifiers, spatial organization, an topography. The important part for understanding the organization of the SUMMA input files is that the values specified in the [local attributes file](#infile_local_attributes) do not overlap with those in the various parameter files. Thus, these values do not overwrite any attributes specified elsewhere. In contrast, the various parameter file are read in sequence (as explained in the next paragraph) and parameter values that are read in from the input files successively overwrite values that have been specified earlier.
+
+The figure below shows the order in which SUMMA processes the various attribute and parameter files. First, the [local attributes file](#infile_local_attributes) is processed, which provides information about the organization of the GRUs and HRUs as well as some other information. Then, SUMMA parses the [local parameters file](#infile_local_parameters), which provides spatially constant values for all SUMMA parameters that need to be specified at the HRU level. SUMMA then parses the [basin parameters file](#infile_basin_parameters), which provides spatially constant values for all SUMMA parameters that need to be specified at the GRU level. In this case, it does not really matter which files is parsed first. The information in these two files does not overlap. At this point in SUMMA's initialization, all GRU and HRU parameters have been initialized to spatially constant values. SUMMA has inherited some routines from the NOAH land surface model and the next step is to parse the [NOAH parameter tables](#infile_noah_tables). The information in these tables is used to overwrite the spatially constant values that have already been initialized for each HRU. Finally, the [trial parameters file](#infile_trial_parameters) is parsed to provide additional GRU and HRU specific information. The values from this file will overwrite existing values. The number of variables specified in the [trial parameters file](#infile_trial_parameters) will vary with the amount of location-specific information that you have available for your simulation.
+
 ![Order in which SUMMA model attributes and parameters are specified and processed](../assets/img/SUMMA_parameters_spec_order.png)<a id="SUMMA_parameters_spec_order"></a>
 *Order in which SUMMA model attributes and parameters are specified and processed.*
 
 ### Local attributes file
 <a id="infile_local_attributes"></a>
-The local attributes file is a [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) file, a format that is widely used in geosciences to organize large data sets. The main advantages of using NetCDF files is that they are machine independent, they allow the user to include meta data in the data file, and they can be read by, visualized and analyzed using a large number of software packages. The SUMMA documentation is not the place to learn about NetCDF. The following assumes that you know the difference between NetCDF dimensions, NetCDF variables, and NetCDF attributes (global and local). Note that the latter are different from the local SUMMA attributes that we are describing here.
+The local attributes file is a [NetCDF file](#infile_format_nc) that specifies model element attributes for GRUs and individual HRUs. The local attributes file is parsed by `build/source/driver/multi_driver.f90` and `build/source/engine/read_attrb.f90`. As described above, the attributes specified in this file are separate from the values specified in the various parameter files.
 
-The local attributes file is parsed by `build/source/driver/multi_driver.f90` and `build/source/engine/read_attrb.f90`. Currently SUMMA's distinction between attributes and parameters is somewhat arbitrary. The important part here is that the SUMMA local attributes do not overlap with the parameters described in the previous sections. Thus, these values do not overwrite any attributes specified elsewhere. A sample local attributes file is shown below, with the individual variables explained in the table below the sample file.
+The local attributes file contains a `gru` and an `hru` dimension as specified in the table below. All variables in the local attributes file must be specified.
+
+| Variable | dimension | type | units | long name | notes |
+|----------|-----------|------|-------|-----------|-------|
+hruId | hru | int | - | Index of hydrological response unit (HRU) | Unique numeric ID for each HRU |
+gruId | gru | int | - | Index of grouped response unit (GRU) | Unique numeric ID for each GRU |
+hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the GRU to which the HRU belongs |
+downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
+longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
+latitude | hru | double | Decimal degree north | Latitude of HRU's centroid | South is negative |
+elevation | hru | double | m | Elevation of HRU's centroid | |
+HRUarea | hru | double | m^2 | Area of HRU | |
+tan_slope | hru | double | m m-1 | Average tangent slope of HRU | |
+contourLength | hru | double | m | Contour length of HRU | Width of a hillslope (m) parallel to a stream. Used in `groundwatr.f90`|
+slopeTypeIndex | hru | int | - |	Index defining slope | |
+soilTypeIndex | hru | int | - |	Index defining soil type | |
+vegTypeIndex | hru | int | - |	Index defining vegetation type | |
+mHeight | hru | double | m | Measurement height above bare ground | |
+
+Below is a sample layout of the local attributes file (the output of running `ncdump -h`). In this case,  both the gru and hru dimension are of size 1 (the example is taken from one of the [test cases](../installation/SUMMA_test_cases.md), most of which are point model simulations), but of course there can be many GRUs and HRUs.
 
 ```
 netcdf sample_local_attributes_file_layout {
@@ -201,8 +236,9 @@ variables:
 }
 ```
 
-### Trial parameters file
-<a id="infile_trial_parameters"></a>
+### Local parameters file
+<a id="infile_local_parameters"></a>
+The local parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for which variables are retained in the [SUMMA output files](SUMMA_output.md). The output control file is parsed by `build/source/dshare/popMetadat.f90:read_output_file()`
 
 ### Basin parameters file
 <a id="infile_basin_parameters"></a>
@@ -210,5 +246,5 @@ variables:
 ### NOAH tables
 <a id="infile_noah_tables"></a>
 
-### Local parameters file
-<a id="infile_local_parameters"></a>
+### Trial parameters file
+<a id="infile_trial_parameters"></a>
