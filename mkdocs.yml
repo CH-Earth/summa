@@ -16,6 +16,7 @@ pages:
   - SUMMA Test Cases: 'installation/SUMMA_test_cases.md'
 - Configuration:
   - SUMMA Configuration: 'configuration/SUMMA_configuration.md'
+  - SUMMA Model Decisions: 'configuration/SUMMA_model_decisions.md'
 - Input/Output:
   - SUMMA Input: 'input_output/SUMMA_input.md'
   - SUMMA Output: 'input_output/SUMMA_output.md'
