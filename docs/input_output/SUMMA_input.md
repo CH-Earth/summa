@@ -15,6 +15,8 @@ ASCII or text files are in a format that can be modified using a text editor. Co
 <a id="infile_format_nc"></a>
 [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) or Network Common Data Format is a file format that is widely used in geosciences to organize large data sets. The main advantages of using NetCDF files is that they are machine independent, they allow the user to include meta data directly in the data file, and they can be read by, visualized and analyzed using a large number of freely available software packages. The SUMMA documentation is not the place to learn about NetCDF. We assume that you know the difference between NetCDF dimensions, NetCDF variables, and NetCDF attributes (global and local). If you don't, then there are many tutorials available online. Note that the latter are different from the local SUMMA attributes that we are describing [below](#infile_local_attributes).
 
+SUMMA input files in NetCDF format can include variables (and dimensions) other than those specified below. They will simply not be read by SUMMA, but may be useful to facilitate further analysis and/or visualization. For example, it may be convenient to include latitude and longitude in many of the spatial files to allow visualization.
+
 
 ## Master configuration file
 <a id="infile_master_configuration"></a>
@@ -139,12 +141,74 @@ In this example, the first line is a comment (starts with `!`) and then the sum,
 
 ## List of forcing files file
 <a id="infile_forcing_list"></a>
+The list of forcing files file is an [ASCII file](#infile_format_ASCII) that specifies a list of [meteorological forcing files](#infile_meteorological_forcing) that are read by SUMMA and that provide the time-varying atmospheric boundary conditions. The list of forcing files file contains one field per line, which specifies the name of a forcing file in single quotes. The file is parsed by `build/source/engine/ffile_info.f90:ffile_info()`. Each of the forcing files must contain all the GRUs/HRUs that are part of the simulation, but can contain a subset of the modeling period. For example, the forcing files can be organized by year or month to stop file sizes for large domains from becoming too unwieldy. In the forcing files file, these meteorological forcing files would be listed in order, with the earliest file listed first.
 
-## Initial conditions file
+## Meteorological forcing files
+<a id="infile_meteorological_forcing">
+
+The meteorological forcing files are [NetCDF files](#infile_format_nc) that specify the time-varying atmospheric boundary conditions for SUMMA. The files are parsed by `build/source/engine/ffile_info.f90:ffile_info()` to perform a series of file checks (number of HRUs, presence of all required variables) and by `build/source/engine/read_force.f90:read_force()` to get the meteorological information for the next time step.
+
+Each forcing file must contain a `time` and a `hru` dimension. In addition, the file must contain the following variables at a minimum (it is OK if the file contains additional variables that will not be read, for example, it may be useful include latitude and longitude for each HRU to facilitate visualization of the forcing data)
+
+| Variable | dimension | type | units | long name | notes |
+|----------|-----------|------|-------|-----------|-------|
+data_step  | - | double | seconds | Length of time step | Single value that must be the same for all forcing files in the same [list of forcing files file](#infile_forcing_list)
+hruId | hru | int or int64 | - | Index of hydrological response unit (HRU) | Unique numeric ID for each HRU |
+time | time | double | [see below](#forcing_file_time_units) | time since time reference | Time stamps are [period-ending](#forcing_file_time_stamp)
+pptrate  | time, hru | double | kg m-2 s-1 | Precipitation rate | |
+SWRadAtm | time, hru | double | W m-2 | Downward shortwave radiation at the [upper boundary](#forcing_file_upper_boundary) | |
+LWRadAtm | time, hru | double | W m-2 | Downward longwave radiation at the [upper boundary](#forcing_file_upper_boundary) | |
+airtemp  | time, hru | double | K | Air temperature at the [measurement height](#forcing_file_measurement_height) | |
+windspd  | time, hru | double | m s-1 | Wind speed at the [measurement height](#forcing_file_measurement_height) | |
+airpres  | time, hru | double | Pa | Air pressure at the the [measurement height](#forcing_file_measurement_height)| |
+spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement height](#forcing_file_measurement_height) | |
+
+Notes about forcing file format:
+
+* <a id="forcing_file_time_units">Forcing timestep units</a>: The user can specify the time units as `<units> since <reference time>`, where `<units>` is one of `seconds`, `hours`, or `days` and `<reference time>` is specified as `YYYY-MM-DD hh:mm`.
+
+* <a id="forcing_file_time_stamp">Forcing time stamp</a>: SUMMA forcing time stamps are period-ending and the forcing information reflects average conditions over the time interval of length `data_step` preceding the time stamp.
+
+* <a id="forcing_file_upper_boundary">Upper boundary</a>: The upper boundary refers to the upper boundary of the SUMMA domain, so this would be at some height above the canopy or ground (in case there is no canopy).
+
+* <a id="forcing_file_measurement_height">Measurement height</a>: The measurement height is the height (above bare ground) where the meteorological variables are specified. This value is specified as `mHeight` in the [local attributes file](#infile_local_attributes).
+
+SUMMA uses **adaptive time stepping** to solve the model equations. Atmospheric conditions are kept constant during the adaptive sub-steps that occur during a meteorological forcing time step.
+
+## Initial conditions, restart or state file
 <a id="infile_initial_conditions"></a>
+The initial conditions, restart, or state file is a [NetCDF file](#infile_format_nc) that specifies the model states at the start of the model simulation. This file is required. You will need to generate one before you run the model for the first time, but after that the model restart file can be the result from an earlier model simulation. The file is written by `build/source/netcdf/modelwrite.f90:writeRestart()` and read by `build/source/netcdf/read_icond.f90:read_icond_nlayers()` (number of snow and soil layers) and `build/source/netcdf/read_icond.f90:read_icond()` (actual model states).
+
+The frequency with which SUMMA writes restart files is specified on the command-line with the `-r` or `--restart` flag. This flag currently can be either `y` or `year`, `m` or `month`, `d` or `day`, or `n` or `never`.
+
+As an input file, the variables that need to be specified in the restart file are a subset of those listed as `iLook_prog` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(6) define model prognostic (state) variables`). Variable names must match the code exactly (case-sensitive). Note that not all the variables in `iLook_prog` need to be specified, since some of them can be calculated from other variables. For example, SUMMA calculates `mLayerHeight` from `iLayerHeight` and the variable does not need to be reported separately. For similar reasons, the user does not need to specify `scalarCanopyWat`, `spectralSnowAlbedoDiffuse`, `scalarSurfaceTemp`, `mLayerVolFracWat`,  and `mLayerHeight` since these are skipped when the file is read and calculated internally to ensure consistency. In addition to these variables, the restart file also needs to specify the number of soil and snow layers (`nSoil` and `nSnow`, respectively).
+
+The restart file does not have a time dimension, since it represents a specific moment in time. However, it has the following dimensions,: `hru`, `scalarv`, `spectral`, `ifcSoil`, `ifcToto`, `midSoil`, and `midToto`. These dimensions are described in detail in the section on [SUMMA output file dimensions](SUMMA_output.md#outfile_dimensions) (keep in mind that the restart files are both input and output).
+
+| Variable | dimension | type | units | long name | notes |
+|----------|-----------|------|-------|-----------|-------|
+| dt_init | scalarv, hru | double | seconds | Length of initial time sub-step at start of next time interval (s) | |
+| nSoil | scalarv, hru | int | - | Number of soil layers | |
+| nSnow | scalarv, hru | int | - |  Number of snow layers | |
+| scalarCanopyIce | scalarv, hru | double | kg m-2 | Mass of ice on the vegetation canopy | |
+| scalarCanopyLiq | scalarv, hru | double | kg m-2 | Mass of liquid water on the vegetation canopy | |
+| scalarCanairTemp | scalarv, hru | double | Pa | Temperature of the canopy air space | |
+| scalarCanopyTemp | scalarv, hru | double | K | Temperature of the vegetation canopy | |
+| scalarSnowAlbedo | scalarv, hru | double | - | Snow albedo for the entire spectral band | |
+| scalarSnowDepth | scalarv, hru | double | m | Total snow depth | |
+| scalarSWE | scalarv, hru | double | kg m-2 | Snow water equivalent | |
+| scalarSfcMeltPond | scalarv, hru | double | kg m-2 | Ponded water caused by melt of the "snow without a layer" |
+| scalarAquiferStorage | scalarv, hru | double | m | Relative aquifer storage -- above bottom of the soil profile | |
+| iLayerHeight | ifcToto, hru | double | m | Height of the layer interface; top of soil = 0 | |
+| mLayerDepth | midToto, hru | double | m | Depth of each layer | |
+ layer |
+| mLayerTemp | midToto, hru | double | K | Temperature of each layer | |
+| mLayerVolFracIce | midToto, hru | double | - | Volumetric fraction of ice in each layer | |
+| mLayerVolFracLiq | midToto, hru | double | - | Volumetric fraction of liquid water in each layer | |
+| mLayerMatricHead | midSoil, hru | double | m | Matric head of water in the soil |
 
 ## Attribute and parameter files
-SUMMA uses a number of files to specify model attributes and parameters. Although SUMMA's distinction between attributes and parameters is somewhat arbitrary, attributes generally describe chracteristics of the model domain that are time-invariant during the simulation, such as GRU and HRU identifiers, spatial organization, an topography. The important part for understanding the organization of the SUMMA input files is that the values specified in the [local attributes file](#infile_local_attributes) do not overlap with those in the various parameter files. Thus, these values do not overwrite any attributes specified elsewhere. In contrast, the various parameter file are read in sequence (as explained in the next paragraph) and parameter values that are read in from the input files successively overwrite values that have been specified earlier.
+SUMMA uses a number of files to specify model attributes and parameters. Although SUMMA's distinction between attributes and parameters is somewhat arbitrary, attributes generally describe characteristics of the model domain that are time-invariant during the simulation, such as GRU and HRU identifiers, spatial organization, an topography. The important part for understanding the organization of the SUMMA input files is that the values specified in the [local attributes file](#infile_local_attributes) do not overlap with those in the various parameter files. Thus, these values do not overwrite any attributes specified elsewhere. In contrast, the various parameter file are read in sequence (as explained in the next paragraph) and parameter values that are read in from the input files successively overwrite values that have been specified earlier.
 
 The figure below shows the order in which SUMMA processes the various attribute and parameter files. First, the [local attributes file](#infile_local_attributes) is processed, which provides information about the organization of the GRUs and HRUs as well as some other information. Then, SUMMA parses the [local parameters file](#infile_local_parameters), which provides spatially constant values for all SUMMA parameters that need to be specified at the HRU level. SUMMA then parses the [basin parameters file](#infile_basin_parameters), which provides spatially constant values for all SUMMA parameters that need to be specified at the GRU level. In this case, it does not really matter which files is parsed first. The information in these two files does not overlap. At this point in SUMMA's initialization, all GRU and HRU parameters have been initialized to spatially constant values. SUMMA has inherited some routines from the NOAH land surface model and the next step is to parse the [NOAH parameter tables](#infile_noah_tables). The information in these tables is used to overwrite the spatially constant values that have already been initialized for each HRU. Finally, the [trial parameters file](#infile_trial_parameters) is parsed to provide additional GRU and HRU specific information. The values from this file will overwrite existing values. The number of variables specified in the [trial parameters file](#infile_trial_parameters) will vary with the amount of location-specific information that you have available for your simulation.
 
@@ -238,13 +302,44 @@ variables:
 
 ### Local parameters file
 <a id="infile_local_parameters"></a>
-The local parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for which variables are retained in the [SUMMA output files](SUMMA_output.md). The output control file is parsed by `build/source/dshare/popMetadat.f90:read_output_file()`
+The local parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA parameters. The file is parsed by `build/source/engine/read_pinit.f90:read_pinit()`.
+
+The first non-comment line is a format string that is used to process the remaining non-comment lines. The format definition defines the format of the file, which can be changed. The format string itself is a Fortran format statement and must be in single quotes. For example,
+```Fortran
+'(a25,1x,3(a1,1x,f12.4,1x))' ! format string (must be in single quotes)
+```
+
+This states that the first field is 25 ASCII characters (`a25`), followed by a space (`1x`), and then 3 fields that each consist of an ASCII character (`a1`, the separator), followed by a space (`1x`), a float with 4 digits after the decimal (`f12.4`, note that you can also use this to read something like `1.0d+6`), followed by another space (`1x`). For the separator we often use `|`, but other characters can be used as well. For example, this format statement can be used to read a line such as
+```
+upperBoundHead            |      -0.7500 |    -100.0000 |      -0.0100
+```
+
+All lines in the file (including the format statement) consist of four columns
+
+1. parameter name
+2. default parameter value
+3. lower parameter limit
+4. upper parameter limit
+
+The parameters that need to be specified in this file are those listed as `iLook_param` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(5) define model parameters`). Parameter names must match the code exactly (case-sensitive). The parameter value is set to the default value (second column). The parameter value limits are currently not used, but still need to be specified. Our intention is to use them when reading the [trial parameters file](#infile_trial_parameters) to ensure that the `hru` specific parameter values are within the specified limits.
 
 ### Basin parameters file
 <a id="infile_basin_parameters"></a>
 
-### NOAH tables
+The basin parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA basin parameters. The file is parsed by `build/source/engine/read_pinit.f90:read_pinit()`. The format of the file is identical to that of the [local parameters file](#infile_local_parameters).
+
+The parameters that need to be specified in this file are those listed as `iLook_bpar` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(11) define basin-average model parameters`). Parameter names must match the code exactly (case-sensitive). The parameter value is set to the default value (second column). The parameter value limits are currently not used, but still need to be specified. Our intention is to use them when reading the [trial parameters file](#infile_trial_parameters) to ensure that the `gru` specific parameter values are within the specified limits.
+
+### Noah-MP tables
 <a id="infile_noah_tables"></a>
+
+SUMMA uses some of the input files and routines from the [Noah-MP Land Surface Model (LSM)](https://ral.ucar.edu/projects/noah-multiparameterization-land-surface-model-noah-mp-lsm). These routines are mostly contained in the `build/source/noah-mp` directory, although a few can be found elsewhere in the code as well. For example, the code that parses the Noah-MP tables is in `build/source/driver/multi_driver.f90:SOIL_VEG_GEN_PARM()`. The names of these tables is hard-wired (since that it is how this is implemented in Noah-MP). The file path for these tables is constructed as `<SETNGS_PATH>/<NOAH_TABLE>`, where `SETNGS_PATH` is defined in the [master configuration file](#infile_master_configuration) and `NOAH_TABLE` is `VEGPARM.TBL`, `SOILPARM.TBL` and `GENPARM.TBL`. The format for these files remains unchanged from their specification in Noah-MP, see [here](https://ral.ucar.edu/solutions/products/noah-multiparameterization-land-surface-model-noah-mp-lsm) for an example. The parameter values in the Noah-MP overwrite the default values that have already been specified based on soil and vegetation type.
 
 ### Trial parameters file
 <a id="infile_trial_parameters"></a>
+
+The trial parameters file is a [NetCDF file](#infile_format_nc) that specifies model parameters for GRUs and individual HRUs. This enables the user to overwrite the default and/or Noah-MP parameter values with local-specific ones. The trial parameters file is parsed by `build/source/engine/read_param.f90:read_param()`.
+
+The trial parameters file contains a `gru` and/or an `hru` dimension, depending on whether GRU or HRU are being specified. The file can be used to overwrite any of the variables in the [basin parameters file](#infile_basin_parameters), in which the variable dimension should be `gru`, or in the [local parameters file](#infile_local_parameters), in which the variable dimension should be `hru`. The file can contain zero or more parameter fields.
+
+The file should include an index variable (`hruId` and/or `gruId`) that corresponds to the values used in the [local attributes file](#infile_local_attributes) to provide the mapping of parameter values to each individual HRU and GRU. Variable names in the trial parameters file must match those in `build/source/dshare/var_lookup.f90:iLook_param` for HRU parameters and `build/source/dshare/var_lookup.f90:iLook_bpar` for GRU parameters. Note that this matching is case-sensitive.
