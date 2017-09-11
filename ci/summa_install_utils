@@ -31,11 +31,11 @@ function install_szip {
 function install_hdf5 {
     echo install_hdf5
     cd $WORKDIR
-    wget --no-check-certificate -q http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.10.0-patch1.tar.gz
-    tar -xzf hdf5-1.10.0-patch1.tar.gz
-    cd hdf5-1.10.0-patch1
+    wget --no-check-certificate -q https://support.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.10.1.tar.gz
+    tar -xzf hdf5-1.10.1.tar.gz
+    cd hdf5-1.10.1
     ./configure --prefix=$INSTALLDIR &> config.log
-    make &> make.log
+    make
     make install
     export LIBDIR=${INSTALLDIR}/lib
 }
