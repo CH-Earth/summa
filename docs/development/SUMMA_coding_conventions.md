@@ -149,7 +149,7 @@ contains
 
 ## Licensing
 
- 1. SUMMA is distributed under the [GPL-V3 license](http://www.gnu.org/licenses/gpl.html). This means that all code modifications must be shared with the community. All code files should include a header that contains the following (this should be copied verbatim other than the text in `{}`).
+ 1. SUMMA is distributed under the [GPL-V3 license](http://www.gnu.org/licenses/gpl-3.0.html). This means that all code modifications must be shared with the community. All code files should include a header that contains the following (this should be copied verbatim other than the text in `{}`). A header template is provided in the top-level SUMMA directory as `header.license`.
 
     ```fortran
     ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
