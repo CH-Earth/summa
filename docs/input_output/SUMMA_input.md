@@ -2,25 +2,24 @@
 
 SUMMA has a large number of input files that configure the model and provide the necessary initial conditions and time-varying boundary conditions to make a model simulation. This can at times be confusing. We encourage the user to look at the [SUMMA test cases](../installation/SUMMA_test_cases.md), which provide working SUMMA setups.
 
-## Input file formats
 <a id="infile_file_formats"></a>
+## Input file formats
 SUMMA input files are either ASCII format or NetCDF. The general characteristics of these files are described in the next two subsections, while the contents of the individual input files are described after that.
 
-### ASCII
 <a id="infile_format_ASCII"></a>
+### ASCII
 ASCII or text files are in a format that can be modified using a text editor. Comments can be added to any SUMMA text file by starting the comments with  a `!`. Anything after the `!` will be discarded till the end of the line. You can include as many comments as you want, as they will be stripped as SUMMA processes the file.
 
 
-### NetCDF
 <a id="infile_format_nc"></a>
+### NetCDF
 [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) or Network Common Data Format is a file format that is widely used in geosciences to organize large data sets. The main advantages of using NetCDF files is that they are machine independent, they allow the user to include meta data directly in the data file, and they can be read by, visualized and analyzed using a large number of freely available software packages. The SUMMA documentation is not the place to learn about NetCDF. We assume that you know the difference between NetCDF dimensions, NetCDF variables, and NetCDF attributes (global and local). If you don't, then there are many tutorials available online. Note that the latter are different from the local SUMMA attributes that we are describing [below](#infile_local_attributes).
 
 SUMMA input files in NetCDF format can include variables (and dimensions) other than those specified below. They will simply not be read by SUMMA, but may be useful to facilitate further analysis and/or visualization. For example, it may be convenient to include latitude and longitude in many of the spatial files to allow visualization.
 
 
-## Master configuration file
 <a id="infile_master_configuration"></a>
-
+## Master configuration file
 The master configuration file is an [ASCII file](#infile_format_ASCII) and is provided to SUMMA at run-time as a command-line option. The path to this file needs to be supplied with the `-m` or `--master` command-line flag. The contents of this file orchestrate the remainder of the SUMMA run and are processed by the code in `build/source/hookup/summaFileManager.f90`. The file contents mostly consist of file paths that provide the actual information about the model configuration.
 
 The following items must be provided in order in the master configuration file. Each item must be on its own line, but may be followed by a comment and you can add lines of comments between the items. Each entry must be enclosed in single quotes `'entry'`. In the following, I start each enumerated entry with the actual variable name that is used in the SUMMA source code to refer to each of the entries (in `summaFileManager.f90`) and its default value in case you are trying to trace a problem.
@@ -68,8 +67,8 @@ The following items must be provided in order in the master configuration file. 
 1. `OUTPUT_PREFIX`: Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
 
 
-## Model decisions file
 <a id="infile_model_decisions"></a>
+## Model decisions file
 The model decisions file is an [ASCII file](#infile_format_ASCII) that indicates the model decisions with which SUMMA is configured. The model decisions file is parsed by `build/source/engine/mDecisions.f90`, which also serves as the file of record for all available options for the individual model decisions. The names for the model decisions are found in `build/source/dshare/get_ixname.f90:function get_ixdecisions(varName)`. Detailed information about the individual model decisions and their associated options can be found in the [configuration section](../configuration/SUMMA_model_decisions.md).
 
 Model decisions can be specified in any order with one decision per line. The decisions take the form `<keyword> <value>`, where `<keyword>` is the decision to be made and `<value>` is the option that is selected for that decision. For example, the line `f_Richards mixdform` indicates that the mixed form (liquid/frozen) of the Richards's equation should be used in the simulation(`mixdform` option for the `f_Richards` decision). Another option for this model decision would be `moisture`, which would be the moisture-based form.
@@ -122,8 +121,8 @@ The model decisions and their options or values are listed in the following tabl
 
 The model decisions for each simulation are included as global attributes in [SUMMA output files](SUMMA_output.md).
 
-## Output control file
 <a id="infile_output_control"></a>
+## Output control file
 The output control file is an [ASCII file](#infile_format_ASCII) that specifies which variables are retained in the [SUMMA output files](SUMMA_output.md). The output control file is parsed by `build/source/dshare/popMetadat.f90:read_output_file()`
 
 SUMMA is pretty flexible in its output. There are many variables that you can output and for most of them you can also choose to record summary statistics. For example, you can configure the model to run with meteorological forcings that are defined every hour, but only save summary output with a daily time step. This flexibility comes at the small price that you need to be clear in specifying what output you want.
@@ -139,13 +138,12 @@ scalarSenHeatTotal | 24      | 0    | 1   | 1    | 0   | 1   | 1   | 0
 ```
 In this example, the first line is a comment (starts with `!`) and then the sum, mean, min, max are calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file.
 
-## List of forcing files file
 <a id="infile_forcing_list"></a>
+## List of forcing files file
 The list of forcing files file is an [ASCII file](#infile_format_ASCII) that specifies a list of [meteorological forcing files](#infile_meteorological_forcing) that are read by SUMMA and that provide the time-varying atmospheric boundary conditions. The list of forcing files file contains one field per line, which specifies the name of a forcing file in single quotes. The file is parsed by `build/source/engine/ffile_info.f90:ffile_info()`. Each of the forcing files must contain all the GRUs/HRUs that are part of the simulation, but can contain a subset of the modeling period. For example, the forcing files can be organized by year or month to stop file sizes for large domains from becoming too unwieldy. In the forcing files file, these meteorological forcing files would be listed in order, with the earliest file listed first.
 
-## Meteorological forcing files
 <a id="infile_meteorological_forcing">
-
+## Meteorological forcing files
 The meteorological forcing files are [NetCDF files](#infile_format_nc) that specify the time-varying atmospheric boundary conditions for SUMMA. The files are parsed by `build/source/engine/ffile_info.f90:ffile_info()` to perform a series of file checks (number of HRUs, presence of all required variables) and by `build/source/engine/read_force.f90:read_force()` to get the meteorological information for the next time step.
 
 Each forcing file must contain a `time` and a `hru` dimension. In addition, the file must contain the following variables at a minimum (it is OK if the file contains additional variables that will not be read, for example, it may be useful include latitude and longitude for each HRU to facilitate visualization of the forcing data)
@@ -175,8 +173,8 @@ Notes about forcing file format:
 
 SUMMA uses **adaptive time stepping** to solve the model equations. Atmospheric conditions are kept constant during the adaptive sub-steps that occur during a meteorological forcing time step.
 
-## Initial conditions, restart or state file
 <a id="infile_initial_conditions"></a>
+## Initial conditions, restart or state file
 The initial conditions, restart, or state file is a [NetCDF file](#infile_format_nc) that specifies the model states at the start of the model simulation. This file is required. You will need to generate one before you run the model for the first time, but after that the model restart file can be the result from an earlier model simulation. The file is written by `build/source/netcdf/modelwrite.f90:writeRestart()` and read by `build/source/netcdf/read_icond.f90:read_icond_nlayers()` (number of snow and soil layers) and `build/source/netcdf/read_icond.f90:read_icond()` (actual model states).
 
 The frequency with which SUMMA writes restart files is specified on the command-line with the `-r` or `--restart` flag. This flag currently can be either `y` or `year`, `m` or `month`, `d` or `day`, or `n` or `never`.
@@ -215,8 +213,8 @@ The figure below shows the order in which SUMMA processes the various attribute 
 ![Order in which SUMMA model attributes and parameters are specified and processed](../assets/img/SUMMA_parameters_spec_order.png)<a id="SUMMA_parameters_spec_order"></a>
 *Order in which SUMMA model attributes and parameters are specified and processed.*
 
-### Local attributes file
 <a id="infile_local_attributes"></a>
+### Local attributes file
 The local attributes file is a [NetCDF file](#infile_format_nc) that specifies model element attributes for GRUs and individual HRUs. The local attributes file is parsed by `build/source/driver/multi_driver.f90` and `build/source/engine/read_attrb.f90`. As described above, the attributes specified in this file are separate from the values specified in the various parameter files.
 
 The local attributes file contains a `gru` and an `hru` dimension as specified in the table below. All variables in the local attributes file must be specified.
@@ -300,8 +298,8 @@ variables:
 }
 ```
 
-### Local parameters file
 <a id="infile_local_parameters"></a>
+### Local parameters file
 The local parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA parameters. The file is parsed by `build/source/engine/read_pinit.f90:read_pinit()`.
 
 The first non-comment line is a format string that is used to process the remaining non-comment lines. The format definition defines the format of the file, which can be changed. The format string itself is a Fortran format statement and must be in single quotes. For example,
@@ -323,21 +321,18 @@ All lines in the file (including the format statement) consist of four columns
 
 The parameters that need to be specified in this file are those listed as `iLook_param` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(5) define model parameters`). Parameter names must match the code exactly (case-sensitive). The parameter value is set to the default value (second column). The parameter value limits are currently not used, but still need to be specified. Our intention is to use them when reading the [trial parameters file](#infile_trial_parameters) to ensure that the `hru` specific parameter values are within the specified limits.
 
-### Basin parameters file
 <a id="infile_basin_parameters"></a>
-
+### Basin parameters file
 The basin parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA basin parameters. The file is parsed by `build/source/engine/read_pinit.f90:read_pinit()`. The format of the file is identical to that of the [local parameters file](#infile_local_parameters).
 
 The parameters that need to be specified in this file are those listed as `iLook_bpar` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(11) define basin-average model parameters`). Parameter names must match the code exactly (case-sensitive). The parameter value is set to the default value (second column). The parameter value limits are currently not used, but still need to be specified. Our intention is to use them when reading the [trial parameters file](#infile_trial_parameters) to ensure that the `gru` specific parameter values are within the specified limits.
 
-### Noah-MP tables
 <a id="infile_noah_tables"></a>
-
+### Noah-MP tables
 SUMMA uses some of the input files and routines from the [Noah-MP Land Surface Model (LSM)](https://ral.ucar.edu/projects/noah-multiparameterization-land-surface-model-noah-mp-lsm). These routines are mostly contained in the `build/source/noah-mp` directory, although a few can be found elsewhere in the code as well. For example, the code that parses the Noah-MP tables is in `build/source/driver/multi_driver.f90:SOIL_VEG_GEN_PARM()`. The names of these tables is hard-wired (since that it is how this is implemented in Noah-MP). The file path for these tables is constructed as `<SETNGS_PATH>/<NOAH_TABLE>`, where `SETNGS_PATH` is defined in the [master configuration file](#infile_master_configuration) and `NOAH_TABLE` is `VEGPARM.TBL`, `SOILPARM.TBL` and `GENPARM.TBL`. The format for these files remains unchanged from their specification in Noah-MP, see [here](https://ral.ucar.edu/solutions/products/noah-multiparameterization-land-surface-model-noah-mp-lsm) for an example. The parameter values in the Noah-MP overwrite the default values that have already been specified based on soil and vegetation type.
 
-### Trial parameters file
 <a id="infile_trial_parameters"></a>
-
+### Trial parameters file
 The trial parameters file is a [NetCDF file](#infile_format_nc) that specifies model parameters for GRUs and individual HRUs. This enables the user to overwrite the default and/or Noah-MP parameter values with local-specific ones. The trial parameters file is parsed by `build/source/engine/read_param.f90:read_param()`.
 
 The trial parameters file contains a `gru` and/or an `hru` dimension, depending on whether GRU or HRU are being specified. The file can be used to overwrite any of the variables in the [basin parameters file](#infile_basin_parameters), in which the variable dimension should be `gru`, or in the [local parameters file](#infile_local_parameters), in which the variable dimension should be `hru`. The file can contain zero or more parameter fields.
