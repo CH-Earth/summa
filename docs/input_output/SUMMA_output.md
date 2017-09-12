@@ -72,5 +72,5 @@ To get the actual vertical locations (rather than just the vertical indices), yo
 
 You can combine these various forms of information to extract detailed information about SUMMA model output, such as the plot below which shows the time evolution of temperature in a SUMMA simulation in which there is a varying number of vertical layers because of snow accumulation and melt. Here `0.0` indicates the top of the soil layers. Negative numbers describe locations within the soil, while positive numbers indicate locations within the snow.
 
-![Time evolution of temperature in a simulation with a time varying number od snow layers](../assets/img/SUMMA_temperature_profile_example.png)<a id="SUMMA_parameters_spec_order"></a>
-*Time evolution of temperature in a simulation with a time varying number od snow layers.*
+![Time evolution of temperature in a simulation with a time varying number of snow layers](../assets/img/SUMMA_temperature_profile_example.png)<a id="SUMMA_parameters_spec_order"></a>
+*Time evolution of temperature in a simulation with a time varying number of snow layers.*
