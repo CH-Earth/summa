@@ -18,7 +18,7 @@ fi
 function install_szip {
     echo install_szip
     cd $WORKDIR
-    wget --no-check-certificate -q http://www.hdfgroup.org/ftp/lib-external/szip/2.1/src/szip-2.1.tar.gz
+    wget --no-check-certificate -q http://www.hdfgroup.org/ftp/lib-external/szip/2.1.1/src/szip-2.1.1.tar.gz
     tar -xzf szip-2.1.1.tar.gz
     cd szip-2.1.1
     ./configure --prefix=$INSTALLDIR &> config.log
