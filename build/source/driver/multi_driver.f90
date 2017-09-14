@@ -532,7 +532,6 @@ do iGRU=1,nGRU
 end do ! GRU
 
 ! read description of model initial conditions -- also initializes model structure components
-! NOTE: at this stage the same initial conditions are used for all HRUs -- need to modify
 call read_icond(restartFile,                   & ! name of initial conditions file
                 nGRU,                          & ! number of response units
                 prog_meta,                     & ! metadata
