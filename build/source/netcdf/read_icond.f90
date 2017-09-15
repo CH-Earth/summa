@@ -226,12 +226,6 @@ contains
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message) 
   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
-  ! check data are not set to the fill value
-  if( any( abs(varData - nf90_fill_double) < epsilon(varData) ) )then   
-   message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"
-   err=20; return
-  endif
-
   ! store data in prognostics structure 
   ! loop through GRUs
   do iGRU = 1,nGRU
@@ -242,16 +236,26 @@ contains
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil 
     nToto = nSnow + nSoil 
    
-    ! put the data into data structures
+    ! put the data into data structures and check that none of the values are set to nf90_fill_double
     select case (prog_meta(iVar)%varType)
-     case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1        ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1        ) 
-     case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil  ) 
-     case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto  ) 
-     case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1) 
+     case (iLookVarType%scalarv)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1)
+      if(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
+     case (iLookVarType%midSoil)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil)
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     case (iLookVarType%midToto)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto)
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     case (iLookVarType%ifcToto)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1)
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
      case default
       message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
       err=20; return
     end select
+
+    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
 
     ! initialize the spectral albedo
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)

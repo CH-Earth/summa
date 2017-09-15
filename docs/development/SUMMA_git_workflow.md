@@ -1,4 +1,4 @@
-# Git workflow for SUMMA
+# Git Workflow for SUMMA
 
 > Note: This document has been conveniently adapted from the [Cookbook for working with Git and VIC](https://github.com/UW-Hydro/VIC/wiki/Git-Workflow)
 
