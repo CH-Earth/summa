@@ -2080,6 +2080,7 @@ contains
  real(dp)                      :: heightAboveGround             ! height above the snow surface (m)
  real(dp)                      :: heightCanopyTopAboveSnow      ! height at the top of the vegetation canopy relative to snowpack (m)
  real(dp)                      :: heightCanopyBottomAboveSnow   ! height at the bottom of the vegetation canopy relative to snowpack (m)
+ real(dp)                      :: windspdAdj                    ! temporary windspeed used for adjustment
  ! local variables: derivatives
  real(dp)                      :: dFV_dT                        ! derivative in friction velocity w.r.t. canopy air temperature
  real(dp)                      :: dED_dT                        ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -2272,25 +2273,19 @@ contains
   canopyResistance = 1.e12_dp   ! not used: huge resistance, so conductance is essentially zero
   leafResistance   = 1.e12_dp   ! not used: huge resistance, so conductance is essentially zero
 
-  ! check that measurement height above the ground surface is above the roughness length
-  if(mHeight < snowDepth+z0Ground)then; err=20; message=trim(message)//'measurement height < snow depth + roughness length'; return; end if
-
-  ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
-  groundExNeut = (vkc**2._dp) / ( log((mHeight - snowDepth)/z0Ground)**2._dp) ! turbulent transfer coefficient under conditions of neutral stability (-)
-  groundResistanceNeutral = 1._dp / (groundExNeut*windspd)
-
   ! define height above the snow surface
   heightAboveGround  = mHeight - snowDepth
 
   ! check that measurement height above the ground surface is above the roughness length
+  windspdAdj = windspd
   if(heightAboveGround < z0Ground)then
-   print*, 'z0Ground = ', z0Ground
-   print*, 'mHeight  = ', mHeight
-   print*, 'snowDepth = ', snowDepth
-   print*, 'heightAboveGround = ', heightAboveGround
-   message=trim(message)//'height above ground < roughness length [likely due to snow accumulation]'
-   err=20; return
+   heightAboveGround = 2.0_dp
+   windspdAdj = windspd * (log(snowDepth + heightAboveGround / z0Ground) / log(mHeight/z0Ground))
   end if
+
+  ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
+  groundExNeut = (vkc**2._dp) / ( log(heightAboveGround/z0Ground)**2._dp) ! turbulent transfer coefficient under conditions of neutral stability (-)
+  groundResistanceNeutral = 1._dp / (groundExNeut*windspdAdj)
 
   ! compute ground stability correction
   call aStability(&
