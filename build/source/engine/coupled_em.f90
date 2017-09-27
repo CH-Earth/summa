@@ -463,7 +463,7 @@ contains
                   diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+                  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
   endif ! if computing fluxes over vegetation
 
  ! initialize drainage and throughfall
