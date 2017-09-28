@@ -453,16 +453,18 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! adjust canopy temperature to account for new snow
- call tempAdjust(&
-                 ! input: derived parameters
-                 canopyDepth,                 & ! intent(in): canopy depth (m)
-                 ! input/output: data structures
-                 mpar_data,                   & ! intent(in):    model parameters
-                 prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                 diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
-                 ! output: error control
-                 err,cmessage)                  ! intent(out): error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+ if(computeVegFlux)then ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+  call tempAdjust(&
+                  ! input: derived parameters
+                  canopyDepth,                 & ! intent(in): canopy depth (m)
+                  ! input/output: data structures
+                  mpar_data,                   & ! intent(in):    model parameters
+                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                  diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
+                  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+  endif ! if computing fluxes over vegetation
 
  ! initialize drainage and throughfall
  ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation
