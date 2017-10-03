@@ -188,6 +188,7 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! balance checks
  integer(i4b)                         :: iVar                   ! loop through model variables
+ real(dp)                             :: totalSoilCompress      ! total soil compression (kg m-2)
  real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
  real(dp)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
@@ -252,6 +253,7 @@ contains
 
  ! initialize compression and surface melt pond
  sfcMeltPond       = 0._dp  ! change in storage associated with the surface melt pond (kg m-2)
+ totalSoilCompress = 0._dp  ! change in soil storage associated with compression of the matrix (kg m-2)
 
  ! initialize mean fluxes
  do iVar=1,size(averageFlux_meta)
@@ -698,7 +700,7 @@ contains
 
   ! save input step
   dtSave = dt_sub
-  print*, trim(message)//'before opSplittin: dtSave = ', dtSave
+  !print*, trim(message)//'before opSplittin: dtSave = ', dtSave
 
   ! get the new solution
   call opSplittin(&
@@ -820,8 +822,10 @@ contains
 
    ! check that we did not remove all the ice
    if(mLayerVolFracIce(iSnow) < verySmall)then
+
     stepFailure  = .true.
     doLayerMerge = .true.
+    print*, 'too much sublimation: stepFailure = ', stepFailure
     dt_sub      = max(dt_init/2._dp, minstep)
     cycle substeps
    else
@@ -900,6 +904,9 @@ contains
   ! increment change in storage associated with the surface melt pond (kg m-2)
   if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
 
+  ! increment soil compression (kg m-2)
+  totalSoilCompress = totalSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression over whole layer (kg m-2)
+
   ! ****************************************************************************************************
   ! *** END MAIN SOLVER ********************************************************************************
   ! ****************************************************************************************************
@@ -974,7 +981,6 @@ contains
  scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                          ,&  ! aquifer storage (m)
  ! error tolerance
  absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                            ,&  ! absolute convergence tolerance for vol frac liq water (-)
- totalSoilCompress          => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)                            ,&  ! total soil compression over whole later (kg/m^2)
  scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
  scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
  ) ! (association of local variables with information in the data structures

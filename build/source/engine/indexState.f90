@@ -62,6 +62,7 @@ implicit none
 private
 public::indexState
 public::indexSplit
+public::indxSubset
 contains
 
 
@@ -257,12 +258,14 @@ contains
  ! **********************************************************************************************************
  subroutine indexSplit(stateSubsetMask,             & ! intent(in)    : logical vector (.true. if state is in the subset)
                        nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
+                       scalarSolution,              & ! intent(in)    : flag to denote the scalar solution
                        indx_data,                   & ! intent(inout) : index data structure
                        err,message)                   ! intent(out)   : error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
  logical(lgt),intent(in)         :: stateSubsetMask(:)          ! logical vector (.true. if state is in the subset) 
  integer(i4b),intent(in)         :: nSnow,nSoil,nLayers,nSubset ! number of snow and soil layers, total number of layers, and number of states in the subset
+ logical(lgt),intent(in)         :: scalarSolution              ! flag to denote a scalar solution (single layer) 
  type(var_ilength),intent(inout) :: indx_data                   ! indices defining model states and layers
  ! output
  integer(i4b),intent(out)        :: err                         ! error code
@@ -338,9 +341,6 @@ contains
  ! - preliminaries...
  ! ------------------
 
- print*, 'stateSubsetMask = ', stateSubsetMask
- print*, 'nSubset = ', nSubset
-
  ! define the type of variable in the snow+soil domain
  ixHydType(1:nLayers) = ixStateType( ixHydLayer(1:nLayers) )
 
@@ -375,8 +375,6 @@ contains
 
  ! make association to variables in the data structures
  subsetState: associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! named variables defining the states in the subset
-
- print*, 'ixStateType_subset = ', ixStateType_subset
 
  ! -----
  ! - get indices for the (currently) scalar states in the vegetation domain...
@@ -475,7 +473,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! private subroutine indxSubset: get a subset of indices for a given mask
+ ! public subroutine indxSubset: get a subset of indices for a given mask
  ! **********************************************************************************************************
  subroutine indxSubset(ixSubset,ixMaster,mask,err,message)
  implicit none
@@ -507,8 +505,10 @@ contains
  if(size(ixSubset)/=nSubset) then
 
   ! deallocate space
-  deallocate(ixSubset,stat=err)
-  if(err/=0)then; message=trim(message)//'unable to deallocate space for variable'; err=20; return; endif
+  if(allocated(ixSubset))then
+   deallocate(ixSubset,stat=err)
+   if(err/=0)then; message=trim(message)//'unable to deallocate space for variable'; err=20; return; endif
+  endif
 
   ! allocate space
   allocate(ixSubset(nSubset),stat=err)

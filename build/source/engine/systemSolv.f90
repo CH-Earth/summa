@@ -62,6 +62,7 @@ USE multiconst,only:&
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! provide access to indices that define elements of the data structures
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookFORCE      ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
@@ -110,6 +111,7 @@ contains
                        nState,            & ! intent(in):    total number of state variables
                        firstSubStep,      & ! intent(in):    flag to denote first sub-step
                        firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
+                       firstSplitOper,    & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                        scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
                        ! input/output: data structures
@@ -150,6 +152,7 @@ contains
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
+ logical(lgt),intent(in)         :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution 
  ! input/output: data structures
@@ -184,6 +187,7 @@ contains
  integer(i4b)                    :: iVar                          ! index of variable
  integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
  integer(i4b)                    :: iState                        ! index of model state
+ integer(i4b)                    :: jState(1)                     ! index of model state
  integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
  real(dp),parameter              :: tempAccelerate=0.00_dp        ! factor to force initial canopy temperatures to be close to air temperature
@@ -195,6 +199,8 @@ contains
  logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
  integer(i4b)                    :: maxiter                       ! maximum number of iterations
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
+ integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
+ integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution
  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step 
  real(dp),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  real(dp)                        :: stateVecNew(nState)           ! new state vector (mixed units)
@@ -226,8 +232,13 @@ contains
  ! vector of energy and hydrology indices for the snow and soil domains
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+ ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+ nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the soil domain
+ ! mapping from full domain to the sub-domain
+ ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
+ ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
  ! type of state and domain for a given variable
  ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
  ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
@@ -337,8 +348,6 @@ contains
  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
 
- print*, trim(message)//'before eval8summa'
-
  ! compute the flux and the residual vector for a given state vector
  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
@@ -351,8 +360,9 @@ contains
                  nState,                  & ! intent(in):    number of state variables in the current subset
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                 .true.,                  & ! intent(in):    flag to indicate if we are processing the first iteration in a splitting operation
+                 firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                 scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector
                  fScale,                  & ! intent(in):    function scaling vector
@@ -396,14 +406,16 @@ contains
  ! **************************
  ! *** MAIN ITERATION LOOP...
  ! **************************
+
+ ! correct the number of iterations
+ localMaxIter = merge(scalarMaxIter, maxIter, scalarSolution)
  
  ! iterate
- ! NOTE: this do loop is skipped in the explicitEuler solution (localMaxIter=0)
- do iter=1,maxIter
+ do iter=1,localMaxIter
  
   ! print iteration count
-  print*, '*** iter, maxiter, dt = ', iter, maxiter, dt
-  print*, trim(message)//'before summaSolve'
+  !print*, '*** iter, maxiter, dt = ', iter, localMaxiter, dt
+  !print*, trim(message)//'before summaSolve'
 
   ! keep track of the number of iterations
   niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
@@ -426,6 +438,7 @@ contains
                   firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
                   firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
                   computeVegFlux,                & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                  scalarSolution,                & ! intent(in):    flag to indicate the scalar solution
                   ! input: state vectors
                   stateVecTrial,                 & ! intent(in):    trial state vector
                   fScale,                        & ! intent(in):    function scaling vector
@@ -481,7 +494,7 @@ contains
   if(converged) exit
  
   ! check convergence
-  if(iter==maxiter)then
+  if(iter==localMaxiter)then
    message=trim(message)//'failed to converge'
    err=-20; return
   endif
@@ -508,11 +521,23 @@ contains
  ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
  ! NOTE: for soil water balance is constrained within the iteration loop
  if(nSnowSoilHyd>0)then
-  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow domain)
+  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
    iState = ixSnowSoilHyd(iLayer)
    stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
+  end do  ! looping through non-missing water state variables in the soil domain
  endif
+
+ ! check volumetric water content in the soil (ensure change in state is consistent with the fluxes
+ !if(nSoilOnlyHyd>0 .and. scalarSolution)then
+ ! do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the soil domain)
+ !  iState = ixSoilOnlyHyd(iLayer)
+ !  jState = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
+ !  print*, 'jState, stateVecNew(iState) - stateVecInit(iState), fluxVecNew(iState)*dt, resSinkNew(iState) = ', &
+ !           jState, stateVecNew(iState) - stateVecInit(iState), fluxVecNew(iState)*dt, resSinkNew(iState)
+ !  print*, 'jState, stateVecInit(iState), stateVecNew(iState) = ', jState, stateVecInit(iState), stateVecNew(iState)
+ ! end do  ! looping through non-missing water state variables in the soil domain
+ !endif
+
 
  ! end associate statements
  end associate globalVars

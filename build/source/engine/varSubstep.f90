@@ -52,6 +52,9 @@ USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
+! look up structure for variable types
+USE var_lookup,only:iLookVarType
+
 ! constants
 USE multiconst,only:&
                     Tfreeze,      & ! freezing temperature                 (K)
@@ -84,6 +87,7 @@ contains
                        firstFluxCall,     & ! intent(inout) : flag to indicate if we are processing the first flux call
                        computeVegFlux,    & ! intent(in)    : flag to denote if computing energy flux over vegetation
                        scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
+                       iLayerSplit,       & ! intent(in)    : index of the layer in the splitting operation
                        fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
                        ! input/output: data structures
                        model_decisions,   & ! intent(in)    : model decisions
@@ -114,6 +118,8 @@ contains
  USE getVectorz_module,only:popStateVec               ! populate the state vector
  USE getVectorz_module,only:varExtract                ! extract variables from the state vector
  USE updateVars_module,only:updateVars                ! update prognostic variables
+ ! identify name of variable type (for error message)
+ USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -127,6 +133,7 @@ contains
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  logical(lgt),intent(in)         :: scalarSolution                ! flag to denote implementing the scalar solution
+ integer(i4b),intent(in)         :: iLayerSplit                   ! index of the layer in the splitting operation
  logical(lgt),intent(in)         :: fluxMask(:)                   ! flags to denote if the flux is calculated in the given state subset
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
@@ -154,11 +161,13 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! error control
  character(LEN=256)              :: cmessage                      ! error message of downwind routine
+ ! general local variables
+ integer(i4b)                    :: iVar                          ! index of variables in data structures
+ integer(i4b)                    :: ixLayerDesired(1)             ! layer desired (scalar solution)
  ! time stepping
  real(dp)                        :: dtSum                         ! sum of time from successful steps (seconds)
  real(dp)                        :: dt_wght                       ! weight given to a given flux calculation
  real(dp)                        :: dtSubstep                     ! length of a substep (s) 
- integer(i4b)                    :: iVar                          ! index of variables in data structures
  ! adaptive sub-stepping for the explicit solution
  logical(lgt)                    :: failedSubstep                 ! flag to denote success of substepping for a given split
  real(dp),parameter              :: safety=0.85_dp                ! safety factor in adaptive sub-stepping
@@ -176,7 +185,9 @@ contains
  real(dp)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes
  ! flags
- logical(lgt)                    :: waterBalanceError              ! flag to denote that there is a water balance error
+ logical(lgt)                    :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
+ logical(lgt)                    :: checkMassBalance              ! flag to check the mass balance
+ logical(lgt)                    :: waterBalanceError             ! flag to denote that there is a water balance error
  logical(lgt)                    :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
  ! energy fluxes
  real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
@@ -219,7 +230,6 @@ contains
 
  ! initialize the length of the substep
  dtSubstep    = dt
- print*, 'dtSubstep = ', dtSubstep
 
  ! allocate space for the temporary model flux structure
  call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -236,6 +246,9 @@ contains
  sumSenHeatCanopy     = 0._dp  ! sensible heat flux from the canopy to the canopy air space (W m-2)
  sumSoilCompress      = 0._dp  ! total soil compression
  allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._dp ! soil compression by layer 
+
+ ! define the first flux call in a splitting operation
+ firstSplitOper = (.not.scalarSolution .or. iLayerSplit==1)
 
  ! initialize subStep
  dtSum     = 0._dp  ! keep track of the portion of the time step that is completed
@@ -271,9 +284,6 @@ contains
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
-  print*, 'stateVecInit = ', stateVecInit 
-  print*, 'dtSubstep    = ', dtSubstep
-
   ! -----
   ! * iterative solution...
   ! -----------------------
@@ -285,6 +295,7 @@ contains
                   nState,            & ! intent(in):    total number of state variables
                   firstSubStep,      & ! intent(in):    flag to denote first sub-step
                   firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
+                  firstSplitOper,    & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                   computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                   scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
                   ! input/output: data structures
@@ -310,7 +321,6 @@ contains
                   err,cmessage)        ! intent(out):   error code and error message
   if(err/=0)then
    message=trim(message)//trim(cmessage)
-   print*, trim(message)//' [after systemSolv]'
    if(err>0) return
   endif
 
@@ -386,10 +396,13 @@ contains
    return
   endif
 
+  ! identify the need to check the mass balance
+  checkMassBalance = (.not.scalarSolution)
+
   ! update prognostic variables
-  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,scalarSolution,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
-                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                       & ! input-output: data structures
-                  waterBalanceError,nrgFluxModified,err,cmessage)                                                       ! output: flags and error control
+  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,scalarSolution,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
+                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                                         & ! input-output: data structures
+                  waterBalanceError,nrgFluxModified,err,cmessage)                                                                         ! output: flags and error control
   if(err/=0)then
    message=trim(message)//trim(cmessage)
    if(err>0) return
@@ -447,8 +460,24 @@ contains
   ! increment fluxes
   dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation)
   do iVar=1,size(flux_meta)
-   if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
-  end do
+
+   ! vector solution
+   if(.not.scalarSolution .or. iLayerSplit==1)then
+    if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+    !if(ivar==1) print*, 'updating fluxes: dtSubstep, dtSum, dt, dt_wght = ', dtSubstep, dtSum, dt, dt_wght
+
+   ! scalar solution (process one layer at a time)
+   else
+    select case(flux_meta(iVar)%vartype)
+     ! (vectors containing soil only)
+     case(iLookVarType%midSoil,iLookVarType%ifcSoil)
+      if(fluxMask(iVar)) flux_data%var(iVar)%dat(iLayerSplit:) = flux_data%var(iVar)%dat(iLayerSplit:) + flux_temp%var(iVar)%dat(iLayerSplit:)*dt_wght
+     ! (default -- already added above -- keep going)
+     case default; cycle
+    end select  ! (variable type)
+   endif   ! (scalar solution)
+
+  end do  ! (loop through fluxes)
 
   ! ------------------------------------------------------
   ! ------------------------------------------------------
@@ -487,9 +516,9 @@ contains
  ! **********************************************************************************************************
  ! private subroutine updateProg: update prognostic variables
  ! **********************************************************************************************************
- subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial, & ! input: model control
-                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                & ! input-output: data structures
-                       waterBalanceError,nrgFluxModified,err,message)                                                 ! output: flags and error control
+ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
+                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                                 & ! input-output: data structures
+                       waterBalanceError,nrgFluxModified,err,message)                                                                  ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -503,6 +532,7 @@ contains
  logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
  real(dp)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
  real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
+ logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
  ! data structures 
  type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
@@ -524,7 +554,6 @@ contains
  real(dp)                        :: volMelt                        ! volumetric melt (kg m-3)
  real(dp),parameter              :: verySmall=epsilon(1._dp)*2._dp ! a very small number (deal with precision issues)
  ! mass balance
- logical(lgt),parameter          :: checkMassBalance=.true.        ! flag to check the mass balance
  real(dp)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
  real(dp)                        :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
  real(dp)                        :: vertFlux                       ! change in storage due to vertical fluxes
@@ -745,16 +774,16 @@ contains
    baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
    compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
    liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
-   write(*,'(a,1x,f20.10)') 'dt = ', dt
-   write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
-   write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
-   write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
-   write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
-   write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
-   write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
-   write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
-   write(*,'(a,1x,f20.10)') 'absConvTol_liquid = ', absConvTol_liquid
    if(abs(liqError) > absConvTol_liquid*10._dp)then   ! *10 because of precision issues
+    write(*,'(a,1x,f20.10)') 'dt = ', dt
+    write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
+    write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
+    write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
+    write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
+    write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
+    write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
+    write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+    write(*,'(a,1x,f20.10)') 'absConvTol_liquid = ', absConvTol_liquid
     waterBalanceError = .true.
     return
    endif  ! if there is a water balance error

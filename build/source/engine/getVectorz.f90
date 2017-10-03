@@ -337,6 +337,7 @@ contains
 
  ! define the multiplier for the state vector for residual calculations (vegetation canopy)
  ! NOTE: Use the "where" statement to generalize to multiple canopy layers (currently one canopy layer)
+
  where(ixStateType_subset==iname_nrgCanair) sMul = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
  where(ixStateType_subset==iname_nrgCanopy) sMul = volHeatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
  where(ixStateType_subset==iname_watCanopy) sMul = 1._dp             ! nothing else on the left hand side
@@ -516,9 +517,6 @@ contains
 
  ! overwrite with the hydrology values from the state vector
  if(nSnowSoilHyd>0)then
-
-  print*, 'ixSnowSoilHyd = ', ixSnowSoilHyd
-
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
    select case( ixHydType(iLayer) )
     case(iname_watLayer); mLayerVolFracWatTrial(iLayer)          = stateVec( ixSnowSoilHyd(iLayer) ) ! total water state variable for snow+soil layers

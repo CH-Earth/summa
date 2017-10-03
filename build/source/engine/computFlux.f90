@@ -101,6 +101,7 @@ contains
                        firstFluxCall,           & ! intent(inout): flag to denote the first flux call
                        firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        drainageMeltPond,        & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
                        scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
@@ -165,6 +166,7 @@ contains
  logical(lgt),intent(inout)      :: firstFluxCall               ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)         :: scalarSolution              ! flag to denote if implementing the scalar solution
  real(dp),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
  real(dp),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
@@ -471,6 +473,12 @@ contains
  ! check the need to compute energy fluxes throughout the snow+soil domain
  if(nSnowSoilNrg>0 .or. firstFluxCall)then
 
+  ! check if have the scalar solution (not implemented yet)
+  if(scalarSolution)then
+   message=trim(message)//'scalar solution not yet implemented for the energy fluxes throughout the snow+soil domain'
+   err=20; return
+  endif
+
   ! calculate energy fluxes at layer interfaces through the snow and soil domain
   call ssdNrgFlux(&
                   ! input: fluxes and derivatives at the upper boundary
@@ -555,6 +563,12 @@ contains
  ! check the need to compute liquid water fluxes through snow
  if(nSnowOnlyHyd>0 .or. firstFluxCall)then
 
+  ! check if have the scalar solution (not implemented yet)
+  if(scalarSolution)then
+   message=trim(message)//'scalar solution not yet implemented for the liquid fluxes through snow'
+   err=20; return
+  endif
+
   ! compute liquid fluxes through snow
   call snowLiqFlx(&
                   ! input: model control
@@ -612,6 +626,7 @@ contains
                   ! input: model control
                   nSoil,                                  & ! intent(in):    number of soil layers
                   firstSplitOper,                         & ! intent(in):    flag indicating first flux call in a splitting operation
+                  scalarSolution,                         & ! intent(in):    flag to indicate the scalar solution
                   .true.,                                 & ! intent(in):    flag indicating if derivatives are desired
                   ! input: trial state variables
                   mLayerTempTrial(nSnow+1:nLayers),       & ! intent(in):    trial temperature at the current iteration (K)
@@ -628,29 +643,29 @@ contains
                   ! input-output: data structures
                   mpar_data,                              & ! intent(in):    model parameters
                   indx_data,                              & ! intent(in):    model indices
-                  prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
-                  diag_data,                              & ! intent(in):    model diagnostic variables for a local HRU
-                  flux_data,                              & ! intent(in):    model fluxes for a local HRU
+                  prog_data,                              & ! intent(inout): model prognostic variables for a local HRU
+                  diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
+                  flux_data,                              & ! intent(inout): model fluxes for a local HRU
                   ! output: diagnostic variables for surface runoff
                   scalarMaxInfilRate,                     & ! intent(inout): maximum infiltration rate (m s-1)
                   scalarInfilArea,                        & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
                   scalarFrozenArea,                       & ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
-                  scalarSurfaceRunoff,                    & ! intent(out):   surface runoff (m s-1)
+                  scalarSurfaceRunoff,                    & ! intent(inout): surface runoff (m s-1)
                   ! output: diagnostic variables for model layers
-                  mLayerdTheta_dPsi,                      & ! intent(out):   derivative in the soil water characteristic w.r.t. psi (m-1)
-                  mLayerdPsi_dTheta,                      & ! intent(out):   derivative in the soil water characteristic w.r.t. theta (m)
-                  dHydCond_dMatric,                       & ! intent(out):   derivative in hydraulic conductivity w.r.t matric head (s-1)
+                  mLayerdTheta_dPsi,                      & ! intent(inout): derivative in the soil water characteristic w.r.t. psi (m-1)
+                  mLayerdPsi_dTheta,                      & ! intent(inout): derivative in the soil water characteristic w.r.t. theta (m)
+                  dHydCond_dMatric,                       & ! intent(inout): derivative in hydraulic conductivity w.r.t matric head (s-1)
                   ! output: fluxes
-                  scalarInfiltration,                     & ! intent(out):   surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
-                  iLayerLiqFluxSoil,                      & ! intent(out):   liquid fluxes at layer interfaces (m s-1)
-                  mLayerTranspire,                        & ! intent(out):   transpiration loss from each soil layer (m s-1)
-                  mLayerHydCond,                          & ! intent(out):   hydraulic conductivity in each layer (m s-1)
+                  scalarInfiltration,                     & ! intent(inout): surface infiltration rate (m s-1) -- controls on infiltration only computed for iter==1
+                  iLayerLiqFluxSoil,                      & ! intent(inout): liquid fluxes at layer interfaces (m s-1)
+                  mLayerTranspire,                        & ! intent(inout): transpiration loss from each soil layer (m s-1)
+                  mLayerHydCond,                          & ! intent(inout): hydraulic conductivity in each layer (m s-1)
                   ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-                  dq_dHydStateAbove,                      & ! intent(out):   derivatives in the flux w.r.t. matric head in the layer above (s-1)
-                  dq_dHydStateBelow,                      & ! intent(out):   derivatives in the flux w.r.t. matric head in the layer below (s-1)
+                  dq_dHydStateAbove,                      & ! intent(inout): derivatives in the flux w.r.t. matric head in the layer above (s-1)
+                  dq_dHydStateBelow,                      & ! intent(inout): derivatives in the flux w.r.t. matric head in the layer below (s-1)
                   ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
-                  dq_dNrgStateAbove,                      & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
-                  dq_dNrgStateBelow,                      & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+                  dq_dNrgStateAbove,                      & ! intent(inout): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+                  dq_dNrgStateBelow,                      & ! intent(inout): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
                   ! output: error control
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -658,7 +673,8 @@ contains
   ! calculate net liquid water fluxes for each soil layer (s-1)
   do iLayer=1,nSoil
    mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
-   !print*, 'iLayerLiqFluxSoil(iLayer-1), mLayerLiqFluxSoil(iLayer) = ', iLayerLiqFluxSoil(iLayer-1), mLayerLiqFluxSoil(iLayer)
+   !if(iLayer<8) write(*,'(a,1x,2(i4,1x),3(e20.10),f12.7)') 'iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer), mLayerLiqFluxSoil(iLayer) = ', iLayer-1, iLayer, &
+   !                                                         iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer), mLayerLiqFluxSoil(iLayer), mLayerDepth(iLayer+nSnow)
   end do
  
   ! calculate the soil control on infiltration
@@ -801,13 +817,11 @@ contains
  subroutine soilCmpres(&
                        ! input:
                        ixRichards,                         & ! intent(in): choice of option for Richards' equation
+                       ixBeg,ixEnd,                        & ! intent(in): start and end indices defining desired layers
                        mLayerMatricHead,                   & ! intent(in): matric head at the start of the time step (m)
-                       mLayerVolFracLiq,                   & ! intent(in): volumetric liquid water content in each soil layer at the start of the time step (-)
-                       mLayerVolFracIce,                   & ! intent(in): volumetric ice content in each soil layer at the start of the time step (-)
                        mLayerMatricHeadTrial,              & ! intent(in): trial value of matric head (m)
                        mLayerVolFracLiqTrial,              & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
                        mLayerVolFracIceTrial,              & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
-                       mLayerdTheta_dPsi,                  & ! intent(in): derivative in the soil water characteristic (m-1)
                        specificStorage,                    & ! intent(in): specific storage coefficient (m-1)
                        theta_sat,                          & ! intent(in): soil porosity (-)
                        ! output:
@@ -817,23 +831,19 @@ contains
  implicit none
  ! input:
  integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
+ integer(i4b),intent(in)        :: ixBeg,ixEnd               ! start and end indices defining desired layers
  real(dp),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
- real(dp),intent(in)            :: mLayerVolFracLiq(:)       ! volumetric liquid water content at the start of the time step (m)
- real(dp),intent(in)            :: mLayerVolFracIce(:)       ! volumetric ice content at the start of the time step (m)
  real(dp),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
  real(dp),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
  real(dp),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
- real(dp),intent(in)            :: mLayerdTheta_dPsi(:)      ! derivative in the soil water characteristic (m-1)
  real(dp),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
  real(dp),intent(in)            :: theta_sat(:)              ! soil porosity (-)
  ! output:
- real(dp),intent(out)           :: compress(:)               ! soil compressibility (-)
- real(dp),intent(out)           :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
+ real(dp),intent(inout)         :: compress(:)               ! soil compressibility (-)
+ real(dp),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
  integer(i4b),intent(out)       :: err                       ! error code
  character(*),intent(out)       :: message                   ! error message
  ! local variables
- real(dp)                       :: volFracWat                ! total volumetric fraction of water (-)
- real(dp)                       :: volFracWatTrial           ! total volumetric fraction of water (-)
  integer(i4b)                   :: iLayer                    ! index of soil layer
  ! --------------------------------------------------------------
  ! initialize error control
@@ -841,14 +851,12 @@ contains
  ! (only compute for the mixed form of Richards' equation)
  if(ixRichards==mixdform)then
   do iLayer=1,size(mLayerMatricHead)
-   ! compute the total volumetric fraction of water (-)
-   volFracWat      = mLayerVolFracLiq(iLayer)      + mLayerVolFracIce(iLayer)
-   volFracWatTrial = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)
-   ! compute the compressibility term (-)
-   compress(iLayer) = mLayerMatricHeadTrial(iLayer)*specificStorage*volFracWatTrial/theta_sat(iLayer) - &
-                      mLayerMatricHead(iLayer)*specificStorage*volFracWat/theta_sat(iLayer)
-   ! compute the derivative for the compressibility term (m-1)
-   dCompress_dPsi(iLayer) = specificStorage*(mLayerMatricHeadTrial(iLayer)*mLayerdTheta_dPsi(iLayer) + volFracWatTrial)/theta_sat(iLayer)
+   if(iLayer>=ixBeg .and. iLayer<=ixEnd)then
+    ! compute the derivative for the compressibility term (m-1)
+    dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer) 
+    ! compute the compressibility term (-)
+    compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)
+   endif
   end do
  else
   compress(:)       = 0._dp

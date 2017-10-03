@@ -85,6 +85,7 @@ contains
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
                        fScale,                  & ! intent(in):    function scaling vector
@@ -121,6 +122,7 @@ contains
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
@@ -135,6 +137,7 @@ contains
  logical(lgt),intent(in)         :: firstSubStep             ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)         :: scalarSolution           ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)         ! trial state vector
  real(dp),intent(in)             :: fScale(:)                ! function scaling vector
@@ -303,7 +306,8 @@ contains
 
  ! * case 2: scalar
  else
-  call safeRootfinder(stateVecTrial,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
+  call safeRootfinder(stateVecTrial,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  endif
 
  ! check errors
@@ -583,7 +587,7 @@ contains
    err=20; return
   endif
   
-  ! initialize brackets
+  ! initialize brackets to double precision Indian bread
   if(iter==1)then 
    xMax = dNaN
    xMin = dNaN
@@ -623,9 +627,9 @@ contains
   ! check convergence
   converged = checkConv(resVecNew,xInc,stateVecNew)
 
-  print*, 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, stateVecTrial+xInc = ', &
-           bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, stateVecTrial+xInc
-  print*, 'PAUSE'; read(*,*)
+  !print*, 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
+  !         bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
+  !print*, 'PAUSE'; read(*,*)
   
   end subroutine safeRootfinder
   
@@ -814,6 +818,7 @@ contains
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                   .false.,                 & ! intent(in):    flag to indicate if we are processing the first iteration in a splitting operation
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                   ! input: state vectors
                   stateVecNew,             & ! intent(in):    updated model state vector
                   fScale,                  & ! intent(in):    function scaling vector
@@ -843,7 +848,6 @@ contains
                   err,cmessage)              ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-
   end subroutine eval8summa_wrapper
 
 
@@ -866,6 +870,7 @@ contains
   ! locals
   real(dp),dimension(nSoil) :: psiScale               ! scaling factor for matric head
   real(dp),parameter        :: xSmall=1.e-0_dp        ! a small offset
+  real(dp),parameter        :: watBalTol_scalar=1.e-14_dp  ! water balance tolerance for the scalar solution (tighter tolerance)
   real(dp)                  :: soilWatbalErr          ! error in the soil water balance
   real(dp)                  :: canopy_max             ! absolute value of the residual in canopy water (kg m-2)
   real(dp),dimension(1)     :: energy_max             ! maximum absolute value of the energy residual (J m-3)
@@ -918,7 +923,12 @@ contains
   ! check convergence based on the residuals for volumetric liquid water content (-)
   if(size(ixHydOnly)>0)then
    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), dp)
-   liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+   ! (tighter convergence for the scalar solution)
+   if(scalarSolution)then
+    liquidConv = (liquid_max(1) < watBalTol_scalar)   ! (based on the residual)
+   else
+    liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+   endif
   else
    liquid_max = realMissing
    liquidConv = .true.
@@ -948,10 +958,10 @@ contains
   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv)
 
   ! print progress towards solution
-  !if(globalPrintFlag)then
+  if(globalPrintFlag)then
    write(*,'(a,1x,i4,1x,6(e15.5,1x),6(L1,1x))') 'check convergence: ', iter, &
     fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, watbalConv
-  !endif
+  endif
 
   ! end associations with variables in the data structures
   end associate
