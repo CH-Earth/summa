@@ -219,7 +219,7 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 integer(i4b)                     :: ivar                       ! index of model variable
-integer(i4b)                     :: nSoil                      ! Maximum Number of Soil Layers
+integer(i4b),parameter           :: maxSoilLayers              ! Maximum Number of Soil Layers
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
@@ -851,14 +851,14 @@ do modelTimeStep=1,numtim
    allocate(zSoilReverseSign(gru_struc(iGRU)%hruInfo(iHRU)%nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
    zSoilReverseSign(:) = -progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1:nLayers)
   
-   nSoil = 9999
+   maxSoilLayers = 10
 
    ! get NOAH-MP parameters
    call REDPRM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex),     & ! soil type
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%slopeTypeIndex),    & ! slope type index
                zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
-               nSoil,                                                           & ! number of soil layers
+               maxSoilLayers,                                                   & ! number of soil layers
                urbanVegCategory)                                                  ! vegetation category for urban areas
   
    ! deallocate height at bottom of each soil layer(used in Noah MP)
