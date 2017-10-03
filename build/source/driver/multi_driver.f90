@@ -219,7 +219,7 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 integer(i4b)                     :: ivar                       ! index of model variable
-integer(i4b),parameter           :: maxSoilLayers              ! Maximum Number of Soil Layers
+integer(i4b),parameter           :: maxSoilLayers=10           ! Maximum Number of Soil Layers
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
@@ -851,9 +851,8 @@ do modelTimeStep=1,numtim
    allocate(zSoilReverseSign(gru_struc(iGRU)%hruInfo(iHRU)%nSoil),stat=err); call handle_err(err,'problem allocating space for zSoilReverseSign')
    zSoilReverseSign(:) = -progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1:nLayers)
   
-   maxSoilLayers = 10
-
    ! get NOAH-MP parameters
+   ! Passing a maxSoilLayer in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code. NROOT from Noah-MP veg tables (as read here) is not used in SUMMA
    call REDPRM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex),     & ! soil type
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%slopeTypeIndex),    & ! slope type index
