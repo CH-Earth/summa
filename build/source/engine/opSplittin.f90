@@ -499,7 +499,7 @@ contains
        !print*, 'after stateFilter: stateMask   = ', stateMask
     
        !if(ixSolution==scalar)then
-       ! print*, 'nLayerSplit = ', nLayerSplit
+       ! print*, 'iLayerSplit, nLayerSplit = ', iLayerSplit, nLayerSplit
        ! print*, 'start of scalar solution'
        ! !print*, 'PAUSE'; read(*,*)
        !endif
@@ -610,7 +610,7 @@ contains
          case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
         end select
        end do  ! looping through variables
-   
+  
        ! -----
        ! * solve variable subset for one time step...
        ! --------------------------------------------

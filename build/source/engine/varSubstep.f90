@@ -163,6 +163,7 @@ contains
  character(LEN=256)              :: cmessage                      ! error message of downwind routine
  ! general local variables
  integer(i4b)                    :: iVar                          ! index of variables in data structures
+ integer(i4b)                    :: iSoil                         ! index of soil layers
  integer(i4b)                    :: ixLayerDesired(1)             ! layer desired (scalar solution)
  ! time stepping
  real(dp)                        :: dtSum                         ! sum of time from successful steps (seconds)
@@ -203,6 +204,7 @@ contains
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
+ nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  ! model state variables (vegetation canopy)
  scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the canopy air space (K)
@@ -321,6 +323,7 @@ contains
                   err,cmessage)        ! intent(out):   error code and error message
   if(err/=0)then
    message=trim(message)//trim(cmessage)
+   !print*, trim(message)//' [after systemSolv]'
    if(err>0) return
   endif
 
@@ -371,7 +374,7 @@ contains
    ! check that the substep is greater than the minimum step
    if(dtSubstep*dtMultiplier<dt_min)then
 
-    ! --> if not explicit Euler, then exit and try another solution method
+    ! --> if not the scalar solution, then exit and try another solution method
     if(.not.scalarSolution)then
      failedMinimumStep=.true.
      exit subSteps
@@ -447,10 +450,16 @@ contains
    sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   endif  ! if energy fluxes were modified
 
-  ! get the total soil compressions
+  ! get the total soil compression
   if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
+   ! scalar compression
+   if(.not.scalarSolution .or. iLayerSplit==nSoil)&
    sumSoilCompress = sumSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
-   sumLayerCompress = sumLayerCompress + diag_data%var(iLookDIAG%mLayerCompress)%dat ! soil compression in layers
+   ! vector compression
+   do iSoil=1,nSoil
+    if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+    sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
+   end do
   endif
 
   ! print progress
@@ -464,14 +473,13 @@ contains
    ! vector solution
    if(.not.scalarSolution .or. iLayerSplit==1)then
     if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
-    !if(ivar==1) print*, 'updating fluxes: dtSubstep, dtSum, dt, dt_wght = ', dtSubstep, dtSum, dt, dt_wght
 
    ! scalar solution (process one layer at a time)
    else
     select case(flux_meta(iVar)%vartype)
      ! (vectors containing soil only)
      case(iLookVarType%midSoil,iLookVarType%ifcSoil)
-      if(fluxMask(iVar)) flux_data%var(iVar)%dat(iLayerSplit:) = flux_data%var(iVar)%dat(iLayerSplit:) + flux_temp%var(iVar)%dat(iLayerSplit:)*dt_wght
+      if(fluxMask(iVar)) flux_data%var(iVar)%dat(iLayerSplit) = flux_data%var(iVar)%dat(iLayerSplit) + flux_temp%var(iVar)%dat(iLayerSplit)*dt_wght
      ! (default -- already added above -- keep going)
      case default; cycle
     end select  ! (variable type)
@@ -504,7 +512,10 @@ contains
 
  ! save the soil compression diagnostics 
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
- diag_data%var(iLookDIAG%mLayerCompress)%dat = sumLayerCompress
+ do iSoil=1,nSoil
+  if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+  diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)
+ end do
  deallocate(sumLayerCompress)
 
  ! end associate statements

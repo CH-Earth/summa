@@ -475,12 +475,14 @@ contains
 
   ! check if have the scalar solution (not implemented yet)
   if(scalarSolution)then
-   message=trim(message)//'scalar solution not yet implemented for the energy fluxes throughout the snow+soil domain'
+   message=trim(message)//'scalar solution not yet implemented for the energy fluxes through snow+soil'
    err=20; return
   endif
 
   ! calculate energy fluxes at layer interfaces through the snow and soil domain
   call ssdNrgFlux(&
+                  ! input: model control
+                  scalarSolution,                         & ! intent(in): flag to indicate the scalar solution
                   ! input: fluxes and derivatives at the upper boundary
                   scalarGroundNetNrgFlux,                 & ! intent(in): total flux at the ground surface (W m-2)
                   dGroundNetFlux_dGroundTemp,             & ! intent(in): derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)

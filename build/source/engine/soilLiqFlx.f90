@@ -97,8 +97,8 @@ contains
                        mpar_data,                    & ! intent(in):    model parameters
                        indx_data,                    & ! intent(in):    model indices
                        prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
-                       diag_data,                    & ! intent(in):    model diagnostic variables for a local HRU
-                       flux_data,                    & ! intent(in):    model fluxes for a local HRU
+                       diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_data,                    & ! intent(inout): model fluxes for a local HRU
                        ! output: diagnostic variables for surface runoff
                        xMaxInfilRate,                & ! intent(inout): maximum infiltration rate (m s-1)
                        scalarInfilArea,              & ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
@@ -285,13 +285,13 @@ contains
   theta_mp               => mpar_data%var(iLookPARAM%theta_mp)%dat(1),              & ! intent(in): volumetric liquid water content when macropore flow begins (-)
   mpExp                  => mpar_data%var(iLookPARAM%mpExp)%dat(1),                 & ! intent(in): empirical exponent in macropore flow equation (-)
   ! input: saturated hydraulic conductivity
-  mLayerSatHydCondMP     =>  flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat,       & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
-  mLayerSatHydCond       =>  flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,         & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
-  iLayerSatHydCond       =>  flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,         & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
+  mLayerSatHydCondMP     => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat,        & ! intent(in): saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
+  mLayerSatHydCond       => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+  iLayerSatHydCond       => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,          & ! intent(in): saturated hydraulic conductivity at the interface of each layer (m s-1)
   ! input: factors limiting transpiration (from vegFlux routine)
-  mLayerRootDensity      =>  diag_data%var(iLookDIAG%mLayerRootDensity)%dat,        & ! intent(in): root density in each layer (-)
-  scalarTranspireLim     =>  diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),    & ! intent(in): weighted average of the transpiration limiting factor (-)
-  mLayerTranspireLim     =>  diag_data%var(iLookDIAG%mLayerTranspireLim)%dat        & ! intent(in): transpiration limiting factor in each layer (-)
+  mLayerRootDensity      => diag_data%var(iLookDIAG%mLayerRootDensity)%dat,         & ! intent(in): root density in each layer (-)
+  scalarTranspireLim     => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
+  mLayerTranspireLim     => diag_data%var(iLookDIAG%mLayerTranspireLim)%dat         & ! intent(in): transpiration limiting factor in each layer (-)
  )  ! associating local variables with the information in the data structures
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------

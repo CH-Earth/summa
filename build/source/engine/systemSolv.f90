@@ -62,6 +62,7 @@ USE multiconst,only:&
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! provide access to indices that define elements of the data structures
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookFORCE      ! named variables for structure elements
@@ -143,6 +144,7 @@ contains
  USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
+ USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -190,6 +192,8 @@ contains
  integer(i4b)                    :: jState(1)                     ! index of model state
  integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
+ real(dp)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
+ real(dp)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
  real(dp),parameter              :: tempAccelerate=0.00_dp        ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp     ! minimum value to initialize canopy water (kg m-2)
  real(dp),parameter              :: tinyStep=0.000001_dp          ! stupidly small time step (s) 
@@ -224,7 +228,13 @@ contains
  ! model decisions
  ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
- ! accelerate solutuion for temperature
+ ! check the need to merge snow layers
+ mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):    [dp(:)]  temperature of each snow/soil layer (K)
+ mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
+ mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
+ mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
+ ! accelerate solution for temperature
  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
@@ -397,6 +407,19 @@ contains
  do concurrent ( iVar=1:size(flux_meta) )
   flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
  end do
+
+ ! check the need to merge snow layers
+ if(nSnow>0)then
+  ! compute the energy required to melt the top snow layer (J m-2)
+  bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
+  volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
+  ! set flag and error codes for too much melt
+  if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
+   tooMuchMelt=.true.
+   message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
+   err=-20; return ! negative error code to denote a warning
+  endif 
+ endif
  
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
