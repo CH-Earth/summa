@@ -41,6 +41,7 @@ USE globalData,only:iname_soil      ! named variables for soil
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (dp)
+                    var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (dp)
                     model_options   ! defines the model decisions
@@ -89,6 +90,7 @@ contains
                        scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
                        iLayerSplit,       & ! intent(in)    : index of the layer in the splitting operation
                        fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
+                       fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps) 
                        ! input/output: data structures
                        model_decisions,   & ! intent(in)    : model decisions
                        type_data,         & ! intent(in)    : type of vegetation and soil
@@ -134,7 +136,8 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  logical(lgt),intent(in)         :: scalarSolution                ! flag to denote implementing the scalar solution
  integer(i4b),intent(in)         :: iLayerSplit                   ! index of the layer in the splitting operation
- logical(lgt),intent(in)         :: fluxMask(:)                   ! flags to denote if the flux is calculated in the given state subset
+ type(var_flagVec),intent(in)    :: fluxMask                      ! flags to denote if the flux is calculated in the given state subset
+ type(var_ilength),intent(inout) :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps) 
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
@@ -164,7 +167,8 @@ contains
  ! general local variables
  integer(i4b)                    :: iVar                          ! index of variables in data structures
  integer(i4b)                    :: iSoil                         ! index of soil layers
- integer(i4b)                    :: ixLayerDesired(1)             ! layer desired (scalar solution)
+ integer(i4b)                    :: ixLayer                       ! index in a given domain
+ integer(i4b), dimension(1)      :: ixMin,ixMax                   ! bounds of a given flux vector
  ! time stepping
  real(dp)                        :: dtSum                         ! sum of time from successful steps (seconds)
  real(dp)                        :: dt_wght                       ! weight given to a given flux calculation
@@ -204,8 +208,12 @@ contains
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
- nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
+ nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+ ! mapping between state vectors and control volumes
+ ixLayerActive           => indx_data%var(iLookINDEX%ixLayerActive)%dat            ,& ! intent(in):    [i4b(:)] list of indices for all active layers (inactive=integerMissing)
+ ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b(:)] mapping of full state vector to the state subset
+ ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b(:)] index of control volume for different domains (veg, snow, soil)
  ! model state variables (vegetation canopy)
  scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the canopy air space (K)
  scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the vegetation canopy (K)
@@ -262,9 +270,6 @@ contains
 
   ! initialize error control
   err=0; message='varSubstep/'
-
-  ! increment substep
-  nSubsteps = nSubsteps+1
 
   !print*, '** new substep'
   !print*, 'scalarCanopyIce  = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
@@ -323,7 +328,6 @@ contains
                   err,cmessage)        ! intent(out):   error code and error message
   if(err/=0)then
    message=trim(message)//trim(cmessage)
-   !print*, trim(message)//' [after systemSolv]'
    if(err>0) return
   endif
 
@@ -343,11 +347,11 @@ contains
   ! reduce step based on failure
   if(failedSubstep)then
 
-   ! get time step reduction
    ! solver failure
    if(err<0)then
     err=0; message='varSubstep/'  ! recover from failed convergence 
     dtMultiplier  = 0.5_dp        ! system failure: step halving
+
    ! nothing else defined
    else
     message=trim(message)//'unknown failure'
@@ -373,12 +377,9 @@ contains
   
    ! check that the substep is greater than the minimum step
    if(dtSubstep*dtMultiplier<dt_min)then
-
-    ! --> if not the scalar solution, then exit and try another solution method
-    if(.not.scalarSolution)then
-     failedMinimumStep=.true.
-     exit subSteps
-    endif
+    ! --> exit, and either (1) try another solution method; or (2) reduce coupled step
+    failedMinimumStep=.true.
+    exit subSteps
 
    else ! step is still OK
     dtSubstep = dtSubstep*dtMultiplier  
@@ -469,30 +470,39 @@ contains
   ! increment fluxes
   dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation)
   do iVar=1,size(flux_meta)
+   if(count(fluxMask%var(iVar)%dat)>0) then
 
-   ! vector solution
-   if(.not.scalarSolution .or. iLayerSplit==1)then
-    if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+    !print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
 
-   ! scalar solution (process one layer at a time)
-   else
-    select case(flux_meta(iVar)%vartype)
-     ! (vectors containing soil only)
-     case(iLookVarType%midSoil,iLookVarType%ifcSoil)
-      if(fluxMask(iVar)) flux_data%var(iVar)%dat(iLayerSplit) = flux_data%var(iVar)%dat(iLayerSplit) + flux_temp%var(iVar)%dat(iLayerSplit)*dt_wght
-     ! (default -- already added above -- keep going)
-     case default; cycle
-    end select  ! (variable type)
-   endif   ! (scalar solution)
+    ! ** no domain splitting
+    if(count(ixLayerActive/=integerMissing)==nLayers)then
+     flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+     fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
 
+    ! ** domain splitting
+    else
+     ixMin=lbound(flux_data%var(iVar)%dat)
+     ixMax=ubound(flux_data%var(iVar)%dat)
+     do ixLayer=ixMin(1),ixMax(1)
+      if(fluxMask%var(iVar)%dat(ixLayer)) then
+       flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
+       fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
+      endif
+     end do
+    endif  ! (domain splitting)
+
+   endif   ! (if the flux is desired)
   end do  ! (loop through fluxes)
 
   ! ------------------------------------------------------
   ! ------------------------------------------------------
 
-  ! increment sub-step
+  ! increment the number of substeps
+  nSubsteps = nSubsteps+1
+
+  ! increment the sub-step legth
   dtSum = dtSum + dtSubstep
-  !print*, 'dtSum, dtSubstep, dt = ', dtSum, dtSubstep, dt
+  !print*, 'dtSum, dtSubstep, dt, nSubsteps = ', dtSum, dtSubstep, dt, nSubsteps
 
   ! check that we have completed the sub-step
   if(dtSum >= dt-verySmall)then

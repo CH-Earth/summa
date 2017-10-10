@@ -55,9 +55,9 @@ contains
 
  ! net energy and mass fluxes for the vegetation domain
  flux2state_orig(iLookFLUX%scalarCanopyNetLiqFlux)          = flux2state(state1=iname_watCanopy, state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarCanairNetNrgFlux)          = flux2state(state1=iname_nrgCanair, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarCanairNetNrgFlux)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarCanopyNetNrgFlux)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing) 
- flux2state_orig(iLookFLUX%scalarGroundNetNrgFlux)          = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarGroundNetNrgFlux)          = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! precipitation -- does not depend on state variables
  flux2state_orig(iLookFLUX%scalarRainfall)                  = flux2state(state1=integerMissing, state2=integerMissing)

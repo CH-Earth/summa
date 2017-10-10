@@ -108,11 +108,11 @@ contains
  USE var_lookup,only:iLookINDEX      ! named variables for structure elements
  ! data types
  USE data_types,only:var_d           ! x%var(:)       (dp)
- USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
  USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+ USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
  implicit none
  ! input: model control
- logical(lgt),intent(in)          :: scalarSolution                ! flag to denote if implementing the scalar solution
+ logical(lgt),intent(in)         :: scalarSolution             ! flag to denote if implementing the scalar solution
  ! input: fluxes and derivatives at the upper boundary
  real(dp),intent(in)             :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
  real(dp),intent(in)             :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
@@ -172,7 +172,7 @@ contains
  iLayerConductiveFlux(0) = valueMissing
  iLayerAdvectiveFlux(0)  = valueMissing
 
- ! get the indices for the soil layers
+ ! get the indices for the snow+soil layers
  if(scalarSolution)then
   ixLayerDesired = pack(ixLayerState, ixSnowSoilNrg/=integerMissing)
   ixTop = ixLayerDesired(1)

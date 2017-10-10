@@ -258,14 +258,12 @@ contains
  ! **********************************************************************************************************
  subroutine indexSplit(stateSubsetMask,             & ! intent(in)    : logical vector (.true. if state is in the subset)
                        nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
-                       scalarSolution,              & ! intent(in)    : flag to denote the scalar solution
                        indx_data,                   & ! intent(inout) : index data structure
                        err,message)                   ! intent(out)   : error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
  logical(lgt),intent(in)         :: stateSubsetMask(:)          ! logical vector (.true. if state is in the subset) 
  integer(i4b),intent(in)         :: nSnow,nSoil,nLayers,nSubset ! number of snow and soil layers, total number of layers, and number of states in the subset
- logical(lgt),intent(in)         :: scalarSolution              ! flag to denote a scalar solution (single layer) 
  type(var_ilength),intent(inout) :: indx_data                   ! indices defining model states and layers
  ! output
  integer(i4b),intent(out)        :: err                         ! error code
@@ -322,6 +320,9 @@ contains
  ixSnowSoilHyd    => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat    ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
  ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat    ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow domain
  ixSoilOnlyHyd    => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+
+ ! indices of active model layers
+ ixLayerActive    => indx_data%var(iLookINDEX%ixLayerActive)%dat    ,& ! intent(in):    [i4b(:)] index of active model layers (inactive=integerMissing) 
 
  ! number of state variables of a specific type
  nSnowSoilNrg     => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1) ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
@@ -454,6 +455,9 @@ contains
  ixSnowSoilHyd = ixMapFull2Subset(ixHydLayer)                    ! both snow and soil layers
  ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(      1:nSnow  ))   ! snow layers only
  ixSoilOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+1:nLayers))   ! soil layers only
+
+ ! define active layers (regardless if the splitting operation is energy or mass)
+ ixLayerActive =  merge(ixSnowSoilNrg, ixSnowSoilHyd, ixSnowSoilNrg/=integerMissing)
 
  ! get the number of valid states for energy
  nSnowSoilNrg = count(ixSnowSoilNrg/=integerMissing)

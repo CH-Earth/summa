@@ -240,7 +240,6 @@ contains
  ! model diagnostic variables
  scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
  mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
- mLayerPoreSpace         => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat           ,&  ! intent(in):  [dp(:)] pore space in each snow layer (-)
  ! soil compression
  scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)     ,&  ! intent(in): [dp]    total change in storage associated with compression of the soil matrix (kg m-2)
  mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(in): [dp(:)] change in storage associated with compression of the soil matrix (-)
@@ -303,7 +302,7 @@ contains
 
    ! --> maximum
    select case( layerType(iLayer) )
-    case(iname_snow); xMax = merge(iden_ice,  mLayerPoreSpace(iLayer), ixHydType(iLayer)==iname_watLayer)
+    case(iname_snow); xMax = merge(iden_ice,  1._dp - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
     case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
    end select
 

@@ -189,7 +189,6 @@ contains
  integer(i4b)                    :: iVar                          ! index of variable
  integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
  integer(i4b)                    :: iState                        ! index of model state
- integer(i4b)                    :: jState(1)                     ! index of model state
  integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
  real(dp)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
@@ -549,18 +548,6 @@ contains
    stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
   end do  ! looping through non-missing water state variables in the soil domain
  endif
-
- ! check volumetric water content in the soil (ensure change in state is consistent with the fluxes
- !if(nSoilOnlyHyd>0 .and. scalarSolution)then
- ! do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the soil domain)
- !  iState = ixSoilOnlyHyd(iLayer)
- !  jState = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
- !  print*, 'jState, stateVecNew(iState) - stateVecInit(iState), fluxVecNew(iState)*dt, resSinkNew(iState) = ', &
- !           jState, stateVecNew(iState) - stateVecInit(iState), fluxVecNew(iState)*dt, resSinkNew(iState)
- !  print*, 'jState, stateVecInit(iState), stateVecNew(iState) = ', jState, stateVecInit(iState), stateVecNew(iState)
- ! end do  ! looping through non-missing water state variables in the soil domain
- !endif
-
 
  ! end associate statements
  end associate globalVars

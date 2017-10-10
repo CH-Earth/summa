@@ -203,6 +203,10 @@ contains
  real(dp)                             :: balanceSoilET          ! output from the soil zone
  real(dp)                             :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
  real(dp)                             :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
+ ! test balance checks
+ logical(lgt), parameter              :: printBalance=.false.   ! flag to print the balance checks
+ real(dp), allocatable                :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
+ real(dp), allocatable                :: liqSoilInit(:)         ! soil moisture at the start of the time step
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="coupled_em/"
@@ -288,6 +292,17 @@ contains
 
  ! get the total aquifer storage at the start of the time step (kg m-2)
  balanceAquifer0 = scalarAquiferStorage*iden_water
+
+ ! save liquid water content
+ if(printBalance)then
+  allocate(liqSnowInit(nSnow), liqSoilInit(nSoil), stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to allocate space for the initial vectors'
+   err=20; return
+  endif
+  if(nSnow>0) liqSnowInit = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)
+  liqSoilInit = mLayerVolFracLiq
+ endif
 
  ! end association of local variables with information in the data structures
  end associate
@@ -822,10 +837,8 @@ contains
 
    ! check that we did not remove all the ice
    if(mLayerVolFracIce(iSnow) < verySmall)then
-
     stepFailure  = .true.
     doLayerMerge = .true.
-    print*, 'too much sublimation: stepFailure = ', stepFailure
     dt_sub      = max(dt_init/2._dp, minstep)
     cycle substeps
    else
@@ -1031,6 +1044,20 @@ contains
                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
  end if
  
+ ! check the individual layers
+ if(printBalance .and. nSnow>0)then
+  write(*,'(a,1x,10(f12.8,1x))') 'liqSnowInit       = ', liqSnowInit
+  write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)
+  write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSnow = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat*iden_water*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSnow = ', flux_data%var(iLookFLUX%mLayerLiqFluxSnow)%dat*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow) - liqSnowInit
+  deallocate(liqSnowInit, stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to deallocate space for the initial volumetric liquid water content of snow'
+   err=20; return
+  endif
+ endif
+ 
  ! check SWE
  if(nSnow>0)then
   effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
@@ -1076,6 +1103,20 @@ contains
  balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step
  balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
 
+ ! check the individual layers
+ if(printBalance)then
+  write(*,'(a,1x,10(f12.8,1x))') 'liqSoilInit       = ', liqSoilInit
+  write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq
+  write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat*iden_water*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq - liqSoilInit
+  deallocate(liqSoilInit, stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to deallocate space for the initial soil moisture'
+   err=20; return
+  endif
+ endif
+ 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
  if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._dp)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues

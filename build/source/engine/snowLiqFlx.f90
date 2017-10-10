@@ -19,8 +19,15 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module snowLiqFlx_module
+
+! access modules
 USE nrtype                                    ! numerical recipes data types
 USE multiconst,only:iden_ice,iden_water       ! intrinsic density of ice and water (kg m-3)
+
+! access missing values
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
+
 implicit none
 private
 public::snowLiqFlx
@@ -34,49 +41,58 @@ contains
                        ! input: model control
                        nSnow,                   & ! intent(in):    number of snow layers
                        firstFluxCall,           & ! intent(in):    the first flux call
+                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: forcing for the snow domain
                        scalarThroughfallRain,   & ! intent(in):    rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                        scalarCanopyLiqDrainage, & ! intent(in):    liquid drainage from the vegetation canopy (kg m-2 s-1)
                        ! input: model state vector
                        mLayerVolFracLiqTrial,   & ! intent(in):    trial value of volumetric fraction of liquid water at the current iteration (-)
                        ! input-output: data structures
+                       indx_data,               & ! intent(in):    model indices
                        mpar_data,               & ! intent(in):    model parameters
                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        ! output: fluxes and derivatives
-                       iLayerLiqFluxSnow,       & ! intent(out):   vertical liquid water flux at layer interfaces (m s-1)
-                       iLayerLiqFluxSnowDeriv,  & ! intent(out):   derivative in vertical liquid water flux at layer interfaces (m s-1)
+                       iLayerLiqFluxSnow,       & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+                       iLayerLiqFluxSnowDeriv,  & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
                        ! output: error control
                        err,message)               ! intent(out):   error control
  ! named variables
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookPROG           ! named variables for structure elements
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+ USE var_lookup,only:iLookPROG       ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG       ! named variables for structure elements
  ! data types
  USE data_types,only:var_d           ! x%var(:)       (dp)
  USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+ USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
  implicit none
  ! input: model control
  integer(i4b),intent(in)         :: nSnow                      ! number of snow layers
  logical(lgt),intent(in)         :: firstFluxCall              ! the first flux call
+ logical(lgt),intent(in)         :: scalarSolution             ! flag to denote if implementing the scalar solution
  ! input: forcing for the snow domain
  real(dp),intent(in)             :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
  real(dp),intent(in)             :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
  ! input: model state vector
  real(dp),intent(in)             :: mLayerVolFracLiqTrial(:)   ! trial value of volumetric fraction of liquid water at the current iteration (-)
  ! input-output: data structures
+ type(var_ilength),intent(in)    :: indx_data                  ! model indices
  type(var_dlength),intent(in)    :: mpar_data                  ! model parameters
  type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                  ! diagnostic variables for a local HRU
  ! output: fluxes and derivatives
- real(dp),intent(out)            :: iLayerLiqFluxSnow(0:)      ! vertical liquid water flux at layer interfaces (m s-1)
- real(dp),intent(out)            :: iLayerLiqFluxSnowDeriv(0:) ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+ real(dp),intent(inout)          :: iLayerLiqFluxSnow(0:)      ! vertical liquid water flux at layer interfaces (m s-1)
+ real(dp),intent(inout)          :: iLayerLiqFluxSnowDeriv(0:) ! derivative in vertical liquid water flux at layer interfaces (m s-1)
  ! output: error control
  integer(i4b),intent(out)        :: err                        ! error code
  character(*),intent(out)        :: message                    ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                    :: iLayer                     ! layer index
+ integer(i4b)                    :: ixLayerDesired(1)          ! layer desired (scalar solution)
+ integer(i4b)                    :: ixTop                      ! top layer in subroutine call
+ integer(i4b)                    :: ixBot                      ! bottom layer in subroutine call
  real(dp)                        :: multResid                  ! multiplier for the residual water content (-)
  real(dp),parameter              :: residThrs=550._dp          ! ice density threshold to reduce residual liquid water content (kg m-3)
  real(dp),parameter              :: residScal=10._dp           ! scaling factor for residual liquid water content reduction factor (kg m-3)
@@ -86,14 +102,17 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! make association of local variables with information in the data structures
  associate(&
-   ! input: snow properties and parameters
-   mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(in): volumetric ice content at the start of the time step (-)
-   Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                & ! intent(in): capillary retention as a fraction of the total pore volume (-)
-   k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                & ! intent(in): hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-   mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                & ! intent(in): exponent for meltwater flow (-)
-   ! input/output: diagnostic variables -- only computed for the first iteration
-   mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat,           & ! intent(inout): pore space in each snow layer (-)
-   mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat           & ! intent(inout): esidual volumetric liquid water content in each snow layer (-)
+  ! input: layer indices
+  ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,             & ! intent(in): list of indices for all model layers
+  ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,            & ! intent(in): index in the state subset for hydrology state variables in the snow domain
+  ! input: snow properties and parameters
+  mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(in): volumetric ice content at the start of the time step (-)
+  Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                & ! intent(in): capillary retention as a fraction of the total pore volume (-)
+  k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                & ! intent(in): hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
+  mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                & ! intent(in): exponent for meltwater flow (-)
+  ! input/output: diagnostic variables -- only computed for the first iteration
+  mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat,           & ! intent(inout): pore space in each snow layer (-)
+  mLayerThetaResid => diag_data%var(iLookDIAG%mLayerThetaResid)%dat           & ! intent(inout): esidual volumetric liquid water content in each snow layer (-)
  ) ! association of local variables with information in the data structures
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -107,6 +126,16 @@ contains
 
  ! check the meltwater exponent is >=1
  if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
+
+ ! get the indices for the snow+soil layers
+ if(scalarSolution)then
+  ixLayerDesired = pack(ixLayerState, ixSnowOnlyHyd/=integerMissing)
+  ixTop = ixLayerDesired(1)
+  ixBot = ixLayerDesired(1)
+ else
+  ixTop = 1
+  ixBot = nSnow
+ endif
 
  ! define the liquid flux at the upper boundary (m s-1)
  iLayerLiqFluxSnow(0)      = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
@@ -126,7 +155,7 @@ contains
  end if  ! (if the first flux call)
 
  ! compute fluxes
- do iLayer=1,nSnow  ! (loop through snow layers)
+ do iLayer=ixTop,ixBot  ! (loop through snow layers)
   ! check that flow occurs
   if(mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer))then
    ! compute the relative saturation (-)

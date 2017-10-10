@@ -1325,8 +1325,6 @@ contains
  integer(i4b),parameter :: outunit=6               ! write to screen
  integer(i4b)           :: ctime2(8)               ! final time
  real(dp)               :: elpSec                  ! elapsed seconds
- integer(i4b)           :: nc_err                  ! error code of nc_close
- character(len=256)     :: cmessage                ! error message of the downwind routine
  
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed

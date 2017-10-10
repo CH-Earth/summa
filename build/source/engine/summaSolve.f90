@@ -573,7 +573,10 @@ contains
   character(*),intent(out)       :: message                  ! error message
   ! --------------------------------------------------------------------------------------------------------
   ! local variables
+  character(len=256)             :: cmessage                 ! error message of downwind routine
   real(dp),save                  :: xMin,xMax                ! brackets of the root
+  real(dp),parameter             :: relTolerance=0.005_dp    ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
+  real(dp)                       :: xTolerance               ! relTolerance*(xmax-xmin)
   real(dp)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   logical(lgt)                   :: doBisection              ! flag to do the bi-section
@@ -613,7 +616,8 @@ contains
   ! bi-section
   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
   if(bracketsDefined)then
-   doBisection = (stateVecNew(1)<xMin .or. stateVecNew(1)>xMax)
+   xTolerance  = relTolerance*(xMax-xMin)
+   doBisection = (stateVecNew(1)<xMin+xTolerance .or. stateVecNew(1)>xMax-xTolerance)
    if(doBisection) stateVecNew(1) = 0.5_dp*(xMin+xMax)
   endif
   
