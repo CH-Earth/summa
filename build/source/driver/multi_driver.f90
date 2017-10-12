@@ -707,15 +707,15 @@ do modelTimeStep=1,numtim
  ! read forcing data
  call read_force(&
                  ! input
-                 modelTimeStep,                              & ! intent(in):    time step index
+                 modelTimeStep,      & ! intent(in):    time step index
                  ! input-output
-                 iFile,                                      & ! intent(inout): index of current forcing file in forcing file list
-                 forcingStep,                                & ! intent(inout): index of read position in time dimension in current netcdf file
-                 forcNcid,                                   & ! intent(inout): netcdf file identifier for the current forcing file
+                 iFile,              & ! intent(inout): index of current forcing file in forcing file list
+                 forcingStep,        & ! intent(inout): index of read position in time dimension in current netcdf file
+                 forcNcid,           & ! intent(inout): netcdf file identifier for the current forcing file
                  ! output
-                 timeStruct%var,                             & ! intent(out):   time data structure (integer)
-                 forcStruct%gru(iGRU)%hru(iHRU)%var,         & ! intent(out):   forcing data structure (double precision)
-                 err, message)                                 ! intent(out):   error control
+                 timeStruct%var,     & ! intent(out):   time data structure (integer)
+                 forcStruct,         & ! intent(out):   forcing data structure (double precision)
+                 err, message)         ! intent(out):   error control
  call handle_err(err,message)
 
  ! set print flag
